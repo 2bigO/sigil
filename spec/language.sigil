@@ -1,184 +1,194 @@
 component SigilLanguage {
   goal {
-    Give authors and tools one versioned contract for interpreting Sigil source.
+    Define the versioned source and interpretation contract for Sigil documents.
 
-    Keep the language contract aligned with approved syntax, configuration, workspace, source-file, and interpretation behavior.
+    Give deterministic tools one structural model for components, expansions, sections, concepts, imports, and recoverable diagnostics.
   }
 
   interface {
     LanguageVersion {
       sigilVersion = "0.4.0"
+
+      workspace configuration declares the LanguageVersion that governs interpretation
     }
 
-    SourceParsingContract {
-      accepts UTF-8 .sigil source containing import, component, expand, and section concept-block forms
+    SourceDocument {
+      accepts UTF-8 .sigil source containing imports, components, expands, sections, concept blocks, and semantic lines
 
-      preserves concept identifiers, their grouped semantic lines, and source ranges
+      preserves recovered declarations, semantic lines, concept identities, and source ranges
 
-      reports structural diagnostics while retaining partial documents when practical
-    }
-
-    ImportSemantics {
-      import declares a dependency on named components from another Sigil source or directory module index and makes their public goals and interfaces available
+      reports structural diagnostics while retaining a partial document when practical
     }
 
     ComponentContract {
-      component defines the reusable public contract of a coherent system part through its public goal and interface
+      component defines the reusable public contract of one coherent system part through its goal and interface
 
-      expand adds collective operational detail to a component without changing or overriding its public contract
+      expand contributes collective operational detail without changing or overriding the public contract
 
-      goal publicly describes why a component exists, the responsibility it owns, and its intended outcome
+      goal publicly states the component's responsibility, boundary, and intended outcome
 
-      interface contains only the operations, data, events, results, errors, and observable promises publicly available to dependents
+      interface exposes the operations, data, events, results, failures, and observable promises available to dependents
     }
 
     ConceptIdentity {
-      a concept block uses ConceptIdentifier followed by braces to group one or more related semantic lines under a reusable identity
+      a concept block groups one or more related semantic lines under a reusable identifier
 
-      a component interface exposes its concept identifiers to components that import it
+      a concept is public when it occurs in interface and otherwise remains private to its component and matching expands
 
-      imported interface concept identifiers are available as bare names without component qualification
+      a component and all matching expands share one flat concept namespace
 
-      known whole-word concept identifiers inside semantic content resolve as concept references without introducing or exposing a concept
+      repeated blocks with the same resolved identifier contribute collectively without overriding one another
+
+      imported public concepts retain their originating identity when reused contextually
     }
 
     ImportSemantics {
       import is the sole declaration of dependency on another Sigil component
+
+      a named import exposes the imported component's public goal, interface, and public concept identities
+
+      imported operational detail and private concepts remain unavailable to dependents
     }
 
     SectionSemantics {
       state describes meaningful configurations, modes, and domain conditions that exist or change during execution
 
-      logic describes behavior, flows, algorithms, transformations, decision paths, and lifecycle transitions
+      logic describes behavior, flows, algorithms, transformations, decisions, and lifecycle transitions
 
-      constraints describe rules, policies, invariants, architecture decisions, and technology choices that valid implementations must obey
+      constraints describe rules, policies, invariants, architecture decisions, and binding technology choices
 
-      cases describe representative outcomes, examples, edge cases, and externally observable acceptance scenarios
+      cases describe representative outcomes, examples, edge cases, and observable acceptance scenarios
     }
 
     SemanticLineDiscipline {
-      blank lines may separate distinct semantic ideas for readability and do not create semantic units
+      each non-empty semantic line expresses one distinct idea
+
+      blank lines separate distinct prose-level ideas for readability and do not create semantic units
     }
   }
 }
 
 expand SigilLanguage {
   constraints {
-    spec/language.sigil records the current approved Sigil language and workspace contract.
+    LanguageVersion {
+      LanguageVersion is the sole owner of the Sigil language and workspace-configuration version literal.
 
-    The SigilLanguage contract evolves when approved syntax, configuration, workspace, source-file, or interpretation behavior changes.
+      Tools reject configured language versions they do not support.
 
-    Sigil version is sourced from packages/core/deno.json and governs language and workspace configuration interpretation.
+      During pre-production 0.y.z development, breaking interpretation changes increment the minor version and reset the patch version.
 
-    Tools reject configured sigilVersion values they do not support.
+      After 1.0.0, breaking interpretation changes require a new major version.
 
-    During initial 0.y.z development, breaking interpretation changes increment the minor version and reset the patch version.
+      Compatible additions and clarifications use the appropriate semantic version increment.
+    }
 
-    After 1.0.0, breaking interpretation changes require a new major version.
+    SourceDocument {
+      Every component contains goal and interface sections.
 
-    Compatible additions and clarifications use the appropriate semantic version increment.
+      Ungrouped interface content remains parseable and produces one warning for each contiguous ungrouped region.
 
-    Every component requires goal and interface sections.
+      Invalid structure produces source-ranged diagnostics while recoverable content remains available.
+    }
 
-    Ungrouped interface content remains parseable and produces one warning for each contiguous ungrouped region.
+    ComponentContract {
+      Component dependencies are declared through imports and are not repeated as interface dependency lines.
 
-    State, logic, constraints, and cases may introduce or reuse concept identifiers when cross-section reuse is valuable.
+      Matching expands add detail collectively and never override the component declaration or another expand.
 
-    A concept block may contain one semantic line or group multiple related semantic lines according to how the concept is reused.
+      A dependent receives the imported component's public contract without its state, logic, constraints, cases, or private concepts.
 
-    Every concept block contains at least one semantic line.
+      Implementation-hiding rules belong in constraints unless they define an observable promise.
+    }
 
-    Concept blocks cannot nest.
+    ConceptIdentity {
+      Concept blocks are flat and cannot nest.
 
-    Concept identifiers match [A-Za-z][A-Za-z0-9_-]* and contain no spaces.
+      Every concept block contains at least one semantic line.
 
-    Concept references are case-sensitive.
+      Concept identifiers match [A-Za-z][A-Za-z0-9_-]* and contain no spaces.
 
-    Accessible concept identifiers are unique without regard to case.
+      PascalCase without hyphens or underscores is preferred but not required for validity.
 
-    PascalCase without hyphens or underscores is preferred formatting but is not required for validity.
+      Concept references are case-sensitive.
 
-    A concept identifier is concise and unambiguous within its accessible namespace; an unusually long identifier prompts review of the concept or component boundary.
+      Accessible identifiers are unique without regard to case across the transitive import graph.
 
-    A component declaration and every matching expand share one flat concept namespace.
+      Sigil provides no dotted concept notation, qualification, aliases, or local shadowing.
 
-    Repeated concept blocks contribute collectively without overriding or shadowing other occurrences.
+      Reusing an imported concept preserves its originating identity while keeping importer semantic lines contextual to the importer.
 
-    A concept is public when it occurs in interface and otherwise remains private to its component and matching expands.
+      Reusing an imported concept in interface re-exposes the same identity to downstream importers.
 
-    Importing a component adds its public interface concepts to the importing component's accessible namespace as bare identifiers.
+      Provider context never includes semantic lines contributed by consumers.
 
-    Reusing an imported concept preserves its originating identity while keeping the importing component's semantic lines contextual to that importer.
+      A whole-word accessible identifier in semantic content resolves as a reference.
 
-    Reusing an imported concept in interface re-exposes the same identity to downstream importers.
+      Unmatched words remain ordinary semantic content without unresolved-concept diagnostics.
 
-    Provider context never includes semantic lines contributed by its consumers.
+      Concept identities provide grouping, reuse, navigation, and highlighting but define no source-anchor behavior.
+    }
 
-    Imported dependency context excludes state, logic, constraints, cases, and other private expand information.
+    ImportSemantics {
+      Ordinary file imports resolve against the named .sigil source.
 
-    Every accessible concept identifier is unique across the component's transitive import graph.
+      Directory imports resolve through ModuleIndexFile.
 
-    Sigil provides no qualified concept syntax, dotted concept notation, local concept shadowing, or concept import aliases.
+      Imported names must resolve to components exposed by the selected source or directory-import surface.
 
-    A whole-word match for an accessible concept resolves as a reference; unmatched words remain ordinary semantic content without unresolved-reference diagnostics.
+      Import cycles and unresolved paths or names produce diagnostics with partial resolution when practical.
+    }
 
-    Concept identifiers define grouping, reuse, navigation, and highlighting but do not define anchor behavior.
+    SemanticLineDiscipline {
+      Distinct prose-level ideas are separated by blank lines in every section.
 
-    Every #module.sigil declares at least one component.
-
-    Component dependencies are declared through imports and are not repeated in interface sections.
-
-    Implementation-hiding rules and forbidden internal access belong in constraints unless they define an externally observable promise.
-
-    Distinct prose-level semantic ideas are separated by blank lines within every section.
-
-    Lines belonging to one compact free-form construct may remain adjacent.
-
-    A directory import resolves to #module.sigil in the target directory.
-
-    Ordinary file imports resolve against the named .sigil source file.
+      Lines in one compact free-form construct may remain adjacent when separation would reduce readability.
+    }
   }
 
   cases {
-    A tool configured for Sigil 0.4.0 interprets #module.sigil as an explicit directory index that contains at least one local component.
+    LanguageVersion {
+      A tool that does not support the configured LanguageVersion reports an error before interpreting workspace Sigil files.
 
-    A tool that does not support the configured sigilVersion reports an error before parsing workspace Sigil files.
+      A document configured for an earlier incompatible version is not silently reinterpreted using 0.4.0 semantics.
+    }
 
-    A document explicitly configured for Sigil 0.3.0 is not silently reinterpreted using 0.4.0 concept-block semantics.
+    SourceDocument {
+      A malformed but recoverable component retains its declarations and semantic lines with source-ranged diagnostics.
 
-    Importing Name makes component Name's public goal and interface available without exposing its matching expands.
+      A contiguous ungrouped interface region produces one SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
 
-    Importing a directory name resolves it through that directory's #module.sigil directory-import surface.
+      An empty or nested concept block is invalid.
+    }
 
-    A component can be understood through its goal and interface without reading its expands or implementation.
+    ComponentContract {
+      A component can be understood through its goal and interface without reading its expands or implementation.
 
-    When multiple expand Name blocks target one component, tools expose all matching blocks as collected detail without override or shadowing.
+      Multiple matching expands remain separately sourced contributions to one collected operational description.
+    }
 
-    SessionLifecycle with an opening brace groups related open, refresh, and close semantic lines under one concept identifier.
+    ConceptIdentity {
+      Reusing one public concept in interface, state, logic, constraints, or cases preserves one collective identity.
 
-    Reusing SessionLifecycle in state or logic associates those lines with the concept introduced in interface.
+      Importing two different public concepts whose identifiers compare equal without regard to case produces an ambiguous-concept diagnostic.
 
-    Importing Account makes its public Session concept available to the importing component as the bare identifier Session.
+      A concept introduced only outside interface remains private.
 
-    Importing two components that expose different Session concepts produces an ambiguous-concept diagnostic.
+      An importer's contextual occurrence appears in importer context without changing provider context.
+    }
 
-    A SessionCache concept introduced only in state remains private to its component and matching expands.
+    ImportSemantics {
+      Importing Name makes Name's public contract available without exposing its collected expansions.
 
-    Interface lines outside concept blocks remain available with one SIGIL_MISSING_CONCEPT_IDENTIFIER warning per contiguous region.
-
-    An empty or nested concept block is invalid.
-
-    Session and session cannot coexist in one accessible namespace even though references preserve exact case.
-
-    A Dashboard reuse of Account's Session appears in Dashboard context without changing Account context.
+      A missing source, component, or directory-import name produces a stable diagnostic and partial resolution when practical.
+    }
   }
 }
 
 component SigilWorkspaceConfig {
   goal {
-    Define the versioned configuration contract for one Sigil workspace.
+    Define the configuration contract that selects and identifies one Sigil workspace.
 
-    Keep workspace discovery and identity separate from directory module indexes.
+    Keep workspace boundaries and source discovery independent from package manifests and directory-import indexes.
   }
 
   interface {
@@ -188,11 +198,11 @@ component SigilWorkspaceConfig {
       location: workspace root
     }
 
-    ConfiguredSigilVersion {
-      sigilVersion: the supported Sigil version from packages/core/deno.json
+    ConfiguredLanguageVersion {
+      sigilVersion: the supported Sigil language version used to interpret the workspace
     }
 
-    WorkspaceIdentity {
+    WorkspaceBoundary {
       workspace.name: non-empty stable workspace identifier
 
       workspace.members: optional array of unique workspace-relative project-root paths
@@ -212,33 +222,43 @@ component SigilWorkspaceConfig {
 
 expand SigilWorkspaceConfig {
   constraints {
-    ConfigFile is the sole authority for the Sigil workspace boundary and its members.
+    ConfigFile {
+      ConfigFile is the sole authority for the Sigil workspace boundary.
 
-    The directory containing ConfigFile is the workspace root and root project location.
+      The directory containing ConfigFile is the workspace root and root project location.
+    }
 
-    Each workspace.members entry declares one additional project root in the same workspace.
+    ConfiguredLanguageVersion {
+      The configured sigilVersion must equal a language version supported by the interpreting tool.
+    }
 
-    Workspace member paths are unique, non-root, workspace-relative directories.
+    WorkspaceBoundary {
+      Each workspace.members entry declares one additional project root in the same workspace.
 
-    Workspace member paths cannot escape the workspace or overlap another member path.
+      Member paths are unique, non-root, workspace-relative directories that cannot escape the workspace or overlap.
 
-    Package and repository workspace manifests do not independently declare Sigil workspace members.
+      A declared member does not contain its own ConfigFile.
 
-    A workspace member does not contain its own ConfigFile.
+      A nested directory with its own ConfigFile is an independent workspace and must be excluded from every configured parent.
 
-    A nested directory with its own ConfigFile is an independent workspace and must be excluded from the parent workspace.
+      Package and repository workspace manifests do not declare Sigil workspace members.
+    }
 
-    SourceSelection control source discovery but do not declare or restrict module-index locations.
+    SourceSelection {
+      SourceSelection controls source discovery but does not declare workspace members or restrict ModuleIndexFile locations.
+    }
 
-    workspace.members identifies configured member boundaries but does not control where #module.sigil may appear.
+    ModuleIndexFile {
+      ModuleIndexFile has no workspace-discovery or membership authority.
+    }
   }
 }
 
 component SigilModuleIndex {
   goal {
-    Define ModuleIndexFile as the explicit directory-import index for a directory.
+    Define the explicit directory-import index for an included Sigil directory.
 
-    Let authors select convenient directory-import names without changing the public visibility of Sigil components.
+    Provide intentional directory-import shorthand without changing component visibility or workspace discovery.
   }
 
   interface {
@@ -249,67 +269,81 @@ component SigilModuleIndex {
     }
 
     DirectoryImportSurface {
-      a directory import @path resolves to @path/#module.sigil
+      a directory import @path resolves through @path/#module.sigil
 
-      resolves components declared directly in #module.sigil through the directory import
+      includes components declared directly in ModuleIndexFile
 
-      resolves components named by direct imports in #module.sigil through the directory import
+      includes components named by direct imports in ModuleIndexFile
+    }
+
+    ComponentVisibility {
+      every component remains importable through its explicit .sigil source path regardless of ModuleIndexFile
     }
 
     ModuleIndexContents {
-      contains at least one component declaration
+      contains at least one local component declaration
 
-      may additionally contain imports and expands using ordinary Sigil forms
+      may additionally contain ordinary imports and expands
     }
   }
 }
 
 expand SigilModuleIndex {
   logic {
-    Resolve each direct import in #module.sigil using ordinary Sigil import rules.
+    DirectoryImportSurface {
+      Resolve each direct import in ModuleIndexFile using ordinary import rules.
 
-    Build the directory-import surface from local component declarations and successfully resolved directly imported names.
+      Build the directory-import surface from local component declarations and successfully resolved directly imported names.
 
-    Preserve each resolved component's original declaration file and collected expansions.
+      Preserve each resolved component's original declaration file and collected expansions.
 
-    Resolve a named directory import against the resulting directory-import surface.
+      Resolve a named directory import against the resulting surface.
+    }
   }
 
   constraints {
-    Every component declaration is public and may be imported by naming its .sigil source file, regardless of any #module.sigil.
+    ModuleIndexFile {
+      ModuleIndexFile defines directory-import shorthand only.
 
-    ModuleIndexFile does not grant or restrict component visibility.
+      ModuleIndexFile does not define a workspace root, workspace member, or special component type.
+    }
 
-    ModuleIndexFile defines only which component names resolve through directory-import shorthand.
+    ComponentVisibility {
+      ModuleIndexFile does not grant or restrict component visibility.
 
-    A directory import may resolve components declared in its #module.sigil or named by that file's direct imports.
+      A component omitted from ModuleIndexFile remains importable through its explicit source path.
 
-    A component omitted from #module.sigil remains importable through its explicit .sigil file path.
+      Sigil defines no export or re-export form.
+    }
 
-    Sigil defines no export or re-export form.
+    DirectoryImportSurface {
+      Components used only as dependencies of indexed files are not added to the surface implicitly.
 
-    Components used only as dependencies of indexed files are not added to the directory-import surface implicitly.
+      Files and components elsewhere in the directory or subtree are not added implicitly.
 
-    Files and components elsewhere in the directory or subtree are not discovered into the directory-import surface implicitly.
+      An explicit chain of module-index imports may make a component resolvable through multiple directory indexes.
+    }
 
-    An explicit chain of module imports may make a component resolvable through multiple directory indexes.
-
-    ModuleIndexFile does not define a workspace root, workspace member, or special component type.
-
-    Every ModuleIndexFile contains at least one local component declaration.
+    ModuleIndexContents {
+      Every ModuleIndexFile contains at least one local component declaration.
+    }
   }
 
   cases {
-    @auth import { Session } resolves when auth/#module.sigil directly declares Session or directly imports Session from another Sigil source.
+    DirectoryImportSurface {
+      @auth import { Session } resolves when auth/#module.sigil declares Session or directly imports Session from another Sigil source.
 
-    @auth import { Session } is unresolved when auth/#module.sigil does not name Session, while @auth/session.sigil import { Session } remains valid.
+      @auth import { Session } is unresolved when auth/#module.sigil does not name Session, while @auth/session.sigil import { Session } remains valid.
 
-    @auth import { Store } is unresolved when Store is only a dependency of Session and auth/#module.sigil does not name Store.
+      @auth import { Store } is unresolved when Store is only a dependency of an indexed component.
 
-    An imports-only ModuleIndexFile produces SIGIL_MODULE_WITHOUT_COMPONENT.
+      A directory without ModuleIndexFile produces SIGIL_UNRESOLVED_IMPORT_PATH.
 
-    A directory without ModuleIndexFile produces SIGIL_UNRESOLVED_IMPORT_PATH.
+      A cyclic dependency involving ModuleIndexFile produces SIGIL_IMPORT_CYCLE and retains partial resolution when practical.
+    }
 
-    A cyclic dependency involving ModuleIndexFile produces SIGIL_IMPORT_CYCLE and retains partial resolution when practical.
+    ModuleIndexContents {
+      An imports-only ModuleIndexFile produces SIGIL_MODULE_WITHOUT_COMPONENT.
+    }
   }
 }

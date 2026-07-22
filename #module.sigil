@@ -7,73 +7,104 @@
 
 component Sigil {
   goal {
-    Preserve software rationale in a durable language that humans and coding agents can share.
+    Enable humans and coding agents to preserve, inspect, and evolve software rationale through one versioned language and toolchain.
 
-    Provide a platform for parsing, resolving, reviewing, and integrating Sigil specifications across development workflows.
+    Keep deterministic language facts separate from host-assisted semantic judgment and explicit human approval.
   }
 
   interface {
-    PublishedArtifacts {
-      publishes the Sigil Language and ConfigFile contract 0.4.0 through SigilLanguage and SigilWorkspaceConfig
-
-      publishes @qoherent/sigil-core 0.4.0 through SigilCore
-
-      publishes @qoherent/sigil 0.4.0 through SigilCli
-
-      publishes @qoherent/sigil-lsp 0.4.0 through SigilLsp
-
-      publishes the Sigil VS Code extension 0.4.0 through SigilVsCodeExtension
-
-      publishes the standalone Sigil agent skill 0.4.0 through SigilSkill
+    ComponentContract {
+      lets humans and coding agents share durable public contracts and operational rationale for coherent software parts
     }
 
-    PlatformDocumentation {
-      defines the Sigil language through spec/sigil-language.md
-
-      defines the human-agent workflow through spec/sigil-workflow.md
-
-      defines platform architecture through spec/sigil-platform-architecture.md
+    WorkspaceBoundary {
+      lets tools select a configured workspace and discover its included Sigil sources consistently
     }
 
+    DirectoryImportSurface {
+      lets authors use intentional directory-import shorthand
+    }
 
-    RepositoryLayout {
-      provides examples under examples/
+    ComponentVisibility {
+      keeps every component importable through its explicit Sigil source path regardless of directory-import shorthand
+    }
 
-      provides buildable platform packages under packages/
+    ToolchainSurfaces {
+      provides non-interactive command-line automation, editor-neutral language intelligence, and a VS Code authoring surface
 
-      provides host integrations under integrations/
+      keeps command-line and language-server operations from modifying .sigil source
+    }
+
+    HumanReviewWorkflow {
+      provides a host-neutral agent workflow for design clarification, semantic review, explicit approval, and Sigil-guided implementation
     }
   }
 }
 
 expand Sigil {
+  state {
+    ReleaseMaturity {
+      Sigil artifacts are pre-production.
+    }
+  }
+
+  logic {
+    DeterministicSemantics {
+      Core computes parsing, configuration, workspace, resolution, graph, projection, and diagnostic facts shared by toolchain surfaces.
+    }
+
+    HumanReviewWorkflow {
+      The host skill applies semantic judgment, conducts design and review conversations, and enforces approval gates around Sigil changes and implementation.
+    }
+  }
+
   constraints {
-    A mandatory ConfigFile defines a Sigil workspace root.
+    LanguageVersion {
+      SigilLanguage owns the single language and workspace-configuration version literal.
+    }
 
-    ModuleIndexFile acts as an explicit directory-import index for its containing directory.
+    ArtifactVersionOwnership {
+      Package and integration manifests own distributable artifact versions; the root Sigil contract does not duplicate them.
+    }
 
-    ConfigFile defines workspace roots and members; module indexes have no workspace-discovery authority.
+    ComponentContract {
+      Public contracts live in components, operational rationale lives in matching expands, and trivial reconstructable mechanics need no separate component.
+    }
 
-    Configured workspace boundaries carry ordinary summary components maintained through the Sigil workflow.
+    ConfigFile {
+      ConfigFile is the sole authority for selecting a Sigil workspace root and its declared members.
+    }
 
-    Sigil Language and workspace configuration share one sigilVersion sourced from packages/core/deno.json.
+    ModuleIndexFile {
+      ModuleIndexFile defines directory-import shorthand and has no workspace-discovery authority.
+    }
 
-    CLI, core, LSP, editor integration, and skill release versions remain package or integration metadata rather than workspace configuration fields.
+    ToolchainSurfaces {
+      CLI and LSP workspace operations report or project Sigil semantics without modifying .sigil source.
+    }
 
-    All published Sigil artifacts remain pre-production at version 0.4.0 until production readiness is explicitly approved.
+    HumanReviewWorkflow {
+      Host-assisted semantic judgment remains outside deterministic core packages.
 
-    Anchors, editor integrations other than VS Code, plugin packaging, and durable approval records remain outside the initial 0.x scope.
+      The review workflow remains host-neutral and requires explicit human approval before semantic Sigil edits or implementation.
+    }
 
-    @qoherent/sigil-lsp and the Sigil VS Code extension are part of the initial 0.x scope while other concrete editor integrations remain independently scoped.
+    ReleaseMaturity {
+      Pre-production artifacts make no production-readiness or compatibility guarantee beyond their declared versioned contracts.
+    }
+  }
 
-    Language-level documentation lives under spec/.
+  cases {
+    DeterministicSemantics {
+      CLI and LSP consumers resolving the same configured workspace receive semantics derived from the same core contracts.
+    }
 
-    Buildable or distributable platform units live under packages/.
+    HumanReviewWorkflow {
+      A material semantic change remains unedited until the exact Sigil proposal receives explicit human approval.
+    }
 
-    Agent skills and host-specific adapters live under integrations/.
-
-    Installable agent skill directories live under integrations/skills beside the selected CLI distribution.
-
-    Examples remain fixtures and design-pressure cases for the language and platform.
+    ArtifactVersionOwnership {
+      Changing a distributable artifact version updates its owning manifest without requiring a duplicate root-contract version edit.
+    }
   }
 }

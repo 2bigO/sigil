@@ -1,0 +1,111 @@
+@spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+
+component SigilSemanticModel {
+  goal {
+    Define the immutable typed data exchanged by deterministic core stages and public core consumers.
+
+    Keep source, configuration, diagnostics, workspaces, resolutions, concepts, and graphs structurally consistent across the package.
+  }
+
+  interface {
+    SupportedLanguageVersion {
+      SIGIL_VERSION identifies the LanguageVersion supported by core interpretation
+    }
+
+    ConfigurationModel {
+      SigilConfig represents ConfiguredLanguageVersion, WorkspaceBoundary, SourceSelection, and ToolConfiguration data
+
+      SigilConfigParseResult contains validated configuration when available and accumulated diagnostics
+    }
+
+    SourceModel {
+      SourceLocation and SourceRange identify source positions
+
+      SemanticLine preserves owner, section, optional concept identity, text, file path, and source range
+
+      ConceptBlock and Section preserve grouped and free semantic content
+
+      ImportDeclaration, ComponentDeclaration, and ExpandDeclaration preserve recovered source forms
+
+      SigilDocument contains imports, components, expands, and source diagnostics
+
+      ParseResult contains a recovered SigilDocument and its diagnostics
+    }
+
+    DiagnosticModel {
+      SigilDiagnostic contains a stable code, severity, message, optional file path, and optional source range
+    }
+
+    FileSystemModel {
+      SigilFileSystem defines asynchronous text reading, existence checks, and recursive file listing
+    }
+
+    WorkspaceModel {
+      SigilWorkspace contains the selected root, configuration, member roots, loaded source documents, and diagnostics
+
+      WorkspaceLoadOptions identifies a start path and may select an explicit root or current directory
+    }
+
+    ResolutionModel {
+      SigilResolution contains the source workspace, resolved imports, resolved components, collective expansions, concept namespaces, and diagnostics
+
+      ResolvedConcept preserves its originating identity, visibility, import status, and contextual occurrences
+    }
+
+    GraphModel {
+      SigilGraph contains component nodes, file dependency edges, imported-component edges, and component-expansion edges
+    }
+
+    ResolvedWorkspaceModel {
+      ResolvedSigilWorkspace combines SigilResolution with SigilGraph
+    }
+  }
+}
+
+expand SigilSemanticModel {
+  constraints {
+    SupportedLanguageVersion {
+      SupportedLanguageVersion exposes the language contract supported by core and does not establish a second language-version owner.
+
+      packages/core/deno.json owns the core package version, not the LanguageVersion contract.
+    }
+
+    ImmutableData {
+      Public model fields are immutable to consumers.
+
+      Model declarations contain data shapes and constants but no parsing, filesystem, resolution, graph, or projection behavior.
+    }
+
+    SourceModel {
+      Source models preserve source order and ranges supplied by deterministic stages.
+
+      Partial documents remain representable when structural recovery succeeds.
+    }
+
+    ResolutionModel {
+      Concept identity is distinct from its ordered contextual occurrences.
+
+      Provider context excludes semantic lines contributed by importing consumers.
+    }
+
+    PublicModel {
+      The package public entrypoint re-exports the semantic model used by core operations.
+    }
+  }
+
+  cases {
+    SourceModel {
+      A recovered semantic line retains its file, owner, section, text, optional concept identifier, and source range.
+    }
+
+    ResolutionModel {
+      One concept identity may contain collective occurrences from a component and matching expands.
+
+      Reusing an imported concept preserves its origin while recording importer-specific occurrences only in importer context.
+    }
+
+    ResolvedWorkspaceModel {
+      A resolved workspace carries source workspace data, resolution relationships, graph data, and accumulated diagnostics without host-specific objects.
+    }
+  }
+}

@@ -1,79 +1,111 @@
 component SigilDesignConversation {
   goal {
-    Guide a user from an incomplete software idea to a coherent and reviewable contract through small sequential decisions.
+    Guide a user from incomplete software intent to a coherent contract through small, material decisions.
 
-    Surface material unknowns, conflicts, and pitfalls without overwhelming the user or replacing their decision authority.
+    Surface unknowns, conflicts, alternatives, and pitfalls without replacing user decision authority.
   }
 
   interface {
     DecisionConversation {
-      begins from the user's idea plus relevant repository and Sigil evidence
+      begins from user intent and relevant evidence
 
-      presents one primary design decision per conversational turn unless the user requests a faster grouped review
+      presents one primary material decision per turn unless the user requests grouped review
 
-      explains why the current decision matters before asking for an answer
-
-      offers a small set of concrete choices with consequences and a reasoned recommendation when alternatives exist
+      explains why the decision matters, available alternatives, their consequences, and a reasoned recommendation
 
       acknowledges each answer and states its effect on the emerging contract
     }
 
     DecisionLedger {
-      maintains confirmed, provisionally assumed, intentionally deferred, and unresolved decisions throughout the conversation
+      maintains confirmed, provisionally assumed, intentionally deferred, and unresolved decisions
 
-      periodically summarizes agreed decisions, remaining questions, and identified conflicts
+      summarizes agreed decisions, remaining blockers, deferrals, and conflicts
     }
 
     ProposalSynthesis {
-      synthesizes exact proposed Sigil only after every blocking decision is resolved
+      produces exact proposed Sigil only after every blocking decision is resolved
     }
   }
 }
 
 expand SigilDesignConversation {
   state {
-    Conversation phase is framing, exploring, resolving, synthesizing, or awaiting approval.
+    DecisionConversation {
+      Conversation phase is framing, exploring, resolving, synthesizing, or awaiting approval.
 
-    A material decision is confirmed, provisionally assumed, intentionally deferred, or unresolved.
+      An unresolved decision is blocking when it could materially change the contract.
+    }
 
-    An unresolved decision is blocking when it could materially change the implementation contract.
+    DecisionLedger {
+      A material decision is confirmed, provisionally assumed, intentionally deferred, or unresolved.
+    }
+
+    ProposalSynthesis {
+      Synthesis readiness requires no blocking unresolved decision.
+    }
   }
 
   logic {
-    Classify discovered questions by their effect on purpose, boundary, ownership, behavior, lifecycle, architecture, risk, and verification.
+    DecisionConversation {
+      Classify questions by their effect on purpose, boundary, ownership, behavior, lifecycle, architecture, risk, and verification.
 
-    Ask the unresolved question whose answer most strongly shapes later decisions.
+      Ask the unresolved question whose answer most strongly shapes later decisions.
 
-    After each answer, restate the resulting decision and detect any new conflict or dependent question.
+      After each answer, restate the resulting decision and identify dependent questions or conflicts.
 
-    When the user is uncertain, present a conservative recommendation and allow only non-blocking uncertainty to be deferred.
+      When the user is uncertain, present a conservative recommendation and permit only non-blocking uncertainty to be deferred.
+    }
 
-    When no blocking decisions remain, summarize the complete design before proposing exact Sigil.
+    DecisionLedger {
+      Record each answer with its decision state and effect on unresolved blockers.
+
+      Preserve intentionally deferred decisions in every checkpoint and final synthesis.
+
+      Reopen a confirmed decision only when new evidence conflicts with it.
+    }
+
+    ProposalSynthesis {
+      When no blockers remain, summarize confirmed, provisional, deferred, and unresolved decisions before presenting exact Sigil.
+    }
   }
 
   constraints {
-    Each question must materially improve the resulting contract.
+    DecisionConversation {
+      Each question materially improves the resulting contract.
 
-    Questions that can be decided independently are not presented as an exhaustive questionnaire.
+      Independent questions are not presented as an exhaustive questionnaire.
 
-    A confirmed decision is not asked again unless new evidence conflicts with it.
+      The user remains the authority for product, architecture, permission, risk, and tradeoff decisions.
 
-    The user remains the authority for product, architecture, risk, and tradeoff decisions.
+      Immaterial hypothetical edge cases are not pursued merely for completeness.
+    }
 
-    The workflow does not pursue immaterial hypothetical edge cases merely for completeness.
+    DecisionLedger {
+      Provisional assumptions remain visible and do not become confirmed decisions implicitly.
 
-    Implementation remains blocked while a material contract decision is unresolved.
+      A blocking unresolved decision cannot be intentionally deferred.
+    }
+
+    ProposalSynthesis {
+      Exact Sigil is not synthesized while any blocking decision remains unresolved.
+    }
   }
 
   cases {
-    A vague product idea begins with its intended outcome and users rather than implementation technology.
+    DecisionConversation {
+      A vague product idea begins with intended outcome and users rather than implementation technology.
 
-    A user answer that conflicts with an earlier decision causes the conflict to be explained before another topic begins.
+      A conflict with an earlier answer is explained before another topic begins.
 
-    A user who is unsure receives a recommendation with consequences rather than an unexplained default.
+      An uncertain user receives a recommendation with consequences rather than an unexplained default.
+    }
 
-    An intentionally deferred non-blocking decision remains visible in the synthesis.
+    DecisionLedger {
+      An intentionally deferred non-blocking decision remains visible in the synthesis.
+    }
 
-    A permission or destructive-behavior ambiguity blocks Sigil approval and implementation.
+    ProposalSynthesis {
+      A permission, destructive-behavior, or public-contract ambiguity blocks exact Sigil and implementation.
+    }
   }
 }

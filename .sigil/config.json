@@ -5,7 +5,6 @@
     "members": [
       "packages/cli",
       "packages/core",
-      "packages/indexer",
       "packages/lsp",
       "integrations/skills/sigil",
       "integrations/editor/vscode"

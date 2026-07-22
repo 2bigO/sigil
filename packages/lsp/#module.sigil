@@ -1,23 +1,32 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+@packages/core import { SigilCore }
 
 component SigilLsp {
   goal {
-    Provide editor-neutral language intelligence for Sigil workspaces through the Language Server Protocol.
+    Provide editor-neutral Sigil language intelligence through Language Server Protocol.
 
-    Reuse sigil-core semantics so editors, the CLI, and agents interpret Sigil consistently.
+    Reuse deterministic core semantics without depending on VS Code APIs or agent-host behavior.
   }
 
   interface {
-    LspDistribution {
-      publishes the pre-production @qoherent/sigil-lsp 0.4.0 package
+    LspPackage {
+      provides importable server APIs and an executable standard-input/output entrypoint declared by packages/lsp/deno.json
     }
 
     ProtocolSession {
-      implements Language Server Protocol 3.18 over standard input and standard output
+      implements Language Server Protocol 3.18 over JSON-RPC standard input and standard output
 
       supports initialize, initialized, shutdown, and exit lifecycle messages
 
+      uses UTF-16 positions
+
+      rejects requests received before initialization
+    }
+
+    DocumentSynchronization {
       supports textDocument/didOpen, textDocument/didChange, and textDocument/didClose with full-document synchronization
+
+      open-document content overrides filesystem content until close
     }
 
     DiagnosticPublishing {
@@ -25,121 +34,149 @@ component SigilLsp {
     }
 
     NavigationAndInspection {
-      supports textDocument/documentSymbol for components, expands, and sections
+      supports hierarchical document symbols for components, expands, and sections
 
-      supports textDocument/definition for imports, imported component names, component declarations, and expand declarations
+      supports definition navigation for imports, component declarations, expand declarations, and resolved component references
 
-      supports textDocument/hover with component contracts and collected expansion summaries
+      supports hover for component contracts and collected expansions
 
-      supports textDocument/definition and textDocument/hover for component names in section semantic lines when the name resolves to a component declared in or explicitly imported by that file
-
-      supports textDocument/semanticTokens/full for resolver-backed component names in imports, declarations, expand declarations, and section semantic lines
+      supports full-document semantic tokens for resolved component names
     }
 
     ConceptLanguageFeatures {
-      supports document symbols, definition, hover, and semantic highlighting for resolved concept identifiers
+      supports document symbols, definition, hover, diagnostics, and semantic highlighting for resolved concept identities
     }
 
     WorkspaceSupport {
-      operates on file-backed Sigil workspaces governed by SigilWorkspaceConfig and SigilLanguage
+      operates on file-backed workspaces selected from workspaceFolders, rootUri, or the current directory
+    }
+
+    ReadOnlyLanguageService {
+      language-server operations do not modify .sigil source
     }
   }
 }
 
 expand SigilLsp {
   state {
-    Server lifecycle is uninitialized, running, shutdown-requested, or exited.
+    ProtocolSession {
+      Server lifecycle is uninitialized, running, shutdown-requested, or exited.
+    }
 
-    Open documents retain their URI, client version, and current in-memory text.
+    DocumentSynchronization {
+      Open documents retain URI, client version, and current in-memory text.
+    }
 
-    The initialized workspace is resolved from workspaceFolders or rootUri.
+    WorkspaceSupport {
+      The initialized workspace starts from the first workspaceFolders entry, rootUri, or current directory.
+    }
   }
 
   logic {
-    initialize resolves the selected filesystem workspace and advertises only implemented capabilities.
+    ProtocolSession {
+      initialize resolves the selected workspace, advertises implemented capabilities, and reports UTF-16 position encoding.
 
-    didOpen and didChange parse the current in-memory document and publish updated diagnostics.
+      shutdown completes outstanding work, returns null, and enters shutdown-requested state.
 
-    didClose removes the in-memory overlay and republishes diagnostics from the filesystem version when available.
+      exit succeeds only after shutdown.
+    }
 
-    Workspace operations resolve open-document overlays before filesystem content.
+    DocumentSynchronization {
+      didOpen and didChange parse in-memory content and publish updated diagnostics.
 
-    definition maps Sigil source ranges to declaration locations through core workspace and resolution data.
+      didClose removes the overlay and republishes diagnostics from the filesystem source when available.
 
-    hover presents the selected component goal, interface, and collected expansion detail without inventing new semantics.
+      Workspace operations prefer open-document overlays.
+    }
 
-    Definition, hover, and semantic-token classification share one component-reference resolver.
+    NavigationAndInspection {
+      Definition maps core source ranges to declaration locations.
 
-    Concept language features use core concept namespaces and preserve the originating identity of reused imported concepts.
+      Hover presents core contract and expansion projections without inventing semantics.
 
-    Concept definition and hover include contextual occurrences for the selected component without adding consumer content to provider context.
+      Definition, hover, and semantic-token classification share one component-reference resolver.
 
-    A component name inside a section resolves only when it matches a component declared in the same file or explicitly imported by that file.
+      Document symbols preserve declaration and section hierarchy.
+    }
 
-    documentSymbol returns hierarchical symbols for top-level declarations and their sections.
+    ConceptLanguageFeatures {
+      Concept features consume core namespaces and preserve imported-concept origin.
 
-    shutdown completes outstanding work, returns null, and enters shutdown-requested state.
-
-    exit terminates successfully only after shutdown; exit without shutdown is unsuccessful.
+      Definition and hover include contextual occurrences for the selected component without adding consumer content upstream.
+    }
   }
 
   constraints {
-    Protocol messages conform to Language Server Protocol 3.18 and JSON-RPC 2.0 framing.
+    ArtifactVersionOwnership {
+      packages/lsp/deno.json owns the LSP artifact version.
 
-    Standard output contains protocol messages only; logging uses standard error.
+      The LSP Sigil contract does not claim package-registry publication or duplicate a manifest version.
+    }
 
-    Position conversion uses the encoding negotiated during initialize and defaults to UTF-16.
+    ProtocolSession {
+      Standard output contains protocol messages only and logging uses standard error.
 
-    Semantic highlighting uses the standard LSP type token and full-document responses.
+      Every advertised position uses UTF-16 code units.
 
-    Concept highlighting distinguishes concept identifiers from free-form semantic text.
+      Malformed requests return protocol errors without terminating the server.
+    }
 
-    LSP maps informational concept-identifier style diagnostics to hints.
+    NavigationAndInspection {
+      Semantic highlighting uses standard full-document responses and distinguishes component and concept tokens from free text.
 
-    The initial release supports file URIs and standard-input/output transport only.
+      Client cancellation prevents an obsolete result when cancellation is observed before completion.
+    }
 
-    The server depends on @qoherent/sigil-core for parsing, workspace discovery, resolution, graphs, projections, and diagnostics.
+    WorkspaceSupport {
+      Transport and workspace access support standard input/output and file URIs only.
+    }
 
-    The server does not duplicate Sigil parser, resolver, or workspace rules.
+    DependencyDirection {
+      SigilLsp consumes SigilCore parsing, workspace, resolution, graph, projection, and diagnostic facts.
 
-    The server does not depend on VS Code APIs or Codex-specific behavior.
+      SigilLsp does not duplicate core semantics and does not depend on VS Code or agent-host APIs.
+    }
 
-    Client cancellation prevents obsolete request results from being returned when cancellation is observed before completion.
-
-    Malformed requests return protocol errors without terminating the server.
+    ReadOnlyLanguageService {
+      The server produces diagnostics and language-feature results but no workspace edits, text edits, file creation, deletion, or rename operations.
+    }
   }
 
   cases {
-    Opening a valid Sigil document publishes no error diagnostics.
+    DocumentSynchronization {
+      Opening or changing malformed in-memory source publishes ranged diagnostics.
 
-    Opening or changing a malformed Sigil document publishes source-ranged diagnostics for the in-memory content.
+      Fixing the source clears diagnostics that no longer apply.
 
-    Fixing an open document clears diagnostics that no longer apply.
+      Closing an overlay restores filesystem-derived diagnostics.
+    }
 
-    Go-to-definition on an imported component navigates to its component declaration.
+    NavigationAndInspection {
+      Definition on an imported component opens its original declaration.
 
-    Go-to-definition on an expand name navigates to its matching component declaration.
+      Definition on an expand opens its matching component.
 
-    An imported component name used inside a section is highlighted and navigates to its declaration.
+      Hover exposes the public contract and every collected expansion source.
 
-    A capitalized word without a matching local or imported component remains ordinary prose with no definition or component hover.
+      Unmatched capitalized prose remains ordinary text.
+    }
 
-    An imported interface concept is highlighted and navigates to its originating declaration when used as a bare identifier.
+    ConceptLanguageFeatures {
+      An imported concept navigates to its originating declaration.
 
-    A resolved whole-word concept reference in semantic content receives concept highlighting, definition, and hover.
+      A resolved whole-word concept receives highlighting, definition, and hover.
 
-    An unmatched word in semantic content remains ordinary text without an unresolved-concept diagnostic.
+      Ungrouped interface content receives one warning per contiguous region.
 
-    Ungrouped interface content receives one missing-identifier warning for each contiguous region.
+      A valid nonpreferred identifier produces a hint.
+    }
 
-    A hyphenated or underscored valid identifier receives a formatting hint rather than a warning or error.
+    WorkspaceSupport {
+      Invalid workspace configuration is reported without crashing the server.
+    }
 
-    Hovering over a component exposes its public contract and collected expansion sources.
-
-    A workspace configuration error is surfaced as a diagnostic without crashing the server.
-
-    A request received before initialize is rejected according to the protocol lifecycle.
-
-    Shutdown followed by exit terminates successfully.
+    ProtocolSession {
+      Shutdown followed by exit succeeds.
+    }
   }
 }

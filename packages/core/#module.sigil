@@ -2,84 +2,90 @@
 
 component SigilCore {
   goal {
-    Provide the deterministic semantic engine shared by Sigil tools and integrations.
+    Provide the deterministic semantic engine shared by Sigil command-line, language-server, editor, and agent integrations.
 
-    Keep parsing, workspace discovery, resolution, diagnostics, graphs, and projections consistent across hosts.
+    Compose source interpretation, configuration, workspace loading, relationship resolution, graph construction, projections, and diagnostics without owning host interaction or semantic judgment.
   }
 
   interface {
-    CoreLibrary {
-      publishes the pre-production @qoherent/sigil-core 0.4.0 Deno TypeScript library
+    SourceInterpretation {
+      parseSigilDocument(filePath, source, options) returns a recovered source document and structural diagnostics
     }
 
-    SourceParsingContract {
-      parseSigilDocument(filePath, source, options) interprets concept blocks and other source forms using an explicit supported SigilLanguage version
+    ConfigurationInterpretation {
+      parseSigilConfig(source, filePath?) returns validated workspace configuration or diagnostics
     }
 
-    WorkspaceConfigParsing {
-      parseSigilConfig(source, filePath?) validates the SigilWorkspaceConfig contract
+    WorkspaceProcessing {
+      discoverSigilWorkspace(filesystem, options) returns the selected configured workspace boundary
+
+      loadSigilWorkspace(filesystem, options) returns selected source documents, declared member roots, and accumulated diagnostics
     }
 
-    WorkspaceOperations {
-      discoverSigilWorkspace(filesystem, options) returns the selected root, configuration, and diagnostics
-
-      loadSigilWorkspace(filesystem, options) returns discovered files, partial document models, workspace members, and diagnostics
-
-      resolveSigilWorkspace(workspace) returns resolved imports, components, collected expansions, graph relationships, and diagnostics
+    WorkspaceResolution {
+      resolveSigilWorkspace(workspace) returns resolved imports, components, collective expansions, concept namespaces, graph relationships, and diagnostics
     }
 
-    ProjectionQueries {
-      componentContracts, conceptNamespaceFor, and collectedExpansionFor expose structured projection primitives
+    SemanticProjections {
+      componentContracts(resolvedWorkspace) returns public component contract views
+
+      conceptNamespaceFor(resolvedWorkspace, componentName) returns the resolved concept namespace in that component's context
+
+      collectedExpansionFor(resolvedWorkspace, componentName) returns every collected expansion for that component
     }
 
-    CoreModels {
-      exports typed source, document, workspace, configuration, resolution, graph, diagnostic, and filesystem models
+    CoreData {
+      exports immutable typed source, configuration, diagnostic, workspace, resolution, graph, and projection data
     }
 
     RecoverableResults {
-      returns partial models with stable diagnostics when malformed Sigil or configuration permits recovery
+      returns partial deterministic results with stable diagnostics when malformed Sigil or configuration permits recovery
 
-      propagates required host filesystem failures instead of reporting them as Sigil source diagnostics
+      propagates required host filesystem failures instead of translating them into Sigil diagnostics
     }
   }
 }
 
 expand SigilCore {
-  logic {
-    Raw source parsing preserves declarations, source ranges, and semantic lines before workspace resolution.
-
-    Workspace loading discovers and validates configuration before parsing included Sigil files.
-
-    Resolution connects imports to components, collects every matching expand block, detects ambiguity and cycles, and builds graph relationships.
-
-    Resolution combines flat collective concept identifiers across a component and its expands and exposes imported interface concepts as bare names.
-
-    Dependency projections expose public goals and interfaces without leaking private collected expands.
-
-    Projections expose resolved contracts and collected operational detail without reinterpreting Sigil semantics.
-  }
-
   constraints {
-    SigilCore implements the SigilLanguage and SigilWorkspaceConfig 0.4.0 contracts.
+    PackageVersionOwnership {
+      packages/core/deno.json owns the @qoherent/sigil-core artifact version.
 
-    Core logic accesses files only through the SigilFileSystem abstraction.
+      The package contract does not duplicate its manifest-owned version literal.
+    }
 
-    Core returns partial semantic models with diagnostics where recovery is practical.
+    DeterministicCore {
+      Core computes structural facts and performs no model-assisted semantic judgment.
 
-    Core does not own CLI arguments, LSP transport, editor APIs, Codex behavior, Markdown rendering, semantic search, anchors, or user-interface concerns.
+      Core does not own CLI arguments, LSP transport, editor APIs, agent-host behavior, approval decisions, or user-interface presentation.
+    }
 
-    Host integrations consume core semantics instead of implementing independent Sigil parsers or resolvers.
+    DependencyDirection {
+      Internal stages depend only in the declared source-to-resolution-to-projection direction and do not create cyclic ownership.
+
+      Host integrations consume core semantics instead of implementing independent Sigil parsers, workspace rules, resolvers, or concept interpretation.
+    }
+
+    RecoverableResults {
+      Source and configuration problems remain diagnostics when partial deterministic results are meaningful.
+
+      Host filesystem and runtime failures propagate to the caller.
+    }
   }
 
   cases {
-    Parsing valid Sigil preserves each non-empty section line with its owner, section, file, and source range.
+    WorkspaceResolution {
+      Resolving a loaded workspace returns imports, components, collective expansions, concept namespaces, graph relationships, and accumulated diagnostics.
+    }
 
-    Loading a configured workspace discovers included files and declared member roots.
+    DeterministicCore {
+      CLI and LSP callers operating on the same loaded workspace receive results derived from the same core stages.
+    }
 
-    Resolving a workspace connects imported components and collects matching expansions from every contributing file.
+    RecoverableResults {
+      Recoverable malformed Sigil returns partial source and workspace models with stable diagnostics.
 
-    Malformed Sigil returns usable partial models with stable diagnostics when recovery is possible.
-
-    A host filesystem failure propagates to the caller rather than becoming an unresolved-import diagnostic.
+      An unreadable required file rejects the operation rather than becoming an unresolved-import diagnostic.
+    }
   }
 }

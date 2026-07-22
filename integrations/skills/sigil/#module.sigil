@@ -1,339 +1,355 @@
-@spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+@spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig, SigilModuleIndex }
 @packages/cli import { SigilCli }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
 
 component SigilSkill {
   goal {
-    Give coding agents one reusable, versioned workflow for designing, reviewing, and implementing software through approved Sigil contracts.
+    Provide coding-agent hosts with one reusable workflow for designing, reviewing, reconciling, and implementing software through approved Sigil contracts.
 
-    Keep model-assisted semantic judgment and human approval in the host integration rather than deterministic core or CLI packages.
+    Keep ambiguity resolution, semantic judgment, evidence classification, standards and modularity review, and human approval outside deterministic core and CLI behavior.
   }
 
   interface {
-    SkillDistribution {
-      skill version = "0.4.0"
+    SkillPackage {
+      SKILL.md is the portable workflow entrypoint
 
-      distributed as integrations/skills/sigil beside its selected Sigil CLI installation
+      VERSION owns the skill artifact version
 
-      installed by SigilCli as .agents/skills/sigil in the target repository
+      compatibility.json declares compatible CLI, core, and language versions
 
-      loaded from .agents/skills/sigil/SKILL.md by compatible coding agents, including Codex
+      references are loaded progressively when their procedures apply
+
+      host installation locations and adapters do not alter workflow semantics
     }
 
     WorkflowSelection {
-      invoked for Sigil authoring, review, reconciliation, validation, and Sigil-guided implementation
+      selects Greenfield design, Brownfield adoption, or established-Sigil review from implementation and Sigil evidence
 
-      selects the Greenfield or Brownfield workflow from repository and Sigil evidence
-
-      validates workspace and version compatibility before relying on workspace semantics
-
-      reviews component contracts, collected expands, relevant evidence, modularity, and applicable guidance
+      validates ConfigFile and tool compatibility before relying on workspace semantics
     }
 
-    ComponentModeling {
-      discovers coherent product, domain, programming, internal API, state-machine, screen, view, and reusable UI components
-
-      treats a component goal and interface as its public contract to dependents even when the component is internal to the implementation
-
-      authors component dependencies through imports rather than interface lines
+    EvidenceReview {
+      separates observed behavior, documented intent, user-confirmed intent, unresolved ambiguity, suspected accidental behavior, and external guidance
     }
 
-    ConceptIdentifierWorkflow {
-      discovers reusable concept identities from the complete component, matching expands, accessible imported concepts, and relevant importing consumers before proposing identifiers
-
-      checks CLI concept diagnostics before proposing or writing Sigil
-
-      delegates evidence-backed concept grouping and identifier proposals to a dedicated subagent when subagents are available
+    StandardsReview {
+      assesses applicable authoritative guidance and classifies findings before proposing informed semantic changes
     }
 
-    DelegatedProposalApproval {
-      presents every validated delegated semantic proposal for explicit human approval before editing any repository file
-    }
-
-    SemanticLineDiscipline {
-      separates distinct prose-level semantic ideas with blank lines in every section
+    ModularityReview {
+      assesses cohesion, interface size, coupling, dependency direction, state ownership, and reasons to change without assigning a numeric score
     }
 
     ImplementationCoverage {
-      distinguishes independent component contracts, implementation-specific expands, and trivial mechanics that need no Sigil
+      discovers coherent implementation responsibilities
 
-      reports implementation coverage before writing code
+      classifies each material concern as an independent component, an expand owned by an existing component, or an omitted trivial mechanic
+
+      reports coverage before implementation begins
+    }
+
+    ConceptIdentifierWorkflow {
+      discovers reusable identities across the complete component, matching expands, accessible imports, and relevant direct consumers
+
+      checks deterministic concept diagnostics before proposing identifiers
+
+      uses one proposal-only concept-identifier subagent when subagents are available
+    }
+
+    DelegatedProposalApproval {
+      treats delegated proposals as advisory and requires the primary agent to validate and present the exact proposal for human approval before mutation
+    }
+
+    SemanticLineDiscipline {
+      preserves one distinct idea per semantic line and separates distinct prose-level ideas with blank lines
     }
 
     DecisionConversation {
-      guides Greenfield and Brownfield clarification through SigilDesignConversation before contract confirmation
+      resolves material design decisions before exact Sigil synthesis
     }
 
     SigilReviewGate {
-      proposes exact semantic changes before editing when evidence reconstruction or external guidance requires approval
+      requires an exact proposal before semantic editing
 
-      stops for explicit human review after creating or semantically changing Sigil
+      stops for human review after approved Sigil is written
 
-      implements only an explicitly approved Sigil contract
+      grants approval only for the current session and presented proposal
 
-      returns to Sigil review when implementation exposes a material missing decision
+      returns to review when implementation exposes a material missing decision
     }
-  }
-}
-
-expand SigilSkill {
-  logic {
-    ConceptIdentifierWorkflow {
-      For each affected interface region, inspect the remainder of the same section, every other section of the component, and every matching expand for occurrences of the same semantic idea.
-
-      Inspect accessible imported public concepts before creating a new identity.
-
-      Inspect direct importers of the target component for relevant use cases and established terminology.
-
-      Traverse transitive importers only when a concept is re-exposed or transitive namespace ambiguity must be assessed.
-
-      Classify each affected region as reuse of a local identity, reuse of an imported public identity, or creation of a new identity.
-
-      Give the concept-identifier subagent the affected regions, local occurrences, imported candidates, relevant consumer evidence, and graph paths.
-    }
-
-    DelegatedProposalApproval {
-      After a subagent returns, the primary agent validates and presents the exact proposal to the user, then enters awaiting approval.
-    }
-  }
-
-  constraints {
-    Before adding or modifying implementation that lacks clear Sigil coverage, collaborate with the user to define and approve the affected Sigil.
-
-    SigilSkill requires SigilCli and core versions compatible with ^0.4.0.
-
-    SigilSkill requires SigilLanguage and SigilWorkspaceConfig sigilVersion 0.4.0 sourced from core.
-
-    ConceptIdentifierWorkflow {
-      A human-authored Sigil document may omit interface concept identifiers, but the skill repairs reported gaps before semantic review.
-
-      A new concept identity is proposed only after local, imported, and relevant consumer reuse evidence has been assessed.
-
-      Consumer terminology is naming and coherence evidence but is not a reusable identity unless that identity is accessible through valid imports.
-
-      The concept-identifier subagent receives the affected regions, the relevant component and all matching expands, accessible imported public concepts, relevant direct-consumer use cases, and required graph paths.
-
-      The concept-identifier subagent proposes whether each interface region contains one concept or several, whether each concept is new or reused, supporting occurrences, relevant graph paths, rejected alternatives, and concise unambiguous names.
-
-      The primary skill agent validates identifier grammar, case-insensitive uniqueness, visibility, collective coherence, and transitive import ambiguity before presenting the proposal.
-
-      Concept-identifier creation, reuse, regrouping, renaming, and warning repair always require a pre-edit proposal gate.
-
-      Concept-identifier work does not invoke or modify anchor persistence, proposal, or reconciliation behavior.
-    }
-
-    DelegatedProposalApproval {
-      Every delegated semantic proposal is advisory and grants no edit authority to the subagent or primary agent.
-
-      Subagent completion is not user approval.
-
-      No repository mutation occurs until the user explicitly approves the exact proposal presented by the primary agent.
-    }
-  }
-
-  cases {
-    A requested implementation change without clear Sigil coverage pauses for collaborative Sigil definition and approval before code changes begin.
-
-    ConceptIdentifierWorkflow {
-      The same semantic idea appearing in an interface and a matching expand receives one collectively reused identifier.
-
-      An accessible imported public concept is reused instead of creating a synonymous local identity.
-
-      A direct consumer use case informs the provider concept name without transferring ownership of a consumer-private identity.
-
-      Two accessible imported concepts with the same identifier are reported for renaming rather than qualified with dotted syntax.
-    }
-
-    DelegatedProposalApproval {
-      A completed subagent proposal is shown to the user while every repository file remains unchanged until explicit approval.
-    }
-  }
-}
-
-expand SigilSkill {
-  logic {
-    Before implementation, identify the coherent responsibilities, stable dependent-facing interfaces, meaningful state, and material decisions in the selected boundary.
-
-    Model a product surface, domain module, programming abstraction, internal API, state machine, screen, view, or reusable UI surface as a component when it owns a coherent responsibility and exposes a contract relied upon by dependents.
-
-    Use an implementation-specific expand when operational rationale belongs to an existing component without creating an independent dependent-facing contract.
-
-    Omit trivial mechanics whose behavior and rationale are local, obvious, and safely reconstructable from code.
-
-    Present an implementation coverage map that identifies each material concern, its owner, its dependents, its selected Sigil form, and its owning location.
-
-    Propose missing implementation components and expands as exact Sigil before writing code.
-  }
-
-  constraints {
-    High-level project or service coverage does not satisfy implementation readiness when material implementation abstractions or decisions remain unspecified.
-
-    Component selection follows cohesive responsibility and relied-upon contract boundaries rather than external visibility alone.
-
-    Component discovery does not mechanically create one component per file, class, function, hook, table, endpoint, or visual element.
-
-    UI component interfaces may define props, events, visible structure, actions, navigation, feedback states, accessibility, responsive behavior, and visual references.
-
-    Contract-level and implementation-level Sigil may share one proposal and review when both are clear.
-
-    A later implementation-specific proposal receives its own review when it depends on an approved higher-level decision.
-  }
-
-  cases {
-    A Promise-like programming abstraction with a stable caller API and lifecycle is modeled as a component with operational state and logic in its expand.
-
-    A booking calendar view with coherent presentation and interaction behavior is modeled as a UI component with observable states, constraints, and cases.
-
-    A material retry algorithm owned by an existing component is captured in an implementation-specific expand beside its implementation.
-
-    A trivial formatting helper with no independent contract or durable rationale does not receive separate Sigil.
-
-    An implementation request remains at the Sigil review gate when only its high-level service contract is covered and material implementation components remain undefined.
   }
 }
 
 expand SigilSkill {
   state {
-    Greenfield workflow applies when the selected behavior or component has no existing implementation that constrains its intended contract.
+    WorkflowSelection {
+      Greenfield applies when no existing implementation constrains the selected behavior or component.
+
+      Brownfield applies when relevant implementation exists but Sigil coverage is absent, partial, ambiguous, or suspected to have drifted.
+
+      Established-Sigil review applies when the selected boundary already has credible contract coverage.
+    }
+
+    EvidenceReview {
+      Evidence is classified as observed behavior, documented intent, user-confirmed intent, unresolved ambiguity, suspected accidental behavior, or external guidance.
+    }
+
+    StandardsReview {
+      A researched finding is compatible guidance, a potential conflict, a definite conflict, unverifiable guidance, or non-applicable.
+    }
+
+    SigilReviewGate {
+      Review state is discovering, proposing, awaiting proposal approval, writing approved Sigil, awaiting Sigil approval, or implementation-approved.
+    }
   }
 
   logic {
-    Begin with a design conversation about the problem, intended users or callers, desired outcomes, boundaries, non-responsibilities, and important constraints.
+    WorkflowSelection {
+      Run deterministic workspace checks and inspect relevant implementation and Sigil evidence.
 
-    Use SigilDesignConversation to resolve material Greenfield decisions about product intent, public behavior, ownership, lifecycle, architecture, risk, and verification.
+      Select GreenfieldWorkflow, BrownfieldWorkflow, or established-Sigil review from that evidence.
+    }
 
-    Establish the smallest coherent component boundary from the agreed outcome, callers, ownership, and non-responsibilities.
+    DecisionConversation {
+      Use SigilDesignConversation whenever a material decision remains unresolved before proposal synthesis.
+    }
 
-    Draft goal and interface before operational state, logic, constraints, and cases.
+    EvidenceReview {
+      Inspect relevant Sigil, implementation, tests, documentation, manifests, and executable configuration.
 
-    Assess semantic readiness, modularity, cross-Sigil coherence, and applicable standards or platform guidance.
+      Keep every evidence category distinct in analysis and proposals.
 
-    Synthesize the conversational decisions and review findings into exact proposed Sigil and ask the user to confirm or revise it.
+      Report contradictions instead of silently choosing one source as intent.
+    }
 
-    Write the agreed Sigil and validate its structure, imports, collected expands, and workspace relationships.
+    StandardsReview {
+      Determine whether the domain, stack, risk, or public contract makes external guidance relevant.
 
-    Stop at the Sigil review gate before implementation.
+      Research authoritative sources when guidance is relevant and record source details outside Sigil.
 
-    After explicit approval, implement against the agreed contract and colocate Sigil with its owning module.
+      Classify each finding and present compatible changes as exact proposed semantic lines.
+
+      Preserve current Sigil and request a decision when guidance potentially or definitely conflicts.
+    }
+
+    ModularityReview {
+      Review component responsibility, dependent-facing interface, imports, collected expands, state ownership, dependency direction, and reasons to change.
+
+      Propose boundary changes when one component owns unrelated responsibilities or multiple components compete for one responsibility.
+    }
+
+    ImplementationCoverage {
+      Identify coherent responsibilities, stable dependent-facing interfaces, meaningful state, and material decisions in the selected implementation boundary.
+
+      Choose component, expand, or omission from semantic ownership rather than file, class, function, endpoint, or visual-element counts.
+
+      Present a coverage map containing each material concern, owner, dependents, selected Sigil form, and owning location.
+    }
+
+    ConceptIdentifierWorkflow {
+      Inspect the affected section, every other section of the component, and every matching expand for the same semantic idea.
+
+      Inspect accessible imported public concepts before creating a local identity.
+
+      Inspect direct importers for relevant use cases and established terminology.
+
+      Traverse transitive importers only when a concept is re-exposed or namespace ambiguity must be assessed.
+
+      Classify each affected region as local reuse, imported public reuse, or a new identity.
+
+      Give the proposal-only subagent the affected regions, complete component and expands, local occurrences, imported candidates, consumer evidence, and graph paths.
+    }
+
+    DelegatedProposalApproval {
+      Validate delegated names for grammar, case-insensitive uniqueness, visibility, collective coherence, and transitive import ambiguity.
+
+      Present the complete validated proposal and exact changes, then await explicit user approval.
+    }
+
+    GreenfieldWorkflow {
+      Begin with the problem, intended users or callers, outcomes, boundaries, non-responsibilities, and important constraints.
+
+      Resolve material product, contract, ownership, lifecycle, architecture, risk, and verification decisions through DecisionConversation.
+
+      Establish the smallest coherent component boundary and draft goal and interface before operational detail.
+
+      Run evidence, standards, modularity, implementation-coverage, and concept-identifier review as applicable.
+
+      Synthesize exact Sigil, obtain proposal approval, write and validate it, then stop at SigilReviewGate.
+    }
+
+    BrownfieldWorkflow {
+      Locate ConfigFile and initialize it only when the workspace has none.
+
+      Validate WorkspaceBoundary and inspect the root plus every declared member.
+
+      Gather boundary documentation, manifests, executable configuration, and entrypoints.
+
+      Confirm each configured boundary's responsibility, intended outcome, users or systems, and external interaction surface.
+
+      Propose and review an ordinary summary component in each boundary's ModuleIndexFile.
+
+      After summary approval, narrow to the requested coherent task boundary and reconcile its evidence.
+
+      Present exact task components, expands, locations, and imports before writing approved Sigil and stopping at SigilReviewGate.
+    }
+
+    SigilReviewGate {
+      Present exact semantic changes before editing.
+
+      Write only the approved proposal and repair deterministic warnings before semantic review.
+
+      Validate structure, imports, collected expands, workspace relationships, and concept diagnostics.
+
+      Stop for explicit review of the resulting Sigil before implementation.
+
+      Return to proposal review when new evidence materially changes the approved contract.
+    }
   }
 
   constraints {
-    Greenfield conversation is a normal design activity and is not limited to repairing vague requests.
+    SkillPackage {
+      The skill workflow remains semantically host-neutral.
 
-    The skill does not merely encode the first idea when questions and alternatives can produce a more coherent contract.
+      Each host adapter may define discovery and presentation mechanics but does not redefine review gates or approval authority.
 
-    Questions and choices remain relevant to material product, contract, ownership, lifecycle, architecture, risk, or verification decisions.
+      Skill artifact version ownership is independent from language and distributable tool versions.
+    }
 
-    Presented choices explain meaningful tradeoffs and do not hide a binding decision inside a recommendation.
+    WorkflowSelection {
+      Deterministic facts come from compatible CLI and core behavior.
 
-    Greenfield design does not invent major product, architecture, persistence, authorization, deployment, or lifecycle decisions silently.
+      Model-assisted judgment, ambiguity resolution, and approval remain host-workflow responsibilities.
+    }
 
-    Public interfaces state material inputs, outputs, failures, permissions, and lifecycle guarantees before code locks them in.
+    EvidenceReview {
+      Code is evidence of current behavior, not proof of desired behavior or rationale.
 
-    Binding technology and architecture choices belong in constraints rather than leaking into goals or public interfaces.
+      Suspected accidental behavior does not become a contract without user confirmation.
+    }
 
-    Implementation does not begin until the user approves the current Sigil and explicitly requests implementation.
+    StandardsReview {
+      Source details remain in the review summary rather than Sigil.
+
+      Approved additions are written as project decisions rather than claims of certification.
+
+      A conflict never silently overrides approved Sigil.
+    }
+
+    ModularityReview {
+      Modularity conclusions use concrete semantic evidence rather than a score.
+    }
+
+    ImplementationCoverage {
+      High-level product or service coverage is insufficient when material implementation responsibilities remain unspecified.
+
+      Component selection follows cohesive responsibility and a relied-upon contract rather than external visibility.
+
+      Trivial local mechanics with safely reconstructable behavior and rationale need no separate Sigil.
+    }
+
+    ConceptIdentifierWorkflow {
+      Missing interface concept identifiers are repaired before semantic review.
+
+      Consumer terminology is naming evidence but is not reusable identity unless accessible through valid imports.
+
+      The subagent reports each region, grouping decision, new or reused status, occurrences, graph paths, rejected alternatives, and proposed concise names.
+
+      Concept creation, reuse, regrouping, renaming, and warning repair require approval before mutation.
+
+      Concept-identifier work does not invoke anchor persistence, proposal, or reconciliation behavior.
+    }
+
+    DelegatedProposalApproval {
+      A subagent does not edit files or grant approval.
+
+      Subagent completion does not authorize primary-agent mutation.
+    }
+
+    SemanticLineDiscipline {
+      Concept blocks group coherent identities without merging distinct semantic ideas into one line.
+    }
+
+    GreenfieldWorkflow {
+      Major product, architecture, persistence, authorization, deployment, and lifecycle decisions are not invented silently.
+
+      Implementation does not begin until the current Sigil is explicitly approved and implementation is requested.
+    }
+
+    BrownfieldWorkflow {
+      ConfigFile initialization never overwrites an existing configuration.
+
+      Configured boundary summaries precede task-specific modeling.
+
+      Additional summary boundaries are not inferred from package manifests or directory structure.
+
+      Existing user changes and unrelated dirty-worktree content are preserved.
+    }
+
+    WorkspaceMutationBoundary {
+      CLI and language-server operations do not semantically edit .sigil sources.
+
+      ConfigFile initialization is the narrow CLI mutation exception.
+
+      Semantic Sigil mutation belongs to the approved agent workflow.
+    }
+
+    SigilReviewGate {
+      Proposal approval authorizes only the exact presented Sigil mutation.
+
+      Resulting Sigil requires a second explicit review before implementation.
+
+      Approval is session-scoped and does not survive a material proposal change.
+    }
   }
 
   cases {
-    A Greenfield request uses SigilDesignConversation until its blocking contract decisions are resolved and its confirmed or deferred decisions can be synthesized.
+    WorkflowSelection {
+      A component with credible existing Sigil uses established-Sigil review unless evidence shows drift.
+    }
 
-    A complete proposal becomes reviewed Sigil before implementation begins.
+    EvidenceReview {
+      Conflicting code, tests, and documentation are reported for user decision rather than silently reconciled.
+    }
 
-    A new implementation that reveals an undecided public behavior returns to Sigil review instead of choosing silently in code.
-  }
-}
+    StandardsReview {
+      Unavailable compliance-critical guidance blocks implementation while low-risk unverifiable guidance is reported for explicit acceptance.
+    }
 
-expand SigilSkill {
-  state {
-    Brownfield workflow applies when relevant implementation exists but Sigil coverage is absent, partial, ambiguous, or suspected to have drifted.
-  }
+    ModularityReview {
+      A component with unrelated lifecycle and storage responsibilities is reconsidered as multiple owners rather than marked with a low score.
+    }
 
-  logic {
-    Determine the repository root and whether it already contains .sigil/config.json before gathering detailed project evidence.
+    ImplementationCoverage {
+      A stable Promise-like caller API can be a component, a material retry algorithm can be an expand, and a trivial formatter can be omitted.
+    }
 
-    When .sigil/config.json is absent, run sigil init at the repository root to create the versioned workspace configuration first.
+    ConceptIdentifierWorkflow {
+      The same idea in an interface and matching expand reuses one collective identifier.
 
-    Validate the existing or initialized workspace configuration before interpreting or creating Sigil source.
+      An accessible imported public identity is reused instead of creating a synonym.
 
-    After workspace validation, inspect the workspace root and every directory declared by workspace.members.
+      Two accessible imported identities with the same name are reported for resolution rather than qualified with dotted syntax.
+    }
 
-    Gather repository documentation, manifests, executable configuration, and entrypoints for each configured boundary.
+    DelegatedProposalApproval {
+      A completed proposal leaves repository files unchanged until the user approves the primary agent's exact presentation.
+    }
 
-    Form a provisional responsibility, intended outcome, users or systems, and external interaction surface for each configured boundary.
+    GreenfieldWorkflow {
+      An undecided public behavior discovered during implementation returns to Sigil review.
+    }
 
-    Use SigilDesignConversation when evidence leaves a configured boundary's goal or interface materially unresolved.
+    BrownfieldWorkflow {
+      A workspace without ConfigFile is initialized before boundary inspection, while an existing ConfigFile is only validated.
+    }
 
-    Ask the user to confirm or correct each synthesized boundary goal and interface.
+    WorkspaceMutationBoundary {
+      A read-only validation command reports diagnostics without rewriting Sigil sources.
+    }
 
-    Propose a meaningful ordinary component summary in each configured boundary's #module.sigil.
-
-    A boundary #module.sigil may combine its summary component with imports that define its directory-import surface.
-
-    Present the exact boundary summaries and module-index imports before writing them.
-
-    After approval, write and validate the boundary module indexes, then stop at the Sigil review gate.
-
-    After boundary-summary approval, focus on the user's requested task and select its smallest coherent component or change-frontier boundary.
-
-    Gather task-specific implementation, tests, documentation, and related Sigil as evidence for that boundary.
-
-    Separate observed behavior, documented intent, user-confirmed intent, unresolved ambiguity, and suspected accidental behavior.
-
-    Present exact task components, expands, locations, and imports before reconstructing or semantically changing Sigil.
-
-    After task-Sigil approval, write and validate only the approved changes and stop at the Sigil review gate before implementation.
-  }
-
-  constraints {
-    sigil init creates a missing workspace config and never overwrites an existing .sigil/config.json.
-
-    Brownfield adoption establishes approved summary components for the workspace root and every declared workspace member before task-specific modeling.
-
-    A boundary summary uses ordinary component and expand semantics and receives no special parser or resolver status.
-
-    Configured boundary summaries contain only confirmed boundary-wide purpose, external surfaces, behavior, and decisions.
-
-    A boundary summary is not proposed while its goal, users or systems, boundary, or external interaction surfaces remain materially vague.
-
-    Confirmation verifies a synthesized boundary contract and does not replace the preceding discovery conversation when evidence is insufficient.
-
-    Incidental dependencies, secrets, low-level configuration, and task-specific details remain outside boundary summaries.
-
-    Do not infer additional summary boundaries from package manifests or arbitrary directory structure.
-
-    An internal #module.sigil outside a configured boundary is an ordinary directory index but still requires a local component declaration.
-
-    Task adoption remains bounded to the requested coherent boundary rather than converting the whole repository in one pass.
-
-    Code is evidence of current behavior, not proof of desired behavior or rationale.
-
-    Suspected accidental behavior does not become a contract without user confirmation.
-
-    Existing user changes and unrelated dirty-worktree content are preserved.
-  }
-
-  cases {
-    A Brownfield repository without .sigil/config.json runs sigil init before configured boundaries are inspected.
-
-    A repository with an existing .sigil/config.json validates it without running init or overwriting it.
-
-    A single-project workspace proposes its summary component in the workspace-root #module.sigil.
-
-    A workspace with declared members proposes separate ordinary summary components in the root and member #module.sigil files.
-
-    A boundary module index may make its summary component and directly imported components resolvable through directory-import shorthand.
-
-    An internal module index contains at least one local component without becoming a configured boundary summary.
-
-    Insufficient evidence for a boundary goal or interface triggers user confirmation rather than an invented summary.
-
-    Approved boundary summaries are written and reviewed before work narrows to the requested task.
-
-    Conflicting code, tests, and documentation are reported for a user decision instead of silently reconciled.
-
-    A requested task with established Sigil coverage returns to ordinary review after configured boundary summaries are confirmed.
-
-    Approved task Sigil captures intended behavior while legacy differences remain explicit until implementation is authorized.
+    SigilReviewGate {
+      A material missing decision invalidates implementation approval and requires a new proposal.
+    }
   }
 }

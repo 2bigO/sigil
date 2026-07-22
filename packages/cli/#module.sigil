@@ -1,25 +1,26 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+@packages/core import { SigilCore }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 
 component SigilCli {
   goal {
-    Expose Sigil Language and workspace behavior to agents, CI, scripts, debugging, and review workflows through a stable non-interactive command line.
+    Expose deterministic Sigil language and workspace operations to agents, CI, scripts, debugging, and review workflows through a non-interactive command line.
 
-    Keep workspace command behavior thin over core contracts and isolate host integration mechanics behind focused internal components.
+    Keep workspace commands thin over core contracts while isolating skill installation as a focused host-filesystem responsibility.
   }
 
   interface {
-    CliIdentity {
-      CLI version = "0.4.0"
-
+    CliInvocation {
       sigil --help
 
       sigil --version
     }
 
-    SkillInstallation {
+    SkillCatalog {
       sigil skill list
+    }
 
+    SkillInstallation {
       sigil skill install [--project] [--agent codex|claude|opencode|pi|all]
     }
 
@@ -27,7 +28,7 @@ component SigilCli {
       sigil init [path] [--name value] [--include glob ...] [--exclude glob ...]
     }
 
-    WorkspaceCommands {
+    WorkspaceInspection {
       sigil version [path]
 
       sigil parse file
@@ -47,92 +48,124 @@ component SigilCli {
       commands that produce no required stdout support --quiet
     }
 
-    SkillInstallation {
-      sigil skill commands delegate skill discovery and installation management to SkillInstaller
+    WorkspaceMutationBoundary {
+      workspace inspection commands do not modify .sigil source
+
+      init may create the .sigil directory and a missing ConfigFile but no .sigil source
     }
   }
 }
 
 expand SigilCli {
   logic {
-    --help lists supported commands and --version prints the CLI version from packages/cli/deno.json without workspace discovery.
+    CliInvocation {
+      --help lists supported commands and --version prints the CLI artifact version from packages/cli/deno.json without workspace discovery.
+    }
 
-    skill list reports valid bundled skills and their supported installation targets without changing the filesystem.
+    SkillCatalog {
+      skill list delegates bundled-skill discovery to SkillInstaller and reports valid skills with supported installation targets without changing the filesystem.
+    }
 
-    skill install installs the main Sigil skill globally by default.
+    SkillInstallation {
+      skill install delegates installation to SkillInstaller.
 
-    skill install --project installs into the current repository instead of user-global agent locations.
+      skill install uses global scope and all supported agents by default.
 
-    skill install targets every supported agent by default and --agent limits installation to one named agent.
+      --project selects the current repository and --agent limits installation to one named agent.
+    }
 
-    init writes one .sigil/config.json with the canonical Sigil version and refuses to overwrite an existing config.
+    WorkspaceInitialization {
+      init writes ConfigFile with the supported language version and refuses to overwrite an existing file.
 
-    init defaults workspace.name to the target directory basename and workspace.members to an empty array.
+      init defaults workspace.name to the target-directory basename and workspace.members to an empty array.
 
-    init defaults Sigil, include, exclude, and tools values from SigilWorkspaceConfig.
+      init applies the configured default SourceSelection and ToolConfiguration values.
+    }
 
-    version reports CLI and core versions and the resolved workspace version when available.
+    WorkspaceInspection {
+      version reports CLI and core artifact versions and the configured LanguageVersion when available.
 
-    parse discovers and validates workspace configuration before invoking the raw parser with its explicit Sigil version.
+      parse discovers and validates configuration before interpreting the selected source.
 
-    check, graph, context, and render resolve workspace behavior through core.
+      check, graph, context, and render delegate workspace semantics to SigilCore.
 
-    check prints core concept warnings, informational formatting suggestions, and errors without reinterpreting them.
+      check reports core warnings, hints, and errors without reinterpreting them.
 
-    Workspace source discovery skips symlink entries so installed skills cannot re-enter the workspace as duplicate Sigil sources.
+      Workspace source discovery skips symlink entries so installed skills cannot re-enter the workspace as duplicate Sigil sources.
 
-    A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
+      A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
+    }
   }
 
   constraints {
-    Every workspace-dependent JSON result includes workspaceRoot, configPath, sigilVersion, and workspaceName.
+    ArtifactVersionOwnership {
+      packages/cli/deno.json owns the CLI artifact version.
 
-    CLI commands do not mutate .sigil files in version 0.4.0.
+      The CLI Sigil contract does not duplicate its manifest-owned version literal.
+    }
 
-    Skill commands do not require or modify .sigil/config.json.
+    StructuredOutput {
+      Every workspace-dependent JSON result includes workspaceRoot, configPath, sigilVersion, and workspaceName.
 
-    Skill commands install only directories containing a valid SKILL.md entrypoint.
+      CLI operations are deterministic and non-interactive.
+    }
 
-    Skill installation never overwrites unmanaged files, directories, or links.
+    WorkspaceMutationBoundary {
+      parse, version, check, graph, context, and render do not modify .sigil source.
 
-    The legacy sigil install command is not part of the released CLI interface.
+      init is the only workspace command that creates Sigil-owned content and creates only the .sigil directory and a missing ConfigFile.
 
-    CLI commands are deterministic and non-interactive in version 0.4.0.
+      Skill commands do not require or modify ConfigFile.
+    }
 
-    Exit code 0 means success or warnings only.
+    SkillInstallation {
+      Skill installation never overwrites unmanaged files, directories, or links.
+    }
 
-    Exit code 1 means configuration or Sigil error diagnostics.
+    ExitStatus {
+      Exit code 0 means success or warnings only.
 
-    Exit code 2 means invalid command usage.
+      Exit code 1 means configuration or Sigil error diagnostics.
 
-    Exit code 3 means a host or runtime failure.
+      Exit code 2 means invalid command usage.
+
+      Exit code 3 means a host or runtime failure.
+    }
   }
 
   cases {
-    skill install makes Sigil globally available to Codex, Claude Code, OpenCode, and Pi.
+    SkillCatalog {
+      skill list includes valid bundled skills and excludes directories without SKILL.md.
+    }
 
-    skill install --project changes only skill locations inside the current repository.
+    SkillInstallation {
+      Default installation targets Codex, Claude Code, OpenCode, and Pi.
 
-    skill list includes the Sigil skill and excludes directories without SKILL.md.
+      --project changes only skill destinations inside the current repository.
+    }
 
-    A linked skill containing Sigil source does not create duplicate workspace components during check, graph, context, or render.
+    WorkspaceInitialization {
+      init in an empty directory creates valid ConfigFile using the directory basename as workspace.name.
 
-    init in an empty directory creates a valid config using the directory basename as workspace.name.
+      init against existing ConfigFile reports an error and leaves it unchanged.
+    }
 
-    init against an existing config reports an error and leaves the file unchanged.
+    WorkspaceInspection {
+      version in a valid workspace reports CLI, core, and language versions from their owning sources.
 
-    version in a valid workspace reports compatible CLI, core, and Sigil versions.
+      check from a nested directory resolves the nearest eligible ConfigFile.
 
-    check from a nested directory resolves the nearest eligible ancestor config.
+      Missing interface concept identifiers appear in text and JSON output while check exits successfully when no errors exist.
 
-    Missing interface concept identifiers appear in text and JSON check output while check exits successfully when no errors exist.
+      Invalid or ambiguous concept identities make check exit with code 1.
 
-    An ambiguous, invalid, empty, or nested concept block makes check exit with code 1.
+      render JSON includes workspace metadata and Markdown review content.
 
-    render with JSON format includes workspace metadata and Markdown review content.
+      context for a component with multiple expands reports every related expansion source.
+    }
 
-    context for a component with expands in multiple files reports every related expansion file.
-
-    An unreadable file produces exit code 3 rather than an unresolved-import diagnostic.
+    ExitStatus {
+      An unreadable required file produces exit code 3 rather than an unresolved-import diagnostic.
+    }
   }
 }

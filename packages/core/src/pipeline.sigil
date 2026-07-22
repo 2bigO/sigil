@@ -1,3 +1,4 @@
+@packages/core/src/model.sigil import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 @packages/core/src/filesystem.sigil import { SigilFileSystem }
 @packages/core/src/parser.sigil import { SigilParser }
@@ -8,26 +9,50 @@
 
 expand SigilCore {
   logic {
-    parseSigilDocument delegates versioned single-source interpretation to SigilParser.
+    SourceInterpretation {
+      parseSigilDocument delegates versioned source interpretation to SigilParser.
+    }
 
-    discoverSigilWorkspace and loadSigilWorkspace delegate configured discovery and loading to SigilWorkspaceLoader.
+    WorkspaceProcessing {
+      discoverSigilWorkspace and loadSigilWorkspace delegate configured discovery and loading to SigilWorkspaceLoader.
+    }
 
-    resolveSigilWorkspace obtains relationship data from SigilResolver and graph data from SigilGraphBuilder, then returns one ResolvedSigilWorkspace.
+    WorkspaceResolution {
+      resolveSigilWorkspace obtains relationship data from SigilResolver and graph data from SigilGraphBuilder, then returns ResolvedSigilWorkspace.
+    }
 
-    componentContracts and collectedExpansionFor delegate structured views to SigilProjections.
+    SemanticProjections {
+      componentContracts, conceptNamespaceFor, and collectedExpansionFor delegate structured views to SigilProjections.
+    }
   }
 
   constraints {
-    SigilCore is the public composition boundary for SigilDiagnostics, SigilFileSystem, SigilParser, SigilWorkspaceLoader, SigilResolver, SigilGraphBuilder, and SigilProjections.
+    DependencyDirection {
+      SigilSemanticModel defines shared immutable data.
 
-    The public resolveSigilWorkspace(workspace) signature and ResolvedSigilWorkspace result remain compatible with version 0.2.0.
+      SigilDiagnostics and SigilFileSystem depend only on shared model and trivial path mechanics.
 
-    Internal pipeline stages depend only in the declared direction and do not create cyclic ownership.
+      SigilParser depends on model and diagnostics.
+
+      SigilWorkspaceLoader depends on configuration, filesystem, parser, model, and diagnostics.
+
+      SigilResolver depends on loaded workspace data, model, and diagnostics.
+
+      SigilGraphBuilder depends on resolved relationships and model data.
+
+      SigilProjections depends on resolved workspace and graph-backed data.
+
+      The facade composes these stages without reversing their ownership.
+    }
   }
 
   cases {
-    Resolving a loaded workspace returns imports, components, collected expansions, graph relationships, and accumulated diagnostics through the existing public API.
+    WorkspaceResolution {
+      A loaded workspace resolves through relationship and graph stages into one ResolvedSigilWorkspace.
+    }
 
-    Existing CLI and LSP callers continue consuming ResolvedSigilWorkspace without adapting to the internal stage split.
+    SemanticProjections {
+      Existing CLI and LSP consumers obtain contract, concept, and expansion views without accessing internal stage data directly.
+    }
   }
 }

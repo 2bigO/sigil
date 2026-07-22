@@ -1,83 +1,103 @@
+@spec/language.sigil import { SigilLanguage, SigilModuleIndex }
+@packages/core/src/model.sigil import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 
 component SigilParser {
   goal {
-    Interpret one versioned Sigil source file into a source-faithful partial document.
+    Interpret one versioned Sigil source into a source-faithful partial document.
 
-    Preserve useful declarations, semantic lines, and locations when malformed structure permits recovery.
+    Preserve useful declarations, concepts, semantic lines, and ranges whenever malformed structure permits deterministic recovery.
   }
 
   interface {
-    ParseOperation {
+    SourceDocument {
       parseSigilDocument(filePath, source, options) returns ParseResult
 
-      options.sigilVersion is required and must equal the supported Sigil language version
+      options.sigilVersion is required and must equal SupportedLanguageVersion
     }
 
-    ParsedDocument {
-      ParseResult contains a SigilDocument and its diagnostics
-
-      SigilDocument exposes imports, components, expands, concept blocks, semantic lines, and source ranges recovered from the input
+    ParseResult {
+      ParseResult contains a recovered SigilDocument and structural diagnostics
     }
   }
 }
 
 expand SigilParser {
   logic {
-    Parse top-level import, component, and expand forms.
+    SourceDocument {
+      Parse top-level import, component, and expand forms.
 
-    Parse concept blocks nested directly inside sections and preserve their identifiers and source ranges.
+      Parse sections and flat concept blocks while preserving identifiers and ranges.
 
-    Associate each semantic line inside a concept block with that concept identifier.
+      Associate each semantic line inside a concept block with that identifier.
 
-    Preserve each non-empty concept body line as one trimmed semantic line with its owner and source range.
+      Preserve non-empty free semantic lines outside concept blocks.
 
-    Preserve free semantic lines in every section when they are outside concept blocks.
+      Recover unclosed forms and sections when practical.
+    }
 
-    Recover unclosed forms and sections into partial declarations when practical.
+    ComponentContract {
+      Diagnose components missing goal or interface.
+    }
 
-    Validate that every component contains goal and interface sections.
+    ModuleIndexContents {
+      Diagnose a ModuleIndexFile that contains no local component.
+    }
 
-    Validate that #module.sigil contains at least one component declaration.
+    ConceptIdentity {
+      Report one warning for each contiguous ungrouped interface region.
 
-    Report one warning for each contiguous interface region outside concept blocks.
+      Reject invalid identifiers, empty concept blocks, and nested concept blocks.
+    }
 
-    Reject invalid identifiers, empty concept blocks, and nested concept blocks with source-ranged diagnostics.
-
-    Reject an unsupported Sigil version before interpreting declarations.
+    LanguageVersion {
+      Reject an unsupported configured language version before interpreting declarations.
+    }
   }
 
   constraints {
-    SigilParser depends on SigilDiagnostics for structural findings.
+    SourceDocument {
+      SigilParser performs no filesystem access or workspace resolution.
 
-    SigilParser performs no filesystem access or workspace resolution.
+      Warnings preserve a usable partial document and do not make parsing fail.
+    }
 
-    Concept identifiers match [A-Za-z][A-Za-z0-9_-]* and contain no spaces.
+    ConceptIdentity {
+      Concept body content remains free-form except for structural brace tracking.
+    }
 
-    Concept body content remains free-form except for structural brace tracking.
-
-    Warnings preserve a usable partial document and do not make parsing fail.
+    DiagnosticConstruction {
+      Structural findings are created through SigilDiagnostics.
+    }
   }
 
   cases {
-    Valid Sigil returns its declarations and semantic lines without diagnostics.
+    ParseResult {
+      Valid source returns recovered declarations and semantic lines without error diagnostics.
 
-    An unsupported version returns an empty partial document with SIGIL_UNSUPPORTED_VERSION.
+      An unclosed component returns its recoverable content with a source-ranged structural diagnostic.
+    }
 
-    An unclosed component returns the recovered component with a source-ranged structural diagnostic.
+    ComponentContract {
+      A component missing goal or interface remains in the partial document with required-section diagnostics.
+    }
 
-    A component without goal or interface returns the component plus the corresponding required-section diagnostics.
+    ConceptIdentity {
+      A contiguous ungrouped interface region produces one SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
 
-    An imports-only #module.sigil returns its partial document with SIGIL_MODULE_WITHOUT_COMPONENT.
+      A concept block with several lines preserves one identity and every semantic line.
 
-    A contiguous ungrouped interface region produces one source-ranged SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
+      Ungrouped non-interface content produces no missing-identifier warning.
 
-    A concept block containing several semantic lines preserves one concept identifier and each distinct line.
+      Empty and nested concept blocks are invalid.
+    }
 
-    Ungrouped state, logic, constraints, or cases content produces no missing-concept warning.
+    ModuleIndexContents {
+      An imports-only ModuleIndexFile produces SIGIL_MODULE_WITHOUT_COMPONENT.
+    }
 
-    An empty concept block produces SIGIL_EMPTY_CONCEPT_BLOCK.
-
-    A concept block inside another concept block produces SIGIL_NESTED_CONCEPT_BLOCK.
+    LanguageVersion {
+      An unsupported version returns an empty partial document with SIGIL_UNSUPPORTED_VERSION.
+    }
   }
 }
