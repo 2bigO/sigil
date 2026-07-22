@@ -29,7 +29,7 @@ component SigilCore {
     SemanticProjections {
       componentContracts(resolvedWorkspace) returns public component contract views
 
-      conceptNamespaceFor(resolvedWorkspace, componentName) returns the resolved concept namespace in that component's context
+      conceptNamespaceFor(resolvedWorkspace, componentName) returns resolved concepts, occurrences, and contextual whole-word references for that component
 
       collectedExpansionFor(resolvedWorkspace, componentName) returns every collected expansion for that component
     }

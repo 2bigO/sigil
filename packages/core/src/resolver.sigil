@@ -21,7 +21,7 @@ component SigilResolver {
     }
 
     ConceptResolution {
-      each resolved component exposes local, public, imported, and accessible concept identities with contextual occurrences
+      each resolved component exposes local, public, imported, and accessible concept identities with contextual occurrences and references
     }
   }
 }
@@ -65,7 +65,7 @@ expand SigilResolver {
 
       Re-expose an imported identity when reused in interface.
 
-      Resolve exact-case whole-word references.
+      Scan semantic lines against unambiguous accessible concepts and record each exact-case whole-word match in ResolvedConceptNamespace.references.
 
       Diagnose different accessible identities whose names compare equal without regard to case.
     }
@@ -87,7 +87,11 @@ expand SigilResolver {
 
       Resolution provides no dotted qualification, aliases, or shadowing.
 
-      Unmatched words remain ordinary semantic content.
+      A whole-word match is bounded by characters outside [A-Za-z0-9_-].
+
+      Ambiguous identifiers, case-mismatched text, substrings, and unmatched words do not produce references.
+
+      Unmatched words produce no unresolved-concept diagnostic.
     }
 
     DependencyDirection {
@@ -118,6 +122,10 @@ expand SigilResolver {
       Imported public concepts are available as bare identities.
 
       Contextual reuse preserves provider identity without adding importer content upstream.
+
+      A whole-word local or imported identifier produces a contextual reference with its originating ConceptIdentity.
+
+      A differently cased identifier or identifier embedded within a larger word produces no reference.
 
       Two reachable identities equal without regard to case produce an ambiguity diagnostic.
 

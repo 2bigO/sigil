@@ -221,11 +221,22 @@ export interface ResolvedConcept {
   readonly occurrences: readonly ResolvedConceptOccurrence[];
 }
 
+export interface ResolvedConceptReference {
+  readonly conceptIdentity: ConceptIdentity;
+  readonly componentName: string;
+  readonly filePath: string;
+  readonly ownerKind: SigilFormKind;
+  readonly ownerName: string;
+  readonly sectionName: SigilSectionName;
+  readonly range: SourceRange;
+}
+
 export interface ResolvedConceptNamespace {
   readonly componentName: string;
   readonly concepts: readonly ResolvedConcept[];
   readonly accessibleConcepts: readonly ResolvedConcept[];
   readonly publicConcepts: readonly ResolvedConcept[];
+  readonly references: readonly ResolvedConceptReference[];
 }
 
 export interface SigilResolution {

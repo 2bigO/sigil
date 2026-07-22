@@ -101,6 +101,7 @@ The model should include typed concepts equivalent to:
 - `Section`;
 - `SemanticLine`;
 - `ConceptBlock`;
+- `ResolvedConceptReference`;
 - `ResolvedConceptNamespace`;
 - `SigilWorkspace`;
 - `SigilConfig`;
@@ -204,6 +205,10 @@ Version 0.4 is acceptable when tests demonstrate that `sigil-core` can:
   parseable;
 - resolve public imported concepts as bare identifiers and keep private concepts
   inaccessible to dependents;
+- resolve exact-case whole-word concept references into contextual namespaces
+  with originating identities and source ranges;
+- exclude ambiguous identities, case mismatches, substrings, and unmatched words
+  from contextual references without producing unresolved-concept diagnostics;
 - diagnose case-insensitive ambiguity and invalid, empty, or nested blocks;
 - return partial models plus diagnostics for malformed files;
 - emit stable diagnostic codes;

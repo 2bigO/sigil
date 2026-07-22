@@ -50,6 +50,10 @@ component SigilSemanticModel {
       SigilResolution contains the source workspace, resolved imports, resolved components, collective expansions, concept namespaces, and diagnostics
 
       ResolvedConcept preserves its originating identity, visibility, import status, and contextual occurrences
+
+      ResolvedConceptReference contains conceptIdentity, componentName, filePath, ownerKind, ownerName, sectionName, and exact source range
+
+      ResolvedConceptNamespace contains local, accessible, and public concepts plus contextual whole-word references
     }
 
     GraphModel {
@@ -86,6 +90,12 @@ expand SigilSemanticModel {
       Concept identity is distinct from its ordered contextual occurrences.
 
       Provider context excludes semantic lines contributed by importing consumers.
+
+      ResolvedConceptNamespace.references contains only references resolved inside the selected component and its matching expands.
+
+      References preserve deterministic source order and never flow from consumer namespaces into provider namespaces.
+
+      Concept-block declarations remain represented by concept occurrences rather than semantic-content references.
     }
 
     PublicModel {
@@ -102,6 +112,8 @@ expand SigilSemanticModel {
       One concept identity may contain collective occurrences from a component and matching expands.
 
       Reusing an imported concept preserves its origin while recording importer-specific occurrences only in importer context.
+
+      An imported concept reference retains the provider's ConceptIdentity and the consumer's contextual source location.
     }
 
     ResolvedWorkspaceModel {

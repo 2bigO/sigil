@@ -1,4 +1,5 @@
 import type {
+  ConceptIdentity,
   ResolvedComponent,
   ResolvedConcept,
   ResolvedSigilWorkspace,
@@ -377,23 +378,23 @@ function conceptReferences(
           });
         }
       }
-      for (const line of section.lines) {
-        const lineRange = sourceRangeToLsp(line.range);
-        for (
-          const accessible of unambiguousConcepts(
-            context.conceptNamespace.accessibleConcepts,
-          )
-        ) {
-          for (
-            const range of identifierRanges(
-              source,
-              accessible.identifier,
-              lineRange,
-            )
-          ) {
-            references.push({ concept: accessible, context, range });
-          }
-        }
+    }
+  }
+
+  for (const context of resolved.components) {
+    for (const reference of context.conceptNamespace.references) {
+      if (normalizePath(reference.filePath) !== normalized) continue;
+      const concept = context.conceptNamespace.accessibleConcepts.find(
+        (candidate) =>
+          conceptIdentityKey(candidate.identity) ===
+            conceptIdentityKey(reference.conceptIdentity),
+      );
+      if (concept) {
+        references.push({
+          concept,
+          context,
+          range: sourceRangeToLsp(reference.range),
+        });
       }
     }
   }
@@ -417,24 +418,6 @@ function componentContext(
     );
   });
   return matches.length === 1 ? matches[0] : undefined;
-}
-
-function unambiguousConcepts(
-  concepts: readonly ResolvedConcept[],
-): readonly ResolvedConcept[] {
-  const grouped = new Map<string, ResolvedConcept[]>();
-  for (const concept of concepts) {
-    const key = concept.identity.normalizedIdentifier;
-    const items = grouped.get(key) ?? [];
-    items.push(concept);
-    grouped.set(key, items);
-  }
-  return [...grouped.values()].flatMap((items) => {
-    const identities = new Map(
-      items.map((item) => [conceptIdentityKey(item), item]),
-    );
-    return identities.size === 1 ? [[...identities.values()][0]] : [];
-  });
 }
 
 function addVisibleComponent(
@@ -506,7 +489,7 @@ function deduplicateConceptReferences(
   const unique = new Map<string, ConceptReference>();
   for (const reference of references) {
     const key = `${rangeKey(reference.range)}:${
-      conceptIdentityKey(reference.concept)
+      conceptIdentityKey(reference.concept.identity)
     }`;
     if (!unique.has(key)) unique.set(key, reference);
   }
@@ -517,10 +500,10 @@ function rangeKey(range: Range): string {
   return `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
 }
 
-function conceptIdentityKey(concept: ResolvedConcept): string {
+function conceptIdentityKey(identity: ConceptIdentity): string {
   return `${
-    normalizePath(concept.identity.filePath)
-  }::${concept.identity.componentName}::${concept.identity.normalizedIdentifier}`;
+    normalizePath(identity.filePath)
+  }::${identity.componentName}::${identity.normalizedIdentifier}`;
 }
 
 function compareRanges(left: Range, right: Range): number {
@@ -641,7 +624,7 @@ async function conceptDefinition(
       normalizePath(concept.identity.filePath)
   );
   const resolvedConcept = origin?.conceptNamespace.concepts.find((item) =>
-    conceptIdentityKey(item) === conceptIdentityKey(concept)
+    conceptIdentityKey(item.identity) === conceptIdentityKey(concept.identity)
   );
   const occurrence =
     resolvedConcept?.occurrences.find((item) =>

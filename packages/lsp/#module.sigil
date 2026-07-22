@@ -100,9 +100,11 @@ expand SigilLsp {
     }
 
     ConceptLanguageFeatures {
-      Concept features consume core namespaces and preserve imported-concept origin.
+      Concept features consume core namespace identities, occurrences, and references while preserving imported-concept origin.
 
       Definition and hover include contextual occurrences for the selected component without adding consumer content upstream.
+
+      Definition, hover, and semantic highlighting do not independently reinterpret semantic text as concept references.
     }
   }
 

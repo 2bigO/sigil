@@ -8,7 +8,9 @@ import type {
   ResolvedConcept,
   ResolvedConceptNamespace,
   ResolvedConceptOccurrence,
+  ResolvedConceptReference,
   ResolvedImport,
+  SemanticLine,
   SigilDiagnostic,
   SigilResolution,
   SigilWorkspace,
@@ -211,6 +213,7 @@ function resolveConceptNamespaces(
         publicConcepts: groups.filter((group) => group.isPublic).map((group) =>
           localResolvedConcept(group, true)
         ),
+        references: [],
       },
     };
   });
@@ -239,6 +242,10 @@ function resolveConceptNamespaces(
 
   for (const state of states) {
     diagnoseConceptAmbiguities(state, diagnostics);
+    state.namespace = {
+      ...state.namespace,
+      references: resolveConceptReferences(state),
+    };
   }
 
   return states.map((state) => ({
@@ -389,7 +396,93 @@ function buildNamespace(
     concepts: local,
     accessibleConcepts: accessible,
     publicConcepts: mergeConceptsByIdentity(publicConcepts),
+    references: [],
   };
+}
+
+function resolveConceptReferences(
+  state: NamespaceState,
+): readonly ResolvedConceptReference[] {
+  const concepts = unambiguousAccessibleConcepts(
+    state.namespace.accessibleConcepts,
+  );
+  const references: ResolvedConceptReference[] = [];
+  const declarations = [
+    state.component.declaration,
+    ...state.component.expansions.expands.map((item) => item.declaration),
+  ];
+
+  for (const declaration of declarations) {
+    for (const section of declaration.sections) {
+      for (const line of section.lines) {
+        const lineReferences = concepts.flatMap((concept) =>
+          referenceRanges(line, concept.identifier).map((range) => ({
+            conceptIdentity: concept.identity,
+            componentName: state.component.name,
+            filePath: line.filePath,
+            ownerKind: line.ownerKind,
+            ownerName: line.ownerName,
+            sectionName: line.sectionName,
+            range,
+          }))
+        ).sort((left, right) =>
+          left.range.start.column - right.range.start.column
+        );
+        references.push(...lineReferences);
+      }
+    }
+  }
+  return references;
+}
+
+function unambiguousAccessibleConcepts(
+  concepts: readonly ResolvedConcept[],
+): readonly ResolvedConcept[] {
+  const grouped = groupConceptsByNormalized(concepts);
+  return [...grouped.values()].flatMap((items) => {
+    const identities = distinctConceptIdentities(items);
+    if (identities.length !== 1) return [];
+    const concept = identities[0];
+    const spellings = new Set(
+      concept.occurrences.map((occurrence) => occurrence.block.identifier),
+    );
+    return spellings.size === 1 ? [concept] : [];
+  });
+}
+
+function referenceRanges(
+  line: SemanticLine,
+  identifier: string,
+): readonly ResolvedConceptReference["range"][] {
+  const ranges: ResolvedConceptReference["range"][] = [];
+  let start = 0;
+  while (start <= line.text.length - identifier.length) {
+    const found = line.text.indexOf(identifier, start);
+    if (found < 0) break;
+    const before = line.text[found - 1];
+    const after = line.text[found + identifier.length];
+    if (
+      !isConceptIdentifierCharacter(before) &&
+      !isConceptIdentifierCharacter(after)
+    ) {
+      ranges.push({
+        start: {
+          line: line.range.start.line,
+          column: line.range.start.column + found,
+        },
+        end: {
+          line: line.range.start.line,
+          column: line.range.start.column + found + identifier.length,
+        },
+      });
+    }
+    start = found + identifier.length;
+  }
+  return ranges;
+}
+
+function isConceptIdentifierCharacter(value: string | undefined): boolean {
+  return value !== undefined && /[A-Za-z0-9_-]/.test(value);
 }
 
 function diagnoseConceptAmbiguities(

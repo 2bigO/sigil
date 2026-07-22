@@ -272,6 +272,43 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   assert(markdown.includes("Origin: `Thing`"));
   assert(markdown.includes("run() uses Execution."));
   assert(!markdown.includes("Running succeeds."));
+
+  const caseMismatch = responseResult(
+    await server.handle(request(
+      4,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 10, character: 8 },
+      },
+    )),
+  );
+  assertEquals(caseMismatch, null);
+
+  const substring = responseResult(
+    await server.handle(request(
+      5,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 10, character: 22 },
+      },
+    )),
+  );
+  assertEquals(substring, null);
+
+  const tokens = responseResult(
+    await server.handle(request(
+      6,
+      "textDocument/semanticTokens/full",
+      { textDocument: { uri: consumerUri } },
+    )),
+  ) as Record<string, unknown>;
+  assert(
+    !decodeSemanticTokens(tokens.data as number[]).some((item) =>
+      item.line === 10 && item.tokenType === 1
+    ),
+  );
 });
 
 Deno.test("publishes concept style information as an LSP hint", async () => {
@@ -521,6 +558,8 @@ component Consumer {
   interface {
     Execution {
       run() uses Execution.
+
+      execution and ExecutionCache remain prose.
     }
   }
 }

@@ -640,6 +640,84 @@ component App {
   );
 });
 
+Deno.test("resolves contextual whole-word concept references in source order", async () => {
+  const consumerSource = `@account.sigil import { Account }
+
+component Consumer {
+  goal {
+    Session, session, SessionCache, and Session.
+  }
+
+  interface {
+    View {
+      Session works.
+    }
+  }
+}
+
+expand Consumer {
+  logic {
+    View {
+      Session then Session.
+    }
+  }
+}
+`;
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(
+      new InMemorySigilFileSystem({
+        ".sigil/config.json": configSource(),
+        "account.sigil": `component Account {
+  goal {
+    Provide authenticated sessions.
+  }
+
+  interface {
+    Session {
+      Represents authenticated access.
+    }
+  }
+}
+`,
+        "consumer.sigil": consumerSource,
+      }),
+      { startPath: "." },
+    ),
+  );
+
+  assertNoErrors(resolved.diagnostics);
+  const account = conceptNamespaceFor(resolved, "Account");
+  const consumer = conceptNamespaceFor(resolved, "Consumer");
+  assert(account && consumer);
+  assertEquals(account.references.length, 0);
+  assertEquals(consumer.references.length, 5);
+  assertEquals(
+    consumer.references.map((reference) => reference.range.start.line).join(
+      ",",
+    ),
+    "5,5,10,18,18",
+  );
+  assertEquals(
+    consumer.references.map((reference) => reference.ownerKind).join(","),
+    "component,component,component,expand,expand",
+  );
+  for (const reference of consumer.references) {
+    assertEquals(reference.componentName, "Consumer");
+    assertEquals(reference.filePath, "consumer.sigil");
+    assertEquals(reference.ownerName, "Consumer");
+    assertEquals(reference.conceptIdentity.componentName, "Account");
+    assertEquals(reference.conceptIdentity.identifier, "Session");
+    const line = consumerSource.split("\n")[reference.range.start.line - 1];
+    assertEquals(
+      line.slice(
+        reference.range.start.column - 1,
+        reference.range.end.column - 1,
+      ),
+      "Session",
+    );
+  }
+});
+
 Deno.test("rejects case-insensitive concept ambiguity across imports", async () => {
   const provider = (component: string, concept: string) =>
     `component ${component} {\n  goal {\n    Provide ${component}.\n  }\n\n  interface {\n    ${concept} {\n      Public ${concept}.\n    }\n  }\n}\n`;
@@ -657,7 +735,7 @@ component Consumer {
 
   interface {
     Workspace {
-      Shows both providers.
+      Shows Session and session from both providers.
     }
   }
 }
@@ -670,6 +748,9 @@ component Consumer {
     resolved.diagnostics,
     "SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER",
   );
+  const consumer = conceptNamespaceFor(resolved, "Consumer");
+  assert(consumer);
+  assertEquals(consumer.references.length, 0);
 });
 
 Deno.test("filesystem read failures propagate to the host", async () => {

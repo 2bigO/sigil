@@ -37,7 +37,7 @@ expand SigilProjections {
     }
 
     ConceptNamespaceProjection {
-      Return the namespace built by SigilResolver without changing identity, visibility, origin, or contextual occurrences.
+      Return the namespace built by SigilResolver without changing identity, visibility, origin, contextual occurrences, references, or source order.
     }
 
     ExpansionProjection {
