@@ -45,6 +45,8 @@ component SigilLsp {
 
     ConceptLanguageFeatures {
       supports document symbols, definition, hover, diagnostics, and semantic highlighting for resolved concept identities
+
+      hover on a reused concept presents its collective public interface occurrences from the origin through the current component context
     }
 
     WorkspaceSupport {
@@ -105,6 +107,10 @@ expand SigilLsp {
       Definition and hover include contextual occurrences for the selected component without adding consumer content upstream.
 
       Definition, hover, and semantic highlighting do not independently reinterpret semantic text as concept references.
+
+      Concept hover combines originating public interface occurrences with public contextual reuse occurrences available through the current component's import path.
+
+      Hover preserves each occurrence's component, section, and source attribution.
     }
   }
 
@@ -127,6 +133,10 @@ expand SigilLsp {
       Semantic highlighting uses standard full-document responses and distinguishes component and concept tokens from free text.
 
       Client cancellation prevents an obsolete result when cancellation is observed before completion.
+    }
+
+    ConceptLanguageFeatures {
+      Imported-concept hover does not expose private state, logic, constraints, cases, or expansion occurrences.
     }
 
     WorkspaceSupport {
@@ -167,6 +177,10 @@ expand SigilLsp {
       An imported concept navigates to its originating declaration.
 
       A resolved whole-word concept receives highlighting, definition, and hover.
+
+      Hovering a reused imported concept shows both its originating interface content and the consumer's public contextual content.
+
+      Hovering a reused imported concept does not reveal the provider's private collective expansion content.
 
       Ungrouped interface content receives one warning per contiguous region.
 

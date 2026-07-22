@@ -363,12 +363,17 @@ function conceptReferences(
     if (!context) continue;
     for (const section of declaration.sections) {
       for (const block of section.concepts) {
-        const concept = context.conceptNamespace.concepts.find((item) =>
+        const localConcept = context.conceptNamespace.concepts.find((item) =>
           item.occurrences.some((occurrence) => occurrence.block === block)
         );
+        const concept = localConcept &&
+          (context.conceptNamespace.accessibleConcepts.find((item) =>
+            conceptIdentityKey(item.identity) ===
+              conceptIdentityKey(localConcept.identity)
+          ) ?? localConcept);
         if (concept) {
           references.push({
-            concept,
+            concept: conceptForHover(concept, context),
             context,
             range: declarationNameRange(
               source,
@@ -391,7 +396,7 @@ function conceptReferences(
       );
       if (concept) {
         references.push({
-          concept,
+          concept: conceptForHover(concept, context),
           context,
           range: sourceRangeToLsp(reference.range),
         });
@@ -399,6 +404,23 @@ function conceptReferences(
     }
   }
   return deduplicateConceptReferences(references);
+}
+
+function conceptForHover(
+  concept: ResolvedConcept,
+  context: ResolvedComponent,
+): ResolvedConcept {
+  const isContextualReuse = concept.identity.componentName !== context.name ||
+    normalizePath(concept.identity.filePath) !==
+      normalizePath(context.filePath);
+  return isContextualReuse
+    ? {
+      ...concept,
+      occurrences: concept.occurrences.filter((occurrence) =>
+        occurrence.sectionName === "interface"
+      ),
+    }
+    : concept;
 }
 
 function componentContext(
@@ -652,7 +674,7 @@ function conceptMarkdown(reference: ConceptReference): string {
   for (const occurrence of reference.concept.occurrences) {
     lines.push(
       "",
-      `**${occurrence.sectionName}** — \`${occurrence.filePath}\``,
+      `**${occurrence.sectionName}** — \`${occurrence.componentName}\` in \`${occurrence.filePath}\``,
       ...markdownList(occurrence.block.lines.map((item) => item.text)),
     );
   }

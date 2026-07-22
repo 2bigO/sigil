@@ -270,8 +270,36 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   );
   assert(markdown.includes("concept Execution"));
   assert(markdown.includes("Origin: `Thing`"));
+  assert(
+    markdown.includes("**interface** — `Thing` in `/workspace/contract.sigil`"),
+  );
+  assert(markdown.includes("run()"));
+  assert(
+    markdown.includes(
+      "**interface** — `Consumer` in `/workspace/consumer.sigil`",
+    ),
+  );
   assert(markdown.includes("run() uses Execution."));
   assert(!markdown.includes("Running succeeds."));
+  assert(!markdown.includes("Consumer retries are private."));
+
+  const declarationHover = responseResult(
+    await server.handle(request(
+      31,
+      "textDocument/hover",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 8, character: 6 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const declarationMarkdown = String(
+    (declarationHover.contents as Record<string, unknown>).value,
+  );
+  assert(declarationMarkdown.includes("run()"));
+  assert(declarationMarkdown.includes("run() uses Execution."));
+  assert(!declarationMarkdown.includes("Running succeeds."));
+  assert(!declarationMarkdown.includes("Consumer retries are private."));
 
   const caseMismatch = responseResult(
     await server.handle(request(
@@ -560,6 +588,12 @@ component Consumer {
       run() uses Execution.
 
       execution and ExecutionCache remain prose.
+    }
+  }
+
+  constraints {
+    Execution {
+      Consumer retries are private.
     }
   }
 }
