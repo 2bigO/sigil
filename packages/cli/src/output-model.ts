@@ -45,8 +45,7 @@ export interface SkillInstallCommandResult {
       | "installed"
       | "updated"
       | "existing"
-      | "copied"
-      | "conflicted";
+      | "copied";
   }[];
   readonly diagnostics: readonly SigilDiagnostic[];
 }

@@ -693,14 +693,15 @@ Larger examples live in:
 - `examples/slotted/auth.sigil`
 - `examples/slotted/user-profile.sigil`
 
-## 13. Proposed Platform Capability: Anchors
+## 13. Historical Platform Proposal: Anchors
 
-Anchors are a proposed future platform concept for connecting Sigil semantic lines to implementation evidence.
+Anchors are an inactive historical platform proposal for connecting Sigil semantic lines to implementation evidence.
 
 An anchor would not change the meaning of a Sigil line.
 It would record traceability between specification intent and implementation evidence.
 
-The proposed storage model is the committed workspace sidecar `.sigil/anchors.json`, not inline syntax in `.sigil` files.
+The historical storage proposal used a committed workspace sidecar
+`.sigil/anchors.json`, not inline syntax in `.sigil` files.
 Generated AST indexes remain disposable.
 This keeps Sigil readable while allowing tools to map a component, section, or semantic line to related files, symbols, tests, migrations, or generated code.
 
@@ -716,10 +717,10 @@ Anchors are intended to provide:
 - signals when code and Sigil drift apart;
 - support for future code/spec synchronization workflows.
 
-The proposed anchor design is consolidated with generated Receipts, readiness,
+The historical anchor design was consolidated with generated Receipts, readiness,
 evidence, and review records in
 [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
-The capability remains unavailable until that ADR and the colocated Sigil contracts pass review and implementation is complete.
+No active version 0.4 contract authorizes this capability.
 
 ## 14. Unresolved Language Questions
 

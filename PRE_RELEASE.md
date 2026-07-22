@@ -10,7 +10,7 @@ Included contracts:
 - `.sigil/config.json` schema 0.4.0;
 - `@qoherent/sigil-core` 0.4.0;
 - `@qoherent/sigil` 0.4.0;
-- standalone Codex Sigil skill 0.4.0 with implementation-component discovery,
+- standalone host-neutral Sigil skill 0.4.0 with implementation-component discovery,
   coverage review, and proposal-only concept-identifier delegation;
 - language, configuration, API, migration, workflow, and compatibility
   documentation.
@@ -24,7 +24,8 @@ first concrete human authoring and review surface over `@qoherent/sigil-lsp`.
 Each contract follows semantic versioning independently. The compatibility
 matrix records supported combinations.
 
-Version 0.4.0 intentionally excludes anchors and `sigil-indexer` implementation,
+Version 0.4.0 intentionally excludes the historically designed anchors and
+`sigil-indexer` implementation,
 editor integrations other than VS Code, plugin packaging, semantic search,
 interactive CLI workflows, `.sigil` mutation, generated diagrams, and
 persistent approval records. Human approval is session-scoped.
@@ -34,6 +35,6 @@ VS Code extension tests, skill validation, JSR dry runs, VSIX packaging, and the
 documented brownfield pilot to pass.
 
 Native CLI release acceptance also requires all five supported archives to
-compile, contain the version-matched Sigil skill, pass SHA-256 verification, and
-run a native executable smoke test. GitHub-hosted VS Code releases require a
+compile, contain the version-matched Sigil skill, and be covered by the
+published SHA-256 manifest. GitHub-hosted VS Code releases require a
 version-matched installable VSIX; Marketplace publication remains deferred.

@@ -1,15 +1,17 @@
-# sigil-indexer
+# Historical sigil-indexer design
 
-Proposed deterministic anchor and source-indexing package for Sigil.
+This directory preserves an inactive deterministic anchor and source-indexing
+proposal for design history.
 
-The package will connect approved Sigil semantic lines to implementation
-evidence without adding source-language or model dependencies to `sigil-core`.
+The proposal described a package that would connect approved Sigil semantic
+lines to implementation evidence without adding source-language or model
+dependencies to `sigil-core`.
 
-Package docs:
+Historical documents:
 
-- [spec.md](spec.md): proposed data contracts, behavior, and acceptance scenarios.
-- [architecture.md](architecture.md): package boundaries, adapters, persistence, and reconciliation.
-- [sigil-indexer.sigil](./sigil-indexer.sigil): public component contracts and operational decisions awaiting semantic approval.
-
-Implementation is blocked until ADR-011 and the colocated Sigil contracts are
-reviewed and approved.
+- [spec.md](spec.md): proposed data contracts, behavior, and acceptance
+  scenarios.
+- [architecture.md](architecture.md): package boundaries, adapters, persistence,
+  and reconciliation. The former Sigil contract was removed from the active
+  workspace. No package, CLI surface, persistence format, or implementation is
+  currently approved.

@@ -46,7 +46,7 @@ Version 0.4 must not implement:
 - anchors or code/spec synchronization;
 - mutation or formatting of `.sigil` files.
 
-Anchors remain outside the implemented 0.4 surface. The proposed future anchor
+Anchors remain outside the implemented 0.4 surface. The historical anchor
 surface is defined below and does not change the 0.4 acceptance criteria.
 
 ## 4. Runtime And Dependency Requirements
@@ -295,10 +295,10 @@ remains reusable by LSP and editor integrations.
 
 Do not add interactive prompts in version 0.4.
 
-## 12. Proposed Future Anchor Commands
+## 12. Historical Anchor Command Proposal
 
-After ADR-011 and the AnchorIndexer Sigil contract are approved, the CLI may
-depend on `sigil-indexer` and add a nested `anchors` command group.
+The following inactive design is retained for history. Version 0.4 has no
+`sigil-indexer` dependency or `anchors` command group.
 
 ### `sigil anchors candidates [path] --component <name>`
 

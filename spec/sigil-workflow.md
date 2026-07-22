@@ -25,7 +25,7 @@ This keeps documentation ahead of the code instead of turning it into an after-t
 
 `sigil-core` and `sigil-cli` provide structural validity: parsing, required sections, workspace and import resolution, collected expansions, graph relationships, and diagnostics.
 
-The Codex skill currently provides host-side semantic review.
+The host-neutral Sigil skill provides host-side semantic review.
 It checks whether remaining unknowns could materially change observable behavior, public contracts, ownership, security, persistent data, lifecycle rules, or acceptance criteria.
 
 Semantic review includes:
@@ -38,9 +38,10 @@ Semantic review includes:
 - qualitative cohesion, ownership, interface size, coupling, dependency direction, and state ownership;
 - applicable standards, official guidance, and implementation pitfalls.
 
-The proposed boundary between deterministic readiness facts, attributed
-host-assisted interpretation, generated Receipts, and human approval is defined
-in [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
+The active boundary keeps deterministic readiness facts in core and CLI while
+the skill owns semantic judgment and human approval. Historical Receipt and
+anchor exploration remains in
+[ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
 
 ## Proposal And Review Gates
 
@@ -66,14 +67,14 @@ After approval, a placement-only move or split that preserves approved semantic 
 Required import-path updates are placement-only.
 Any added, removed, or changed semantic line creates another review gate.
 
-## Proposed Anchor Workflow
+## Historical Anchor Workflow
 
-Anchors are a staged future workflow consolidated with generated Receipts and
-review evidence in
-[ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
-They do not change Sigil semantics or replace review of Sigil and code.
+Anchors and generated Receipts are inactive historical design material recorded
+in [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
+They have no active Sigil contract, package, CLI command, or skill workflow in
+version 0.4.
 
-The proposed flow is:
+The historical proposal was:
 
 1. Resolve the approved Sigil component and its collected expansions.
 2. Build a deterministic source AST and symbol index.

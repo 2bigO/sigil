@@ -12,8 +12,7 @@ export type SkillInstallStatus =
   | "installed"
   | "updated"
   | "existing"
-  | "copied"
-  | "conflicted";
+  | "copied";
 
 export interface InstallSkillsOptions {
   readonly scope?: SkillInstallScope;

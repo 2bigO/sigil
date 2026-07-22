@@ -73,9 +73,10 @@ The full workflow is described in [spec/sigil-workflow.md](spec/sigil-workflow.m
 
 The Sigil platform architecture is drafted in [spec/sigil-platform-architecture.md](spec/sigil-platform-architecture.md).
 
-The proposed architecture for semantic readiness, generated Receipts, evidence,
-anchors, and human review is recorded in
-[ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md).
+Historical architecture exploration for generated Receipts, evidence, and
+anchors is recorded in
+[ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md),
+but those capabilities are outside the active v0.4 workspace.
 
 ## Language Shape
 
@@ -143,7 +144,7 @@ contains the ordinary high-level project summary for this configured boundary.
 
 - `spec/` contains language, workflow, platform architecture, and open-question documents.
 - `examples/` contains independently configured Sigil projects used as design-pressure fixtures.
-- `packages/` contains the implemented `sigil-core`, `sigil-cli`, and initial `sigil-lsp`, plus the proposed future `sigil-indexer`.
+- `packages/` contains the implemented `sigil-core`, `sigil-cli`, and initial `sigil-lsp`; `packages/indexer` is retained as historical design material.
 - `integrations/` contains host adapters such as coding-agent skills, the initial VS Code extension, and future editor integrations.
 
 ## Examples
@@ -214,9 +215,8 @@ standard hover responses.
 
 Semantic readiness, standards research, brownfield reconciliation, proposal gates, and implementation colocation live in the host-neutral Sigil skill rather than `sigil-core`.
 The skill also discovers coherent implementation and UI components, distinguishes component contracts from implementation-specific expands and trivial mechanics, and requires an implementation coverage map before coding.
-The proposed boundary keeps deterministic facts in shared packages and
-model-assisted interpretation in attributed host contributions, as described in
-ADR-011.
+The active boundary keeps deterministic facts in shared packages and
+model-assisted interpretation in the host-neutral skill workflow.
 
 Editor integrations other than VS Code, stricter body semantics, project
 configuration, and code-generation integrations remain deferred.

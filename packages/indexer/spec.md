@@ -1,8 +1,11 @@
-# sigil-indexer Requirements
+# Historical sigil-indexer Requirements
 
-**Status:** Proposed
-**Owner:** _TBD_
-**Last updated:** 2026-07-13
+**Status:** Historical and inactive
+**Owner:** Sigil maintainers
+**Last updated:** 2026-07-22
+
+This document records an earlier proposal. Its requirements are not active in
+the version 0.4 workspace.
 
 ## 1. Purpose
 

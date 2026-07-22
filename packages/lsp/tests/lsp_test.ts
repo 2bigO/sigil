@@ -119,6 +119,22 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
     0,
   );
 
+  const importLine = "@contract.sigil import { Thing }";
+  const afterImportedName = responseResult(
+    await server.handle(request(
+      31,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: {
+          line: 0,
+          character: importLine.indexOf("Thing") + "Thing".length,
+        },
+      },
+    )),
+  );
+  assertEquals(afterImportedName, null);
+
   const expandDefinition = responseResult(
     await server.handle(request(
       4,

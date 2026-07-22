@@ -266,11 +266,10 @@ Do not add interactive prompts in version 0.4.
 
 Do not add mutation or formatting commands in version 0.4.
 
-## 9. Proposed Future Anchor Extension
+## 9. Historical Anchor Extension Proposal
 
-After ADR-011 approval, `sigil-cli` may depend on `sigil-indexer` through a
-separate `indexer-adapter`. Existing Sigil parsing and resolution continue
-through `core-adapter`.
+The following inactive design is retained for history. The approved CLI depends
+on `core-adapter` and has no indexer adapter or anchor mutation surface.
 
 ```text
 anchors argv -> anchors command handler -> indexer-adapter -> sigil-indexer
@@ -286,7 +285,7 @@ Rules:
 - only `anchors apply` may write, and it may write only `.sigil/anchors.json`;
 - the write uses a temporary sibling plus atomic rename after complete validation;
 - no CLI module invokes a model, imports a Codex skill, or interprets proposal evidence;
-- existing 0.2 commands and exit behavior remain backward compatible.
+- the proposal would not alter existing command behavior without a separately approved contract.
 
 ## 6. Output Guidelines
 

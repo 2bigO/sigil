@@ -586,15 +586,11 @@ function tokenAt(
   while (start > 0 && isToken(line[start - 1])) start--;
   while (end < line.length && isToken(line[end])) end++;
   const text = line.slice(start, end).replace(/^@/, "");
-  return text
-    ? {
-      text,
-      range: {
-        start: { line: position.line, character: start },
-        end: { line: position.line, character: end },
-      },
-    }
-    : null;
+  const range = {
+    start: { line: position.line, character: start },
+    end: { line: position.line, character: end },
+  };
+  return text && contains(range, position) ? { text, range } : null;
 }
 
 function componentMarkdown(
@@ -690,7 +686,7 @@ function location(filePath: string, range?: SourceRange): Location {
 
 function contains(range: Range, position: Position): boolean {
   return compare(range.start, position) <= 0 &&
-    compare(position, range.end) <= 0;
+    compare(position, range.end) < 0;
 }
 
 function compare(left: Position, right: Position): number {

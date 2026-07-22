@@ -1,8 +1,8 @@
 # Sigil Platform Architecture
 
-**Status:** Draft
-**Owner:** _TBD_
-**Last updated:** 2026-07-10
+**Status:** Accepted for 0.4
+**Owner:** Sigil maintainers
+**Last updated:** 2026-07-22
 
 This document defines the high-level architecture guidelines for the Sigil platform.
 Package-specific product details, public commands, editor features, and implementation milestones belong near the package or integration they describe.
@@ -43,7 +43,7 @@ Boundary rules:
 - `spec/` defines durable language and platform decisions.
 - `examples/` demonstrates and tests language behavior.
 - `packages/` contains reusable implementation units.
-- `integrations/` adapts Sigil to specific hosts such as Codex, editors, MCP, or GitHub.
+- `integrations/` adapts Sigil to coding-agent hosts, editors, and other host environments.
 - Package-specific details belong in that package's README or spec.
 - Host-specific behavior belongs under `integrations/`, not in shared packages.
 
@@ -53,14 +53,18 @@ Platform packages:
 
 - `packages/core`: implemented shared parser, workspace loader, resolver, graph, diagnostics, source-location model, and projection primitives.
 - `packages/cli`: implemented command-line interface for agents, CI, scripts, debugging, context extraction, and Markdown review rendering.
-- `packages/indexer`: proposed future deterministic source AST indexing, anchor candidates, validation, persistence, and reconciliation.
 - `packages/lsp`: implemented pre-production language-server interface for shared editor-neutral diagnostics, navigation, symbols, hover, and resolver-backed semantic highlighting across multiple editors.
+
+`packages/indexer` contains historical design documents only. It is not an
+active package or configured workspace member.
 
 Integrations:
 
-- `integrations/skills/sigil`: implemented Codex workflow for structural tool use, host-side semantic and standards review, brownfield adoption, review gates, and implementation colocation.
-- `integrations/skills/sigil-anchor-indexer`: proposed Codex workflow for bounded model-assisted anchor proposals and human approval.
+- `integrations/skills/sigil`: implemented host-neutral workflow for structural tool use, semantic and standards review, brownfield adoption, review gates, and implementation colocation.
 - `integrations/editor/vscode`: implemented pre-production VS Code extension for syntax highlighting, bundled LSP features, component previews, and editor-native affordances.
+
+`integrations/skills/sigil-anchor-indexer` contains historical design material
+only and has no active Sigil contract.
 
 The CLI is an automation interface.
 It may help humans during early development, but it is not the primary human product.
@@ -84,16 +88,13 @@ The core must own:
 The core must not depend on:
 
 - CLI argument parsing;
-- Codex-specific prompt behavior;
+- coding-agent-host behavior;
 - VS Code APIs;
 - editor UI concerns;
 - transport protocols such as LSP or MCP.
 
-`sigil-indexer` may depend on `sigil-core` and source-language parser adapters.
-It must remain deterministic and must not call models or depend on host prompts.
-Source AST nodes are resolution evidence, not durable anchor identities.
-Accepted anchor relationships live in a versioned workspace sidecar rather than
-inside Sigil syntax.
+Historical indexer and anchor constraints remain documented in ADR-010 and
+ADR-011 but are not active platform commitments.
 
 ## 5. Workspace Rules
 
@@ -127,16 +128,13 @@ Sigil has different user modes, so one interface should not pretend to serve eve
 - LSP is the reusable semantic bridge between the shared core and editor integrations.
 - Host integrations should stay thin over shared packages.
 
-The Codex skill currently owns nondeterministic host behavior such as user elicitation, web research, brownfield evidence reconciliation, and semantic readiness review.
-ADR-011 proposes shared deterministic receipt facts and a separate Receipt
-assembly layer while keeping model-assisted interpretation and elicitation in
-attributed host integrations.
+The host-neutral Sigil skill owns nondeterministic behavior such as user
+elicitation, standards research, brownfield evidence reconciliation, semantic
+readiness review, and approval gates. Deterministic core and CLI packages do not
+perform those judgments or mutate `.sigil` source.
 
-The proposed Receipt and anchor workflow follows the same boundary: shared
-packages produce and validate deterministic facts, candidate data, evidence,
-and generated runs, while Codex or another host may interpret natural language
-and propose relationships. Human review remains outside shared packages. See
-ADR-011.
+Historical Receipt and anchor proposals remain in ADR-011 without creating
+active packages, commands, or workflow promises.
 
 This keeps the platform coherent while allowing each surface to feel natural for its audience.
 
@@ -226,11 +224,11 @@ models only to propose natural-language relationships for human approval.
 
 History: See [ADR-010: AST Anchors And Model-Assisted Indexing](decisions/adr-010-ast-anchors-and-model-assisted-indexing.md).
 
-### ADR-011: Generate Rationale, Evidence, And Review Records
+### ADR-011: Historical Rationale, Evidence, And Review-Record Proposal
 
-Status: Proposed; implementation is blocked on semantic review.
+Status: Historical and deferred; no active Sigil contract.
 
-Decision proposal: Keep `.sigil` source human-authored, generate attributed
+Historical proposal: Keep `.sigil` source human-authored, generate attributed
 Receipts from deterministic facts and host contributions, keep models outside
 core, reuse one semantic-line identity across Receipts and anchors, and preserve
 human approval as an independent action.
@@ -258,20 +256,20 @@ If source locations and semantic lines are not preserved from the beginning, anc
 
 Guardrail: source ranges are core parser output, not metadata added later.
 
-### Treating AST Nodes As Permanent Identity
+### Historical Anchor Identity Risk
 
 AST nodes are recreated on every parse and may disappear during behavior-preserving refactors.
 
-Guardrail: persist relationship IDs and locator fingerprints, use AST nodes as
-resolution evidence, and return ambiguous remapping to review.
+Historical guardrail: a future reviewed proposal would need durable relationship
+identity rather than treating recreated AST nodes as permanent identity.
 
-### Letting Models Mutate Accepted Anchors
+### Historical Model-Mutated Anchor Risk
 
 Natural-language matching is useful but nondeterministic and may silently choose
 the wrong target after a refactor.
 
-Guardrail: models only propose; deterministic validation and explicit human
-approval precede persistence.
+Historical guardrail: any future proposal would keep models advisory and require
+deterministic validation plus explicit human approval before persistence.
 
 ### Making Agent Context Too Large
 
@@ -298,11 +296,11 @@ Detailed package and integration specs should live close to the implementation s
 
 - `packages/core/README.md`: parser, resolver, graph, diagnostics, projections.
 - `packages/cli/README.md`: command behavior for agents, CI, scripts, and debugging.
-- `packages/indexer/README.md`: deterministic anchor index, source adapters, reconciliation, and persistence.
+- `packages/indexer/README.md`: historical indexer and anchor design material.
 - `packages/lsp/README.md`: implemented pre-production editor semantic protocol.
 - `integrations/editor/vscode/README.md`: implemented pre-production concrete editor UX.
-- `integrations/skills/sigil/`: Codex prompt and reference behavior.
-- `integrations/skills/sigil-anchor-indexer/`: model-assisted anchor proposal workflow.
+- `integrations/skills/sigil/`: host-neutral workflow and host-adapter metadata.
+- `integrations/skills/sigil-anchor-indexer/`: historical anchor-workflow design material.
 
 Root-level docs should stay stable and architectural.
 Package docs can change as the implementation and product surface become more concrete.

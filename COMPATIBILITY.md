@@ -8,7 +8,9 @@
 | `@qoherent/sigil`        | 0.4.0   | core `0.4.x`                                    |
 | `@qoherent/sigil-lsp`    | 0.4.0   | core `0.4.x`; LSP 3.18                          |
 | VS Code extension        | 0.4.0   | `@qoherent/sigil-lsp` 0.4.x; VS Code `^1.91.0` |
-| Codex Sigil skill        | 0.4.0   | CLI/core `^0.4.0`; Sigil 0.4.0                  |
+| Coding-agent Sigil skill | 0.4.0   | CLI/core `^0.4.0`; Sigil 0.4.0                  |
 
-The Sigil version is canonical in `packages/core/deno.json`; a tool must reject
-a configured `sigilVersion` it does not explicitly support.
+The language contract in `spec/language.sigil` owns the Sigil version. Core
+exposes that supported language version independently from the core artifact
+version owned by `packages/core/deno.json`. A tool must reject a configured
+`sigilVersion` it does not explicitly support.

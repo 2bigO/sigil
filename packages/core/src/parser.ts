@@ -171,18 +171,21 @@ export function parseSigilDocument(
         continue;
       }
 
-      if (trimmed.length > 0) {
-        const semanticLine = makeSemanticLine(
-          filePath,
-          lineNumber,
-          line,
-          form,
-          section.name,
-        );
-        section.lines.push(semanticLine);
-        section.ungroupedLines.push(semanticLine);
-        section.freeformBraceDepth += braceDelta(line);
+      if (trimmed.length === 0) {
+        reportUngroupedInterfaceRegion(section, filePath, diagnostics);
+        continue;
       }
+
+      const semanticLine = makeSemanticLine(
+        filePath,
+        lineNumber,
+        line,
+        form,
+        section.name,
+      );
+      section.lines.push(semanticLine);
+      section.ungroupedLines.push(semanticLine);
+      section.freeformBraceDepth += braceDelta(line);
       continue;
     }
 

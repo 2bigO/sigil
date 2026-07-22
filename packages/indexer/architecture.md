@@ -1,8 +1,11 @@
-# sigil-indexer Architecture
+# Historical sigil-indexer Architecture
 
-**Status:** Proposed
-**Owner:** _TBD_
-**Last updated:** 2026-07-13
+**Status:** Historical and inactive
+**Owner:** Sigil maintainers
+**Last updated:** 2026-07-22
+
+This document records an earlier proposal. It does not describe an active
+package or approved implementation commitment.
 
 ## 1. Architecture
 

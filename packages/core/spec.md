@@ -63,7 +63,7 @@ Version 0.4 must not implement:
 - dotted concept notation, concept aliases, shadowing, or nested concept blocks;
 - concept-based anchoring behavior.
 
-Anchors remain outside `sigil-core`. The proposed future design in ADR-011 adds
+Anchors remain outside `sigil-core`. The historical design in ADR-011 described
 them through a separate deterministic `sigil-indexer` package that consumes
 core semantic-line and workspace models.
 

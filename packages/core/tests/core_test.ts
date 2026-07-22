@@ -482,6 +482,31 @@ expand Account {
   );
 });
 
+Deno.test("reports each blank-line-separated ungrouped interface region", () => {
+  const source = `component Account {
+  goal {
+    Authenticate users.
+  }
+
+  interface {
+    first ungrouped region
+
+    second ungrouped region
+  }
+}
+`;
+  const parsed = parseSigilDocument("account.sigil", source, {
+    sigilVersion: SIGIL_VERSION,
+  });
+  assertEquals(
+    parsed.diagnostics.filter((item) =>
+      item.code === "SIGIL_MISSING_CONCEPT_IDENTIFIER"
+    ).length,
+    2,
+  );
+  assertNoErrors(parsed.diagnostics);
+});
+
 Deno.test("rejects empty, nested, and invalid concept blocks", () => {
   const source = `component BrokenConcepts {
   goal {
