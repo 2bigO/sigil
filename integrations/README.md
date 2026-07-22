@@ -7,7 +7,7 @@ environment without becoming the shared parser or CLI implementation.
 
 Current integrations:
 
-- `skills/sigil`: Codex skill with agent-facing format guidance, standards-aware
+- `skills/sigil`: host-neutral coding-agent skill with format guidance, standards-aware
   semantic review, incremental brownfield adoption, proposal and review gates,
   concept-identifier proposal workflow, and implementation colocation. Version
   0.4.0 is distributed as a standalone
@@ -17,8 +17,8 @@ Current integrations:
   editor-native human UI with syntax highlighting, bundled LSP features, and
   component previews.
 
-Proposed integration:
+Historical design material:
 
-- `skills/sigil-anchor-indexer`: bounded model-assisted anchor proposals over
-  deterministic `sigil-indexer` candidates, with human approval before
-  persistence.
+- `skills/sigil-anchor-indexer`: an inactive proposal for bounded model-assisted
+  anchor proposals over deterministic indexer candidates. Its Markdown is
+  retained for design history but it has no active Sigil contract.

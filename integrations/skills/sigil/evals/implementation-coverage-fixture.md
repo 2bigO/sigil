@@ -1,7 +1,7 @@
 # Implementation coverage fixture
 
 The user has approved a high-level `NotificationService` component and asks
-Codex to implement it. The intended design includes a queue abstraction with a
+a coding agent to implement it. The intended design includes a queue abstraction with a
 stable enqueue and settlement API, retry behavior owned by the notification
 delivery implementation, a reusable delivery-status UI surface, and a local
 address-formatting helper. None of these implementation concerns has Sigil yet.

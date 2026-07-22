@@ -28,7 +28,8 @@ npm run test:extension
 npm run package
 ```
 
-`npm run package` creates `build/sigil-vscode-0.4.0.vsix`. The manifest uses
+`npm run package` derives the artifact version from `package.json` and creates
+`build/sigil-vscode-<version>.vsix`. The manifest uses
 the development publisher identifier `sigil-dev`; Marketplace publication
 remains deferred until an approved publisher identity exists.
 
@@ -37,5 +38,5 @@ GitHub Release. Install a downloaded package with **Extensions: Install from
 VSIX...** in VS Code or:
 
 ```bash
-code --install-extension sigil-vscode-0.4.0.vsix
+code --install-extension sigil-vscode-VERSION.vsix
 ```

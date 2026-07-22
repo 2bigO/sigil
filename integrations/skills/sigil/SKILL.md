@@ -1,6 +1,6 @@
 ---
 name: sigil
-description: Work with Sigil, a lightweight rationale-oriented modeling language for software systems, and its CLI for AI-assisted development. Use when Codex needs to read, write, improve, reconcile, validate, query, render, or use `.sigil` files; introduce Sigil into an existing or partially documented brownfield codebase; assess semantic readiness, applicable standards, best practices, pitfalls, coherence, or modularity; create or update component/expand specs; describe product modules, programming abstractions, APIs, state machines, or architecture decisions; align code with Sigil; resolve ambiguity before code generation; or build from a Sigil-driven workflow. Prefer `sigil-cli` for mechanical parsing, checks, graph, context, and render operations. Stop for human review after creating or semantically changing Sigil, and do not write implementation code until the user explicitly approves the agreed Sigil.
+description: Work with Sigil, a lightweight rationale-oriented modeling language for software systems, and its CLI for AI-assisted development. Use when a coding-agent host needs to read, write, improve, reconcile, validate, query, render, or use `.sigil` files; introduce Sigil into an existing or partially documented brownfield codebase; assess semantic readiness, applicable standards, best practices, pitfalls, coherence, or modularity; create or update component/expand specs; describe product modules, programming abstractions, APIs, state machines, or architecture decisions; align code with Sigil; resolve ambiguity before code generation; or build from a Sigil-driven workflow. Prefer `sigil-cli` for mechanical parsing, checks, graph, context, and render operations. Stop for human review after creating or semantically changing Sigil, and do not write implementation code until the user explicitly approves the agreed Sigil.
 ---
 
 # Sigil
@@ -56,7 +56,7 @@ Use the CLI to parse, check, resolve graph data, collect context, or render
 review Markdown instead of manually reimplementing those operations in the
 agent.
 
-An installed Codex skill does not include this repository's `packages/`
+An installed skill does not include this repository's `packages/`
 directory. Treat `packages/cli/src/main.ts` as available only when the current
 workspace is the Sigil platform repository or another checkout that contains
 that path.
@@ -415,57 +415,6 @@ At the gate, respond with:
 Do not continue from the review gate into implementation just because the
 original user request included code generation. The point of Sigil is to make
 the human check the durable rationale before code exists.
-
-## Review Heuristics
-
-When reviewing or improving Sigil, check:
-
-- Is every goal specific about responsibility, boundary, and intended outcome?
-- Does every `#module.sigil` declare at least one local component?
-- Does every interface make relevant inputs, outputs, errors, permissions,
-  lifecycle promises, and other observable behavior explicit?
-- Is every interface region grouped under one or more concise concept
-  identifiers, with CLI warnings repaired before review?
-- Do repeated identifiers refer to one coherent concept across the component
-  and its expands?
-- Are private concepts absent from imported dependency projections?
-- Are imported public concepts reused contextually without dotted notation,
-  aliasing, shadowing, or case-insensitive ambiguity?
-- Do imports declare component dependencies without repeating them in
-  interfaces?
-- Does each `expand Name` have a matching `component Name`?
-- Does each imported name resolve to a matching component in the imported Sigil
-  source?
-- Are details such as `state`, `logic`, `constraints`, and `cases` kept in
-  `expand` rather than inside `component`?
-- Are architecture and stack decisions expressed as constraints?
-- Are implementation-hiding rules and forbidden internal access in constraints
-  unless they define an externally observable promise?
-- Are roles, states, permissions, and lifecycle transitions explicit enough to
-  test?
-- For abstractions and APIs, are constructor/functions, return values,
-  settlement/lifecycle behavior, and error behavior explicit?
-- For UI components, are visible structure, interactions, navigation, feedback,
-  and applicable loading, empty, error, disabled, responsive, keyboard, and
-  accessibility behavior clear enough to implement and observe?
-- If an image, screenshot, or design link is referenced, is its intended role
-  clear enough to avoid conflicting interpretations, and is required material
-  accessible?
-- Are examples in `cases` externally observable?
-- Do state, logic, and constraints imply missing edge cases or test points?
-- If there are multiple expands for the same component, did you collect all
-  matching expands and flag any contradictions between them?
-- Do related Sigil files agree on naming, ownership, dependency direction,
-  states, policies, and public expectations?
-- Is each component cohesive, appropriately sized, and coupled through explicit
-  contracts rather than another component's private details?
-- Did implementation coverage consider programming abstractions, internal APIs,
-  state machines, screens, views, and reusable UI surfaces rather than only
-  high-level product or service boundaries?
-- Does each material implementation concern have an intentional component,
-  expand, or omit decision with a clear owner and location?
-- Did you assess whether applicable standards, formal guidance, or official
-  platform practices reveal gaps, conflicts, or pitfalls?
 
 ## Working With Users
 

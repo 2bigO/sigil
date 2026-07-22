@@ -6,11 +6,33 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   assert.equal(manifest.publisher, "sigil-dev");
   assert.equal(manifest.engines.vscode, "^1.91.0");
+  assert.deepEqual(manifest.capabilities, {
+    untrustedWorkspaces: {
+      supported: false,
+      description:
+        "Sigil language features require a trusted file-backed workspace.",
+    },
+    virtualWorkspaces: {
+      supported: false,
+      description: "Sigil language features require a file-backed workspace.",
+    },
+  });
   assert.deepEqual(manifest.contributes.languages[0].extensions, [".sigil"]);
   assert.equal(manifest.contributes.grammars[0].scopeName, "source.sigil");
   assert.equal(
     manifest.contributes.commands[0].command,
     "sigil.showComponentPreview",
+  );
+});
+
+test("package command derives the VSIX filename from the manifest version", async () => {
+  const manifest = JSON.parse(await readFile("package.json", "utf8"));
+  const packaging = await readFile("scripts/package-extension.mjs", "utf8");
+  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.4.0"), false);
+  assert.equal(packaging.includes("manifest.version"), true);
+  assert.equal(
+    packaging.includes("sigil-vscode-${manifest.version}.vsix"),
+    true,
   );
 });
 

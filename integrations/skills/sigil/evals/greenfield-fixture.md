@@ -1,6 +1,6 @@
 # Greenfield fixture
 
-The user asks Codex to design and implement a notification service. They mention
+The user asks a coding agent to design and implement a notification service. They mention
 email delivery and a REST endpoint, but do not specify recipients, delivery
 guarantees, preferences, retries, ordering, failure visibility, ownership, or
 whether synchronous, queued, or event-driven delivery is intended. No relevant

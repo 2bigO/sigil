@@ -11,11 +11,17 @@ import {
   parseSigilConfig,
   parseSigilDocument,
   resolveSigilWorkspace,
+  SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "../src/mod.ts";
 import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
+
+Deno.test("separates the core artifact and language contract versions", () => {
+  assertEquals(SIGIL_CORE_VERSION, "0.4.0");
+  assertEquals(SIGIL_VERSION, "0.4.0");
+});
 
 Deno.test("normalizes and walks POSIX and Windows paths", () => {
   assertEquals(normalizePath("/work/./sigil/../project"), "/work/project");

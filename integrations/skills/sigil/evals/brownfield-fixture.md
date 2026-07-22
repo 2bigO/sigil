@@ -1,7 +1,7 @@
 # Brownfield fixture
 
 The target repository contains implementation code but no `.sigil/config.json`
-or `#module.sigil`. The user asks Codex to add Sigil and then change one
+or `#module.sigil`. The user asks a coding agent to add Sigil and then change one
 existing component.
 
 Root documentation, manifests, executable configuration, and entrypoints suggest

@@ -144,7 +144,7 @@ contains the ordinary high-level project summary for this configured boundary.
 - `spec/` contains language, workflow, platform architecture, and open-question documents.
 - `examples/` contains independently configured Sigil projects used as design-pressure fixtures.
 - `packages/` contains the implemented `sigil-core`, `sigil-cli`, and initial `sigil-lsp`, plus the proposed future `sigil-indexer`.
-- `integrations/` contains host-specific adapters such as the Codex skills, the initial VS Code extension, and future editor integrations.
+- `integrations/` contains host adapters such as coding-agent skills, the initial VS Code extension, and future editor integrations.
 
 ## Examples
 
@@ -165,11 +165,11 @@ Its [.sigil/config.json](examples/slotted/.sigil/config.json) makes it an indepe
 `Slotted` is only an example project used to test the language.
 It is not the purpose of this repository.
 
-## Codex Skill
+## Coding-Agent Skill
 
-The Codex skill lives in [integrations/skills/sigil/SKILL.md](integrations/skills/sigil/SKILL.md).
+The portable skill lives in [integrations/skills/sigil/SKILL.md](integrations/skills/sigil/SKILL.md), with host adapters supplied separately.
 
-The skill teaches Codex to:
+The skill teaches coding-agent hosts to:
 
 - read relevant `.sigil` files first;
 - follow Sigil imports;
@@ -193,7 +193,7 @@ The canonical language specification remains [spec/sigil-language.md](spec/sigil
 All published Sigil artifacts are pre-production and versioned at 0.4.0.
 See [PRE_RELEASE.md](PRE_RELEASE.md), [configuration](spec/sigil-config.md), and the [migration guide](spec/migrating-to-0.4.md).
 
-This repository contains the Sigil language and workflow specifications, platform architecture, examples, a shared Deno TypeScript core, a working CLI, and the Codex skill integration.
+This repository contains the Sigil language and workflow specifications, platform architecture, examples, a shared Deno TypeScript core, a working CLI, and portable coding-agent skill integration.
 
 `sigil-core` implements explicit language-version parsing, strict config
 validation, config-based discovery, declared workspace-member metadata, glob
@@ -212,7 +212,7 @@ resolver-backed component highlighting through LSP semantic tokens,
 editor-native language features, and a read-only component preview derived from
 standard hover responses.
 
-Semantic readiness, standards research, brownfield reconciliation, proposal gates, and implementation colocation currently live in the Codex skill rather than `sigil-core`.
+Semantic readiness, standards research, brownfield reconciliation, proposal gates, and implementation colocation live in the host-neutral Sigil skill rather than `sigil-core`.
 The skill also discovers coherent implementation and UI components, distinguishes component contracts from implementation-specific expands and trivial mechanics, and requires an implementation coverage map before coding.
 The proposed boundary keeps deterministic facts in shared packages and
 model-assisted interpretation in attributed host contributions, as described in
@@ -221,11 +221,12 @@ ADR-011.
 Editor integrations other than VS Code, stricter body semantics, project
 configuration, and code-generation integrations remain deferred.
 
-Receipts and anchors are proposed future capabilities: Receipts explain how
-semantic lines were interpreted and checked, while anchors provide reviewed
-trace links to implementation evidence.
+Receipts and anchors remain historical design explorations rather than active
+Sigil components: Receipts would explain how semantic lines were interpreted
+and checked, while anchors would provide reviewed trace links to implementation
+evidence.
 [ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md)
-proposes deterministic shared packages, attributed host-assisted interpretation,
-a future `sigil-indexer`, and generated review records without adding inline
-Sigil syntax. The proposal is not implemented until ADR-011 and its colocated
-Sigil contracts are approved.
+records an earlier proposal for deterministic shared packages, attributed
+host-assisted interpretation, a `sigil-indexer`, and generated review records
+without adding inline Sigil syntax. Its indexer and anchor contracts are not
+part of the active v0.4 workspace.

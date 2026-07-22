@@ -14,6 +14,7 @@ import {
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
   SIGIL_CONFIG_PATH,
+  SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilConfig,
   type SigilDiagnostic,
@@ -159,7 +160,7 @@ export class CoreAdapter {
   versions(): VersionInfo {
     return {
       cliVersion: SIGIL_CLI_VERSION,
-      coreVersion: SIGIL_VERSION,
+      coreVersion: SIGIL_CORE_VERSION,
     };
   }
   componentContracts(

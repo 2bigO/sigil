@@ -142,7 +142,6 @@ const compatibility = JSON.parse(
 );
 for (
   const [key, expected] of Object.entries({
-    skillVersion: "0.4.0",
     cliVersion: "^0.4.0",
     coreVersion: "^0.4.0",
     sigilVersion: "0.4.0",
@@ -151,6 +150,9 @@ for (
   if (compatibility[key] !== expected) {
     throw new Error(`Expected ${key} ${expected}, got ${compatibility[key]}`);
   }
+}
+if ("skillVersion" in compatibility) {
+  throw new Error("compatibility.json must not duplicate the VERSION owner.");
 }
 
 const expected = JSON.parse(

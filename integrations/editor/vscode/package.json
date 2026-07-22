@@ -25,6 +25,16 @@
   "extensionKind": [
     "workspace"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Sigil language features require a trusted file-backed workspace."
+    },
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Sigil language features require a file-backed workspace."
+    }
+  },
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:sigil",
@@ -83,7 +93,7 @@
     "test:unit": "tsx --test tests/unit/**/*.test.ts",
     "test:extension": "npm run build && node scripts/run-extension-tests.mjs",
     "test": "npm run check && npm run test:unit",
-    "package": "npm run build && vsce package --no-dependencies --out build/sigil-vscode-0.4.0.vsix",
+    "package": "npm run build && node scripts/package-extension.mjs",
     "vscode:prepublish": "npm run build"
   },
   "dependencies": {

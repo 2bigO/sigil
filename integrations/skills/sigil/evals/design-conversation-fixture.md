@@ -1,6 +1,6 @@
 # Design conversation fixture
 
-The user asks Codex to help shape a partially formed application idea. Their
+The user asks a coding agent to help shape a partially formed application idea. Their
 description mixes product outcomes, implementation preferences, and conflicting
 retention expectations. Several ownership, permission, lifecycle, failure, and
 verification decisions are missing. During the conversation the user is unsure

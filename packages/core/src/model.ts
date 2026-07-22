@@ -35,7 +35,8 @@ export type SigilDiagnosticCode =
   | "SIGIL_NESTED_CONFIG"
   | "SIGIL_CONFIG_EXISTS";
 
-export const SIGIL_VERSION = metadata.version;
+export const SIGIL_VERSION = "0.4.0";
+export const SIGIL_CORE_VERSION = metadata.version;
 export const SIGIL_CONFIG_PATH = ".sigil/config.json" as const;
 
 export interface SigilWorkspaceConfig {

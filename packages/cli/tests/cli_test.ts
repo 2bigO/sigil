@@ -1,4 +1,4 @@
-import { SIGIL_VERSION } from "@qoherent/sigil-core";
+import { SIGIL_CORE_VERSION, SIGIL_VERSION } from "@qoherent/sigil-core";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
 import {
@@ -89,7 +89,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
   assertEquals(json.cliVersion, "0.4.0");
-  assertEquals(json.coreVersion, "0.4.0");
+  assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
 

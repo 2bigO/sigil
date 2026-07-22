@@ -4,14 +4,14 @@ This is a concise agent-facing reference for Sigil. The canonical language
 specification lives at repository path `spec/sigil-language.md`.
 
 Use this file when you need a quick reminder of syntax, section placement, or
-review heuristics during a Codex session.
+review heuristics during a coding-agent session.
 
 ## CLI Assistance
 
 When a `sigil` command is available on `PATH`, prefer it for mechanical parsing,
 validation, graph, context, and render operations.
 
-An installed Codex skill does not include the Sigil platform repository's
+An installed skill does not include the Sigil platform repository's
 `packages/` directory. Only use `packages/cli/src/main.ts` when the
 current workspace contains that path.
 
