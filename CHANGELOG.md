@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 0.5.0 - 2026-07-23
+
+- Add the reviewed `.sigil/glossary.json` authority with workspace terms,
+  path-glob-bounded contexts, aliases, strict validation, and stable
+  diagnostics.
+- Add deterministic glossary occurrence matching, CLI inspection, LSP
+  highlighting, hover, and definition navigation.
+- Include source-scoped reviewed terminology in `sigil context` for coding-agent
+  handoffs without injecting unrelated glossary entries.
+- Require glossary inspection and candidate extraction after every approved
+  Sigil write or semantic edit, with explicit approval before glossary authority
+  changes.
+- Advance core, CLI, LSP, VS Code extension, and the Sigil skill to 0.5.0 while
+  retaining the compatible Sigil Language and config contract at 0.4.0.
+
 ## 0.4.0 - 2026-07-22
 
 - Add flat `ConceptIdentifier { ... }` blocks for single reusable concepts or
@@ -14,12 +29,12 @@
 - Make imported public concepts available as bare identifiers, preserve their
   origin through contextual reuse and downstream interface re-exposure, and
   reject ambiguity without dotted notation, aliases, or shadowing.
-- Add concept symbols, definition, hover, references, semantic highlighting,
-  CLI context projections, and grouped Markdown rendering.
+- Add concept symbols, definition, hover, references, semantic highlighting, CLI
+  context projections, and grouped Markdown rendering.
 - Extend the Sigil skill with proposal-only concept-identifier subagent work,
   primary-agent validation, and an explicit anchoring exclusion.
-- Record the namespace, import-reuse, and collective-block decisions in
-  ADR-015, ADR-016, and ADR-017.
+- Record the namespace, import-reuse, and collective-block decisions in ADR-015,
+  ADR-016, and ADR-017.
 - Advance the language, core, CLI, LSP, VS Code extension, and skill to 0.4.0.
 
 ## 0.3.0 - 2026-07-22
@@ -50,10 +65,10 @@
 - Add the Sigil 0.2 migration guide and ADR-013; supersede ADR-012.
 - Advance the language, core, CLI, LSP, VS Code extension, and skill to 0.2.0.
 
-- Add standalone CLI archives for macOS ARM64/x86_64, Linux ARM64/x86_64,
-  and Windows x86_64, with versioned GitHub Release automation.
-- Add checksum-verifying shell and PowerShell installers that require no Deno
-  or Node.js runtime on destination machines.
+- Add standalone CLI archives for macOS ARM64/x86_64, Linux ARM64/x86_64, and
+  Windows x86_64, with versioned GitHub Release automation.
+- Add checksum-verifying shell and PowerShell installers that require no Deno or
+  Node.js runtime on destination machines.
 - Replace `sigil install` with `sigil skill list` and `sigil skill install`,
   using global multi-agent installation by default and `--project` for local
   installation.
@@ -61,14 +76,14 @@
   managed upgrades, conflict preflight, and a Windows copy fallback.
 - Publish the packaged VS Code VSIX through versioned GitHub Releases while
   Marketplace distribution remains deferred.
-- Extend the standalone Codex Sigil skill 0.2.0 with implementation
-  component discovery and an implementation coverage gate before coding.
+- Extend the standalone Codex Sigil skill 0.2.0 with implementation component
+  discovery and an implementation coverage gate before coding.
 - Treat dependent-facing programming abstractions, internal APIs, state
   machines, screens, views, and reusable UI surfaces as possible components.
 - Distinguish component contracts, implementation-specific expands, and
   intentionally omitted trivial mechanics through a reviewable coverage map.
-- Implement the pre-production Sigil VS Code extension 0.2.0 as the
-  first concrete human authoring and review surface.
+- Implement the pre-production Sigil VS Code extension 0.2.0 as the first
+  concrete human authoring and review surface.
 - Define its initial scope as TextMate highlighting, bundled LSP integration,
   editor-native language features, and hover-backed component previews.
 - Implement the pre-production `@qoherent/sigil-lsp` 0.2.0 package.
@@ -101,8 +116,10 @@
 ## 0.1.0 - 2026-07-13
 
 - Publish the pre-production Sigil Language 0.1.0.
-- Add mandatory strict `.sigil/config.json` schema 0.1.0 and config-based discovery.
-- Allow independent nested workspaces only when their subtrees are excluded by configured parents.
+- Add mandatory strict `.sigil/config.json` schema 0.1.0 and config-based
+  discovery.
+- Allow independent nested workspaces only when their subtrees are excluded by
+  configured parents.
 - Configure Promise and Slotted as independent example projects.
 - Release `@qoherent/sigil-core` and `@qoherent/sigil` 0.1.0.
 - Add CLI `init` and `version` commands and complete workspace metadata output.

@@ -4,6 +4,7 @@ export type CommandName =
   | "version"
   | "parse"
   | "check"
+  | "glossary"
   | "graph"
   | "context"
   | "render";
@@ -24,6 +25,7 @@ export type CommandRequest =
   | VersionRequest
   | ParseRequest
   | CheckRequest
+  | GlossaryRequest
   | GraphRequest
   | ContextRequest
   | RenderRequest;
@@ -52,6 +54,10 @@ export interface ParseRequest extends GlobalOptions {
 }
 export interface CheckRequest extends GlobalOptions {
   readonly command: "check";
+  readonly path?: string;
+}
+export interface GlossaryRequest extends GlobalOptions {
+  readonly command: "glossary";
   readonly path?: string;
 }
 export interface GraphRequest extends GlobalOptions {
@@ -88,7 +94,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   const [commandName, ...rest] = argv;
   if (!isCommand(commandName)) {
     return usage(
-      "Expected command: skill, init, version, parse, check, graph, context, or render.",
+      "Expected command: skill, init, version, parse, check, glossary, graph, context, or render.",
     );
   }
 
@@ -254,7 +260,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     };
   }
   if (
-    commandName === "check" || commandName === "graph" ||
+    commandName === "check" || commandName === "glossary" ||
+    commandName === "graph" ||
     commandName === "render"
   ) {
     if (positional.length > 1) {
@@ -264,6 +271,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       kind: "ok",
       request: { command: commandName, path: positional[0], ...base } as
         | CheckRequest
+        | GlossaryRequest
         | GraphRequest
         | RenderRequest,
     };
@@ -290,7 +298,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
 function isCommand(value: string | undefined): value is CommandName {
   return value === "skill" || value === "init" || value === "version" ||
     value === "parse" ||
-    value === "check" || value === "graph" || value === "context" ||
+    value === "check" || value === "glossary" || value === "graph" ||
+    value === "context" ||
     value === "render";
 }
 function isSkillAgent(value: string): value is SkillAgent {

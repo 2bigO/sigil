@@ -2,10 +2,10 @@
 
 Implemented pre-production VS Code extension for Sigil.
 
-Version 0.4 responsibilities:
+Version 0.5 responsibilities:
 
 - provide `.sigil` TextMate syntax highlighting and resolver-backed component
-  and concept highlighting through LSP semantic tokens;
+  concept, and reviewed glossary-term highlighting through LSP semantic tokens;
 - bundle and connect to `sigil-lsp` for diagnostics, symbols, navigation, hover,
   and semantic highlighting;
 - expose `Sigil: Show Component Preview` using the standard LSP hover response;
@@ -13,7 +13,7 @@ Version 0.4 responsibilities:
 
 This integration should become the first concrete human UI for Sigil.
 
-Version 0.4 targets desktop and remote Node extension hosts with file-backed
+Version 0.5 targets desktop and remote Node extension hosts with file-backed
 workspaces. VS Code for the Web, virtual workspaces, telemetry, document
 mutation, and custom LSP methods remain outside the initial version.
 
@@ -29,9 +29,9 @@ npm run package
 ```
 
 `npm run package` derives the artifact version from `package.json` and creates
-`build/sigil-vscode-<version>.vsix`. The manifest uses
-the development publisher identifier `sigil-dev`; Marketplace publication
-remains deferred until an approved publisher identity exists.
+`build/sigil-vscode-<version>.vsix`. The manifest uses the development publisher
+identifier `sigil-dev`; Marketplace publication remains deferred until an
+approved publisher identity exists.
 
 Tagged `vscode-vX.Y.Z` releases package the extension and attach the VSIX to a
 GitHub Release. Install a downloaded package with **Extensions: Install from

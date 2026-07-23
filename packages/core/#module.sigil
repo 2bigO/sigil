@@ -1,10 +1,11 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+@packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 
 component SigilCore {
   goal {
     Provide the deterministic semantic engine shared by Sigil command-line, language-server, editor, and agent integrations.
 
-    Compose source interpretation, configuration, workspace loading, relationship resolution, graph construction, projections, and diagnostics without owning host interaction or semantic judgment.
+    Compose source interpretation, configuration, workspace loading, glossary interpretation, relationship resolution, graph construction, projections, and diagnostics without owning host interaction or semantic judgment.
   }
 
   interface {
@@ -14,6 +15,10 @@ component SigilCore {
 
     ConfigurationInterpretation {
       parseSigilConfig(source, filePath?) returns validated workspace configuration or diagnostics
+    }
+
+    GlossaryInterpretation {
+      parseSigilGlossary(source, filePath?) returns validated authoritative glossary data or diagnostics
     }
 
     WorkspaceProcessing {
@@ -32,6 +37,12 @@ component SigilCore {
       conceptNamespaceFor(resolvedWorkspace, componentName) returns resolved concepts, occurrences, and contextual whole-word references for that component
 
       collectedExpansionFor(resolvedWorkspace, componentName) returns every collected expansion for that component
+    }
+
+    GlossaryInspection {
+      glossaryProjectionForWorkspace(workspace) returns resolved contexts, entries, occurrences, and diagnostics
+
+      glossaryContextForFiles(projection, filePaths) returns the authoritative glossary subset relevant to selected source files
     }
 
     CoreData {
@@ -80,6 +91,12 @@ expand SigilCore {
 
     DeterministicCore {
       CLI and LSP callers operating on the same loaded workspace receive results derived from the same core stages.
+    }
+
+    GlossaryInspection {
+      CLI and LSP callers receive glossary occurrences derived from the same core projection.
+
+      Agent context callers receive scoped glossary definitions without implementing independent filtering.
     }
 
     RecoverableResults {

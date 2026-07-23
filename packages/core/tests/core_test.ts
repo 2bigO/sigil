@@ -4,12 +4,14 @@ import {
   componentContracts,
   conceptNamespaceFor,
   dirname,
+  glossaryContextForFiles,
   InMemorySigilFileSystem,
   loadSigilWorkspace,
   matchesSigilFile,
   normalizePath,
   parseSigilConfig,
   parseSigilDocument,
+  parseSigilGlossary,
   resolveSigilWorkspace,
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
@@ -19,7 +21,7 @@ import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
 
 Deno.test("separates the core artifact and language contract versions", () => {
-  assertEquals(SIGIL_CORE_VERSION, "0.4.0");
+  assertEquals(SIGIL_CORE_VERSION, "0.5.0");
   assertEquals(SIGIL_VERSION, "0.4.0");
 });
 
@@ -126,6 +128,220 @@ Deno.test("config reports malformed and unsupported versions", () => {
     parseSigilConfig(configSource({ sigilVersion: "2.0.0" })).diagnostics,
     "SIGIL_UNSUPPORTED_VERSION",
   );
+});
+
+Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
+  const valid = parseSigilGlossary(glossarySource());
+  assert(valid.glossary);
+  assertEquals(valid.glossary.schemaVersion, 1);
+  assertEquals(valid.glossary.terms[0].term, "workspace root");
+  assert(valid.glossary.terms[0].declarationRange.start.line > 0);
+
+  assertHasCode(
+    parseSigilGlossary("{").diagnostics,
+    "SIGIL_GLOSSARY_PARSE",
+  );
+  assertHasCode(
+    parseSigilGlossary(glossarySource({
+      terms: [
+        { term: "Booking", definition: "One booking." },
+        {
+          term: "Reservation",
+          definition: "Another booking.",
+          aliases: ["booking"],
+        },
+      ],
+    })).diagnostics,
+    "SIGIL_GLOSSARY_TERM_COLLISION",
+  );
+  assertHasCode(
+    parseSigilGlossary(glossarySource({
+      contexts: [
+        {
+          id: "booking",
+          include: ["booking/**/*.sigil", "booking/**/*.sigil"],
+          exclude: [],
+          terms: [],
+        },
+      ],
+    })).diagnostics,
+    "SIGIL_GLOSSARY_INVALID",
+  );
+});
+
+Deno.test("loads and projects longest glossary terms in bounded contexts", async () => {
+  const source = `component Booking {
+  goal {
+    Explain workspace root and workspace while a hold is active.
+
+    Ignore \`workspace root\` and https://example.test/workspace.
+
+    \`\`\`
+    workspace root
+    \`\`\`
+  }
+
+  interface {
+    BookingTerm {
+      A temporary reservation creates a hold.
+    }
+  }
+}
+`;
+  const workspace = await loadSigilWorkspace(
+    new InMemorySigilFileSystem({
+      ".sigil/config.json": configSource(),
+      ".sigil/glossary.json": glossarySource(),
+      "booking/booking.sigil": source,
+    }),
+    { startPath: "." },
+  );
+  const resolved = resolveSigilWorkspace(workspace);
+  assertNoErrors(resolved.diagnostics);
+  assertEquals(resolved.glossary.schemaVersion, 1);
+  assertEquals(resolved.glossary.resolvedContexts[0].contextId, "booking");
+  const matched = resolved.glossary.occurrences.map((item) =>
+    `${item.term.term}:${item.matchedSpelling}`
+  );
+  assert(matched.includes("workspace root:workspace root"));
+  assert(matched.includes("workspace:workspace"));
+  assert(matched.includes("hold:temporary reservation"));
+  assertEquals(
+    matched.filter((item) => item === "workspace root:workspace root").length,
+    1,
+  );
+  const hold = resolved.glossary.occurrences.find((item) =>
+    item.matchedSpelling === "hold"
+  );
+  assert(hold);
+  assertEquals(hold.term.definition, "Booking capacity before confirmation.");
+});
+
+Deno.test("projects only glossary terms occurring in selected files", async () => {
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(
+      new InMemorySigilFileSystem({
+        ".sigil/config.json": configSource(),
+        ".sigil/glossary.json": glossarySource({
+          terms: [
+            {
+              term: "workspace root",
+              definition: "The directory containing .sigil/config.json.",
+            },
+            {
+              term: "workspace",
+              definition: "Sources governed by one Sigil configuration.",
+            },
+            { term: "hold", definition: "A general temporary claim." },
+            {
+              term: "capacity",
+              definition: "Available workspace capacity.",
+              aliases: ["slot"],
+            },
+            { term: "queue", definition: "Work awaiting processing." },
+          ],
+          contexts: [
+            {
+              id: "booking",
+              include: ["booking/**/*.sigil"],
+              exclude: [],
+              terms: [
+                {
+                  term: "hold",
+                  definition: "Booking capacity before confirmation.",
+                  aliases: ["temporary reservation"],
+                },
+                {
+                  term: "slot",
+                  definition: "A bookable unit of time.",
+                },
+              ],
+            },
+          ],
+        }),
+        "booking/booking.sigil": `component Booking {
+  goal {
+    Explain the workspace root and capacity.
+  }
+
+  interface {
+    Reservation {
+      A temporary reservation creates a hold.
+    }
+  }
+}
+`,
+        "operations/queue.sigil": `component Queue {
+  goal {
+    Process the queue.
+  }
+
+  interface {
+    Work {
+      Returns queued work.
+    }
+  }
+}
+`,
+      }),
+      { startPath: "." },
+    ),
+  );
+  assertNoErrors(resolved.diagnostics);
+
+  const context = glossaryContextForFiles(
+    resolved.glossary,
+    ["booking/booking.sigil"],
+  );
+  assertEquals(
+    context.terms.map((term) => term.term).join(","),
+    "workspace root,capacity,hold",
+  );
+  assertEquals(context.resolvedContexts.length, 1);
+  assertEquals(context.resolvedContexts[0].contextId, "booking");
+  assertEquals(
+    context.resolvedContexts[0].entries.map((term) => term.term).join(","),
+    "workspace root,capacity,hold",
+  );
+  assert(
+    context.occurrences.every((occurrence) =>
+      occurrence.filePath === "booking/booking.sigil"
+    ),
+  );
+});
+
+Deno.test("reports glossary context overlap through ordinary workspace checks", async () => {
+  const overlapping = glossarySource({
+    contexts: [
+      {
+        id: "booking",
+        include: ["booking/**/*.sigil"],
+        exclude: [],
+        terms: [],
+      },
+      {
+        id: "all",
+        include: ["**/*.sigil"],
+        exclude: [],
+        terms: [],
+      },
+    ],
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(
+      new InMemorySigilFileSystem({
+        ".sigil/config.json": configSource(),
+        ".sigil/glossary.json": overlapping,
+        "booking/item.sigil": rootModule,
+      }),
+      { startPath: "." },
+    ),
+  );
+  assertHasCode(
+    resolved.diagnostics,
+    "SIGIL_GLOSSARY_CONTEXT_OVERLAP",
+  );
+  assertEquals(resolved.glossary.occurrences.length, 0);
 });
 
 Deno.test("discovers the nearest excluded workspace config and resolves imports", async () => {
@@ -798,6 +1014,41 @@ function configSource(overrides: Record<string, unknown> = {}): string {
     tools: {},
   };
   return JSON.stringify({ ...base, ...overrides });
+}
+
+function glossarySource(overrides: Record<string, unknown> = {}): string {
+  const base: Record<string, unknown> = {
+    schemaVersion: 1,
+    terms: [
+      {
+        term: "workspace root",
+        definition: "The directory containing .sigil/config.json.",
+      },
+      {
+        term: "workspace",
+        definition: "Sources governed by one Sigil configuration.",
+      },
+      {
+        term: "hold",
+        definition: "A general temporary claim.",
+      },
+    ],
+    contexts: [
+      {
+        id: "booking",
+        include: ["booking/**/*.sigil"],
+        exclude: [],
+        terms: [
+          {
+            term: "hold",
+            definition: "Booking capacity before confirmation.",
+            aliases: ["temporary reservation"],
+          },
+        ],
+      },
+    ],
+  };
+  return JSON.stringify({ ...base, ...overrides }, null, 2);
 }
 
 function assert(

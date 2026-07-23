@@ -1,0 +1,139 @@
+@spec/language.sigil import { SigilWorkspaceConfig }
+
+component SigilWorkspaceGlossary {
+  goal {
+    Define the optional reviewed vocabulary authority for one configured Sigil workspace.
+
+    Give authors and deterministic tools unambiguous workspace-wide and bounded-context meanings without changing Sigil source syntax or concept identity.
+  }
+
+  interface {
+    GlossaryFile {
+      filename: .sigil/glossary.json
+
+      location: workspace root
+
+      absence leaves glossary features inactive without invalidating the workspace
+    }
+
+    GlossarySchema {
+      schemaVersion: 1
+
+      the top-level strict JSON object contains schemaVersion, terms, and contexts
+
+      terms and contexts are required arrays and may be empty
+
+      unknown properties are invalid
+    }
+
+    GlossaryEntry {
+      term is a non-empty canonical spelling
+
+      definition is a non-empty reviewed meaning
+
+      aliases is an optional array of unique non-empty alternative spellings
+    }
+
+    BoundedContext {
+      id matches [A-Za-z][A-Za-z0-9_-]* and is unique without regard to case
+
+      include is a non-empty array of workspace-relative POSIX globs
+
+      exclude is an array of workspace-relative POSIX globs
+
+      terms is an array of GlossaryEntry values
+    }
+
+    ContextResolution {
+      workspace terms are available to every included Sigil source
+
+      a Sigil source matches at most one bounded context
+
+      context terms override workspace terms with the same case-insensitive spelling in that source
+    }
+
+    TermRecognition {
+      canonical terms and aliases match case-insensitively as whole words or phrases
+
+      the longest matching phrase wins
+
+      occurrences resolve only inside free-form Sigil prose
+
+      structural syntax, code fences, inline code, and URLs do not contain glossary occurrences
+    }
+  }
+}
+
+expand SigilWorkspaceGlossary {
+  logic {
+    ContextResolution {
+      Resolve context include and exclude globs against normalized workspace-relative source paths.
+
+      Combine workspace entries with the one matched context.
+
+      Replace a workspace spelling with the matched context entry that owns the same case-insensitive canonical or alias spelling.
+    }
+
+    TermRecognition {
+      Order effective canonical and alias spellings by descending length before scanning each eligible semantic line.
+
+      Accept a match only when adjacent characters are not Unicode letters, numbers, or underscore.
+
+      Preserve the canonical entry, matched spelling, context, source file, and exact occurrence range.
+    }
+  }
+
+  constraints {
+    GlossaryFile {
+      GlossaryFile is UTF-8 JSON interpreted independently from Sigil source include globs.
+
+      The glossary summarizes approved terminology and does not override an approved normative contract.
+    }
+
+    GlossarySchema {
+      Every nested object is strict and rejects unknown properties.
+
+      A structurally invalid glossary contributes no authoritative term definitions.
+    }
+
+    GlossaryEntry {
+      Canonical terms and aliases are unique without regard to case within one scope.
+
+      One spelling cannot resolve to multiple entries in the same effective context.
+
+      A glossary entry does not create, import, alias, or shadow a Sigil concept identity.
+    }
+
+    BoundedContext {
+      Context globs cannot escape the workspace.
+
+      Matching more than one context is invalid and context order never selects a winner.
+    }
+
+    TermRecognition {
+      Deterministic recognition never infers an unknown term or definition from prose.
+
+      Matching does not alter Sigil source or GlossaryFile.
+    }
+  }
+
+  cases {
+    ContextResolution {
+      A source matching no context receives workspace terms only.
+
+      A context definition of hold replaces the workspace definition of hold only for sources matched by that context.
+
+      A source matched by two contexts produces SIGIL_GLOSSARY_CONTEXT_OVERLAP.
+    }
+
+    TermRecognition {
+      workspace root matches before workspace when both entries exist.
+
+      An alias occurrence resolves to its canonical entry.
+
+      A term inside inline code or a URL remains ordinary text.
+
+      Two local entries claiming the same case-insensitive spelling produce SIGIL_GLOSSARY_TERM_COLLISION.
+    }
+  }
+}

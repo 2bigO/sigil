@@ -33,11 +33,16 @@ export type SigilDiagnosticCode =
   | "SIGIL_CONFIG_INVALID"
   | "SIGIL_UNSUPPORTED_VERSION"
   | "SIGIL_NESTED_CONFIG"
-  | "SIGIL_CONFIG_EXISTS";
+  | "SIGIL_CONFIG_EXISTS"
+  | "SIGIL_GLOSSARY_PARSE"
+  | "SIGIL_GLOSSARY_INVALID"
+  | "SIGIL_GLOSSARY_CONTEXT_OVERLAP"
+  | "SIGIL_GLOSSARY_TERM_COLLISION";
 
 export const SIGIL_VERSION = "0.4.0";
 export const SIGIL_CORE_VERSION = metadata.version;
 export const SIGIL_CONFIG_PATH = ".sigil/config.json" as const;
+export const SIGIL_GLOSSARY_PATH = ".sigil/glossary.json" as const;
 
 export interface SigilWorkspaceConfig {
   readonly name: string;
@@ -141,6 +146,70 @@ export interface ParseOptions {
   readonly sigilVersion: string;
 }
 
+export type GlossaryScope =
+  | { readonly kind: "workspace" }
+  | { readonly kind: "context"; readonly id: string };
+
+export interface GlossaryTerm {
+  readonly term: string;
+  readonly definition: string;
+  readonly aliases: readonly string[];
+  readonly scope: GlossaryScope;
+  readonly declarationRange: SourceRange;
+}
+
+export interface GlossaryContext {
+  readonly id: string;
+  readonly include: readonly string[];
+  readonly exclude: readonly string[];
+  readonly terms: readonly GlossaryTerm[];
+}
+
+export interface WorkspaceGlossary {
+  readonly schemaVersion: 1;
+  readonly filePath: string;
+  readonly terms: readonly GlossaryTerm[];
+  readonly contexts: readonly GlossaryContext[];
+}
+
+export interface GlossaryParseResult {
+  readonly glossary?: WorkspaceGlossary;
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+
+export interface ResolvedGlossaryContext {
+  readonly filePath: string;
+  readonly contextId?: string;
+  readonly entries: readonly GlossaryTerm[];
+}
+
+export interface GlossaryOccurrence {
+  readonly term: GlossaryTerm;
+  readonly matchedSpelling: string;
+  readonly filePath: string;
+  readonly ownerKind: SigilFormKind;
+  readonly ownerName: string;
+  readonly sectionName: SigilSectionName;
+  readonly range: SourceRange;
+}
+
+export interface GlossaryProjection {
+  readonly glossaryPath?: string;
+  readonly schemaVersion?: 1;
+  readonly terms: readonly GlossaryTerm[];
+  readonly contexts: readonly GlossaryContext[];
+  readonly resolvedContexts: readonly ResolvedGlossaryContext[];
+  readonly occurrences: readonly GlossaryOccurrence[];
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+
+export interface GlossaryContextProjection {
+  readonly glossaryPath?: string;
+  readonly terms: readonly GlossaryTerm[];
+  readonly resolvedContexts: readonly ResolvedGlossaryContext[];
+  readonly occurrences: readonly GlossaryOccurrence[];
+}
+
 export interface SigilFileSystem {
   readTextFile(path: string): Promise<string>;
   exists(path: string): Promise<boolean>;
@@ -156,6 +225,8 @@ export interface SigilWorkspace {
   readonly root: string;
   readonly configPath?: string;
   readonly config?: SigilConfig;
+  readonly glossaryPath?: string;
+  readonly glossary?: WorkspaceGlossary;
   readonly memberRoots: readonly string[];
   readonly files: readonly LoadedSigilFile[];
   readonly diagnostics: readonly SigilDiagnostic[];
@@ -282,5 +353,6 @@ export interface ResolvedSigilWorkspace {
   readonly imports: readonly ResolvedImport[];
   readonly components: readonly ResolvedComponent[];
   readonly graph: SigilGraph;
+  readonly glossary: GlossaryProjection;
   readonly diagnostics: readonly SigilDiagnostic[];
 }

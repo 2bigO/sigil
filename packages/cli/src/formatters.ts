@@ -32,6 +32,12 @@ export function formatResult(
   if (request.format === "text" && result.command === "check") {
     return formatCheckText(result);
   }
+  if (
+    result.command === "glossary" &&
+    (request.format === undefined || request.format === "text")
+  ) {
+    return formatGlossaryText(result);
+  }
   return `${JSON.stringify(result, null, request.pretty ? 2 : 0)}\n`;
 }
 
@@ -110,6 +116,31 @@ function formatCheckText(
     lines.push(
       `${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}`,
     );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function formatGlossaryText(
+  result: Extract<CommandResult, { command: "glossary" }>,
+): string {
+  const lines = [
+    `Workspace root: ${result.workspaceRoot}`,
+    `Glossary: ${result.glossaryPath ?? "absent"}`,
+    `Schema version: ${result.schemaVersion ?? "none"}`,
+    `Terms: ${result.terms.length}`,
+    `Contexts: ${result.contexts.length}`,
+    `Occurrences: ${result.occurrences.length}`,
+  ];
+  for (const occurrence of result.occurrences) {
+    const context = occurrence.term.scope.kind === "context"
+      ? ` [${occurrence.term.scope.id}]`
+      : "";
+    lines.push(
+      `${occurrence.filePath}:${occurrence.range.start.line}:${occurrence.range.start.column} ${occurrence.matchedSpelling} -> ${occurrence.term.term}${context}`,
+    );
+  }
+  for (const item of result.diagnostics) {
+    lines.push(`${item.severity} ${item.code}: ${item.message}`);
   }
   return `${lines.join("\n")}\n`;
 }

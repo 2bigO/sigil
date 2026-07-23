@@ -1,4 +1,5 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+@spec/glossary.sigil import { SigilWorkspaceGlossary }
 
 component SigilSemanticModel {
   goal {
@@ -16,6 +17,22 @@ component SigilSemanticModel {
       SigilConfig represents ConfiguredLanguageVersion, WorkspaceBoundary, SourceSelection, and ToolConfiguration data
 
       SigilConfigParseResult contains validated configuration when available and accumulated diagnostics
+    }
+
+    GlossaryModel {
+      GlossaryTerm preserves its canonical spelling, definition, aliases, scope, and declaration range
+
+      WorkspaceGlossary contains validated workspace terms and bounded contexts
+
+      ResolvedGlossaryContext contains the effective entries and optional matched context for one source
+
+      GlossaryOccurrence preserves its canonical entry, matched spelling, source file, semantic-line owner, and exact range
+
+      GlossaryProjection contains resolved contexts, entries, ordered occurrences, and diagnostics
+
+      GlossaryContextProjection contains the glossary path, effective terms, resolved bounded contexts, and occurrences relevant to selected source files
+
+      GlossaryParseResult contains validated authoritative data when available and accumulated diagnostics
     }
 
     SourceModel {
@@ -80,6 +97,16 @@ expand SigilSemanticModel {
       Model declarations contain data shapes and constants but no parsing, filesystem, resolution, graph, or projection behavior.
     }
 
+    GlossaryModel {
+      Glossary declarations and occurrences are immutable to consumers.
+
+      GlossaryContextProjection excludes glossary entries unrelated to its selected source files.
+
+      Invalid glossary input remains representable through diagnostics without becoming authoritative data.
+
+      Glossary identity remains separate from concept identity.
+    }
+
     SourceModel {
       Source models preserve source order and ranges supplied by deterministic stages.
 
@@ -106,6 +133,14 @@ expand SigilSemanticModel {
   cases {
     SourceModel {
       A recovered semantic line retains its file, owner, section, text, optional concept identifier, and source range.
+    }
+
+    GlossaryModel {
+      An alias occurrence retains both its matched spelling and canonical GlossaryTerm.
+
+      One GlossaryOccurrence identifies the semantic line and exact source range containing the recognized prose.
+
+      A context projection for selected and related files contains only definitions effective in or occurring within those files.
     }
 
     ResolutionModel {

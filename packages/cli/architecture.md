@@ -28,7 +28,7 @@ collected expansions independently.
 - Treat human text output as convenience, not API.
 - Keep command modules thin over `sigil-core`.
 - Keep Deno filesystem and process APIs at the outer edge.
-- Never mutate `.sigil` files in version 0.4.
+- Never mutate `.sigil` files in version 0.5.
 - Keep CLI behavior deterministic and non-interactive.
 
 ## 3. Internal Modules
@@ -75,7 +75,8 @@ Owns command handlers.
 
 Responsibilities:
 
-- implement `skill list`, `skill install`, `parse`, `check`, `graph`, `context`, and `render`;
+- implement `skill list`, `skill install`, `parse`, `check`, `graph`, `context`,
+  and `render`;
 - call `sigil-core` through shared helpers;
 - return typed command result objects;
 - avoid command-specific duplication of parser and resolver behavior.
@@ -262,9 +263,9 @@ Each command should have:
 
 Commands should keep option behavior boring and explicit.
 
-Do not add interactive prompts in version 0.4.
+Do not add interactive prompts in version 0.5.
 
-Do not add mutation or formatting commands in version 0.4.
+Do not add mutation or formatting commands in version 0.5.
 
 ## 9. Historical Anchor Extension Proposal
 
@@ -279,13 +280,19 @@ anchors argv -> anchors command handler -> indexer-adapter -> sigil-indexer
 
 Rules:
 
-- `args` parses the nested `anchors candidates`, `anchors check`, and `anchors apply` requests;
-- anchor command handlers shape results but do not parse ASTs or reconcile locators;
-- `indexer-adapter` connects the Deno filesystem, resolved Sigil workspace, and `sigil-indexer`;
+- `args` parses the nested `anchors candidates`, `anchors check`, and
+  `anchors apply` requests;
+- anchor command handlers shape results but do not parse ASTs or reconcile
+  locators;
+- `indexer-adapter` connects the Deno filesystem, resolved Sigil workspace, and
+  `sigil-indexer`;
 - only `anchors apply` may write, and it may write only `.sigil/anchors.json`;
-- the write uses a temporary sibling plus atomic rename after complete validation;
-- no CLI module invokes a model, imports a Codex skill, or interprets proposal evidence;
-- the proposal would not alter existing command behavior without a separately approved contract.
+- the write uses a temporary sibling plus atomic rename after complete
+  validation;
+- no CLI module invokes a model, imports a Codex skill, or interprets proposal
+  evidence;
+- the proposal would not alter existing command behavior without a separately
+  approved contract.
 
 ## 6. Output Guidelines
 

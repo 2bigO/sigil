@@ -1,6 +1,6 @@
 # sigil-cli
 
-Current package version: **0.4.0**.
+Current package version: **0.5.0**.
 
 Command-line interface for agents, CI, scripts, and platform debugging.
 
@@ -10,8 +10,8 @@ main human UI.
 
 Package docs:
 
-- [spec.md](spec.md): version 0.4 CLI requirements, command behavior, output contracts,
-  and acceptance scenarios.
+- [spec.md](spec.md): version 0.5 CLI requirements, command behavior, output
+  contracts, and acceptance scenarios.
 - [architecture.md](architecture.md): command architecture, module boundaries,
   dependency rules, and implementation guidelines.
 
@@ -30,7 +30,7 @@ irm https://github.com/qoherent/sigil/releases/latest/download/install.ps1 | iex
 Alternatively, install the published JSR package when Deno is available:
 
 ```bash
-deno install --global --allow-read --allow-write --allow-env=HOME,USERPROFILE --name sigil jsr:@qoherent/sigil@0.2
+deno install --global --allow-read --allow-write --allow-env=HOME,USERPROFILE --name sigil jsr:@qoherent/sigil@0.5
 ```
 
 Local development install:
@@ -62,18 +62,22 @@ Commands:
 - `sigil version [path]` reports tool and configured contract versions;
 - `sigil parse <path>` returns parsed JSON;
 - `sigil check [path]` returns diagnostics;
+- `sigil glossary [path]` reports reviewed entries, resolved contexts, and
+  source occurrences;
 - `sigil graph [path]` returns component and import graph data;
-- `sigil context ...` returns agent context JSON;
+- `sigil context ...` returns agent context JSON with reviewed terminology
+  recognized in the selected and related Sigil files;
 - `sigil render ...` returns Markdown.
 
-The CLI returns exit code `0` for success or warnings, `1` for error diagnostics, `2` for usage errors, and `3` for host/runtime failures.
-Use JSON output for automation; human text and Markdown are convenience projections.
-Context output includes resolved concept namespaces, and Markdown render output
-preserves concept grouping.
+The CLI returns exit code `0` for success or warnings, `1` for error
+diagnostics, `2` for usage errors, and `3` for host/runtime failures. Use JSON
+output for automation; human text and Markdown are convenience projections.
+Context output includes resolved concept namespaces and a scoped
+`glossaryContext`; Markdown render output preserves concept grouping.
 
-Versioned binary distributions place assets at
-`<version>/integrations/skills` beside `<version>/bin/sigil`. This keeps each
-binary paired with the language semantics and skills shipped for that version.
+Versioned binary distributions place assets at `<version>/integrations/skills`
+beside `<version>/bin/sigil`. This keeps each binary paired with the language
+semantics and skills shipped for that version.
 
 Run the package tests with:
 

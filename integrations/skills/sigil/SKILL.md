@@ -48,6 +48,13 @@ exists but the relevant Sigil is absent or incomplete. Do not load it for a
 greenfield design or a component with established Sigil unless the user asks for
 brownfield reconciliation.
 
+Read `references/glossary-workflow.md` completely after writing or semantically
+editing approved Sigil, when `.sigil/glossary.json` exists, when the user asks
+to create or maintain reviewed project vocabulary, or when terminology ambiguity
+materially affects Sigil review. It defines deterministic inspection,
+model-assisted extraction, authority, scope selection, coding-context handoff,
+exact proposal evidence, and approval behavior.
+
 ## Tooling
 
 Prefer a `sigil` CLI command when it is available on `PATH`.
@@ -56,10 +63,9 @@ Use the CLI to parse, check, resolve graph data, collect context, or render
 review Markdown instead of manually reimplementing those operations in the
 agent.
 
-An installed skill does not include this repository's `packages/`
-directory. Treat `packages/cli/src/main.ts` as available only when the current
-workspace is the Sigil platform repository or another checkout that contains
-that path.
+An installed skill does not include this repository's `packages/` directory.
+Treat `packages/cli/src/main.ts` as available only when the current workspace is
+the Sigil platform repository or another checkout that contains that path.
 
 CLI discovery order:
 
@@ -89,7 +95,7 @@ sigil version . --format json --pretty
 sigil check . --format json --pretty
 ```
 
-This skill version requires CLI and core `^0.4.0` and Sigil `0.4.0`. In a
+This skill version requires CLI and core `^0.5.0` and Sigil `0.4.0`. In a
 Brownfield repository without `.sigil/config.json`, use the initialization
 sequence in `references/brownfield-adoption.md` before this preflight. Otherwise
 stop with a compatibility report when the CLI is missing, `.sigil/config.json`
@@ -162,9 +168,9 @@ Select the workflow before detailed semantic work:
      components and directly imported names form the directory-import surface.
    - Treat every component as public through its explicit `.sigil` path even
      when a module index does not name it.
-   - Use the workspace root and paths explicitly declared by
-     `workspace.members` as Brownfield summary boundaries; never infer an
-     additional summary boundary from directory structure or package manifests.
+   - Use the workspace root and paths explicitly declared by `workspace.members`
+     as Brownfield summary boundaries; never infer an additional summary
+     boundary from directory structure or package manifests.
    - Treat an excluded subtree with its own `.sigil/config.json` as an
      independent workspace, not as a member of its parent.
    - Prefer descriptive `.sigil` filenames for component contracts and
@@ -232,9 +238,10 @@ Select the workflow before detailed semantic work:
    - Keep source details in the review summary, not in Sigil. Write approved
      additions as project decisions rather than claims that a standard mandates
      them.
-   - Use only provisional assessment language: `appears aligned`, `partially
-     assessed`, `gap identified`, `conflict identified`, or `not assessable`.
-     Never claim certification or definitive compliance.
+   - Use only provisional assessment language: `appears aligned`,
+     `partially
+     assessed`, `gap identified`, `conflict identified`, or
+     `not assessable`. Never claim certification or definitive compliance.
 
 5. Improve Sigil before generating code.
    - Before adding or modifying implementation, verify that the affected
@@ -309,17 +316,17 @@ Select the workflow before detailed semantic work:
      return a proposal only and not edit files.
    - Require the subagent proposal to identify each affected region, whether it
      represents one concept or several, whether each identifier is new or
-     reused, supporting occurrences, relevant graph paths, rejected alternatives,
-     and the proposed concise names.
+     reused, supporting occurrences, relevant graph paths, rejected
+     alternatives, and the proposed concise names.
    - Validate proposed names in the primary agent against
      `[A-Za-z][A-Za-z0-9_-]*`, case-insensitive namespace uniqueness, public and
      private visibility, collective coherence, and transitive import ambiguity.
    - After validation, present the complete proposal and exact Sigil changes to
-     the user, enter awaiting approval, and stop. Subagent completion is not user
-     approval and grants no edit authority to the primary agent.
-   - Concept-identifier creation, reuse, regrouping, renaming, and warning repair
-     always require explicit user approval of the presented proposal before any
-     repository mutation.
+     the user, enter awaiting approval, and stop. Subagent completion is not
+     user approval and grants no edit authority to the primary agent.
+   - Concept-identifier creation, reuse, regrouping, renaming, and warning
+     repair always require explicit user approval of the presented proposal
+     before any repository mutation.
    - Prefer PascalCase without hyphens or underscores. Treat an unusually long
      name as a reason to reconsider the concept grouping or component boundary,
      not as a deterministic length error.
@@ -328,7 +335,37 @@ Select the workflow before detailed semantic work:
    - Keep anchoring outside concept-identifier work. Do not invoke or modify
      anchor persistence, proposal, or reconciliation behavior.
 
-8. Preserve semantic lines.
+8. Maintain reviewed glossary authority.
+   - Follow `references/glossary-workflow.md` after every approved Sigil write
+     or semantic edit, even when GlossaryFile is absent.
+   - Use `sigil glossary` to inspect accepted entries, resolved contexts,
+     occurrences, and deterministic glossary diagnostics.
+   - Run `sigil check` and `sigil glossary`, then inspect changed semantic lines
+     for unknown, conflicting, or incorrectly scoped material terminology before
+     entering the Sigil review gate.
+   - Treat accepted Sigil as normative when it conflicts with GlossaryFile and
+     propose correction of the glossary rather than silently reinterpreting the
+     contract.
+   - Extract unknown domain vocabulary as model-assisted candidates rather than
+     deterministic missing-term diagnostics.
+   - Block review and implementation only when terminology ambiguity could
+     materially alter behavior, ownership, state, APIs, or implementation.
+     Ordinary unambiguous vocabulary does not require a glossary entry.
+   - Present source occurrences, proposed scope, canonical spelling, definition,
+     aliases, rejected alternatives, and exact JSON changes.
+   - Obtain explicit approval before creating or modifying GlossaryFile.
+   - After writing an approved glossary proposal, run `sigil glossary` and
+     `sigil check`, then return to the Sigil review gate.
+   - Before implementation, run `sigil context` for the selected component or
+     file and include its `glossaryContext` in the coding-agent handoff.
+   - If the implementation request uses an accepted glossary spelling absent
+     from that scoped projection, supplement the handoff with only the matching
+     accepted entry from `sigil glossary`; never inject the unrelated complete
+     glossary.
+   - Initial extraction covers free-form `.sigil` prose only; Markdown
+     extraction remains deferred.
+
+9. Preserve semantic lines.
    - Keep each non-empty line as one distinct idea.
    - Separate distinct prose-level ideas with blank lines in every section.
    - Blank lines do not create semantic units.
@@ -340,48 +377,47 @@ Select the workflow before detailed semantic work:
    - Preserve the author's natural wording for visual references. Do not
      introduce a vocabulary that Sigil does not define.
 
-9. Stop at the Sigil review gate.
-   - After creating or semantically changing Sigil files, summarize the changes
-     and ask the user to review them.
-   - Do not write implementation code in the same pass unless the user has
-     already explicitly approved the current Sigil and explicitly asked for
-     code.
-   - A request like "use Sigil", "improve Sigil", "prepare Sigil", or "check the
-     spec before coding" is not approval to code.
+10. Stop at the Sigil review gate.
 
-10. Colocate approved Sigil with its implementation.
-   - Before writing implementation code, determine the module or source
-     directory that will own the implementation.
-   - Treat a Sigil file created elsewhere while the implementation location was
-     unknown as temporary; move it beside the owning module or source files once
-     that location is known.
-   - Keep a shared public `component` at its contract or module-summary location
-     when multiple implementations depend on it, and place
-     implementation-specific `expand Name` blocks beside the code they explain.
-   - When one Sigil file describes components owned by different implementation
-     directories, split it so each component or implementation-specific expand
-     lives near its owner. Do not duplicate a public component declaration.
-   - Do not move a configured-boundary `#module.sigil` merely to colocate code;
-     its ordinary summary component remains at the workspace root or declared
-     member boundary. Internal module indexes may move with their owning
-     directories.
-   - Update every affected `@path import { Name }` after moving or splitting a
-     Sigil file.
-   - Run `sigil check` after relocation, and use `sigil graph` or
-     `sigil context` to verify imports, collected expands, and related file
-     paths when relevant.
+- After creating or semantically changing Sigil files, summarize the changes and
+  ask the user to review them.
+- Do not write implementation code in the same pass unless the user has already
+  explicitly approved the current Sigil and explicitly asked for code.
+- A request like "use Sigil", "improve Sigil", "prepare Sigil", or "check the
+  spec before coding" is not approval to code.
 
-11. Implement only after approval.
-   - Do not add or modify implementation without clear, user-approved Sigil
-     coverage for the affected behavior.
-   - Use the approved Sigil as the durable rationale and source of constraints.
-   - Keep generated code aligned with component boundaries and public
-     interfaces.
-   - Include Sigil relocation in the implementation work; do not leave an
-     approved component in a temporary planning directory when its owning code
-     now has a clear home.
-   - If implementation reveals a missing decision, stop and update or propose
-     Sigil first, then ask for review again.
+11. Colocate approved Sigil with its implementation.
+
+- Before writing implementation code, determine the module or source directory
+  that will own the implementation.
+- Treat a Sigil file created elsewhere while the implementation location was
+  unknown as temporary; move it beside the owning module or source files once
+  that location is known.
+- Keep a shared public `component` at its contract or module-summary location
+  when multiple implementations depend on it, and place implementation-specific
+  `expand Name` blocks beside the code they explain.
+- When one Sigil file describes components owned by different implementation
+  directories, split it so each component or implementation-specific expand
+  lives near its owner. Do not duplicate a public component declaration.
+- Do not move a configured-boundary `#module.sigil` merely to colocate code; its
+  ordinary summary component remains at the workspace root or declared member
+  boundary. Internal module indexes may move with their owning directories.
+- Update every affected `@path import { Name }` after moving or splitting a
+  Sigil file.
+- Run `sigil check` after relocation, and use `sigil graph` or `sigil context`
+  to verify imports, collected expands, and related file paths when relevant.
+
+12. Implement only after approval.
+
+- Do not add or modify implementation without clear, user-approved Sigil
+  coverage for the affected behavior.
+- Use the approved Sigil as the durable rationale and source of constraints.
+- Keep generated code aligned with component boundaries and public interfaces.
+- Include Sigil relocation in the implementation work; do not leave an approved
+  component in a temporary planning directory when its owning code now has a
+  clear home.
+- If implementation reveals a missing decision, stop and update or propose Sigil
+  first, then ask for review again.
 
 ## Review Gate
 

@@ -68,6 +68,20 @@ component SigilSkill {
       resolves material design decisions before exact Sigil synthesis
     }
 
+    GlossaryWorkflow {
+      validates deterministic glossary diagnostics before semantic review
+
+      extracts candidate domain terms and conflicting usage from Sigil prose
+
+      presents exact reviewed GlossaryFile proposals without automatically changing authority
+
+      requires post-write glossary inspection and candidate extraction after approved Sigil is created or semantically edited
+
+      carries relevant reviewed terminology into implementation context
+
+      includes a glossary eval fixture covering extraction, ambiguity, context placement, and approval
+    }
+
     SigilReviewGate {
       requires an exact proposal before semantic editing
 
@@ -120,6 +134,24 @@ expand SigilSkill {
       Keep every evidence category distinct in analysis and proposals.
 
       Report contradictions instead of silently choosing one source as intent.
+    }
+
+    GlossaryWorkflow {
+      Collect candidate terms with their source occurrences and resolved bounded contexts.
+
+      Separate accepted glossary authority from model-assisted candidate extraction.
+
+      Report conflicting definitions, aliases, scope placement, and normative-contract drift.
+
+      Present exact JSON additions, replacements, or removals and wait for human approval before mutation.
+
+      After approved Sigil is written or semantically edited, run workspace and glossary validation and inspect changed semantic lines for candidate terms.
+
+      Block review and implementation when undefined or conflicting terminology could materially alter behavior, ownership, state, APIs, or implementation.
+
+      After glossary approval, write only the accepted proposal, rerun glossary and workspace validation, and return to Sigil review.
+
+      Before implementation, obtain context through sigil context and make its scoped glossary projection available to the coding agent.
     }
 
     StandardsReview {
@@ -270,6 +302,22 @@ expand SigilSkill {
       Concept blocks group coherent identities without merging distinct semantic ideas into one line.
     }
 
+    GlossaryWorkflow {
+      Candidate extraction never becomes authoritative without explicit human approval.
+
+      Normative approved Sigil governs when GlossaryFile conflicts with a component contract.
+
+      Unknown vocabulary remains a semantic-review candidate rather than a deterministic core diagnostic.
+
+      Ordinary unambiguous vocabulary does not block review merely because it is absent from GlossaryFile.
+
+      Material terminology ambiguity blocks implementation until its reviewed definition, aliases, and workspace or bounded-context scope are approved.
+
+      Coding agents use scoped glossary context to interpret requests and Sigil without treating glossary definitions as behavioral contracts.
+
+      Markdown extraction remains deferred from the initial fixture and workflow.
+    }
+
     GreenfieldWorkflow {
       Major product, architecture, persistence, authorization, deployment, and lifecycle decisions are not invented silently.
 
@@ -310,6 +358,16 @@ expand SigilSkill {
 
     EvidenceReview {
       Conflicting code, tests, and documentation are reported for user decision rather than silently reconciled.
+    }
+
+    GlossaryWorkflow {
+      Two inconsistent uses of one candidate term produce a review question rather than an inferred definition.
+
+      An approved Sigil edit with no material terminology candidate proceeds to Sigil review after workspace and glossary validation.
+
+      An approved candidate is written to its selected workspace or bounded-context scope, validated, and returned to Sigil review before further implementation.
+
+      A coding handoff includes only glossary terms relevant to the selected component or file and related sources.
     }
 
     StandardsReview {

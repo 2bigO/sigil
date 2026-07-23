@@ -1,22 +1,28 @@
 # sigil-lsp
 
 Implemented pre-production language-server package for editor-facing Sigil
-semantics, versioned for publication as `@qoherent/sigil-lsp` 0.4.0.
+semantics, versioned for publication as `@qoherent/sigil-lsp` 0.5.0.
 
-The language server should be the reusable bridge between `sigil-core` and concrete editor integrations.
+The language server should be the reusable bridge between `sigil-core` and
+concrete editor integrations.
 
-Version 0.4 responsibilities:
+Version 0.5 responsibilities:
 
 - implement Language Server Protocol 3.18 over standard input and output;
 - implement initialize, initialized, shutdown, and exit lifecycle handling;
 - synchronize open files using full-document changes and in-memory overlays;
 - surface diagnostics inline;
 - provide go-to-definition for imports and components;
-- provide document symbols for components, expands, sections, and concept blocks;
+- provide document symbols for components, expands, sections, and concept
+  blocks;
 - support hover or preview content for collected expansions;
 - provide resolver-backed semantic highlighting for component and concept names
   through full-document semantic tokens;
 - navigate and hover resolved public and local concept identities;
+- highlight reviewed glossary occurrences with the `term` semantic-token type;
+- show canonical glossary definitions and bounded context through hover;
+- navigate glossary occurrences to their authoritative JSON entries;
+- publish glossary parse, schema, context-overlap, and collision diagnostics;
 
 Deferred responsibilities:
 

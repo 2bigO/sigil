@@ -6,11 +6,16 @@
 @packages/core/src/resolver.sigil import { SigilResolver }
 @packages/core/src/graph.sigil import { SigilGraphBuilder }
 @packages/core/src/projections.sigil import { SigilProjections }
+@packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 
 expand SigilCore {
   logic {
     SourceInterpretation {
       parseSigilDocument delegates versioned source interpretation to SigilParser.
+    }
+
+    GlossaryInterpretation {
+      parseSigilGlossary delegates strict glossary interpretation to SigilGlossaryEngine.
     }
 
     WorkspaceProcessing {
@@ -24,6 +29,12 @@ expand SigilCore {
     SemanticProjections {
       componentContracts, conceptNamespaceFor, and collectedExpansionFor delegate structured views to SigilProjections.
     }
+
+    GlossaryInspection {
+      glossaryProjectionForWorkspace delegates context resolution and occurrence matching to SigilGlossaryEngine.
+
+      glossaryContextForFiles delegates scoped authoritative-term selection to SigilGlossaryEngine.
+    }
   }
 
   constraints {
@@ -34,7 +45,11 @@ expand SigilCore {
 
       SigilParser depends on model and diagnostics.
 
+      SigilGlossaryEngine depends on shared model and diagnostics while remaining independent from workspace loading, relationship resolution, and hosts.
+
       SigilWorkspaceLoader depends on configuration, filesystem, parser, model, and diagnostics.
+
+      SigilWorkspaceLoader may invoke SigilGlossaryEngine while the engine does not depend on the loader.
 
       SigilResolver depends on loaded workspace data, model, and diagnostics.
 
@@ -53,6 +68,12 @@ expand SigilCore {
 
     SemanticProjections {
       Existing CLI and LSP consumers obtain contract, concept, and expansion views without accessing internal stage data directly.
+    }
+
+    GlossaryInspection {
+      Existing CLI and LSP consumers obtain glossary projections without implementing independent matchers.
+
+      Context consumers obtain relevant glossary subsets without loading or filtering GlossaryFile independently.
     }
   }
 }

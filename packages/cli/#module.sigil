@@ -40,6 +40,14 @@ component SigilCli {
       sigil context [path] (--component name | --file file)
 
       sigil render [path]
+
+      context reports a scoped glossary projection for the selected component or file and its related sources
+    }
+
+    GlossaryInspection {
+      sigil glossary [path]
+
+      reports authoritative entries, resolved contexts, source occurrences, and glossary diagnostics
     }
 
     StructuredOutput {
@@ -89,11 +97,17 @@ expand SigilCli {
 
       check, graph, context, and render delegate workspace semantics to SigilCore.
 
+      context obtains effective terminology for selected and related files from SigilCore.
+
       check reports core warnings, hints, and errors without reinterpreting them.
 
       Workspace source discovery skips symlink entries so installed skills cannot re-enter the workspace as duplicate Sigil sources.
 
       A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
+    }
+
+    GlossaryInspection {
+      glossary delegates loading, context resolution, occurrence matching, and diagnostics to SigilCore.
     }
   }
 
@@ -108,6 +122,10 @@ expand SigilCli {
       Every workspace-dependent JSON result includes workspaceRoot, configPath, sigilVersion, and workspaceName.
 
       CLI operations are deterministic and non-interactive.
+
+      context JSON output includes glossaryContext with the glossary path, resolved bounded contexts, canonical terms, definitions, aliases, and relevant occurrences.
+
+      glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
     }
 
     WorkspaceMutationBoundary {
@@ -116,6 +134,8 @@ expand SigilCli {
       init is the only workspace command that creates Sigil-owned content and creates only the .sigil directory and a missing ConfigFile.
 
       Skill commands do not require or modify ConfigFile.
+
+      glossary is a read-only workspace inspection command.
     }
 
     SkillInstallation {
@@ -162,6 +182,16 @@ expand SigilCli {
       render JSON includes workspace metadata and Markdown review content.
 
       context for a component with multiple expands reports every related expansion source.
+
+      context for a component with glossary terms reports only terminology effective in or occurring within the component and its related expansion sources.
+
+      context without GlossaryFile reports an absent glossary context without error.
+    }
+
+    GlossaryInspection {
+      A workspace without GlossaryFile reports an absent glossary and no glossary error.
+
+      Context overlap or spelling collision appears in text and JSON output and exits with code 1.
     }
 
     ExitStatus {

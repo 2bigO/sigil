@@ -2,7 +2,7 @@
   "name": "sigil",
   "displayName": "Sigil",
   "description": "Language support and component previews for Sigil.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "sigil-dev",
   "license": "MIT",
   "repository": {
@@ -66,6 +66,9 @@
         "language": "sigil",
         "scopes": {
           "concept": [
+            "entity.name.type.concept.sigil"
+          ],
+          "term": [
             "entity.name.type.concept.sigil"
           ]
         }

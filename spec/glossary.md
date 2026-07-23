@@ -293,6 +293,35 @@ The mandatory strict JSON configuration file that defines a Sigil workspace
 root, language version, workspace identity, optional project members, source
 discovery rules, and namespaced host settings.
 
+### `.sigil/glossary.json`
+
+The optional strict JSON workspace sidecar containing reviewed workspace-wide
+and bounded-context terminology. Schema version 1 is defined by
+`spec/sigil-glossary.schema.json`.
+
+### Workspace glossary
+
+The validated authoritative model loaded from `.sigil/glossary.json`. It
+contains workspace terms and zero or more path-glob-bounded contexts. An invalid
+glossary contributes diagnostics but no active definitions.
+
+### Glossary term
+
+A canonical project-specific spelling, reviewed definition, optional aliases,
+scope, and declaration range. A glossary term is distinct from a Sigil concept
+identifier.
+
+### Bounded context
+
+A stable glossary scope selected by workspace-relative include and exclude
+globs. A loaded Sigil source may match at most one bounded context.
+
+### Glossary occurrence
+
+A deterministic whole-word or whole-phrase match of a reviewed canonical term
+or alias in eligible free-form Sigil prose. It preserves the canonical entry,
+matched spelling, source owner, and exact range.
+
 ### Workspace
 
 All Sigil sources governed by one `.sigil/config.json`. A workspace may contain
@@ -1109,6 +1138,10 @@ An anchor whose target can no longer be located.
 | `SIGIL_UNSUPPORTED_VERSION` | The configured Sigil version is not supported by the running core. |
 | `SIGIL_NESTED_CONFIG` | A nested configuration violates parent exclusion or member rules. |
 | `SIGIL_CONFIG_EXISTS` | Initialization was asked to create a configuration where one already exists. |
+| `SIGIL_GLOSSARY_PARSE` | `.sigil/glossary.json` is not valid JSON. |
+| `SIGIL_GLOSSARY_INVALID` | The parsed glossary violates schema version 1. |
+| `SIGIL_GLOSSARY_CONTEXT_OVERLAP` | One loaded Sigil source matches more than one bounded context. |
+| `SIGIL_GLOSSARY_TERM_COLLISION` | Multiple entries claim one case-insensitive spelling in the same scope. |
 
 ## CLI Exit Codes
 
@@ -1124,6 +1157,7 @@ An anchor whose target can no longer be located.
 | Name or path | Meaning |
 | --- | --- |
 | `.sigil/config.json` | Mandatory workspace configuration and workspace-boundary authority. |
+| `.sigil/glossary.json` | Optional reviewed workspace and bounded-context terminology authority. |
 | `#module.sigil` | Explicit directory-import index allowed in any included directory. |
 | `.sigil/anchors.json` | Proposed committed sidecar for accepted anchors. |
 | `.sigil/runs/` | Proposed directory for immutable receipt review runs. |

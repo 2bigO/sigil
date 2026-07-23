@@ -90,5 +90,32 @@
     "deny-primary-edit-authority",
     "require-explicit-pre-edit-approval",
     "exclude-anchor-workflow"
+  ],
+  "glossaryFixture": "glossary-fixture.md",
+  "glossaryRequiredBehaviors": [
+    "inspect-deterministic-glossary",
+    "preserve-reviewed-authority",
+    "separate-glossary-and-concept-identity",
+    "extract-sigil-prose-only",
+    "exclude-nonprose-regions",
+    "collect-candidate-evidence",
+    "avoid-ordinary-language-noise",
+    "surface-conflicting-meaning",
+    "repair-normative-contract-conflict",
+    "select-nonoverlapping-scope",
+    "explain-context-override",
+    "present-exact-json-proposal",
+    "require-explicit-pre-edit-approval",
+    "validate-approved-glossary",
+    "stop-at-glossary-review-gate",
+    "inspect-after-every-sigil-mutation",
+    "inspect-when-glossary-absent",
+    "block-material-terminology-ambiguity",
+    "allow-ordinary-unambiguous-vocabulary",
+    "return-to-sigil-review-gate",
+    "include-scoped-glossary-in-coding-context",
+    "supplement-request-matched-accepted-term",
+    "exclude-unrelated-glossary-context",
+    "defer-markdown-extraction"
   ]
 }

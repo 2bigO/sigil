@@ -88,7 +88,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   ]);
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
-  assertEquals(json.cliVersion, "0.4.0");
+  assertEquals(json.cliVersion, "0.5.0");
   assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
@@ -146,6 +146,99 @@ Deno.test("check reports missing interface concepts as warning-only", async () =
     assertHasCode(
       output.diagnostics,
       "SIGIL_MISSING_CONCEPT_IDENTIFIER",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("glossary reports reviewed terms, contexts, and occurrences", async () => {
+  const root = await makeWorkspace("glossary");
+  try {
+    await Deno.mkdir(`${root}/booking`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/glossary.json`,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          terms: [
+            {
+              term: "workspace root",
+              definition: "The configured workspace directory.",
+            },
+          ],
+          contexts: [
+            {
+              id: "booking",
+              include: ["booking/**/*.sigil"],
+              exclude: [],
+              terms: [
+                {
+                  term: "hold",
+                  definition: "Booking capacity before confirmation.",
+                  aliases: ["temporary reservation"],
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    await Deno.writeTextFile(
+      `${root}/booking/contract.sigil`,
+      `component Booking {
+  goal {
+    Use the workspace root for each temporary reservation.
+  }
+
+  interface {
+    Hold {
+      A hold is visible.
+    }
+  }
+}
+`,
+    );
+    const result = await runCli([
+      "glossary",
+      root,
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_OK);
+    const output = parseJson(result.stdout);
+    assertEquals(output.command, "glossary");
+    assertEquals(output.schemaVersion, 1);
+    assertEquals(output.contexts[0].id, "booking");
+    assertEquals(output.resolvedContexts[0].contextId, "booking");
+    assert(
+      output.occurrences.some((
+        item: { matchedSpelling: string; term: { term: string } },
+      ) =>
+        item.matchedSpelling === "temporary reservation" &&
+        item.term.term === "hold"
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("glossary is absent without error and invalid data exits 1", async () => {
+  const root = await makeWorkspace("glossary-errors");
+  try {
+    let result = await runCli(["glossary", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_OK);
+    assertEquals(parseJson(result.stdout).glossaryPath, null);
+
+    await Deno.writeTextFile(`${root}/.sigil/glossary.json`, "{");
+    result = await runCli(["glossary", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assertHasCode(
+      parseJson(result.stdout).diagnostics,
+      "SIGIL_GLOSSARY_PARSE",
     );
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -274,6 +367,103 @@ Deno.test("context reports every collected expansion file", async () => {
     const paths = parseJson(result.stdout).relatedFilePaths;
     assert(paths.some((path: string) => path.endsWith("/one.sigil")));
     assert(paths.some((path: string) => path.endsWith("/two.sigil")));
+    assertEquals(parseJson(result.stdout).glossaryContext, null);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("context includes only glossary terms from related Sigil files", async () => {
+  const root = await makeWorkspace("glossary-context");
+  try {
+    await Deno.mkdir(`${root}/.sigil`, { recursive: true });
+    await Deno.writeTextFile(
+      `${root}/.sigil/glossary.json`,
+      JSON.stringify(
+        {
+          schemaVersion: 1,
+          terms: [
+            {
+              term: "workspace root",
+              definition: "The directory containing .sigil/config.json.",
+            },
+            {
+              term: "unused term",
+              definition: "Vocabulary unrelated to the selected component.",
+            },
+          ],
+          contexts: [
+            {
+              id: "booking",
+              include: ["**/*.sigil"],
+              exclude: [],
+              terms: [
+                {
+                  term: "hold",
+                  definition: "Booking capacity before confirmation.",
+                  aliases: ["temporary reservation"],
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      `component Feature {
+  goal {
+    Operate from the workspace root.
+  }
+
+  interface {
+    Reservation {
+      Creates a hold.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/expand.sigil`,
+      `expand Feature {
+  cases {
+    Reservation {
+      A temporary reservation remains temporary.
+    }
+  }
+}
+`,
+    );
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_OK);
+    const context = parseJson(result.stdout).glossaryContext;
+    assert(context.glossaryPath.endsWith("/.sigil/glossary.json"));
+    assertEquals(
+      context.terms.map((term: { term: string }) => term.term).join(","),
+      "workspace root,hold",
+    );
+    assertEquals(context.resolvedContexts.length, 2);
+    assert(
+      context.occurrences.some(
+        (occurrence: { matchedSpelling: string }) =>
+          occurrence.matchedSpelling === "temporary reservation",
+      ),
+    );
+    assert(
+      !context.terms.some(
+        (term: { term: string }) => term.term === "unused term",
+      ),
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -309,7 +499,7 @@ Deno.test("top-level help and version report CLI information", async () => {
 
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
-  assertEquals(version.stdout, "0.4.0\n");
+  assertEquals(version.stdout, "0.5.0\n");
   assertEquals(version.stderr, "");
 });
 
@@ -410,12 +600,12 @@ Deno.test("skill discovery resolves valid skills from the source installation", 
 
 Deno.test("skill install resolves skills beside a selected versioned binary", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-versioned-install-" });
-  const installation = `${root}/0.4.0`;
+  const installation = `${root}/0.5.0`;
   const skills = `${installation}/integrations/skills`;
   try {
     await Deno.mkdir(`${skills}/sigil`, { recursive: true });
     const resolved = await resolveInstalledSkillsDirectory(
-      "https://jsr.io/@qoherent/sigil/0.4.0/src/main.ts",
+      "https://jsr.io/@qoherent/sigil/0.5.0/src/main.ts",
       `${installation}/bin/sigil`,
     );
     assertEquals(await Deno.realPath(resolved), await Deno.realPath(skills));
@@ -490,7 +680,7 @@ Deno.test("executable subprocess returns version JSON", async () => {
   assertEquals(output.code, EXIT_OK);
   assertEquals(
     JSON.parse(new TextDecoder().decode(output.stdout)).cliVersion,
-    "0.4.0",
+    "0.5.0",
   );
 });
 

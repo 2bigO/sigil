@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qoherent.dev/sigil/schemas/glossary-1.json",
+  "title": "Sigil Workspace Glossary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "terms",
+    "contexts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "terms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/term"
+      }
+    },
+    "contexts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/context"
+      }
+    }
+  },
+  "$defs": {
+    "trimmedNonEmpty": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!\\s)[\\s\\S]*\\S$"
+    },
+    "glob": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/trimmedNonEmpty"
+        },
+        {
+          "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*\\\\)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+        }
+      ]
+    },
+    "term": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term",
+        "definition"
+      ],
+      "properties": {
+        "term": {
+          "$ref": "#/$defs/trimmedNonEmpty"
+        },
+        "definition": {
+          "$ref": "#/$defs/trimmedNonEmpty"
+        },
+        "aliases": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/trimmedNonEmpty"
+          }
+        }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "include",
+        "exclude",
+        "terms"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+        },
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/glob"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/glob"
+          }
+        },
+        "terms": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/term"
+          }
+        }
+      }
+    }
+  }
+}

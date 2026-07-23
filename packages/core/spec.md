@@ -1,30 +1,40 @@
 # sigil-core Requirements
 
-**Status:** Accepted for 0.4.0
-**Last updated:** 2026-07-22
+**Status:** Accepted for 0.5.0 **Last updated:** 2026-07-23
 
-This document defines the 0.4 product requirements for `sigil-core`.
-Architecture style, module boundaries, and dependency rules live in [architecture.md](architecture.md).
+This document defines the 0.5 product requirements for `sigil-core`.
+Architecture style, module boundaries, and dependency rules live in
+[architecture.md](architecture.md).
 
 ## 1. Purpose
 
 `sigil-core` is the shared semantic engine for the Sigil platform.
 
-It must give CLI, LSP, editor integrations, renderers, agent context builders, and tests one consistent way to understand Sigil.
+It must give CLI, LSP, editor integrations, renderers, agent context builders,
+and tests one consistent way to understand Sigil.
 
-## 2. Version 0.4 Scope
+## 2. Version 0.5 Scope
 
-Version 0.4 extends the parser and resolver foundation with reusable concept
-identifiers and public/private concept visibility.
+Version 0.5 extends the parser and resolver foundation with reviewed glossary
+authority, scoped terminology projections, reusable concept identifiers, and
+public/private concept visibility.
 
 It must:
 
 - parse `.sigil` files using an explicit supported Sigil version;
-- parse and validate strict `.sigil/config.json` using the canonical Sigil version;
+- parse and validate strict `.sigil/config.json` using the canonical Sigil
+  version;
+- parse and validate optional strict `.sigil/glossary.json` schema version 1;
 - preserve source locations and semantic lines;
+- resolve non-overlapping path-glob glossary contexts;
+- match reviewed canonical terms and aliases in eligible Sigil prose using
+  case-insensitive whole-phrase, longest-first rules;
+- preserve glossary declaration and occurrence source ranges;
 - parse flat, nonempty concept blocks and retain each line's concept identifier;
-- discover the nearest eligible ancestor config or use an explicit configured root;
-- apply include and exclude globs and permit independent workspaces only inside excluded subtrees;
+- discover the nearest eligible ancestor config or use an explicit configured
+  root;
+- apply include and exclude globs and permit independent workspaces only inside
+  excluded subtrees;
 - load workspace files through an abstract filesystem boundary;
 - resolve `@path import { Name }` declarations from the workspace root;
 - read additional project roots exclusively from `workspace.members` in
@@ -34,7 +44,8 @@ It must:
 - preserve explicit-file import access to every public component regardless of
   module-index membership;
 - identify public components and matching expansions;
-- collect all matching `expand Name` blocks without override or shadowing semantics;
+- collect all matching `expand Name` blocks without override or shadowing
+  semantics;
 - share one case-insensitively unique concept namespace across each component
   and all matching expands;
 - expose imported public interface concepts without exposing private expansion
@@ -47,7 +58,7 @@ It must:
 
 ## 3. Out Of Scope
 
-Version 0.4 must not implement:
+Version 0.5 must not implement:
 
 - CLI argument parsing;
 - LSP transport;
@@ -62,16 +73,18 @@ Version 0.4 must not implement:
 - export forms, import aliases, or wildcard imports;
 - dotted concept notation, concept aliases, shadowing, or nested concept blocks;
 - concept-based anchoring behavior.
+- inferred glossary definitions or automatic glossary mutation.
 
 Anchors remain outside `sigil-core`. The historical design in ADR-011 described
-them through a separate deterministic `sigil-indexer` package that consumes
-core semantic-line and workspace models.
+them through a separate deterministic `sigil-indexer` package that consumes core
+semantic-line and workspace models.
 
 ## 4. Public Interface Requirements
 
 `sigil-core` should expose a typed Deno TypeScript library API.
 
-Exact function names may evolve during implementation, but the public API must provide these capabilities:
+Exact function names may evolve during implementation, but the public API must
+provide these capabilities:
 
 - parse one Sigil source file;
 - discover or accept a workspace root;
@@ -101,6 +114,12 @@ The model should include typed concepts equivalent to:
 - `Section`;
 - `SemanticLine`;
 - `ConceptBlock`;
+- `WorkspaceGlossary`;
+- `GlossaryTerm`;
+- `GlossaryContext`;
+- `GlossaryOccurrence`;
+- `GlossaryProjection`;
+- `GlossaryContextProjection`;
 - `ResolvedConceptReference`;
 - `ResolvedConceptNamespace`;
 - `SigilWorkspace`;
@@ -110,6 +129,10 @@ The model should include typed concepts equivalent to:
 - `SigilGraph`;
 - `SigilDiagnostic`;
 - `SigilFileSystem`.
+
+`glossaryContextForFiles` must preserve deterministic declaration and source
+order while returning only accepted terms and occurrences recognized in the
+selected source files.
 
 `SemanticLine` must include:
 
@@ -142,15 +165,17 @@ The filesystem boundary must support:
 - listing workspace files needed for discovery and loading;
 - normalizing paths consistently enough for cross-platform behavior.
 
-Concrete filesystem adapters belong outside core logic or in thin adapter layers that do not leak into parser and resolver modules.
+Concrete filesystem adapters belong outside core logic or in thin adapter layers
+that do not leak into parser and resolver modules.
 
 ## 7. Error And Diagnostic Policy
 
 Malformed Sigil should produce partial models plus diagnostics.
 
-`sigil-core` should fail only when the host-provided filesystem boundary itself cannot satisfy an operation required by the requested API.
+`sigil-core` should fail only when the host-provided filesystem boundary itself
+cannot satisfy an operation required by the requested API.
 
-Version 0.4 diagnostics must include stable codes for:
+Version 0.5 diagnostics must include stable codes for:
 
 - parse structure errors;
 - unknown section;
@@ -162,15 +187,17 @@ Version 0.4 diagnostics must include stable codes for:
 - duplicate component ambiguity;
 - missing, malformed, invalid, unsupported, existing, or nested config;
 - import cycle protection.
-- missing, invalid, empty, nested, ambiguous, and non-preferred concept identifiers.
+- missing, invalid, empty, nested, ambiguous, and non-preferred concept
+  identifiers.
 
 ## 8. Workspace And Import Requirements
 
-The workspace root contains mandatory `.sigil/config.json` with the canonical Sigil version.
-Without an explicit root, the nearest ancestor config owns the target when every
-higher configured workspace excludes that nearer root. An explicit root must
-contain the config directly. Nested configs inside included paths are errors;
-excluded nested subtrees are independent workspaces and are skipped by parents.
+The workspace root contains mandatory `.sigil/config.json` with the canonical
+Sigil version. Without an explicit root, the nearest ancestor config owns the
+target when every higher configured workspace excludes that nearer root. An
+explicit root must contain the config directly. Nested configs inside included
+paths are errors; excluded nested subtrees are independent workspaces and are
+skipped by parents.
 
 Import paths begin with `@` and resolve from the workspace root.
 
@@ -189,15 +216,17 @@ paths.
 
 ## 9. Acceptance Scenarios
 
-Version 0.4 is acceptable when tests demonstrate that `sigil-core` can:
+Version 0.5 is acceptable when tests demonstrate that `sigil-core` can:
 
 - parse `examples/promise/promise.sigil`;
 - preserve semantic lines with owner, section, text, file, and source range;
-- discover the repository `.sigil/config.json` from nested targets that remain in the root workspace;
+- discover the repository `.sigil/config.json` from nested targets that remain
+  in the root workspace;
 - discover Promise and Slotted through their independent example configs;
 - treat `examples/slotted/#module.sigil` as the Slotted workspace summary;
 - diagnose imports-only module indexes with `SIGIL_MODULE_WITHOUT_COMPONENT`;
-- preserve original declaration paths through module indexes for graphs and editors;
+- preserve original declaration paths through module indexes for graphs and
+  editors;
 - keep omitted components importable through explicit `.sigil` paths;
 - resolve `examples/slotted/auth.sigil` imports from the Slotted workspace root;
 - collect matching expansions for resolved components;

@@ -7,12 +7,12 @@ environment without becoming the shared parser or CLI implementation.
 
 Current integrations:
 
-- `skills/sigil`: host-neutral coding-agent skill with format guidance, standards-aware
-  semantic review, incremental brownfield adoption, proposal and review gates,
-  concept-identifier proposal workflow, and implementation colocation. Version
-  0.4.0 is distributed as a standalone
-  repository skill bundled with native CLI releases and installable globally
-  or per project with `sigil skill install`.
+- `skills/sigil`: host-neutral coding-agent skill with format guidance,
+  standards-aware semantic review, incremental brownfield adoption, proposal and
+  review gates, concept-identifier proposal workflow, and implementation
+  colocation. Version 0.5.0 is distributed as a standalone repository skill
+  bundled with native CLI releases and installable globally or per project with
+  `sigil skill install`.
 - `editor/vscode`: implemented pre-production VS Code extension and
   editor-native human UI with syntax highlighting, bundled LSP features, and
   component previews.

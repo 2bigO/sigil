@@ -85,6 +85,19 @@ export async function runCommand(
       diagnosticCounts: diagnosticCounts(resolved.diagnostics),
     };
   }
+  if (request.command === "glossary") {
+    return {
+      command: "glossary",
+      ...workspaceMetadata(resolved.workspace),
+      glossaryPath: resolved.glossary.glossaryPath ?? null,
+      schemaVersion: resolved.glossary.schemaVersion ?? null,
+      terms: resolved.glossary.terms,
+      contexts: resolved.glossary.contexts,
+      resolvedContexts: resolved.glossary.resolvedContexts,
+      occurrences: resolved.glossary.occurrences,
+      diagnostics: resolved.diagnostics,
+    };
+  }
   if (request.command === "graph") {
     return {
       command: "graph",
@@ -137,6 +150,10 @@ function contextCommand(
       ),
     ]),
   ].sort();
+  const glossaryContext = core.glossaryContextForFiles(
+    resolved.glossary,
+    relatedFilePaths,
+  );
   return {
     command: "context",
     ...workspaceMetadata(resolved.workspace),
@@ -145,6 +162,7 @@ function contextCommand(
     conceptNamespaces,
     collectedExpansions: expansions,
     relatedFilePaths,
+    glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
     diagnostics: resolved.diagnostics,
   };
 }

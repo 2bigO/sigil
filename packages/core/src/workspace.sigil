@@ -3,6 +3,7 @@
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 @packages/core/src/filesystem.sigil import { SigilFileSystem }
 @packages/core/src/parser.sigil import { SigilParser }
+@packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 
 component SigilWorkspaceLoader {
   goal {
@@ -24,6 +25,10 @@ component SigilWorkspaceLoader {
       loadSigilWorkspace(filesystem, options) returns SigilWorkspace
 
       SigilWorkspace adds declared member roots, loaded partial source documents, and accumulated diagnostics
+    }
+
+    GlossaryInterpretation {
+      loadSigilWorkspace reads and validates optional GlossaryFile into SigilWorkspace
     }
   }
 }
@@ -49,6 +54,14 @@ expand SigilWorkspaceLoader {
 
       Parse selected source files in stable path order through SigilParser.
     }
+
+    GlossaryInterpretation {
+      Check for GlossaryFile after selecting the workspace boundary and before resolving loaded documents.
+
+      When present, read GlossaryFile through SigilFileSystem and delegate interpretation to SigilGlossaryEngine.
+
+      Accumulate glossary diagnostics while keeping invalid definitions inactive.
+    }
   }
 
   constraints {
@@ -65,6 +78,12 @@ expand SigilWorkspaceLoader {
     ModuleIndexFile {
       Workspace loading accepts ModuleIndexFile at any included path and assigns it no workspace-discovery authority.
     }
+
+    GlossaryInterpretation {
+      GlossaryFile loading is independent from SourceSelection globs.
+
+      Absence is valid while a filesystem failure reading an existing GlossaryFile propagates to the caller.
+    }
   }
 
   cases {
@@ -80,6 +99,12 @@ expand SigilWorkspaceLoader {
       A path excluded by SourceSelection is not loaded even when an include pattern matches.
 
       A filesystem read failure rejects workspace loading.
+    }
+
+    GlossaryInterpretation {
+      A workspace without GlossaryFile loads normally.
+
+      A malformed GlossaryFile contributes diagnostics while loaded Sigil documents remain available.
     }
   }
 }

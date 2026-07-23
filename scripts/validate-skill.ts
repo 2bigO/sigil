@@ -10,11 +10,13 @@ const required = [
   "references/design-conversation.md",
   "references/greenfield-design.md",
   "references/brownfield-adoption.md",
+  "references/glossary-workflow.md",
   "evals/design-conversation-fixture.md",
   "evals/brownfield-fixture.md",
   "evals/greenfield-fixture.md",
   "evals/implementation-coverage-fixture.md",
   "evals/concept-identifier-fixture.md",
+  "evals/glossary-fixture.md",
   "evals/expected.json",
 ];
 
@@ -37,6 +39,12 @@ requireText(
   "references/design-conversation.md",
   "design conversation routing",
 );
+requireText(
+  skill,
+  "references/glossary-workflow.md",
+  "glossary workflow routing",
+);
+requireText(skill, "sigil glossary", "glossary deterministic inspection");
 requireText(skill, "sigil init", "brownfield initialization");
 requireText(
   skill,
@@ -113,12 +121,12 @@ requireText(
 );
 requireText(
   skill,
-  "Subagent completion is not user\n     approval and grants no edit authority to the primary agent.",
+  "Subagent completion is not\n     user approval and grants no edit authority to the primary agent.",
   "delegated proposal authority boundary",
 );
 requireText(
   skill,
-  "always require explicit user approval of the presented proposal before any\n     repository mutation",
+  "repair always require explicit user approval of the presented proposal\n     before any repository mutation",
   "concept identifier pre-edit approval gate",
 );
 requireText(
@@ -133,8 +141,8 @@ requireText(
 );
 
 const version = (await Deno.readTextFile(`${root}/VERSION`)).trim();
-if (version !== "0.4.0") {
-  throw new Error(`Expected skill VERSION 0.4.0, got ${version}`);
+if (version !== "0.5.0") {
+  throw new Error(`Expected skill VERSION 0.5.0, got ${version}`);
 }
 
 const compatibility = JSON.parse(
@@ -142,8 +150,8 @@ const compatibility = JSON.parse(
 );
 for (
   const [key, expected] of Object.entries({
-    cliVersion: "^0.4.0",
-    coreVersion: "^0.4.0",
+    cliVersion: "^0.5.0",
+    coreVersion: "^0.5.0",
     sigilVersion: "0.4.0",
   })
 ) {
@@ -440,6 +448,89 @@ requireText(
   "concept fixture delegated authority boundary",
 );
 
+const glossaryFixture = await Deno.readTextFile(
+  `${root}/evals/glossary-fixture.md`,
+);
+const requiredGlossaryBehaviors = [
+  "inspect-deterministic-glossary",
+  "preserve-reviewed-authority",
+  "separate-glossary-and-concept-identity",
+  "extract-sigil-prose-only",
+  "exclude-nonprose-regions",
+  "collect-candidate-evidence",
+  "avoid-ordinary-language-noise",
+  "surface-conflicting-meaning",
+  "repair-normative-contract-conflict",
+  "select-nonoverlapping-scope",
+  "explain-context-override",
+  "present-exact-json-proposal",
+  "require-explicit-pre-edit-approval",
+  "validate-approved-glossary",
+  "stop-at-glossary-review-gate",
+  "inspect-after-every-sigil-mutation",
+  "inspect-when-glossary-absent",
+  "block-material-terminology-ambiguity",
+  "allow-ordinary-unambiguous-vocabulary",
+  "return-to-sigil-review-gate",
+  "include-scoped-glossary-in-coding-context",
+  "supplement-request-matched-accepted-term",
+  "exclude-unrelated-glossary-context",
+  "defer-markdown-extraction",
+];
+if (!Array.isArray(expected.glossaryRequiredBehaviors)) {
+  throw new Error("Glossary fixture must declare required behaviors.");
+}
+for (const behavior of requiredGlossaryBehaviors) {
+  if (!expected.glossaryRequiredBehaviors.includes(behavior)) {
+    throw new Error(`Glossary fixture is missing behavior ${behavior}.`);
+  }
+}
+requireText(
+  glossaryFixture,
+  "run deterministic glossary\n   inspection",
+  "glossary fixture deterministic inspection",
+);
+requireText(
+  glossaryFixture,
+  "contract\ncontradicts one glossary definition",
+  "glossary fixture normative conflict",
+);
+requireText(
+  glossaryFixture,
+  "Leave GlossaryFile unchanged",
+  "glossary fixture approval boundary",
+);
+requireText(
+  glossaryFixture,
+  "Markdown extraction as deferred",
+  "glossary fixture Markdown deferral",
+);
+requireText(
+  glossaryFixture,
+  "After every approved Sigil write or semantic edit",
+  "glossary fixture mandatory post-write inspection",
+);
+requireText(
+  glossaryFixture,
+  "including when GlossaryFile is\n   absent",
+  "glossary fixture absent authority inspection",
+);
+requireText(
+  glossaryFixture,
+  "materially\n    change behavior, ownership, state, APIs, or implementation",
+  "glossary fixture material ambiguity blocker",
+);
+requireText(
+  glossaryFixture,
+  "include its scoped `glossaryContext`",
+  "glossary fixture coding context handoff",
+);
+requireText(
+  glossaryFixture,
+  "without injecting unrelated workspace vocabulary",
+  "glossary fixture scoped request supplement",
+);
+
 const brownfield = await Deno.readTextFile(
   `${root}/references/brownfield-adoption.md`,
 );
@@ -517,8 +608,32 @@ requireText(
   "UI component coverage procedure",
 );
 
+const glossaryWorkflow = await Deno.readTextFile(
+  `${root}/references/glossary-workflow.md`,
+);
+requireText(
+  glossaryWorkflow,
+  "The glossary is reviewed authority.",
+  "glossary reviewed authority",
+);
+requireText(
+  glossaryWorkflow,
+  "sigil glossary . --format json --pretty",
+  "glossary inspection command",
+);
+requireText(
+  glossaryWorkflow,
+  "Leave repository\nfiles unchanged while awaiting approval.",
+  "glossary exact proposal gate",
+);
+requireText(
+  glossaryWorkflow,
+  "Markdown and other document adapters are deferred",
+  "glossary Markdown deferral",
+);
+
 console.log(
-  "Sigil skill 0.4.0 structure, compatibility, concept identifier workflow, gates, design conversation, Greenfield design, Brownfield adoption, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.5.0 structure, compatibility, concept identifier and glossary workflows, gates, design conversation, Greenfield design, Brownfield adoption, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

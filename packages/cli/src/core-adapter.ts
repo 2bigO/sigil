@@ -8,6 +8,9 @@ import {
   DEFAULT_SIGIL_INCLUDES,
   diagnostic,
   discoverSigilWorkspace,
+  glossaryContextForFiles,
+  type GlossaryContextProjection,
+  type GlossaryProjection,
   loadSigilWorkspace,
   parseSigilDocument,
   type ResolvedConceptNamespace,
@@ -179,6 +182,12 @@ export class CoreAdapter {
     componentName: string,
   ): ResolvedConceptNamespace | undefined {
     return conceptNamespaceFor(resolved, componentName);
+  }
+  glossaryContextForFiles(
+    projection: GlossaryProjection,
+    filePaths: readonly string[],
+  ): GlossaryContextProjection {
+    return glossaryContextForFiles(projection, filePaths);
   }
   normalizePath(path: string): string {
     return normalizePath(path);

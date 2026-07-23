@@ -1,5 +1,6 @@
 import type {
   ConceptIdentity,
+  GlossaryTerm,
   ResolvedComponent,
   ResolvedConcept,
   ResolvedSigilWorkspace,
@@ -9,7 +10,7 @@ import type {
   SigilFileSystem,
   SourceRange,
 } from "@qoherent/sigil-core";
-import { normalizePath } from "@qoherent/sigil-core";
+import { normalizePath, relativePath } from "@qoherent/sigil-core";
 import { pathToFileUri } from "./filesystem.ts";
 import type {
   DocumentSymbol,
@@ -26,6 +27,7 @@ const SYMBOL_CLASS = 5;
 const SYMBOL_PROPERTY = 7;
 const SEMANTIC_TOKEN_COMPONENT = 0;
 const SEMANTIC_TOKEN_CONCEPT = 1;
+const SEMANTIC_TOKEN_TERM = 2;
 
 interface ComponentReference {
   readonly component: ResolvedComponent;
@@ -36,6 +38,12 @@ interface ComponentReference {
 interface ConceptReference {
   readonly concept: ResolvedConcept;
   readonly context: ResolvedComponent;
+  readonly range: Range;
+}
+
+interface GlossaryReference {
+  readonly term: GlossaryTerm;
+  readonly matchedSpelling: string;
   readonly range: Range;
 }
 
@@ -160,6 +168,16 @@ export async function definitionAt(
     return await conceptDefinition(resolved, fs, conceptReference.concept);
   }
 
+  const glossaryReference = glossaryReferences(resolved, normalized).find(
+    (item) => contains(item.range, position),
+  );
+  if (glossaryReference && resolved.glossary.glossaryPath) {
+    return location(
+      resolved.glossary.glossaryPath,
+      glossaryReference.term.declarationRange,
+    );
+  }
+
   const reference = componentReferences(resolved, normalized, source).find(
     (item) => contains(item.range, position),
   );
@@ -184,13 +202,30 @@ export async function hoverAt(
     normalized,
     source,
   ).find((item) => contains(item.range, position));
+  const glossaryOccurrence = glossaryReferences(resolved, normalized).find(
+    (item) => contains(item.range, position),
+  );
   if (conceptReference) {
+    const glossaryReference = glossaryOccurrence ??
+      glossaryReferenceForConcept(resolved, normalized, conceptReference);
+    const concept = conceptMarkdown(conceptReference);
     return {
       contents: {
         kind: "markdown",
-        value: conceptMarkdown(conceptReference),
+        value: glossaryReference
+          ? `${concept}\n\n---\n\n${glossaryMarkdown(glossaryReference)}`
+          : concept,
       },
       range: conceptReference.range,
+    };
+  }
+  if (glossaryOccurrence) {
+    return {
+      contents: {
+        kind: "markdown",
+        value: glossaryMarkdown(glossaryOccurrence),
+      },
+      range: glossaryOccurrence.range,
     };
   }
   const reference = componentReferences(resolved, normalized, source).find(
@@ -215,13 +250,26 @@ export function semanticTokens(
   source: string,
 ): SemanticTokens {
   const byRange = new Map<string, SemanticReference>();
-  for (const item of componentReferences(resolved, filePath, source)) {
+  const components = componentReferences(resolved, filePath, source);
+  const concepts = conceptReferences(resolved, filePath, source);
+  const structuredRanges = [
+    ...components.map((item) => item.range),
+    ...concepts.map((item) => item.range),
+  ];
+  for (const item of glossaryReferences(resolved, filePath)) {
+    if (structuredRanges.some((range) => overlaps(range, item.range))) continue;
+    byRange.set(rangeKey(item.range), {
+      range: item.range,
+      tokenType: SEMANTIC_TOKEN_TERM,
+    });
+  }
+  for (const item of components) {
     byRange.set(rangeKey(item.range), {
       range: item.range,
       tokenType: SEMANTIC_TOKEN_COMPONENT,
     });
   }
-  for (const item of conceptReferences(resolved, filePath, source)) {
+  for (const item of concepts) {
     byRange.set(rangeKey(item.range), {
       range: item.range,
       tokenType: SEMANTIC_TOKEN_CONCEPT,
@@ -251,6 +299,45 @@ export function semanticTokens(
     previousCharacter = range.start.character;
   }
   return { data };
+}
+
+function glossaryReferences(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+): readonly GlossaryReference[] {
+  const normalized = normalizePath(filePath);
+  return resolved.glossary.occurrences
+    .filter((occurrence) => normalizePath(occurrence.filePath) === normalized)
+    .map((occurrence) => ({
+      term: occurrence.term,
+      matchedSpelling: occurrence.matchedSpelling,
+      range: sourceRangeToLsp(occurrence.range),
+    }));
+}
+
+function glossaryReferenceForConcept(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+  conceptReference: ConceptReference,
+): GlossaryReference | undefined {
+  const relativeFilePath = relativePath(resolved.workspace.root, filePath);
+  const context = resolved.glossary.resolvedContexts.find((item) =>
+    normalizePath(item.filePath) === normalizePath(relativeFilePath)
+  );
+  const identifier = conceptReference.concept.identity.identifier;
+  const normalizedIdentifier = identifier.toLowerCase();
+  const term = context?.entries.find((entry) =>
+    [entry.term, ...entry.aliases].some(
+      (spelling) => spelling.toLowerCase() === normalizedIdentifier,
+    )
+  );
+  return term
+    ? {
+      term,
+      matchedSpelling: identifier,
+      range: conceptReference.range,
+    }
+    : undefined;
 }
 
 function componentReferences(
@@ -585,7 +672,7 @@ function tokenAt(
   ) {
     return null;
   }
-  const isToken = (char: string): boolean => /[A-Za-z0-9_@./#-]/.test(char);
+  const isToken = (char: string): boolean => /[\p{L}\p{N}_@./#-]/u.test(char);
   let start = position.character;
   let end = position.character;
   while (start > 0 && isToken(line[start - 1])) start--;
@@ -681,6 +768,26 @@ function conceptMarkdown(reference: ConceptReference): string {
   return lines.join("\n");
 }
 
+function glossaryMarkdown(reference: GlossaryReference): string {
+  const scope = reference.term.scope.kind === "context"
+    ? `Bounded context: \`${reference.term.scope.id}\``
+    : "Scope: workspace";
+  const lines = [
+    `### term ${reference.term.term}`,
+    "",
+    reference.term.definition,
+    "",
+    scope,
+  ];
+  if (reference.matchedSpelling !== reference.term.term) {
+    lines.push(
+      "",
+      `Matched alias: \`${reference.matchedSpelling}\``,
+    );
+  }
+  return lines.join("\n");
+}
+
 function markdownList(lines: readonly string[]): string[] {
   return lines.length ? lines.map((line) => `- ${line}`) : ["- none"];
 }
@@ -692,6 +799,11 @@ function location(filePath: string, range?: SourceRange): Location {
 function contains(range: Range, position: Position): boolean {
   return compare(range.start, position) <= 0 &&
     compare(position, range.end) < 0;
+}
+
+function overlaps(left: Range, right: Range): boolean {
+  return compare(left.start, right.end) < 0 &&
+    compare(right.start, left.end) < 0;
 }
 
 function compare(left: Position, right: Position): number {

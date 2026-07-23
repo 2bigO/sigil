@@ -1,8 +1,8 @@
 # sigil-cli Requirements
 
-**Status:** Accepted for 0.4.0 **Last updated:** 2026-07-22
+**Status:** Accepted for 0.5.0 **Last updated:** 2026-07-23
 
-This document defines the 0.4 product requirements for `sigil-cli`.
+This document defines the 0.5 product requirements for `sigil-cli`.
 
 `sigil-cli` is the command-line interface over `sigil-core`. It exists for
 agents, CI, scripts, debugging, and review/documentation workflows. It is not
@@ -16,9 +16,9 @@ extract information from Sigil workspaces.
 It should make the shared `sigil-core` model usable from a terminal without
 reinterpreting Sigil independently.
 
-## 2. Version 0.4 Scope
+## 2. Version 0.5 Scope
 
-Version 0.4 must provide commands to:
+Version 0.5 must provide commands to:
 
 - parse one Sigil file;
 - check a file or workspace for diagnostics;
@@ -29,11 +29,12 @@ Version 0.4 must provide commands to:
 - report CLI, core, and Sigil versions.
 - surface concept-identifier diagnostics and resolved concept namespaces.
 
-Version 0.4 should favor predictable, machine-readable behavior over rich terminal UI.
+Version 0.5 should favor predictable, machine-readable behavior over rich
+terminal UI.
 
 ## 3. Out Of Scope
 
-Version 0.4 must not implement:
+Version 0.5 must not implement:
 
 - editor UI;
 - LSP transport;
@@ -102,10 +103,10 @@ Exit codes should be stable:
 - `3`: host/runtime failure such as unreadable input outside normal Sigil
   diagnostics.
 
-Warnings alone should not produce exit code `1`.
-In particular, `SIGIL_MISSING_CONCEPT_IDENTIFIER` must be visible in human and
-JSON output while preserving exit code `0` when no errors exist, so users and
-agents can act on it.
+Warnings alone should not produce exit code `1`. In particular,
+`SIGIL_MISSING_CONCEPT_IDENTIFIER` must be visible in human and JSON output
+while preserving exit code `0` when no errors exist, so users and agents can act
+on it.
 
 ## 7. Commands
 
@@ -171,6 +172,24 @@ Required output data for JSON:
 
 Default human output may be concise text, but JSON must remain available.
 
+### `sigil glossary [path]`
+
+Loads the workspace glossary through `sigil-core` and reports its deterministic
+projection.
+
+Required output data:
+
+- workspace metadata and glossary path;
+- glossary schema version;
+- workspace and bounded-context entries;
+- resolved context for each loaded Sigil source;
+- canonical term, matched spelling, owner, and exact range for each occurrence;
+- glossary and workspace diagnostics.
+
+Absence of `.sigil/glossary.json` is successful and reports an absent glossary.
+Invalid schema, overlapping contexts, and spelling collisions exit with code
+`1`. The command is read-only and does not extract or propose definitions.
+
 ### `sigil graph [path]`
 
 Loads and resolves a workspace or target path and emits graph data from
@@ -183,13 +202,13 @@ Required output data:
 - component-to-expansion edges;
 - diagnostics.
 
-The command should not generate diagrams in version 0.4.
+The command should not generate diagrams in version 0.5.
 
 ### `sigil context`
 
 Produces deterministic agent-oriented context data from resolved Sigil.
 
-Version 0.4 should use graph and exact-match signals only.
+Version 0.5 should use graph and exact-match signals only.
 
 Supported selectors:
 
@@ -204,9 +223,16 @@ Required output data:
 - collected expansions;
 - resolved concept namespaces;
 - related file paths;
+- a scoped glossary context containing accepted terms, aliases, definitions,
+  resolved bounded contexts, and occurrences from those related files, or `null`
+  when GlossaryFile is absent;
 - diagnostics.
 
-Version 0.4 must not implement embeddings, opaque ranking, or full semantic search.
+The scoped glossary context excludes accepted vocabulary that does not occur in
+the selected component or file and its collected expansion sources.
+
+Version 0.5 must not implement embeddings, opaque ranking, or full semantic
+search.
 
 ### `sigil render [path]`
 
@@ -264,7 +290,8 @@ boundaries.
 
 ## 10. Acceptance Scenarios
 
-Version 0.4 is acceptable when tests or scripted checks demonstrate that `sigil-cli` can:
+Version 0.5 is acceptable when tests or scripted checks demonstrate that
+`sigil-cli` can:
 
 - parse `examples/promise/promise.sigil` and emit JSON;
 - check the repository workspace from the mandatory root `.sigil/config.json`;
@@ -293,11 +320,11 @@ entrypoint as commands grow.
 Keep command shaping separate from `sigil-core` data models so the core API
 remains reusable by LSP and editor integrations.
 
-Do not add interactive prompts in version 0.4.
+Do not add interactive prompts in version 0.5.
 
 ## 12. Historical Anchor Command Proposal
 
-The following inactive design is retained for history. Version 0.4 has no
+The following inactive design is retained for history. Version 0.5 has no
 `sigil-indexer` dependency or `anchors` command group.
 
 ### `sigil anchors candidates [path] --component <name>`

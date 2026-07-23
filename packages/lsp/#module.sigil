@@ -47,6 +47,12 @@ component SigilLsp {
       supports document symbols, definition, hover, diagnostics, and semantic highlighting for resolved concept identities
 
       hover on a reused concept presents its collective public interface occurrences from the origin through the current component context
+
+      when a concept declaration or reference spelling matches an effective reviewed glossary term or alias in the hovered file's glossary context, hover presents the concept content together with the canonical term, definition, scope, and matched alias
+    }
+
+    GlossaryLanguageFeatures {
+      supports hover, definition navigation, and semantic highlighting for resolved glossary occurrences
     }
 
     WorkspaceSupport {
@@ -112,6 +118,20 @@ expand SigilLsp {
 
       Hover preserves each occurrence's component, section, and source attribution.
     }
+
+    GlossaryLanguageFeatures {
+      Glossary features consume core glossary occurrences without independently scanning prose.
+
+      Hover presents canonical spelling, definition, context, and matched alias.
+
+      Concept declaration and reference hover matches the identifier spelling against the hovered file's effective glossary entries without creating a glossary occurrence.
+
+      When a concept declaration or reference matches an effective glossary entry, Hover appends glossary Markdown after concept Markdown in one response.
+
+      Definition targets the canonical term declaration in GlossaryFile.
+
+      Semantic tokens classify resolved occurrences with the term token type.
+    }
   }
 
   constraints {
@@ -137,6 +157,20 @@ expand SigilLsp {
 
     ConceptLanguageFeatures {
       Imported-concept hover does not expose private state, logic, constraints, cases, or expansion occurrences.
+    }
+
+    GlossaryLanguageFeatures {
+      Glossary occurrence features apply only to free-form prose in loaded .sigil documents.
+
+      The semantic-token legend includes term and preserves non-overlapping UTF-16 ranges.
+
+      The server does not infer unknown terms or modify GlossaryFile.
+
+      Concept identifiers remain structural syntax and do not become glossary occurrences, term semantic tokens, or GlossaryFile definition targets.
+
+      Definition navigation on a concept declaration or reference targets the concept origin even when its spelling matches an effective glossary entry.
+
+      Combined hover does not change semantic-token overlap resolution.
     }
 
     WorkspaceSupport {
@@ -185,6 +219,18 @@ expand SigilLsp {
       Ungrouped interface content receives one warning per contiguous region.
 
       A valid nonpreferred identifier produces a hint.
+    }
+
+    GlossaryLanguageFeatures {
+      Hovering an alias displays its canonical term and reviewed definition.
+
+      Definition on a recognized occurrence opens its GlossaryFile entry.
+
+      A recognized term receives highlighting while the same spelling inside inline code does not.
+
+      Hovering a concept declaration or reference whose identifier matches a canonical glossary term or alias shows concept details followed by reviewed glossary details.
+
+      Go to Definition on that concept opens the originating concept declaration rather than GlossaryFile.
     }
 
     WorkspaceSupport {

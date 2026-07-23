@@ -28,7 +28,7 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   const packaging = await readFile("scripts/package-extension.mjs", "utf8");
-  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.4.0"), false);
+  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.5.0"), false);
   assert.equal(packaging.includes("manifest.version"), true);
   assert.equal(
     packaging.includes("sigil-vscode-${manifest.version}.vsix"),
@@ -57,13 +57,16 @@ test("TextMate grammar colors syntax without treating capitalized prose as names
   assert.equal(JSON.stringify(grammar).includes("comment"), false);
 });
 
-test("manifest maps concept semantic tokens to the concept TextMate scope", async () => {
+test("manifest maps concept and glossary semantic tokens to a visible TextMate scope", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   assert.deepEqual(
     manifest.contributes.semanticTokenScopes[0],
     {
       language: "sigil",
-      scopes: { concept: ["entity.name.type.concept.sigil"] },
+      scopes: {
+        concept: ["entity.name.type.concept.sigil"],
+        term: ["entity.name.type.concept.sigil"],
+      },
     },
   );
 });

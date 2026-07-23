@@ -4,7 +4,8 @@ import {
   parseSigilConfig,
 } from "./config.ts";
 import { diagnostic } from "./diagnostics.ts";
-import { SIGIL_CONFIG_PATH } from "./model.ts";
+import { parseSigilGlossary } from "./glossary.ts";
+import { SIGIL_CONFIG_PATH, SIGIL_GLOSSARY_PATH } from "./model.ts";
 import type {
   LoadedSigilFile,
   SigilConfig,
@@ -161,6 +162,23 @@ export async function loadSigilWorkspace(
     });
     loadedFiles.push({ path, document: parsed.document });
     diagnostics.push(...parsed.diagnostics);
+  }
+
+  const glossaryPath = joinPath(discovery.root, SIGIL_GLOSSARY_PATH);
+  if (await fs.exists(glossaryPath)) {
+    const parsed = parseSigilGlossary(
+      await fs.readTextFile(glossaryPath),
+      glossaryPath,
+    );
+    diagnostics.push(...parsed.diagnostics);
+    return {
+      ...discovery,
+      glossaryPath,
+      glossary: parsed.glossary,
+      memberRoots,
+      files: loadedFiles,
+      diagnostics,
+    };
   }
 
   return { ...discovery, memberRoots, files: loadedFiles, diagnostics };

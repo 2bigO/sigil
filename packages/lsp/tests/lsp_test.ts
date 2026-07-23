@@ -40,7 +40,10 @@ Deno.test("initializes with the approved 0.4 capabilities and lifecycle", async 
   assertEquals(capabilities.hoverProvider, true);
   assert(
     JSON.stringify(capabilities.semanticTokensProvider) === JSON.stringify({
-      legend: { tokenTypes: ["type", "concept"], tokenModifiers: [] },
+      legend: {
+        tokenTypes: ["type", "concept", "term"],
+        tokenModifiers: [],
+      },
       full: true,
     }),
   );
@@ -335,6 +338,220 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   assert(
     !decodeSemanticTokens(tokens.data as number[]).some((item) =>
       item.line === 10 && item.tokenType === 1
+    ),
+  );
+});
+
+Deno.test("highlights, explains, and navigates reviewed glossary terms", async () => {
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const glossaryUri = pathToFileUri(glossaryPath);
+  const source = `component Booking {
+  goal {
+    A temporary reservation creates a hold.
+
+    Ignore \`temporary reservation\`.
+  }
+
+  interface {
+    BookingTerm {
+      The hold remains visible.
+    }
+  }
+}
+`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-glossary-test", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [glossaryPath]: JSON.stringify(
+        {
+          schemaVersion: 1,
+          terms: [],
+          contexts: [
+            {
+              id: "booking",
+              include: ["**/*.sigil"],
+              exclude: [],
+              terms: [
+                {
+                  term: "hold",
+                  definition: "Booking capacity before confirmation.",
+                  aliases: ["temporary reservation"],
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      [contractPath]: source,
+    }),
+  });
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(2, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 10 },
+    })),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
+  assert(markdown.includes("term hold"));
+  assert(markdown.includes("Booking capacity before confirmation."));
+  assert(markdown.includes("Matched alias: `temporary reservation`"));
+  assert(markdown.includes("Bounded context: `booking`"));
+
+  const definition = responseResult(
+    await server.handle(request(3, "textDocument/definition", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 10 },
+    })),
+  ) as Record<string, unknown>;
+  assertEquals(definition.uri, glossaryUri);
+
+  const tokens = responseResult(
+    await server.handle(request(
+      4,
+      "textDocument/semanticTokens/full",
+      { textDocument: { uri: contractUri } },
+    )),
+  ) as Record<string, unknown>;
+  const termTokens = decodeSemanticTokens(tokens.data as number[])
+    .filter((item) => item.tokenType === 2);
+  assert(termTokens.some((item) => item.line === 2));
+  assert(termTokens.some((item) => item.line === 9));
+  assert(!termTokens.some((item) => item.line === 4));
+});
+
+Deno.test("combines concept and glossary hover while preserving concept navigation", async () => {
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const source = `component Thing {
+  goal {
+    Run Execution.
+  }
+
+  interface {
+    Execution {
+      run()
+    }
+  }
+}
+`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-concept-glossary-test", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [glossaryPath]: JSON.stringify({
+        schemaVersion: 1,
+        terms: [],
+        contexts: [{
+          id: "runtime",
+          include: ["**/*.sigil"],
+          exclude: [],
+          terms: [{
+            term: "execution model",
+            definition: "Reviewed execution meaning.",
+            aliases: ["Execution"],
+          }],
+        }],
+      }),
+      [contractPath]: source,
+    }),
+  });
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(2, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 9 },
+    })),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
+  const conceptHeading = markdown.indexOf("### concept Execution");
+  const termHeading = markdown.indexOf("### term execution model");
+  assert(conceptHeading >= 0);
+  assert(termHeading > conceptHeading);
+  assert(markdown.includes("Reviewed execution meaning."));
+  assert(markdown.includes("Matched alias: `Execution`"));
+  assert(markdown.includes("Bounded context: `runtime`"));
+
+  const definition = responseResult(
+    await server.handle(request(3, "textDocument/definition", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 9 },
+    })),
+  ) as Record<string, unknown>;
+  assertEquals(definition.uri, contractUri);
+  assertEquals(
+    ((definition.range as Record<string, unknown>).start as Record<
+      string,
+      unknown
+    >).line,
+    6,
+  );
+
+  const declarationHover = responseResult(
+    await server.handle(request(4, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 6, character: 6 },
+    })),
+  ) as Record<string, unknown>;
+  const declarationMarkdown = String(
+    (declarationHover.contents as Record<string, unknown>).value,
+  );
+  assert(declarationMarkdown.includes("### concept Execution"));
+  assert(declarationMarkdown.includes("### term execution model"));
+  assert(declarationMarkdown.includes("Reviewed execution meaning."));
+  assert(declarationMarkdown.includes("Matched alias: `Execution`"));
+
+  const tokens = responseResult(
+    await server.handle(request(
+      5,
+      "textDocument/semanticTokens/full",
+      { textDocument: { uri: contractUri } },
+    )),
+  ) as Record<string, unknown>;
+  const overlapTokens = decodeSemanticTokens(tokens.data as number[])
+    .filter((item) => item.line === 2);
+  assert(overlapTokens.some((item) => item.tokenType === 1));
+  assert(!overlapTokens.some((item) => item.tokenType === 2));
+});
+
+Deno.test("publishes invalid glossary diagnostics without crashing", async () => {
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-glossary-error", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [glossaryPath]: "{",
+      [contractPath]: contractSource,
+    }),
+  });
+  await server.handle(request(1, "initialize", { rootUri }));
+  const notifications = await server.handle(notification("initialized"));
+  assert(
+    diagnosticsFor(notifications, pathToFileUri(glossaryPath)).some(
+      (item) => item.code === "SIGIL_GLOSSARY_PARSE",
     ),
   );
 });

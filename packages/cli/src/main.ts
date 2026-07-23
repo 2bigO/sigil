@@ -14,6 +14,7 @@ Commands:
   version [path]    Report workspace and contract versions
   parse <file>      Parse one Sigil file
   check [path]      Report workspace diagnostics
+  glossary [path]   Inspect reviewed glossary terms and occurrences
   graph [path]      Report the component and import graph
   context [path]    Return context for a component or file
   render [path]     Render workspace documentation

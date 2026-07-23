@@ -1,38 +1,39 @@
 # Sigil pre-release status
 
-Sigil 0.4.0 is a work-in-progress pre-production release of the language,
-platform, and agent workflow. It does not claim production readiness or a
-stable 1.0 contract.
+Sigil artifacts 0.5.0 are a work-in-progress pre-production release of the
+platform and agent workflow over Sigil Language 0.4.0. They do not claim
+production readiness or a stable 1.0 contract.
 
 Included contracts:
 
 - Sigil Language 0.4.0;
 - `.sigil/config.json` schema 0.4.0;
-- `@qoherent/sigil-core` 0.4.0;
-- `@qoherent/sigil` 0.4.0;
-- standalone host-neutral Sigil skill 0.4.0 with implementation-component discovery,
-  coverage review, and proposal-only concept-identifier delegation;
+- `@qoherent/sigil-core` 0.5.0;
+- `@qoherent/sigil` 0.5.0;
+- standalone host-neutral Sigil skill 0.5.0 with reviewed glossary workflows,
+  implementation-component discovery, coverage review, and proposal-only
+  concept-identifier delegation;
 - language, configuration, API, migration, workflow, and compatibility
   documentation.
 
-The initial 0.x scope includes `@qoherent/sigil-lsp` 0.4.0 as the shared
+The initial 0.x scope includes `@qoherent/sigil-lsp` 0.5.0 as the shared
 editor-neutral language-server boundary over `@qoherent/sigil-core`.
 
-The initial 0.x scope also includes the Sigil VS Code extension 0.4.0 as the
+The initial 0.x scope also includes the Sigil VS Code extension 0.5.0 as the
 first concrete human authoring and review surface over `@qoherent/sigil-lsp`.
 
 Each contract follows semantic versioning independently. The compatibility
 matrix records supported combinations.
 
-Version 0.4.0 intentionally excludes the historically designed anchors and
-`sigil-indexer` implementation,
-editor integrations other than VS Code, plugin packaging, semantic search,
-interactive CLI workflows, `.sigil` mutation, generated diagrams, and
-persistent approval records. Human approval is session-scoped.
+Artifact release 0.5.0 intentionally excludes the historically designed anchors
+and `sigil-indexer` implementation, editor integrations other than VS Code,
+plugin packaging, semantic search, interactive CLI workflows, `.sigil` mutation,
+generated diagrams, and persistent approval records. Human approval is
+session-scoped.
 
-Pre-release acceptance requires formatting, lint, type checks, core, CLI, LSP, and
-VS Code extension tests, skill validation, JSR dry runs, VSIX packaging, and the
-documented brownfield pilot to pass.
+Pre-release acceptance requires formatting, lint, type checks, core, CLI, LSP,
+and VS Code extension tests, skill validation, JSR dry runs, VSIX packaging, and
+the documented brownfield pilot to pass.
 
 Native CLI release acceptance also requires all five supported archives to
 compile, contain the version-matched Sigil skill, and be covered by the
