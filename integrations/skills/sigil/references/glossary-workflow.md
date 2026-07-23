@@ -6,8 +6,8 @@ vocabulary, or when terminology ambiguity materially affects Sigil design or
 review.
 
 The glossary is reviewed authority. Deterministic tools inspect accepted entries
-and occurrences; a model may extract candidates and identify semantic conflicts
-but cannot make inferred language authoritative.
+and occurrences; the host model must separately extract candidates and identify
+semantic conflicts but cannot make inferred language authoritative.
 
 ## 1. Inspect Deterministic State
 
@@ -33,6 +33,12 @@ exact repair before relying on its entries.
 An absent GlossaryFile is valid deterministic state. Continue with candidate
 extraction from the changed semantic lines rather than skipping this workflow.
 
+Completing `sigil glossary` completes only deterministic inspection. The
+command does not extract unknown vocabulary, propose definitions, identify all
+semantic conflicts, or decide whether GlossaryFile needs a change. Zero
+diagnostics establish only that the deterministic glossary projection is valid.
+Never report that no glossary changes are needed from CLI output alone.
+
 ## 2. Preserve Authority
 
 An approved normative Sigil contract governs when its wording conflicts with a
@@ -49,6 +55,11 @@ Do not:
 - use glossary definitions to override component or concept resolution.
 
 ## 3. Extract Candidates
+
+Candidate extraction is a mandatory model-assisted stage after deterministic
+inspection for every approved Sigil write or semantic edit, regardless of
+diagnostic count or GlossaryFile presence. Do not merge the two stages or treat
+successful validation as extraction.
 
 Initial extraction examines free-form prose in loaded `.sigil` documents only.
 Exclude structural syntax, concept identifiers, imports, code fences, inline
@@ -82,8 +93,18 @@ question. Do not synthesize one definition that hides the conflict.
 
 Block Sigil review and implementation only when an undefined, conflicting, or
 incorrectly scoped term could materially alter behavior, ownership, state, APIs,
-or implementation. If no material candidate exists, record that result and
-continue to the Sigil review gate.
+or implementation.
+
+Always report the extraction result:
+
+- When a material candidate exists, collect its evidence and follow the exact
+  proposal workflow below.
+- When no material candidate exists, record an evidence-based result naming the
+  changed semantic lines and relevant surrounding component, expand, glossary,
+  and variant occurrences inspected. A diagnostic count is not evidence for
+  this conclusion.
+
+Only then continue to the Sigil review gate.
 
 ## 4. Select Scope
 

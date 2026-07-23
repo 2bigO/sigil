@@ -5,6 +5,7 @@ import type {
   ResolvedConcept,
   ResolvedSigilWorkspace,
   Section,
+  SemanticLine,
   SigilDiagnostic,
   SigilDocument,
   SigilFileSystem,
@@ -197,6 +198,7 @@ export async function hoverAt(
 ): Promise<Hover | null> {
   const source = await fs.readTextFile(filePath);
   const normalized = normalizePath(filePath);
+  const markdown = new HoverMarkdownRenderer(resolved, fs);
   const conceptReference = conceptReferences(
     resolved,
     normalized,
@@ -208,7 +210,7 @@ export async function hoverAt(
   if (conceptReference) {
     const glossaryReference = glossaryOccurrence ??
       glossaryReferenceForConcept(resolved, normalized, conceptReference);
-    const concept = conceptMarkdown(conceptReference);
+    const concept = await conceptMarkdown(conceptReference, markdown);
     return {
       contents: {
         kind: "markdown",
@@ -235,9 +237,10 @@ export async function hoverAt(
   return {
     contents: {
       kind: "markdown",
-      value: componentMarkdown(
+      value: await componentMarkdown(
         reference.component,
         reference.includeExpansions,
+        markdown,
       ),
     },
     range: reference.range,
@@ -685,10 +688,11 @@ function tokenAt(
   return text && contains(range, position) ? { text, range } : null;
 }
 
-function componentMarkdown(
+async function componentMarkdown(
   component: ResolvedComponent,
   includeExpansions: boolean,
-): string {
+  markdown: HoverMarkdownRenderer,
+): Promise<string> {
   const goal = component.declaration.sections.find((item) =>
     item.name === "goal"
   );
@@ -701,20 +705,19 @@ function componentMarkdown(
     `Source: \`${component.filePath}\``,
     "",
     "**Goal**",
-    ...markdownList(goal?.lines.map((item) => item.text) ?? []),
+    ...markdownList(await markdown.semanticLines(goal?.lines ?? [])),
     "",
     "**Interface**",
-    ...markdownList(iface?.lines.map((item) => item.text) ?? []),
+    ...markdownList(await markdown.semanticLines(iface?.lines ?? [])),
   ];
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
       lines.push("", `\`${expansion.filePath}\``);
       for (const section of expansion.declaration.sections) {
+        const semanticLines = await markdown.semanticLines(section.lines);
         lines.push(
-          `- **${section.name}:** ${
-            section.lines.map((item) => item.text).join(" ")
-          }`,
+          `- **${section.name}:** ${semanticLines.join(" ")}`,
         );
       }
     }
@@ -751,7 +754,10 @@ async function conceptDefinition(
   };
 }
 
-function conceptMarkdown(reference: ConceptReference): string {
+async function conceptMarkdown(
+  reference: ConceptReference,
+  markdown: HoverMarkdownRenderer,
+): Promise<string> {
   const identity = reference.concept.identity;
   const lines = [
     `### concept ${reference.concept.identifier}`,
@@ -759,13 +765,129 @@ function conceptMarkdown(reference: ConceptReference): string {
     `Origin: \`${identity.componentName}\` in \`${identity.filePath}\``,
   ];
   for (const occurrence of reference.concept.occurrences) {
+    const semanticLines = await markdown.semanticLines(occurrence.block.lines);
     lines.push(
       "",
       `**${occurrence.sectionName}** — \`${occurrence.componentName}\` in \`${occurrence.filePath}\``,
-      ...markdownList(occurrence.block.lines.map((item) => item.text)),
+      ...markdownList(semanticLines),
     );
   }
   return lines.join("\n");
+}
+
+interface HoverLinkReference {
+  readonly range: Range;
+  readonly target: Location;
+}
+
+class HoverMarkdownRenderer {
+  readonly #resolved: ResolvedSigilWorkspace;
+  readonly #fs: SigilFileSystem;
+  readonly #sources = new Map<string, Promise<string>>();
+  readonly #references = new Map<
+    string,
+    Promise<readonly HoverLinkReference[]>
+  >();
+
+  constructor(resolved: ResolvedSigilWorkspace, fs: SigilFileSystem) {
+    this.#resolved = resolved;
+    this.#fs = fs;
+  }
+
+  async semanticLines(lines: readonly SemanticLine[]): Promise<string[]> {
+    return await Promise.all(lines.map((line) => this.semanticLine(line)));
+  }
+
+  async semanticLine(line: SemanticLine): Promise<string> {
+    const lineRange = sourceRangeToLsp(line.range);
+    const references = (await this.#referencesFor(line.filePath))
+      .filter((reference) => containsRange(lineRange, reference.range))
+      .sort((left, right) => compareRanges(right.range, left.range));
+    let result = line.text;
+    for (const reference of references) {
+      const start = reference.range.start.character - lineRange.start.character;
+      const end = reference.range.end.character - lineRange.start.character;
+      if (start < 0 || end > result.length || start >= end) continue;
+      const label = result.slice(start, end);
+      result = `${result.slice(0, start)}[${label}](${
+        locationMarkdownUri(reference.target)
+      })${result.slice(end)}`;
+    }
+    return result;
+  }
+
+  #source(filePath: string): Promise<string> {
+    const normalized = normalizePath(filePath);
+    let source = this.#sources.get(normalized);
+    if (!source) {
+      source = this.#fs.readTextFile(normalized);
+      this.#sources.set(normalized, source);
+    }
+    return source;
+  }
+
+  #referencesFor(filePath: string): Promise<readonly HoverLinkReference[]> {
+    const normalized = normalizePath(filePath);
+    let references = this.#references.get(normalized);
+    if (!references) {
+      references = this.#resolveReferences(normalized);
+      this.#references.set(normalized, references);
+    }
+    return references;
+  }
+
+  async #resolveReferences(
+    filePath: string,
+  ): Promise<readonly HoverLinkReference[]> {
+    const source = await this.#source(filePath);
+    const byRange = new Map<string, HoverLinkReference>();
+    for (
+      const reference of componentReferences(
+        this.#resolved,
+        filePath,
+        source,
+      )
+    ) {
+      const targetSource = await this.#source(reference.component.filePath);
+      byRange.set(rangeKey(reference.range), {
+        range: reference.range,
+        target: {
+          uri: pathToFileUri(reference.component.filePath),
+          range: declarationNameRange(
+            targetSource,
+            reference.component.declaration.range.start.line,
+            reference.component.name,
+          ),
+        },
+      });
+    }
+    for (
+      const reference of conceptReferences(
+        this.#resolved,
+        filePath,
+        source,
+      )
+    ) {
+      const target = await conceptDefinition(
+        this.#resolved,
+        this.#fs,
+        reference.concept,
+      );
+      if (target) {
+        byRange.set(rangeKey(reference.range), {
+          range: reference.range,
+          target,
+        });
+      }
+    }
+    return [...byRange.values()];
+  }
+}
+
+function locationMarkdownUri(location: Location): string {
+  return `${location.uri}#L${location.range.start.line + 1},${
+    location.range.start.character + 1
+  }`;
 }
 
 function glossaryMarkdown(reference: GlossaryReference): string {
@@ -799,6 +921,11 @@ function location(filePath: string, range?: SourceRange): Location {
 function contains(range: Range, position: Position): boolean {
   return compare(range.start, position) <= 0 &&
     compare(position, range.end) < 0;
+}
+
+function containsRange(outer: Range, inner: Range): boolean {
+  return compare(outer.start, inner.start) <= 0 &&
+    compare(inner.end, outer.end) <= 0;
 }
 
 function overlaps(left: Range, right: Range): boolean {

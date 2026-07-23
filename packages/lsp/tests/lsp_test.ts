@@ -282,7 +282,11 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
       "**interface** — `Consumer` in `/workspace/consumer.sigil`",
     ),
   );
-  assert(markdown.includes("run() uses Execution."));
+  assert(
+    markdown.includes(
+      "run() uses [Execution](file:///workspace/contract.sigil#L7,5).",
+    ),
+  );
   assert(!markdown.includes("Running succeeds."));
   assert(!markdown.includes("Consumer retries are private."));
 
@@ -300,9 +304,34 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
     (declarationHover.contents as Record<string, unknown>).value,
   );
   assert(declarationMarkdown.includes("run()"));
-  assert(declarationMarkdown.includes("run() uses Execution."));
+  assert(
+    declarationMarkdown.includes(
+      "run() uses [Execution](file:///workspace/contract.sigil#L7,5).",
+    ),
+  );
   assert(!declarationMarkdown.includes("Running succeeds."));
   assert(!declarationMarkdown.includes("Consumer retries are private."));
+  assert(declarationMarkdown.includes("ExecutionCache remain prose."));
+  assert(!declarationMarkdown.includes("[ExecutionCache]"));
+
+  const componentHover = responseResult(
+    await server.handle(request(
+      32,
+      "textDocument/hover",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 2, character: 11 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const componentMarkdown = String(
+    (componentHover.contents as Record<string, unknown>).value,
+  );
+  assert(
+    componentMarkdown.includes(
+      "Consume [Thing](file:///workspace/contract.sigil#L1,11).",
+    ),
+  );
 
   const caseMismatch = responseResult(
     await server.handle(request(

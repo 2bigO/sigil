@@ -45,6 +45,26 @@ requireText(
   "glossary workflow routing",
 );
 requireText(skill, "sigil glossary", "glossary deterministic inspection");
+requireText(
+  skill,
+  "Treat `sigil glossary` as deterministic inspection only.",
+  "glossary deterministic-only CLI boundary",
+);
+requireText(
+  skill,
+  "Never infer that no glossary changes are needed from CLI output.",
+  "glossary zero-diagnostic inference guard",
+);
+requireText(
+  skill,
+  "Perform that model-assisted extraction after every approved Sigil write or\n     semantic edit regardless of diagnostic count or GlossaryFile presence.",
+  "glossary mandatory post-write model extraction",
+);
+requireText(
+  skill,
+  "evidence-based no-material-candidate result",
+  "glossary evidence-based no-candidate result",
+);
 requireText(skill, "sigil init", "brownfield initialization");
 requireText(
   skill,
@@ -469,6 +489,10 @@ const requiredGlossaryBehaviors = [
   "stop-at-glossary-review-gate",
   "inspect-after-every-sigil-mutation",
   "inspect-when-glossary-absent",
+  "separate-deterministic-inspection-from-model-extraction",
+  "forbid-zero-diagnostic-no-change-inference",
+  "extract-regardless-of-diagnostic-count",
+  "record-evidence-based-no-candidate-result",
   "block-material-terminology-ambiguity",
   "allow-ordinary-unambiguous-vocabulary",
   "return-to-sigil-review-gate",
@@ -514,6 +538,26 @@ requireText(
   glossaryFixture,
   "including when GlossaryFile is\n   absent",
   "glossary fixture absent authority inspection",
+);
+requireText(
+  glossaryFixture,
+  "separate mandatory stages",
+  "glossary fixture stage separation",
+);
+requireText(
+  glossaryFixture,
+  "Never infer that no glossary changes are needed from zero CLI diagnostics",
+  "glossary fixture zero-diagnostic guard",
+);
+requireText(
+  glossaryFixture,
+  "regardless of\n   diagnostic count or GlossaryFile presence",
+  "glossary fixture mandatory model extraction",
+);
+requireText(
+  glossaryFixture,
+  "instead of citing the diagnostic count",
+  "glossary fixture evidence-based no-candidate result",
 );
 requireText(
   glossaryFixture,
@@ -620,6 +664,27 @@ requireText(
   glossaryWorkflow,
   "sigil glossary . --format json --pretty",
   "glossary inspection command",
+);
+requireText(
+  glossaryWorkflow,
+  "Completing `sigil glossary` completes only deterministic inspection.",
+  "glossary deterministic-stage boundary",
+);
+requireText(
+  glossaryWorkflow,
+  "Zero\n" +
+    "diagnostics establish only that the deterministic glossary projection is valid.",
+  "glossary zero-diagnostic limitation",
+);
+requireText(
+  glossaryWorkflow,
+  "Candidate extraction is a mandatory model-assisted stage",
+  "glossary mandatory model extraction",
+);
+requireText(
+  glossaryWorkflow,
+  "A diagnostic count is not evidence for\n  this conclusion.",
+  "glossary evidence-based no-candidate result",
 );
 requireText(
   glossaryWorkflow,

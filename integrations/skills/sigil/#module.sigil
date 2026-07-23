@@ -73,6 +73,10 @@ component SigilSkill {
 
       extracts candidate domain terms and conflicting usage from Sigil prose
 
+      separates deterministic glossary projection inspection from mandatory model-assisted candidate extraction
+
+      reports candidate evidence or an explicit evidence-based no-material-candidate result before Sigil review
+
       presents exact reviewed GlossaryFile proposals without automatically changing authority
 
       requires post-write glossary inspection and candidate extraction after approved Sigil is created or semantically edited
@@ -140,6 +144,10 @@ expand SigilSkill {
       Collect candidate terms with their source occurrences and resolved bounded contexts.
 
       Separate accepted glossary authority from model-assisted candidate extraction.
+
+      After every approved Sigil write or semantic edit, run deterministic glossary and workspace inspection, then independently perform model-assisted extraction from the changed semantic lines regardless of diagnostic count or GlossaryFile presence.
+
+      Conclude that no material candidate exists only after inspecting the changed semantic lines, relevant surrounding occurrences, and accepted glossary entries.
 
       Report conflicting definitions, aliases, scope placement, and normative-contract drift.
 
@@ -309,6 +317,10 @@ expand SigilSkill {
 
       Unknown vocabulary remains a semantic-review candidate rather than a deterministic core diagnostic.
 
+      Zero diagnostics from sigil glossary establishes only that the deterministic glossary projection is valid; it never proves the absence of unknown candidate vocabulary, conflicting meanings, or incorrect scope.
+
+      A host does not report that no glossary changes are needed until model-assisted candidate extraction is complete and its evidence is recorded.
+
       Ordinary unambiguous vocabulary does not block review merely because it is absent from GlossaryFile.
 
       Material terminology ambiguity blocks implementation until its reviewed definition, aliases, and workspace or bounded-context scope are approved.
@@ -362,6 +374,10 @@ expand SigilSkill {
 
     GlossaryWorkflow {
       Two inconsistent uses of one candidate term produce a review question rather than an inferred definition.
+
+      A zero-diagnostic glossary projection followed by a changed semantic line containing an unknown project-specific term still produces candidate evidence and, when material, an exact glossary proposal.
+
+      When model-assisted inspection finds no material candidate, the host records the changed lines and surrounding evidence inspected before proceeding to Sigil review.
 
       An approved Sigil edit with no material terminology candidate proceeds to Sigil review after workspace and glossary validation.
 

@@ -340,9 +340,19 @@ Select the workflow before detailed semantic work:
      or semantic edit, even when GlossaryFile is absent.
    - Use `sigil glossary` to inspect accepted entries, resolved contexts,
      occurrences, and deterministic glossary diagnostics.
+   - Treat `sigil glossary` as deterministic inspection only. It does not
+     extract unknown vocabulary, identify model-assisted candidates, or decide
+     that GlossaryFile needs no change.
+   - Zero glossary diagnostics establish only that the deterministic projection
+     is valid. Never infer that no glossary changes are needed from CLI output.
    - Run `sigil check` and `sigil glossary`, then inspect changed semantic lines
      for unknown, conflicting, or incorrectly scoped material terminology before
      entering the Sigil review gate.
+   - Perform that model-assisted extraction after every approved Sigil write or
+     semantic edit regardless of diagnostic count or GlossaryFile presence.
+     Report either candidate evidence and an exact proposal when material, or an
+     evidence-based no-material-candidate result naming the changed lines and
+     surrounding occurrences inspected.
    - Treat accepted Sigil as normative when it conflicts with GlossaryFile and
      propose correction of the glossary rather than silently reinterpreting the
      contract.
