@@ -699,8 +699,9 @@ async function componentMarkdown(
   const iface = component.declaration.sections.find((item) =>
     item.name === "interface"
   );
+  const componentLink = await markdown.componentLink(component);
   const lines = [
-    `### component ${component.name}`,
+    `### component ${componentLink}`,
     "",
     `Source: \`${component.filePath}\``,
     "",
@@ -759,16 +760,32 @@ async function conceptMarkdown(
   markdown: HoverMarkdownRenderer,
 ): Promise<string> {
   const identity = reference.concept.identity;
+  const conceptLink = await markdown.conceptLink(reference.concept);
+  const origin = reference.context.name === identity.componentName &&
+      normalizePath(reference.context.filePath) ===
+        normalizePath(identity.filePath)
+    ? reference.context
+    : markdown.component(identity.componentName, identity.filePath);
+  const originLink = origin
+    ? await markdown.componentLink(origin)
+    : `\`${identity.componentName}\``;
   const lines = [
-    `### concept ${reference.concept.identifier}`,
+    `### concept ${conceptLink}`,
     "",
-    `Origin: \`${identity.componentName}\` in \`${identity.filePath}\``,
+    `Origin: ${originLink} in \`${identity.filePath}\``,
   ];
   for (const occurrence of reference.concept.occurrences) {
     const semanticLines = await markdown.semanticLines(occurrence.block.lines);
+    const occurrenceComponent = markdown.component(
+      occurrence.componentName,
+      occurrence.filePath,
+    );
+    const occurrenceComponentLink = occurrenceComponent
+      ? await markdown.componentLink(occurrenceComponent)
+      : `\`${occurrence.componentName}\``;
     lines.push(
       "",
-      `**${occurrence.sectionName}** — \`${occurrence.componentName}\` in \`${occurrence.filePath}\``,
+      `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${occurrence.filePath}\``,
       ...markdownList(semanticLines),
     );
   }
@@ -794,6 +811,41 @@ class HoverMarkdownRenderer {
     this.#fs = fs;
   }
 
+  component(
+    name: string,
+    filePath: string,
+  ): ResolvedComponent | undefined {
+    const normalized = normalizePath(filePath);
+    return this.#resolved.components.find((component) =>
+      component.name === name &&
+      (
+        normalizePath(component.filePath) === normalized ||
+        component.expansions.expands.some((expansion) =>
+          normalizePath(expansion.filePath) === normalized
+        )
+      )
+    );
+  }
+
+  async componentLink(component: ResolvedComponent): Promise<string> {
+    const source = await this.#source(component.filePath);
+    return markdownLink(component.name, {
+      uri: pathToFileUri(component.filePath),
+      range: declarationNameRange(
+        source,
+        component.declaration.range.start.line,
+        component.name,
+      ),
+    });
+  }
+
+  async conceptLink(concept: ResolvedConcept): Promise<string> {
+    const target = await conceptDefinition(this.#resolved, this.#fs, concept);
+    return target
+      ? markdownLink(concept.identifier, target)
+      : `\`${concept.identifier}\``;
+  }
+
   async semanticLines(lines: readonly SemanticLine[]): Promise<string[]> {
     return await Promise.all(lines.map((line) => this.semanticLine(line)));
   }
@@ -809,9 +861,9 @@ class HoverMarkdownRenderer {
       const end = reference.range.end.character - lineRange.start.character;
       if (start < 0 || end > result.length || start >= end) continue;
       const label = result.slice(start, end);
-      result = `${result.slice(0, start)}[${label}](${
-        locationMarkdownUri(reference.target)
-      })${result.slice(end)}`;
+      result = `${result.slice(0, start)}${
+        markdownLink(label, reference.target)
+      }${result.slice(end)}`;
     }
     return result;
   }
@@ -888,6 +940,10 @@ function locationMarkdownUri(location: Location): string {
   return `${location.uri}#L${location.range.start.line + 1},${
     location.range.start.character + 1
   }`;
+}
+
+function markdownLink(label: string, location: Location): string {
+  return `[${label}](${locationMarkdownUri(location)})`;
 }
 
 function glossaryMarkdown(reference: GlossaryReference): string {

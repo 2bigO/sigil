@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.5.1 - 2026-07-23
+
+- Link concept headings and their owning component names in LSP hover Markdown
+  to the corresponding Sigil declarations.
+- Preserve component-owner navigation for concept occurrences collected from
+  expansion files.
+- Advance the LSP and VS Code extension to 0.5.1 while retaining core, CLI, and
+  the Sigil skill at compatible 0.5.0 versions.
+
 ## 0.5.0 - 2026-07-23
 
 - Add the reviewed `.sigil/glossary.json` authority with workspace terms,

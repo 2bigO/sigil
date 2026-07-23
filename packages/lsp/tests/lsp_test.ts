@@ -168,7 +168,11 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
     )),
   ) as Record<string, unknown>;
   const contents = hover.contents as Record<string, unknown>;
-  assert(String(contents.value).includes("component Thing"));
+  assert(
+    String(contents.value).includes(
+      "component [Thing](file:///workspace/contract.sigil#L1,11)",
+    ),
+  );
   assert(!String(contents.value).includes("Collected expansions"));
 
   const proseDefinition = responseResult(
@@ -195,7 +199,7 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   ) as Record<string, unknown>;
   assert(
     String((proseHover.contents as Record<string, unknown>).value).includes(
-      "component Thing",
+      "component [Thing](file:///workspace/contract.sigil#L1,11)",
     ),
   );
 
@@ -271,15 +275,25 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   const markdown = String(
     (hover.contents as Record<string, unknown>).value,
   );
-  assert(markdown.includes("concept Execution"));
-  assert(markdown.includes("Origin: `Thing`"));
   assert(
-    markdown.includes("**interface** — `Thing` in `/workspace/contract.sigil`"),
+    markdown.includes(
+      "concept [Execution](file:///workspace/contract.sigil#L7,5)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "Origin: [Thing](file:///workspace/contract.sigil#L1,11)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "**interface** — [Thing](file:///workspace/contract.sigil#L1,11) in `/workspace/contract.sigil`",
+    ),
   );
   assert(markdown.includes("run()"));
   assert(
     markdown.includes(
-      "**interface** — `Consumer` in `/workspace/consumer.sigil`",
+      "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `/workspace/consumer.sigil`",
     ),
   );
   assert(
@@ -302,6 +316,11 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   ) as Record<string, unknown>;
   const declarationMarkdown = String(
     (declarationHover.contents as Record<string, unknown>).value,
+  );
+  assert(
+    declarationMarkdown.includes(
+      "concept [Execution](file:///workspace/contract.sigil#L7,5)",
+    ),
   );
   assert(declarationMarkdown.includes("run()"));
   assert(
@@ -326,6 +345,11 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   ) as Record<string, unknown>;
   const componentMarkdown = String(
     (componentHover.contents as Record<string, unknown>).value,
+  );
+  assert(
+    componentMarkdown.includes(
+      "component [Consumer](file:///workspace/consumer.sigil#L3,11)",
+    ),
   );
   assert(
     componentMarkdown.includes(
@@ -511,7 +535,9 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
   const markdown = String(
     (hover.contents as Record<string, unknown>).value,
   );
-  const conceptHeading = markdown.indexOf("### concept Execution");
+  const conceptHeading = markdown.indexOf(
+    "### concept [Execution](file:///workspace/contract.sigil#L7,5)",
+  );
   const termHeading = markdown.indexOf("### term execution model");
   assert(conceptHeading >= 0);
   assert(termHeading > conceptHeading);
@@ -543,7 +569,11 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
   const declarationMarkdown = String(
     (declarationHover.contents as Record<string, unknown>).value,
   );
-  assert(declarationMarkdown.includes("### concept Execution"));
+  assert(
+    declarationMarkdown.includes(
+      "### concept [Execution](file:///workspace/contract.sigil#L7,5)",
+    ),
+  );
   assert(declarationMarkdown.includes("### term execution model"));
   assert(declarationMarkdown.includes("Reviewed execution meaning."));
   assert(declarationMarkdown.includes("Matched alias: `Execution`"));
@@ -654,7 +684,7 @@ Deno.test("directory-index definitions navigate to the original declaration", as
   ) as Record<string, unknown>;
   assert(
     String((hover.contents as Record<string, unknown>).value).includes(
-      "component Thing",
+      "component [Thing](file:///workspace/module/contract.sigil#L1,11)",
     ),
   );
 });
