@@ -5,104 +5,147 @@ description: Work with Sigil, a lightweight rationale-oriented modeling language
 
 # Sigil
 
-Sigil is a lightweight, rationale-oriented modeling language for software
-systems. It records what a system is, why it exists, how it behaves, and how its
-implementation should be understood and changed over time.
+Sigil records what a software component is, why it exists, how it behaves, and
+how its implementation should be understood and changed. A component may be a
+product module, service boundary, domain concept, library abstraction, internal
+API, state machine, screen, view, or reusable UI surface.
 
-Sigil is designed for humans and coding agents working together. Its purpose is
-to keep system knowledge coherent by breaking a system into components and
-preserving both the public contract and the reasoning behind implementation
-decisions.
+This file is the workflow dispatcher. Load detailed references only when their
+route applies, but read every selected reference completely before acting.
 
-A Sigil component can be a product module, service boundary, domain concept,
-library abstraction, API object, state machine, screen, view, reusable UI
-surface, or other coherent unit. Do not assume the domain is only
-business/product software.
+## Start Here
 
-Read `references/sigil-format.md` when you need syntax, section meanings, or
-examples.
+Always read `references/workspace-bootstrap.md` and complete its bootstrap before
+interpreting workspace semantics. It owns CLI discovery, repository-root
+selection, configuration-state handling, initialization, compatibility
+validation, and failure behavior.
 
-Read `references/standards-review.md` completely whenever creating, reviewing,
-or preparing Sigil for implementation. It defines the semantic-readiness,
-standards, conflict, evidence, and modularity procedure.
+Then select one semantic workflow:
 
-Read `references/implementation-design.md` completely whenever preparing to
-write or change implementation or deciding whether existing Sigil covers the
-implementation boundary. It defines implementation component discovery, the
-component/expand/omit decision, UI component coverage, and the required
-implementation coverage map.
+- Read `references/greenfield-design.md` when no existing implementation
+  constrains the selected behavior or component.
+- Read `references/brownfield-adoption.md` when relevant implementation exists
+  but coverage is absent, partial, ambiguous, or suspected to have drifted.
+- Use the established-Sigil workflow below when the selected boundary already
+  has credible contract coverage.
 
-Read `references/design-conversation.md` completely whenever material
-clarification is needed before proposing Sigil or implementation. It defines
-conversation phases, decision states, one-decision turns, prioritization,
-checkpoints, deferral, conflict handling, and the synthesis exit condition.
+Also load these cross-cutting references when applicable:
 
-Read `references/greenfield-design.md` completely when the selected behavior or
-component has no existing implementation that constrains its intended contract.
-It applies the shared design conversation to Greenfield intent, component
-boundaries, synthesis, and approval. Do not reduce Greenfield work to one-shot
-clarification.
+- `references/design-conversation.md`: whenever a material decision needs
+  clarification. It owns decision states, one-primary-decision turns,
+  checkpoints, deferral, conflict handling, and synthesis.
+- `references/standards-review.md`: whenever creating, reviewing, or preparing
+  Sigil for implementation. It owns semantic readiness, standards, evidence,
+  conflicts, and modularity review.
+- `references/implementation-design.md`: before writing or changing
+  implementation or deciding whether coverage reaches the implementation
+  boundary. It owns component/expand/omit selection and the implementation
+  coverage map.
+- `references/authoring-conventions.md`: whenever proposing, creating, or
+  semantically editing Sigil. It owns section placement, decision rationale,
+  concept identifiers, semantic-line discipline, and colocation.
+- `references/glossary-workflow.md`: after every approved Sigil write or
+  semantic edit; when `.sigil/glossary.json` exists; when the user requests
+  reviewed vocabulary; or when terminology ambiguity is material.
+- `references/sigil-format.md`: when syntax, workspace structure, section
+  meanings, or examples are needed.
 
-Read `references/brownfield-adoption.md` completely when implementation already
-exists but the relevant Sigil is absent or incomplete. Do not load it for a
-greenfield design or a component with established Sigil unless the user asks for
-brownfield reconciliation.
+Greenfield and Brownfield decide which evidence and contract questions matter.
+The design-conversation reference decides how unresolved questions are handled.
+The authoring, standards, glossary, and implementation references remain
+applicable across all three semantic workflows.
 
-Read `references/glossary-workflow.md` completely after writing or semantically
-editing approved Sigil, when `.sigil/glossary.json` exists, when the user asks
-to create or maintain reviewed project vocabulary, or when terminology ambiguity
-materially affects Sigil review. It defines deterministic inspection,
-model-assisted extraction, authority, scope selection, coding-context handoff,
-exact proposal evidence, and approval behavior.
+## Established-Sigil Workflow
 
-## Tooling
+1. Discover the requested boundary.
+   - Start from `sigil check` results produced during bootstrap.
+   - Use `sigil context --component Name` or `--file path/to/file.sigil` for a
+     selected component or file.
+   - Use `sigil graph` when imports, expands, consumers, or concept reuse matter.
+   - Read exact relevant `.sigil` source plus nearby code, tests, docs, package
+     metadata, or visual references needed to assess drift.
+   - Report inaccessible required images or designs instead of guessing.
 
-Prefer a `sigil` CLI command when it is available on `PATH`.
+2. Build the component picture.
+   - Identify public component goals and interfaces, matching expands, imports,
+     public and private concepts, state ownership, and direct dependents.
+   - Treat imports as dependency declarations; do not repeat imported-component
+     dependencies in `interface`.
+   - Treat a component's `goal` and `interface` as public to its dependents.
+   - Note unresolved imports, contradictions, vague behavior, oversized
+     boundaries, and code/spec drift.
 
-Use the CLI to parse, check, resolve graph data, collect context, or render
-review Markdown instead of manually reimplementing those operations in the
-agent.
+3. Review semantics and modularity.
+   - Follow `references/standards-review.md`.
+   - Separate observed behavior, documented intent, user-confirmed intent,
+     unresolved ambiguity, suspected accidents, and external guidance.
+   - Use provisional assessment language only: `appears aligned`, `partially
+     assessed`, `gap identified`, `conflict identified`, or `not assessable`.
+   - Never silently choose code, documentation, a standard, or preference as
+     authoritative when evidence conflicts.
 
-An installed skill does not include this repository's `packages/` directory.
-Treat `packages/cli/src/main.ts` as available only when the current workspace is
-the Sigil platform repository or another checkout that contains that path.
+4. Resolve missing intent.
+   - Follow `references/design-conversation.md`.
+   - Ask one primary decision per turn unless the user requests grouped review.
+   - Do not silently invent product, architecture, persistence, authorization,
+     deployment, lifecycle, or other binding decisions.
 
-CLI discovery order:
+5. Prepare exact changes.
+   - Follow `references/authoring-conventions.md`.
+   - Show exact component, expand, import, location, and semantic-line changes.
+   - For externally informed compatible guidance or any conflict, follow the
+     proposal and approval policy in `references/standards-review.md`.
+   - Leave files unchanged while awaiting proposal approval.
 
-1. If `sigil` is available on `PATH`, use `sigil`.
-2. Else, if the current workspace contains `packages/cli/src/main.ts`, invoke it
-   with Deno from the workspace root.
-3. Else, stop and ask the user to install a compatible Sigil CLI. Version 0.4
-   does not silently reinterpret a configured workspace without its required
-   parser and resolver.
+6. Apply only an approved proposal.
+   - Change only the exact approved Sigil and imports.
+   - Run `sigil check`; use `graph` or `context` when relationships changed.
+   - Follow `references/glossary-workflow.md`, including deterministic glossary
+     inspection and independent model-assisted candidate extraction.
+   - Stop at the Sigil review gate.
 
-Installed or global CLI command shape:
+7. Implement only after review.
+   - Follow `references/implementation-design.md`.
+   - Verify that every material implementation concern has established coverage
+     or an intentional omission.
+   - Require explicit user approval of the written Sigil and an explicit request
+     for implementation.
+   - If implementation exposes a missing material decision, return to a Sigil
+     proposal and review.
 
-```bash
-sigil check . --format json --pretty
-```
+## Approval Gates
 
-Repository-local CLI command shape:
+Before any semantic Sigil mutation, present the exact proposal and obtain
+explicit approval. Brownfield reconstruction, externally informed additions,
+concept-identifier changes, glossary changes, and every delegated semantic
+proposal use this pre-edit gate.
 
-```bash
-deno run --allow-read packages/cli/src/main.ts check . --format json --pretty
-```
+Every delegated semantic proposal is advisory. A subagent does not edit files,
+grant approval, or transfer edit authority to the primary agent.
 
-For a configured workspace, run before semantic work:
+After creating or semantically changing Sigil:
 
-```bash
-sigil version . --format json --pretty
-sigil check . --format json --pretty
-```
+- list changed Sigil files;
+- summarize captured decisions and assumptions;
+- report unresolved questions;
+- report validation and glossary-review results;
+- directly request review and approval before implementation.
 
-This skill version requires CLI and core `^0.6.0` and Sigil `0.5.0`. In a
-Brownfield repository without `.sigil/config.json`, use the initialization
-sequence in `references/brownfield-adoption.md` before this preflight. Otherwise
-stop with a compatibility report when the CLI is missing, `.sigil/config.json`
-is missing or invalid, or any resolved version is unsupported. Do not fall back
-to the old project-root-only `#module.sigil` behavior.
+Do not continue into implementation merely because the original request
+included code generation. A successful CLI check is not approval.
 
-Common invocations:
+An approved placement-only move or split that preserves every semantic line may
+proceed during implementation without another semantic proposal. Update affected
+imports, validate, and report old and new paths. Any added, removed, or changed
+semantic line returns to the proposal gate.
+
+## CLI Boundary
+
+Prefer the compatible `sigil` CLI for parse, version, check, graph, context,
+glossary, and render operations. Do not manually recreate deterministic
+workspace semantics.
+
+Common commands after bootstrap:
 
 ```bash
 sigil parse path/to/file.sigil --format json --pretty
@@ -110,459 +153,24 @@ sigil check path-or-workspace --format json --pretty
 sigil graph path-or-workspace --format json --pretty
 sigil context path-or-workspace --component Name --format json --pretty
 sigil context path-or-workspace --file path/to/file.sigil --format json --pretty
+sigil glossary path-or-workspace --format json --pretty
 sigil render path-or-workspace
 ```
 
-Interpret CLI exit codes as:
+Interpret exit codes as:
 
-- `0`: command completed with no error diagnostics;
-- `1`: command completed with error diagnostics; inspect JSON diagnostics and
-  continue with partial models when useful;
-- `2`: usage error; fix the command arguments;
-- `3`: host/runtime failure; fall back only if the CLI cannot read the requested
-  input.
+- `0`: completed without error diagnostics;
+- `1`: completed with error diagnostics; inspect partial results when useful;
+- `2`: usage error; fix the arguments;
+- `3`: host/runtime failure; stop before relying on workspace semantics.
 
-If the CLI fails for host reasons, report the failure and stop before relying on
-workspace semantics.
+CLI output never grants semantic approval or implementation authority.
 
-Do not use CLI output as approval to implement code. The review gate still
-applies after creating or semantically changing Sigil files.
+## Output
 
-## Core Workflow
+When the user requests only understanding or review, do not edit files.
 
-Select the workflow before detailed semantic work:
-
-- For Greenfield behavior, follow `references/greenfield-design.md` and use
-  `references/design-conversation.md` even when the first request appears clear.
-  Resolve material decisions sequentially before synthesizing exact proposed
-  Sigil for confirmation.
-- For Brownfield behavior, follow `references/brownfield-adoption.md`. When the
-  repository has no config, run `sigil init` first. Establish and review
-  meaningful ordinary summary components for the workspace root and every
-  declared member, then focus on the requested task boundary.
-- For established Sigil coverage, use the shared workflow below unless the user
-  requests Brownfield reconciliation or repository evidence suggests drift.
-
-1. Discover relevant context.
-   - When a `sigil` command or repo-local CLI is available, start with `check`
-     on the target workspace or file to discover diagnostics.
-   - Use `context --component Name` or `context --file path/to/file.sigil` when
-     the user asks about a specific component or file.
-   - Use `graph` when import relationships or expansion relationships matter.
-   - Read relevant `.sigil` files after the CLI identifies them, especially
-     before editing.
-   - Follow `@path import { Name }` clauses manually when the CLI is unavailable
-     or when source-level review needs exact wording.
-   - Also read nearby code, docs, tests, package metadata, or architecture notes
-     when the user asks to align Sigil with an existing repo.
-   - For UI components, inspect referenced repository images and accessible
-     external designs when their contents affect the requested contract. Report
-     references that cannot be accessed instead of guessing their contents.
-   - Treat the nearest eligible ancestor `.sigil/config.json` as the workspace
-     root contract; a nearer independent workspace must be excluded by every
-     configured parent.
-   - Treat the directory containing `.sigil/config.json` as the workspace root
-     and root-project location.
-   - Treat `#module.sigil` as the explicit directory-import index allowed in any
-     included directory. It must declare at least one local component. Its local
-     components and directly imported names form the directory-import surface.
-   - Treat every component as public through its explicit `.sigil` path even
-     when a module index does not name it.
-   - Use the workspace root and paths explicitly declared by `workspace.members`
-     as Brownfield summary boundaries; never infer an additional summary
-     boundary from directory structure or package manifests.
-   - Treat an excluded subtree with its own `.sigil/config.json` as an
-     independent workspace, not as a member of its parent.
-   - Prefer descriptive `.sigil` filenames for component contracts and
-     implementation rationale. Use `#module.sigil` when a directory needs
-     intentional import shorthand.
-
-2. Build the component picture.
-   - Use CLI JSON diagnostics and context output when available to identify
-     import dependencies, unresolved imported names, public contracts, collected
-     expands, and related files.
-   - Identify concept blocks, collective occurrences, public interface concepts,
-     private concepts, and contextual imported-concept reuse.
-   - Identify public `component` contracts: both `goal` and `interface` are
-     public to dependents.
-   - Identify matching `expand` blocks for operational detail.
-   - Treat natural-language UI descriptions, ASCII wireframes, image references,
-     and design links inside `interface` as free-form public-contract content.
-     Do not invent keywords or authority fields for visual references.
-   - Treat `component` as the reusable public contract and all matching
-     `expand Name` blocks as the collected operational description.
-   - Treat an interface as the operations, data, events, results, errors, and
-     observable promises publicly available to the component's dependents even
-     when the component is internal to the implementation.
-   - Treat imports as dependency declarations. Do not repeat imported-component
-     dependencies in `interface`.
-   - Treat imported component dependencies as exposing public `goal` and
-     `interface` content only at the language level. Treat direct-dependency
-     decisions returned by agent context as scoped rationale, not as part of the
-     dependent-facing contract. Inspect the provider explicitly when other
-     private expands or transitive rationale are relevant to review or
-     implementation.
-   - Consider coherent programming abstractions, internal APIs, state machines,
-     screens, views, and reusable UI surfaces as possible components.
-   - Note unresolved imports, missing components, collected-expand
-     contradictions, vague lines, and code/spec drift.
-
-3. Run the semantic-readiness and standards review.
-   - Follow `references/standards-review.md`.
-   - Make each goal specific, bounded, and unambiguous.
-   - Check interfaces for required inputs, outputs, errors, permissions,
-     lifecycle promises, and applicable standards or best practices.
-   - Check that interface content is grouped under concise concept identifiers
-     and that identifiers reused across sections describe one coherent concept.
-   - For UI components, check visible regions, actions, navigation, feedback,
-     loading, empty, error, and disabled behavior when those details materially
-     affect the contract.
-   - Derive externally observable edge cases and test points from state, logic,
-     and constraints.
-   - Check imported components, collected expands, and module summaries for
-     contradictions, ownership overlap, and inconsistent contracts.
-   - Assess cohesion, interface size, coupling, dependency direction, state
-     ownership, and reasons to change without assigning a numeric score.
-   - Assess standards applicability on every review, but research only when the
-     domain, stack, risk, or public contract makes external guidance relevant.
-   - Classify each researched finding as compatible guidance, potential
-     conflict, definite conflict, unverifiable guidance, or non-applicable.
-
-4. Propose externally informed changes before editing.
-   - For compatible guidance, show the exact proposed semantic lines and target
-     sections, cite the sources in the review summary, and wait for approval
-     before editing Sigil.
-   - For potential or definite conflicts, preserve Sigil, warn the user,
-     identify the affected lines and guidance, explain the impact, and offer
-     alternatives.
-   - For unavailable or paywalled authoritative material, block high-risk or
-     compliance-critical implementation; otherwise warn, record uncertainty, and
-     require explicit user acceptance.
-   - Keep source details in the review summary, not in Sigil. Write approved
-     additions as project decisions rather than claims that a standard mandates
-     them.
-   - Use only provisional assessment language: `appears aligned`,
-     `partially
-     assessed`, `gap identified`, `conflict identified`, or
-     `not assessable`. Never claim certification or definitive compliance.
-
-5. Improve Sigil before generating code.
-   - Before adding or modifying implementation, verify that the affected
-     behavior has clear Sigil coverage. If it does not, stop and collaborate
-     with the user to define, review, and approve the affected Sigil before
-     changing code.
-   - If the user is asking for implementation and the Sigil is incomplete,
-     repair or propose the Sigil first.
-   - Follow `references/implementation-design.md` and report the implementation
-     coverage map before writing code.
-   - Do not treat high-level project, service, or feature coverage as sufficient
-     when material implementation components or decisions remain unspecified.
-   - Choose a component for a coherent responsibility with a stable contract
-     relied upon by dependents, an expand for operational rationale owned by an
-     existing component, and no separate Sigil for trivial mechanics.
-   - When material clarification is needed, use
-     `references/design-conversation.md` to prioritize one primary decision per
-     turn, maintain decision states, and resolve blockers before synthesis.
-   - Apply that shared protocol to Greenfield design, Brownfield boundary
-     summaries and task discovery, established-Sigil ambiguity, and
-     implementation decisions.
-   - After the user approves externally informed additions, place each semantic
-     line in the appropriate `state`, `logic`, `constraints`, `decisions`, or `cases`
-     section.
-
-6. Keep sections disciplined.
-   - A UI `interface` may describe visible structure and interactions with
-     natural language, brace-safe ASCII, repository image references, or design
-     links such as Figma URLs.
-   - Put binding decisions in `constraints`, including stack choices and
-     architecture rules.
-   - Put behavior, flows, transitions, algorithms, transformations, and decision
-     paths in `logic`.
-   - Put meaningful runtime/domain configurations in `state`.
-   - Put rules, policies, invariants, architecture, ownership, dependencies,
-     module boundaries, and binding technology decisions in `constraints`.
-   - Use the optional `decisions` section for durable rationale behind a
-     material selected choice. Keep its binding outcome in `constraints`.
-   - When creating or materially editing a decision, use one concise PascalCase
-     concept block and record `Decision`, `Context`, and `Scope`.
-   - Use `Scope` to state the governed boundary and important exclusions
-     without attempting to enumerate every current dependent.
-   - Record `Assumptions`, `Trade-offs`, `Design issues addressed`,
-     `Discarded alternatives`, `Consequences`, and `Revisit when` when
-     materially applicable. Omit an inapplicable label instead of adding
-     filler.
-   - Reuse an accessible concept identifier when decisions concern the same
-     semantic idea. Scope remains local to the contextual occurrence; reuse
-     never makes a decision transitively binding.
-   - An import exposes a provider's public concept identity but not its private
-     decision rationale. Automatically projected direct-dependency decisions
-     provide scoped agent rationale without becoming part of the language-level
-     contract. Select the provider and its matching expands explicitly for
-     transitive decisions or other private operational detail.
-   - Summarize durable rationale rather than prompts, raw session transcripts,
-     or hidden reasoning. Responsibility, accountability, approver, and handoff
-     metadata remain outside the initial convention.
-   - Put examples, acceptance criteria, and edge cases in `cases`.
-
-7. Manage concept identifiers.
-   - Use `ConceptIdentifier { ... }` blocks to group one or more related
-     semantic lines under a reusable identity.
-   - Treat ungrouped `interface` content reported by
-     `SIGIL_MISSING_CONCEPT_IDENTIFIER` as an authoring gap to repair before
-     semantic review. Other sections use concept blocks only when reuse is
-     valuable. Skill-authored material decisions use one named concept block
-     under the decision-rationale convention above.
-   - Allow one concept block to contain a single heavily reused concept or
-     several related semantic lines.
-   - Resolve repeated blocks collectively across the component and all matching
-     expands without overriding their section-specific content.
-   - Treat a concept as public when it occurs in `interface`; otherwise keep it
-     private to the component and matching expands.
-   - Before proposing any identifier, inspect the remainder of the same section,
-     every other section of the component, and every matching expand for
-     occurrences of the same semantic idea.
-   - Inspect the component's existing local concepts and accessible imported
-     public concepts before creating a new identity.
-   - Use `sigil graph` to inspect direct importers for relevant use cases and
-     established terminology. Traverse transitive importers only when a concept
-     is re-exposed or transitive namespace ambiguity must be assessed.
-   - Treat consumer terminology as naming and coherence evidence. Do not reuse a
-     consumer concept identity unless it is accessible through valid imports.
-   - Classify every affected interface region as reuse of a local identity,
-     reuse of an imported public identity, or creation of a new identity.
-   - Reuse imported public concepts as bare identifiers. Preserve the provider's
-     identity and keep consumer lines contextual to the consumer. Do not use
-     dotted notation, aliases, shadowing, or nested concept blocks.
-   - When subagents are available, delegate concept grouping and identifier
-     generation to one dedicated subagent only after completing reuse discovery.
-     Give it the affected regions, the relevant component and all matching
-     expands, local occurrences, accessible imported public concepts, relevant
-     direct-consumer use cases, and required graph paths. Tell the subagent to
-     return a proposal only and not edit files.
-   - Require the subagent proposal to identify each affected region, whether it
-     represents one concept or several, whether each identifier is new or
-     reused, supporting occurrences, relevant graph paths, rejected
-     alternatives, and the proposed concise names.
-   - Validate proposed names in the primary agent against
-     `[A-Za-z][A-Za-z0-9_-]*`, case-insensitive namespace uniqueness, public and
-     private visibility, collective coherence, and transitive import ambiguity.
-   - After validation, present the complete proposal and exact Sigil changes to
-     the user, enter awaiting approval, and stop. Subagent completion is not
-     user approval and grants no edit authority to the primary agent.
-   - Concept-identifier creation, reuse, regrouping, renaming, and warning
-     repair always require explicit user approval of the presented proposal
-     before any repository mutation.
-   - Prefer PascalCase without hyphens or underscores. Treat an unusually long
-     name as a reason to reconsider the concept grouping or component boundary,
-     not as a deterministic length error.
-   - When subagents are unavailable, perform the same proposal and validation
-     steps in the primary agent and state that delegation was unavailable.
-   - Keep anchoring outside concept-identifier work. Do not invoke or modify
-     anchor persistence, proposal, or reconciliation behavior.
-
-8. Maintain reviewed glossary authority.
-   - Follow `references/glossary-workflow.md` after every approved Sigil write
-     or semantic edit, even when GlossaryFile is absent.
-   - Use `sigil glossary` to inspect accepted entries, resolved contexts,
-     occurrences, and deterministic glossary diagnostics.
-   - Treat `sigil glossary` as deterministic inspection only. It does not
-     extract unknown vocabulary, identify model-assisted candidates, or decide
-     that GlossaryFile needs no change.
-   - Zero glossary diagnostics establish only that the deterministic projection
-     is valid. Never infer that no glossary changes are needed from CLI output.
-   - Run `sigil check` and `sigil glossary`, then inspect changed semantic lines
-     for unknown, conflicting, or incorrectly scoped material terminology before
-     entering the Sigil review gate.
-   - Perform that model-assisted extraction after every approved Sigil write or
-     semantic edit regardless of diagnostic count or GlossaryFile presence.
-     Report either candidate evidence and an exact proposal when material, or an
-     evidence-based no-material-candidate result naming the changed lines and
-     surrounding occurrences inspected.
-   - Treat accepted Sigil as normative when it conflicts with GlossaryFile and
-     propose correction of the glossary rather than silently reinterpreting the
-     contract.
-   - Extract unknown domain vocabulary as model-assisted candidates rather than
-     deterministic missing-term diagnostics.
-   - Block review and implementation only when terminology ambiguity could
-     materially alter behavior, ownership, state, APIs, or implementation.
-     Ordinary unambiguous vocabulary does not require a glossary entry.
-   - Present source occurrences, proposed scope, canonical spelling, definition,
-     aliases, rejected alternatives, and exact JSON changes.
-   - Obtain explicit approval before creating or modifying GlossaryFile.
-   - After writing an approved glossary proposal, run `sigil glossary` and
-     `sigil check`, then return to the Sigil review gate.
-   - Before implementation, run `sigil context` for the selected component or
-     file and include its `glossaryContext` in the coding-agent handoff.
-   - If the implementation request uses an accepted glossary spelling absent
-     from that scoped projection, supplement the handoff with only the matching
-     accepted entry from `sigil glossary`; never inject the unrelated complete
-     glossary.
-   - Initial extraction covers free-form `.sigil` prose only; Markdown
-     extraction remains deferred.
-
-9. Preserve semantic lines.
-   - Keep each non-empty line as one distinct idea.
-   - Separate distinct prose-level ideas with blank lines in every section.
-   - Blank lines do not create semantic units.
-   - Keep lines in one compact free-form construct adjacent when separating them
-     would reduce readability.
-   - Prefer concise, reviewable lines over paragraphs inside sections.
-   - Free-form Markdown, pseudocode, API signatures, bullets, tables, and prose
-     are allowed inside sections when they remain coherent.
-   - Preserve the author's natural wording for visual references. Do not
-     introduce a vocabulary that Sigil does not define.
-
-10. Stop at the Sigil review gate.
-
-- After creating or semantically changing Sigil files, summarize the changes and
-  ask the user to review them.
-- Do not write implementation code in the same pass unless the user has already
-  explicitly approved the current Sigil and explicitly asked for code.
-- A request like "use Sigil", "improve Sigil", "prepare Sigil", or "check the
-  spec before coding" is not approval to code.
-
-11. Colocate approved Sigil with its implementation.
-
-- Before writing implementation code, determine the module or source directory
-  that will own the implementation.
-- Treat a Sigil file created elsewhere while the implementation location was
-  unknown as temporary; move it beside the owning module or source files once
-  that location is known.
-- Keep a shared public `component` at its contract or module-summary location
-  when multiple implementations depend on it, and place implementation-specific
-  `expand Name` blocks beside the code they explain.
-- When one Sigil file describes components owned by different implementation
-  directories, split it so each component or implementation-specific expand
-  lives near its owner. Do not duplicate a public component declaration.
-- Do not move a configured-boundary `#module.sigil` merely to colocate code; its
-  ordinary summary component remains at the workspace root or declared member
-  boundary. Internal module indexes may move with their owning directories.
-- Update every affected `@path import { Name }` after moving or splitting a
-  Sigil file.
-- Run `sigil check` after relocation, and use `sigil graph` or `sigil context`
-  to verify imports, collected expands, and related file paths when relevant.
-
-12. Implement only after approval.
-
-- Do not add or modify implementation without clear, user-approved Sigil
-  coverage for the affected behavior.
-- Use the approved Sigil as the durable rationale and source of constraints.
-- Keep generated code aligned with component boundaries and public interfaces.
-- Include Sigil relocation in the implementation work; do not leave an approved
-  component in a temporary planning directory when its owning code now has a
-  clear home.
-- If implementation reveals a missing decision, stop and update or propose Sigil
-  first, then ask for review again.
-
-## Review Gate
-
-Externally informed compatible guidance and brownfield reconstruction have a
-proposal gate before any edit. Present exact additions and wait for approval.
-After approval, edit Sigil and stop again at the semantic review gate so the
-user can review the complete file.
-
-Every delegated semantic proposal is advisory, regardless of which workflow
-produced it. After a subagent returns, the primary agent validates and presents
-the exact proposal, enters awaiting approval, and makes no repository mutation
-until the user explicitly approves that proposal. Subagent completion, primary
-validation, and a favorable recommendation are not approval events.
-
-Concept-identifier creation, reuse, regrouping, renaming, and warning repair
-always use this pre-edit proposal gate.
-
-The review gate is mandatory when Sigil is created or semantically changed.
-After approval, a placement-only move or split that preserves the approved
-semantic lines may proceed with implementation without another review gate.
-Import-path updates required by that relocation are also placement-only. Any
-changed, added, or removed semantic line still requires review.
-
-At the gate, respond with:
-
-- changed Sigil files;
-- the main decisions or assumptions captured;
-- unresolved questions, if any;
-- a direct request for the user to review and approve before implementation.
-
-Do not continue from the review gate into implementation just because the
-original user request included code generation. The point of Sigil is to make
-the human check the durable rationale before code exists.
-
-## Working With Users
-
-Sigil is collaborative. Do not silently invent major product, architecture, or
-domain decisions. When clarification is material, follow
-`references/design-conversation.md`: ask one primary decision per turn unless
-the user requests a faster grouped review, acknowledge each answer, maintain the
-decision states, surface conflicts before advancing, and synthesize only after
-blocking decisions are resolved.
-
-Greenfield and Brownfield workflows decide what evidence and contract questions
-matter. `references/design-conversation.md` decides how those questions are
-sequenced, discussed, recorded, and completed.
-
-Ask targeted questions when:
-
-- a component boundary is unclear;
-- a public interface would change depending on the answer;
-- multiple modules could own the same responsibility;
-- a lifecycle or state transition has unclear behavior;
-- an API-shaped interface has unclear return, error, chaining, or async
-  behavior;
-- a UI description and its visual references support materially different
-  implementations, or a required visual reference is inaccessible;
-- stack, persistence, auth, deployment, or testing choices are binding but
-  unstated;
-- code generation would lock in a domain rule that is not captured.
-
-Prefer editing the Sigil directly when:
-
-- the issue is wording, typos, section placement, or consistency;
-- the decision already appears elsewhere in the repo;
-- a line can be made clearer without changing meaning.
-
-Do not directly edit Sigil from external guidance until the user approves the
-proposed semantic lines. Do not resolve a conflict by silently prioritizing a
-standard, repository behavior, or user preference.
-
-In brownfield work, treat code as evidence of current behavior, not proof of
-desired behavior or rationale. Do not create or change Sigil until the user
-approves the pilot boundary and exact semantic lines.
-
-When creating a Brownfield summary component for the workspace root or a
-declared member, repository evidence may support a provisional boundary picture
-but cannot establish its intended goal or interface. Ask the user to confirm or
-correct both before showing the exact boundary-module proposal.
-
-## Output Style
-
-For a standards-aware semantic review, use these headings and write `none` when
-a section has no findings:
-
-- Scope and risk
-- Sources consulted
-- Compatible suggestions
-- Conflicts and pitfalls
-- Cross-Sigil coherence and modularity
-- Unverifiable guidance
-- Proposed Sigil edits
-- Approval request
-
-For each source, report its issuer, title, identifier or version when available,
-publication or update date when available, access date, direct link, and any
-scope limitation. Do not copy the source details into Sigil.
-
-At a semantic review gate, summarize:
-
-- which files changed;
-- which ambiguities were resolved;
-- which open questions remain;
-- that implementation is waiting for user approval of the Sigil.
-
-After an approved placement-only relocation during implementation, summarize:
-
-- the old and new Sigil paths;
-- any imports updated;
-- the validation command and result.
-
-When a user asks only for understanding or review, do not edit files unless they
-ask for updates.
+For standards-aware review, use the headings required by
+`references/standards-review.md`. For proposals and review gates, make the
+changed or proposed paths, exact semantic changes, unresolved decisions,
+validation result, and requested approval explicit.

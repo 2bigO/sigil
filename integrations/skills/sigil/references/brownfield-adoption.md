@@ -22,31 +22,20 @@ rationale. Preserve existing user changes and unrelated worktree content.
 
 ## 1. Initialize Or Validate The Workspace
 
-Determine the repository root and check whether it directly contains
-`.sigil/config.json` before gathering detailed project evidence.
+Complete `references/workspace-bootstrap.md` before gathering detailed project
+evidence. It resolves the repository root, handles every configuration state,
+runs initialization when permitted, and validates tool and workspace
+compatibility.
 
-When the config is absent, run:
+Brownfield classification does not authorize initialization and is not required
+before initialization. A repository containing existing Sigil but no config
+uses the same bootstrap, then enters Brownfield only when implementation and
+coverage evidence select it.
 
-```bash
-sigil init <repository-root>
-```
-
-Use `--name`, `--include`, or `--exclude` only when repository facts or an
-explicit user decision require non-default values. `sigil init` must create the
-config before boundary-summary discovery and must never overwrite an existing config.
-
-When a config already exists, do not run `init`. Validate it in place.
-
-After initialization or discovery, run:
-
-```bash
-sigil version <repository-root> --format json --pretty
-sigil check <repository-root> --format json --pretty
-```
-
-Stop with a compatibility report when initialization fails, the existing config
-is invalid, or the configured CLI, core, or Sigil versions are not supported. Do
-not create `.sigil` files until the workspace contract is valid.
+Do not begin boundary-summary discovery until bootstrap returns a valid
+workspace. Stop with its compatibility report when initialization fails, an
+existing config is invalid, or the configured CLI, core, or Sigil versions are
+unsupported.
 
 ## 2. Establish And Review Configured-Boundary Summaries
 

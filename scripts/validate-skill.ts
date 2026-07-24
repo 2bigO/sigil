@@ -11,7 +11,10 @@ const required = [
   "references/greenfield-design.md",
   "references/brownfield-adoption.md",
   "references/glossary-workflow.md",
+  "references/workspace-bootstrap.md",
+  "references/authoring-conventions.md",
   "evals/design-conversation-fixture.md",
+  "evals/workspace-bootstrap-fixture.md",
   "evals/brownfield-fixture.md",
   "evals/greenfield-fixture.md",
   "evals/implementation-coverage-fixture.md",
@@ -24,9 +27,24 @@ const required = [
 for (const path of required) await requireFile(`${root}/${path}`);
 
 const skill = await Deno.readTextFile(`${root}/SKILL.md`);
+const workspaceBootstrap = await Deno.readTextFile(
+  `${root}/references/workspace-bootstrap.md`,
+);
+const authoringConventions = await Deno.readTextFile(
+  `${root}/references/authoring-conventions.md`,
+);
 requireText(skill, "name: sigil", "SKILL.md name");
 requireText(skill, "description:", "SKILL.md description");
-requireText(skill, "sigil version", "version preflight");
+requireText(
+  skill,
+  "This file is the workflow dispatcher.",
+  "compact workflow dispatcher",
+);
+requireText(
+  skill,
+  "references/workspace-bootstrap.md",
+  "workspace bootstrap routing",
+);
 requireText(skill, "sigil check", "structural preflight");
 requireText(skill, "references/greenfield-design.md", "greenfield routing");
 requireText(skill, "references/brownfield-adoption.md", "brownfield routing");
@@ -48,106 +66,101 @@ requireText(
 requireText(skill, "sigil glossary", "glossary deterministic inspection");
 requireText(
   skill,
-  "Treat `sigil glossary` as deterministic inspection only.",
-  "glossary deterministic-only CLI boundary",
+  "references/authoring-conventions.md",
+  "authoring convention routing",
 );
 requireText(
-  skill,
-  "Never infer that no glossary changes are needed from CLI output.",
-  "glossary zero-diagnostic inference guard",
+  workspaceBootstrap,
+  "Unconfigured with Sigil",
+  "existing-Sigil configuration state",
 );
 requireText(
-  skill,
-  "Perform that model-assisted extraction after every approved Sigil write or\n     semantic edit regardless of diagnostic count or GlossaryFile presence.",
-  "glossary mandatory post-write model extraction",
+  workspaceBootstrap,
+  "Missing config is not itself a compatibility failure.",
+  "missing config compatibility guard",
 );
 requireText(
-  skill,
-  "evidence-based no-material-candidate result",
-  "glossary evidence-based no-candidate result",
-);
-requireText(skill, "sigil init", "brownfield initialization");
-requireText(
-  skill,
-  "It must declare at least one local component.",
-  "nonempty module index rule",
+  workspaceBootstrap,
+  "Workflow classification never decides whether missing config may be\ninitialized.",
+  "bootstrap before workflow classification",
 );
 requireText(
-  skill,
-  "both `goal` and `interface` are\n     public to dependents",
-  "public goal and interface rule",
+  workspaceBootstrap,
+  "inventory existing `.sigil` paths read-only",
+  "read-only unconfigured Sigil inventory",
 );
 requireText(
-  skill,
-  "Do not repeat imported-component\n     dependencies in `interface`",
-  "import-only dependency declaration rule",
+  workspaceBootstrap,
+  "it must not overwrite existing\nconfig or semantically rewrite existing `.sigil` sources",
+  "non-overwriting initialization",
 );
 requireText(
-  skill,
+  workspaceBootstrap,
+  "Do not classify this state automatically as Brownfield.",
+  "unconfigured Sigil workflow neutrality",
+);
+requireText(
+  authoringConventions,
   "Separate distinct prose-level ideas with blank lines",
   "semantic blank-line style",
 );
 requireText(skill, "one primary decision per turn", "sequential clarification");
-requireText(skill, "choices", "design choices");
 requireText(
   skill,
-  "verify that the affected\n     behavior has clear Sigil coverage",
+  "Verify that every material implementation concern has established coverage",
   "clear Sigil coverage guard",
-);
-requireText(
-  skill,
-  "collaborate\n     with the user to define, review, and approve the affected Sigil",
-  "missing coverage collaboration",
 );
 requireText(skill, "Stop at the Sigil review gate", "semantic review gate");
 requireText(
   skill,
-  "do not write implementation code",
+  "Require explicit user approval of the written Sigil",
   "implementation approval boundary",
 );
 requireText(
-  skill,
+  authoringConventions,
   "`SIGIL_MISSING_CONCEPT_IDENTIFIER` as an authoring gap",
   "missing concept identifier workflow",
 );
 requireText(
-  skill,
+  authoringConventions,
   "inspect the remainder of the same section",
   "complete local concept reuse discovery",
 );
 requireText(
-  skill,
-  "Use `sigil graph` to inspect direct importers",
+  authoringConventions,
+  "use `sigil graph` to inspect direct importers",
   "direct consumer concept evidence",
 );
 requireText(
-  skill,
-  "Traverse transitive importers only when a concept\n     is re-exposed",
+  authoringConventions,
+  "traverse transitive importers only when a concept is re-exposed",
   "bounded transitive concept discovery",
 );
 requireText(
-  skill,
-  "delegate concept grouping and identifier\n     generation to one dedicated subagent only after completing reuse discovery",
+  authoringConventions,
+  "delegate concept grouping and identifier\n" +
+    "generation to one dedicated subagent only after completing reuse discovery",
   "concept identifier subagent delegation",
 );
 requireText(
-  skill,
+  authoringConventions,
   "return a proposal only and not edit files.",
   "proposal-only concept identifier subagent",
 );
 requireText(
-  skill,
-  "case-insensitive namespace uniqueness, public and\n     private visibility, collective coherence, and transitive import ambiguity",
+  authoringConventions,
+  "case-insensitive namespace uniqueness, public and\n" +
+    "private visibility, collective coherence, and transitive import ambiguity",
   "primary-agent concept proposal validation",
 );
 requireText(
-  skill,
-  "Subagent completion is not\n     user approval and grants no edit authority to the primary agent.",
+  authoringConventions,
+  "Subagent completion is not user approval and grants no edit authority to the\nprimary agent.",
   "delegated proposal authority boundary",
 );
 requireText(
-  skill,
-  "repair always require explicit user approval of the presented proposal\n     before any repository mutation",
+  authoringConventions,
+  "repair always require explicit user approval of the presented proposal before\nany repository mutation",
   "concept identifier pre-edit approval gate",
 );
 requireText(
@@ -156,33 +169,35 @@ requireText(
   "global delegated proposal gate",
 );
 requireText(
-  skill,
+  authoringConventions,
   "Keep anchoring outside concept-identifier work.",
   "concept identifier anchoring exclusion",
 );
 requireText(
-  skill,
+  authoringConventions,
   "record `Decision`, `Context`, and `Scope`",
   "decision rationale required labels",
 );
 requireText(
-  skill,
-  "without attempting to enumerate every current dependent",
+  authoringConventions,
+  "attempting to enumerate every current dependent",
   "decision scope boundary",
 );
 requireText(
-  skill,
+  authoringConventions,
   "Reuse an accessible concept identifier when decisions concern the same",
   "decision contextual concept reuse",
 );
 requireText(
-  skill,
-  "reuse\n     never makes a decision transitively binding",
+  authoringConventions,
+  "reuse never makes a\n" +
+    "decision transitively binding",
   "decision transitive authority guard",
 );
 requireText(
-  skill,
-  "not its private\n     decision rationale",
+  authoringConventions,
+  "but not its private\n" +
+    "decision rationale",
   "provider private decision boundary",
 );
 
@@ -212,6 +227,62 @@ if ("skillVersion" in compatibility) {
 const expected = JSON.parse(
   await Deno.readTextFile(`${root}/evals/expected.json`),
 );
+const workspaceBootstrapFixture = await Deno.readTextFile(
+  `${root}/evals/workspace-bootstrap-fixture.md`,
+);
+const requiredWorkspaceBootstrapBehaviors = [
+  "resolve-selected-repository-root",
+  "exclude-ungoverning-parent-workspace",
+  "discover-compatible-cli-first",
+  "classify-unconfigured-existing-sigil",
+  "inventory-existing-sigil-read-only",
+  "initialize-before-workflow-selection",
+  "preserve-existing-sigil-sources",
+  "validate-initialized-workspace",
+  "preserve-post-init-diagnostics",
+  "select-semantic-workflow-after-bootstrap",
+  "report-bootstrap-handoff",
+  "preserve-invalid-existing-config",
+  "stop-on-bootstrap-failure",
+];
+if (!Array.isArray(expected.workspaceBootstrapRequiredBehaviors)) {
+  throw new Error(
+    "Workspace bootstrap fixture must declare required behaviors.",
+  );
+}
+for (const behavior of requiredWorkspaceBootstrapBehaviors) {
+  if (!expected.workspaceBootstrapRequiredBehaviors.includes(behavior)) {
+    throw new Error(
+      `Workspace bootstrap fixture is missing behavior ${behavior}.`,
+    );
+  }
+}
+requireText(
+  workspaceBootstrapFixture,
+  "unconfigured with existing Sigil rather than\n   Brownfield",
+  "fixture neutral unconfigured classification",
+);
+requireText(
+  workspaceBootstrapFixture,
+  "Inventory existing `.sigil` paths read-only",
+  "fixture read-only existing Sigil inventory",
+);
+requireText(
+  workspaceBootstrapFixture,
+  "without overwriting or\n   rewriting existing Sigil sources",
+  "fixture non-overwriting initialization",
+);
+requireText(
+  workspaceBootstrapFixture,
+  "Only after bootstrap",
+  "fixture bootstrap-before-workflow ordering",
+);
+requireText(
+  workspaceBootstrapFixture,
+  "invalid `.sigil/config.json` already exists, preserve it",
+  "fixture invalid config preservation",
+);
+
 const fixture = await Deno.readTextFile(
   `${root}/evals/brownfield-fixture.md`,
 );
@@ -665,8 +736,13 @@ const brownfield = await Deno.readTextFile(
 );
 requireText(
   brownfield,
-  "`sigil init` must create the",
-  "brownfield initialization-first rule",
+  "Complete `references/workspace-bootstrap.md` before gathering detailed project",
+  "brownfield bootstrap-first rule",
+);
+requireText(
+  brownfield,
+  "Brownfield classification does not authorize initialization",
+  "brownfield initialization independence",
 );
 requireText(
   brownfield,
@@ -783,7 +859,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.6.0 structure, compatibility, decision rationale, concept identifier and glossary workflows, gates, design conversation, Greenfield design, Brownfield adoption, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.6.0 dispatcher, workspace bootstrap, compatibility, authoring, glossary, review gates, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

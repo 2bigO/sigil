@@ -24,6 +24,22 @@
     "stop-at-semantic-review-gate",
     "implement-only-after-approval"
   ],
+  "workspaceBootstrapFixture": "workspace-bootstrap-fixture.md",
+  "workspaceBootstrapRequiredBehaviors": [
+    "resolve-selected-repository-root",
+    "exclude-ungoverning-parent-workspace",
+    "discover-compatible-cli-first",
+    "classify-unconfigured-existing-sigil",
+    "inventory-existing-sigil-read-only",
+    "initialize-before-workflow-selection",
+    "preserve-existing-sigil-sources",
+    "validate-initialized-workspace",
+    "preserve-post-init-diagnostics",
+    "select-semantic-workflow-after-bootstrap",
+    "report-bootstrap-handoff",
+    "preserve-invalid-existing-config",
+    "stop-on-bootstrap-failure"
+  ],
   "greenfieldFixture": "greenfield-fixture.md",
   "greenfieldRequiredBehaviors": [
     "start-with-design-conversation",

@@ -224,7 +224,10 @@ host adapters supplied separately.
 
 The skill teaches coding-agent hosts to:
 
-- read relevant `.sigil` files first;
+- bootstrap and validate the configured workspace before interpreting `.sigil`
+  files;
+- preserve and initialize repositories that contain Sigil sources without a
+  config before selecting a semantic workflow;
 - follow Sigil imports;
 - identify public component contracts and matching expands;
 - detect missing, conflicting, or vague information;
@@ -246,7 +249,13 @@ The skill teaches coding-agent hosts to:
 - colocate approved Sigil with the implementation it explains;
 - use approved Sigil as implementation context.
 
-The skill reference file at
+The compact `SKILL.md` dispatches into progressive references. The
+[workspace bootstrap](integrations/skills/sigil/references/workspace-bootstrap.md)
+reference defines root discovery, configuration-state handling, initialization,
+and compatibility validation. The
+[authoring conventions](integrations/skills/sigil/references/authoring-conventions.md)
+reference owns section discipline, concept identifiers, decision rationale, and
+colocation. The reference file at
 [integrations/skills/sigil/references/sigil-format.md](integrations/skills/sigil/references/sigil-format.md)
 is a concise agent-facing guide. The
 [standards review](integrations/skills/sigil/references/standards-review.md) and

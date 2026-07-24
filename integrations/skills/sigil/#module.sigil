@@ -22,8 +22,16 @@ component SigilSkill {
       host installation locations and adapters do not alter workflow semantics
     }
 
+    WorkspaceBootstrap {
+      identifies the target repository and its configuration state before semantic workflow selection
+
+      handles configured workspaces, unconfigured repositories with existing Sigil, and unconfigured repositories without Sigil
+
+      initializes a missing ConfigFile without overwriting existing Sigil sources, then validates tool and workspace compatibility
+    }
+
     WorkflowSelection {
-      selects Greenfield design, Brownfield adoption, or established-Sigil review from implementation and Sigil evidence
+      selects Greenfield design, Brownfield adoption, or established-Sigil review from implementation and Sigil evidence after workspace bootstrap
 
       validates ConfigFile and tool compatibility before relying on workspace semantics
     }
@@ -108,6 +116,10 @@ component SigilSkill {
 
 expand SigilSkill {
   state {
+    WorkspaceBootstrap {
+      Configuration state is configured, unconfigured with existing Sigil, unconfigured without Sigil, invalid, or outside the selected target.
+    }
+
     WorkflowSelection {
       Greenfield applies when no existing implementation constrains the selected behavior or component.
 
@@ -130,8 +142,20 @@ expand SigilSkill {
   }
 
   logic {
+    WorkspaceBootstrap {
+      Resolve the selected repository root and any eligible ancestor workspace before interpreting Sigil sources.
+
+      When a valid ConfigFile governs the target, use that configured workspace without initialization.
+
+      When no ConfigFile governs the target, inventory existing Sigil paths without interpreting workspace semantics, run non-overwriting initialization at the selected repository root, then validate versions and the resulting workspace.
+
+      When an existing ConfigFile is invalid, preserve it and stop with diagnostics instead of initializing over it.
+
+      When initialization or compatibility validation fails, preserve existing sources and stop before semantic workflow selection.
+    }
+
     WorkflowSelection {
-      Run deterministic workspace checks and inspect relevant implementation and Sigil evidence.
+      Complete WorkspaceBootstrap, then inspect relevant implementation and Sigil evidence.
 
       Select GreenfieldWorkflow, BrownfieldWorkflow, or established-Sigil review from that evidence.
     }
@@ -288,6 +312,14 @@ expand SigilSkill {
       Model-assisted judgment, ambiguity resolution, and approval remain host-workflow responsibilities.
     }
 
+    WorkspaceBootstrap {
+      Existing Sigil sources without ConfigFile are unconfigured evidence, not an established workspace and not a compatibility failure until bootstrap is attempted.
+
+      Initialization never overwrites an existing ConfigFile or semantically rewrites existing Sigil sources.
+
+      Workflow classification does not determine whether a missing ConfigFile may be initialized.
+    }
+
     EvidenceReview {
       Code is evidence of current behavior, not proof of desired behavior or rationale.
 
@@ -416,6 +448,14 @@ expand SigilSkill {
   }
 
   cases {
+    WorkspaceBootstrap {
+      A repository containing Sigil sources but no governing ConfigFile inventories those paths read-only, initializes the selected root, validates the workspace, and only then classifies the semantic workflow.
+
+      A repository containing neither Sigil nor ConfigFile initializes and validates before implementation evidence selects Greenfield or Brownfield work.
+
+      An invalid existing ConfigFile is reported without replacement.
+    }
+
     WorkflowSelection {
       A component with credible existing Sigil uses established-Sigil review unless evidence shows drift.
     }
