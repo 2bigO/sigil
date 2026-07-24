@@ -1,4 +1,6 @@
 import {
+  type AgentDependencyContext,
+  agentDependencyContextFor,
   type CollectedExpansion,
   collectedExpansionFor,
   componentContracts,
@@ -176,6 +178,12 @@ export class CoreAdapter {
     componentName: string,
   ): CollectedExpansion | undefined {
     return collectedExpansionFor(resolved, componentName);
+  }
+  agentDependencyContextFor(
+    resolved: ResolvedSigilWorkspace,
+    componentName: string,
+  ): AgentDependencyContext | undefined {
+    return agentDependencyContextFor(resolved, componentName);
   }
   conceptNamespaceFor(
     resolved: ResolvedSigilWorkspace,

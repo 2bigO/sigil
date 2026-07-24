@@ -257,6 +257,35 @@ export interface CollectedExpansion {
   readonly expands: readonly ResolvedExpansion[];
 }
 
+export interface ConceptBlockView {
+  readonly identifier: string;
+  readonly lines: readonly string[];
+  readonly sourceRange: ConceptBlock["range"];
+}
+
+export interface ComponentContractView {
+  readonly name: string;
+  readonly filePath: string;
+  readonly goalLines: readonly string[];
+  readonly interfaceLines: readonly string[];
+  readonly ungroupedInterfaceLines: readonly string[];
+  readonly interfaceConcepts: readonly ConceptBlockView[];
+}
+
+export interface DependencyDecisionView {
+  readonly componentName: string;
+  readonly filePath: string;
+  readonly section: Section;
+}
+
+export interface AgentDependencyContext {
+  readonly selectedComponent: ResolvedComponent;
+  readonly collectedExpansion: CollectedExpansion;
+  readonly dependencyContracts: readonly ComponentContractView[];
+  readonly dependencyDecisions: readonly DependencyDecisionView[];
+  readonly relatedFilePaths: readonly string[];
+}
+
 export interface ResolvedExpansion {
   readonly filePath: string;
   readonly declaration: ExpandDeclaration;

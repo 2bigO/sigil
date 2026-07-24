@@ -27,7 +27,7 @@ expand SigilCore {
     }
 
     SemanticProjections {
-      componentContracts, conceptNamespaceFor, and collectedExpansionFor delegate structured views to SigilProjections.
+      componentContracts, conceptNamespaceFor, collectedExpansionFor, and agentDependencyContextFor delegate structured views to SigilProjections.
     }
 
     GlossaryInspection {

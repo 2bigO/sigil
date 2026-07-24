@@ -197,8 +197,11 @@ Select the workflow before detailed semantic work:
    - Treat imports as dependency declarations. Do not repeat imported-component
      dependencies in `interface`.
    - Treat imported component dependencies as exposing public `goal` and
-     `interface` content only. Inspect the provider explicitly when its private
-     expands are relevant to review or implementation.
+     `interface` content only at the language level. Treat direct-dependency
+     decisions returned by agent context as scoped rationale, not as part of the
+     dependent-facing contract. Inspect the provider explicitly when other
+     private expands or transitive rationale are relevant to review or
+     implementation.
    - Consider coherent programming abstractions, internal APIs, state machines,
      screens, views, and reusable UI surfaces as possible components.
    - Note unresolved imports, missing components, collected-expand
@@ -292,8 +295,10 @@ Select the workflow before detailed semantic work:
      semantic idea. Scope remains local to the contextual occurrence; reuse
      never makes a decision transitively binding.
    - An import exposes a provider's public concept identity but not its private
-     decision rationale. Select the provider and its matching expands explicitly
-     when that rationale is needed.
+     decision rationale. Automatically projected direct-dependency decisions
+     provide scoped agent rationale without becoming part of the language-level
+     contract. Select the provider and its matching expands explicitly for
+     transitive decisions or other private operational detail.
    - Summarize durable rationale rather than prompts, raw session transcripts,
      or hidden reasoning. Responsibility, accountability, approver, and handoff
      metadata remain outside the initial convention.

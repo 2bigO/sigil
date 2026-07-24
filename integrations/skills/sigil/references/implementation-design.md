@@ -35,8 +35,10 @@ client, or another deployable service.
 Group interface content into concept blocks before implementation. Reuse a
 concept identifier across state, logic, constraints, decisions, or cases only
 when the same concept materially connects those sections. Imported dependencies
-expose their public goal and interface concepts; inspect a provider directly
-when its private expands are required for implementation work.
+expose their public goal and interface concepts. Agent context additionally
+provides direct dependencies' decisions as scoped rationale without adding them
+to the dependent-facing contract. Inspect a provider directly when transitive
+decisions or other private expands are required for implementation work.
 
 ## 2. Select Component, Expand, Or Omit
 

@@ -185,6 +185,8 @@ Responsibilities:
 
 - expose component contract views;
 - expose collected expansion views;
+- expose bounded direct-dependency contracts and decision rationale for agent
+  context;
 - expose graph-oriented summaries;
 - provide reusable data shapes for CLI, LSP, renderers, and agent context builders.
 

@@ -65,15 +65,17 @@ Commands:
 - `sigil glossary [path]` reports reviewed entries, resolved contexts, and
   source occurrences;
 - `sigil graph [path]` returns component and import graph data;
-- `sigil context ...` returns agent context JSON with reviewed terminology
-  recognized in the selected and related Sigil files;
+- `sigil context ...` returns agent context JSON with direct dependencies'
+  public contracts and decision rationale plus reviewed terminology recognized
+  in the selected and related Sigil files;
 - `sigil render ...` returns Markdown.
 
 The CLI returns exit code `0` for success or warnings, `1` for error
 diagnostics, `2` for usage errors, and `3` for host/runtime failures. Use JSON
 output for automation; human text and Markdown are convenience projections.
-Context output includes resolved concept namespaces and a scoped
-`glossaryContext`; Markdown render output preserves concept grouping.
+Context output includes resolved concept namespaces, bounded
+`agentDependencyContexts`, and a scoped `glossaryContext`; Markdown render
+output preserves concept grouping.
 
 Versioned binary distributions place assets at `<version>/integrations/skills`
 beside `<version>/bin/sigil`. This keeps each binary paired with the language

@@ -72,6 +72,8 @@ component SigilSkill {
       records material selected choices and the rationale needed for future review, maintenance, and agent sessions
 
       applies a consistent authoring convention while preserving the language's free-form decisions syntax
+
+      uses automatically projected direct-dependency decisions as scoped rationale without treating them as imported public contract
     }
 
     GlossaryWorkflow {

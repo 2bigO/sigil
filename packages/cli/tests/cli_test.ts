@@ -286,6 +286,98 @@ Deno.test("context exposes concept blocks and resolved namespaces", async () => 
   }
 });
 
+Deno.test("context includes direct dependency contracts and decision rationale", async () => {
+  const root = await makeWorkspace("agent-dependency-context");
+  try {
+    await Deno.writeTextFile(
+      `${root}/leaf.sigil`,
+      validSigil("Leaf"),
+    );
+    await Deno.writeTextFile(
+      `${root}/leaf-detail.sigil`,
+      `expand Leaf {
+  decisions {
+    LeafChoice {
+      Decision: Exclude transitive rationale.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/provider.sigil`,
+      `@leaf.sigil import { Leaf }
+
+${validSigil("Provider")}`,
+    );
+    await Deno.writeTextFile(
+      `${root}/provider-detail.sigil`,
+      `expand Provider {
+  logic {
+    ProviderLogic {
+      Keep private mechanics hidden.
+    }
+  }
+
+  decisions {
+    ProviderChoice {
+      Decision: Include direct rationale.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/consumer.sigil`,
+      `@provider.sigil import { Provider }
+
+${validSigil("Consumer")}`,
+    );
+
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Consumer",
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_OK);
+    const output = parseJson(result.stdout);
+    const context = output.agentDependencyContexts[0];
+    assertEquals(context.selectedComponent.name, "Consumer");
+    assertEquals(
+      context.dependencyContracts.map((item: {
+        name: string;
+      }) => item.name).join(","),
+      "Provider",
+    );
+    assertEquals(context.dependencyDecisions.length, 1);
+    assertEquals(
+      context.dependencyDecisions[0].section.lines[0].text,
+      "Decision: Include direct rationale.",
+    );
+    assert(
+      !JSON.stringify(context.dependencyDecisions).includes(
+        "Keep private mechanics hidden.",
+      ),
+    );
+    assert(
+      !context.dependencyContracts.some((item: { name: string }) =>
+        item.name === "Leaf"
+      ),
+    );
+    assertEquals(
+      output.relatedFilePaths.map((path: string) =>
+        path.slice(path.lastIndexOf("/") + 1)
+      ).join(","),
+      "consumer.sigil,provider-detail.sigil,provider.sigil",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("check rejects an imports-only module index in an internal directory", async () => {
   const root = await makeWorkspace("internal-module-index");
   try {

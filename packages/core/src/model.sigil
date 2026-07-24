@@ -73,6 +73,8 @@ component SigilSemanticModel {
       ResolvedConceptReference contains conceptIdentity, componentName, filePath, ownerKind, ownerName, sectionName, and exact source range
 
       ResolvedConceptNamespace contains local, accessible, and public concepts plus contextual whole-word references
+
+      AgentDependencyContext preserves the selected component, its collected expansions, direct dependency contract views, source-aware decision sections, and related file paths
     }
 
     GraphModel {

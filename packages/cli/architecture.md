@@ -338,6 +338,8 @@ Required scenarios:
 - `check` does not return `1` for warnings alone;
 - `graph` emits file and expansion edges;
 - `context --component Auth` emits deterministic context data;
+- context data labels direct-dependency decisions as agent rationale outside the
+  dependent-facing contract;
 - `render` emits Markdown for the Slotted example;
 - invalid arguments return exit code `2`;
 - runtime filesystem failures return exit code `3`;

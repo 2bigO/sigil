@@ -37,6 +37,8 @@ component SigilCore {
       conceptNamespaceFor(resolvedWorkspace, componentName) returns resolved concepts, occurrences, and contextual whole-word references for that component
 
       collectedExpansionFor(resolvedWorkspace, componentName) returns every collected expansion for that component
+
+      agentDependencyContextFor(resolvedWorkspace, componentName) returns bounded agent context containing direct dependency contracts and rationale
     }
 
     GlossaryInspection {

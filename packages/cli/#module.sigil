@@ -42,6 +42,8 @@ component SigilCli {
       sigil render [path]
 
       context reports a scoped glossary projection for the selected component or file and its related sources
+
+      context automatically reports public contracts and durable decisions from direct dependencies
     }
 
     GlossaryInspection {
@@ -125,6 +127,8 @@ expand SigilCli {
 
       context JSON output includes glossaryContext with the glossary path, resolved bounded contexts, canonical terms, definitions, aliases, and relevant occurrences.
 
+      context JSON labels dependency decisions as agent rationale outside the dependent-facing contract.
+
       glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
     }
 
@@ -186,6 +190,10 @@ expand SigilCli {
       context for a component with glossary terms reports only terminology effective in or occurring within the component and its related expansion sources.
 
       context without GlossaryFile reports an absent glossary context without error.
+
+      context for a component reports each direct dependency's public contract and decision sections once.
+
+      context excludes transitive dependency decisions and non-decision private dependency sections.
     }
 
     GlossaryInspection {

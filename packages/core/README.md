@@ -38,6 +38,8 @@ Responsibilities:
 - identify the root project and workspace-member roots declared by
   `workspace.members`;
 - resolve imports;
+- project direct dependencies' public contracts and durable decisions into
+  bounded agent dependency context;
 - resolve `#module.sigil` as an explicit index in any included directory;
 - keep every component public through explicit-file imports;
 - collect component expansions;

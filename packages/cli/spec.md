@@ -305,6 +305,8 @@ Version 0.6 is acceptable when tests or scripted checks demonstrate that
 - emit graph JSON with file and expansion edges;
 - emit context JSON for `--component Auth`;
 - emit resolved concept namespaces in context JSON;
+- emit each direct dependency's public contract and decision sections once in
+  context JSON while excluding transitive and other private dependency details;
 - render Markdown for the Slotted example;
 - avoid duplicating parser or resolver behavior outside `sigil-core`.
 

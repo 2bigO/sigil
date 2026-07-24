@@ -1,4 +1,5 @@
 import type {
+  AgentDependencyContext,
   CollectedExpansion,
   ComponentContractView,
   GlossaryContext,
@@ -103,6 +104,7 @@ export interface ContextCommandResult extends WorkspaceMetadata {
   readonly componentContracts: readonly ComponentContractView[];
   readonly conceptNamespaces: readonly ResolvedConceptNamespace[];
   readonly collectedExpansions: readonly CollectedExpansion[];
+  readonly agentDependencyContexts: readonly AgentDependencyContext[];
   readonly relatedFilePaths: readonly string[];
   readonly glossaryContext: GlossaryContextProjection | null;
   readonly diagnostics: readonly SigilDiagnostic[];

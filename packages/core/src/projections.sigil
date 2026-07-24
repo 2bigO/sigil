@@ -23,6 +23,10 @@ component SigilProjections {
     ExpansionProjection {
       collectedExpansionFor(resolvedWorkspace, componentName) returns every matching expansion or undefined
     }
+
+    AgentDependencyContext {
+      agentDependencyContextFor(resolvedWorkspace, componentName) returns the selected component, its collected expansions, direct dependency public contracts, direct dependency decision sections, and related source paths, or undefined
+    }
   }
 }
 
@@ -43,6 +47,16 @@ expand SigilProjections {
     ExpansionProjection {
       Return every collected expand source for the selected component.
     }
+
+    AgentDependencyContext {
+      Resolve direct dependencies from imports declared by the selected component source.
+
+      Preserve deterministic import order and include each resolved dependency once.
+
+      Project each direct dependency's public goal and interface.
+
+      Include only decisions sections from each direct dependency's collected expansions.
+    }
   }
 
   constraints {
@@ -52,6 +66,28 @@ expand SigilProjections {
 
     RecoverableResults {
       Missing goal or interface sections project as empty collections while diagnostics remain in the resolved workspace.
+    }
+
+    AgentDependencyContext {
+      Agent dependency context is out-of-band inspection and does not change language-level import visibility.
+
+      Dependency decisions provide rationale and do not become dependent-facing or transitively binding.
+
+      Transitive dependency decisions and direct dependency state, logic, constraints, cases, and private concepts remain excluded by default.
+    }
+  }
+
+  decisions {
+    AgentDependencyContext {
+      Decision: Automatically include durable decisions from direct dependencies in agent context.
+
+      Context: Agents can use additional rationale to preserve architectural intent, but ordinary dependents require only stable public contracts.
+
+      Scope: Applies to agent context projection for direct dependencies and excludes language-level imports, transitive dependencies, and other private operational sections.
+
+      Trade-offs: Uses additional context and may include irrelevant rationale in exchange for reducing missed architectural intent and extra discovery calls.
+
+      Revisit when: Typical dependency decision sets become too large or evidence shows that automatic rationale reduces agent accuracy.
     }
   }
 
@@ -70,6 +106,14 @@ expand SigilProjections {
       A component with expands in multiple files returns every expansion.
 
       An unknown component returns undefined.
+    }
+
+    AgentDependencyContext {
+      Selecting a component includes the public contracts and decision sections of its direct dependencies.
+
+      A dependency's decisions remain labeled as rationale rather than part of its public contract.
+
+      A transitive dependency contributes no decisions unless selected explicitly.
     }
   }
 }

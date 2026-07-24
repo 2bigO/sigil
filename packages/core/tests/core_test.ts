@@ -1,4 +1,5 @@
 import {
+  agentDependencyContextFor,
   ancestorsFrom,
   collectedExpansionFor,
   componentContracts,
@@ -615,6 +616,124 @@ Deno.test("collects expansion file paths and exposes projections", async () => {
   assert(
     componentContracts(resolved).some((contract) => contract.name === "Sigil"),
   );
+});
+
+Deno.test("projects direct dependency contracts and decisions for agents", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "leaf.sigil": `component Leaf {
+  goal {
+    Remain transitive.
+  }
+
+  interface {
+    LeafApi {
+      leaf()
+    }
+  }
+}
+`,
+    "leaf-detail.sigil": `expand Leaf {
+  decisions {
+    LeafChoice {
+      Decision: Keep this transitive rationale private by default.
+    }
+  }
+}
+`,
+    "provider.sigil": `@leaf.sigil import { Leaf }
+
+component Provider {
+  goal {
+    Serve consumers.
+  }
+
+  interface {
+    ProviderApi {
+      provide()
+    }
+  }
+}
+`,
+    "provider-detail.sigil": `expand Provider {
+  state {
+    PrivateState {
+      Hidden state.
+    }
+  }
+
+  logic {
+    PrivateLogic {
+      Hidden logic.
+    }
+  }
+
+  constraints {
+    PrivateConstraint {
+      Hidden constraint.
+    }
+  }
+
+  decisions {
+    ProviderChoice {
+      Decision: Preserve the provider rationale.
+    }
+  }
+
+  cases {
+    PrivateCase {
+      Hidden case.
+    }
+  }
+}
+`,
+    "consumer.sigil": `@provider.sigil import { Provider }
+@provider.sigil import { Provider }
+
+component Consumer {
+  goal {
+    Use the provider.
+  }
+
+  interface {
+    ConsumerApi {
+      consume()
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const context = agentDependencyContextFor(resolved, "Consumer");
+
+  assert(context);
+  assertEquals(context.selectedComponent.name, "Consumer");
+  assertEquals(
+    context.dependencyContracts.map((item) => item.name).join(","),
+    "Provider",
+  );
+  assertEquals(context.dependencyDecisions.length, 1);
+  assertEquals(context.dependencyDecisions[0].componentName, "Provider");
+  assertEquals(
+    context.dependencyDecisions[0].filePath,
+    "provider-detail.sigil",
+  );
+  assertEquals(context.dependencyDecisions[0].section.name, "decisions");
+  assertEquals(
+    context.dependencyDecisions[0].section.lines[0].text,
+    "Decision: Preserve the provider rationale.",
+  );
+  assertEquals(
+    context.relatedFilePaths.join(","),
+    "consumer.sigil,provider-detail.sigil,provider.sigil",
+  );
+  assert(!JSON.stringify(context.dependencyDecisions).includes("Hidden state"));
+  assert(
+    !context.dependencyContracts.some((contract) => contract.name === "Leaf"),
+  );
+  assertEquals(agentDependencyContextFor(resolved, "Missing"), undefined);
 });
 
 Deno.test("separates relationship resolution from graph construction", async () => {

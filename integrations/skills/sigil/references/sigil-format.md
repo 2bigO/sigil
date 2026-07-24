@@ -333,8 +333,10 @@ applicable, and omit inapplicable labels.
 Keep the binding selected outcome in `constraints`. Reuse an accessible public
 concept identifier when a contextual decision concerns the same semantic idea,
 but keep Scope local: concept reuse does not make the decision transitively
-binding. Imports do not expose a provider's private decision rationale; inspect
-the provider and matching expands explicitly when it matters.
+binding. Imports do not expose a provider's private decision rationale as part
+of the language-level contract. Treat direct-dependency decisions supplied by
+agent context as scoped rationale, and inspect the provider and matching expands
+explicitly for transitive decisions or other private operational detail.
 
 Do not store prompts, raw session transcripts, or hidden reasoning.
 Responsibility, accountability, approver, and handoff metadata are outside the

@@ -232,6 +232,15 @@
         "effective terms",
         "effective terminology"
       ]
+    },
+    {
+      "term": "agent dependency context",
+      "definition": "A deterministic projection for a selected component that includes its complete Sigil description together with each direct dependency's public contract and durable decision rationale, while excluding transitive and other private dependency content by default.",
+      "aliases": [
+        "agent dependency contexts",
+        "agent context projection",
+        "agent context projections"
+      ]
     }
   ],
   "contexts": [

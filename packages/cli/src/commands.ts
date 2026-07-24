@@ -142,12 +142,12 @@ function contextCommand(
   const conceptNamespaces = selectedComponents.map((component) =>
     core.conceptNamespaceFor(resolved, component.name)
   ).filter((item) => item !== undefined);
+  const agentDependencyContexts = selectedComponents.map((component) =>
+    core.agentDependencyContextFor(resolved, component.name)
+  ).filter((item) => item !== undefined);
   const relatedFilePaths = [
     ...new Set([
-      ...selectedComponents.map((component) => component.filePath),
-      ...expansions.flatMap((expansion) =>
-        expansion.expands.map((expand) => expand.filePath)
-      ),
+      ...agentDependencyContexts.flatMap((context) => context.relatedFilePaths),
     ]),
   ].sort();
   const glossaryContext = core.glossaryContextForFiles(
@@ -161,6 +161,7 @@ function contextCommand(
     componentContracts: contracts,
     conceptNamespaces,
     collectedExpansions: expansions,
+    agentDependencyContexts,
     relatedFilePaths,
     glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
     diagnostics: resolved.diagnostics,

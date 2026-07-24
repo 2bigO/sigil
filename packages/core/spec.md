@@ -50,8 +50,11 @@ It must:
   semantics;
 - share one case-insensitively unique concept namespace across each component
   and all matching expands;
-- expose imported public interface concepts without exposing private expansion
-  details;
+- expose imported public interface concepts without making private expansion
+  details part of the dependent-facing contract;
+- project direct dependencies' public contracts and `decisions` sections as
+  bounded agent rationale while excluding transitive and other private
+  dependency sections by default;
 - preserve an imported concept's originating identity through contextual reuse
   and downstream interface re-exposure;
 - build graph primitives for files, imports, components, and expansions;
@@ -128,6 +131,8 @@ The model should include typed concepts equivalent to:
 - `SigilConfig`;
 - `ResolvedComponent`;
 - `CollectedExpansion`;
+- `AgentDependencyContext`;
+- `DependencyDecisionView`;
 - `SigilGraph`;
 - `SigilDiagnostic`;
 - `SigilFileSystem`.
@@ -236,6 +241,9 @@ Version 0.6 is acceptable when tests demonstrate that `sigil-core` can:
   parseable;
 - resolve public imported concepts as bare identifiers and keep private concepts
   inaccessible to dependents;
+- project each direct dependency contract and decision section once for agent
+  context while excluding transitive decisions and non-decision private
+  sections;
 - resolve exact-case whole-word concept references into contextual namespaces
   with originating identities and source ranges;
 - exclude ambiguous identities, case mismatches, substrings, and unmatched words
