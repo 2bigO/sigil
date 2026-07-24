@@ -68,6 +68,12 @@ component SigilSkill {
       resolves material design decisions before exact Sigil synthesis
     }
 
+    DecisionRationaleWorkflow {
+      records material selected choices and the rationale needed for future review, maintenance, and agent sessions
+
+      applies a consistent authoring convention while preserving the language's free-form decisions syntax
+    }
+
     GlossaryWorkflow {
       validates deterministic glossary diagnostics before semantic review
 
@@ -130,6 +136,24 @@ expand SigilSkill {
 
     DecisionConversation {
       Use SigilDesignConversation whenever a material decision remains unresolved before proposal synthesis.
+    }
+
+    DecisionRationaleWorkflow {
+      Use one concise PascalCase concept block for each material decision.
+
+      Record Decision, Context, and Scope for every authored material decision.
+
+      Scope states the governed boundary and important exclusions without attempting to enumerate every current dependent.
+
+      Record Assumptions, Trade-offs, Design issues addressed, Discarded alternatives, Consequences, and Revisit when when materially applicable.
+
+      Omit an inapplicable rationale label instead of adding filler.
+
+      Reuse an accessible concept identifier when decisions concern the same semantic idea.
+
+      Scope states the local boundary of a contextual decision occurrence; concept reuse does not make a decision transitively binding.
+
+      Keep the binding selected outcome in constraints and use decisions to explain why it was selected.
     }
 
     EvidenceReview {
@@ -310,6 +334,14 @@ expand SigilSkill {
       Concept blocks group coherent identities without merging distinct semantic ideas into one line.
     }
 
+    DecisionRationaleWorkflow {
+      Decision records summarize durable rationale rather than prompts, raw session transcripts, or hidden reasoning.
+
+      Responsibility, accountability, approver, and handoff metadata are outside the initial authoring convention.
+
+      The absence of decisions does not make otherwise complete Sigil invalid.
+    }
+
     GlossaryWorkflow {
       Candidate extraction never becomes authoritative without explicit human approval.
 
@@ -370,6 +402,10 @@ expand SigilSkill {
 
     EvidenceReview {
       Conflicting code, tests, and documentation are reported for user decision rather than silently reconciled.
+    }
+
+    DecisionRationaleWorkflow {
+      An importer may reuse a provider's public concept in decisions to explain local rationale while Scope confines that decision to the importer.
     }
 
     GlossaryWorkflow {

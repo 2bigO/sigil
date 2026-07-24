@@ -29,6 +29,8 @@ expand SigilParser {
 
       Parse sections and flat concept blocks while preserving identifiers and ranges.
 
+      Parse decisions as free-form expand-section content without requiring concept blocks or labeled fields.
+
       Associate each semantic line inside a concept block with that identifier.
 
       Preserve non-empty free semantic lines outside concept blocks.
@@ -76,6 +78,10 @@ expand SigilParser {
       Valid source returns recovered declarations and semantic lines without error diagnostics.
 
       An unclosed component returns its recoverable content with a source-ranged structural diagnostic.
+    }
+
+    SourceDocument {
+      A decisions section preserves grouped and ungrouped semantic lines without a missing-concept-identifier diagnostic.
     }
 
     ComponentContract {

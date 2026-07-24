@@ -17,7 +17,8 @@ Primary authorities are:
   configuration;
 - [Sigil Workflow](sigil-workflow.md) for design, review, and implementation
   gates;
-- package READMEs and exported types for implemented 0.4 public tool surfaces;
+- package READMEs and exported types for implemented 0.5 public language
+  surfaces;
 - [Sigil Platform Architecture](sigil-platform-architecture.md) for package and
   integration boundaries;
 - accepted ADRs for the decisions they own.
@@ -53,7 +54,7 @@ project, or the platform; qualify it when ambiguity is possible.
 
 The versioned contract governing `.sigil` syntax, structure, sections, imports,
 workspace interpretation, and meaning. The current supported version is
-`0.4.0`.
+`0.5.0`.
 
 ### Sigil source
 
@@ -189,6 +190,23 @@ dependency rule, or technology choice that a valid implementation must obey.
 
 The optional expand section containing constraints.
 
+### Decision rationale
+
+Concise, durable context explaining why a material selected choice was made,
+where it applies, which assumptions and trade-offs shaped it, which alternatives
+were discarded, and when it should be revisited.
+
+### Decisions
+
+The optional free-form expand section containing decision rationale. Binding
+outcomes remain in `constraints`.
+
+### Decision scope
+
+The governed boundary and important exclusions for one decision occurrence. It
+does not attempt to enumerate every current dependent and does not become
+transitively binding through contextual concept reuse.
+
 ### Case
 
 One representative, externally observable example, edge condition, acceptance
@@ -201,7 +219,8 @@ The optional expand section containing cases.
 ### Section
 
 A named block inside a component or expand. Component sections are `goal` and
-`interface`; expand sections are `state`, `logic`, `constraints`, and `cases`.
+`interface`; expand sections are `state`, `logic`, `constraints`, `decisions`,
+and `cases`.
 
 ### Section body
 
@@ -243,7 +262,8 @@ concept identity and public occurrences to dependents.
 
 ### Private concept
 
-A concept occurring only in `state`, `logic`, `constraints`, or `cases`.
+A concept occurring only in `state`, `logic`, `constraints`, `decisions`, or
+`cases`.
 Dependents do not receive it through imports.
 
 ### Contextual concept reuse
@@ -937,7 +957,7 @@ Explicitly excluded from the selected contract or delivery stage.
 
 The terms in this section describe proposed capabilities from
 [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
-They are not part of the implemented Sigil 0.4 surface unless separately marked
+They are not part of the implemented Sigil 0.5 surface unless separately marked
 implemented.
 
 ### Receipt

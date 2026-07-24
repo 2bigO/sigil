@@ -28,7 +28,7 @@ deno run --allow-read packages/cli/src/main.ts check . --format json --pretty
 ```
 
 Run `sigil version . --format json --pretty` before `check`. This reference
-describes Sigil version `0.4.0`; do not apply it to an
+describes Sigil version `0.5.0`; do not apply it to an
 unsupported workspace version.
 
 Use CLI diagnostics as stable coded findings. Use CLI context output as a
@@ -114,6 +114,16 @@ expand Name {
     rules, policies, invariants, and decisions the implementation must obey
   }
 
+  decisions {
+    PersistenceChoice {
+      Decision: Use PostgreSQL.
+
+      Context: Concurrent writers require transactional consistency.
+
+      Scope: Governs payment persistence and transaction handling.
+    }
+  }
+
   cases {
     externally observable examples, acceptance criteria, and edge cases
   }
@@ -130,9 +140,10 @@ private and are available only when the provider is explicitly selected for
 review or implementation.
 
 `component` defines the reusable public contract of a coherent system part
-through its public `goal` and `interface`. `expand` adds collective operational detail
-without changing or overriding that public contract. Put state, behavior,
-constraints, and representative cases in `expand`.
+through its public `goal` and `interface`. `expand` adds collective operational
+detail without changing or overriding that public contract. Put state,
+behavior, constraints, decision rationale, and representative cases in
+`expand`.
 
 Public is relative to the component's dependents. A component may represent a
 product surface, domain module, programming abstraction, internal API, state
@@ -157,6 +168,7 @@ dependents.
 - `state`
 - `logic`
 - `constraints`
+- `decisions`
 - `cases`
 
 Conventional `component` order:
@@ -172,6 +184,7 @@ Conventional `expand` order:
 state
 logic
 constraints
+decisions
 cases
 ```
 
@@ -201,8 +214,9 @@ hyphens or underscores is preferred formatting rather than a validity rule.
 
 Each contiguous ungrouped `interface` region produces
 `SIGIL_MISSING_CONCEPT_IDENTIFIER` as a warning. Ungrouped content remains
-parseable. `state`, `logic`, `constraints`, and `cases` use concept blocks only
-when cross-section reuse is valuable.
+parseable. `state`, `logic`, `constraints`, `decisions`, and `cases` use concept
+blocks only when cross-section reuse is valuable. The Sigil skill uses a named
+concept block for every material decision it authors.
 
 A component and all matching expands share one flat namespace. Repeated blocks
 are collective and retain their section and source locations. A concept is
@@ -281,6 +295,51 @@ rules, and technology decisions belong here.
 Implementation-hiding rules and forbidden internal access belong in
 `constraints` unless they define an externally observable promise.
 
+Use the optional `decisions` section for durable rationale behind a material
+selected choice. Language syntax does not require concept blocks or labeled
+fields, but the Sigil skill uses this convention:
+
+```sigil
+decisions {
+  PersistenceChoice {
+    Decision: Use PostgreSQL.
+
+    Context: Concurrent writers require transactional consistency.
+
+    Scope: Governs payment persistence and transaction handling. Analytics storage is excluded.
+
+    Assumptions: Managed PostgreSQL is available.
+
+    Trade-offs: Strong consistency is preferred over simpler local persistence.
+
+    Design issues addressed: Prevents conflicting writes and ambiguous recovery.
+
+    Discarded alternatives: SQLite was rejected because multi-writer operation is required.
+
+    Consequences: Persistence changes must preserve transaction boundaries.
+
+    Revisit when: Deployment or concurrency requirements change.
+  }
+}
+```
+
+For every material decision authored by the skill, use one concise PascalCase
+concept block and record `Decision`, `Context`, and `Scope`. Scope states the
+governed boundary and important exclusions without enumerating every current
+dependent. Add `Assumptions`, `Trade-offs`, `Design issues addressed`,
+`Discarded alternatives`, `Consequences`, and `Revisit when` when materially
+applicable, and omit inapplicable labels.
+
+Keep the binding selected outcome in `constraints`. Reuse an accessible public
+concept identifier when a contextual decision concerns the same semantic idea,
+but keep Scope local: concept reuse does not make the decision transitively
+binding. Imports do not expose a provider's private decision rationale; inspect
+the provider and matching expands explicitly when it matters.
+
+Do not store prompts, raw session transcripts, or hidden reasoning.
+Responsibility, accountability, approver, and handoff metadata are outside the
+initial convention.
+
 Use `cases` for examples and acceptance criteria that can be observed from
 outside the component.
 
@@ -318,9 +377,11 @@ When reviewing Sigil, check:
 - Does each imported name resolve to a matching component in the imported Sigil
   source?
 - Does each `expand Name` have a matching `component Name`?
-- Are details such as `state`, `logic`, `constraints`, and `cases` kept in
+- Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in
   `expand` rather than inside `component`?
 - Are architecture and stack decisions expressed as constraints?
+- Do material skill-authored decisions record Decision, Context, Scope, and
+  applicable rationale without treating concept reuse as transitive authority?
 - Are implementation-hiding rules and forbidden internal access in constraints
   unless they define an externally observable promise?
 - Are roles, states, permissions, and lifecycle transitions explicit enough to

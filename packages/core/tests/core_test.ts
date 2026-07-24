@@ -21,8 +21,8 @@ import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
 
 Deno.test("separates the core artifact and language contract versions", () => {
-  assertEquals(SIGIL_CORE_VERSION, "0.5.0");
-  assertEquals(SIGIL_VERSION, "0.4.0");
+  assertEquals(SIGIL_CORE_VERSION, "0.6.0");
+  assertEquals(SIGIL_VERSION, "0.5.0");
 });
 
 Deno.test("normalizes and walks POSIX and Windows paths", () => {
@@ -723,6 +723,54 @@ Deno.test("reports each blank-line-separated ungrouped interface region", () => 
   assertNoErrors(parsed.diagnostics);
 });
 
+Deno.test("parses optional grouped and ungrouped decision rationale", () => {
+  const source = `component Payments {
+  goal {
+    Process payments.
+  }
+
+  interface {
+    PersistenceChoice {
+      Stores payment records.
+    }
+  }
+}
+
+expand Payments {
+  decisions {
+    PersistenceChoice {
+      Decision: Use PostgreSQL.
+
+      Context: Concurrent writers require transactional consistency.
+
+      Scope: Governs payment persistence and transaction handling.
+    }
+
+    Free-form decision note.
+  }
+}
+`;
+  const parsed = parseSigilDocument("payments.sigil", source, {
+    sigilVersion: SIGIL_VERSION,
+  });
+  assertNoErrors(parsed.diagnostics);
+  assertEquals(
+    parsed.diagnostics.filter((item) =>
+      item.code === "SIGIL_MISSING_CONCEPT_IDENTIFIER"
+    ).length,
+    0,
+  );
+  const decisions = parsed.document.expands[0].sections.find((item) =>
+    item.name === "decisions"
+  );
+  assert(decisions);
+  assertEquals(decisions.concepts.length, 1);
+  assertEquals(decisions.concepts[0].identifier, "PersistenceChoice");
+  assertEquals(decisions.concepts[0].lines.length, 3);
+  assertEquals(decisions.lines.at(-1)?.text, "Free-form decision note.");
+  assertEquals(decisions.lines.at(-1)?.conceptIdentifier, undefined);
+});
+
 Deno.test("rejects empty, nested, and invalid concept blocks", () => {
   const source = `component BrokenConcepts {
   goal {
@@ -800,6 +848,16 @@ expand Dashboard {
       Refresh the view when Session changes.
     }
   }
+
+  decisions {
+    Session {
+      Decision: Reuse the authenticated Session identity.
+
+      Context: Dashboard presents Account session state.
+
+      Scope: Governs Dashboard presentation only.
+    }
+  }
 }
 `,
     "app.sigil": `@dashboard.sigil import { Dashboard }
@@ -853,6 +911,23 @@ component App {
   );
   assert(
     !dashboardSession.occurrences.some((item) => item.sectionName === "state"),
+  );
+  const dashboardAccessibleSession = dashboard.accessibleConcepts.find((item) =>
+    item.identifier === "Session"
+  );
+  const accountAccessibleSession = account.accessibleConcepts.find((item) =>
+    item.identifier === "Session"
+  );
+  assert(dashboardAccessibleSession && accountAccessibleSession);
+  assert(
+    dashboardAccessibleSession.occurrences.some((item) =>
+      item.componentName === "Dashboard" && item.sectionName === "decisions"
+    ),
+  );
+  assert(
+    !accountAccessibleSession.occurrences.some((item) =>
+      item.componentName === "Dashboard" && item.sectionName === "decisions"
+    ),
   );
 });
 

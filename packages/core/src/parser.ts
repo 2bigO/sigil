@@ -23,6 +23,7 @@ const SECTION_NAMES = new Set<SigilSectionName>([
   "state",
   "logic",
   "constraints",
+  "decisions",
   "cases",
 ]);
 

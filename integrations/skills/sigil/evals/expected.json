@@ -91,6 +91,20 @@
     "require-explicit-pre-edit-approval",
     "exclude-anchor-workflow"
   ],
+  "decisionRationaleFixture": "decision-rationale-fixture.md",
+  "decisionRationaleRequiredBehaviors": [
+    "keep-binding-outcome-in-constraints",
+    "use-optional-decisions-for-material-rationale",
+    "use-named-decision-concept",
+    "record-decision-context-scope",
+    "bound-scope-with-exclusions",
+    "record-applicable-rationale",
+    "reuse-accessible-public-concept",
+    "prevent-transitive-decision-authority",
+    "inspect-provider-private-rationale-explicitly",
+    "exclude-session-transcripts-and-hidden-reasoning",
+    "exclude-initial-responsibility-and-handoff-metadata"
+  ],
   "glossaryFixture": "glossary-fixture.md",
   "glossaryRequiredBehaviors": [
     "inspect-deterministic-glossary",

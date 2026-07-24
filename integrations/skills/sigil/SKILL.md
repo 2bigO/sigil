@@ -95,7 +95,7 @@ sigil version . --format json --pretty
 sigil check . --format json --pretty
 ```
 
-This skill version requires CLI and core `^0.5.0` and Sigil `0.4.0`. In a
+This skill version requires CLI and core `^0.6.0` and Sigil `0.5.0`. In a
 Brownfield repository without `.sigil/config.json`, use the initialization
 sequence in `references/brownfield-adoption.md` before this preflight. Otherwise
 stop with a compatibility report when the CLI is missing, `.sigil/config.json`
@@ -264,7 +264,7 @@ Select the workflow before detailed semantic work:
      summaries and task discovery, established-Sigil ambiguity, and
      implementation decisions.
    - After the user approves externally informed additions, place each semantic
-     line in the appropriate `state`, `logic`, `constraints`, or `cases`
+     line in the appropriate `state`, `logic`, `constraints`, `decisions`, or `cases`
      section.
 
 6. Keep sections disciplined.
@@ -278,6 +278,25 @@ Select the workflow before detailed semantic work:
    - Put meaningful runtime/domain configurations in `state`.
    - Put rules, policies, invariants, architecture, ownership, dependencies,
      module boundaries, and binding technology decisions in `constraints`.
+   - Use the optional `decisions` section for durable rationale behind a
+     material selected choice. Keep its binding outcome in `constraints`.
+   - When creating or materially editing a decision, use one concise PascalCase
+     concept block and record `Decision`, `Context`, and `Scope`.
+   - Use `Scope` to state the governed boundary and important exclusions
+     without attempting to enumerate every current dependent.
+   - Record `Assumptions`, `Trade-offs`, `Design issues addressed`,
+     `Discarded alternatives`, `Consequences`, and `Revisit when` when
+     materially applicable. Omit an inapplicable label instead of adding
+     filler.
+   - Reuse an accessible concept identifier when decisions concern the same
+     semantic idea. Scope remains local to the contextual occurrence; reuse
+     never makes a decision transitively binding.
+   - An import exposes a provider's public concept identity but not its private
+     decision rationale. Select the provider and its matching expands explicitly
+     when that rationale is needed.
+   - Summarize durable rationale rather than prompts, raw session transcripts,
+     or hidden reasoning. Responsibility, accountability, approver, and handoff
+     metadata remain outside the initial convention.
    - Put examples, acceptance criteria, and edge cases in `cases`.
 
 7. Manage concept identifiers.
@@ -286,7 +305,8 @@ Select the workflow before detailed semantic work:
    - Treat ungrouped `interface` content reported by
      `SIGIL_MISSING_CONCEPT_IDENTIFIER` as an authoring gap to repair before
      semantic review. Other sections use concept blocks only when reuse is
-     valuable.
+     valuable. Skill-authored material decisions use one named concept block
+     under the decision-rationale convention above.
    - Allow one concept block to contain a single heavily reused concept or
      several related semantic lines.
    - Resolve repeated blocks collectively across the component and all matching

@@ -72,7 +72,7 @@ Any added, removed, or changed semantic line creates another review gate.
 Anchors and generated Receipts are inactive historical design material recorded
 in [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
 They have no active Sigil contract, package, CLI command, or skill workflow in
-version 0.4.
+version 0.5.
 
 The historical proposal was:
 
@@ -173,7 +173,7 @@ When reviewing or improving Sigil, check:
   interfaces?
 - Does each imported name resolve to a matching component in the imported Sigil source?
 - Does each `expand Name` have a matching `component Name`?
-- Are details such as `state`, `logic`, `constraints`, and `cases` kept in `expand` rather than inside `component`?
+- Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in `expand` rather than inside `component`?
 - Are architecture and stack decisions expressed as constraints?
 - Are implementation-hiding rules and forbidden internal access in constraints
   unless they define an externally observable promise?

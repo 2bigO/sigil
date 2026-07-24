@@ -33,10 +33,10 @@ promises available to them. It need not be exposed to an end user, external
 client, or another deployable service.
 
 Group interface content into concept blocks before implementation. Reuse a
-concept identifier across state, logic, constraints, or cases only when the
-same concept materially connects those sections. Imported dependencies expose
-their public goal and interface concepts; inspect a provider directly when its
-private expands are required for implementation work.
+concept identifier across state, logic, constraints, decisions, or cases only
+when the same concept materially connects those sections. Imported dependencies
+expose their public goal and interface concepts; inspect a provider directly
+when its private expands are required for implementation work.
 
 ## 2. Select Component, Expand, Or Omit
 

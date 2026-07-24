@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Add the optional free-form `decisions` expand section for durable decision
+  rationale while keeping binding outcomes in `constraints`.
+- Define the Sigil skill convention for named material decisions with
+  `Decision`, `Context`, `Scope`, applicable assumptions, trade-offs, addressed
+  issues, discarded alternatives, consequences, and revisit conditions.
+- Preserve contextual imported-concept identity without exposing private
+  decision rationale or making decisions transitively binding.
+- Advance the Sigil Language and configuration contract to 0.5.0 and core,
+  CLI, LSP, VS Code extension, and the Sigil skill to 0.6.0.
+
 ## 0.5.1 - 2026-07-23
 
 - Link concept headings and their owning component names in LSP hover Markdown

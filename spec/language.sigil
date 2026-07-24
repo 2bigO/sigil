@@ -7,7 +7,7 @@ component SigilLanguage {
 
   interface {
     LanguageVersion {
-      sigilVersion = "0.4.0"
+      sigilVersion = "0.5.0"
 
       workspace configuration declares the LanguageVersion that governs interpretation
     }
@@ -57,6 +57,8 @@ component SigilLanguage {
 
       constraints describe rules, policies, invariants, architecture decisions, and binding technology choices
 
+      decisions describes the durable rationale for a chosen course, including context, scope, assumptions, trade-offs, design issues addressed, discarded alternatives, consequences, and revisit conditions
+
       cases describe representative outcomes, examples, edge cases, and observable acceptance scenarios
     }
 
@@ -95,7 +97,7 @@ expand SigilLanguage {
 
       Matching expands add detail collectively and never override the component declaration or another expand.
 
-      A dependent receives the imported component's public contract without its state, logic, constraints, cases, or private concepts.
+      A dependent receives the imported component's public contract without its state, logic, constraints, decisions, cases, or private concepts.
 
       Implementation-hiding rules belong in constraints unless they define an observable promise.
     }
@@ -138,6 +140,18 @@ expand SigilLanguage {
       Import cycles and unresolved paths or names produce diagnostics with partial resolution when practical.
     }
 
+    SectionSemantics {
+      decisions is an optional expand section.
+
+      decisions content is free-form and does not require concept blocks, labeled fields, or a complete rationale schema.
+
+      decisions records concise conclusions and supporting rationale rather than prompts, session transcripts, or hidden reasoning.
+
+      When present, decision scope states the boundary where a chosen course applies and its important exclusions without attempting to enumerate every current dependent.
+
+      A binding outcome remains in constraints; decisions explains why that outcome was selected.
+    }
+
     SemanticLineDiscipline {
       Distinct prose-level ideas are separated by blank lines in every section.
 
@@ -149,7 +163,7 @@ expand SigilLanguage {
     LanguageVersion {
       A tool that does not support the configured LanguageVersion reports an error before interpreting workspace Sigil files.
 
-      A document configured for an earlier incompatible version is not silently reinterpreted using 0.4.0 semantics.
+      A document configured for an earlier incompatible version is not silently reinterpreted using 0.5.0 semantics.
     }
 
     SourceDocument {
@@ -167,7 +181,7 @@ expand SigilLanguage {
     }
 
     ConceptIdentity {
-      Reusing one public concept in interface, state, logic, constraints, or cases preserves one collective identity.
+      Reusing one public concept in interface, state, logic, constraints, decisions, or cases preserves one collective identity.
 
       Importing two different public concepts whose identifiers compare equal without regard to case produces an ambiguous-concept diagnostic.
 
@@ -180,6 +194,14 @@ expand SigilLanguage {
       Importing Name makes Name's public contract available without exposing its collected expansions.
 
       A missing source, component, or directory-import name produces a stable diagnostic and partial resolution when practical.
+    }
+
+    SectionSemantics {
+      An expand may omit decisions without losing validity.
+
+      A decisions section may contain free prose or named concept blocks with rationale labels.
+
+      A binding stack choice appears in constraints while a corresponding decisions entry explains its alternatives and trade-offs.
     }
   }
 }

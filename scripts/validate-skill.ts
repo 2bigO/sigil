@@ -16,6 +16,7 @@ const required = [
   "evals/greenfield-fixture.md",
   "evals/implementation-coverage-fixture.md",
   "evals/concept-identifier-fixture.md",
+  "evals/decision-rationale-fixture.md",
   "evals/glossary-fixture.md",
   "evals/expected.json",
 ];
@@ -159,10 +160,35 @@ requireText(
   "Keep anchoring outside concept-identifier work.",
   "concept identifier anchoring exclusion",
 );
+requireText(
+  skill,
+  "record `Decision`, `Context`, and `Scope`",
+  "decision rationale required labels",
+);
+requireText(
+  skill,
+  "without attempting to enumerate every current dependent",
+  "decision scope boundary",
+);
+requireText(
+  skill,
+  "Reuse an accessible concept identifier when decisions concern the same",
+  "decision contextual concept reuse",
+);
+requireText(
+  skill,
+  "reuse\n     never makes a decision transitively binding",
+  "decision transitive authority guard",
+);
+requireText(
+  skill,
+  "not its private\n     decision rationale",
+  "provider private decision boundary",
+);
 
 const version = (await Deno.readTextFile(`${root}/VERSION`)).trim();
-if (version !== "0.5.0") {
-  throw new Error(`Expected skill VERSION 0.5.0, got ${version}`);
+if (version !== "0.6.0") {
+  throw new Error(`Expected skill VERSION 0.6.0, got ${version}`);
 }
 
 const compatibility = JSON.parse(
@@ -170,9 +196,9 @@ const compatibility = JSON.parse(
 );
 for (
   const [key, expected] of Object.entries({
-    cliVersion: "^0.5.0",
-    coreVersion: "^0.5.0",
-    sigilVersion: "0.4.0",
+    cliVersion: "^0.6.0",
+    coreVersion: "^0.6.0",
+    sigilVersion: "0.5.0",
   })
 ) {
   if (compatibility[key] !== expected) {
@@ -468,6 +494,65 @@ requireText(
   "concept fixture delegated authority boundary",
 );
 
+const decisionRationaleFixture = await Deno.readTextFile(
+  `${root}/evals/decision-rationale-fixture.md`,
+);
+const requiredDecisionRationaleBehaviors = [
+  "keep-binding-outcome-in-constraints",
+  "use-optional-decisions-for-material-rationale",
+  "use-named-decision-concept",
+  "record-decision-context-scope",
+  "bound-scope-with-exclusions",
+  "record-applicable-rationale",
+  "reuse-accessible-public-concept",
+  "prevent-transitive-decision-authority",
+  "inspect-provider-private-rationale-explicitly",
+  "exclude-session-transcripts-and-hidden-reasoning",
+  "exclude-initial-responsibility-and-handoff-metadata",
+];
+if (!Array.isArray(expected.decisionRationaleRequiredBehaviors)) {
+  throw new Error(
+    "Decision rationale fixture must declare required behaviors.",
+  );
+}
+for (const behavior of requiredDecisionRationaleBehaviors) {
+  if (!expected.decisionRationaleRequiredBehaviors.includes(behavior)) {
+    throw new Error(
+      `Decision rationale fixture is missing behavior ${behavior}.`,
+    );
+  }
+}
+requireText(
+  decisionRationaleFixture,
+  "Keep the binding PostgreSQL outcome in `constraints`.",
+  "decision fixture binding constraint",
+);
+requireText(
+  decisionRationaleFixture,
+  "Record `Decision`, `Context`, and `Scope`.",
+  "decision fixture required labels",
+);
+requireText(
+  decisionRationaleFixture,
+  "without\n   enumerating every current dependent",
+  "decision fixture scope boundary",
+);
+requireText(
+  decisionRationaleFixture,
+  "do not make either decision\n   transitively binding",
+  "decision fixture transitive authority guard",
+);
+requireText(
+  decisionRationaleFixture,
+  "provider's private decision rationale matters",
+  "decision fixture provider inspection",
+);
+requireText(
+  decisionRationaleFixture,
+  "raw session transcripts",
+  "decision fixture transcript exclusion",
+);
+
 const glossaryFixture = await Deno.readTextFile(
   `${root}/evals/glossary-fixture.md`,
 );
@@ -698,7 +783,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.5.0 structure, compatibility, concept identifier and glossary workflows, gates, design conversation, Greenfield design, Brownfield adoption, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.6.0 structure, compatibility, decision rationale, concept identifier and glossary workflows, gates, design conversation, Greenfield design, Brownfield adoption, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

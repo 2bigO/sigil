@@ -88,7 +88,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   ]);
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
-  assertEquals(json.cliVersion, "0.5.0");
+  assertEquals(json.cliVersion, "0.6.0");
   assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
@@ -499,7 +499,7 @@ Deno.test("top-level help and version report CLI information", async () => {
 
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
-  assertEquals(version.stdout, "0.5.0\n");
+  assertEquals(version.stdout, "0.6.0\n");
   assertEquals(version.stderr, "");
 });
 
@@ -600,12 +600,12 @@ Deno.test("skill discovery resolves valid skills from the source installation", 
 
 Deno.test("skill install resolves skills beside a selected versioned binary", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-versioned-install-" });
-  const installation = `${root}/0.5.0`;
+  const installation = `${root}/0.6.0`;
   const skills = `${installation}/integrations/skills`;
   try {
     await Deno.mkdir(`${skills}/sigil`, { recursive: true });
     const resolved = await resolveInstalledSkillsDirectory(
-      "https://jsr.io/@qoherent/sigil/0.5.0/src/main.ts",
+      "https://jsr.io/@qoherent/sigil/0.6.0/src/main.ts",
       `${installation}/bin/sigil`,
     );
     assertEquals(await Deno.realPath(resolved), await Deno.realPath(skills));
@@ -680,7 +680,7 @@ Deno.test("executable subprocess returns version JSON", async () => {
   assertEquals(output.code, EXIT_OK);
   assertEquals(
     JSON.parse(new TextDecoder().decode(output.stdout)).cliVersion,
-    "0.5.0",
+    "0.6.0",
   );
 });
 

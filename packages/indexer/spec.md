@@ -5,7 +5,7 @@
 **Last updated:** 2026-07-22
 
 This document records an earlier proposal. Its requirements are not active in
-the version 0.4 workspace.
+the version 0.5 workspace.
 
 ## 1. Purpose
 

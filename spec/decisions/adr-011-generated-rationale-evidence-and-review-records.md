@@ -10,6 +10,8 @@
 
 **Supersedes:** ADR-009 and ADR-010
 
+**Partially superseded by:** ADR-019
+
 ## 1. Decision
 
 Sigil will keep `.sigil` source lightweight and human-authored while its tools
@@ -47,7 +49,9 @@ The platform will split responsibility as follows:
   workspace, component, and semantic-line scales.
 
 No receipt syntax is added to `.sigil` files. Authors continue to write ordinary
-components and expands.
+components and expands. ADR-019 separately adds concise human-authored decision
+rationale through the optional `decisions` expand section; that rationale is
+not receipt data.
 
 This ADR selects the boundary previously described as Option C in ADR-009:
 deterministic shared packages, host-owned model orchestration, and an optional
@@ -79,7 +83,8 @@ Receipts exist to:
 
 Receipts do not:
 
-- add `rationale`, `decision`, `assumption`, or receipt forms to Sigil syntax;
+- add receipt forms to Sigil syntax or turn the free-form `decisions` section
+  from ADR-019 into a formal rationale ontology;
 - turn free-form section bodies into a formal rationale ontology;
 - allow models to approve Sigil, accept anchors, or silently repair stale data;
 - claim that a green assessment proves correctness, compliance, or behavioral

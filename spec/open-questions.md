@@ -27,7 +27,8 @@ This file tracks unresolved language and workflow decisions.
 
 - How should approved Sigil be marked?
 - Should implementation sessions record which Sigil version they used?
-- How should rejected or superseded Sigil decisions be preserved?
+- How should superseded Sigil decisions be preserved beyond the rationale and
+  discarded alternatives retained in `decisions`?
 - Should the Codex skill update implementation plans from Sigil automatically, or only after explicit user approval?
 - How should evidence from brownfield reconciliation remain traceable without becoming Sigil syntax?
 - Should standards sources remain in review summaries or gain a durable repository representation?

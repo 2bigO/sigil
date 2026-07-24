@@ -25,7 +25,7 @@ Expected skill behavior:
 6. Synthesize the evidence and conversational answers into a candidate goal and
    interface, then request separate confirmation.
 7. After confirmation, classify application-wide evidence into optional root
-   `state`, `logic`, `constraints`, and `cases`. Exclude secrets, incidental
+   `state`, `logic`, `constraints`, `decisions`, and `cases`. Exclude secrets, incidental
    dependencies, low-level configuration, and task-specific details.
 8. Propose an exact meaningful ordinary summary component in the workspace-root
    `#module.sigil`; include direct imports only when they define intentional

@@ -76,6 +76,7 @@ implementation and review:
 - `state` for meaningful runtime or domain configurations;
 - `logic` for behavior, flows, decisions, and transitions;
 - `constraints` for invariants, policy, architecture, and binding choices;
+- `decisions` for durable rationale behind material selected choices;
 - `cases` for externally observable outcomes and edge conditions.
 
 Use one semantic idea per non-empty line. Keep private algorithms and storage

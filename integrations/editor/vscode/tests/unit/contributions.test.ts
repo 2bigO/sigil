@@ -28,7 +28,7 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   const packaging = await readFile("scripts/package-extension.mjs", "utf8");
-  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.5.0"), false);
+  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.6.0"), false);
   assert.equal(packaging.includes("manifest.version"), true);
   assert.equal(
     packaging.includes("sigil-vscode-${manifest.version}.vsix"),
@@ -45,6 +45,10 @@ test("TextMate grammar colors syntax without treating capitalized prose as names
   assert(grammar.repository.declarations);
   assert(grammar.repository.sections);
   assert(grammar.repository.concepts);
+  assert.equal(
+    grammar.repository.sections.patterns[0].match.includes("decisions"),
+    true,
+  );
   assert.equal(grammar.repository["type-names"], undefined);
   assert.equal(
     JSON.stringify(grammar).includes("\\\\b[A-Z][A-Za-z0-9_]*\\\\b"),

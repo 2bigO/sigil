@@ -165,7 +165,7 @@ expand SigilLsp {
     }
 
     ConceptLanguageFeatures {
-      Imported-concept hover does not expose private state, logic, constraints, cases, or expansion occurrences.
+      Imported-concept hover does not expose private state, logic, constraints, decisions, cases, or expansion occurrences.
     }
 
     GlossaryLanguageFeatures {

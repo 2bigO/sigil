@@ -38,6 +38,8 @@ component SigilSemanticModel {
     SourceModel {
       SourceLocation and SourceRange identify source positions
 
+      SigilSectionName represents goal, interface, state, logic, constraints, decisions, and cases
+
       SemanticLine preserves owner, section, optional concept identity, text, file path, and source range
 
       ConceptBlock and Section preserve grouped and free semantic content

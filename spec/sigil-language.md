@@ -1,8 +1,8 @@
 # Sigil Language Specification
 
-**Sigil version:** 0.4.0
+**Sigil version:** 0.5.0
 **Status:** Accepted
-**Released:** 2026-07-22
+**Released:** 2026-07-24
 
 Sigil is a lightweight, rationale-oriented modeling language for software systems.
 It records what a system part is, why it exists, how it interacts with its surroundings, and which decisions should guide implementation.
@@ -135,6 +135,16 @@ expand Name {
     rules, policies, invariants, and decisions the implementation must obey
   }
 
+  decisions {
+    PersistenceChoice {
+      Decision: Use PostgreSQL.
+
+      Context: Concurrent writers require transactional consistency.
+
+      Scope: Governs payment persistence and transaction handling.
+    }
+  }
+
   cases {
     externally observable examples, acceptance criteria, and edge cases
   }
@@ -235,7 +245,8 @@ The order is a readability convention.
 It has no semantic effect.
 
 Keep a `component` focused on the public contract.
-Put state, behavior, constraints, examples, architecture rules, and implementation rationale in `expand`.
+Put state, behavior, constraints, decision rationale, examples, and
+architecture rules in `expand`.
 
 Imports declare dependencies between components; do not repeat imported
 dependencies in `interface`.
@@ -248,7 +259,8 @@ import.
 
 An `expand` adds collective operational detail to a component without changing
 or overriding its public contract.
-It is where authors record state, behavior, rules, decisions, edge cases, and examples that would otherwise be lost during implementation.
+It is where authors record state, behavior, rules, decision rationale, edge
+cases, and examples that would otherwise be lost during implementation.
 
 An `expand Name` should normally refer to a matching `component Name`.
 
@@ -257,6 +269,7 @@ An `expand` may contain:
 - `state`
 - `logic`
 - `constraints`
+- `decisions`
 - `cases`
 
 The conventional section order is:
@@ -265,6 +278,7 @@ The conventional section order is:
 state
 logic
 constraints
+decisions
 cases
 ```
 
@@ -384,6 +398,34 @@ Use `constraints` for binding decisions such as:
 Large architecture explanations may live in a separate document.
 When they define enforceable rules, summarize those rules in `constraints`.
 
+### `decisions`
+
+`decisions` is an optional expand section containing durable rationale for a
+chosen course. It may describe context, scope, assumptions, trade-offs, design
+issues addressed, discarded alternatives, consequences, and revisit
+conditions.
+
+The section body remains free-form. The language does not require concept
+blocks, labeled fields, or a complete rationale schema. Ungrouped decision
+content is valid and does not produce
+`SIGIL_MISSING_CONCEPT_IDENTIFIER`.
+
+When present, decision scope states the boundary where a chosen course applies
+and its important exclusions without attempting to enumerate every current
+dependent.
+
+A binding outcome remains in `constraints`; `decisions` explains why that
+outcome was selected. When both concern one semantic idea, authors may reuse
+the same concept identity across the sections.
+
+Imports expose public concept identities, not a provider's private decision
+rationale. A consumer may reuse an accessible public concept in its own
+`decisions` section, but that occurrence remains contextual to the consumer and
+does not make either decision transitively binding.
+
+Decision rationale should summarize durable conclusions rather than prompts,
+raw session transcripts, or hidden reasoning.
+
 ### `cases`
 
 `cases` describes representative externally observable situations.
@@ -444,9 +486,9 @@ may introduce concept identifiers when a concept is useful across sections;
 they do not require all content to be grouped.
 
 A concept is public when it occurs in `interface`. A concept that occurs only in
-`state`, `logic`, `constraints`, or `cases` is private. Imports expose public
-concepts only; they never expose private concept occurrences or collected
-expansion details.
+`state`, `logic`, `constraints`, `decisions`, or `cases` is private. Imports
+expose public concepts only; they never expose private concept occurrences or
+collected expansion details.
 
 Imported public concepts enter the consumer's namespace as bare identifiers.
 Sigil deliberately provides no dotted notation, aliases, or local shadowing.
@@ -532,7 +574,8 @@ A `#module.sigil` must declare at least one local component.
 
 A `component` must contain `goal` and `interface`.
 
-An `expand` may contain `state`, `logic`, `constraints`, and `cases`.
+An `expand` may contain `state`, `logic`, `constraints`, `decisions`, and
+`cases`.
 
 An `expand Name` should normally have a matching `component Name`.
 
@@ -581,6 +624,9 @@ Move internal rationale out of `component` and into `expand`.
 Prefer concrete states, transitions, inputs, outputs, and observable promises over vague descriptions.
 
 When a decision is binding, place it in `constraints`.
+
+When durable rationale matters, explain the selected decision in `decisions`
+without removing its binding outcome from `constraints`.
 
 When a decision is unresolved, record it as an open question instead of hiding it in ambiguous prose.
 
@@ -674,6 +720,40 @@ expand Slotted {
 }
 ```
 
+Decision rationale:
+
+```sigil
+expand Payments {
+  constraints {
+    PersistenceChoice {
+      Payment records are stored in PostgreSQL.
+    }
+  }
+
+  decisions {
+    PersistenceChoice {
+      Decision: Use PostgreSQL for payment records.
+
+      Context: Concurrent writers require transactional consistency.
+
+      Scope: Governs payment persistence and transaction handling. Analytics storage is excluded.
+
+      Assumptions: Managed PostgreSQL is available.
+
+      Trade-offs: Strong consistency is preferred over simpler local persistence.
+
+      Design issues addressed: Prevents conflicting writes and ambiguous recovery.
+
+      Discarded alternatives: SQLite was rejected because multi-writer operation is required.
+
+      Consequences: Persistence changes must preserve transaction boundaries.
+
+      Revisit when: Deployment or concurrency requirements change.
+    }
+  }
+}
+```
+
 Architecture rules as constraints:
 
 ```sigil
@@ -720,7 +800,7 @@ Anchors are intended to provide:
 The historical anchor design was consolidated with generated Receipts, readiness,
 evidence, and review records in
 [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
-No active version 0.4 contract authorizes this capability.
+No active version 0.5 contract authorizes this capability.
 
 ## 14. Unresolved Language Questions
 

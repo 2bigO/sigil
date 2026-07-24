@@ -93,7 +93,7 @@ The Sigil platform architecture is drafted in
 Historical architecture exploration for generated Receipts, evidence, and
 anchors is recorded in
 [ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md),
-but those capabilities are outside the active v0.4 workspace.
+but those capabilities are outside the active v0.5 workspace.
 
 ## Language Shape
 
@@ -143,6 +143,16 @@ expand Name {
     rules, policies, invariants, and decisions the implementation must obey
   }
 
+  decisions {
+    DecisionName {
+      Decision: the selected course
+
+      Context: why a choice was required
+
+      Scope: where the decision applies and important exclusions
+    }
+  }
+
   cases {
     externally observable examples, acceptance criteria, and edge cases
   }
@@ -161,7 +171,7 @@ Open design questions are tracked in
 ## Repository Layout
 
 The root [.sigil/config.json](./.sigil/config.json) defines this repository as a
-Sigil 0.4.0 workspace and excludes the independent example projects. The root
+Sigil 0.5.0 workspace and excludes the independent example projects. The root
 [#module.sigil](./%23module.sigil) is its directory-import index and contains
 the ordinary high-level project summary for this configured boundary.
 
@@ -229,6 +239,8 @@ The skill teaches coding-agent hosts to:
 - preserve material boundary-wide runtime modes, flows, binding architecture
   decisions, and observable outcomes in minimal expands while excluding
   incidental and task-specific details;
+- record durable rationale for material selected choices in optional
+  `decisions` sections while keeping binding outcomes in `constraints`;
 - propose brownfield and externally informed semantic lines before editing;
 - stop at the review gate after semantic changes;
 - colocate approved Sigil with the implementation it explains;
@@ -245,9 +257,9 @@ specification remains [spec/sigil-language.md](spec/sigil-language.md).
 ## Current Status
 
 The core, CLI, LSP, VS Code extension, and skill are pre-production artifacts at
-0.5.0 over Sigil Language and configuration contract 0.4.0. See
+0.6.0 over Sigil Language and configuration contract 0.5.0. See
 [PRE_RELEASE.md](PRE_RELEASE.md), [configuration](spec/sigil-config.md), and the
-[0.4 language migration guide](spec/migrating-to-0.4.md). Reviewed project
+[0.5 language migration guide](spec/migrating-to-0.5.md). Reviewed project
 vocabulary is described in the
 [workspace glossary guide](spec/sigil-glossary.md).
 
@@ -295,4 +307,4 @@ evidence.
 records an earlier proposal for deterministic shared packages, attributed
 host-assisted interpretation, a `sigil-indexer`, and generated review records
 without adding inline Sigil syntax. Its indexer and anchor contracts are not
-part of the active v0.4 workspace.
+part of the active v0.5 workspace.

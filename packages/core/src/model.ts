@@ -7,6 +7,7 @@ export type SigilSectionName =
   | "state"
   | "logic"
   | "constraints"
+  | "decisions"
   | "cases";
 
 export type SigilDiagnosticSeverity = "error" | "warning" | "info";
@@ -39,7 +40,7 @@ export type SigilDiagnosticCode =
   | "SIGIL_GLOSSARY_CONTEXT_OVERLAP"
   | "SIGIL_GLOSSARY_TERM_COLLISION";
 
-export const SIGIL_VERSION = "0.4.0";
+export const SIGIL_VERSION = "0.5.0";
 export const SIGIL_CORE_VERSION = metadata.version;
 export const SIGIL_CONFIG_PATH = ".sigil/config.json" as const;
 export const SIGIL_GLOSSARY_PATH = ".sigil/glossary.json" as const;
