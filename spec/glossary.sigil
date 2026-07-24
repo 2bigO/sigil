@@ -117,6 +117,40 @@ expand SigilWorkspaceGlossary {
     }
   }
 
+  decisions {
+    GlossaryFile {
+      Decision: Use an optional committed strict-JSON GlossaryFile as human-reviewed terminology authority.
+
+      Context: Deterministic extraction can locate vocabulary but cannot safely infer definitions or make generated terminology authoritative.
+
+      Scope: Governs workspace and bounded-context vocabulary; excludes behavioral contracts and Sigil concept identity.
+
+      Trade-offs: Teams maintain an additional reviewed JSON artifact.
+
+      Discarded alternatives: Generated authority, Markdown authority, and new glossary syntax inside Sigil source were rejected.
+
+      Consequences: Approved normative Sigil remains authoritative during conflicts and GlossaryFile must be corrected explicitly.
+
+      Revisit when: JSON maintenance becomes impractical or another format can provide equivalent strict validation and review.
+    }
+
+    ContextResolution {
+      Decision: Resolve workspace terminology plus at most one path-glob-bounded context for each Sigil source.
+
+      Context: The same spelling may need different reviewed meanings across domain boundaries without adding context declarations to every source.
+
+      Scope: Governs effective glossary-entry selection for loaded Sigil sources; excludes workspace membership and component resolution.
+
+      Trade-offs: Overlapping contexts are invalid instead of being resolved by ordering.
+
+      Discarded alternatives: One global namespace and mandatory per-source context annotations were rejected.
+
+      Consequences: Context-local spellings may replace workspace spellings only within their matched source boundary.
+
+      Revisit when: Repository paths cannot represent common terminology boundaries safely.
+    }
+  }
+
   cases {
     ContextResolution {
       A source matching no context receives workspace terms only.

@@ -86,6 +86,24 @@ expand SigilCore {
     }
   }
 
+  decisions {
+    DeterministicCore {
+      Decision: Centralize reproducible Sigil semantics in one typed shared core and keep host interaction and model-assisted judgment outside it.
+
+      Context: CLI, LSP, editor, and agent integrations would drift if they interpreted Sigil independently.
+
+      Scope: Governs parsing, configuration, workspace loading, resolution, graphs, diagnostics, and primitive projections; excludes transport, presentation, elicitation, and approval.
+
+      Trade-offs: Hosts must consume core projections and semantic readiness remains a separate workflow responsibility.
+
+      Discarded alternatives: Host-specific parsers and direct model access from core were rejected.
+
+      Consequences: Compatible hosts derive structural facts from the same implementation boundary.
+
+      Revisit when: A required shared semantic fact cannot be represented without host coupling.
+    }
+  }
+
   cases {
     WorkspaceResolution {
       Resolving a loaded workspace returns imports, components, collective expansions, concept namespaces, graph relationships, and accumulated diagnostics.

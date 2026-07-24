@@ -397,6 +397,24 @@ expand SigilSkill {
     }
   }
 
+  decisions {
+    SigilReviewGate {
+      Decision: Require approval of exact semantic changes before mutation and a second review of written Sigil before implementation.
+
+      Context: Evidence-based proposals may still misstate intent, and validation after writing can reveal relationships that were not visible in the initial proposal.
+
+      Scope: Governs semantic Sigil creation and modification; excludes approved placement-only relocation and import-path maintenance.
+
+      Trade-offs: Two explicit checkpoints add conversational latency.
+
+      Design issues addressed: Prevents advisory analysis, delegated proposals, or successful validation from becoming implicit human approval.
+
+      Consequences: Materially changed proposals invalidate earlier approval and implementation waits for review of the resulting Sigil.
+
+      Revisit when: Workflow evidence demonstrates an equally explicit approval model with fewer checkpoints.
+    }
+  }
+
   cases {
     WorkflowSelection {
       A component with credible existing Sigil uses established-Sigil review unless evidence shows drift.

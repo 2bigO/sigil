@@ -115,6 +115,22 @@ expand SkillInstaller {
     }
   }
 
+  decisions {
+    SkillInstallation {
+      Decision: Protect user-owned destinations by preflighting every target and replacing only installations with Sigil management evidence.
+
+      Context: One installation can target several agents and shared directories, so partial mutation or guessed ownership could damage unrelated content.
+
+      Scope: Governs installation and update ownership for selected skill destinations; excludes source discovery and link-versus-copy mechanics.
+
+      Trade-offs: One unmanaged conflict aborts the complete installation instead of partially updating other targets.
+
+      Consequences: Reinstallation can update managed destinations while unrelated files, directories, and links remain untouched.
+
+      Revisit when: Agent hosts provide a shared transactional package-management authority.
+    }
+  }
+
   cases {
     SkillCatalog {
       A distribution containing multiple valid skills lists them in stable order without a CLI code change.

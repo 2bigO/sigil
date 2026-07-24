@@ -113,6 +113,36 @@ expand SigilVsCodeExtension {
     }
   }
 
+  decisions {
+    EditorLanguageSupport {
+      Decision: Bundle the Node-compatible Sigil language server and use standard LSP features, including hover-backed component preview, without custom protocol methods.
+
+      Context: One VSIX should provide editor features without requiring a global Deno runtime or duplicating core semantics.
+
+      Scope: Governs the VS Code client-server integration and component preview; excludes Sigil language interpretation.
+
+      Trade-offs: Bundling increases package size and requires rebuilding the server with the extension.
+
+      Consequences: Preview, navigation, diagnostics, and highlighting remain compatible with the shared LSP contract.
+
+      Revisit when: A separately installed shared server becomes operationally preferable.
+    }
+
+    SupportedExtensionHosts {
+      Decision: Limit the initial extension to trusted file-backed desktop and remote Node workspace hosts.
+
+      Context: The bundled server currently uses Node filesystem access and process transport, while virtual and web hosts require different runtime and filesystem boundaries.
+
+      Scope: Governs the pre-production extension-host support contract; excludes future browser and virtual-workspace adapters.
+
+      Trade-offs: Restricted, virtual, and browser workspaces receive no full extension support.
+
+      Consequences: The manifest explicitly declares workspace placement and unsupported trust or virtual-workspace modes.
+
+      Revisit when: The server supports browser or VS Code filesystem abstractions, or a security review approves a useful Restricted Mode subset.
+    }
+  }
+
   cases {
     EditorLanguageSupport {
       Opening a .sigil file applies TextMate highlighting and starts language features.

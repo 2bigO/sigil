@@ -75,6 +75,50 @@ expand SigilReleaseDistribution {
     }
   }
 
+  decisions {
+    NativeCliRelease {
+      Decision: Distribute native CLI archives with version-matched agent skills through versioned GitHub Releases.
+
+      Context: Users should be able to install Sigil without first installing Deno, Node.js, or a package-registry client.
+
+      Scope: Governs released CLI archives, bundled skills, and user-scoped installers; excludes source-development and package-registry installation.
+
+      Trade-offs: Maintainers build and test a platform matrix and pre-production executables may remain unsigned.
+
+      Consequences: One selected executable and its bundled skills form a consistent installation unit.
+
+      Revisit when: Package-manager or signed distribution provides equivalent runtime independence and version ownership.
+    }
+
+    ReleaseIntegrity {
+      Decision: Verify downloaded release assets before activation and preserve the currently active version when installation fails.
+
+      Context: Installers retrieve executable archives over a network and must not replace a working installation with incomplete or mismatched content.
+
+      Scope: Governs release checksum publication and installer download, verification, extraction, and activation; excludes future code-signing policy.
+
+      Trade-offs: Releases and installers must maintain a checksum manifest and staged activation flow.
+
+      Consequences: Download, checksum, and extraction failures leave the active executable unchanged.
+
+      Revisit when: Platform signing and package-manager verification replace checksum-based integrity.
+    }
+
+    VsCodeRelease {
+      Decision: Distribute the pre-production VSIX through GitHub Releases until an approved extension-marketplace publisher identity exists.
+
+      Context: The extension needs an installable versioned channel while the current publisher identity remains development-only.
+
+      Scope: Governs public VSIX distribution; excludes local development packages and future marketplace publication.
+
+      Trade-offs: Users install the VSIX manually and receive less marketplace discovery and update automation.
+
+      Consequences: Release tags and the extension manifest remain the version authorities for downloadable VSIX assets.
+
+      Revisit when: An approved publisher identity and marketplace-release process are available.
+    }
+  }
+
   cases {
     NativeCliRelease {
       Apple Silicon macOS and supported Linux users install matching native archives without Deno.
