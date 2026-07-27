@@ -12,12 +12,13 @@ questionnaire and does not replace the user's authority.
 
 1. Maintain the conversation state
 2. Prioritize decisions
-3. Run one conversational turn
-4. Handle uncertainty and conflict
-5. Run a correction conversation
-6. Use checkpoints
-7. Finish or block the conversation
-8. Limits and examples
+3. Use external guidance evidence
+4. Run one conversational turn
+5. Handle uncertainty and conflict
+6. Run a correction conversation
+7. Use checkpoints
+8. Finish or block the conversation
+9. Limits and examples
 
 ## 1. Maintain The Conversation State
 
@@ -71,7 +72,52 @@ lifecycle, failure behavior, binding architecture, or acceptance criteria. Other
 decisions may be provisionally assumed or intentionally deferred when the user
 accepts that treatment.
 
-## 3. Run One Conversational Turn
+## 3. Use External Guidance Evidence
+
+Follow `references/external-guidance-evidence.md` after initial framing and
+before presenting alternatives or a recommendation for a guidance-sensitive
+material decision.
+
+First establish:
+
+- intended outcome;
+- affected users, callers, or systems;
+- responsibility and component boundary;
+- relevant public or external interaction surface;
+- known data, security, safety, regulatory, and platform constraints.
+
+Then assess whether current authoritative guidance could materially change the
+next binding decision, its risks, alternatives, or acceptance criteria. Do not
+research before every question or merely because a technology is mentioned.
+Reassess when the boundary, risk, environment, or binding requirements change.
+
+When research is required, use its evidence packet to:
+
+- identify which alternatives are actually available;
+- explain consequences, uncertainty, and environment or version limits;
+- distinguish binding authority, normative standards, official operational
+  guidance, and advisory practice;
+- support the reasoned recommendation with directly relevant source identity
+  and links.
+
+The evidence remains nonbinding. The user retains decision authority, and
+research never becomes an independent approval gate.
+
+When authoritative sources disagree before a project decision exists, record
+the disagreement as an unresolved design constraint rather than a correction
+finding. When applicable guidance materially conflicts with approved Sigil or a
+confirmed decision, enter the correction conversation.
+
+Incomplete evidence may support a clearly stated conservative provisional
+option only for a low-risk reversible decision. Require the missing evidence or
+qualified review before recommending a definitive choice involving security,
+regulated data, safety, destructive behavior, or binding compliance.
+
+Reuse a valid evidence packet while its question, boundary, environment, risk,
+source status, and applicability assumptions remain unchanged. Keep research
+uncertainty visible in checkpoints and synthesis.
+
+## 4. Run One Conversational Turn
 
 Present one primary design decision per turn unless the user asks for a faster
 grouped review. Include tightly coupled subquestions only when separating them
@@ -85,7 +131,8 @@ Each turn should:
    on it;
 3. ask one direct question in the user's vocabulary;
 4. when alternatives exist, offer a small concrete set with their meaningful
-   consequences and a reasoned recommendation;
+   consequences and a reasoned recommendation, informed by applicable external
+   guidance when required;
 5. make clear that the user may combine, reject, revise, or replace the offered
    choices.
 
@@ -98,7 +145,7 @@ retain the same explanation, recommendation, acknowledgement, and ledger
 behavior. Return to one primary decision when the grouped answers reveal a
 conflict or material uncertainty.
 
-## 4. Handle Uncertainty And Conflict
+## 5. Handle Uncertainty And Conflict
 
 When the user is unsure, explain the uncertainty and recommend a conservative
 option with its consequences. A low-risk, reversible choice may become a
@@ -124,7 +171,7 @@ When the user appears overwhelmed, reduce the scope to the single most
 foundational decision, shorten the explanation, and defer non-blocking topics.
 Do not lower safety or approval requirements to make the conversation shorter.
 
-## 5. Run A Correction Conversation
+## 6. Run A Correction Conversation
 
 When review identifies a suspected or confirmed material semantic,
 architectural, or design problem, pause ordinary design exploration and enter a
@@ -164,7 +211,7 @@ resolved. Resume ordinary design work only when every active material correction
 finding is resolved. The resolution still requires the normal exact Sigil
 proposal and approval gates.
 
-## 6. Use Checkpoints
+## 7. Use Checkpoints
 
 Give a compact checkpoint after several decisions, when the conversation changes
 phase, when a conflict changes earlier conclusions, or when the user asks for
@@ -174,12 +221,14 @@ status. Report:
 - provisional assumptions;
 - intentionally deferred decisions;
 - unresolved blockers;
+- material external-guidance findings or limitations affecting the next
+  decision;
 - the next decision and why it is next.
 
 Do not repeat the entire conversation. Keep the checkpoint small enough for the
 user to correct the emerging design without losing momentum.
 
-## 7. Finish Or Block The Conversation
+## 8. Finish Or Block The Conversation
 
 Move to synthesis only when no unresolved decision can materially change the
 contract being proposed. The synthesis must state:
@@ -190,7 +239,10 @@ contract being proposed. The synthesis must state:
 - binding architecture or platform decisions;
 - confirmed assumptions and accepted tradeoffs;
 - intentionally deferred non-blocking decisions;
-- any unavailable guidance or uncertainty that still requires acceptance.
+- evidence-informed decisions and their directly relevant source identity when
+  material;
+- any unavailable, partially assessed, or conflicting guidance that still
+  requires acceptance.
 
 Then prepare exact proposed Sigil using the applicable Greenfield, Brownfield,
 semantic-review, and implementation-coverage procedures. Conversation is not
@@ -206,7 +258,7 @@ If a suspected or confirmed material correction finding remains active, keep
 the conversation in correction. Do not treat ordinary design synthesis as a way
 to bypass the finding.
 
-## 8. Limits And Examples
+## 9. Limits And Examples
 
 Every question must materially improve product intent, public behavior,
 ownership, lifecycle, architecture, risk handling, or verification. Do not
@@ -223,6 +275,9 @@ Explain the consequences of synchronous, queued, and event-driven delivery,
 recommend one based on the confirmed outcome, and ask the user to choose or
 describe another direction. Do not combine this with unrelated retention and UI
 questions.
+
+When delivery guarantees depend on a versioned platform or protocol, consult
+matching authoritative guidance before presenting the recommendation.
 
 ### Conflicting Answer
 

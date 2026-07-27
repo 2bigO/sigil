@@ -1,6 +1,7 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig, SigilModuleIndex }
 @packages/cli import { SigilCli }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
+@integrations/skills/sigil/external-guidance-evidence.sigil import { ExternalGuidanceEvidence }
 
 component SigilSkill {
   goal {
@@ -275,11 +276,13 @@ expand SigilSkill {
     }
 
     StandardsReview {
-      Determine whether the domain, stack, risk, or public contract makes external guidance relevant.
+      Use ApplicabilityAssessment and EvidencePacket from ExternalGuidanceEvidence for applicable authoritative research.
 
-      Research authoritative sources when guidance is relevant and record source details outside Sigil.
+      When a material selected choice lacks sufficient decision-rationale coverage, use ApplicabilityAssessment to determine whether research can materially improve correction options or durable rationale before proposal synthesis.
 
-      Classify each finding and present compatible changes as exact proposed semantic lines.
+      Verify the currency and environment match of evidence created during design conversation before reusing it.
+
+      Classify each current finding and present compatible changes as exact proposed semantic lines.
 
       Preserve current Sigil and request a decision when guidance potentially or definitely conflicts.
     }
@@ -427,7 +430,13 @@ expand SigilSkill {
     }
 
     StandardsReview {
-      Source details remain in the review summary rather than Sigil.
+      Design conversation shows directly relevant source identity with evidence-informed recommendations.
+
+      Standards review records complete source details and maps findings to their supporting evidence.
+
+      Approved Sigil may retain a source identifier and applicable version only when needed to reconstruct material rationale or its revisit condition.
+
+      Source URLs and full bibliographic records remain outside Sigil unless a separate policy is approved.
 
       Approved additions are written as project decisions rather than claims of certification.
 
@@ -554,6 +563,20 @@ expand SigilSkill {
   }
 
   decisions {
+    StandardsReview {
+      Decision: Consume shared ExternalGuidanceEvidence for materially relevant contract questions and unsupported material choices while retaining standards-review authority over finding classification and gate consequences.
+
+      Scope: Governs standards-aware semantic review; excludes evidence acquisition mechanics and design-conversation recommendation policy.
+
+      Trade-offs: Reused evidence requires currency and applicability verification, and unsupported choices may require new research before proposal synthesis.
+
+      Design issues addressed: Shared evidence must not determine approval consequences, while a missing-rationale audit must not end without assessing whether external evidence could materially improve the choice.
+
+      Consequences: Research remains nonbinding, standards review owns conflicts and blocking outcomes, and unsupported material choices receive evidence when it can improve their correction or durable rationale.
+
+      Revisit when: Evidence classification and workflow approval become one intentionally governed component.
+    }
+
     DecisionRationaleWorkflow {
       Decision: Require a decision-rationale coverage audit before proposal approval and again after approved Sigil is written.
 
@@ -666,6 +689,8 @@ expand SigilSkill {
 
     StandardsReview {
       Unavailable compliance-critical guidance blocks implementation while low-risk unverifiable guidance is reported for explicit acceptance.
+
+      A JWT session constraint without sufficient decision rationale is assessed for research applicability before correction and decision authoring.
     }
 
     ModularityReview {

@@ -79,6 +79,12 @@ When any material part remains vague, unsupported, or contradictory, use
 remains unknown, then resolve missing purpose, boundary, and interface decisions
 one primary decision at a time unless the user requests a faster grouped review.
 
+After purpose, users or callers, responsibility boundary, external surface, and
+known risk constraints are sufficiently framed, follow
+`references/external-guidance-evidence.md`. Acquire applicable authoritative
+evidence before presenting alternatives or a recommendation for a
+guidance-sensitive boundary decision.
+
 Maintain confirmed, provisionally assumed, intentionally deferred, and
 unresolved decisions through the shared protocol. Do not guess missing purpose
 or interface lines. Ask the user to confirm or correct each synthesized boundary
@@ -185,6 +191,11 @@ focused question through `references/design-conversation.md` when resolution
 could change public behavior, ownership, permissions, sensitive data, persistent
 state, lifecycle, compatibility, failure behavior, or acceptance criteria.
 
+When current authoritative guidance could materially affect that question,
+acquire an evidence packet before presenting choices. Treat disagreement between
+authoritative sources as unresolved evidence; enter the correction conversation
+only when applicable guidance conflicts with approved Sigil or confirmed intent.
+
 Do not silently treat code, tests, documentation, directory structure, or a
 preferred architecture as authoritative. Suspected accidental behavior does not
 become a contract without user confirmation.
@@ -263,8 +274,9 @@ Ask the user to approve, reject, or revise the boundary, evidence
 interpretation, locations, imports, and exact semantic lines.
 
 Before requesting approval, apply semantic-readiness, standards,
-cross-Sigil-coherence, and modularity review. Present sourced suggestions and
-conflicts rather than silently changing the proposal.
+cross-Sigil-coherence, and modularity review. Verify the currency and
+applicability of evidence packets created during conversation. Present sourced
+suggestions and conflicts rather than silently changing the proposal.
 
 Review the exact ungrouped reconstruction first. When semantic readiness is
 `correction required`, preserve the proposal and enter the same-chat correction

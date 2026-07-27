@@ -382,6 +382,11 @@
           "aliases": [
             "durable decision rationale"
           ]
+        },
+        {
+          "term": "evidence packet",
+          "definition": "A conversation-scoped, nonbinding record of an external-guidance investigation containing its question, source authority and identity, applicability, environment match, findings, limitations, conflicts, and freshness conditions.",
+          "aliases": ["evidence packets"]
         }
       ]
     }

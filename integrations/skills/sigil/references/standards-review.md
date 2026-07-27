@@ -1,14 +1,15 @@
 # Standards-Aware Semantic Review
 
 Use this procedure when creating, reviewing, or preparing Sigil for
-implementation. It adds host-side semantic review and external research without
-changing the Sigil grammar or treating model judgment as core validation.
+implementation. It adds host-side semantic review and consumes shared external
+guidance evidence without changing the Sigil grammar or treating model judgment
+as core validation.
 
 ## Contents
 
 1. Applicability and risk
 2. Semantic-readiness review
-3. Research and source policy
+3. Evidence consumption and provenance
 4. Finding classification
 5. Action and approval policy
 6. Compliance language
@@ -17,21 +18,15 @@ changing the Sigil grammar or treating model judgment as core validation.
 
 ## 1. Applicability And Risk
 
-Assess external-guidance applicability on every Sigil review. Do not browse by
-default when no external guidance can materially affect the component.
+Follow `references/external-guidance-evidence.md` to assess applicability on
+every Sigil review. Do not browse by default when current authoritative
+guidance cannot materially affect a binding contract decision, its risks,
+available alternatives, or acceptance criteria.
 
-Consider research when the component involves:
-
-- authentication, authorization, secrets, cryptography, or other security
-  boundaries;
-- personal, regulated, financial, health, or otherwise sensitive data;
-- accessibility or human-interface obligations;
-- public APIs, protocols, interoperability, file formats, or versioned
-  contracts;
-- reliability, availability, recovery, audit, or operational safety;
-- a regulated or standards-governed domain;
-- framework, platform, database, or vendor behavior that may have changed;
-- an explicit organizational, contractual, or user requirement.
+When design conversation already produced an evidence packet, verify its
+question, boundary, environment and version match, source currency, risk,
+jurisdiction, mandates, and applicability assumptions before reusing it.
+Reacquire evidence when any invalidation condition holds.
 
 Use a qualitative risk level:
 
@@ -104,6 +99,20 @@ When a confirmed choice lacks a decision record, add the exact decision block to
 the semantic proposal. When its governing rationale is unresolved or conflicts
 with evidence, enter the same-chat correction conversation. Missing coverage
 keeps semantic readiness at `correction required` and blocks proposal approval.
+
+When a material choice lacks a matching decision occurrence or its rationale is
+insufficient, use the applicability assessment from
+`references/external-guidance-evidence.md`. Acquire an evidence packet before
+proposal synthesis when current guidance can materially improve the choice's
+risks, alternatives, trade-offs, assumptions, consequences, revisit conditions,
+correction options, or durable rationale.
+
+Research informs the correction conversation and proposed rationale; it never
+supplies missing project intent, retroactively justifies the existing choice, or
+substitutes for user confirmation and semantic approval. When external guidance
+cannot materially improve the choice, record that research is not material and
+resolve the rationale gap from user-confirmed or repository-supported evidence
+without filler research.
 
 After approved Sigil is written, repeat the audit against the exact resulting
 semantic lines. Successful CLI validation never substitutes for this audit.
@@ -223,40 +232,45 @@ Warn about god components, duplicated ownership, chatty or oversized
 interfaces, cyclic dependencies, shared mutable state, and implementation-shaped
 contracts. Do not assign arbitrary scores or thresholds.
 
-## 3. Research And Source Policy
+## 3. Evidence Consumption And Provenance
 
-Use a primary-first source hierarchy:
+Use the shared evidence packet rather than creating a second research policy in
+this procedure. Standards review owns interpretation and gate consequences:
 
-1. public text from the applicable standards body, regulator, or government;
-2. official standards and guidance such as ISO/IEC public material, IETF RFCs,
-   W3C recommendations, NIST publications, and OWASP guidance;
-3. official framework, platform, protocol, database, or vendor documentation;
-4. reputable secondary material only to locate or contextualize primary
-   sources.
+1. verify that the packet is current and applicable to the exact reviewed
+   component and environment;
+2. compare its guidance with exact Sigil lines, collected expands, repository
+   constraints, explicit requirements, and other applicable evidence;
+3. classify each current finding under Section 4;
+4. determine proposal, conflict, uncertainty, and implementation consequences
+   under Section 5.
 
-Do not use a secondary source as the sole evidence for a standards or compliance
-finding. Prefer the current applicable version and verify that the source scope
-matches the component.
-
-In the review summary record:
+In the review summary, include the complete source record supplied by the
+packet:
 
 - issuer;
 - title;
-- identifier and version when available;
+- identifier and available version or currency information;
 - publication or update date when available;
 - access date;
 - direct link;
-- relevant scope and any access limitation.
+- authority class;
+- relevant scope and environment match;
+- access, redaction, or other assessment limitations.
 
-Keep this source record in the review summary only. Do not add source URLs or
-compliance claims to Sigil unless the user changes that policy.
+Map each researched finding to its supporting sources. During design
+conversation, a directly relevant source identity and link may accompany an
+evidence-informed recommendation. During standards review, retain the complete
+records under `Sources Consulted`.
 
-For paywalled standards such as many ISO publications, use only accessible
-official scope, preview, or supporting material. Do not infer unseen clauses.
-Mark the unavailable portion as `not assessable` and explain what qualified or
-licensed review remains necessary.
+Approved Sigil may retain a source identifier and applicable version only when
+needed to reconstruct material decision rationale or its revisit condition.
+Keep source URLs and full bibliographic records outside Sigil unless the user
+approves a different project policy. Never write certification or complete
+compliance claims into Sigil.
 
-Avoid long quotations. Paraphrase the guidance and link to the primary source.
+When a packet is partially assessed or not assessable, preserve that state
+rather than filling missing clauses or scope through model inference.
 
 ## 4. Finding Classification
 

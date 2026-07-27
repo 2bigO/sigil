@@ -46,13 +46,20 @@ Then select one semantic workflow:
 
 Also load these cross-cutting references when applicable:
 
+- `references/external-guidance-evidence.md`: after sufficient framing whenever
+  current authoritative guidance could materially change a binding contract
+  decision, its risks, alternatives, or acceptance criteria, or could materially
+  improve evidence for an unsupported material choice. It owns shared
+  applicability assessment, source authority, environment and version matching,
+  secure evidence acquisition, evidence packets, sufficiency, and reuse.
 - `references/design-conversation.md`: whenever a material decision needs
   clarification. It owns decision states, one-primary-decision turns,
-  checkpoints, deferral, same-chat correction conversations, conflict handling,
-  and synthesis.
+  checkpoints, deferral, just-in-time evidence consumption, same-chat correction
+  conversations, conflict handling, and synthesis.
 - `references/standards-review.md`: whenever creating, reviewing, or preparing
   Sigil for implementation. It owns the skill-assisted semantic-readiness gate,
-  standards, evidence, conflicts, and modularity review.
+  evidence interpretation, finding classification, conflicts, compliance
+  language, and modularity review.
 - `references/implementation-design.md`: before writing or changing
   implementation or deciding whether coverage reaches the implementation
   boundary. It owns component/expand/omit selection and the implementation
@@ -69,9 +76,10 @@ Also load these cross-cutting references when applicable:
   meanings, or examples are needed.
 
 Greenfield and Brownfield decide which evidence and contract questions matter.
-The design-conversation reference decides how unresolved questions are handled.
-The authoring, standards, glossary, and implementation references remain
-applicable across all three semantic workflows.
+The external-guidance reference owns shared evidence acquisition. The
+design-conversation and standards references apply different consumer policies
+to that evidence. The authoring, standards, glossary, and implementation
+references remain applicable across all three semantic workflows.
 
 ## Established-Sigil Workflow
 
@@ -95,6 +103,9 @@ applicable across all three semantic workflows.
 
 3. Review semantics and modularity.
    - Follow `references/standards-review.md`.
+   - Use `references/external-guidance-evidence.md` when its material-effect
+     trigger applies, and verify any design-conversation evidence packet before
+     reusing it.
    - Treat `sigil check` as deterministic structural and workspace validation,
      not semantic validation.
    - Separate observed behavior, documented intent, user-confirmed intent,
@@ -107,9 +118,14 @@ applicable across all three semantic workflows.
      semantic readiness appears aligned for the selected scope.
    - Treat missing decision-rationale coverage for a material selected choice
      as a semantic-readiness gap even when CLI validation succeeds.
+   - Assess whether external guidance could materially improve the missing or
+     insufficient rationale before synthesizing a correction proposal.
 
 4. Resolve missing intent.
    - Follow `references/design-conversation.md`.
+   - After initial purpose and boundary framing, acquire applicable external
+     guidance before presenting guidance-sensitive alternatives or a
+     recommendation.
    - Ask one primary decision per turn unless the user requests grouped review.
    - Do not silently invent product, architecture, persistence, authorization,
      deployment, lifecycle, or other binding decisions.

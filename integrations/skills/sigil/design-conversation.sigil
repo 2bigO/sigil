@@ -1,3 +1,5 @@
+@integrations/skills/sigil/external-guidance-evidence.sigil import { ExternalGuidanceEvidence }
+
 component SigilDesignConversation {
   goal {
     Guide a user from incomplete software intent to a coherent contract through small, material decisions.
@@ -74,6 +76,26 @@ expand SigilDesignConversation {
       When the user is uncertain, present a conservative recommendation and permit only non-blocking uncertainty to be deferred.
     }
 
+    ApplicabilityAssessment {
+      Complete basic framing before assessing whether external guidance could materially affect the next design decision.
+
+      Invoke ExternalGuidanceEvidence before presenting alternatives or a recommendation for a guidance-sensitive material decision.
+
+      Reassess applicability when the boundary, risk, environment, or binding requirements change.
+    }
+
+    EvidencePacket {
+      Use applicable evidence to explain alternatives, consequences, uncertainty, and the reasoned recommendation.
+
+      Treat disagreement between authoritative sources as an unresolved design constraint when no project decision exists.
+
+      Enter CorrectionConversation when applicable guidance materially conflicts with approved Sigil or a confirmed user decision.
+
+      Offer a conservative provisional option only when incomplete evidence affects a low-risk reversible decision.
+
+      Require missing evidence or qualified review before recommending a definitive high-risk or compliance-critical choice.
+    }
+
     CorrectionConversation {
       When review identifies a material semantic, architectural, or design problem, pause ordinary design exploration and enter the same-chat correction phase.
 
@@ -110,6 +132,18 @@ expand SigilDesignConversation {
       Immaterial hypothetical edge cases are not pursued merely for completeness.
     }
 
+    ApplicabilityAssessment {
+      External-guidance research follows sufficient framing and does not run before every conversational question.
+    }
+
+    EvidencePacket {
+      Evidence informs the conversation without replacing user decision authority.
+
+      Research uncertainty may keep a material decision unresolved but does not create an independent approval gate.
+
+      A valid packet may be reused without repeated research while its invalidation conditions remain unchanged.
+    }
+
     CorrectionConversation {
       A subjective preference is not labeled a problem without concrete semantic or risk evidence.
 
@@ -132,6 +166,20 @@ expand SigilDesignConversation {
   }
 
   decisions {
+    ApplicabilityAssessment {
+      Decision: Use just-in-time ExternalGuidanceEvidence after minimum framing and before guidance-sensitive alternatives or recommendations.
+
+      Scope: Governs Sigil design conversation; excludes initial purpose and boundary discovery that must precede meaningful applicability assessment.
+
+      Trade-offs: Some design turns pause for research before presenting the next decision.
+
+      Design issues addressed: Deferring research until final standards review produces weaker questions and can omit relevant alternatives or constraints.
+
+      Consequences: Evidence improves decision framing without turning research into a conversational or approval gate.
+
+      Revisit when: Evidence acquisition cannot complete within an interactive design conversation.
+    }
+
     CorrectionConversation {
       Decision: Use a dedicated correction phase within the same chat for suspected or confirmed material semantic, architectural, or design problems.
 
@@ -154,6 +202,14 @@ expand SigilDesignConversation {
       A conflict with an earlier answer is explained before another topic begins.
 
       An uncertain user receives a recommendation with consequences rather than an unexplained default.
+    }
+
+    EvidencePacket {
+      A version-sensitive framework choice cites matching official documentation while explaining alternatives.
+
+      Conflicting guidance is presented as uncertainty rather than disguised as a confident recommendation.
+
+      Missing compliance-critical evidence keeps the affected decision unresolved pending qualified review.
     }
 
     CorrectionConversation {

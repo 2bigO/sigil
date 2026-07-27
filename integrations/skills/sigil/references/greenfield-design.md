@@ -28,6 +28,12 @@ states, prioritization, one-primary-decision turns, recommendations,
 checkpoints, conflict handling, and the synthesis exit condition. Conversation
 is a normal design activity even when the initial request appears clear.
 
+After the intended outcome, affected users or callers, responsibility boundary,
+external surface, and known risk constraints are sufficiently framed, follow
+`references/external-guidance-evidence.md`. Acquire applicable authoritative
+evidence before the design conversation presents alternatives or a
+recommendation for a guidance-sensitive material decision.
+
 Use the shared protocol to resolve Greenfield decisions about:
 
 - product purpose and intended outcome;
@@ -90,9 +96,10 @@ approved and use a separate Sigil review cycle.
 
 ## 4. Review And Synthesize Proposed Sigil
 
-Apply `references/standards-review.md` before asking for final approval. Review
-semantic readiness, applicable guidance, cross-Sigil coherence, modularity,
-constraint-derived cases, and evidence or uncertainty.
+Apply `references/standards-review.md` before asking for final approval. Verify
+the currency and applicability of evidence packets created during design
+conversation, then review semantic readiness, applicable guidance, cross-Sigil
+coherence, modularity, constraint-derived cases, and evidence or uncertainty.
 
 Review the exact ungrouped proposal first. If semantic readiness is
 `correction required`, enter the same-chat correction conversation and stop
