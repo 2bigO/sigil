@@ -105,9 +105,11 @@ sigil version <repository-root> --format json --pretty
 sigil check <repository-root> --format json --pretty
 ```
 
-Initialization may create `.sigil/config.json`; it must not overwrite existing
-config or semantically rewrite existing `.sigil` sources. Diagnostics after
-initialization are evidence for reconciliation, not permission to repair files.
+Initialization may create `.sigil/config.json` and a missing seeded
+`.sigil/glossary.json`; it must not overwrite existing
+config or semantically rewrite existing `.sigil` sources. It also preserves an existing glossary
+without merging, replacing, or normalizing it. Diagnostics after initialization
+are evidence for reconciliation, not permission to repair files.
 
 Do not classify this state automatically as Brownfield. After validation,
 implementation evidence may select Greenfield, Brownfield, or established-Sigil

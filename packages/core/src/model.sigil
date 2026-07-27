@@ -20,7 +20,7 @@ component SigilSemanticModel {
     }
 
     GlossaryModel {
-      GlossaryTerm preserves its canonical spelling, definition, aliases, scope, and declaration range
+      GlossaryTerm preserves its canonical spelling, definition, aliases, agent-context visibility, scope, and declaration range
 
       WorkspaceGlossary contains validated workspace terms and bounded contexts
 
@@ -104,7 +104,7 @@ expand SigilSemanticModel {
     GlossaryModel {
       Glossary declarations and occurrences are immutable to consumers.
 
-      GlossaryContextProjection excludes glossary entries unrelated to its selected source files.
+      GlossaryContextProjection excludes glossary entries unrelated to its selected source files and entries whose agentContext is false.
 
       Invalid glossary input remains representable through diagnostics without becoming authoritative data.
 

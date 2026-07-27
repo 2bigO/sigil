@@ -101,8 +101,9 @@ Code demonstrates current behavior; it does not prove desired behavior or ration
 Initial brownfield Sigil contains only the contract the user approves.
 
 When no workspace exists, the agent first runs `sigil init` at the repository
-root, then validates the created config before gathering detailed project
-evidence. It never overwrites an existing config.
+root, then validates the created config and seeded convention glossary before
+gathering detailed project evidence. It never overwrites an existing config or
+glossary.
 
 The agent then inspects product and architecture documentation, dependency
 definitions, executable configuration, and entrypoints for the workspace root

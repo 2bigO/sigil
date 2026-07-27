@@ -241,6 +241,11 @@
         "agent context projection",
         "agent context projections"
       ]
+    },
+    {
+      "term": "decision record convention",
+      "definition": "The recommended authoring structure for durable rationale in a Sigil decisions section: Decision and Scope are required by the convention, while Assumptions, Trade-offs, Design issues addressed, Discarded alternatives, Consequences, and Revisit when are included when materially applicable; Sigil syntax itself remains free-form.",
+      "agentContext": false
     }
   ],
   "contexts": [

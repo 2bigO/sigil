@@ -20,6 +20,7 @@ import {
   resolveSigilWorkspace,
   SIGIL_CONFIG_PATH,
   SIGIL_CORE_VERSION,
+  SIGIL_GLOSSARY_PATH,
   SIGIL_VERSION,
   type SigilConfig,
   type SigilDiagnostic,
@@ -52,6 +53,7 @@ export interface ParseFileResult {
 export interface InitConfigResult {
   readonly root: string;
   readonly configPath: string;
+  readonly glossaryPath: string;
   readonly config: SigilConfig | null;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
@@ -122,10 +124,12 @@ export class CoreAdapter {
   ): Promise<InitConfigResult> {
     const root = this.resolveTarget(path ?? this.#currentDirectory);
     const configPath = joinPath(root, SIGIL_CONFIG_PATH);
+    const glossaryPath = joinPath(root, SIGIL_GLOSSARY_PATH);
     if (await this.#fs.exists(configPath)) {
       return {
         root,
         configPath,
+        glossaryPath,
         config: null,
         diagnostics: [
           diagnostic(
@@ -159,7 +163,13 @@ export class CoreAdapter {
       configPath,
       `${JSON.stringify(config, null, 2)}\n`,
     );
-    return { root, configPath, config, diagnostics: [] };
+    if (!(await this.#fs.exists(glossaryPath))) {
+      await writable.writeTextFile(
+        glossaryPath,
+        `${JSON.stringify(seedGlossary(), null, 2)}\n`,
+      );
+    }
+    return { root, configPath, glossaryPath, config, diagnostics: [] };
   }
 
   versions(): VersionInfo {
@@ -214,4 +224,27 @@ function isAbsolute(path: string): boolean {
 function basename(path: string): string {
   const normalized = normalizePath(path);
   return normalized.slice(normalized.lastIndexOf("/") + 1) || "sigil";
+}
+
+function seedGlossary(): {
+  readonly schemaVersion: 1;
+  readonly terms: readonly {
+    readonly term: string;
+    readonly definition: string;
+    readonly agentContext: false;
+  }[];
+  readonly contexts: readonly [];
+} {
+  return {
+    schemaVersion: 1,
+    terms: [
+      {
+        term: "decision record convention",
+        definition:
+          "The recommended authoring structure for durable rationale in a Sigil decisions section: Decision and Scope are required by the convention, while Assumptions, Trade-offs, Design issues addressed, Discarded alternatives, Consequences, and Revisit when are included when materially applicable; Sigil syntax itself remains free-form.",
+        agentContext: false,
+      },
+    ],
+    contexts: [],
+  };
 }

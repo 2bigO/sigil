@@ -328,8 +328,9 @@ glossary contributes diagnostics but no active definitions.
 ### Glossary term
 
 A canonical project-specific spelling, reviewed definition, optional aliases,
-scope, and declaration range. A glossary term is distinct from a Sigil concept
-identifier.
+optional agent-context visibility, scope, and declaration range. A glossary
+term is distinct from a Sigil concept identifier. Agent-context visibility
+defaults to included; exclusion affects only agent-facing scoped projections.
 
 ### Bounded context
 

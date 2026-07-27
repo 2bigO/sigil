@@ -32,7 +32,9 @@ Responsibilities:
 - preserve source locations and semantic lines;
 - parse and validate optional `.sigil/glossary.json`;
 - resolve path-scoped glossary contexts and source-ranged prose occurrences;
-- project only glossary terms recognized in selected agent-context files;
+- project only agent-visible glossary terms recognized in selected
+  agent-context files while retaining excluded terms for full glossary and
+  editor consumers;
 - parse concept blocks and resolve flat public/private concept namespaces;
 - parse optional free-form decision-rationale sections;
 - identify the root project and workspace-member roots declared by

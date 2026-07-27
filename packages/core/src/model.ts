@@ -155,6 +155,7 @@ export interface GlossaryTerm {
   readonly term: string;
   readonly definition: string;
   readonly aliases: readonly string[];
+  readonly agentContext: boolean;
   readonly scope: GlossaryScope;
   readonly declarationRange: SourceRange;
 }

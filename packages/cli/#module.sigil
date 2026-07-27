@@ -67,7 +67,7 @@ component SigilCli {
     WorkspaceMutationBoundary {
       workspace inspection commands do not modify .sigil source
 
-      init may create the .sigil directory and a missing ConfigFile but no .sigil source
+      init may create the .sigil directory, a missing ConfigFile, and a missing seeded GlossaryFile but no .sigil source
     }
   }
 }
@@ -102,6 +102,12 @@ expand SigilCli {
       init defaults workspace.name to the target-directory basename and workspace.members to an empty array.
 
       init applies the configured default SourceSelection and ToolConfiguration values.
+
+      init creates a missing GlossaryFile containing only the decision record convention entry.
+
+      The seeded entry sets agentContext to false and no bounded contexts.
+
+      init preserves an existing GlossaryFile instead of merging, replacing, or normalizing it.
     }
 
     WorkspaceInspection {
@@ -147,7 +153,7 @@ expand SigilCli {
     WorkspaceMutationBoundary {
       parse, version, check, graph, context, and render do not modify .sigil source.
 
-      init is the only workspace command that creates Sigil-owned content and creates only the .sigil directory and a missing ConfigFile.
+      init is the only workspace command that creates Sigil-owned content and creates only the .sigil directory, a missing ConfigFile, and a missing seeded GlossaryFile.
 
       Skill commands do not require or modify ConfigFile.
 
@@ -201,17 +207,31 @@ expand SigilCli {
     }
 
     WorkspaceMutationBoundary {
-      Decision: Keep workspace inspection commands read-only and restrict workspace initialization to creating a missing ConfigFile.
+      Decision: Keep workspace inspection commands read-only and restrict workspace initialization to creating missing configuration and seed-glossary files.
 
       Scope: Governs version, parse, check, glossary, graph, context, render, and init; excludes explicitly requested skill-installation side effects.
 
-      Trade-offs: The CLI provides no automatic formatting or diagnostic repair.
+      Trade-offs: Initialization performs two explicit file creations, while inspection provides no automatic formatting or diagnostic repair.
 
-      Discarded alternatives: Implicit source repair and auto-formatting during inspection were rejected.
+      Discarded alternatives: Implicit source repair, inspection-time mutation, and overwriting an existing GlossaryFile were rejected.
 
-      Consequences: Semantic Sigil mutation remains an explicitly approved host-workflow responsibility.
+      Consequences: Semantic Sigil mutation remains an explicitly approved host-workflow responsibility and user-owned glossary content is preserved.
 
-      Revisit when: A separately approved mutation protocol defines preview, ownership, and rollback behavior.
+      Revisit when: A separately approved mutation protocol defines preview, ownership, merging, and rollback behavior.
+    }
+
+    WorkspaceInitialization {
+      Decision: Seed only the decision record convention as workspace-neutral initialization vocabulary and exclude its definition from agent context.
+
+      Scope: Governs a newly created GlossaryFile; excludes project-domain vocabulary and existing glossary content.
+
+      Trade-offs: New workspaces receive one maintained convention entry rather than an empty glossary.
+
+      Discarded alternatives: Seeding component, expand, public-contract, configuration, and workflow terminology was rejected because those terms primarily belong to the Sigil project or agent skill domain.
+
+      Consequences: Editors and glossary inspection can explain the convention without duplicating it in agent context.
+
+      Revisit when: Another convention proves both workspace-neutral and valuable during initialization.
     }
   }
 
@@ -242,6 +262,12 @@ expand SigilCli {
       init in an empty directory creates valid ConfigFile using the directory basename as workspace.name.
 
       init against existing ConfigFile reports an error and leaves it unchanged.
+
+      init in an empty directory creates ConfigFile and GlossaryFile.
+
+      The seeded GlossaryFile contains only decision record convention with agentContext false and an empty contexts array.
+
+      init preserves an existing GlossaryFile unchanged.
     }
 
     WorkspaceInspection {

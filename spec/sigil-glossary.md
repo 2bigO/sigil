@@ -16,7 +16,8 @@ decision is [ADR-018](decisions/adr-018-reviewed-workspace-glossary.md).
   "terms": [
     {
       "term": "workspace root",
-      "definition": "The directory containing .sigil/config.json."
+      "definition": "The directory containing .sigil/config.json.",
+      "agentContext": false
     }
   ],
   "contexts": [
@@ -44,6 +45,11 @@ The top-level object and every nested object are strict. `schemaVersion`,
 `terms`, and `contexts` are required. Contexts require a stable identifier,
 non-empty include globs, exclude globs, and their term array.
 
+Each term may set `agentContext` to `false` to omit that term and its
+occurrences from agent-facing scoped context. The property defaults to `true`.
+It does not affect glossary validation, recognition, inspection, or editor
+features.
+
 ## Resolution
 
 Workspace terms apply to every loaded `.sigil` source. A source may match at
@@ -66,8 +72,9 @@ diagnostics. Both commands are read-only. Absence of the optional glossary is
 valid.
 
 `sigil context` includes a `glossaryContext` containing only accepted terms
-recognized in the selected component or file and its related expansion sources.
-It reports `null` when the workspace has no GlossaryFile.
+recognized in the selected component or file and its related expansion sources
+whose `agentContext` value is not `false`. It reports `null` when the workspace
+has no GlossaryFile.
 
 ## Editor behavior
 

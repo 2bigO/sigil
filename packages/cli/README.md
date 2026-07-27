@@ -60,7 +60,9 @@ Commands:
   OpenCode, and Pi;
 - `sigil skill install --project` installs into the current repository;
 - `sigil skill install --agent <name>` limits installation to one agent;
-- `sigil init [path]` creates a config without overwriting;
+- `sigil init [path]` creates a config and, when absent, a glossary seeded only
+  with the agent-context-excluded decision record convention; it never
+  overwrites either file;
 - `sigil version [path]` reports tool and configured contract versions;
 - `sigil parse <path>` returns parsed JSON;
 - `sigil check [path]` returns diagnostics;
@@ -69,7 +71,8 @@ Commands:
 - `sigil graph [path]` returns component and import graph data;
 - `sigil context ...` returns agent context JSON with direct dependencies'
   public contracts and decision rationale plus reviewed terminology recognized
-  in the selected and related Sigil files;
+  in the selected and related Sigil files, excluding terms whose
+  `agentContext` value is `false`;
 - `sigil render ...` returns Markdown.
 
 Empty, unknown, incomplete, and invalid invocations report the problem together

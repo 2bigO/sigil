@@ -6,7 +6,7 @@
 
 **Reviewers:** _TBD_
 
-**Last updated:** 2026-07-23
+**Last updated:** 2026-07-27
 
 ## Context
 
@@ -53,7 +53,8 @@ The initial schema has:
 - workspace-relative include and exclude globs for each context;
 - a stable context identifier;
 - a canonical term and definition;
-- optional aliases for a term.
+- optional aliases for a term;
+- an optional per-term `agentContext` flag that defaults to `true`.
 
 A representative document is:
 
@@ -105,6 +106,11 @@ A source matching no bounded context receives only workspace-wide definitions.
 
 Context globs use the workspace root as their base and follow the workspace's
 established path and containment rules.
+
+An entry whose `agentContext` value is `false` remains authoritative and
+recognized by glossary inspection and editor features, but agent-facing scoped
+context excludes the entry and its occurrences. This prevents workspace-neutral
+conventions already known by an agent from consuming duplicated context.
 
 ### Term Recognition
 

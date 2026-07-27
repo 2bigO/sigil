@@ -32,6 +32,10 @@ component SigilWorkspaceGlossary {
       definition is a non-empty reviewed meaning
 
       aliases is an optional array of unique non-empty alternative spellings
+
+      agentContext is an optional boolean that defaults to true
+
+      agentContext false excludes the entry from agent-facing scoped glossary context
     }
 
     BoundedContext {
@@ -102,6 +106,8 @@ expand SigilWorkspaceGlossary {
       One spelling cannot resolve to multiple entries in the same effective context.
 
       A glossary entry does not create, import, alias, or shadow a Sigil concept identity.
+
+      Agent-context exclusion does not affect glossary authority, validation, term recognition, glossary inspection, or editor features.
     }
 
     BoundedContext {
@@ -145,6 +151,22 @@ expand SigilWorkspaceGlossary {
 
       Revisit when: Repository paths cannot represent common terminology boundaries safely.
     }
+
+    AgentContextVisibility {
+      Decision: Allow each glossary entry to opt out of agent-facing scoped context with agentContext false while defaulting omitted values to true.
+
+      Scope: Governs GlossaryContextProjection supplied to agent context; excludes glossary validation, recognition, inspection, and editor behavior.
+
+      Trade-offs: Consumers must distinguish complete glossary projections from agent-facing scoped projections.
+
+      Design issues addressed: Workspace conventions may already be known to an agent and would otherwise consume context with duplicated explanations.
+
+      Discarded alternatives: A glossary-wide exclusion flag was rejected because project terminology and conventional terminology may coexist in one GlossaryFile.
+
+      Consequences: Existing schemaVersion 1 files retain their current behavior because omitted agentContext values remain included.
+
+      Revisit when: Context consumers require named audiences or more than included and excluded visibility.
+    }
   }
 
   cases {
@@ -164,6 +186,8 @@ expand SigilWorkspaceGlossary {
       A term inside inline code or a URL remains ordinary text.
 
       Two local entries claiming the same case-insensitive spelling produce SIGIL_GLOSSARY_TERM_COLLISION.
+
+      A recognized entry with agentContext false remains visible to glossary inspection and editor features but is absent from agent-facing scoped context.
     }
   }
 }

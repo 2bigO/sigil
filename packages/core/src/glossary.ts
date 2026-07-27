@@ -224,6 +224,7 @@ export function glossaryContextForFiles(
 ): GlossaryContextProjection {
   const selectedPaths = filePaths.map(normalizePath);
   const selectedOccurrences = projection.occurrences.filter((occurrence) =>
+    occurrence.term.agentContext &&
     pathIsSelected(occurrence.filePath, selectedPaths)
   );
   const selectedTermKeys = new Set(
@@ -253,6 +254,7 @@ interface RawGlossaryTerm {
   readonly term: string;
   readonly definition: string;
   readonly aliases?: readonly string[];
+  readonly agentContext?: boolean;
 }
 
 interface RawGlossaryContext {
@@ -334,7 +336,7 @@ function validateTermArray(
     }
     rejectUnknown(
       item,
-      ["term", "definition", "aliases"],
+      ["term", "definition", "aliases", "agentContext"],
       entryOwner,
       messages,
     );
@@ -352,6 +354,12 @@ function validateTermArray(
       messages.push(
         `${entryOwner}.aliases must be an array of trimmed non-empty strings.`,
       );
+    }
+    if (
+      item.agentContext !== undefined &&
+      typeof item.agentContext !== "boolean"
+    ) {
+      messages.push(`${entryOwner}.agentContext must be a boolean.`);
     }
     const entrySpellings = typeof item.term === "string"
       ? [
@@ -449,6 +457,7 @@ function toTerm(
     term: raw.term,
     definition: raw.definition,
     aliases: [...(raw.aliases ?? [])],
+    agentContext: raw.agentContext ?? true,
     scope,
     declarationRange: ranges.take(raw.term),
   };

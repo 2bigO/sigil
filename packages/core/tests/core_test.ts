@@ -136,7 +136,19 @@ Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
   assert(valid.glossary);
   assertEquals(valid.glossary.schemaVersion, 1);
   assertEquals(valid.glossary.terms[0].term, "workspace root");
+  assertEquals(valid.glossary.terms[0].agentContext, true);
   assert(valid.glossary.terms[0].declarationRange.start.line > 0);
+
+  const excluded = parseSigilGlossary(glossarySource({
+    terms: [
+      {
+        term: "decision record convention",
+        definition: "A reviewed rationale-writing convention.",
+        agentContext: false,
+      },
+    ],
+  }));
+  assertEquals(excluded.glossary?.terms[0].agentContext, false);
 
   assertHasCode(
     parseSigilGlossary("{").diagnostics,
@@ -163,6 +175,18 @@ Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
           include: ["booking/**/*.sigil", "booking/**/*.sigil"],
           exclude: [],
           terms: [],
+        },
+      ],
+    })).diagnostics,
+    "SIGIL_GLOSSARY_INVALID",
+  );
+  assertHasCode(
+    parseSigilGlossary(glossarySource({
+      terms: [
+        {
+          term: "invalid visibility",
+          definition: "An invalid entry.",
+          agentContext: "no",
         },
       ],
     })).diagnostics,
@@ -240,6 +264,11 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
               aliases: ["slot"],
             },
             { term: "queue", definition: "Work awaiting processing." },
+            {
+              term: "decision record convention",
+              definition: "A reviewed rationale-writing convention.",
+              agentContext: false,
+            },
           ],
           contexts: [
             {
@@ -262,7 +291,7 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
         }),
         "booking/booking.sigil": `component Booking {
   goal {
-    Explain the workspace root and capacity.
+    Explain the workspace root, capacity, and decision record convention.
   }
 
   interface {
@@ -307,6 +336,19 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
   assert(
     context.occurrences.every((occurrence) =>
       occurrence.filePath === "booking/booking.sigil"
+    ),
+  );
+  assert(
+    resolved.glossary.occurrences.some((occurrence) =>
+      occurrence.term.term === "decision record convention"
+    ),
+  );
+  assert(
+    !context.terms.some((term) => term.term === "decision record convention"),
+  );
+  assert(
+    !context.occurrences.some((occurrence) =>
+      occurrence.term.term === "decision record convention"
     ),
   );
 });

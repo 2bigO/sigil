@@ -31,7 +31,7 @@ component SigilGlossaryEngine {
     GlossaryInspection {
       glossaryProjectionForWorkspace(workspace) returns contexts, entries, occurrences, and diagnostics
 
-      glossaryContextForFiles(projection, filePaths) returns the glossary path, effective entries, resolved contexts, and occurrences relevant to normalized selected files
+      glossaryContextForFiles(projection, filePaths) returns the glossary path, agent-visible effective entries, resolved contexts, and occurrences relevant to normalized selected files
     }
   }
 }
@@ -62,6 +62,8 @@ expand SigilGlossaryEngine {
       Aggregate resolved contexts, effective entries, occurrences, and glossary diagnostics without changing source data.
 
       Filter a workspace projection by normalized selected source paths while preserving deterministic source and declaration order.
+
+      Exclude entries whose agentContext is false together with their occurrences from agent-facing scoped context.
     }
   }
 
@@ -112,6 +114,8 @@ expand SigilGlossaryEngine {
       CLI and LSP consumers receive the same resolved occurrence ranges from core.
 
       Selecting a component source and its related expansion sources returns their effective bounded-context definitions without unrelated workspace vocabulary.
+
+      An entry excluded from agent context remains present in the complete glossary projection.
     }
   }
 }

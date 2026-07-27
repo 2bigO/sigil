@@ -54,10 +54,41 @@ Deno.test("init creates defaults, accepts a custom name, and refuses overwrite",
     assertEquals(config.workspace.members.length, 0);
     assertEquals(config.sigilVersion, SIGIL_VERSION);
     assert(config.files.include.includes("**/*.sigil"));
+    const glossary = JSON.parse(
+      await Deno.readTextFile(`${root}/.sigil/glossary.json`),
+    );
+    assertEquals(glossary.schemaVersion, 1);
+    assertEquals(glossary.contexts.length, 0);
+    assertEquals(glossary.terms.length, 1);
+    assertEquals(glossary.terms[0].term, "decision record convention");
+    assertEquals(glossary.terms[0].agentContext, false);
 
     const second = await runCli(["init", root, "--format", "json"]);
     assertEquals(second.exitCode, EXIT_DIAGNOSTICS);
     assertHasCode(parseJson(second.stdout).diagnostics, "SIGIL_CONFIG_EXISTS");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("init preserves an existing glossary", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-init-glossary-" });
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const existing = JSON.stringify(
+    {
+      schemaVersion: 1,
+      terms: [{ term: "project term", definition: "Project vocabulary." }],
+      contexts: [],
+    },
+    null,
+    2,
+  );
+  try {
+    await Deno.mkdir(`${root}/.sigil`, { recursive: true });
+    await Deno.writeTextFile(glossaryPath, existing);
+    const result = await runCli(["init", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_OK);
+    assertEquals(await Deno.readTextFile(glossaryPath), existing);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -483,6 +514,11 @@ Deno.test("context includes only glossary terms from related Sigil files", async
               term: "unused term",
               definition: "Vocabulary unrelated to the selected component.",
             },
+            {
+              term: "decision record convention",
+              definition: "A reviewed rationale-writing convention.",
+              agentContext: false,
+            },
           ],
           contexts: [
             {
@@ -507,7 +543,7 @@ Deno.test("context includes only glossary terms from related Sigil files", async
       `${root}/contract.sigil`,
       `component Feature {
   goal {
-    Operate from the workspace root.
+    Operate from the workspace root using the decision record convention.
   }
 
   interface {
@@ -554,6 +590,24 @@ Deno.test("context includes only glossary terms from related Sigil files", async
     assert(
       !context.terms.some(
         (term: { term: string }) => term.term === "unused term",
+      ),
+    );
+    assert(
+      !context.terms.some(
+        (term: { term: string }) => term.term === "decision record convention",
+      ),
+    );
+    const glossaryResult = await runCli([
+      "glossary",
+      root,
+      "--format",
+      "json",
+    ]);
+    assertEquals(glossaryResult.exitCode, EXIT_OK);
+    assert(
+      parseJson(glossaryResult.stdout).occurrences.some(
+        (occurrence: { term: { term: string } }) =>
+          occurrence.term.term === "decision record convention",
       ),
     );
   } finally {
