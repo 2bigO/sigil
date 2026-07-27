@@ -201,8 +201,6 @@ expand SigilLsp {
     ProtocolSession {
       Decision: Use Language Server Protocol 3.18 over JSON-RPC standard input and output with UTF-16 positions and full-document synchronization.
 
-      Context: Sigil needs one editor-neutral semantic bridge that existing language clients can integrate without custom transport or protocol methods.
-
       Scope: Governs protocol transport, lifecycle, position encoding, and document synchronization; excludes editor-specific user interfaces.
 
       Trade-offs: Full-document synchronization is simpler and deterministic but may transfer more text than incremental synchronization.

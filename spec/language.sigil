@@ -57,7 +57,7 @@ component SigilLanguage {
 
       constraints describe rules, policies, invariants, architecture decisions, and binding technology choices
 
-      decisions describes the durable rationale for a chosen course, including context, scope, assumptions, trade-offs, design issues addressed, discarded alternatives, consequences, and revisit conditions
+      decisions describes the durable rationale for a chosen course, including scope, assumptions, trade-offs, design issues addressed, discarded alternatives, consequences, and revisit conditions
 
       cases describe representative outcomes, examples, edge cases, and observable acceptance scenarios
     }
@@ -163,8 +163,6 @@ expand SigilLanguage {
     LanguageVersion {
       Decision: Require an explicit configured LanguageVersion and use semantic version increments to signal interpretation compatibility.
 
-      Context: Tools must not silently reinterpret workspaces, while distributable artifact versions have separate owners.
-
       Scope: Governs Sigil source and workspace-configuration interpretation; excludes CLI, core, LSP, skill, and editor artifact versions.
 
       Trade-offs: Pre-production breaking changes consume minor versions instead of treating every 0.y.z change as equivalent.
@@ -176,8 +174,6 @@ expand SigilLanguage {
 
     SourceDocument {
       Decision: Preserve every non-empty section line as source-ranged semantic data while enforcing structure and tolerating free-form section bodies.
-
-      Context: Review, diagnostics, editor features, and future evidence mapping require source fidelity while authors need to work before prose is fully formalized.
 
       Scope: Governs parsing and recovered document representation; excludes host-assisted semantic judgment.
 
@@ -193,8 +189,6 @@ expand SigilLanguage {
     ConceptIdentity {
       Decision: Use one flat collective concept namespace per component context and keep imported reuse contextual to the importer.
 
-      Context: Concepts must remain reusable across sections and expands without dotted notation, consumer-to-provider mutation, or file-order overrides.
-
       Scope: Governs concept identity within a component, its matching expands, and accessible imported public concepts; excludes glossary identity and source anchors.
 
       Trade-offs: Name collisions require renaming and contradictory occurrences remain semantic-review issues.
@@ -208,8 +202,6 @@ expand SigilLanguage {
 
     SectionSemantics {
       Decision: Keep decisions optional and free-form while using them for concise human-reviewed rationale separate from binding constraints.
-
-      Context: Constraints state what must hold but do not preserve why a material course was selected.
 
       Scope: Governs decisions sections in expand declarations; excludes generated receipts, approval records, and binding authority.
 
@@ -343,8 +335,6 @@ expand SigilWorkspaceConfig {
     WorkspaceBoundary {
       Decision: Make ConfigFile the sole authority for workspace roots and declared members.
 
-      Context: Source discovery, imports, graphs, and agent context require one stable boundary independent from package-manager conventions.
-
       Scope: Governs the workspace root, declared members, and independent nested workspaces; excludes ModuleIndexFile and GlossaryFile authority.
 
       Trade-offs: Repositories maintain explicit Sigil configuration in addition to package or build manifests.
@@ -436,8 +426,6 @@ expand SigilModuleIndex {
   decisions {
     DirectoryImportSurface {
       Decision: Use ModuleIndexFile as an explicit directory-import shorthand that requires a local component and never controls component visibility.
-
-      Context: Authors need concise intentional imports, while Sigil components remain public modeling contracts through their explicit source paths.
 
       Scope: Governs directory-import resolution for included directories; excludes workspace discovery and export visibility.
 

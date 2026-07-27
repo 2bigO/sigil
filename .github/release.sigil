@@ -79,8 +79,6 @@ expand SigilReleaseDistribution {
     NativeCliRelease {
       Decision: Distribute native CLI archives with version-matched agent skills through versioned GitHub Releases.
 
-      Context: Users should be able to install Sigil without first installing Deno, Node.js, or a package-registry client.
-
       Scope: Governs released CLI archives, bundled skills, and user-scoped installers; excludes source-development and package-registry installation.
 
       Trade-offs: Maintainers build and test a platform matrix and pre-production executables may remain unsigned.
@@ -93,8 +91,6 @@ expand SigilReleaseDistribution {
     ReleaseIntegrity {
       Decision: Verify downloaded release assets before activation and preserve the currently active version when installation fails.
 
-      Context: Installers retrieve executable archives over a network and must not replace a working installation with incomplete or mismatched content.
-
       Scope: Governs release checksum publication and installer download, verification, extraction, and activation; excludes future code-signing policy.
 
       Trade-offs: Releases and installers must maintain a checksum manifest and staged activation flow.
@@ -106,8 +102,6 @@ expand SigilReleaseDistribution {
 
     VsCodeRelease {
       Decision: Distribute the pre-production VSIX through GitHub Releases until an approved extension-marketplace publisher identity exists.
-
-      Context: The extension needs an installable versioned channel while the current publisher identity remains development-only.
 
       Scope: Governs public VSIX distribution; excludes local development packages and future marketplace publication.
 

@@ -167,7 +167,7 @@ expand SigilSkill {
     DecisionRationaleWorkflow {
       Use one concise PascalCase concept block for each material decision.
 
-      Record Decision, Context, and Scope for every authored material decision.
+      Record Decision and Scope for every authored material decision.
 
       Scope states the governed boundary and important exclusions without attempting to enumerate every current dependent.
 
@@ -432,8 +432,6 @@ expand SigilSkill {
   decisions {
     SigilReviewGate {
       Decision: Require approval of exact semantic changes before mutation and a second review of written Sigil before implementation.
-
-      Context: Evidence-based proposals may still misstate intent, and validation after writing can reveal relationships that were not visible in the initial proposal.
 
       Scope: Governs semantic Sigil creation and modification; excludes approved placement-only relocation and import-path maintenance.
 

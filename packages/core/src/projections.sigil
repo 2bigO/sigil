@@ -81,8 +81,6 @@ expand SigilProjections {
     AgentDependencyContext {
       Decision: Automatically include durable decisions from direct dependencies in agent context.
 
-      Context: Agents can use additional rationale to preserve architectural intent, but ordinary dependents require only stable public contracts.
-
       Scope: Applies to agent context projection for direct dependencies and excludes language-level imports, transitive dependencies, and other private operational sections.
 
       Trade-offs: Uses additional context and may include irrelevant rationale in exchange for reducing missed architectural intent and extra discovery calls.

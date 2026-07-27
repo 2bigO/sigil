@@ -161,8 +161,6 @@ expand SigilCli {
     StructuredOutput {
       Decision: Treat the CLI as a deterministic automation interface with JSON as its stable output contract and human text as a convenience.
 
-      Context: Agents, CI, and scripts need predictable machine-readable behavior, while humans need richer editor-native authoring features.
-
       Scope: Governs CLI result shaping and workspace metadata; excludes LSP and editor presentation.
 
       Trade-offs: Rich interactive terminal workflows remain outside the CLI.
@@ -174,8 +172,6 @@ expand SigilCli {
 
     WorkspaceMutationBoundary {
       Decision: Keep workspace inspection commands read-only and restrict workspace initialization to creating a missing ConfigFile.
-
-      Context: Validation and context extraction must be safe to run in automation without silently rewriting reviewed source.
 
       Scope: Governs version, parse, check, glossary, graph, context, render, and init; excludes explicitly requested skill-installation side effects.
 
