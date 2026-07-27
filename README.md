@@ -60,6 +60,21 @@ VS Code extension releases are currently available as manually installable
 [GitHub Releases page](https://github.com/qoherent/sigil/releases). Marketplace
 publishing remains deferred.
 
+## Contributing
+For Contributors using the codebase directly, use the following.
+
+1) Clone the repo:
+```sh
+git clone git@github.com:qoherent/sigil.git
+cd sigil
+```
+2) Install [Deno](https://docs.deno.com/runtime/getting_started/installation/)
+3) Install the Sigil CLI with deno, changes to code are hot reloaded this way:
+```sh
+deno task --cwd packages/cli install
+sigil --version
+```
+
 ## How It Works
 
 Sigil is documentation-first. The `.sigil` files are the durable place where
