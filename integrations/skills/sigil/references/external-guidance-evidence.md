@@ -2,10 +2,9 @@
 
 Use this procedure when current authoritative external guidance could materially
 change a binding contract decision, its risks, available alternatives, or
-acceptance criteria, or could materially improve evidence for an unsupported
-material choice. It owns evidence acquisition for both design conversation and
-standards-aware review. It does not select project decisions, classify review
-findings, grant approval, or act as an implementation gate.
+acceptance criteria. It owns evidence acquisition for both design conversation
+and standards-aware review. It does not select project decisions, classify
+review findings, grant approval, or act as an implementation gate.
 
 ## Contents
 
@@ -42,16 +41,6 @@ Research is required when current authoritative guidance could materially
 change a binding contract decision, its risks, available alternatives, or
 acceptance criteria.
 
-Research is also required when a material contract choice lacks a matching
-`decisions` occurrence or its recorded rationale is insufficient and current
-external guidance could materially improve its risks, alternatives, trade-offs,
-assumptions, consequences, revisit conditions, correction conversation, or
-durable rationale.
-
-Use the evidence to test the existing choice and inform alternatives. Do not
-infer the original project intent, manufacture missing rationale, or
-retroactively justify the selected outcome.
-
 Treat these concerns as research-sensitive when they are material:
 
 - authentication, authorization, secrets, cryptography, or other security
@@ -72,11 +61,6 @@ selection only when the guidance becomes binding or could materially affect the
 contract. Naming, subjective preference, local reversible mechanics, and
 choices already governed by credible approved evidence do not trigger filler
 research.
-
-Missing decision-rationale coverage alone does not trigger filler research when
-external guidance cannot materially improve the choice. An evidence packet
-never substitutes for a matching `decisions` occurrence, user confirmation, or
-semantic approval.
 
 Classify the disposition as:
 
@@ -254,11 +238,6 @@ incomplete or conflicting evidence affects the decision ledger.
 semantic review. It owns finding classification, compliance language,
 conflicts, proposal consequences, and blocking behavior.
 
-When a decision-rationale audit triggered research, the consumer uses the packet
-to frame correction options and an evidence-informed rationale proposal. The
-packet remains nonbinding and cannot decide whether the existing choice should
-be retained.
-
 During design conversation, show directly relevant source identity and links
 with an evidence-informed recommendation. During standards review, include the
 complete source record and map each finding to its support.
@@ -282,14 +261,6 @@ difference from the target upgrade version before recommending alternatives.
 A user asks for “secure authentication.” First establish users, trust boundary,
 credential type, and affected data. Then research applicable authentication
 guidance before presenting binding session or recovery choices.
-
-### Unsupported Existing Choice
-
-An established contract selects JWT sessions but has no matching `decisions`
-occurrence and repository evidence does not explain why. Because current
-security guidance can materially improve the risk, alternatives, consequences,
-and revisit conditions, research before proposing whether to retain or replace
-the choice. Use the evidence to test the choice, not to invent its history.
 
 ### Incomplete Compliance Material
 

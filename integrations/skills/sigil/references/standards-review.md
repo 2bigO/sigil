@@ -100,20 +100,6 @@ the semantic proposal. When its governing rationale is unresolved or conflicts
 with evidence, enter the same-chat correction conversation. Missing coverage
 keeps semantic readiness at `correction required` and blocks proposal approval.
 
-When a material choice lacks a matching decision occurrence or its rationale is
-insufficient, use the applicability assessment from
-`references/external-guidance-evidence.md`. Acquire an evidence packet before
-proposal synthesis when current guidance can materially improve the choice's
-risks, alternatives, trade-offs, assumptions, consequences, revisit conditions,
-correction options, or durable rationale.
-
-Research informs the correction conversation and proposed rationale; it never
-supplies missing project intent, retroactively justifies the existing choice, or
-substitutes for user confirmation and semantic approval. When external guidance
-cannot materially improve the choice, record that research is not material and
-resolve the rationale gap from user-confirmed or repository-supported evidence
-without filler research.
-
 After approved Sigil is written, repeat the audit against the exact resulting
 semantic lines. Successful CLI validation never substitutes for this audit.
 

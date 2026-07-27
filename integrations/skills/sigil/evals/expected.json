@@ -95,11 +95,6 @@
   "externalGuidanceEvidenceRequiredBehaviors": [
     "frame-before-research",
     "trigger-on-material-contract-effect",
-    "trigger-on-unsupported-material-choice",
-    "assess-rationale-gap-research-value",
-    "improve-rationale-without-inventing-intent",
-    "preserve-decision-and-approval-gates",
-    "avoid-rationale-gap-filler-research",
     "share-one-evidence-policy",
     "use-primary-first-authority",
     "treat-secondary-as-discovery",

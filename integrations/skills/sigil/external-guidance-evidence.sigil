@@ -9,8 +9,6 @@ component ExternalGuidanceEvidence {
     ApplicabilityAssessment {
       assesses whether current authoritative guidance could materially change a binding contract decision, its risks, alternatives, or acceptance criteria after sufficient design framing
 
-      assesses whether a material contract choice lacks sufficient decision-rationale support and external evidence could materially improve its risks, alternatives, trade-offs, assumptions, consequences, or revisit conditions
-
       distinguishes required research, conditional research, and cases where external guidance is not material
     }
 
@@ -41,10 +39,6 @@ expand ExternalGuidanceEvidence {
 
       Require research when current authoritative guidance could materially change a binding contract decision, its risks, alternatives, or acceptance criteria.
 
-      Require research when a material contract choice lacks a matching decisions occurrence or its recorded rationale is insufficient and current external guidance could materially improve the correction conversation or durable rationale.
-
-      Use the evidence to test the existing choice and inform alternatives without inferring original project intent or retroactively justifying the selected outcome.
-
       Treat security, sensitive or regulated data, accessibility, public protocols, persistence, destructive operations, recovery, operational safety, version-sensitive platform behavior, and explicit binding requirements as research-sensitive.
 
       Research performance, architecture, modularity, and technology-selection guidance only when it becomes binding or materially affects the contract.
@@ -72,10 +66,6 @@ expand ExternalGuidanceEvidence {
   constraints {
     ApplicabilityAssessment {
       Research does not begin before sufficient framing merely because a technical topic has been mentioned.
-
-      Missing decision-rationale coverage alone does not trigger filler research when external guidance cannot materially improve the choice.
-
-      An evidence packet never substitutes for a matching decisions occurrence, user confirmation, or semantic approval.
 
       Naming, subjective preference, local reversible mechanics, and established decisions do not trigger filler research without material external-guidance impact.
     }
@@ -125,15 +115,15 @@ expand ExternalGuidanceEvidence {
     }
 
     ApplicabilityAssessment {
-      Decision: Trigger research after minimum design framing when current authoritative guidance could materially affect a contract decision or materially improve the evidence for an unsupported material contract choice.
+      Decision: Trigger research from material contract effect after minimum design framing rather than from every question or a closed topic list.
 
-      Scope: Governs when external-guidance evidence is acquired during Sigil design and review; excludes trivial choices, safely reconstructable rationale, and research that cannot materially improve the selected question.
+      Scope: Governs when external-guidance evidence is acquired during Sigil design and review.
 
-      Trade-offs: Decision-rationale gaps may cause additional research and correction conversation before proposal synthesis.
+      Trade-offs: Applicability remains a qualitative host judgment.
 
-      Design issues addressed: A binding-effect-only trigger can skip research for existing material contract choices whose rationale, alternatives, risks, or revisit conditions are absent or unsupported.
+      Design issues addressed: Premature research can bias an unclear design, while topic-only lists become stale and omit new risk domains.
 
-      Consequences: Unsupported material choices receive scoped evidence before they are confirmed, corrected, or given durable rationale, while immaterial gaps avoid filler research.
+      Consequences: Guidance-sensitive decisions receive evidence before alternatives are recommended, and immaterial questions avoid filler research.
 
       Revisit when: Reliable deterministic applicability classification becomes available.
     }
@@ -196,10 +186,6 @@ expand ExternalGuidanceEvidence {
   cases {
     ApplicabilityAssessment {
       An authentication decision receives authoritative security research after its users, boundary, and sensitive-data context are understood.
-
-      An authentication, persistence, or architecture constraint without sufficient decision rationale triggers scoped research when guidance can materially inform its risks, alternatives, or revisit conditions.
-
-      A material choice with sufficient user-confirmed or repository-supported rationale receives the missing decision record without redundant external research.
 
       A local naming choice proceeds without external research.
 

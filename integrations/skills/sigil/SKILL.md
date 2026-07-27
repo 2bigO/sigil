@@ -48,8 +48,7 @@ Also load these cross-cutting references when applicable:
 
 - `references/external-guidance-evidence.md`: after sufficient framing whenever
   current authoritative guidance could materially change a binding contract
-  decision, its risks, alternatives, or acceptance criteria, or could materially
-  improve evidence for an unsupported material choice. It owns shared
+  decision, its risks, alternatives, or acceptance criteria. It owns shared
   applicability assessment, source authority, environment and version matching,
   secure evidence acquisition, evidence packets, sufficiency, and reuse.
 - `references/design-conversation.md`: whenever a material decision needs
@@ -118,8 +117,6 @@ references remain applicable across all three semantic workflows.
      semantic readiness appears aligned for the selected scope.
    - Treat missing decision-rationale coverage for a material selected choice
      as a semantic-readiness gap even when CLI validation succeeds.
-   - Assess whether external guidance could materially improve the missing or
-     insufficient rationale before synthesizing a correction proposal.
 
 4. Resolve missing intent.
    - Follow `references/design-conversation.md`.

@@ -202,26 +202,6 @@ requireText(
 );
 requireText(
   externalGuidanceEvidence,
-  "Research is also required when a material contract choice lacks a matching\n`decisions` occurrence",
-  "unsupported material choice research trigger",
-);
-requireText(
-  externalGuidanceEvidence,
-  "Do not\ninfer the original project intent, manufacture missing rationale, or\nretroactively justify the selected outcome.",
-  "unsupported choice evidence boundary",
-);
-requireText(
-  standardsReview,
-  "When a material choice lacks a matching decision occurrence or its rationale is\ninsufficient, use the applicability assessment",
-  "rationale gap applicability assessment",
-);
-requireText(
-  standardsReview,
-  "it never\nsupplies missing project intent, retroactively justifies the existing choice, or\nsubstitutes for user confirmation and semantic approval",
-  "rationale research authority boundary",
-);
-requireText(
-  externalGuidanceEvidence,
   "Documentation is applicable only when its environment matches those facts.",
   "documentation environment match",
 );
@@ -643,11 +623,6 @@ const externalGuidanceEvidenceFixture = await Deno.readTextFile(
 const requiredExternalGuidanceEvidenceBehaviors = [
   "frame-before-research",
   "trigger-on-material-contract-effect",
-  "trigger-on-unsupported-material-choice",
-  "assess-rationale-gap-research-value",
-  "improve-rationale-without-inventing-intent",
-  "preserve-decision-and-approval-gates",
-  "avoid-rationale-gap-filler-research",
   "share-one-evidence-policy",
   "use-primary-first-authority",
   "treat-secondary-as-discovery",
@@ -685,31 +660,6 @@ requireText(
   externalGuidanceEvidenceFixture,
   "Establish the intended outcome, callers, component boundary, public surface",
   "external guidance framing",
-);
-requireText(
-  externalGuidanceEvidenceFixture,
-  "Treat unsupported material choices and insufficient rationale as\n    semantic-readiness gaps",
-  "unsupported material choice fixture",
-);
-requireText(
-  externalGuidanceEvidenceFixture,
-  "Assess whether research could materially improve a rationale gap",
-  "rationale gap applicability fixture",
-);
-requireText(
-  externalGuidanceEvidenceFixture,
-  "without\n    inventing original project intent or retroactively justifying the choice",
-  "rationale evidence boundary fixture",
-);
-requireText(
-  externalGuidanceEvidenceFixture,
-  "require user confirmation, a matching approved\n    decision occurrence",
-  "rationale decision gate fixture",
-);
-requireText(
-  externalGuidanceEvidenceFixture,
-  "Avoid filler research when a material choice already has sufficient credible\n    rationale",
-  "rationale filler research guard fixture",
 );
 requireText(
   externalGuidanceEvidenceFixture,
