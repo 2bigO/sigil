@@ -17,8 +17,8 @@ Current integrations:
   editor-native human UI with syntax highlighting, bundled LSP features, and
   component previews.
 
-Historical design material:
+Rejected historical design material:
 
-- `skills/sigil-anchor-indexer`: an inactive proposal for bounded model-assisted
+- `skills/sigil-anchor-indexer`: a rejected proposal for bounded model-assisted
   anchor proposals over deterministic indexer candidates. Its Markdown is
   retained for design history but it has no active Sigil contract.

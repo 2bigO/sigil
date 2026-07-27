@@ -67,9 +67,6 @@ Platform packages:
   resolver-backed component, concept, and glossary semantic highlighting across
   multiple editors.
 
-`packages/indexer` contains historical design documents only. It is not an
-active package or configured workspace member.
-
 Integrations:
 
 - `integrations/skills/sigil`: implemented host-neutral workflow for structural
@@ -79,8 +76,8 @@ Integrations:
   syntax highlighting, bundled LSP features, component previews, and
   editor-native affordances.
 
-`integrations/skills/sigil-anchor-indexer` contains historical design material
-only and has no active Sigil contract.
+`integrations/skills/sigil-anchor-indexer` contains rejected historical design
+material only and has no active Sigil contract.
 
 The CLI is an automation interface. It may help humans during early development,
 but it is not the primary human product.
@@ -114,8 +111,8 @@ The core must not depend on:
 - editor UI concerns;
 - transport protocols such as LSP or MCP.
 
-Historical indexer and anchor constraints remain documented in ADR-010 and
-ADR-011 but are not active platform commitments.
+Rejected indexer, anchor, Receipt, and evidence-record constraints remain
+documented in ADR-010 and ADR-011 only as historical analysis.
 
 ## 5. Workspace Rules
 
@@ -165,8 +162,8 @@ readiness review, mandatory post-Sigil glossary candidate extraction, scoped
 terminology handoff, and approval gates. Deterministic core and CLI packages do
 not perform those judgments or mutate `.sigil` source or glossary authority.
 
-Historical Receipt and anchor proposals remain in ADR-011 without creating
-active packages, commands, or workflow promises.
+Rejected Receipt and anchor proposals remain in ADR-011 only as historical
+analysis.
 
 This keeps the platform coherent while allowing each surface to feel natural for
 its audience.
@@ -211,8 +208,7 @@ grow.
 Decision: Every non-empty section line becomes a semantic line with source
 location.
 
-Rationale: This supports review, diagnostics, future anchors, and code/spec
-drift detection.
+Rationale: This supports review, diagnostics, and code/spec drift detection.
 
 Tradeoff: The parser model is more detailed than a simple document tree.
 
@@ -271,9 +267,9 @@ History: See
 
 ### ADR-010: Use AST Evidence With Model-Assisted Anchor Proposals
 
-Status: Superseded by ADR-011.
+Status: Rejected.
 
-Historical proposal: Keep anchors outside `.sigil` syntax, use deterministic
+Rejected proposal: Keep anchors outside `.sigil` syntax, use deterministic
 source-language adapters and a committed anchor sidecar, and allow hosts to use
 models only to propose natural-language relationships for human approval.
 
@@ -282,7 +278,7 @@ History: See
 
 ### ADR-011: Historical Rationale, Evidence, And Review-Record Proposal
 
-Status: Historical and deferred; no active Sigil contract.
+Status: Rejected; no active Sigil contract.
 
 Historical proposal: Keep `.sigil` source human-authored, generate attributed
 Receipts from deterministic facts and host contributions, keep models outside
@@ -363,12 +359,11 @@ surface:
 - `packages/core/README.md`: parser, resolver, graph, diagnostics, projections.
 - `packages/cli/README.md`: command behavior for agents, CI, scripts, and
   debugging.
-- `packages/indexer/README.md`: historical indexer and anchor design material.
 - `packages/lsp/README.md`: implemented pre-production editor semantic protocol.
 - `integrations/editor/vscode/README.md`: implemented pre-production concrete
   editor UX.
 - `integrations/skills/sigil/`: host-neutral workflow and host-adapter metadata.
-- `integrations/skills/sigil-anchor-indexer/`: historical anchor-workflow design
+- `integrations/skills/sigil-anchor-indexer/`: rejected historical anchor-workflow design
   material.
 
 Root-level docs should stay stable and architectural. Package docs can change as

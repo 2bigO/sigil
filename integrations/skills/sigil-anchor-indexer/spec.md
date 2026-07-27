@@ -1,9 +1,9 @@
 # Historical Anchor Proposal Workflow
 
-**Status:** Historical and inactive **Owner:** Sigil maintainers **Last
+**Status:** Rejected and inactive **Owner:** Sigil maintainers **Last
 updated:** 2026-07-22
 
-This document records an earlier model-assisted anchor-host proposal for
+This document records a rejected model-assisted anchor-host proposal for
 ADR-011. It has no active skill or Sigil contract.
 
 The proposed skill would have used deterministic `sigil anchors candidates`

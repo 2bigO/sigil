@@ -26,11 +26,11 @@ first concrete human authoring and review surface over `@qoherent/sigil-lsp`.
 Each contract follows semantic versioning independently. The compatibility
 matrix records supported combinations.
 
-Artifact release 0.6.0 intentionally excludes the historically designed anchors
-and `sigil-indexer` implementation, editor integrations other than VS Code,
-plugin packaging, semantic search, interactive CLI workflows, `.sigil` mutation,
-generated diagrams, and persistent approval records. Human approval is
-session-scoped.
+Artifact release 0.6.0 intentionally excludes the rejected historical anchors,
+Receipts, and `sigil-indexer` implementation, editor integrations other than VS
+Code, plugin packaging, semantic search, interactive CLI workflows, `.sigil`
+mutation, generated diagrams, and persistent approval records. Human approval
+is session-scoped.
 
 Pre-release acceptance requires formatting, lint, type checks, core, CLI, LSP,
 and VS Code extension tests, skill validation, JSR dry runs, VSIX packaging, and

@@ -1,6 +1,6 @@
 # ADR-011: Generated Rationale, Evidence, And Review Records
 
-**Status:** Proposed
+**Status:** Rejected
 
 **Owner:** _TBD_
 
@@ -11,6 +11,12 @@
 **Supersedes:** ADR-009 and ADR-010
 
 **Partially superseded by:** ADR-019
+
+> Rejected on 2026-07-27. Generated Receipts and their associated evidence,
+> anchor, persistence, freshness, and review-record architecture add a second
+> lifecycle whose cost and authority are not justified by demonstrated product
+> value. This proposal is preserved only as historical analysis. ADR-019's
+> independently accepted human-authored `decisions` section is unaffected.
 
 ## 1. Decision
 

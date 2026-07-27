@@ -39,8 +39,8 @@ Semantic review includes:
 - applicable standards, official guidance, and implementation pitfalls.
 
 The active boundary keeps deterministic readiness facts in core and CLI while
-the skill owns semantic judgment and human approval. Historical Receipt and
-anchor exploration remains in
+the skill owns semantic judgment and human approval. Rejected Receipt and
+anchor exploration is preserved in
 [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
 
 ## Proposal And Review Gates
@@ -69,12 +69,12 @@ Any added, removed, or changed semantic line creates another review gate.
 
 ## Historical Anchor Workflow
 
-Anchors and generated Receipts are inactive historical design material recorded
+Anchors and generated Receipts are rejected historical design material recorded
 in [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
 They have no active Sigil contract, package, CLI command, or skill workflow in
 version 0.5.
 
-The historical proposal was:
+The rejected proposal was:
 
 1. Resolve the approved Sigil component and its collected expansions.
 2. Build a deterministic source AST and symbol index.

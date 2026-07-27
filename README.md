@@ -90,8 +90,8 @@ The full workflow is described in
 The Sigil platform architecture is drafted in
 [spec/sigil-platform-architecture.md](spec/sigil-platform-architecture.md).
 
-Historical architecture exploration for generated Receipts, evidence, and
-anchors is recorded in
+Rejected historical architecture exploration for generated Receipts, evidence,
+and anchors is recorded in
 [ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md),
 but those capabilities are outside the active v0.5 workspace.
 
@@ -178,7 +178,7 @@ the ordinary high-level project summary for this configured boundary.
 - `examples/` contains independently configured Sigil projects used as
   design-pressure fixtures.
 - `packages/` contains the implemented `sigil-core`, `sigil-cli`, and initial
-  `sigil-lsp`; `packages/indexer` is retained as historical design material.
+  `sigil-lsp`.
 - `integrations/` contains host adapters such as coding-agent skills, the
   initial VS Code extension, and future editor integrations.
 
@@ -307,12 +307,10 @@ and model-assisted interpretation in the host-neutral skill workflow.
 Editor integrations other than VS Code, stricter body semantics, project
 configuration, and code-generation integrations remain deferred.
 
-Receipts and anchors remain historical design explorations rather than active
-Sigil components: Receipts would explain how semantic lines were interpreted and
-checked, while anchors would provide reviewed trace links to implementation
-evidence.
+Receipts and anchors are rejected historical design explorations rather than
+active or deferred Sigil components.
 [ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md)
-records an earlier proposal for deterministic shared packages, attributed
+records the rejected proposal for deterministic shared packages, attributed
 host-assisted interpretation, a `sigil-indexer`, and generated review records
 without adding inline Sigil syntax. Its indexer and anchor contracts are not
 part of the active v0.5 workspace.

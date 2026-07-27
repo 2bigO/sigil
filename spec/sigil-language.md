@@ -771,7 +771,8 @@ Larger examples live in:
 
 ## 13. Historical Platform Proposal: Anchors
 
-Anchors are an inactive historical platform proposal for connecting Sigil semantic lines to implementation evidence.
+Anchors are a rejected historical platform proposal for connecting Sigil
+semantic lines to implementation evidence.
 
 An anchor would not change the meaning of a Sigil line.
 It would record traceability between specification intent and implementation evidence.
@@ -779,22 +780,16 @@ It would record traceability between specification intent and implementation evi
 The historical storage proposal used a committed workspace sidecar
 `.sigil/anchors.json`, not inline syntax in `.sigil` files.
 Generated AST indexes remain disposable.
-This keeps Sigil readable while allowing tools to map a component, section, or semantic line to related files, symbols, tests, migrations, or generated code.
+The proposal would have allowed tools to map a component, section, or semantic
+line to related files, symbols, tests, migrations, or generated code.
 
-Source AST nodes provide structural evidence and recovery signals, but they are not permanent identities.
-Accepted anchors use stable relationship IDs plus Sigil and source locator snapshots.
-Initial and ambiguous mappings require human approval.
-Deterministic platform tools own indexing, validation, persistence, and reconciliation; optional host models may propose natural-language matches from bounded candidates.
+Source AST nodes would have provided structural evidence and recovery signals
+without becoming permanent identities. The design was rejected because those
+relationships create a second maintenance lifecycle without proving that
+implementation conforms to Sigil.
 
-Anchors are intended to provide:
-
-- guard rails for assistants when changing code;
-- context for humans reviewing why code exists;
-- signals when code and Sigil drift apart;
-- support for future code/spec synchronization workflows.
-
-The historical anchor design was consolidated with generated Receipts, readiness,
-evidence, and review records in
+The rejected anchor design was consolidated with the now-rejected generated
+Receipts, readiness, evidence, and review-record design in
 [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
 No active version 0.5 contract authorizes this capability.
 
@@ -807,9 +802,3 @@ How strict should future parsing and validation become while preserving authorin
 How should conflicts between collected expands be represented, detected, and resolved?
 
 Should imports support aliases, re-exports, or wildcard imports beyond the implemented cycle diagnostics?
-
-How should future language adapters represent targets that do not have stable AST symbols?
-
-How should editors present multiple anchors for one line and one target shared by multiple lines?
-
-When should a changed anchor remain reviewable evidence versus be removed as obsolete?

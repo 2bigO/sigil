@@ -47,8 +47,8 @@ Version 0.6 must not implement:
 - anchors or code/spec synchronization;
 - mutation or formatting of `.sigil` files.
 
-Anchors remain outside the implemented 0.5 surface. The historical anchor
-surface is defined below and does not change the 0.6 acceptance criteria.
+Anchors remain outside the implemented 0.5 surface. The rejected historical
+anchor surface is defined below and does not change the 0.6 acceptance criteria.
 
 ## 4. Runtime And Dependency Requirements
 
@@ -335,7 +335,7 @@ Do not add interactive prompts in version 0.6.
 
 ## 12. Historical Anchor Command Proposal
 
-The following inactive design is retained for history. Version 0.6 has no
+The following rejected design is retained for history. Version 0.6 has no
 `sigil-indexer` dependency or `anchors` command group.
 
 ### `sigil anchors candidates [path] --component <name>`

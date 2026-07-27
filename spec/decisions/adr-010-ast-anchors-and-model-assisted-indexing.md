@@ -1,6 +1,6 @@
 # ADR-010: AST Anchors And Model-Assisted Indexing
 
-**Status:** Superseded by ADR-011
+**Status:** Rejected
 
 **Owner:** _TBD_
 
@@ -8,9 +8,10 @@
 
 **Last updated:** 2026-07-13
 
-> This proposal is preserved for history. Its anchor, evidence, provenance, and
-> reconciliation decisions are consolidated into
-> [ADR-011: Generated Rationale, Evidence, And Review Records](adr-011-generated-rationale-evidence-and-review-records.md).
+> Rejected on 2026-07-27. The proposed mapping creates a durable maintenance
+> burden without establishing implementation conformance, and distributed
+> behavior does not have a reliable one-to-one correspondence with Sigil
+> semantic lines. This proposal is preserved only as historical analysis.
 
 ## 1. Decision
 
@@ -82,8 +83,7 @@ Each accepted anchor has:
 Proposal provenance contains a host identifier, an optional model identifier,
 and a proposal timestamp. It intentionally omits prompts and hidden reasoning.
 Accepted relationship and proposal IDs use UUIDs. Hashes use SHA-256 over
-canonical normalized values; exact normalization is specified by
-`packages/indexer/spec.md`.
+canonical normalized values.
 
 The index is many-to-many. One Sigil line may have implementation and test
 anchors, and one source target may support more than one semantic line.
