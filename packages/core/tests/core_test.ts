@@ -142,7 +142,7 @@ Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
   const excluded = parseSigilGlossary(glossarySource({
     terms: [
       {
-        term: "decision record convention",
+        term: "Decision:",
         definition: "A reviewed rationale-writing convention.",
         agentContext: false,
       },
@@ -265,7 +265,7 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
             },
             { term: "queue", definition: "Work awaiting processing." },
             {
-              term: "decision record convention",
+              term: "Decision:",
               definition: "A reviewed rationale-writing convention.",
               agentContext: false,
             },
@@ -291,7 +291,7 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
         }),
         "booking/booking.sigil": `component Booking {
   goal {
-    Explain the workspace root, capacity, and decision record convention.
+    Decision: Explain the workspace root and capacity.
   }
 
   interface {
@@ -340,15 +340,15 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
   );
   assert(
     resolved.glossary.occurrences.some((occurrence) =>
-      occurrence.term.term === "decision record convention"
+      occurrence.term.term === "Decision:"
     ),
   );
   assert(
-    !context.terms.some((term) => term.term === "decision record convention"),
+    !context.terms.some((term) => term.term === "Decision:"),
   );
   assert(
     !context.occurrences.some((occurrence) =>
-      occurrence.term.term === "decision record convention"
+      occurrence.term.term === "Decision:"
     ),
   );
 });

@@ -61,8 +61,8 @@ Commands:
 - `sigil skill install --project` installs into the current repository;
 - `sigil skill install --agent <name>` limits installation to one agent;
 - `sigil init [path]` creates a config and, when absent, a glossary seeded only
-  with the agent-context-excluded decision record convention; it never
-  overwrites either file;
+  with the eight agent-context-excluded, colon-qualified decision-record field
+  labels; it never overwrites either file;
 - `sigil version [path]` reports tool and configured contract versions;
 - `sigil parse <path>` returns parsed JSON;
 - `sigil check [path]` returns diagnostics;

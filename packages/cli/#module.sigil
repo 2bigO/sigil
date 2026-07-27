@@ -103,9 +103,11 @@ expand SigilCli {
 
       init applies the configured default SourceSelection and ToolConfiguration values.
 
-      init creates a missing GlossaryFile containing only the decision record convention entry.
+      init creates a missing GlossaryFile containing only the decision-record field labels.
 
-      The seeded entry sets agentContext to false and no bounded contexts.
+      The seeded entries are Decision:, Scope:, Assumptions:, Trade-offs:, Design issues addressed:, Discarded alternatives:, Consequences:, and Revisit when:.
+
+      Every seeded entry sets agentContext to false and the glossary has no bounded contexts.
 
       init preserves an existing GlossaryFile instead of merging, replacing, or normalizing it.
     }
@@ -221,17 +223,19 @@ expand SigilCli {
     }
 
     WorkspaceInitialization {
-      Decision: Seed only the decision record convention as workspace-neutral initialization vocabulary and exclude its definition from agent context.
+      Decision: Seed the eight colon-qualified decision-record field labels as workspace-neutral initialization vocabulary and exclude their definitions from agent context.
 
-      Scope: Governs a newly created GlossaryFile; excludes project-domain vocabulary and existing glossary content.
+      Scope: Governs a newly created GlossaryFile; excludes project-domain vocabulary, the umbrella phrase decision record convention, Context, and existing glossary content.
 
-      Trade-offs: New workspaces receive one maintained convention entry rather than an empty glossary.
+      Trade-offs: Including punctuation makes recognition specific to field labels instead of matching ordinary uses of words such as decision, scope, and consequences.
 
-      Discarded alternatives: Seeding component, expand, public-contract, configuration, and workflow terminology was rejected because those terms primarily belong to the Sigil project or agent skill domain.
+      Design issues addressed: Authors need definitions for the individual decision-record fields rather than an umbrella definition for the convention.
 
-      Consequences: Editors and glossary inspection can explain the convention without duplicating it in agent context.
+      Discarded alternatives: A single decision record convention entry and unpunctuated field terms were rejected.
 
-      Revisit when: Another convention proves both workspace-neutral and valuable during initialization.
+      Consequences: Editors and glossary inspection explain each field independently without duplicating those explanations in agent context.
+
+      Revisit when: The decision-record convention adds, removes, or renames a field.
     }
   }
 
@@ -265,7 +269,7 @@ expand SigilCli {
 
       init in an empty directory creates ConfigFile and GlossaryFile.
 
-      The seeded GlossaryFile contains only decision record convention with agentContext false and an empty contexts array.
+      The seeded GlossaryFile contains only Decision:, Scope:, Assumptions:, Trade-offs:, Design issues addressed:, Discarded alternatives:, Consequences:, and Revisit when:, each with agentContext false, plus an empty contexts array.
 
       init preserves an existing GlossaryFile unchanged.
     }

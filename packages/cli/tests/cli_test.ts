@@ -59,9 +59,16 @@ Deno.test("init creates defaults, accepts a custom name, and refuses overwrite",
     );
     assertEquals(glossary.schemaVersion, 1);
     assertEquals(glossary.contexts.length, 0);
-    assertEquals(glossary.terms.length, 1);
-    assertEquals(glossary.terms[0].term, "decision record convention");
-    assertEquals(glossary.terms[0].agentContext, false);
+    assertEquals(glossary.terms.length, 8);
+    assertEquals(
+      glossary.terms.map((term: { term: string }) => term.term).join(","),
+      "Decision:,Scope:,Assumptions:,Trade-offs:,Design issues addressed:,Discarded alternatives:,Consequences:,Revisit when:",
+    );
+    assert(
+      glossary.terms.every(
+        (term: { agentContext: boolean }) => term.agentContext === false,
+      ),
+    );
 
     const second = await runCli(["init", root, "--format", "json"]);
     assertEquals(second.exitCode, EXIT_DIAGNOSTICS);
@@ -515,7 +522,7 @@ Deno.test("context includes only glossary terms from related Sigil files", async
               definition: "Vocabulary unrelated to the selected component.",
             },
             {
-              term: "decision record convention",
+              term: "Decision:",
               definition: "A reviewed rationale-writing convention.",
               agentContext: false,
             },
@@ -543,7 +550,7 @@ Deno.test("context includes only glossary terms from related Sigil files", async
       `${root}/contract.sigil`,
       `component Feature {
   goal {
-    Operate from the workspace root using the decision record convention.
+    Decision: Operate from the workspace root.
   }
 
   interface {
@@ -594,7 +601,7 @@ Deno.test("context includes only glossary terms from related Sigil files", async
     );
     assert(
       !context.terms.some(
-        (term: { term: string }) => term.term === "decision record convention",
+        (term: { term: string }) => term.term === "Decision:",
       ),
     );
     const glossaryResult = await runCli([
@@ -607,7 +614,7 @@ Deno.test("context includes only glossary terms from related Sigil files", async
     assert(
       parseJson(glossaryResult.stdout).occurrences.some(
         (occurrence: { term: { term: string } }) =>
-          occurrence.term.term === "decision record convention",
+          occurrence.term.term === "Decision:",
       ),
     );
   } finally {

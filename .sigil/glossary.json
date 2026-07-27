@@ -243,8 +243,44 @@
       ]
     },
     {
-      "term": "decision record convention",
-      "definition": "The recommended authoring structure for durable rationale in a Sigil decisions section: Decision and Scope are required by the convention, while Assumptions, Trade-offs, Design issues addressed, Discarded alternatives, Consequences, and Revisit when are included when materially applicable; Sigil syntax itself remains free-form."
+      "term": "Decision:",
+      "definition": "Required by the decision record convention; states the selected course or outcome whose rationale is being recorded.",
+      "agentContext": false
+    },
+    {
+      "term": "Scope:",
+      "definition": "Required by the decision record convention; states the governed boundary and important exclusions.",
+      "agentContext": false
+    },
+    {
+      "term": "Assumptions:",
+      "definition": "States materially applicable conditions treated as true when making the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "Trade-offs:",
+      "definition": "States materially applicable benefits, costs, and tensions accepted by the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "Design issues addressed:",
+      "definition": "States materially applicable problems or pressures the decision resolves.",
+      "agentContext": false
+    },
+    {
+      "term": "Discarded alternatives:",
+      "definition": "States materially relevant options not selected and why they were rejected.",
+      "agentContext": false
+    },
+    {
+      "term": "Consequences:",
+      "definition": "States materially applicable effects and obligations created by the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "Revisit when:",
+      "definition": "States conditions that should trigger reconsideration of the decision.",
+      "agentContext": false
     },
     {
       "term": "implementation artifact",
