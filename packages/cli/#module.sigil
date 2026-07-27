@@ -13,6 +13,12 @@ component SigilCli {
     CliInvocation {
       sigil --help
 
+      sigil <command-path> --help
+
+      A command path consists of a command followed by zero or more nested subcommands.
+
+      Empty, unknown, incomplete, or invalid invocations report the specific usage problem together with help for the longest recognized command path.
+
       sigil --version
     }
 
@@ -69,7 +75,13 @@ component SigilCli {
 expand SigilCli {
   logic {
     CliInvocation {
-      --help lists supported commands and --version prints the CLI artifact version from packages/cli/deno.json without workspace discovery.
+      Top-level --help lists supported commands and global options without workspace discovery.
+
+      --help following any recognized command path reports usage, operands, options, and immediate subcommands scoped to that path before ordinary validation or execution.
+
+      Usage failures select help for the longest recognized command path and report it together with the specific problem.
+
+      --version prints the CLI artifact version from packages/cli/deno.json without workspace discovery.
     }
 
     SkillCatalog {
@@ -147,6 +159,10 @@ expand SigilCli {
     }
 
     ExitStatus {
+      Explicit help for any recognized command path exits with code 0.
+
+      Empty, unknown, incomplete, or invalid usage exits with code 2, writes the problem and contextually relevant help to stderr, and leaves stdout empty.
+
       Exit code 0 means success or warnings only.
 
       Exit code 1 means configuration or Sigil error diagnostics.
@@ -158,6 +174,20 @@ expand SigilCli {
   }
 
   decisions {
+    CliInvocation {
+      Decision: Resolve explicit help and usage-error help against the longest recognized path in the command tree.
+
+      Scope: Governs the top level and supported command paths at any nesting depth, including future subcommands.
+
+      Trade-offs: Help routing must recognize partial command paths even when the remaining invocation is incomplete or invalid.
+
+      Discarded alternatives: Describing individual subcommands and showing only the usage problem were rejected because both require repeated maintenance as the command tree grows.
+
+      Consequences: New commands and nested subcommands inherit the same contextual-help behavior without requiring new semantic rules.
+
+      Revisit when: Command metadata becomes the shared source for parsing, validation, and generated help.
+    }
+
     StructuredOutput {
       Decision: Treat the CLI as a deterministic automation interface with JSON as its stable output contract and human text as a convenience.
 
@@ -186,6 +216,18 @@ expand SigilCli {
   }
 
   cases {
+    CliInvocation {
+      Explicit help for a recognized command path reports that path's usage, operands, options, and immediate subcommands.
+
+      An empty or unknown top-level command reports the problem with top-level help.
+
+      An unknown subcommand reports the problem with help for its recognized parent command path.
+
+      A missing operand, unsupported option, or extra operand reports the problem with help for the longest recognized command path.
+
+      Explicit help succeeds without required operands or workspace discovery.
+    }
+
     SkillCatalog {
       skill list includes valid bundled skills and excludes directories without SKILL.md.
     }

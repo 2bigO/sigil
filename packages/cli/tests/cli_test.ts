@@ -88,7 +88,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   ]);
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
-  assertEquals(json.cliVersion, "0.6.0");
+  assertEquals(json.cliVersion, "0.6.1");
   assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
@@ -578,20 +578,95 @@ Deno.test("invalid usage and runtime failures keep stable exit codes", async () 
     "auth.sigil",
   ]);
   assertEquals(usage.exitCode, EXIT_USAGE);
+  assertEquals(usage.stdout, "");
+  assert(usage.stderr.includes("Error: context accepts only one"));
+  assert(usage.stderr.includes("Usage: sigil context"));
   const runtime = await runCli(["parse", "does-not-exist.sigil"]);
   assertEquals(runtime.exitCode, EXIT_RUNTIME);
 });
 
-Deno.test("top-level help and version report CLI information", async () => {
+Deno.test("help is scoped to every recognized command path", async () => {
   const help = await runCli(["--help"]);
   assertEquals(help.exitCode, EXIT_OK);
   assert(help.stdout.startsWith("Usage: sigil"));
-  assert(help.stdout.includes("parse <file>"));
+  assert(help.stdout.includes("parse"));
   assertEquals(help.stderr, "");
 
+  const commandPaths = [
+    ["skill"],
+    ["skill", "list"],
+    ["skill", "install"],
+    ["init"],
+    ["version"],
+    ["parse"],
+    ["check"],
+    ["glossary"],
+    ["graph"],
+    ["context"],
+    ["render"],
+  ];
+  for (const commandPath of commandPaths) {
+    const result = await runCli([...commandPath, "--help"]);
+    assertEquals(result.exitCode, EXIT_OK);
+    assert(
+      result.stdout.startsWith(`Usage: sigil ${commandPath.join(" ")}`),
+    );
+    assertEquals(result.stderr, "");
+  }
+});
+
+Deno.test("usage errors include help for the longest recognized command path", async () => {
+  const cases = [
+    {
+      argv: [] as string[],
+      problem: "Expected command",
+      usage: "Usage: sigil <command>",
+    },
+    {
+      argv: ["unknown"],
+      problem: 'Unknown command "unknown"',
+      usage: "Usage: sigil <command>",
+    },
+    {
+      argv: ["skill"],
+      problem: "skill requires exactly one subcommand",
+      usage: "Usage: sigil skill <subcommand>",
+    },
+    {
+      argv: ["skill", "unknown"],
+      problem: 'Unknown skill subcommand "unknown"',
+      usage: "Usage: sigil skill <subcommand>",
+    },
+    {
+      argv: ["skill", "list", "extra"],
+      problem: "skill list does not accept positional arguments",
+      usage: "Usage: sigil skill list",
+    },
+    {
+      argv: ["parse"],
+      problem: "parse requires exactly one file",
+      usage: "Usage: sigil parse <file>",
+    },
+    {
+      argv: ["check", "--unknown"],
+      problem: "Unsupported option --unknown",
+      usage: "Usage: sigil check",
+    },
+  ];
+
+  for (const testCase of cases) {
+    const result = await runCli(testCase.argv);
+    assertEquals(result.exitCode, EXIT_USAGE);
+    assertEquals(result.stdout, "");
+    assert(result.stderr.includes(`Error: ${testCase.problem}`));
+    assert(result.stderr.includes(testCase.usage));
+  }
+});
+
+Deno.test("version flag reports CLI information", async () => {
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
-  assertEquals(version.stdout, "0.6.0\n");
+  assertEquals(version.stdout, "0.6.1\n");
   assertEquals(version.stderr, "");
 });
 
@@ -772,7 +847,7 @@ Deno.test("executable subprocess returns version JSON", async () => {
   assertEquals(output.code, EXIT_OK);
   assertEquals(
     JSON.parse(new TextDecoder().decode(output.stdout)).cliVersion,
-    "0.6.0",
+    "0.6.1",
   );
 });
 

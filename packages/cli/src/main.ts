@@ -1,34 +1,133 @@
 /** Command-line interface for versioned Sigil 0.5 workspaces. @module */
-import { parseArgs } from "./args.ts";
+import { type HelpTopic, parseArgs } from "./args.ts";
 import { type CommandHandlerOptions, runCommand } from "./commands.ts";
 import { EXIT_RUNTIME, EXIT_USAGE, exitCodeForDiagnostics } from "./exit.ts";
 import { formatResult } from "./formatters.ts";
 import metadata from "../deno.json" with { type: "json" };
 
-const HELP = `Usage: sigil <command> [path] [options]
+const HELP: Readonly<Record<HelpTopic, string>> = {
+  root: `Usage: sigil <command> [options]
 
 Commands:
-  skill list        List bundled agent skills
-  skill install     Install bundled skills globally (use --project for this repository)
-  init [path]       Create a workspace configuration
-  version [path]    Report workspace and contract versions
-  parse <file>      Parse one Sigil file
-  check [path]      Report workspace diagnostics
-  glossary [path]   Inspect reviewed glossary terms and occurrences
-  graph [path]      Report the component and import graph
-  context [path]    Return context for a component or file
-  render [path]     Render workspace documentation
+  skill             List or install bundled agent skills
+  init              Create a workspace configuration
+  version           Report workspace and contract versions
+  parse             Parse one Sigil file
+  check             Report workspace diagnostics
+  glossary          Inspect reviewed glossary terms and occurrences
+  graph             Report the component and import graph
+  context           Return context for a component or file
+  render            Render workspace documentation
 
 Options:
   --help            Show this help
   --version         Show the sigil version
+`,
+  skill: `Usage: sigil skill <subcommand> [options]
+
+Subcommands:
+  list              List bundled agent skills
+  install           Install bundled agent skills
+
+Options:
+  --help            Show this help
+`,
+  "skill-list": `Usage: sigil skill list [options]
+
+Options:
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  "skill-install": `Usage: sigil skill install [options]
+
+Options:
+  --project         Install skills into the current repository
+  --agent <value>   Install for codex, claude, opencode, pi, or all
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  init: `Usage: sigil init [path] [options]
+
+Options:
+  --name <value>    Set the workspace name
+  --include <glob>  Include a source glob; may be repeated
+  --exclude <glob>  Exclude a source glob; may be repeated
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  version: `Usage: sigil version [path] [options]
+
+Options:
   --root <path>     Use an explicit workspace root
   --format <value>  Output json, text, or markdown
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
-  --project         Install skills into the current repository
-  --agent <value>   Install for codex, claude, opencode, pi, or all
-`;
+  --help            Show this help
+`,
+  parse: `Usage: sigil parse <file> [options]
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  check: `Usage: sigil check [path] [options]
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  glossary: `Usage: sigil glossary [path] [options]
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  graph: `Usage: sigil graph [path] [options]
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  context:
+    `Usage: sigil context [path] (--component <name> | --file <file>) [options]
+
+Options:
+  --component <name>  Select a component
+  --file <file>       Select a Sigil file
+  --root <path>       Use an explicit workspace root
+  --format <value>    Output json, text, or markdown
+  --pretty            Pretty-print JSON output
+  --quiet             Suppress command output
+  --help              Show this help
+`,
+  render: `Usage: sigil render [path] [options]
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+};
 
 export interface CliRunResult {
   readonly exitCode: number;
@@ -44,7 +143,7 @@ export async function runCli(
 ): Promise<CliRunResult> {
   const parsed = parseArgs(argv);
   if (parsed.kind === "help") {
-    return { exitCode: 0, stdout: HELP, stderr: "" };
+    return { exitCode: 0, stdout: HELP[parsed.helpTopic], stderr: "" };
   }
   if (parsed.kind === "cli-version") {
     return { exitCode: 0, stdout: `${metadata.version}\n`, stderr: "" };
@@ -53,7 +152,7 @@ export async function runCli(
     return {
       exitCode: EXIT_USAGE,
       stdout: "",
-      stderr: `${parsed.message}\n`,
+      stderr: `Error: ${parsed.message}\n\n${HELP[parsed.helpTopic]}`,
     };
   }
 

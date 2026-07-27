@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add contextual CLI help for every recognized command path and include the
+  relevant help with usage errors; advance the CLI artifact to 0.6.1.
 - Add the optional free-form `decisions` expand section for durable decision
   rationale while keeping binding outcomes in `constraints`.
 - Define the Sigil skill convention for named material decisions with

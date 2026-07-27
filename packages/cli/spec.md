@@ -1,6 +1,6 @@
 # sigil-cli Requirements
 
-**Status:** Accepted for 0.6.0 **Last updated:** 2026-07-24
+**Status:** Accepted for 0.6.1 **Last updated:** 2026-07-27
 
 This document defines the 0.6 product requirements for `sigil-cli`.
 
@@ -75,6 +75,15 @@ surface is defined below and does not change the 0.6 acceptance criteria.
 `sigil-core`.
 
 ## 5. Global Behavior
+
+`--help` at the top level or after any recognized command path must print help
+for that path and exit with code `0` without validating required operands,
+discovering a workspace, or executing the command. Path-scoped help must show
+that path's usage, operands, options, and immediate subcommands.
+
+Empty, unknown, incomplete, or invalid invocations must exit with code `2`,
+leave stdout empty, and write both the specific problem and help for the longest
+recognized command path to stderr.
 
 All commands should support:
 

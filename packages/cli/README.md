@@ -1,6 +1,6 @@
 # sigil-cli
 
-Current package version: **0.6.0**.
+Current package version: **0.6.1**.
 
 Command-line interface for agents, CI, scripts, and platform debugging.
 
@@ -53,6 +53,8 @@ Implemented responsibilities:
 
 Commands:
 
+- `sigil --help` reports top-level help, while `--help` after any recognized
+  command or subcommand reports help scoped to that command path;
 - `sigil skill list` reports bundled directories containing `SKILL.md`;
 - `sigil skill install` installs skills globally for Codex, Claude Code,
   OpenCode, and Pi;
@@ -69,6 +71,9 @@ Commands:
   public contracts and decision rationale plus reviewed terminology recognized
   in the selected and related Sigil files;
 - `sigil render ...` returns Markdown.
+
+Empty, unknown, incomplete, and invalid invocations report the problem together
+with help for the longest recognized command path.
 
 The CLI returns exit code `0` for success or warnings, `1` for error
 diagnostics, `2` for usage errors, and `3` for host/runtime failures. Use JSON
