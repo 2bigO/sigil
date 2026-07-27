@@ -1,48 +1,110 @@
-@spec/language.sigil import { SigilWorkspaceConfig, RootSigil }
+@spec/language.sigil import { SigilWorkspaceConfig, SigilModuleIndex }
+@packages/core/src/model.sigil import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 @packages/core/src/filesystem.sigil import { SigilFileSystem }
 @packages/core/src/parser.sigil import { SigilParser }
+@packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 
 component SigilWorkspaceLoader {
   goal {
-    Select and load one configured Sigil workspace through an explicit filesystem boundary.
-    Ensure workspace membership, nested-workspace isolation, file discovery, and RootSigil eligibility follow the versioned workspace contract.
+    Discover and load one configured Sigil workspace through the filesystem port.
+
+    Enforce configured boundaries, nested-workspace isolation, member roots, and source selection before relationship resolution.
   }
 
   interface {
-    discoverSigilWorkspace(filesystem, options) returns WorkspaceDiscoveryResult
-    loadSigilWorkspace(filesystem, options) returns SigilWorkspace
-    options identifies a start path and may provide an explicit root or current directory
-    WorkspaceDiscoveryResult exposes the selected root, config path, parsed configuration, and diagnostics
-    SigilWorkspace additionally exposes member roots, loaded partial documents, and accumulated diagnostics
-    depends on SigilFileSystem, SigilParser, SigilWorkspaceConfig, and RootSigil
+    WorkspaceDiscovery {
+      discoverSigilWorkspace(filesystem, options) returns WorkspaceDiscoveryResult
+
+      options identifies a start path and may provide an explicit root or current directory
+
+      WorkspaceDiscoveryResult exposes the selected root, ConfigFile path, parsed configuration, and diagnostics
+    }
+
+    WorkspaceLoading {
+      loadSigilWorkspace(filesystem, options) returns SigilWorkspace
+
+      SigilWorkspace adds declared member roots, loaded partial source documents, and accumulated diagnostics
+    }
+
+    GlossaryInterpretation {
+      loadSigilWorkspace reads and validates optional GlossaryFile into SigilWorkspace
+    }
   }
 }
 
 expand SigilWorkspaceLoader {
   logic {
-    Without an explicit root, walk from the target toward filesystem root and select the nearest eligible configured workspace.
-    With an explicit root, require .sigil/config.json directly inside that root.
-    Validate configuration before discovering or parsing Sigil source files.
-    Reject a nearer configured workspace when a configured parent does not exclude its subtree.
-    Derive member roots only from workspace.members.
-    Skip excluded independent nested workspaces and diagnose included nested configurations.
-    Apply include globs and then exclude globs to normalized workspace-relative paths.
-    Parse selected Sigil files in stable path order through SigilParser.
+    WorkspaceDiscovery {
+      Without an explicit root, walk from the target toward filesystem root and select the nearest eligible ConfigFile.
+
+      With an explicit root, require ConfigFile directly inside that root.
+
+      Validate configuration before discovering or parsing Sigil sources.
+
+      Reject a nearer configured workspace when a configured parent does not exclude its subtree.
+    }
+
+    WorkspaceLoading {
+      Derive member roots only from WorkspaceBoundary members.
+
+      Skip excluded independent nested workspaces and diagnose included nested ConfigFile instances.
+
+      Apply SourceSelection includes and then excludes to normalized workspace-relative paths.
+
+      Parse selected source files in stable path order through SigilParser.
+    }
+
+    GlossaryInterpretation {
+      Check for GlossaryFile after selecting the workspace boundary and before resolving loaded documents.
+
+      When present, read GlossaryFile through SigilFileSystem and delegate interpretation to SigilGlossaryEngine.
+
+      Accumulate glossary diagnostics while keeping invalid definitions inactive.
+    }
   }
 
   constraints {
-    All filesystem access goes through SigilFileSystem.
-    Configuration and Sigil source problems accumulate as diagnostics with partial workspace results when practical.
-    Required filesystem failures propagate to the caller.
-    Only the workspace root and declared member roots are eligible RootSigil locations.
+    FileSystemPort {
+      All filesystem access uses SigilFileSystem.
+    }
+
+    RecoverableResults {
+      Configuration and source problems accumulate as diagnostics with partial workspace results when practical.
+
+      Required filesystem failures propagate to the caller.
+    }
+
+    ModuleIndexFile {
+      Workspace loading accepts ModuleIndexFile at any included path and assigns it no workspace-discovery authority.
+    }
+
+    GlossaryInterpretation {
+      GlossaryFile loading is independent from SourceSelection globs.
+
+      Absence is valid while a filesystem failure reading an existing GlossaryFile propagates to the caller.
+    }
   }
 
   cases {
-    A nested workspace excluded by every configured parent resolves independently.
-    A nested workspace still included by a parent returns SIGIL_NESTED_CONFIG and loads no source.
-    An explicit root without a direct configuration returns SIGIL_CONFIG_NOT_FOUND.
-    A selected workspace excludes files matched by an exclude glob even when an include glob also matches.
-    A filesystem read failure rejects workspace loading.
+    WorkspaceDiscovery {
+      An excluded nested workspace resolves independently.
+
+      A nested workspace still included by a configured parent returns SIGIL_NESTED_CONFIG and loads no source.
+
+      An explicit root without a direct ConfigFile returns SIGIL_CONFIG_NOT_FOUND.
+    }
+
+    WorkspaceLoading {
+      A path excluded by SourceSelection is not loaded even when an include pattern matches.
+
+      A filesystem read failure rejects workspace loading.
+    }
+
+    GlossaryInterpretation {
+      A workspace without GlossaryFile loads normally.
+
+      A malformed GlossaryFile contributes diagnostics while loaded Sigil documents remain available.
+    }
   }
 }

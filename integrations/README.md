@@ -7,17 +7,18 @@ environment without becoming the shared parser or CLI implementation.
 
 Current integrations:
 
-- `skills/sigil`: Codex skill with agent-facing format guidance, standards-aware
-  semantic review, incremental brownfield adoption, proposal and review gates,
-  and implementation colocation. Version 0.1.0 is distributed as a standalone
-  repository skill bundled with native CLI releases and installable globally
-  or per project with `sigil skill install`.
+- `skills/sigil`: host-neutral coding-agent skill with format guidance,
+  standards-aware semantic review, incremental brownfield adoption, proposal and
+  review gates, concept-identifier proposal workflow, and implementation
+  colocation. Version 0.6.0 is distributed as a standalone repository skill
+  bundled with native CLI releases and installable globally or per project with
+  `sigil skill install`.
 - `editor/vscode`: implemented pre-production VS Code extension and
   editor-native human UI with syntax highlighting, bundled LSP features, and
   component previews.
 
-Proposed integration:
+Rejected historical design material:
 
-- `skills/sigil-anchor-indexer`: bounded model-assisted anchor proposals over
-  deterministic `sigil-indexer` candidates, with human approval before
-  persistence.
+- `skills/sigil-anchor-indexer`: a rejected proposal for bounded model-assisted
+  anchor proposals over deterministic indexer candidates. Its Markdown is
+  retained for design history but it has no active Sigil contract.

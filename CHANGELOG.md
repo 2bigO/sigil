@@ -2,10 +2,96 @@
 
 ## Unreleased
 
-- Add standalone CLI archives for macOS ARM64/x86_64, Linux ARM64/x86_64,
-  and Windows x86_64, with versioned GitHub Release automation.
-- Add checksum-verifying shell and PowerShell installers that require no Deno
-  or Node.js runtime on destination machines.
+- Add contextual CLI help for every recognized command path and include the
+  relevant help with usage errors; advance the CLI artifact to 0.6.1.
+- Add the optional free-form `decisions` expand section for durable decision
+  rationale while keeping binding outcomes in `constraints`.
+- Define the Sigil skill convention for named material decisions with
+  `Decision`, `Scope`, applicable assumptions, trade-offs, addressed issues,
+  discarded alternatives, consequences, and revisit conditions.
+- Preserve contextual imported-concept identity without exposing private
+  decision rationale or making decisions transitively binding.
+- Advance the Sigil Language and configuration contract to 0.5.0 and core,
+  CLI, LSP, and VS Code extension to 0.6.0.
+- Advance the Sigil skill to 0.6.2 with decision-rationale coverage,
+  correction conversations, and semantic-readiness gates.
+
+## 0.5.1 - 2026-07-23
+
+- Link concept headings and their owning component names in LSP hover Markdown
+  to the corresponding Sigil declarations.
+- Preserve component-owner navigation for concept occurrences collected from
+  expansion files.
+- Advance the LSP and VS Code extension to 0.5.1 while retaining core, CLI, and
+  the Sigil skill at compatible 0.5.0 versions.
+
+## 0.5.0 - 2026-07-23
+
+- Add the reviewed `.sigil/glossary.json` authority with workspace terms,
+  path-glob-bounded contexts, aliases, strict validation, and stable
+  diagnostics.
+- Add deterministic glossary occurrence matching, CLI inspection, LSP
+  highlighting, hover, and definition navigation.
+- Include source-scoped reviewed terminology in `sigil context` for coding-agent
+  handoffs without injecting unrelated glossary entries.
+- Require glossary inspection and candidate extraction after every approved
+  Sigil write or semantic edit, with explicit approval before glossary authority
+  changes.
+- Advance core, CLI, LSP, VS Code extension, and the Sigil skill to 0.5.0 while
+  retaining the compatible Sigil Language and config contract at 0.4.0.
+
+## 0.4.0 - 2026-07-22
+
+- Add flat `ConceptIdentifier { ... }` blocks for single reusable concepts or
+  related groups of semantic lines.
+- Warn on contiguous ungrouped interface regions while keeping warnings
+  non-fatal in the CLI and visible through LSP diagnostics.
+- Resolve one case-insensitively unique namespace across a component and all
+  matching expands, with collective repeated blocks and public/private concept
+  visibility.
+- Make imported public concepts available as bare identifiers, preserve their
+  origin through contextual reuse and downstream interface re-exposure, and
+  reject ambiguity without dotted notation, aliases, or shadowing.
+- Add concept symbols, definition, hover, references, semantic highlighting, CLI
+  context projections, and grouped Markdown rendering.
+- Extend the Sigil skill with proposal-only concept-identifier subagent work,
+  primary-agent validation, and an explicit anchoring exclusion.
+- Record the namespace, import-reuse, and collective-block decisions in ADR-015,
+  ADR-016, and ADR-017.
+- Advance the language, core, CLI, LSP, VS Code extension, and skill to 0.4.0.
+
+## 0.3.0 - 2026-07-22
+
+- Require every `#module.sigil` to declare at least one local component and add
+  `SIGIL_MODULE_WITHOUT_COMPONENT` for imports-only indexes.
+- Clarify that `goal` and `interface` are both public to dependents.
+- Limit interfaces to operations, data, events, results, errors, and observable
+  promises; express dependencies through imports and private architecture rules
+  through constraints.
+- Adopt blank lines between distinct prose-level Sigil ideas while preserving
+  compact free-form constructs.
+- Add the Sigil 0.3 migration guide and ADR-014; supersede the affected ADR-013
+  module-index decision.
+- Advance the language, core, CLI, LSP, VS Code extension, and skill to 0.3.0.
+
+## 0.2.0 - 2026-07-21
+
+- Replace the special project-root module contract with `#module.sigil` as an
+  explicit directory index allowed in any included directory.
+- Keep every component public through explicit `.sigil` imports and resolve
+  directory imports from an index's local declarations and direct imports.
+- Preserve original declaration paths through module indexes for graphs and LSP
+  definition navigation.
+- Remove the project-root-only module and directory-import diagnostics.
+- Keep ordinary Brownfield summary components at the workspace root and every
+  declared member as a workflow convention rather than a language form.
+- Add the Sigil 0.2 migration guide and ADR-013; supersede ADR-012.
+- Advance the language, core, CLI, LSP, VS Code extension, and skill to 0.2.0.
+
+- Add standalone CLI archives for macOS ARM64/x86_64, Linux ARM64/x86_64, and
+  Windows x86_64, with versioned GitHub Release automation.
+- Add checksum-verifying shell and PowerShell installers that require no Deno or
+  Node.js runtime on destination machines.
 - Replace `sigil install` with `sigil skill list` and `sigil skill install`,
   using global multi-agent installation by default and `--project` for local
   installation.
@@ -13,29 +99,29 @@
   managed upgrades, conflict preflight, and a Windows copy fallback.
 - Publish the packaged VS Code VSIX through versioned GitHub Releases while
   Marketplace distribution remains deferred.
-- Extend the standalone Codex Sigil skill 0.1.0 with implementation
-  component discovery and an implementation coverage gate before coding.
+- Extend the standalone Codex Sigil skill 0.2.0 with implementation component
+  discovery and an implementation coverage gate before coding.
 - Treat dependent-facing programming abstractions, internal APIs, state
   machines, screens, views, and reusable UI surfaces as possible components.
 - Distinguish component contracts, implementation-specific expands, and
   intentionally omitted trivial mechanics through a reviewable coverage map.
-- Implement the pre-production Sigil VS Code extension 0.1.0 as the
-  first concrete human authoring and review surface.
+- Implement the pre-production Sigil VS Code extension 0.2.0 as the first
+  concrete human authoring and review surface.
 - Define its initial scope as TextMate highlighting, bundled LSP integration,
   editor-native language features, and hover-backed component previews.
-- Implement the pre-production `@qoherent/sigil-lsp` 0.1.0 package.
+- Implement the pre-production `@qoherent/sigil-lsp` 0.2.0 package.
 - Define the initial LSP 3.18 package contract for stdio lifecycle, full
   document synchronization, diagnostics, document symbols, definition
   navigation, hover, and resolver-backed semantic highlighting.
 - Require user collaboration to define and approve clear Sigil coverage before
   adding or modifying affected implementation.
-- Define `RootSigil` as the root-project or declared workspace-member contract
-  for `#module.sigil` and reserve descriptive filenames for internal Sigil files.
+- Define `#module.sigil` as an explicit directory index while retaining
+  descriptive filenames for component contracts and implementation rationale.
 - Clarify that logic owns behavior and execution flow while constraints own
   rules, policies, invariants, architecture decisions, and technology choices.
 - Rename internal `#module.sigil` contracts and update their imports.
-- Define `workspace.members` as the sole authority for additional RootSigil
-  locations; package manifests may inform proposals but not runtime discovery.
+- Define `workspace.members` as the authority for additional Brownfield summary
+  boundaries; package manifests may inform proposals but not runtime discovery.
 - Require brownfield application discovery and user confirmation of the
   application goal and interface before proposing a meaningful root module.
 - Reject empty and import-only root modules in the brownfield workflow fixture.
@@ -46,14 +132,17 @@
   dedicated Greenfield and Brownfield expands under one general skill contract.
 - Make Greenfield clarification conversational and iterative, including design
   choices, tradeoffs, recommendations, and user-directed alternatives.
-- Run `sigil init` before Brownfield discovery, establish and review RootSigil
-  through evidence plus conversation, and only then focus on the requested task.
+- Run `sigil init` before Brownfield discovery, establish and review configured
+  boundary summaries through evidence plus conversation, and only then focus on
+  the requested task.
 
 ## 0.1.0 - 2026-07-13
 
 - Publish the pre-production Sigil Language 0.1.0.
-- Add mandatory strict `.sigil/config.json` schema 0.1.0 and config-based discovery.
-- Allow independent nested workspaces only when their subtrees are excluded by configured parents.
+- Add mandatory strict `.sigil/config.json` schema 0.1.0 and config-based
+  discovery.
+- Allow independent nested workspaces only when their subtrees are excluded by
+  configured parents.
 - Configure Promise and Slotted as independent example projects.
 - Release `@qoherent/sigil-core` and `@qoherent/sigil` 0.1.0.
 - Add CLI `init` and `version` commands and complete workspace metadata output.

@@ -1,8 +1,9 @@
-/** Sigil 0.1 parsing, configuration, discovery, resolution, and projections. @module */
+/** Sigil 0.5 parsing, configuration, discovery, resolution, and projections. @module */
 export * from "./model.ts";
 export * from "./diagnostics.ts";
 export * from "./filesystem.ts";
 export * from "./config.ts";
+export * from "./glossary.ts";
 export * from "./parser.ts";
 export * from "./workspace.ts";
 export * from "./pipeline.ts";

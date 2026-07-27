@@ -28,6 +28,12 @@ states, prioritization, one-primary-decision turns, recommendations,
 checkpoints, conflict handling, and the synthesis exit condition. Conversation
 is a normal design activity even when the initial request appears clear.
 
+After the intended outcome, affected users or callers, responsibility boundary,
+external surface, and known risk constraints are sufficiently framed, follow
+`references/external-guidance-evidence.md`. Acquire applicable authoritative
+evidence before the design conversation presents alternatives or a
+recommendation for a guidance-sensitive material decision.
+
 Use the shared protocol to resolve Greenfield decisions about:
 
 - product purpose and intended outcome;
@@ -76,6 +82,7 @@ implementation and review:
 - `state` for meaningful runtime or domain configurations;
 - `logic` for behavior, flows, decisions, and transitions;
 - `constraints` for invariants, policy, architecture, and binding choices;
+- `decisions` for durable rationale behind material selected choices;
 - `cases` for externally observable outcomes and edge conditions.
 
 Use one semantic idea per non-empty line. Keep private algorithms and storage
@@ -89,9 +96,20 @@ approved and use a separate Sigil review cycle.
 
 ## 4. Review And Synthesize Proposed Sigil
 
-Apply `references/standards-review.md` before asking for final approval. Review
-semantic readiness, applicable guidance, cross-Sigil coherence, modularity,
-constraint-derived cases, and evidence or uncertainty.
+Apply `references/standards-review.md` before asking for final approval. Verify
+the currency and applicability of evidence packets created during design
+conversation, then review semantic readiness, applicable guidance, cross-Sigil
+coherence, modularity, constraint-derived cases, and evidence or uncertainty.
+
+Review the exact ungrouped proposal first. If semantic readiness is
+`correction required`, enter the same-chat correction conversation and stop
+before concept grouping. Only after readiness appears aligned may
+`references/authoring-conventions.md` group interface concepts. Repeat semantic
+review on the grouped proposal before presenting it for approval.
+
+Before approval, inventory every material selected choice in the proposed
+contract and include its matching decision record or justified omission in the
+decision-rationale coverage map.
 
 Then present:
 
@@ -135,7 +153,13 @@ After explicit approval:
 3. use `sigil graph` or `sigil context` when relationships changed;
 4. reread the written files and repeat semantic, coherence, and modularity
    review;
-5. stop at the Sigil review gate and report changed files, captured decisions,
+5. repeat the decision-rationale coverage audit against the written semantic
+   lines and return to proposal review when coverage is missing;
+6. if concept grouping is still required, propose and apply it only through its
+   approval workflow, then rerun deterministic and semantic review;
+7. perform glossary candidate extraction only after the final semantic review
+   appears aligned;
+8. stop at the Sigil review gate and report changed files, captured decisions,
    open questions, and validation results.
 
 Do not write implementation code in the same pass. After the user approves the

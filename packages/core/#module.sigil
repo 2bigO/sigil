@@ -1,46 +1,126 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
+@packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 
 component SigilCore {
   goal {
-    Provide the deterministic semantic engine shared by Sigil tools and integrations.
-    Keep parsing, workspace discovery, resolution, diagnostics, graphs, and projections consistent across hosts.
+    Provide the deterministic semantic engine shared by Sigil command-line, language-server, editor, and agent integrations.
+
+    Compose source interpretation, configuration, workspace loading, glossary interpretation, relationship resolution, graph construction, projections, and diagnostics without owning host interaction or semantic judgment.
   }
 
   interface {
-    publishes the pre-production @qoherent/sigil-core 0.1.0 Deno TypeScript library
-    parseSigilDocument(filePath, source, options) interprets one source using an explicit supported SigilLanguage version
-    parseSigilConfig(source, filePath?) validates the SigilWorkspaceConfig contract
-    discoverSigilWorkspace(filesystem, options) returns the selected root, configuration, and diagnostics
-    loadSigilWorkspace(filesystem, options) returns discovered files, partial document models, workspace members, and diagnostics
-    resolveSigilWorkspace(workspace) returns resolved imports, components, collected expansions, graph relationships, and diagnostics
-    componentContracts and collectedExpansionFor expose structured projection primitives
-    exports typed source, document, workspace, configuration, resolution, graph, diagnostic, and filesystem models
-    returns partial models with stable diagnostics when malformed Sigil or configuration permits recovery
-    propagates required host filesystem failures instead of reporting them as Sigil source diagnostics
+    SourceInterpretation {
+      parseSigilDocument(filePath, source, options) returns a recovered source document and structural diagnostics
+    }
+
+    ConfigurationInterpretation {
+      parseSigilConfig(source, filePath?) returns validated workspace configuration or diagnostics
+    }
+
+    GlossaryInterpretation {
+      parseSigilGlossary(source, filePath?) returns validated authoritative glossary data or diagnostics
+    }
+
+    WorkspaceProcessing {
+      discoverSigilWorkspace(filesystem, options) returns the selected configured workspace boundary
+
+      loadSigilWorkspace(filesystem, options) returns selected source documents, declared member roots, and accumulated diagnostics
+    }
+
+    WorkspaceResolution {
+      resolveSigilWorkspace(workspace) returns resolved imports, components, collective expansions, concept namespaces, graph relationships, and diagnostics
+    }
+
+    SemanticProjections {
+      componentContracts(resolvedWorkspace) returns public component contract views
+
+      conceptNamespaceFor(resolvedWorkspace, componentName) returns resolved concepts, occurrences, and contextual whole-word references for that component
+
+      collectedExpansionFor(resolvedWorkspace, componentName) returns every collected expansion for that component
+
+      agentDependencyContextFor(resolvedWorkspace, componentName) returns bounded agent context containing direct dependency contracts and rationale
+    }
+
+    GlossaryInspection {
+      glossaryProjectionForWorkspace(workspace) returns resolved contexts, entries, occurrences, and diagnostics
+
+      glossaryContextForFiles(projection, filePaths) returns the authoritative glossary subset relevant to selected source files
+    }
+
+    CoreData {
+      exports immutable typed source, configuration, diagnostic, workspace, resolution, graph, and projection data
+    }
+
+    RecoverableResults {
+      returns partial deterministic results with stable diagnostics when malformed Sigil or configuration permits recovery
+
+      propagates required host filesystem failures instead of translating them into Sigil diagnostics
+    }
   }
 }
 
 expand SigilCore {
-  logic {
-    Raw source parsing preserves declarations, source ranges, and semantic lines before workspace resolution.
-    Workspace loading discovers and validates configuration before parsing included Sigil files.
-    Resolution connects imports to components, collects every matching expand block, detects ambiguity and cycles, and builds graph relationships.
-    Projections expose resolved contracts and collected operational detail without reinterpreting Sigil semantics.
+  constraints {
+    PackageVersionOwnership {
+      packages/core/deno.json owns the @qoherent/sigil-core artifact version.
+
+      The package contract does not duplicate its manifest-owned version literal.
+    }
+
+    DeterministicCore {
+      Core computes structural facts and performs no model-assisted semantic judgment.
+
+      Core does not own CLI arguments, LSP transport, editor APIs, agent-host behavior, approval decisions, or user-interface presentation.
+    }
+
+    DependencyDirection {
+      Internal stages depend only in the declared source-to-resolution-to-projection direction and do not create cyclic ownership.
+
+      Host integrations consume core semantics instead of implementing independent Sigil parsers, workspace rules, resolvers, or concept interpretation.
+    }
+
+    RecoverableResults {
+      Source and configuration problems remain diagnostics when partial deterministic results are meaningful.
+
+      Host filesystem and runtime failures propagate to the caller.
+    }
   }
 
-  constraints {
-    SigilCore implements the SigilLanguage and SigilWorkspaceConfig 0.1.0 contracts.
-    Core logic accesses files only through the SigilFileSystem abstraction.
-    Core returns partial semantic models with diagnostics where recovery is practical.
-    Core does not own CLI arguments, LSP transport, editor APIs, Codex behavior, Markdown rendering, semantic search, anchors, or user-interface concerns.
-    Host integrations consume core semantics instead of implementing independent Sigil parsers or resolvers.
+  decisions {
+    DeterministicCore {
+      Decision: Centralize reproducible Sigil semantics in one typed shared core and keep host interaction and model-assisted judgment outside it.
+
+      Scope: Governs parsing, configuration, workspace loading, resolution, graphs, diagnostics, and primitive projections; excludes transport, presentation, elicitation, and approval.
+
+      Trade-offs: Hosts must consume core projections and semantic readiness remains a separate workflow responsibility.
+
+      Discarded alternatives: Host-specific parsers and direct model access from core were rejected.
+
+      Consequences: Compatible hosts derive structural facts from the same implementation boundary.
+
+      Revisit when: A required shared semantic fact cannot be represented without host coupling.
+    }
   }
 
   cases {
-    Parsing valid Sigil preserves each non-empty section line with its owner, section, file, and source range.
-    Loading a configured workspace discovers included files and declared member roots.
-    Resolving a workspace connects imported components and collects matching expansions from every contributing file.
-    Malformed Sigil returns usable partial models with stable diagnostics when recovery is possible.
-    A host filesystem failure propagates to the caller rather than becoming an unresolved-import diagnostic.
+    WorkspaceResolution {
+      Resolving a loaded workspace returns imports, components, collective expansions, concept namespaces, graph relationships, and accumulated diagnostics.
+    }
+
+    DeterministicCore {
+      CLI and LSP callers operating on the same loaded workspace receive results derived from the same core stages.
+    }
+
+    GlossaryInspection {
+      CLI and LSP callers receive glossary occurrences derived from the same core projection.
+
+      Agent context callers receive scoped glossary definitions without implementing independent filtering.
+    }
+
+    RecoverableResults {
+      Recoverable malformed Sigil returns partial source and workspace models with stable diagnostics.
+
+      An unreadable required file rejects the operation rather than becoming an unresolved-import diagnostic.
+    }
   }
 }

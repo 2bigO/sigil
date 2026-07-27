@@ -1,13 +1,17 @@
 import type {
+  ConceptIdentity,
+  GlossaryTerm,
   ResolvedComponent,
+  ResolvedConcept,
   ResolvedSigilWorkspace,
   Section,
+  SemanticLine,
   SigilDiagnostic,
   SigilDocument,
   SigilFileSystem,
   SourceRange,
 } from "@qoherent/sigil-core";
-import { normalizePath } from "@qoherent/sigil-core";
+import { normalizePath, relativePath } from "@qoherent/sigil-core";
 import { pathToFileUri } from "./filesystem.ts";
 import type {
   DocumentSymbol,
@@ -22,11 +26,31 @@ import type {
 const SYMBOL_NAMESPACE = 3;
 const SYMBOL_CLASS = 5;
 const SYMBOL_PROPERTY = 7;
-const SEMANTIC_TOKEN_TYPE = 0;
+const SEMANTIC_TOKEN_COMPONENT = 0;
+const SEMANTIC_TOKEN_CONCEPT = 1;
+const SEMANTIC_TOKEN_TERM = 2;
 
 interface ComponentReference {
   readonly component: ResolvedComponent;
   readonly range: Range;
+  readonly includeExpansions: boolean;
+}
+
+interface ConceptReference {
+  readonly concept: ResolvedConcept;
+  readonly context: ResolvedComponent;
+  readonly range: Range;
+}
+
+interface GlossaryReference {
+  readonly term: GlossaryTerm;
+  readonly matchedSpelling: string;
+  readonly range: Range;
+}
+
+interface SemanticReference {
+  readonly range: Range;
+  readonly tokenType: number;
 }
 
 export function sourceRangeToLsp(range?: SourceRange): Range {
@@ -57,7 +81,7 @@ export function diagnosticsByUri(
         ? 1
         : item.severity === "warning"
         ? 2
-        : 3,
+        : 4,
       code: item.code,
       source: "sigil",
       message: item.message,
@@ -82,7 +106,9 @@ export function documentSymbols(
         declaration.range.start.line,
         declaration.name,
       ),
-      children: declaration.sections.map(sectionSymbol),
+      children: declaration.sections.map((section) =>
+        sectionSymbol(section, source)
+      ),
     })),
     ...document.expands.map((declaration) => ({
       name: declaration.name,
@@ -94,7 +120,9 @@ export function documentSymbols(
         declaration.range.start.line,
         declaration.name,
       ),
-      children: declaration.sections.map(sectionSymbol),
+      children: declaration.sections.map((section) =>
+        sectionSymbol(section, source)
+      ),
     })),
   ];
 }
@@ -116,8 +144,8 @@ export async function definitionAt(
   );
   if (importEntry) {
     const imported = importEntry.names.find((item) => item.name === token.text);
-    if (imported?.component && importEntry.targetFile) {
-      return location(importEntry.targetFile, imported.component.range);
+    if (imported?.component && imported.componentFile) {
+      return location(imported.componentFile, imported.component.range);
     }
     if (
       importEntry.targetFile &&
@@ -130,6 +158,25 @@ export async function definitionAt(
         target?.document.expands[0];
       return location(importEntry.targetFile, declaration?.range);
     }
+  }
+
+  const conceptReference = conceptReferences(
+    resolved,
+    normalized,
+    source,
+  ).find((item) => contains(item.range, position));
+  if (conceptReference) {
+    return await conceptDefinition(resolved, fs, conceptReference.concept);
+  }
+
+  const glossaryReference = glossaryReferences(resolved, normalized).find(
+    (item) => contains(item.range, position),
+  );
+  if (glossaryReference && resolved.glossary.glossaryPath) {
+    return location(
+      resolved.glossary.glossaryPath,
+      glossaryReference.term.declarationRange,
+    );
   }
 
   const reference = componentReferences(resolved, normalized, source).find(
@@ -151,6 +198,38 @@ export async function hoverAt(
 ): Promise<Hover | null> {
   const source = await fs.readTextFile(filePath);
   const normalized = normalizePath(filePath);
+  const markdown = new HoverMarkdownRenderer(resolved, fs);
+  const conceptReference = conceptReferences(
+    resolved,
+    normalized,
+    source,
+  ).find((item) => contains(item.range, position));
+  const glossaryOccurrence = glossaryReferences(resolved, normalized).find(
+    (item) => contains(item.range, position),
+  );
+  if (conceptReference) {
+    const glossaryReference = glossaryOccurrence ??
+      glossaryReferenceForConcept(resolved, normalized, conceptReference);
+    const concept = await conceptMarkdown(conceptReference, markdown);
+    return {
+      contents: {
+        kind: "markdown",
+        value: glossaryReference
+          ? `${concept}\n\n---\n\n${glossaryMarkdown(glossaryReference)}`
+          : concept,
+      },
+      range: conceptReference.range,
+    };
+  }
+  if (glossaryOccurrence) {
+    return {
+      contents: {
+        kind: "markdown",
+        value: glossaryMarkdown(glossaryOccurrence),
+      },
+      range: glossaryOccurrence.range,
+    };
+  }
   const reference = componentReferences(resolved, normalized, source).find(
     (item) => contains(item.range, position),
   );
@@ -158,7 +237,11 @@ export async function hoverAt(
   return {
     contents: {
       kind: "markdown",
-      value: componentMarkdown(reference.component),
+      value: await componentMarkdown(
+        reference.component,
+        reference.includeExpansions,
+        markdown,
+      ),
     },
     range: reference.range,
   };
@@ -169,13 +252,40 @@ export function semanticTokens(
   filePath: string,
   source: string,
 ): SemanticTokens {
-  const references = componentReferences(resolved, filePath, source)
-    .map((item) => item.range)
-    .sort(compareRanges);
+  const byRange = new Map<string, SemanticReference>();
+  const components = componentReferences(resolved, filePath, source);
+  const concepts = conceptReferences(resolved, filePath, source);
+  const structuredRanges = [
+    ...components.map((item) => item.range),
+    ...concepts.map((item) => item.range),
+  ];
+  for (const item of glossaryReferences(resolved, filePath)) {
+    if (structuredRanges.some((range) => overlaps(range, item.range))) continue;
+    byRange.set(rangeKey(item.range), {
+      range: item.range,
+      tokenType: SEMANTIC_TOKEN_TERM,
+    });
+  }
+  for (const item of components) {
+    byRange.set(rangeKey(item.range), {
+      range: item.range,
+      tokenType: SEMANTIC_TOKEN_COMPONENT,
+    });
+  }
+  for (const item of concepts) {
+    byRange.set(rangeKey(item.range), {
+      range: item.range,
+      tokenType: SEMANTIC_TOKEN_CONCEPT,
+    });
+  }
+  const references = [...byRange.values()].sort((left, right) =>
+    compareRanges(left.range, right.range)
+  );
   const data: number[] = [];
   let previousLine = 0;
   let previousCharacter = 0;
-  for (const range of references) {
+  for (const reference of references) {
+    const range = reference.range;
     if (range.start.line !== range.end.line) continue;
     const deltaLine = range.start.line - previousLine;
     const deltaCharacter = deltaLine === 0
@@ -185,13 +295,52 @@ export function semanticTokens(
       deltaLine,
       deltaCharacter,
       range.end.character - range.start.character,
-      SEMANTIC_TOKEN_TYPE,
+      reference.tokenType,
       0,
     );
     previousLine = range.start.line;
     previousCharacter = range.start.character;
   }
   return { data };
+}
+
+function glossaryReferences(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+): readonly GlossaryReference[] {
+  const normalized = normalizePath(filePath);
+  return resolved.glossary.occurrences
+    .filter((occurrence) => normalizePath(occurrence.filePath) === normalized)
+    .map((occurrence) => ({
+      term: occurrence.term,
+      matchedSpelling: occurrence.matchedSpelling,
+      range: sourceRangeToLsp(occurrence.range),
+    }));
+}
+
+function glossaryReferenceForConcept(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+  conceptReference: ConceptReference,
+): GlossaryReference | undefined {
+  const relativeFilePath = relativePath(resolved.workspace.root, filePath);
+  const context = resolved.glossary.resolvedContexts.find((item) =>
+    normalizePath(item.filePath) === normalizePath(relativeFilePath)
+  );
+  const identifier = conceptReference.concept.identity.identifier;
+  const normalizedIdentifier = identifier.toLowerCase();
+  const term = context?.entries.find((entry) =>
+    [entry.term, ...entry.aliases].some(
+      (spelling) => spelling.toLowerCase() === normalizedIdentifier,
+    )
+  );
+  return term
+    ? {
+      term,
+      matchedSpelling: identifier,
+      range: conceptReference.range,
+    }
+    : undefined;
 }
 
 function componentReferences(
@@ -214,6 +363,7 @@ function componentReferences(
     addVisibleComponent(visible, component);
     references.push({
       component,
+      includeExpansions: true,
       range: declarationNameRange(
         source,
         component.declaration.range.start.line,
@@ -229,15 +379,15 @@ function componentReferences(
   ) {
     const namesRange = importNamesRange(source, imported.declaration.range);
     for (const name of imported.names) {
-      if (!name.component || !imported.targetFile) continue;
+      if (!name.component || !name.componentFile) continue;
       const component = resolved.components.find((item) =>
         item.declaration === name.component &&
-        normalizePath(item.filePath) === normalizePath(imported.targetFile!)
+        normalizePath(item.filePath) === normalizePath(name.componentFile!)
       );
       if (!component) continue;
       addVisibleComponent(visible, component);
       for (const range of identifierRanges(source, name.name, namesRange)) {
-        references.push({ component, range });
+        references.push({ component, range, includeExpansions: false });
       }
     }
   }
@@ -249,6 +399,7 @@ function componentReferences(
     if (matches.length !== 1) continue;
     references.push({
       component: matches[0],
+      includeExpansions: true,
       range: declarationNameRange(
         source,
         expand.range.start.line,
@@ -268,12 +419,117 @@ function componentReferences(
     for (const [name, component] of visible) {
       if (!component) continue;
       for (const range of identifierRanges(source, name, lineRange)) {
-        references.push({ component, range });
+        references.push({
+          component,
+          range,
+          includeExpansions: normalizePath(component.filePath) === normalized,
+        });
       }
     }
   }
 
   return deduplicateReferences(references);
+}
+
+function conceptReferences(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+  source: string,
+): readonly ConceptReference[] {
+  const normalized = normalizePath(filePath);
+  const document = resolved.workspace.files.find((item) =>
+    normalizePath(item.path) === normalized
+  )?.document;
+  if (!document) return [];
+
+  const references: ConceptReference[] = [];
+  for (const declaration of [...document.components, ...document.expands]) {
+    const context = componentContext(
+      resolved,
+      normalized,
+      declaration.kind,
+      declaration.name,
+    );
+    if (!context) continue;
+    for (const section of declaration.sections) {
+      for (const block of section.concepts) {
+        const localConcept = context.conceptNamespace.concepts.find((item) =>
+          item.occurrences.some((occurrence) => occurrence.block === block)
+        );
+        const concept = localConcept &&
+          (context.conceptNamespace.accessibleConcepts.find((item) =>
+            conceptIdentityKey(item.identity) ===
+              conceptIdentityKey(localConcept.identity)
+          ) ?? localConcept);
+        if (concept) {
+          references.push({
+            concept: conceptForHover(concept, context),
+            context,
+            range: declarationNameRange(
+              source,
+              block.range.start.line,
+              block.identifier,
+            ),
+          });
+        }
+      }
+    }
+  }
+
+  for (const context of resolved.components) {
+    for (const reference of context.conceptNamespace.references) {
+      if (normalizePath(reference.filePath) !== normalized) continue;
+      const concept = context.conceptNamespace.accessibleConcepts.find(
+        (candidate) =>
+          conceptIdentityKey(candidate.identity) ===
+            conceptIdentityKey(reference.conceptIdentity),
+      );
+      if (concept) {
+        references.push({
+          concept: conceptForHover(concept, context),
+          context,
+          range: sourceRangeToLsp(reference.range),
+        });
+      }
+    }
+  }
+  return deduplicateConceptReferences(references);
+}
+
+function conceptForHover(
+  concept: ResolvedConcept,
+  context: ResolvedComponent,
+): ResolvedConcept {
+  const isContextualReuse = concept.identity.componentName !== context.name ||
+    normalizePath(concept.identity.filePath) !==
+      normalizePath(context.filePath);
+  return isContextualReuse
+    ? {
+      ...concept,
+      occurrences: concept.occurrences.filter((occurrence) =>
+        occurrence.sectionName === "interface"
+      ),
+    }
+    : concept;
+}
+
+function componentContext(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+  kind: "component" | "expand",
+  name: string,
+): ResolvedComponent | undefined {
+  const matches = resolved.components.filter((component) => {
+    if (component.name !== name) return false;
+    if (kind === "component") {
+      return normalizePath(component.filePath) === filePath;
+    }
+    return component.expansions.expands.some((expansion) =>
+      normalizePath(expansion.filePath) === filePath &&
+      expansion.declaration.name === name
+    );
+  });
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 function addVisibleComponent(
@@ -324,7 +580,7 @@ function identifierRanges(
 }
 
 function isIdentifierCharacter(value: string | undefined): boolean {
-  return value !== undefined && /[A-Za-z0-9_]/.test(value);
+  return value !== undefined && /[A-Za-z0-9_-]/.test(value);
 }
 
 function deduplicateReferences(
@@ -339,11 +595,34 @@ function deduplicateReferences(
   return [...unique.values()];
 }
 
+function deduplicateConceptReferences(
+  references: readonly ConceptReference[],
+): readonly ConceptReference[] {
+  const unique = new Map<string, ConceptReference>();
+  for (const reference of references) {
+    const key = `${rangeKey(reference.range)}:${
+      conceptIdentityKey(reference.concept.identity)
+    }`;
+    if (!unique.has(key)) unique.set(key, reference);
+  }
+  return [...unique.values()];
+}
+
+function rangeKey(range: Range): string {
+  return `${range.start.line}:${range.start.character}:${range.end.line}:${range.end.character}`;
+}
+
+function conceptIdentityKey(identity: ConceptIdentity): string {
+  return `${
+    normalizePath(identity.filePath)
+  }::${identity.componentName}::${identity.normalizedIdentifier}`;
+}
+
 function compareRanges(left: Range, right: Range): number {
   return compare(left.start, right.start) || compare(left.end, right.end);
 }
 
-function sectionSymbol(section: Section): DocumentSymbol {
+function sectionSymbol(section: Section, source: string): DocumentSymbol {
   return {
     name: section.name,
     kind: SYMBOL_PROPERTY,
@@ -358,6 +637,17 @@ function sectionSymbol(section: Section): DocumentSymbol {
         character: section.range.start.column - 1 + section.name.length,
       },
     },
+    children: section.concepts.map((concept) => ({
+      name: concept.identifier,
+      detail: "concept",
+      kind: SYMBOL_PROPERTY,
+      range: sourceRangeToLsp(concept.range),
+      selectionRange: declarationNameRange(
+        source,
+        concept.range.start.line,
+        concept.identifier,
+      ),
+    })),
   };
 }
 
@@ -385,53 +675,293 @@ function tokenAt(
   ) {
     return null;
   }
-  const isToken = (char: string): boolean => /[A-Za-z0-9_@./#-]/.test(char);
+  const isToken = (char: string): boolean => /[\p{L}\p{N}_@./#-]/u.test(char);
   let start = position.character;
   let end = position.character;
   while (start > 0 && isToken(line[start - 1])) start--;
   while (end < line.length && isToken(line[end])) end++;
   const text = line.slice(start, end).replace(/^@/, "");
-  return text
-    ? {
-      text,
-      range: {
-        start: { line: position.line, character: start },
-        end: { line: position.line, character: end },
-      },
-    }
-    : null;
+  const range = {
+    start: { line: position.line, character: start },
+    end: { line: position.line, character: end },
+  };
+  return text && contains(range, position) ? { text, range } : null;
 }
 
-function componentMarkdown(component: ResolvedComponent): string {
+async function componentMarkdown(
+  component: ResolvedComponent,
+  includeExpansions: boolean,
+  markdown: HoverMarkdownRenderer,
+): Promise<string> {
   const goal = component.declaration.sections.find((item) =>
     item.name === "goal"
   );
   const iface = component.declaration.sections.find((item) =>
     item.name === "interface"
   );
+  const componentLink = await markdown.componentLink(component);
   const lines = [
-    `### component ${component.name}`,
+    `### component ${componentLink}`,
     "",
     `Source: \`${component.filePath}\``,
     "",
     "**Goal**",
-    ...markdownList(goal?.lines.map((item) => item.text) ?? []),
+    ...markdownList(await markdown.semanticLines(goal?.lines ?? [])),
     "",
     "**Interface**",
-    ...markdownList(iface?.lines.map((item) => item.text) ?? []),
+    ...markdownList(await markdown.semanticLines(iface?.lines ?? [])),
   ];
-  if (component.expansions.expands.length) {
+  if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
       lines.push("", `\`${expansion.filePath}\``);
       for (const section of expansion.declaration.sections) {
+        const semanticLines = await markdown.semanticLines(section.lines);
         lines.push(
-          `- **${section.name}:** ${
-            section.lines.map((item) => item.text).join(" ")
-          }`,
+          `- **${section.name}:** ${semanticLines.join(" ")}`,
         );
       }
     }
+  }
+  return lines.join("\n");
+}
+
+async function conceptDefinition(
+  resolved: ResolvedSigilWorkspace,
+  fs: SigilFileSystem,
+  concept: ResolvedConcept,
+): Promise<Location | null> {
+  const origin = resolved.components.find((component) =>
+    component.name === concept.identity.componentName &&
+    normalizePath(component.filePath) ===
+      normalizePath(concept.identity.filePath)
+  );
+  const resolvedConcept = origin?.conceptNamespace.concepts.find((item) =>
+    conceptIdentityKey(item.identity) === conceptIdentityKey(concept.identity)
+  );
+  const occurrence =
+    resolvedConcept?.occurrences.find((item) =>
+      item.sectionName === "interface"
+    ) ?? resolvedConcept?.occurrences[0];
+  if (!occurrence) return null;
+  const source = await fs.readTextFile(occurrence.filePath);
+  return {
+    uri: pathToFileUri(occurrence.filePath),
+    range: declarationNameRange(
+      source,
+      occurrence.block.range.start.line,
+      occurrence.block.identifier,
+    ),
+  };
+}
+
+async function conceptMarkdown(
+  reference: ConceptReference,
+  markdown: HoverMarkdownRenderer,
+): Promise<string> {
+  const identity = reference.concept.identity;
+  const conceptLink = await markdown.conceptLink(reference.concept);
+  const origin = reference.context.name === identity.componentName &&
+      normalizePath(reference.context.filePath) ===
+        normalizePath(identity.filePath)
+    ? reference.context
+    : markdown.component(identity.componentName, identity.filePath);
+  const originLink = origin
+    ? await markdown.componentLink(origin)
+    : `\`${identity.componentName}\``;
+  const lines = [
+    `### concept ${conceptLink}`,
+    "",
+    `Origin: ${originLink} in \`${identity.filePath}\``,
+  ];
+  for (const occurrence of reference.concept.occurrences) {
+    const semanticLines = await markdown.semanticLines(occurrence.block.lines);
+    const occurrenceComponent = markdown.component(
+      occurrence.componentName,
+      occurrence.filePath,
+    );
+    const occurrenceComponentLink = occurrenceComponent
+      ? await markdown.componentLink(occurrenceComponent)
+      : `\`${occurrence.componentName}\``;
+    lines.push(
+      "",
+      `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${occurrence.filePath}\``,
+      ...markdownList(semanticLines),
+    );
+  }
+  return lines.join("\n");
+}
+
+interface HoverLinkReference {
+  readonly range: Range;
+  readonly target: Location;
+}
+
+class HoverMarkdownRenderer {
+  readonly #resolved: ResolvedSigilWorkspace;
+  readonly #fs: SigilFileSystem;
+  readonly #sources = new Map<string, Promise<string>>();
+  readonly #references = new Map<
+    string,
+    Promise<readonly HoverLinkReference[]>
+  >();
+
+  constructor(resolved: ResolvedSigilWorkspace, fs: SigilFileSystem) {
+    this.#resolved = resolved;
+    this.#fs = fs;
+  }
+
+  component(
+    name: string,
+    filePath: string,
+  ): ResolvedComponent | undefined {
+    const normalized = normalizePath(filePath);
+    return this.#resolved.components.find((component) =>
+      component.name === name &&
+      (
+        normalizePath(component.filePath) === normalized ||
+        component.expansions.expands.some((expansion) =>
+          normalizePath(expansion.filePath) === normalized
+        )
+      )
+    );
+  }
+
+  async componentLink(component: ResolvedComponent): Promise<string> {
+    const source = await this.#source(component.filePath);
+    return markdownLink(component.name, {
+      uri: pathToFileUri(component.filePath),
+      range: declarationNameRange(
+        source,
+        component.declaration.range.start.line,
+        component.name,
+      ),
+    });
+  }
+
+  async conceptLink(concept: ResolvedConcept): Promise<string> {
+    const target = await conceptDefinition(this.#resolved, this.#fs, concept);
+    return target
+      ? markdownLink(concept.identifier, target)
+      : `\`${concept.identifier}\``;
+  }
+
+  async semanticLines(lines: readonly SemanticLine[]): Promise<string[]> {
+    return await Promise.all(lines.map((line) => this.semanticLine(line)));
+  }
+
+  async semanticLine(line: SemanticLine): Promise<string> {
+    const lineRange = sourceRangeToLsp(line.range);
+    const references = (await this.#referencesFor(line.filePath))
+      .filter((reference) => containsRange(lineRange, reference.range))
+      .sort((left, right) => compareRanges(right.range, left.range));
+    let result = line.text;
+    for (const reference of references) {
+      const start = reference.range.start.character - lineRange.start.character;
+      const end = reference.range.end.character - lineRange.start.character;
+      if (start < 0 || end > result.length || start >= end) continue;
+      const label = result.slice(start, end);
+      result = `${result.slice(0, start)}${
+        markdownLink(label, reference.target)
+      }${result.slice(end)}`;
+    }
+    return result;
+  }
+
+  #source(filePath: string): Promise<string> {
+    const normalized = normalizePath(filePath);
+    let source = this.#sources.get(normalized);
+    if (!source) {
+      source = this.#fs.readTextFile(normalized);
+      this.#sources.set(normalized, source);
+    }
+    return source;
+  }
+
+  #referencesFor(filePath: string): Promise<readonly HoverLinkReference[]> {
+    const normalized = normalizePath(filePath);
+    let references = this.#references.get(normalized);
+    if (!references) {
+      references = this.#resolveReferences(normalized);
+      this.#references.set(normalized, references);
+    }
+    return references;
+  }
+
+  async #resolveReferences(
+    filePath: string,
+  ): Promise<readonly HoverLinkReference[]> {
+    const source = await this.#source(filePath);
+    const byRange = new Map<string, HoverLinkReference>();
+    for (
+      const reference of componentReferences(
+        this.#resolved,
+        filePath,
+        source,
+      )
+    ) {
+      const targetSource = await this.#source(reference.component.filePath);
+      byRange.set(rangeKey(reference.range), {
+        range: reference.range,
+        target: {
+          uri: pathToFileUri(reference.component.filePath),
+          range: declarationNameRange(
+            targetSource,
+            reference.component.declaration.range.start.line,
+            reference.component.name,
+          ),
+        },
+      });
+    }
+    for (
+      const reference of conceptReferences(
+        this.#resolved,
+        filePath,
+        source,
+      )
+    ) {
+      const target = await conceptDefinition(
+        this.#resolved,
+        this.#fs,
+        reference.concept,
+      );
+      if (target) {
+        byRange.set(rangeKey(reference.range), {
+          range: reference.range,
+          target,
+        });
+      }
+    }
+    return [...byRange.values()];
+  }
+}
+
+function locationMarkdownUri(location: Location): string {
+  return `${location.uri}#L${location.range.start.line + 1},${
+    location.range.start.character + 1
+  }`;
+}
+
+function markdownLink(label: string, location: Location): string {
+  return `[${label}](${locationMarkdownUri(location)})`;
+}
+
+function glossaryMarkdown(reference: GlossaryReference): string {
+  const scope = reference.term.scope.kind === "context"
+    ? `Bounded context: \`${reference.term.scope.id}\``
+    : "Scope: workspace";
+  const lines = [
+    `### term ${reference.term.term}`,
+    "",
+    reference.term.definition,
+    "",
+    scope,
+  ];
+  if (reference.matchedSpelling !== reference.term.term) {
+    lines.push(
+      "",
+      `Matched alias: \`${reference.matchedSpelling}\``,
+    );
   }
   return lines.join("\n");
 }
@@ -446,7 +976,17 @@ function location(filePath: string, range?: SourceRange): Location {
 
 function contains(range: Range, position: Position): boolean {
   return compare(range.start, position) <= 0 &&
-    compare(position, range.end) <= 0;
+    compare(position, range.end) < 0;
+}
+
+function containsRange(outer: Range, inner: Range): boolean {
+  return compare(outer.start, inner.start) <= 0 &&
+    compare(inner.end, outer.end) <= 0;
+}
+
+function overlaps(left: Range, right: Range): boolean {
+  return compare(left.start, right.end) < 0 &&
+    compare(right.start, left.end) < 0;
 }
 
 function compare(left: Position, right: Position): number {

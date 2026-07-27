@@ -85,6 +85,19 @@ export async function runCommand(
       diagnosticCounts: diagnosticCounts(resolved.diagnostics),
     };
   }
+  if (request.command === "glossary") {
+    return {
+      command: "glossary",
+      ...workspaceMetadata(resolved.workspace),
+      glossaryPath: resolved.glossary.glossaryPath ?? null,
+      schemaVersion: resolved.glossary.schemaVersion ?? null,
+      terms: resolved.glossary.terms,
+      contexts: resolved.glossary.contexts,
+      resolvedContexts: resolved.glossary.resolvedContexts,
+      occurrences: resolved.glossary.occurrences,
+      diagnostics: resolved.diagnostics,
+    };
+  }
   if (request.command === "graph") {
     return {
       command: "graph",
@@ -126,21 +139,31 @@ function contextCommand(
   const expansions = selectedComponents.map((component) =>
     core.collectedExpansionFor(resolved, component.name)
   ).filter((item) => item !== undefined);
+  const conceptNamespaces = selectedComponents.map((component) =>
+    core.conceptNamespaceFor(resolved, component.name)
+  ).filter((item) => item !== undefined);
+  const agentDependencyContexts = selectedComponents.map((component) =>
+    core.agentDependencyContextFor(resolved, component.name)
+  ).filter((item) => item !== undefined);
   const relatedFilePaths = [
     ...new Set([
-      ...selectedComponents.map((component) => component.filePath),
-      ...expansions.flatMap((expansion) =>
-        expansion.expands.map((expand) => expand.filePath)
-      ),
+      ...agentDependencyContexts.flatMap((context) => context.relatedFilePaths),
     ]),
   ].sort();
+  const glossaryContext = core.glossaryContextForFiles(
+    resolved.glossary,
+    relatedFilePaths,
+  );
   return {
     command: "context",
     ...workspaceMetadata(resolved.workspace),
     selectedComponents,
     componentContracts: contracts,
+    conceptNamespaces,
     collectedExpansions: expansions,
+    agentDependencyContexts,
     relatedFilePaths,
+    glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
     diagnostics: resolved.diagnostics,
   };
 }
@@ -167,8 +190,19 @@ function renderMarkdown(
       ...formatList(contract.goalLines),
       "",
       "### Interface",
-      ...formatList(contract.interfaceLines),
     );
+    if (contract.ungroupedInterfaceLines.length) {
+      lines.push(...formatList(contract.ungroupedInterfaceLines));
+    } else if (!contract.interfaceConcepts.length) {
+      lines.push("- none");
+    }
+    for (const concept of contract.interfaceConcepts) {
+      lines.push(
+        "",
+        `#### ${concept.identifier}`,
+        ...formatList(concept.lines),
+      );
+    }
     const expansion = core.collectedExpansionFor(resolved, contract.name);
     if (expansion?.expands.length) {
       lines.push("", "### Expansions");
@@ -187,9 +221,11 @@ function renderMarkdown(
   }
   lines.push("## Diagnostics", "");
   if (!resolved.diagnostics.length) lines.push("- none");
-  else {for (const item of resolved.diagnostics) {
+  else {
+    for (const item of resolved.diagnostics) {
       lines.push(`- ${item.severity} ${item.code}: ${item.message}`);
-    }}
+    }
+  }
   return `${lines.join("\n")}\n`;
 }
 

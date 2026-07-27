@@ -1,0 +1,394 @@
+{
+  "schemaVersion": 1,
+  "terms": [
+    {
+      "term": "component",
+      "definition": "A coherent system part whose goal and interface form a reusable public Sigil contract.",
+      "aliases": ["components"]
+    },
+    {
+      "term": "expand",
+      "definition": "A declaration that contributes operational detail to a matching component without overriding its public contract or other expands.",
+      "aliases": ["expands", "expansion", "expansions"]
+    },
+    {
+      "term": "public contract",
+      "definition": "The goal, interface, and public concept identities that a component exposes to dependents.",
+      "aliases": ["public contracts"]
+    },
+    {
+      "term": "concept identity",
+      "definition": "A reusable identity grouping collective semantic-line occurrences across a component and its matching expands; it is public when it occurs in interface.",
+      "aliases": ["concept identities"]
+    },
+    {
+      "term": "semantic line",
+      "definition": "A non-empty line of Sigil prose expressing one distinct semantic idea.",
+      "aliases": ["semantic lines"]
+    },
+    {
+      "term": "collected expansion",
+      "definition": "The aggregate of separately sourced operational contributions from every expand matching a component.",
+      "aliases": [
+        "collected expansions",
+        "collected operational description",
+        "collected expand",
+        "collected expands",
+        "collective expansion",
+        "collective expansions"
+      ]
+    },
+    {
+      "term": "ConfigFile",
+      "definition": "The strict .sigil/config.json file that declares a workspace's language version, boundary, source selection, and tool configuration.",
+      "aliases": [".sigil/config.json", "config file"]
+    },
+    {
+      "term": "workspace boundary",
+      "definition": "The configured Sigil workspace selected and governed by its eligible ConfigFile.",
+      "aliases": ["workspace boundaries"]
+    },
+    {
+      "term": "configured summary boundary",
+      "definition": "The workspace root or a declared workspace member that requires an ordinary Brownfield summary component.",
+      "aliases": ["configured summary boundaries"]
+    },
+    {
+      "term": "ModuleIndexFile",
+      "definition": "An included #module.sigil file that defines intentional directory-import shorthand without controlling workspace membership or component visibility.",
+      "aliases": ["module index file", "#module.sigil"]
+    },
+    {
+      "term": "directory-import surface",
+      "definition": "The local components and successfully resolved directly imported names exposed by a ModuleIndexFile.",
+      "aliases": ["directory import surface"]
+    },
+    {
+      "term": "GlossaryFile",
+      "definition": "The optional strict .sigil/glossary.json file containing reviewed workspace and bounded-context terminology.",
+      "aliases": [".sigil/glossary.json", "glossary file"]
+    },
+    {
+      "term": "bounded context",
+      "definition": "A path-scoped glossary domain whose terms may replace workspace spellings for sources matched by that context alone.",
+      "aliases": ["bounded-context", "bounded contexts"]
+    },
+    {
+      "term": "normative contract",
+      "definition": "An approved Sigil semantic contract whose wording governs when it conflicts with glossary prose or implementation evidence.",
+      "aliases": ["normative contracts"]
+    },
+    {
+      "term": "Greenfield",
+      "definition": "A design workflow used when no existing implementation constrains the selected behavior or component."
+    },
+    {
+      "term": "Brownfield",
+      "definition": "An adoption workflow used when relevant implementation exists but Sigil coverage is absent, incomplete, ambiguous, or potentially drifted."
+    },
+    {
+      "term": "review gate",
+      "definition": "A workflow checkpoint requiring explicit human review and approval of semantic Sigil changes before implementation proceeds.",
+      "aliases": ["review gates"]
+    },
+    {
+      "term": "LanguageVersion",
+      "definition": "The version literal governing interpretation of Sigil source and workspace configuration.",
+      "aliases": [
+        "language version",
+        "language versions",
+        "configured language version",
+        "configured language versions"
+      ]
+    },
+    {
+      "term": "artifact version",
+      "definition": "The version of a distributable CLI, core, LSP, skill, or editor artifact, owned by that artifact's manifest independently from LanguageVersion.",
+      "aliases": [
+        "artifact versions",
+        "distributable artifact version",
+        "distributable artifact versions"
+      ]
+    },
+    {
+      "term": "workspace root",
+      "definition": "The directory containing the eligible ConfigFile that defines a Sigil workspace.",
+      "aliases": ["workspace roots"]
+    },
+    {
+      "term": "workspace member",
+      "definition": "A non-root project boundary explicitly declared by workspace.members within the same configured Sigil workspace.",
+      "aliases": [
+        "workspace members",
+        "declared member",
+        "declared members",
+        "member root",
+        "member roots",
+        "declared member root",
+        "declared member roots"
+      ]
+    },
+    {
+      "term": "directory import",
+      "definition": "An import whose path selects a directory and resolves named components through that directory's ModuleIndexFile.",
+      "aliases": [
+        "directory imports",
+        "directory-import",
+        "directory-imports"
+      ]
+    },
+    {
+      "term": "concept identifier",
+      "definition": "The source spelling used to denote a Sigil concept identity.",
+      "aliases": ["concept identifiers"]
+    },
+    {
+      "term": "concept namespace",
+      "definition": "The flat set of local and accessible concept identities resolved for a component and all of its matching expands.",
+      "aliases": ["concept namespaces"]
+    },
+    {
+      "term": "contextual occurrence",
+      "definition": "A consumer-local occurrence of a concept that preserves the concept's originating identity while recording its use in the current component context.",
+      "aliases": ["contextual occurrences"]
+    },
+    {
+      "term": "deterministic semantics",
+      "definition": "Structural, configuration, workspace, resolution, graph, projection, and diagnostic facts reproducibly computed by compatible Sigil tools without model-assisted judgment.",
+      "aliases": [
+        "deterministic facts",
+        "deterministic language facts",
+        "deterministic core semantics",
+        "deterministic Sigil semantics",
+        "core semantics",
+        "structural facts"
+      ]
+    },
+    {
+      "term": "semantic judgment",
+      "definition": "Host-assisted interpretation of intent, rationale, readiness, conflicts, or design quality that remains subject to explicit human review.",
+      "aliases": [
+        "model-assisted semantic judgment",
+        "host-assisted semantic judgment"
+      ]
+    },
+    {
+      "term": "source range",
+      "definition": "An exact start-to-end location interval within a Sigil or configuration source.",
+      "aliases": [
+        "source ranges",
+        "source-ranged"
+      ]
+    },
+    {
+      "term": "partial document",
+      "definition": "A source-faithful recovered Sigil document that retains usable declarations and semantic content despite structural diagnostics.",
+      "aliases": [
+        "partial documents",
+        "recovered document",
+        "recovered documents",
+        "recovered source document",
+        "recovered source documents"
+      ]
+    },
+    {
+      "term": "host failure",
+      "definition": "A filesystem or runtime failure from the host environment that propagates to the caller instead of becoming a Sigil diagnostic.",
+      "aliases": [
+        "host failures",
+        "host filesystem failure",
+        "host filesystem failures",
+        "host runtime failure",
+        "host runtime failures"
+      ]
+    },
+    {
+      "term": "glossary occurrence",
+      "definition": "A recognized canonical term or alias in free-form Sigil prose, linked to its effective glossary entry and exact source range.",
+      "aliases": ["glossary occurrences"]
+    },
+    {
+      "term": "glossary projection",
+      "definition": "The deterministic workspace-wide view of resolved glossary contexts, entries, source occurrences, and diagnostics.",
+      "aliases": ["glossary projections"]
+    },
+    {
+      "term": "glossary context",
+      "definition": "The scoped subset of a glossary projection relevant to selected Sigil sources and their related expansion sources.",
+      "aliases": [
+        "glossary contexts",
+        "scoped glossary projection",
+        "scoped glossary projections"
+      ]
+    },
+    {
+      "term": "effective glossary entry",
+      "definition": "A glossary entry applicable to a particular Sigil source after workspace and bounded-context resolution.",
+      "aliases": [
+        "effective glossary entries",
+        "effective entry",
+        "effective entries",
+        "effective term",
+        "effective terms",
+        "effective terminology"
+      ]
+    },
+    {
+      "term": "agent dependency context",
+      "definition": "A deterministic projection for a selected component that includes its complete Sigil description together with each direct dependency's public contract and durable decision rationale, while excluding transitive and other private dependency content by default.",
+      "aliases": [
+        "agent dependency contexts",
+        "agent context projection",
+        "agent context projections"
+      ]
+    },
+    {
+      "term": "Decision:",
+      "definition": "Required by the decision record convention; states the selected course or outcome whose rationale is being recorded.",
+      "agentContext": false
+    },
+    {
+      "term": "Scope:",
+      "definition": "Required by the decision record convention; states the governed boundary and important exclusions.",
+      "agentContext": false
+    },
+    {
+      "term": "Assumptions:",
+      "definition": "States materially applicable conditions treated as true when making the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "Trade-offs:",
+      "definition": "States materially applicable benefits, costs, and tensions accepted by the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "Design issues addressed:",
+      "definition": "States materially applicable problems or pressures the decision resolves.",
+      "agentContext": false
+    },
+    {
+      "term": "Discarded alternatives:",
+      "definition": "States materially relevant options not selected and why they were rejected.",
+      "agentContext": false
+    },
+    {
+      "term": "Consequences:",
+      "definition": "States materially applicable effects and obligations created by the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "Revisit when:",
+      "definition": "States conditions that should trigger reconsideration of the decision.",
+      "agentContext": false
+    },
+    {
+      "term": "implementation artifact",
+      "definition": "Source code, configuration, migrations, scripts, workflow instructions, tests, fixtures, metadata, validators, generated assets, or documentation governed as part of implementation.",
+      "aliases": ["implementation artifacts"]
+    },
+    {
+      "term": "implementation mutation",
+      "definition": "A creation, modification, move, or deletion of an implementation artifact; excludes read-only inspection and exact user-requested rollback of the current agent's unapproved changes.",
+      "aliases": ["implementation mutations"]
+    }
+  ],
+  "contexts": [
+    {
+      "id": "WorkspaceConfiguration",
+      "include": [
+        "spec/language.sigil",
+        "packages/core/**/*.sigil",
+        "packages/cli/#module.sigil"
+      ],
+      "exclude": [],
+      "terms": [
+        {
+          "term": "source selection",
+          "definition": "ConfigFile include and exclude rules applied to determine which Sigil source documents belong to a loaded workspace.",
+          "aliases": ["SourceSelection"]
+        }
+      ]
+    },
+    {
+      "id": "SkillInstallation",
+      "include": ["packages/cli/src/installer.sigil"],
+      "exclude": [],
+      "terms": [
+        {
+          "term": "skill-source selection",
+          "definition": "Selection of the installation-relative skill assets owned by the Sigil executable or source module chosen for installation.",
+          "aliases": ["source selection"]
+        }
+      ]
+    },
+    {
+      "id": "SigilSkillWorkflow",
+      "include": ["integrations/skills/sigil/**/*.sigil"],
+      "exclude": [],
+      "terms": [
+        {
+          "term": "semantic readiness",
+          "definition": "A provisional skill-assessed state indicating that no unresolved material semantic, architectural, or design problem remains within the reviewed Sigil scope.",
+          "aliases": [
+            "semantic-readiness",
+            "semantic readiness review",
+            "semantic-readiness review"
+          ]
+        },
+        {
+          "term": "correction phase",
+          "definition": "A dedicated same-chat workflow state that pauses ordinary Sigil design or review while a material semantic, architectural, or design problem is explained and resolved with the user.",
+          "aliases": [
+            "same-chat correction phase",
+            "correction conversation"
+          ]
+        },
+        {
+          "term": "concept grouping",
+          "definition": "The reviewed authoring activity that groups coherent interface semantic lines under new or reusable concept identifiers.",
+          "aliases": [
+            "concept-identifier grouping"
+          ]
+        },
+        {
+          "term": "glossary candidate extraction",
+          "definition": "Model-assisted inspection of semantically ready Sigil prose for material project vocabulary, ambiguity, and conflicting usage without granting glossary authority.",
+          "aliases": [
+            "candidate extraction",
+            "model-assisted candidate extraction"
+          ]
+        },
+        {
+          "term": "material selected choice",
+          "definition": "A new or changed binding choice whose rationale or excluded alternatives cannot be safely reconstructed during future review, maintenance, or implementation.",
+          "aliases": [
+            "material selected choices",
+            "material choice",
+            "material choices"
+          ]
+        },
+        {
+          "term": "decision-rationale coverage",
+          "definition": "The reviewed mapping of each material selected choice to a decisions occurrence preserving durable rationale, or to a justified omission for a trivial, mechanically derived, or safely reconstructable choice.",
+          "aliases": [
+            "decision rationale coverage",
+            "rationale coverage"
+          ]
+        },
+        {
+          "term": "durable rationale",
+          "definition": "Concise project reasoning needed for future review, maintenance, or implementation and preserved in Sigil decisions rather than session transcripts.",
+          "aliases": [
+            "durable decision rationale"
+          ]
+        },
+        {
+          "term": "evidence packet",
+          "definition": "A conversation-scoped, nonbinding record of an external-guidance investigation containing its question, source authority and identity, applicability, environment match, findings, limitations, conflicts, and freshness conditions.",
+          "aliases": ["evidence packets"]
+        }
+      ]
+    }
+  ]
+}

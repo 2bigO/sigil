@@ -1,43 +1,135 @@
+@spec/language.sigil import { SigilLanguage, SigilModuleIndex }
+@packages/core/src/model.sigil import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
-@packages/core/src/workspace.sigil import { SigilWorkspaceLoader }
 
 component SigilResolver {
   goal {
-    Resolve imports, components, and collective expansions across a loaded Sigil workspace.
-    Produce deterministic relationship data and diagnostics without performing filesystem access or presentation work.
+    Resolve component imports, collective expansions, and contextual concept namespaces across one loaded workspace.
+
+    Produce deterministic relationship data and diagnostics without filesystem access, graph construction, or presentation.
   }
 
   interface {
-    resolveSigilRelationships(workspace) returns SigilResolution
-    SigilResolution exposes the source workspace, resolved imports, resolved components, collected expansions, and accumulated diagnostics
-    each resolved component identifies its declaration file and every matching expand block
-    depends on workspaces produced by SigilWorkspaceLoader
+    RelationshipResolution {
+      resolveSigilRelationships(workspace) returns SigilResolution
+
+      SigilResolution exposes the source workspace, resolved imports, resolved components, and accumulated diagnostics
+    }
+
+    CollectiveExpansions {
+      each resolved component identifies its declaration source and every matching expand block
+    }
+
+    ConceptResolution {
+      each resolved component exposes local, public, imported, and accessible concept identities with contextual occurrences and references
+    }
   }
 }
 
 expand SigilResolver {
   logic {
-    Index every component and expand declaration by name across loaded documents.
-    Diagnose duplicate component declarations and expands without matching components.
-    Resolve explicit .sigil imports from the workspace root.
-    Resolve directory imports only to the workspace root or a declared member RootSigil.
-    Resolve each imported name against the target document's component declarations.
-    Detect cycles between resolved import files.
-    Collect every matching expand declaration for each resolved component without override or shadowing.
+    RelationshipResolution {
+      Index component and expand declarations by name across loaded documents.
+
+      Diagnose duplicate components and expands without matching components.
+
+      Resolve explicit source imports and directory imports.
+
+      Detect cycles between resolved import files.
+    }
+
+    DirectoryImportSurface {
+      Resolve directory imports through ModuleIndexFile.
+
+      Build each directory-import surface from local components and successfully resolved direct import names.
+
+      Preserve original declaration files through chained module-index resolution.
+
+      Do not add unnamed dependencies or other subtree files implicitly.
+    }
+
+    CollectiveExpansions {
+      Collect every matching expand for each resolved component without override or shadowing.
+    }
+
+    ConceptResolution {
+      Build one flat concept namespace from each component and its matching expands.
+
+      Collect repeated concept blocks as occurrences of one identity.
+
+      Expose interface concepts publicly and retain other concepts privately.
+
+      Add imported public concepts as bare accessible identities.
+
+      Preserve provider identity while retaining importer lines only in importer context.
+
+      Re-expose an imported identity when reused in interface.
+
+      Scan semantic lines against unambiguous accessible concepts and record each exact-case whole-word match in ResolvedConceptNamespace.references.
+
+      Diagnose different accessible identities whose names compare equal without regard to case.
+    }
   }
 
   constraints {
-    SigilResolver depends on SigilDiagnostics and performs no filesystem access.
-    Resolution retains workspace and parser diagnostics.
-    Missing or ambiguous relationships produce partial resolution data when practical.
-    Graph construction and presentation projections remain outside SigilResolver.
+    RelationshipResolution {
+      Resolution performs no filesystem access.
+
+      Missing or ambiguous relationships retain partial deterministic data when practical.
+    }
+
+    ComponentContract {
+      Imported dependency projections expose public goals and interfaces without collected expansions.
+    }
+
+    ConceptResolution {
+      Provider projections never collect consumer-contributed contextual occurrences.
+
+      Resolution provides no dotted qualification, aliases, or shadowing.
+
+      A whole-word match is bounded by characters outside [A-Za-z0-9_-].
+
+      Ambiguous identifiers, case-mismatched text, substrings, and unmatched words do not produce references.
+
+      Unmatched words produce no unresolved-concept diagnostic.
+    }
+
+    DependencyDirection {
+      Graph construction and presentation projections remain outside SigilResolver.
+    }
   }
 
   cases {
-    Importing a declared component connects the importing file to its declaration.
-    Importing a missing file or component produces a stable diagnostic and partial import result.
-    Duplicate components produce ambiguity diagnostics for every conflicting declaration.
-    Multiple matching expands are all retained in the component's collected expansion.
-    A cycle between imported files produces SIGIL_IMPORT_CYCLE.
+    RelationshipResolution {
+      A valid named import connects its source file to the original component declaration.
+
+      Missing sources or components produce stable diagnostics and partial import results.
+
+      Duplicate components, unmatched expands, and import cycles produce stable diagnostics.
+    }
+
+    DirectoryImportSurface {
+      A name exposed by ModuleIndexFile resolves to its original declaration.
+
+      An unnamed dependency remains unavailable through directory-import shorthand but remains explicitly importable.
+    }
+
+    CollectiveExpansions {
+      Multiple matching expands are all retained.
+    }
+
+    ConceptResolution {
+      Imported public concepts are available as bare identities.
+
+      Contextual reuse preserves provider identity without adding importer content upstream.
+
+      A whole-word local or imported identifier produces a contextual reference with its originating ConceptIdentity.
+
+      A differently cased identifier or identifier embedded within a larger word produces no reference.
+
+      Two reachable identities equal without regard to case produce an ambiguity diagnostic.
+
+      Private provider concepts and operational sections remain unavailable to importers.
+    }
   }
 }

@@ -1,4 +1,4 @@
 interface:
   display_name: "Sigil"
   short_description: "Model contracts and implementation with Sigil before code"
-  default_prompt: "Use $sigil to collaboratively design or reconcile software, discover product, programming, internal, and UI components, verify implementation coverage, propose exact Sigil, and stop for review before code changes."
+  default_prompt: "Use $sigil to inspect governing Sigil before every implementation mutation, establish implementation coverage and durable decision rationale, correct semantic or architectural problems in the same chat, and complete both Sigil review gates before implementation."

@@ -8,7 +8,7 @@ They are meant to reduce lost rationale, ownership ambiguity, review bottlenecks
 
 1. For greenfield work, the agent begins a collaborative design conversation; for brownfield work, it identifies the repository and initializes a missing `.sigil/config.json` before detailed discovery.
 2. The agent runs structural CLI checks, follows imports, and reads related code, tests, configuration, package metadata, and documentation.
-3. For brownfield adoption, the agent establishes an approved RootSigil before selecting the requested change frontier and separates observed behavior from documented and user-confirmed intent.
+3. For brownfield adoption, the agent establishes approved ordinary summary components at the workspace root and declared members before selecting the requested change frontier and separates observed behavior from documented and user-confirmed intent.
 4. The agent checks semantic readiness: goal clarity, interface completeness, state and lifecycle behavior, constraints, cases, cross-Sigil coherence, modularity, and code/spec drift.
 5. The agent assesses whether current standards, formal guidance, or official platform practices materially affect the selected contract.
 6. The agent uses manageable conversational rounds to discover greenfield intent and to resolve vague brownfield application purpose, boundaries, users, and external surfaces; established contracts need questions only when answers materially change them.
@@ -25,7 +25,7 @@ This keeps documentation ahead of the code instead of turning it into an after-t
 
 `sigil-core` and `sigil-cli` provide structural validity: parsing, required sections, workspace and import resolution, collected expansions, graph relationships, and diagnostics.
 
-The Codex skill currently provides host-side semantic review.
+The host-neutral Sigil skill provides host-side semantic review.
 It checks whether remaining unknowns could materially change observable behavior, public contracts, ownership, security, persistent data, lifecycle rules, or acceptance criteria.
 
 Semantic review includes:
@@ -38,9 +38,10 @@ Semantic review includes:
 - qualitative cohesion, ownership, interface size, coupling, dependency direction, and state ownership;
 - applicable standards, official guidance, and implementation pitfalls.
 
-The proposed boundary between deterministic readiness facts, attributed
-host-assisted interpretation, generated Receipts, and human approval is defined
-in [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
+The active boundary keeps deterministic readiness facts in core and CLI while
+the skill owns semantic judgment and human approval. Rejected Receipt and
+anchor exploration is preserved in
+[ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
 
 ## Proposal And Review Gates
 
@@ -66,14 +67,14 @@ After approval, a placement-only move or split that preserves approved semantic 
 Required import-path updates are placement-only.
 Any added, removed, or changed semantic line creates another review gate.
 
-## Proposed Anchor Workflow
+## Historical Anchor Workflow
 
-Anchors are a staged future workflow consolidated with generated Receipts and
-review evidence in
-[ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
-They do not change Sigil semantics or replace review of Sigil and code.
+Anchors and generated Receipts are rejected historical design material recorded
+in [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).
+They have no active Sigil contract, package, CLI command, or skill workflow in
+version 0.5.
 
-The proposed flow is:
+The rejected proposal was:
 
 1. Resolve the approved Sigil component and its collected expansions.
 2. Build a deterministic source AST and symbol index.
@@ -100,28 +101,27 @@ Code demonstrates current behavior; it does not prove desired behavior or ration
 Initial brownfield Sigil contains only the contract the user approves.
 
 When no workspace exists, the agent first runs `sigil init` at the repository
-root, then validates the created config before gathering detailed project
-evidence. It never overwrites an existing config.
+root, then validates the created config and seeded convention glossary before
+gathering detailed project evidence. It never overwrites an existing config or
+glossary.
 
-The agent then inspects root product and architecture documentation, dependency
-definitions, executable configuration, and application entrypoints. When this
-evidence does not establish the application purpose, users or external systems,
-repository boundary, and external interaction surfaces, the agent begins a
-focused conversation and continues with targeted follow-up questions. It
-synthesizes the evidence and answers into a candidate goal and interface, then
-asks the user to confirm or correct them as a separate decision.
+The agent then inspects product and architecture documentation, dependency
+definitions, executable configuration, and entrypoints for the workspace root
+and every declared member. When evidence does not establish a configured
+boundary's purpose, users or external systems, responsibility, and external
+interaction surfaces, the agent begins a focused conversation and continues
+with targeted follow-up questions. It synthesizes a candidate goal and
+interface for each boundary, then asks the user to confirm or correct them.
 
-Only after confirmation does the agent propose a root `#module.sigil` that
-follows the `RootSigil` contract with a meaningful application summary; it never
-creates an empty or import-only root module.
-After goal and interface confirmation, material application-wide evidence may
-be proposed in a root `expand` using the general section meanings at project
-scope: runtime and deployment modes in `state`, cross-cutting behavior and flows
-in `logic`, rules, policies, binding technologies, and architecture decisions in
-`constraints`, and observable outcomes in `cases`.
-Incidental dependencies, secrets, low-level configuration, and module-specific behavior remain outside the root summary.
-The approved RootSigil is written, validated, and reviewed before the agent
-focuses on the requested implementation task.
+After confirmation, the agent proposes an ordinary summary component in each
+configured boundary's `#module.sigil`. A boundary module index may combine that
+summary with direct imports defining its directory-import surface. Material
+boundary-wide evidence may be proposed in a matching `expand` using the general
+section meanings. Incidental dependencies, secrets, low-level configuration,
+and task-specific behavior remain outside boundary summaries. Approved boundary
+summaries are written, validated, and reviewed before the agent focuses on the
+requested implementation task. Internal module indexes outside configured
+boundaries require no project summary.
 Component contracts and implementation-specific expands are placed beside the code they describe.
 
 ## Greenfield Design
@@ -157,9 +157,9 @@ Unavailable authoritative material blocks high-risk or compliance-critical imple
 Approved Sigil should live beside the module, feature, abstraction, or implementation it explains.
 If a public component contract must remain in a shared location, an implementation-specific `expand Name` should be colocated with the code.
 
-The workspace-root `.sigil/config.json` remains the discovery marker; a root
-`#module.sigil` is the `RootSigil` project summary and has no discovery
-authority.
+The workspace-root `.sigil/config.json` remains the discovery marker.
+`#module.sigil` is a directory-import index and has no discovery authority;
+configured boundary indexes conventionally contain ordinary summary components.
 Moving or splitting Sigil requires affected imports to be updated and validated with `sigil check`, plus `graph` or `context` when relationships change.
 
 ## Agent Review Heuristics
@@ -168,12 +168,16 @@ When reviewing or improving Sigil, check:
 
 - Does every component explain why it exists?
 - Is every goal specific about responsibility, boundary, and intended outcome?
-- Does every interface make relevant inputs, outputs, errors, permissions, lifecycle guarantees, and dependencies explicit?
+- Does every interface make relevant inputs, outputs, errors, permissions,
+  lifecycle promises, and other observable behavior explicit?
+- Do imports declare component dependencies without repeating them in
+  interfaces?
 - Does each imported name resolve to a matching component in the imported Sigil source?
 - Does each `expand Name` have a matching `component Name`?
-- Are details such as `state`, `logic`, `constraints`, and `cases` kept in `expand` rather than inside `component`?
+- Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in `expand` rather than inside `component`?
 - Are architecture and stack decisions expressed as constraints?
-- Are implementation details hidden from public component interfaces unless they are part of the contract?
+- Are implementation-hiding rules and forbidden internal access in constraints
+  unless they define an externally observable promise?
 - Are roles, states, permissions, and lifecycle transitions explicit enough to test?
 - For abstractions and APIs, are constructor/functions, return values, settlement/lifecycle behavior, and error behavior explicit?
 - Are examples in `cases` externally observable?

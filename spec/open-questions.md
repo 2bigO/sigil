@@ -17,22 +17,18 @@ This file tracks unresolved language and workflow decisions.
 
 - Which additional semantic checks, if any, should move from host integrations into deterministic core diagnostics?
 - Should Sigil platform packages support generated diagrams or dependency maps?
-- Which source-language adapter should follow the proposed TypeScript anchor adapter?
-- How should non-AST targets such as SQL migrations and generated artifacts be indexed?
-- Should anchor checks offer a strict CI mode that fails on structurally changed targets?
-- How should editors display many-to-many anchor relationships?
-- When should obsolete anchor evidence be removed rather than retained?
 
 ## Workflow
 
 - How should approved Sigil be marked?
 - Should implementation sessions record which Sigil version they used?
-- How should rejected or superseded Sigil decisions be preserved?
+- How should superseded Sigil decisions be preserved beyond the rationale and
+  discarded alternatives retained in `decisions`?
 - Should the Codex skill update implementation plans from Sigil automatically, or only after explicit user approval?
 - How should evidence from brownfield reconciliation remain traceable without becoming Sigil syntax?
 - Should standards sources remain in review summaries or gain a durable repository representation?
 - How should multiple hosts produce comparable semantic-readiness findings without sharing one model or prompt?
 
-The proposed Receipt, readiness, model-boundary, anchor, evidence, and approval
-architecture and its deferred questions are tracked together in
+The rejected Receipt, anchor, and generated evidence-record architecture is
+preserved for historical analysis in
 [ADR-011](decisions/adr-011-generated-rationale-evidence-and-review-records.md).

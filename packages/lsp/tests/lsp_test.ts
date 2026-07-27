@@ -23,7 +23,7 @@ Deno.test("file URI conversion preserves Sigil paths", () => {
   );
 });
 
-Deno.test("initializes with the approved 0.1 capabilities and lifecycle", async () => {
+Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async () => {
   const server = makeServer();
   const before = await server.handle(request(1, "shutdown"));
   assertEquals(errorCode(before), -32002);
@@ -40,7 +40,10 @@ Deno.test("initializes with the approved 0.1 capabilities and lifecycle", async 
   assertEquals(capabilities.hoverProvider, true);
   assert(
     JSON.stringify(capabilities.semanticTokensProvider) === JSON.stringify({
-      legend: { tokenTypes: ["type"], tokenModifiers: [] },
+      legend: {
+        tokenTypes: ["type", "concept", "term"],
+        tokenModifiers: [],
+      },
       full: true,
     }),
   );
@@ -90,6 +93,14 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   assertEquals(symbols[0].name, "Thing");
   assertEquals(symbols[0].detail, "component");
   assert((symbols[0].children as unknown[]).length === 2);
+  const interfaceSymbol =
+    (symbols[0].children as Array<Record<string, unknown>>)
+      .find((item) => item.name === "interface");
+  assert(interfaceSymbol);
+  assertEquals(
+    (interfaceSymbol.children as Array<Record<string, unknown>>)[0].name,
+    "Execution",
+  );
   assertEquals(symbols[1].detail, "expand");
 
   const definition = responseResult(
@@ -111,13 +122,29 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
     0,
   );
 
+  const importLine = "@contract.sigil import { Thing }";
+  const afterImportedName = responseResult(
+    await server.handle(request(
+      31,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: {
+          line: 0,
+          character: importLine.indexOf("Thing") + "Thing".length,
+        },
+      },
+    )),
+  );
+  assertEquals(afterImportedName, null);
+
   const expandDefinition = responseResult(
     await server.handle(request(
       4,
       "textDocument/definition",
       {
         textDocument: { uri: contractUri },
-        position: { line: 10, character: 9 },
+        position: { line: 12, character: 9 },
       },
     )),
   ) as Record<string, unknown>;
@@ -141,8 +168,12 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
     )),
   ) as Record<string, unknown>;
   const contents = hover.contents as Record<string, unknown>;
-  assert(String(contents.value).includes("component Thing"));
-  assert(String(contents.value).includes("Collected expansions"));
+  assert(
+    String(contents.value).includes(
+      "component [Thing](file:///workspace/contract.sigil#L1,11)",
+    ),
+  );
+  assert(!String(contents.value).includes("Collected expansions"));
 
   const proseDefinition = responseResult(
     await server.handle(request(
@@ -168,7 +199,7 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   ) as Record<string, unknown>;
   assert(
     String((proseHover.contents as Record<string, unknown>).value).includes(
-      "component Thing",
+      "component [Thing](file:///workspace/contract.sigil#L1,11)",
     ),
   );
 
@@ -203,24 +234,458 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
       { textDocument: { uri: consumerUri } },
     )),
   ) as Record<string, unknown>;
+  const decoded = decodeSemanticTokens(tokens.data as number[]);
+  assert(decoded.some((item) => item.tokenType === 0));
+  assert(decoded.some((item) => item.tokenType === 1));
+});
+
+Deno.test("navigates and hovers contextual imported concepts", async () => {
+  const server = makeServer();
+  await initialize(server);
+
+  const definition = responseResult(
+    await server.handle(request(
+      2,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 9, character: 19 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  assertEquals(definition.uri, contractUri);
+  assertEquals(
+    ((definition.range as Record<string, unknown>).start as Record<
+      string,
+      unknown
+    >).line,
+    6,
+  );
+
+  const hover = responseResult(
+    await server.handle(request(
+      3,
+      "textDocument/hover",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 9, character: 19 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
   assert(
-    JSON.stringify(tokens.data) === JSON.stringify([
-      0,
-      25,
+    markdown.includes(
+      "concept [Execution](file:///workspace/contract.sigil#L7,5)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "Origin: [Thing](file:///workspace/contract.sigil#L1,11)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "**interface** — [Thing](file:///workspace/contract.sigil#L1,11) in `/workspace/contract.sigil`",
+    ),
+  );
+  assert(markdown.includes("run()"));
+  assert(
+    markdown.includes(
+      "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `/workspace/consumer.sigil`",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "run() uses [Execution](file:///workspace/contract.sigil#L7,5).",
+    ),
+  );
+  assert(!markdown.includes("Running succeeds."));
+  assert(!markdown.includes("Consumer retries are private."));
+
+  const declarationHover = responseResult(
+    await server.handle(request(
+      31,
+      "textDocument/hover",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 8, character: 6 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const declarationMarkdown = String(
+    (declarationHover.contents as Record<string, unknown>).value,
+  );
+  assert(
+    declarationMarkdown.includes(
+      "concept [Execution](file:///workspace/contract.sigil#L7,5)",
+    ),
+  );
+  assert(declarationMarkdown.includes("run()"));
+  assert(
+    declarationMarkdown.includes(
+      "run() uses [Execution](file:///workspace/contract.sigil#L7,5).",
+    ),
+  );
+  assert(!declarationMarkdown.includes("Running succeeds."));
+  assert(!declarationMarkdown.includes("Consumer retries are private."));
+  assert(declarationMarkdown.includes("ExecutionCache remain prose."));
+  assert(!declarationMarkdown.includes("[ExecutionCache]"));
+
+  const componentHover = responseResult(
+    await server.handle(request(
+      32,
+      "textDocument/hover",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 2, character: 11 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const componentMarkdown = String(
+    (componentHover.contents as Record<string, unknown>).value,
+  );
+  assert(
+    componentMarkdown.includes(
+      "component [Consumer](file:///workspace/consumer.sigil#L3,11)",
+    ),
+  );
+  assert(
+    componentMarkdown.includes(
+      "Consume [Thing](file:///workspace/contract.sigil#L1,11).",
+    ),
+  );
+
+  const caseMismatch = responseResult(
+    await server.handle(request(
+      4,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 10, character: 8 },
+      },
+    )),
+  );
+  assertEquals(caseMismatch, null);
+
+  const substring = responseResult(
+    await server.handle(request(
       5,
-      0,
-      0,
-      2,
-      10,
-      8,
-      0,
-      0,
-      2,
-      12,
+      "textDocument/definition",
+      {
+        textDocument: { uri: consumerUri },
+        position: { line: 10, character: 22 },
+      },
+    )),
+  );
+  assertEquals(substring, null);
+
+  const tokens = responseResult(
+    await server.handle(request(
+      6,
+      "textDocument/semanticTokens/full",
+      { textDocument: { uri: consumerUri } },
+    )),
+  ) as Record<string, unknown>;
+  assert(
+    !decodeSemanticTokens(tokens.data as number[]).some((item) =>
+      item.line === 10 && item.tokenType === 1
+    ),
+  );
+});
+
+Deno.test("highlights, explains, and navigates reviewed glossary terms", async () => {
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const glossaryUri = pathToFileUri(glossaryPath);
+  const source = `component Booking {
+  goal {
+    A temporary reservation creates a hold.
+
+    Ignore \`temporary reservation\`.
+  }
+
+  interface {
+    BookingTerm {
+      The hold remains visible.
+    }
+  }
+}
+`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-glossary-test", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [glossaryPath]: JSON.stringify(
+        {
+          schemaVersion: 1,
+          terms: [],
+          contexts: [
+            {
+              id: "booking",
+              include: ["**/*.sigil"],
+              exclude: [],
+              terms: [
+                {
+                  term: "hold",
+                  definition: "Booking capacity before confirmation.",
+                  aliases: ["temporary reservation"],
+                },
+              ],
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+      [contractPath]: source,
+    }),
+  });
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(2, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 10 },
+    })),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
+  assert(markdown.includes("term hold"));
+  assert(markdown.includes("Booking capacity before confirmation."));
+  assert(markdown.includes("Matched alias: `temporary reservation`"));
+  assert(markdown.includes("Bounded context: `booking`"));
+
+  const definition = responseResult(
+    await server.handle(request(3, "textDocument/definition", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 10 },
+    })),
+  ) as Record<string, unknown>;
+  assertEquals(definition.uri, glossaryUri);
+
+  const tokens = responseResult(
+    await server.handle(request(
+      4,
+      "textDocument/semanticTokens/full",
+      { textDocument: { uri: contractUri } },
+    )),
+  ) as Record<string, unknown>;
+  const termTokens = decodeSemanticTokens(tokens.data as number[])
+    .filter((item) => item.tokenType === 2);
+  assert(termTokens.some((item) => item.line === 2));
+  assert(termTokens.some((item) => item.line === 9));
+  assert(!termTokens.some((item) => item.line === 4));
+});
+
+Deno.test("combines concept and glossary hover while preserving concept navigation", async () => {
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const source = `component Thing {
+  goal {
+    Run Execution.
+  }
+
+  interface {
+    Execution {
+      run()
+    }
+  }
+}
+`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-concept-glossary-test", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [glossaryPath]: JSON.stringify({
+        schemaVersion: 1,
+        terms: [],
+        contexts: [{
+          id: "runtime",
+          include: ["**/*.sigil"],
+          exclude: [],
+          terms: [{
+            term: "execution model",
+            definition: "Reviewed execution meaning.",
+            aliases: ["Execution"],
+          }],
+        }],
+      }),
+      [contractPath]: source,
+    }),
+  });
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(2, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 9 },
+    })),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
+  const conceptHeading = markdown.indexOf(
+    "### concept [Execution](file:///workspace/contract.sigil#L7,5)",
+  );
+  const termHeading = markdown.indexOf("### term execution model");
+  assert(conceptHeading >= 0);
+  assert(termHeading > conceptHeading);
+  assert(markdown.includes("Reviewed execution meaning."));
+  assert(markdown.includes("Matched alias: `Execution`"));
+  assert(markdown.includes("Bounded context: `runtime`"));
+
+  const definition = responseResult(
+    await server.handle(request(3, "textDocument/definition", {
+      textDocument: { uri: contractUri },
+      position: { line: 2, character: 9 },
+    })),
+  ) as Record<string, unknown>;
+  assertEquals(definition.uri, contractUri);
+  assertEquals(
+    ((definition.range as Record<string, unknown>).start as Record<
+      string,
+      unknown
+    >).line,
+    6,
+  );
+
+  const declarationHover = responseResult(
+    await server.handle(request(4, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 6, character: 6 },
+    })),
+  ) as Record<string, unknown>;
+  const declarationMarkdown = String(
+    (declarationHover.contents as Record<string, unknown>).value,
+  );
+  assert(
+    declarationMarkdown.includes(
+      "### concept [Execution](file:///workspace/contract.sigil#L7,5)",
+    ),
+  );
+  assert(declarationMarkdown.includes("### term execution model"));
+  assert(declarationMarkdown.includes("Reviewed execution meaning."));
+  assert(declarationMarkdown.includes("Matched alias: `Execution`"));
+
+  const tokens = responseResult(
+    await server.handle(request(
       5,
-      0,
-      0,
-    ]),
+      "textDocument/semanticTokens/full",
+      { textDocument: { uri: contractUri } },
+    )),
+  ) as Record<string, unknown>;
+  const overlapTokens = decodeSemanticTokens(tokens.data as number[])
+    .filter((item) => item.line === 2);
+  assert(overlapTokens.some((item) => item.tokenType === 1));
+  assert(!overlapTokens.some((item) => item.tokenType === 2));
+});
+
+Deno.test("publishes invalid glossary diagnostics without crashing", async () => {
+  const glossaryPath = `${root}/.sigil/glossary.json`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-glossary-error", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [glossaryPath]: "{",
+      [contractPath]: contractSource,
+    }),
+  });
+  await server.handle(request(1, "initialize", { rootUri }));
+  const notifications = await server.handle(notification("initialized"));
+  assert(
+    diagnosticsFor(notifications, pathToFileUri(glossaryPath)).some(
+      (item) => item.code === "SIGIL_GLOSSARY_PARSE",
+    ),
+  );
+});
+
+Deno.test("publishes concept style information as an LSP hint", async () => {
+  const source = contractSource.replaceAll("Execution", "session-lifecycle");
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-style-test", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [contractPath]: source,
+    }),
+  });
+  await server.handle(request(1, "initialize", { rootUri }));
+  const notifications = await server.handle(notification("initialized"));
+  const hint = diagnosticsFor(notifications, contractUri).find((item) =>
+    item.code === "SIGIL_CONCEPT_IDENTIFIER_STYLE"
+  );
+  assert(hint);
+  assertEquals(hint.severity, 4);
+});
+
+Deno.test("directory-index definitions navigate to the original declaration", async () => {
+  const modulePath = `${root}/module/#module.sigil`;
+  const indexedContractPath = `${root}/module/contract.sigil`;
+  const indexedConsumerPath = `${root}/indexed-consumer.sigil`;
+  const indexedConsumerUri = pathToFileUri(indexedConsumerPath);
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-index-test", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [modulePath]: "@module/contract.sigil import { Thing }\n",
+      [indexedContractPath]: contractSource,
+      [indexedConsumerPath]:
+        "@module import { Thing }\n\ncomponent Consumer {\n  goal {\n    Consume Thing.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+    }),
+  });
+  await initialize(server);
+
+  const definition = responseResult(
+    await server.handle(request(
+      2,
+      "textDocument/definition",
+      {
+        textDocument: { uri: indexedConsumerUri },
+        position: { line: 0, character: 18 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  assertEquals(definition.uri, pathToFileUri(indexedContractPath));
+
+  const hover = responseResult(
+    await server.handle(request(
+      3,
+      "textDocument/hover",
+      {
+        textDocument: { uri: indexedConsumerUri },
+        position: { line: 0, character: 18 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  assert(
+    String((hover.contents as Record<string, unknown>).value).includes(
+      "component [Thing](file:///workspace/module/contract.sigil#L1,11)",
+    ),
   );
 });
 
@@ -372,13 +837,17 @@ const contractSource = `component Thing {
   }
 
   interface {
-    run()
+    Execution {
+      run()
+    }
   }
 }
 
 expand Thing {
   cases {
-    Running succeeds.
+    Execution {
+      Running succeeds.
+    }
   }
 }
 `;
@@ -391,7 +860,17 @@ component Consumer {
   }
 
   interface {
-    run()
+    Execution {
+      run() uses Execution.
+
+      execution and ExecutionCache remain prose.
+    }
+  }
+
+  constraints {
+    Execution {
+      Consumer retries are private.
+    }
   }
 }
 `;
@@ -473,6 +952,30 @@ function joinBytes(chunks: readonly Uint8Array[]): Uint8Array {
     offset += chunk.length;
   }
   return output;
+}
+
+function decodeSemanticTokens(data: readonly number[]): Array<{
+  line: number;
+  character: number;
+  length: number;
+  tokenType: number;
+}> {
+  const result = [];
+  let line = 0;
+  let character = 0;
+  for (let index = 0; index < data.length; index += 5) {
+    line += data[index];
+    character = data[index] === 0
+      ? character + data[index + 1]
+      : data[index + 1];
+    result.push({
+      line,
+      character,
+      length: data[index + 2],
+      tokenType: data[index + 3],
+    });
+  }
+  return result;
 }
 
 function rawFrame(body: string): Uint8Array {

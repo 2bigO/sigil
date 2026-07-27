@@ -1,7 +1,14 @@
 import type {
+  AgentDependencyContext,
   CollectedExpansion,
   ComponentContractView,
+  GlossaryContext,
+  GlossaryContextProjection,
+  GlossaryOccurrence,
+  GlossaryTerm,
   ResolvedComponent,
+  ResolvedConceptNamespace,
+  ResolvedGlossaryContext,
   SigilConfig,
   SigilDiagnostic,
   SigilDocument,
@@ -15,6 +22,7 @@ export type CommandResult =
   | VersionCommandResult
   | ParseCommandResult
   | CheckCommandResult
+  | GlossaryCommandResult
   | GraphCommandResult
   | ContextCommandResult
   | RenderCommandResult;
@@ -44,8 +52,7 @@ export interface SkillInstallCommandResult {
       | "installed"
       | "updated"
       | "existing"
-      | "copied"
-      | "conflicted";
+      | "copied";
   }[];
   readonly diagnostics: readonly SigilDiagnostic[];
 }
@@ -76,6 +83,16 @@ export interface CheckCommandResult extends WorkspaceMetadata {
   readonly diagnostics: readonly SigilDiagnostic[];
   readonly diagnosticCounts: DiagnosticCounts;
 }
+export interface GlossaryCommandResult extends WorkspaceMetadata {
+  readonly command: "glossary";
+  readonly glossaryPath: string | null;
+  readonly schemaVersion: 1 | null;
+  readonly terms: readonly GlossaryTerm[];
+  readonly contexts: readonly GlossaryContext[];
+  readonly resolvedContexts: readonly ResolvedGlossaryContext[];
+  readonly occurrences: readonly GlossaryOccurrence[];
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
 export interface GraphCommandResult extends WorkspaceMetadata {
   readonly command: "graph";
   readonly graph: SigilGraph;
@@ -85,8 +102,11 @@ export interface ContextCommandResult extends WorkspaceMetadata {
   readonly command: "context";
   readonly selectedComponents: readonly ResolvedComponent[];
   readonly componentContracts: readonly ComponentContractView[];
+  readonly conceptNamespaces: readonly ResolvedConceptNamespace[];
   readonly collectedExpansions: readonly CollectedExpansion[];
+  readonly agentDependencyContexts: readonly AgentDependencyContext[];
   readonly relatedFilePaths: readonly string[];
+  readonly glossaryContext: GlossaryContextProjection | null;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 export interface RenderCommandResult extends WorkspaceMetadata {

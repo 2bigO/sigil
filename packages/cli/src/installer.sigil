@@ -1,76 +1,159 @@
 component SkillInstaller {
   goal {
-    Install valid agent skills bundled with the selected Sigil CLI distribution into global or project locations for supported coding agents without replacing unrelated content.
-    Keep skill assets version-aligned with the executable selected for installation while allowing future skills without command-code changes.
+    Discover and install valid agent skills bundled with the selected Sigil CLI distribution.
+
+    Support global and project destinations for compatible agent hosts without replacing unrelated content or consulting workspace configuration.
   }
 
   interface {
-    installSkills(scope?, agents?, sourceDirectory?, targetRoot?, userHome?) returns the selected scope, agent targets, and one installed, updated, existing, copied, or conflicted result per destination
-    scope defaults to global and accepts global or project
-    agents default to codex, claude, opencode, and pi
-    sourceDirectory defaults to the integrations/skills directory resolved from the running Sigil installation
-    Codex, OpenCode, and Pi share .agents/skills for the selected scope
-    Claude Code uses .claude/skills for the selected scope
-    global scope resolves targets from userHome
-    project scope resolves targets from targetRoot or the current working directory
-    resolveInstalledSkillsDirectory(moduleUrl?, executablePath?) returns the first available installation-relative skills directory
-    returned source, target, and link paths are resolved absolute host paths
+    SkillCatalog {
+      listInstalledSkills(sourceDirectory?) returns the resolved source directory and sorted valid skill names
+    }
+
+    SkillInstallation {
+      installSkills(options?) returns the selected scope, agents, source directory, and installed, updated, existing, or copied destination results
+
+      scope defaults to global and accepts global or project
+
+      agents default to codex, claude, opencode, and pi
+
+      Codex, OpenCode, and Pi share .agents/skills for the selected scope
+
+      Claude Code uses .claude/skills for the selected scope
+
+      global scope resolves destinations from userHome
+
+      project scope resolves destinations from targetRoot or the current working directory
+    }
+
+    SkillSourceDiscovery {
+      resolveInstalledSkillsDirectory(moduleUrl?, executablePath?) returns the first available installation-relative skills directory
+
+      sourceDirectory defaults to the directory resolved from the selected Sigil executable or source module
+
+      returned installation paths are absolute host paths
+    }
   }
 }
 
 expand SkillInstaller {
   state {
-    installable skills are the sorted immediate non-hidden directories containing SKILL.md in the selected integrations/skills directory
-    each destination is absent, managed by Sigil, or an unmanaged conflict
+    SkillCatalog {
+      installable skills are sorted immediate non-hidden directories containing SKILL.md in the selected source directory
+    }
+
+    SkillInstallation {
+      each destination is absent, managed by Sigil, or an unmanaged conflict
+    }
   }
 
   logic {
-    Resolve skills beside the selected executable before considering source-module development fallbacks.
-    Executable lookup checks executableDirectory/../integrations/skills before executableDirectory/integrations/skills.
-    File-module fallback checks moduleDirectory/../integrations/skills before moduleDirectory/../../../integrations/skills.
-    Deduplicate candidate paths, select the first existing directory, and report every checked path when none exists.
-    A versioned layout resolves version/bin/sigil to version/integrations/skills.
-    Source development may resolve the repository-level integrations/skills directory relative to installer.ts.
-    Install only immediate non-hidden source directories containing SKILL.md.
-    Reject an installation source that is missing or contains no installable skill directories.
-    Deduplicate destinations shared by Codex, OpenCode, and Pi before filesystem changes.
-    Preflight every destination before changing any managed installation.
-    Prefer relative directory links when the host supports them.
-    Fall back to a managed directory copy when a permitted link cannot be created.
-    Record enough managed installation metadata to distinguish Sigil-owned destinations from unrelated content.
-    Retarget or replace an older Sigil-managed installation when the selected executable owns a newer or different skill version.
-    Refuse to replace any destination that is not recorded as Sigil-managed.
-    Create or update project-local skill .gitignore files with one root-anchored entry for every managed skill name.
-    A newly created managed .gitignore starts with # Managed by sigil skill install.
-    Preserve unrelated ignore rules, existing newline style, and existing managed entries without duplication.
-    Retain existing ignore entries when a previously installed skill is no longer present in the selected source.
-    Return destination records in stable skill and agent order with their source, target, and installation status.
+    SkillSourceDiscovery {
+      Resolve skills beside the selected executable before considering source-module development fallbacks.
+
+      Executable lookup checks executableDirectory/../integrations/skills before executableDirectory/integrations/skills.
+
+      File-module fallback checks moduleDirectory/../integrations/skills before moduleDirectory/../../../integrations/skills.
+
+      Deduplicate candidate paths, select the first existing directory, and report every checked path when none exists.
+
+      A versioned layout resolves version/bin/sigil to version/integrations/skills.
+
+      Source development may resolve the repository integrations/skills directory relative to installer.ts.
+    }
+
+    SkillCatalog {
+      Discover only immediate non-hidden directories containing SKILL.md.
+
+      Reject a missing source directory or one containing no valid skills.
+    }
+
+    SkillInstallation {
+      Deduplicate destinations shared by Codex, OpenCode, and Pi.
+
+      Preflight every destination before changing any managed installation.
+
+      Prefer relative directory links and fall back to managed copies when permitted link creation fails.
+
+      Record managed-installation metadata sufficient to distinguish Sigil-owned destinations.
+
+      Retarget or replace an older Sigil-managed installation when the selected executable owns different skill assets.
+
+      Refuse to replace an unmanaged destination.
+
+      Create or update project-local skill .gitignore files with root-anchored entries for managed metadata and skills.
+
+      Preserve unrelated ignore rules, newline style, and existing managed entries without duplication.
+
+      Return destination records in stable skill and agent order.
+    }
   }
 
   constraints {
-    Skill names are discovered from integrations/skills and are never hardcoded into command logic.
-    Hidden entries, files, source symlinks, and directories without SKILL.md are not installable skills.
-    Links use host-native relative targets and remain valid while the repository and installation retain the same relative layout.
-    Directory symlink type is explicit for Windows when link creation is permitted.
-    Path equality is case-insensitive on Windows and case-sensitive on macOS and Linux.
-    An existing unmanaged file, directory, or symlink is a conflict and is never replaced.
-    Conflict preflight completes for every destination before any managed installation is changed.
-    Project git ignore entries cover generated skill links or copies while the ignore file itself remains repository content.
-    The invoked executable owns source-version selection; skill install does not inspect workspace configuration to choose or switch binaries.
-    Filesystem and host permission failures propagate as CLI runtime failures.
+    SkillCatalog {
+      Skill names are discovered from integrations/skills and are not hardcoded into command logic.
+
+      Hidden entries, files, source symlinks, and directories without SKILL.md are not valid skills.
+    }
+
+    SkillInstallation {
+      Links use host-native relative targets.
+
+      Directory symlink type is explicit for Windows when link creation is permitted.
+
+      Path equality is case-insensitive on Windows and case-sensitive on macOS and Linux.
+
+      An unmanaged file, directory, or symlink is never replaced.
+
+      Conflict preflight completes before any managed destination changes.
+
+      Project ignore entries cover generated links, copies, and management metadata while the ignore file remains repository content.
+
+      The selected executable owns skill-source selection; installation does not inspect ConfigFile to choose or switch binaries.
+
+      Filesystem and host permission failures propagate as CLI runtime failures.
+    }
+  }
+
+  decisions {
+    SkillInstallation {
+      Decision: Protect user-owned destinations by preflighting every target and replacing only installations with Sigil management evidence.
+
+      Scope: Governs installation and update ownership for selected skill destinations; excludes source discovery and link-versus-copy mechanics.
+
+      Trade-offs: One unmanaged conflict aborts the complete installation instead of partially updating other targets.
+
+      Consequences: Reinstallation can update managed destinations while unrelated files, directories, and links remain untouched.
+
+      Revisit when: Agent hosts provide a shared transactional package-management authority.
+    }
   }
 
   cases {
-    Global installation exposes one shared skill to Codex, OpenCode, and Pi and one Claude-compatible installation.
-    Project installation creates the equivalent destinations inside only the current repository.
-    A Windows host without directory-link permission receives a managed copy.
-    Reinstalling from a newer selected CLI updates older managed skill destinations.
-    An unmanaged destination named sigil aborts installation without changing other destinations.
-    A distribution containing multiple valid skills installs them without a CLI code change.
-    Repeating installation against current managed destinations reports every skill as existing and leaves project .gitignore files unchanged.
-    An existing .gitignore keeps unrelated rules and receives only missing managed skill entries.
-    A selected version/bin/sigil resolves assets from the same version/integrations/skills directory before source fallbacks.
-    Two repositories invoking different versioned binaries link to the skill assets owned by their respective binaries.
-    An empty integrations/skills directory reports a runtime failure and creates no target content.
+    SkillCatalog {
+      A distribution containing multiple valid skills lists them in stable order without a CLI code change.
+
+      An empty source directory reports a runtime failure.
+    }
+
+    SkillInstallation {
+      Global installation creates one shared destination for Codex, OpenCode, and Pi and one Claude-compatible destination.
+
+      Project installation creates equivalent destinations only inside the selected repository.
+
+      A Windows host without directory-link permission receives a managed copy.
+
+      Reinstalling from a different selected CLI updates older managed destinations.
+
+      An unmanaged destination aborts installation before other destinations change.
+
+      Repeating installation against current managed destinations reports existing and leaves project ignore files unchanged.
+    }
+
+    SkillSourceDiscovery {
+      A selected version/bin/sigil resolves version-matched skill assets before source-module fallbacks.
+
+      Two repositories invoking different selected binaries use the skill assets owned by their respective binaries.
+    }
   }
 }

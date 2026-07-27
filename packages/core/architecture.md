@@ -99,7 +99,7 @@ Responsibilities:
 - load relevant `.sigil` files through `filesystem`;
 - identify the root project and workspace-member roots exclusively from
   `.sigil/config.json`;
-- identify valid `RootSigil` locations.
+- expose configured workspace and member boundaries without restricting module-index locations.
 
 Rules:
 
@@ -185,6 +185,8 @@ Responsibilities:
 
 - expose component contract views;
 - expose collected expansion views;
+- expose bounded direct-dependency contracts and decision rationale for agent
+  context;
 - expose graph-oriented summaries;
 - provide reusable data shapes for CLI, LSP, renderers, and agent context builders.
 

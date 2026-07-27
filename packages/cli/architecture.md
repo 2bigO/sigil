@@ -28,7 +28,7 @@ collected expansions independently.
 - Treat human text output as convenience, not API.
 - Keep command modules thin over `sigil-core`.
 - Keep Deno filesystem and process APIs at the outer edge.
-- Never mutate `.sigil` files in version 0.1.
+- Never mutate `.sigil` files in version 0.6.
 - Keep CLI behavior deterministic and non-interactive.
 
 ## 3. Internal Modules
@@ -75,7 +75,8 @@ Owns command handlers.
 
 Responsibilities:
 
-- implement `skill list`, `skill install`, `parse`, `check`, `graph`, `context`, and `render`;
+- implement `skill list`, `skill install`, `parse`, `check`, `graph`, `context`,
+  and `render`;
 - call `sigil-core` through shared helpers;
 - return typed command result objects;
 - avoid command-specific duplication of parser and resolver behavior.
@@ -262,15 +263,14 @@ Each command should have:
 
 Commands should keep option behavior boring and explicit.
 
-Do not add interactive prompts in version 0.1.
+Do not add interactive prompts in version 0.6.
 
-Do not add mutation or formatting commands in version 0.1.
+Do not add mutation or formatting commands in version 0.6.
 
-## 9. Proposed Future Anchor Extension
+## 9. Historical Anchor Extension Proposal
 
-After ADR-011 approval, `sigil-cli` may depend on `sigil-indexer` through a
-separate `indexer-adapter`. Existing Sigil parsing and resolution continue
-through `core-adapter`.
+The following inactive design is retained for history. The approved CLI depends
+on `core-adapter` and has no indexer adapter or anchor mutation surface.
 
 ```text
 anchors argv -> anchors command handler -> indexer-adapter -> sigil-indexer
@@ -280,13 +280,19 @@ anchors argv -> anchors command handler -> indexer-adapter -> sigil-indexer
 
 Rules:
 
-- `args` parses the nested `anchors candidates`, `anchors check`, and `anchors apply` requests;
-- anchor command handlers shape results but do not parse ASTs or reconcile locators;
-- `indexer-adapter` connects the Deno filesystem, resolved Sigil workspace, and `sigil-indexer`;
+- `args` parses the nested `anchors candidates`, `anchors check`, and
+  `anchors apply` requests;
+- anchor command handlers shape results but do not parse ASTs or reconcile
+  locators;
+- `indexer-adapter` connects the Deno filesystem, resolved Sigil workspace, and
+  `sigil-indexer`;
 - only `anchors apply` may write, and it may write only `.sigil/anchors.json`;
-- the write uses a temporary sibling plus atomic rename after complete validation;
-- no CLI module invokes a model, imports a Codex skill, or interprets proposal evidence;
-- existing 0.1 commands and exit behavior remain backward compatible.
+- the write uses a temporary sibling plus atomic rename after complete
+  validation;
+- no CLI module invokes a model, imports a Codex skill, or interprets proposal
+  evidence;
+- the proposal would not alter existing command behavior without a separately
+  approved contract.
 
 ## 6. Output Guidelines
 
@@ -332,6 +338,8 @@ Required scenarios:
 - `check` does not return `1` for warnings alone;
 - `graph` emits file and expansion edges;
 - `context --component Auth` emits deterministic context data;
+- context data labels direct-dependency decisions as agent rationale outside the
+  dependent-facing contract;
 - `render` emits Markdown for the Slotted example;
 - invalid arguments return exit code `2`;
 - runtime filesystem failures return exit code `3`;

@@ -1,14 +1,15 @@
 # Standards-Aware Semantic Review
 
 Use this procedure when creating, reviewing, or preparing Sigil for
-implementation. It adds host-side semantic review and external research without
-changing the Sigil grammar or treating model judgment as core validation.
+implementation. It adds host-side semantic review and consumes shared external
+guidance evidence without changing the Sigil grammar or treating model judgment
+as core validation.
 
 ## Contents
 
 1. Applicability and risk
 2. Semantic-readiness review
-3. Research and source policy
+3. Evidence consumption and provenance
 4. Finding classification
 5. Action and approval policy
 6. Compliance language
@@ -17,21 +18,15 @@ changing the Sigil grammar or treating model judgment as core validation.
 
 ## 1. Applicability And Risk
 
-Assess external-guidance applicability on every Sigil review. Do not browse by
-default when no external guidance can materially affect the component.
+Follow `references/external-guidance-evidence.md` to assess applicability on
+every Sigil review. Do not browse by default when current authoritative
+guidance cannot materially affect a binding contract decision, its risks,
+available alternatives, or acceptance criteria.
 
-Consider research when the component involves:
-
-- authentication, authorization, secrets, cryptography, or other security
-  boundaries;
-- personal, regulated, financial, health, or otherwise sensitive data;
-- accessibility or human-interface obligations;
-- public APIs, protocols, interoperability, file formats, or versioned
-  contracts;
-- reliability, availability, recovery, audit, or operational safety;
-- a regulated or standards-governed domain;
-- framework, platform, database, or vendor behavior that may have changed;
-- an explicit organizational, contractual, or user requirement.
+When design conversation already produced an evidence packet, verify its
+question, boundary, environment and version match, source currency, risk,
+jurisdiction, mandates, and applicability assumptions before reusing it.
+Reacquire evidence when any invalidation condition holds.
 
 Use a qualitative risk level:
 
@@ -46,6 +41,67 @@ State the chosen risk level and why. Do not turn it into a numeric readiness or
 modularity score.
 
 ## 2. Semantic-Readiness Review
+
+### Gate And Ordering
+
+`sigil check` validates deterministic syntax, configuration, resolution,
+workspace relationships, and diagnostics. It does not establish semantic,
+architectural, or design validity.
+
+After deterministic validation completes without error diagnostics, inspect the
+exact Sigil prose, including ungrouped interface content, and classify semantic
+readiness as:
+
+- **unassessed:** the selected scope has not received host-assisted review;
+- **correction required:** a suspected or confirmed material problem remains;
+- **appears aligned:** no unresolved material semantic problem was identified
+  within the stated reviewed scope.
+
+Use `appears aligned` provisionally; never claim absolute semantic correctness.
+When readiness is `unassessed` or `correction required`, do not begin concept
+reuse discovery, concept grouping, identifier proposals, or model-assisted
+glossary candidate extraction.
+
+When a problem is found, follow the correction conversation in
+`references/design-conversation.md`: preserve affected Sigil, identify exact
+evidence and risk, ask one focused correction decision, and block synthesis,
+approval, and implementation until resolution.
+
+Once the pre-grouping review appears aligned, follow
+`references/authoring-conventions.md` for any missing concept identifiers. After
+an approved grouping change, rerun deterministic validation and this
+semantic-readiness review. Glossary candidate extraction begins only after that
+final review appears aligned. When grouping is unnecessary, the post-write
+semantic-readiness review directly gates extraction.
+
+### Decision-Rationale Coverage
+
+Semantic readiness includes durable-rationale coverage. Before presenting a
+proposal, inventory every new or changed selected choice across `goal`,
+`interface`, `state`, `logic`, `constraints`, and `cases`.
+
+For each material selected choice, verify one of:
+
+- a matching `decisions` occurrence records `Decision`, `Scope`, and the
+  materially applicable rationale;
+- a justified omission explains why the choice is trivial, mechanically
+  derived, or safely reconstructable.
+
+`Context` is not part of the current decision convention. Do not add it.
+
+Report the audit as:
+
+| Material choice | Decision concept | Coverage |
+| --- | --- | --- |
+| Exact selected choice | Matching concept or omission evidence | `covered`, `missing`, or `justified omission` |
+
+When a confirmed choice lacks a decision record, add the exact decision block to
+the semantic proposal. When its governing rationale is unresolved or conflicts
+with evidence, enter the same-chat correction conversation. Missing coverage
+keeps semantic readiness at `correction required` and blocks proposal approval.
+
+After approved Sigil is written, repeat the audit against the exact resulting
+semantic lines. Successful CLI validation never substitutes for this audit.
 
 ### Goal Clarity
 
@@ -62,7 +118,7 @@ when they do not establish a reviewable boundary.
 
 ### Interface Quality
 
-Check every relevant public operation, event, or dependency for:
+Check every relevant public operation, event, or observable promise for:
 
 - inputs and validation expectations;
 - outputs, guarantees, and observable side effects;
@@ -75,6 +131,18 @@ Check every relevant public operation, event, or dependency for:
 
 Do not require every category mechanically. Require it only when omitting it
 could materially change implementation or observable behavior.
+
+Imports declare component dependencies. Do not repeat them in `interface`.
+Implementation-hiding rules and forbidden internal access belong in
+`constraints` unless they define an externally observable promise.
+
+Review exact interface prose during the pre-grouping semantic-readiness pass
+without requiring identifiers first. Treat every
+`SIGIL_MISSING_CONCEPT_IDENTIFIER` warning as a deferred authoring gap. After
+readiness appears aligned, repair it through the approved concept-identifier
+workflow, then verify during final semantic review that repeated identifiers
+describe one coherent concept and imported provider expands remain outside the
+consumer's public dependency context.
 
 For UI components, also check when applicable:
 
@@ -111,8 +179,8 @@ Use `sigil context` and `sigil graph` when available. Read exact source wording
 before reporting a conflict.
 
 Check the selected component, all matching expands, imported and importing
-contracts, relevant root-project or workspace-member `RootSigil` summaries, and
-nearby internal Sigil files for:
+contracts, relevant ordinary summary components at the workspace root or
+declared members, and nearby internal Sigil files for:
 
 - inconsistent names, types, states, transitions, or error behavior;
 - conflicting policies or constraints;
@@ -150,42 +218,61 @@ Warn about god components, duplicated ownership, chatty or oversized
 interfaces, cyclic dependencies, shared mutable state, and implementation-shaped
 contracts. Do not assign arbitrary scores or thresholds.
 
-## 3. Research And Source Policy
+## 3. Evidence Consumption And Provenance
 
-Use a primary-first source hierarchy:
+Use the shared evidence packet rather than creating a second research policy in
+this procedure. Standards review owns interpretation and gate consequences:
 
-1. public text from the applicable standards body, regulator, or government;
-2. official standards and guidance such as ISO/IEC public material, IETF RFCs,
-   W3C recommendations, NIST publications, and OWASP guidance;
-3. official framework, platform, protocol, database, or vendor documentation;
-4. reputable secondary material only to locate or contextualize primary
-   sources.
+1. verify that the packet is current and applicable to the exact reviewed
+   component and environment;
+2. compare its guidance with exact Sigil lines, collected expands, repository
+   constraints, explicit requirements, and other applicable evidence;
+3. classify each current finding under Section 4;
+4. determine proposal, conflict, uncertainty, and implementation consequences
+   under Section 5.
 
-Do not use a secondary source as the sole evidence for a standards or compliance
-finding. Prefer the current applicable version and verify that the source scope
-matches the component.
-
-In the review summary record:
+In the review summary, include the complete source record supplied by the
+packet:
 
 - issuer;
 - title;
-- identifier and version when available;
+- identifier and available version or currency information;
 - publication or update date when available;
 - access date;
 - direct link;
-- relevant scope and any access limitation.
+- authority class;
+- relevant scope and environment match;
+- access, redaction, or other assessment limitations.
 
-Keep this source record in the review summary only. Do not add source URLs or
-compliance claims to Sigil unless the user changes that policy.
+Map each researched finding to its supporting sources. During design
+conversation, a directly relevant source identity and link may accompany an
+evidence-informed recommendation. During standards review, retain the complete
+records under `Sources Consulted`.
 
-For paywalled standards such as many ISO publications, use only accessible
-official scope, preview, or supporting material. Do not infer unseen clauses.
-Mark the unavailable portion as `not assessable` and explain what qualified or
-licensed review remains necessary.
+Approved Sigil may retain a source identifier and applicable version only when
+needed to reconstruct material decision rationale or its revisit condition.
+Keep source URLs and full bibliographic records outside Sigil unless the user
+approves a different project policy. Never write certification or complete
+compliance claims into Sigil.
 
-Avoid long quotations. Paraphrase the guidance and link to the primary source.
+When a packet is partially assessed or not assessable, preserve that state
+rather than filling missing clauses or scope through model inference.
 
 ## 4. Finding Classification
+
+Classify host-identified semantic, architectural, and design findings as:
+
+- **Suspected problem:** evidence indicates a material defect, contradiction,
+  ambiguity, or risk, but scope or governing intent remains uncertain.
+- **Confirmed problem:** applicable Sigil ideas, repository constraints, or
+  confirmed decisions cannot form a coherent or acceptably safe contract as
+  written.
+- **Resolved problem:** the user has selected or supplied coherent governing
+  intent and no material contradiction remains.
+
+Route suspected and confirmed material problems to the same-chat correction
+conversation. Do not silently repair them, treat preference as evidence, or
+continue to concept grouping or glossary candidate extraction.
 
 Classify every researched finding:
 
@@ -205,6 +292,24 @@ constraints, explicit user requirements, and other applicable sources. When two
 standards conflict, present the conflict; do not silently choose one.
 
 ## 5. Action And Approval Policy
+
+### Semantic, Architectural, Or Design Problem
+
+Do not modify affected Sigil merely because review found a problem. Enter the
+same-chat correction conversation and report:
+
+- the exact file, component, section, and problematic idea;
+- the evidence and what remains inference;
+- whether the finding is suspected or confirmed;
+- the likely contract, ownership, lifecycle, security, persistence,
+  interoperability, verification, or implementation impact;
+- concrete corrections and their trade-offs;
+- the focused decision required from the user.
+
+Keep semantic readiness at `correction required` until the problem is resolved.
+A confirmed material problem cannot be deferred, provisionally assumed, or
+bypassed for approval or implementation. Resolution authorizes only preparation
+of an exact Sigil proposal; it does not replace either approval gate.
 
 ### Compatible Guidance
 
@@ -301,6 +406,7 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 ### Proposed Sigil Edits
 
 Show exact semantic lines and their target sections without editing first.
+Include required decision blocks and the decision-rationale coverage map.
 
 ### Approval Request
 

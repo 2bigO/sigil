@@ -1,36 +1,63 @@
+@spec/language.sigil import { SigilModuleIndex }
+@packages/core/src/model.sigil import { SigilSemanticModel }
 @packages/core/src/resolver.sigil import { SigilResolver }
 
 component SigilGraphBuilder {
   goal {
-    Convert resolved Sigil relationships into deterministic graph data for hosts and integrations.
+    Convert resolved Sigil relationships into deterministic structural graph data.
+
     Keep graph construction independent from parsing, filesystem access, diagnostics policy, and presentation.
   }
 
   interface {
-    buildSigilGraph(resolution) returns SigilGraph
-    SigilGraph exposes component nodes, file dependency edges, imported-component edges, and component-expansion edges
-    consumes relationship data produced by SigilResolver
+    GraphConstruction {
+      buildSigilGraph(resolution) returns SigilGraph
+    }
+
+    GraphData {
+      SigilGraph exposes component nodes, file dependency edges, imported-component edges, and component-expansion edges
+    }
   }
 }
 
 expand SigilGraphBuilder {
   logic {
-    Create one component node for each resolved component declaration.
-    Create file dependency edges for imports with resolved target files.
-    Create imported-component edges only for names resolved to component declarations.
-    Create component-expansion edges for every collected expand declaration.
-    Preserve deterministic workspace and declaration ordering.
+    GraphConstruction {
+      Create one component node for each resolved component.
+
+      Create file dependency edges to immediate imported sources or ModuleIndexFile.
+
+      Create imported-component edges to original component declarations.
+
+      Create component-expansion edges for every collected expand.
+
+      Preserve deterministic workspace and declaration ordering.
+    }
   }
 
   constraints {
-    SigilGraphBuilder performs no filesystem access or source parsing.
-    Graph construction does not add diagnostics or reinterpret unresolved relationships.
-    Graph edges represent resolved structural relationships and do not claim behavioral compliance.
+    GraphConstruction {
+      Graph construction consumes SigilResolver relationship data.
+
+      Graph construction performs no filesystem access, source parsing, or relationship reinterpretation.
+
+      Graph construction adds no diagnostics.
+    }
+
+    GraphData {
+      Graph edges represent resolved structural relationships and do not claim behavioral compliance.
+    }
   }
 
   cases {
-    A resolved imported component produces both a file dependency edge and an imported-component edge.
-    An unresolved imported name produces no imported-component edge.
-    Two matching expands produce two component-expansion edges.
+    GraphData {
+      A resolved import produces a file dependency edge and an imported-component edge.
+
+      A directory import points its file edge to ModuleIndexFile and its component edge to the original declaration.
+
+      An unresolved imported name produces no imported-component edge.
+
+      Two matching expands produce two component-expansion edges.
+    }
   }
 }

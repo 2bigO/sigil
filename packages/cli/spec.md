@@ -1,8 +1,8 @@
 # sigil-cli Requirements
 
-**Status:** Accepted for 0.1.0 **Last updated:** 2026-07-13
+**Status:** Accepted for 0.6.1 **Last updated:** 2026-07-27
 
-This document defines the 0.1 product requirements for `sigil-cli`.
+This document defines the 0.6 product requirements for `sigil-cli`.
 
 `sigil-cli` is the command-line interface over `sigil-core`. It exists for
 agents, CI, scripts, debugging, and review/documentation workflows. It is not
@@ -16,9 +16,9 @@ extract information from Sigil workspaces.
 It should make the shared `sigil-core` model usable from a terminal without
 reinterpreting Sigil independently.
 
-## 2. Version 0.1 Scope
+## 2. Version 0.6 Scope
 
-Version 0.1 must provide commands to:
+Version 0.6 must provide commands to:
 
 - parse one Sigil file;
 - check a file or workspace for diagnostics;
@@ -27,12 +27,14 @@ Version 0.1 must provide commands to:
 - render a simple Markdown review view.
 - initialize a non-interactive versioned workspace config;
 - report CLI, core, and Sigil versions.
+- surface concept-identifier diagnostics and resolved concept namespaces.
 
-Version 0.1 should favor predictable, machine-readable behavior over rich terminal UI.
+Version 0.6 should favor predictable, machine-readable behavior over rich
+terminal UI.
 
 ## 3. Out Of Scope
 
-Version 0.1 must not implement:
+Version 0.6 must not implement:
 
 - editor UI;
 - LSP transport;
@@ -45,8 +47,8 @@ Version 0.1 must not implement:
 - anchors or code/spec synchronization;
 - mutation or formatting of `.sigil` files.
 
-Anchors remain outside the implemented 0.1 surface. The proposed future anchor
-surface is defined below and does not change the 0.1 acceptance criteria.
+Anchors remain outside the implemented 0.5 surface. The rejected historical
+anchor surface is defined below and does not change the 0.6 acceptance criteria.
 
 ## 4. Runtime And Dependency Requirements
 
@@ -73,6 +75,15 @@ surface is defined below and does not change the 0.1 acceptance criteria.
 `sigil-core`.
 
 ## 5. Global Behavior
+
+`--help` at the top level or after any recognized command path must print help
+for that path and exit with code `0` without validating required operands,
+discovering a workspace, or executing the command. Path-scoped help must show
+that path's usage, operands, options, and immediate subcommands.
+
+Empty, unknown, incomplete, or invalid invocations must exit with code `2`,
+leave stdout empty, and write both the specific problem and help for the longest
+recognized command path to stderr.
 
 All commands should support:
 
@@ -101,7 +112,10 @@ Exit codes should be stable:
 - `3`: host/runtime failure such as unreadable input outside normal Sigil
   diagnostics.
 
-Warnings alone should not produce exit code `1`.
+Warnings alone should not produce exit code `1`. In particular,
+`SIGIL_MISSING_CONCEPT_IDENTIFIER` must be visible in human and JSON output
+while preserving exit code `0` when no errors exist, so users and agents can act
+on it.
 
 ## 7. Commands
 
@@ -167,6 +181,24 @@ Required output data for JSON:
 
 Default human output may be concise text, but JSON must remain available.
 
+### `sigil glossary [path]`
+
+Loads the workspace glossary through `sigil-core` and reports its deterministic
+projection.
+
+Required output data:
+
+- workspace metadata and glossary path;
+- glossary schema version;
+- workspace and bounded-context entries;
+- resolved context for each loaded Sigil source;
+- canonical term, matched spelling, owner, and exact range for each occurrence;
+- glossary and workspace diagnostics.
+
+Absence of `.sigil/glossary.json` is successful and reports an absent glossary.
+Invalid schema, overlapping contexts, and spelling collisions exit with code
+`1`. The command is read-only and does not extract or propose definitions.
+
 ### `sigil graph [path]`
 
 Loads and resolves a workspace or target path and emits graph data from
@@ -179,13 +211,13 @@ Required output data:
 - component-to-expansion edges;
 - diagnostics.
 
-The command should not generate diagrams in version 0.1.
+The command should not generate diagrams in version 0.6.
 
 ### `sigil context`
 
 Produces deterministic agent-oriented context data from resolved Sigil.
 
-Version 0.1 should use graph and exact-match signals only.
+Version 0.6 should use graph and exact-match signals only.
 
 Supported selectors:
 
@@ -198,10 +230,18 @@ Required output data:
 - selected components;
 - component contracts;
 - collected expansions;
+- resolved concept namespaces;
 - related file paths;
+- a scoped glossary context containing accepted terms, aliases, definitions,
+  resolved bounded contexts, and occurrences from those related files, or `null`
+  when GlossaryFile is absent;
 - diagnostics.
 
-Version 0.1 must not implement embeddings, opaque ranking, or full semantic search.
+The scoped glossary context excludes accepted vocabulary that does not occur in
+the selected component or file and its collected expansion sources.
+
+Version 0.6 must not implement embeddings, opaque ranking, or full semantic
+search.
 
 ### `sigil render [path]`
 
@@ -221,7 +261,7 @@ human authoring UI.
 
 Creates `.sigil/config.json` without prompting. `--name` selects the stable
 workspace identifier, while repeated `--include` and `--exclude` options replace
-the 0.1 file-rule defaults. The directory basename is the default name. The
+the 0.2 file-rule defaults. The directory basename is the default name. The
 command must never overwrite an existing config.
 
 ### `sigil version [path]`
@@ -259,7 +299,8 @@ boundaries.
 
 ## 10. Acceptance Scenarios
 
-Version 0.1 is acceptable when tests or scripted checks demonstrate that `sigil-cli` can:
+Version 0.6 is acceptable when tests or scripted checks demonstrate that
+`sigil-cli` can:
 
 - parse `examples/promise/promise.sigil` and emit JSON;
 - check the repository workspace from the mandatory root `.sigil/config.json`;
@@ -268,8 +309,13 @@ Version 0.1 is acceptable when tests or scripted checks demonstrate that `sigil-
 - report diagnostics with stable codes;
 - return exit code `1` when error diagnostics exist;
 - return exit code `0` when only warnings or no diagnostics exist;
+- surface `SIGIL_MISSING_CONCEPT_IDENTIFIER` to users and agents without a
+  nonzero exit code;
 - emit graph JSON with file and expansion edges;
 - emit context JSON for `--component Auth`;
+- emit resolved concept namespaces in context JSON;
+- emit each direct dependency's public contract and decision sections once in
+  context JSON while excluding transitive and other private dependency details;
 - render Markdown for the Slotted example;
 - avoid duplicating parser or resolver behavior outside `sigil-core`.
 
@@ -285,12 +331,12 @@ entrypoint as commands grow.
 Keep command shaping separate from `sigil-core` data models so the core API
 remains reusable by LSP and editor integrations.
 
-Do not add interactive prompts in version 0.1.
+Do not add interactive prompts in version 0.6.
 
-## 12. Proposed Future Anchor Commands
+## 12. Historical Anchor Command Proposal
 
-After ADR-011 and the AnchorIndexer Sigil contract are approved, the CLI may
-depend on `sigil-indexer` and add a nested `anchors` command group.
+The following rejected design is retained for history. Version 0.6 has no
+`sigil-indexer` dependency or `anchors` command group.
 
 ### `sigil anchors candidates [path] --component <name>`
 

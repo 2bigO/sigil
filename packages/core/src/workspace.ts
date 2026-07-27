@@ -4,7 +4,8 @@ import {
   parseSigilConfig,
 } from "./config.ts";
 import { diagnostic } from "./diagnostics.ts";
-import { SIGIL_CONFIG_PATH } from "./model.ts";
+import { parseSigilGlossary } from "./glossary.ts";
+import { SIGIL_CONFIG_PATH, SIGIL_GLOSSARY_PATH } from "./model.ts";
 import type {
   LoadedSigilFile,
   SigilConfig,
@@ -16,8 +17,6 @@ import type {
 import { parseSigilDocument } from "./parser.ts";
 import {
   ancestorsFrom,
-  dirname,
-  isModuleFile,
   joinPath,
   normalizePath,
   relativePath,
@@ -165,24 +164,24 @@ export async function loadSigilWorkspace(
     diagnostics.push(...parsed.diagnostics);
   }
 
+  const glossaryPath = joinPath(discovery.root, SIGIL_GLOSSARY_PATH);
+  if (await fs.exists(glossaryPath)) {
+    const parsed = parseSigilGlossary(
+      await fs.readTextFile(glossaryPath),
+      glossaryPath,
+    );
+    diagnostics.push(...parsed.diagnostics);
+    return {
+      ...discovery,
+      glossaryPath,
+      glossary: parsed.glossary,
+      memberRoots,
+      files: loadedFiles,
+      diagnostics,
+    };
+  }
+
   return { ...discovery, memberRoots, files: loadedFiles, diagnostics };
-}
-
-export function isWorkspaceRootModule(
-  workspace: SigilWorkspace,
-  path: string,
-): boolean {
-  return normalizePath(path) === joinPath(workspace.root, "#module.sigil");
-}
-
-export function isRootSigil(
-  workspace: SigilWorkspace,
-  path: string,
-): boolean {
-  const normalized = normalizePath(path);
-  const root = dirname(normalized);
-  return isModuleFile(normalized) &&
-    (root === workspace.root || workspace.memberRoots.includes(root));
 }
 
 async function readDiscoveredConfig(

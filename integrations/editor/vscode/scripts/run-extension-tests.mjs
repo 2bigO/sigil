@@ -6,7 +6,7 @@ const directory = path.dirname(fileURLToPath(import.meta.url));
 const extension = path.resolve(directory, "..");
 const repository = path.resolve(extension, "../../..");
 
-// Codex may launch this script from a VS Code extension host. Do not leak that
+// Automation may launch this script from a VS Code extension host. Do not leak that
 // host's Electron/VS Code process mode into the separate test instance.
 for (const key of Object.keys(process.env)) {
   if (key === "ELECTRON_RUN_AS_NODE" || key.startsWith("VSCODE_")) {

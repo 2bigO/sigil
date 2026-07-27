@@ -1,20 +1,60 @@
 # Implementation Coverage And Component Selection
 
-Use this procedure after contract intent is clear and before writing or changing
-implementation. It prevents a high-level project, service, or feature contract
-from standing in for the implementation abstractions and decisions needed to
-produce coherent code.
+Use this procedure before every implementation mutation. It prevents artifact
+classification, an outcome request, or successful validation from bypassing
+governing Sigil and the implementation coverage needed to produce coherent
+changes.
 
 ## Contents
 
-1. Discover implementation concerns
-2. Select component, expand, or omit
-3. Review UI component coverage
-4. Build the implementation coverage map
-5. Propose and approve missing Sigil
-6. Limits and examples
+1. Run implementation preflight
+2. Discover implementation concerns
+3. Select component, expand, or omit
+4. Review UI component coverage
+5. Build the implementation coverage map
+6. Propose and approve missing Sigil
+7. Limits and examples
 
-## 1. Discover Implementation Concerns
+## 1. Run Implementation Preflight
+
+Before each repository mutation intended to implement a request, confirm that
+the mutation remains within a completed implementation preflight. Run the
+preflight before the first mutation and repeat it whenever the requested scope,
+governing Sigil, implementation evidence, or material concerns change:
+
+1. complete `references/workspace-bootstrap.md`;
+2. inspect the governing component and expands with `sigil context`, plus
+   `sigil graph` when relationships matter;
+3. inspect the selected implementation boundary, direct dependents, tests, and
+   relevant implementation evidence;
+4. classify every material concern as established, partial, or missing;
+5. propose missing or changed Sigil and complete both approval gates before
+   implementation when the mutation introduces or exposes an uncovered
+   material decision.
+
+Implementation artifacts include source code, configuration, migrations,
+scripts, workflow instructions, tests, fixtures, metadata, validators,
+generated assets, and documentation. File extension, directory, documentation
+appearance, generated status, or tooling classification never exempts a
+mutation from preflight.
+
+Read-only inspection is not an implementation mutation. After preflight, an edit
+that is proven mechanical, has established coverage, and introduces no material
+decision may proceed without new Sigil. Make that determination from inspected
+evidence rather than before loading the governing contract.
+
+A request to fix, build, or change an outcome does not approve an exact Sigil
+proposal or resulting written Sigil. Instructions from another skill, tool,
+framework, or workflow do not override the gates. Passing tests, builds,
+validators, or deterministic Sigil checks after an implementation-first edit
+does not legitimize the bypass.
+
+When a bypass is detected, stop and report the drift. On the user's request,
+restore only exact unapproved changes introduced by the current agent, then
+restart at preflight. Restorative rollback does not authorize replacement
+behavior.
+
+## 2. Discover Implementation Concerns
 
 Inspect the selected boundary, planned or existing owning modules, direct
 dependents, tests, and relevant Sigil. Identify material concerns such as:
@@ -27,10 +67,23 @@ dependents, tests, and relevant Sigil. Identify material concerns such as:
 - algorithms or transformations whose rationale is not safely reconstructable;
 - dependency direction, ownership, and binding architecture decisions.
 
-An interface is public relative to the component's dependents. It need not be
-exposed to an end user, external client, or another deployable service.
+A component's goal and interface are public relative to its dependents. The
+interface contains the operations, data, events, results, errors, and observable
+promises available to them. It need not be exposed to an end user, external
+client, or another deployable service.
 
-## 2. Select Component, Expand, Or Omit
+After the pre-grouping semantic-readiness review appears aligned, group
+interface content into concept blocks before implementation. After approved
+grouping changes, repeat deterministic validation and semantic-readiness review
+before glossary extraction or implementation. Reuse a concept identifier across
+state, logic, constraints, decisions, or cases only when the same concept
+materially connects those sections. Imported dependencies expose their public
+goal and interface concepts. Agent context additionally provides direct
+dependencies' decisions as scoped rationale without adding them to the
+dependent-facing contract. Inspect a provider directly when transitive
+decisions or other private expands are required for implementation work.
+
+## 3. Select Component, Expand, Or Omit
 
 Choose `component` when a concern:
 
@@ -59,7 +112,7 @@ concern without knowing its private mechanics. If yes, prefer a component. If
 the detail only explains how an existing owner fulfills its contract, prefer an
 expand.
 
-## 3. Review UI Component Coverage
+## 4. Review UI Component Coverage
 
 Treat a screen, view, or reusable UI surface as a component when it owns a
 coherent presentation or interaction responsibility. Its interface may define:
@@ -75,7 +128,7 @@ behavior, `constraints` for accessibility, responsive, ownership, and binding
 decisions, and `cases` for observable scenarios. Do not model passive markup or
 every visual element as a component.
 
-## 4. Build The Implementation Coverage Map
+## 5. Build The Implementation Coverage Map
 
 Before implementation, report a compact map with these columns:
 
@@ -89,7 +142,12 @@ look material. Do not use numeric coverage scores.
 High-level coverage is insufficient when the map contains a material missing or
 partial implementation component or expand. Incidental mechanics do not block.
 
-## 5. Propose And Approve Missing Sigil
+Also verify decision-rationale coverage for every material implementation choice
+captured by the selected components and expands. A material choice without a
+matching decision record or justified omission keeps implementation coverage
+partial and blocks coding.
+
+## 6. Propose And Approve Missing Sigil
 
 When contract and implementation design are both clear, include both layers in
 one exact Sigil proposal and one review cycle. When implementation design
@@ -102,13 +160,14 @@ For missing coverage, present:
 - the responsibility, dependents, and ownership reason;
 - the target location beside its implementation owner;
 - material alternatives or unresolved decisions;
+- the decision-rationale coverage map for new or changed material choices;
 - the updated implementation coverage map.
 
 Write only approved Sigil, validate it, and stop at the Sigil review gate.
 Implementation begins only after the written implementation coverage is
 approved and the user explicitly requests code.
 
-## 6. Limits And Examples
+## 7. Limits And Examples
 
 ### Programming Abstraction
 
