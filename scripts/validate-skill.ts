@@ -33,6 +33,15 @@ const workspaceBootstrap = await Deno.readTextFile(
 const authoringConventions = await Deno.readTextFile(
   `${root}/references/authoring-conventions.md`,
 );
+const standardsReview = await Deno.readTextFile(
+  `${root}/references/standards-review.md`,
+);
+const designConversationReference = await Deno.readTextFile(
+  `${root}/references/design-conversation.md`,
+);
+const sigilFormat = await Deno.readTextFile(
+  `${root}/references/sigil-format.md`,
+);
 requireText(skill, "name: sigil", "SKILL.md name");
 requireText(skill, "description:", "SKILL.md description");
 requireText(
@@ -118,8 +127,38 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "`SIGIL_MISSING_CONCEPT_IDENTIFIER` as an authoring gap",
+  "`SIGIL_MISSING_CONCEPT_IDENTIFIER` as a deferred authoring gap",
   "missing concept identifier workflow",
+);
+requireText(
+  skill,
+  "A successful CLI check also does not establish semantic readiness.",
+  "deterministic and semantic validation boundary",
+);
+requireText(
+  skill,
+  "Do not begin concept grouping or glossary candidate extraction until",
+  "semantic readiness before enrichment",
+);
+requireText(
+  standardsReview,
+  "inspect the\nexact Sigil prose, including ungrouped interface content",
+  "pre-grouping semantic readiness",
+);
+requireText(
+  standardsReview,
+  "do not begin concept\nreuse discovery, concept grouping, identifier proposals, or model-assisted\nglossary candidate extraction",
+  "semantic readiness enrichment blocker",
+);
+requireText(
+  designConversationReference,
+  "dedicated correction phase in the same chat",
+  "same-chat correction phase",
+);
+requireText(
+  designConversationReference,
+  "A confirmed material problem cannot become a provisional\nassumption",
+  "material correction blocker",
 );
 requireText(
   authoringConventions,
@@ -160,7 +199,7 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "repair always require explicit user approval of the presented proposal before\nany repository mutation",
+  "warning repair\nrequire explicit user approval of the presented proposal before any repository\nmutation",
   "concept identifier pre-edit approval gate",
 );
 requireText(
@@ -175,8 +214,33 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "record `Decision`, `Context`, and `Scope`",
+  "Record `Decision` and `Scope`; `Context` is not part of the current\nconvention.",
   "decision rationale required labels",
+);
+forbidText(
+  authoringConventions,
+  "record `Decision`, `Context`, and `Scope`",
+  "removed decision Context convention",
+);
+forbidText(
+  sigilFormat,
+  "Context:",
+  "removed decision Context example",
+);
+requireText(
+  authoringConventions,
+  "Include a compact decision-rationale coverage map with every semantic proposal",
+  "decision rationale coverage map",
+);
+requireText(
+  authoringConventions,
+  "semantic readiness cannot appear aligned while a material selected choice lacks\ndurable rationale",
+  "missing rationale readiness blocker",
+);
+requireText(
+  authoringConventions,
+  "After writing approved Sigil, repeat the coverage audit",
+  "post-write decision coverage audit",
 );
 requireText(
   authoringConventions,
@@ -202,8 +266,8 @@ requireText(
 );
 
 const version = (await Deno.readTextFile(`${root}/VERSION`)).trim();
-if (version !== "0.6.0") {
-  throw new Error(`Expected skill VERSION 0.6.0, got ${version}`);
+if (version !== "0.6.2") {
+  throw new Error(`Expected skill VERSION 0.6.2, got ${version}`);
 }
 
 const compatibility = JSON.parse(
@@ -423,6 +487,13 @@ const requiredDesignConversationBehaviors = [
   "avoid-reasking-confirmed-decisions",
   "synthesize-only-without-blockers",
   "preserve-deferrals-in-synthesis",
+  "enter-same-chat-correction-phase",
+  "report-exact-problem-evidence-and-risk",
+  "separate-evidence-from-inference",
+  "avoid-preference-as-defect",
+  "block-on-confirmed-material-problem",
+  "resume-only-after-correction",
+  "preserve-proposal-approval-gates",
 ];
 if (!Array.isArray(expected.designConversationRequiredBehaviors)) {
   throw new Error(
@@ -460,6 +531,21 @@ requireText(
   designConversationFixture,
   "Synthesize exact proposed Sigil only after no unresolved decision",
   "design conversation blocker exit condition",
+);
+requireText(
+  designConversationFixture,
+  "dedicated correction phase in the same chat",
+  "design conversation correction phase",
+);
+requireText(
+  designConversationFixture,
+  "Point to the exact conflicting ideas, separate evidence from inference",
+  "design conversation evidence and risk",
+);
+requireText(
+  designConversationFixture,
+  "Keep a confirmed material problem blocking",
+  "design conversation correction blocker",
 );
 
 const implementationFixture = await Deno.readTextFile(
@@ -512,6 +598,10 @@ const conceptIdentifierFixture = await Deno.readTextFile(
   `${root}/evals/concept-identifier-fixture.md`,
 );
 const requiredConceptIdentifierBehaviors = [
+  "distinguish-structural-from-semantic-readiness",
+  "review-ungrouped-sigil-first",
+  "block-grouping-until-semantic-readiness",
+  "enter-correction-before-grouping",
   "inspect-complete-local-collective",
   "inspect-local-and-imported-concepts",
   "inspect-direct-consumers",
@@ -525,6 +615,9 @@ const requiredConceptIdentifierBehaviors = [
   "enter-awaiting-approval",
   "deny-primary-edit-authority",
   "require-explicit-pre-edit-approval",
+  "repeat-semantic-review-after-grouping",
+  "block-glossary-extraction-until-final-review",
+  "return-to-correction-on-grouping-ambiguity",
   "exclude-anchor-workflow",
 ];
 if (!Array.isArray(expected.conceptIdentifierRequiredBehaviors)) {
@@ -564,17 +657,40 @@ requireText(
   "advisory output rather than user approval",
   "concept fixture delegated authority boundary",
 );
+requireText(
+  conceptIdentifierFixture,
+  "Review the exact ungrouped Sigil semantically before concept reuse discovery",
+  "concept fixture pre-grouping semantic review",
+);
+requireText(
+  conceptIdentifierFixture,
+  "Begin concept grouping only after semantic readiness appears aligned",
+  "concept fixture readiness gate",
+);
+requireText(
+  conceptIdentifierFixture,
+  "rerun deterministic and semantic review before\n    glossary candidate extraction",
+  "concept fixture final semantic review",
+);
 
 const decisionRationaleFixture = await Deno.readTextFile(
   `${root}/evals/decision-rationale-fixture.md`,
 );
 const requiredDecisionRationaleBehaviors = [
+  "inventory-selected-choices",
+  "classify-material-choice",
   "keep-binding-outcome-in-constraints",
-  "use-optional-decisions-for-material-rationale",
+  "require-decisions-for-material-rationale",
   "use-named-decision-concept",
-  "record-decision-context-scope",
+  "record-decision-and-scope",
+  "exclude-removed-context-label",
   "bound-scope-with-exclusions",
   "record-applicable-rationale",
+  "report-decision-coverage-map",
+  "justify-trivial-omission",
+  "block-readiness-on-missing-rationale",
+  "include-missing-decision-in-proposal",
+  "repeat-post-write-coverage-audit",
   "reuse-accessible-public-concept",
   "prevent-transitive-decision-authority",
   "inspect-provider-private-rationale-explicitly",
@@ -595,13 +711,38 @@ for (const behavior of requiredDecisionRationaleBehaviors) {
 }
 requireText(
   decisionRationaleFixture,
-  "Keep the binding PostgreSQL outcome in `constraints`.",
+  "Keep both binding outcomes in `constraints`.",
   "decision fixture binding constraint",
 );
 requireText(
   decisionRationaleFixture,
-  "Record `Decision`, `Context`, and `Scope`.",
+  "Record `Decision` and `Scope`; do not add `Context`.",
   "decision fixture required labels",
+);
+requireText(
+  decisionRationaleFixture,
+  "Inventory every new or changed selected choice",
+  "decision fixture choice inventory",
+);
+requireText(
+  decisionRationaleFixture,
+  "decision-rationale coverage map",
+  "decision fixture coverage map",
+);
+requireText(
+  decisionRationaleFixture,
+  "Keep semantic readiness at correction required",
+  "decision fixture missing rationale blocker",
+);
+requireText(
+  decisionRationaleFixture,
+  "Repeat the coverage audit after writing approved Sigil",
+  "decision fixture post-write audit",
+);
+forbidText(
+  decisionRationaleFixture,
+  "Decision`, `Context`, and `Scope",
+  "removed fixture Context requirement",
 );
 requireText(
   decisionRationaleFixture,
@@ -646,6 +787,11 @@ const requiredGlossaryBehaviors = [
   "inspect-after-every-sigil-mutation",
   "inspect-when-glossary-absent",
   "separate-deterministic-inspection-from-model-extraction",
+  "distinguish-structural-from-semantic-readiness",
+  "block-extraction-before-semantic-readiness",
+  "review-semantics-before-concept-grouping",
+  "repeat-semantic-review-after-grouping",
+  "extract-only-after-final-semantic-readiness",
   "forbid-zero-diagnostic-no-change-inference",
   "extract-regardless-of-diagnostic-count",
   "record-evidence-based-no-candidate-result",
@@ -702,12 +848,22 @@ requireText(
 );
 requireText(
   glossaryFixture,
+  "Do not perform model-assisted extraction while semantic readiness is\n   unassessed or correction is required",
+  "glossary fixture semantic readiness blocker",
+);
+requireText(
+  glossaryFixture,
+  "Perform model-assisted extraction only after the final semantic-readiness\n   review appears aligned",
+  "glossary fixture final readiness gate",
+);
+requireText(
+  glossaryFixture,
   "Never infer that no glossary changes are needed from zero CLI diagnostics",
   "glossary fixture zero-diagnostic guard",
 );
 requireText(
   glossaryFixture,
-  "regardless of\n   diagnostic count or GlossaryFile presence",
+  "review appears aligned, regardless of diagnostic count or GlossaryFile\n   presence",
   "glossary fixture mandatory model extraction",
 );
 requireText(
@@ -844,6 +1000,16 @@ requireText(
 );
 requireText(
   glossaryWorkflow,
+  "When semantic readiness is `unassessed` or\n`correction required`, do not inspect prose for glossary candidates",
+  "glossary semantic readiness gate",
+);
+requireText(
+  glossaryWorkflow,
+  "final semantic-readiness review after grouping",
+  "glossary post-grouping semantic review",
+);
+requireText(
+  glossaryWorkflow,
   "A diagnostic count is not evidence for\n  this conclusion.",
   "glossary evidence-based no-candidate result",
 );
@@ -859,7 +1025,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.6.0 dispatcher, workspace bootstrap, compatibility, authoring, glossary, review gates, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.6.2 dispatcher, decision-rationale coverage, semantic readiness, correction conversation, workspace bootstrap, compatibility, authoring, glossary, review gates, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {
@@ -869,4 +1035,8 @@ async function requireFile(path: string): Promise<void> {
 
 function requireText(source: string, value: string, label: string): void {
   if (!source.includes(value)) throw new Error(`Missing ${label}: ${value}`);
+}
+
+function forbidText(source: string, value: string, label: string): void {
+  if (source.includes(value)) throw new Error(`Found ${label}: ${value}`);
 }

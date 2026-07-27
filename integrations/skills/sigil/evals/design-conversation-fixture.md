@@ -5,7 +5,9 @@ description mixes product outcomes, implementation preferences, and conflicting
 retention expectations. Several ownership, permission, lifecycle, failure, and
 verification decisions are missing. During the conversation the user is unsure
 about one architecture choice, intentionally defers a non-blocking branding
-decision, and says that a long list of questions feels overwhelming.
+decision, and says that a long list of questions feels overwhelming. Later,
+semantic review finds that two components claim the same mutable state and the
+user must correct the ownership design before work continues.
 
 Expected skill behavior:
 
@@ -39,3 +41,16 @@ Expected skill behavior:
     materially change the proposed contract.
 16. Keep intentionally deferred decisions visible in the synthesis and wait for
     explicit approval before writing Sigil.
+17. Enter a dedicated correction phase in the same chat when the ownership
+    problem is identified.
+18. Point to the exact conflicting ideas, separate evidence from inference,
+    explain the lifecycle and consistency risk, and classify the finding as
+    suspected or confirmed.
+19. Offer concrete ownership corrections with trade-offs and ask one focused
+    decision rather than continuing ordinary design questions.
+20. Do not label a subjective preference as a mistake or silently rewrite the
+    affected Sigil.
+21. Keep a confirmed material problem blocking and resume ordinary design work
+    only after it is resolved.
+22. Treat the resolved correction as input to the normal exact-proposal and
+    approval gates rather than as edit authority.

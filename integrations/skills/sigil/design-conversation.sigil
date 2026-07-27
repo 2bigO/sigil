@@ -16,6 +16,18 @@ component SigilDesignConversation {
       acknowledges each answer and states its effect on the emerging contract
     }
 
+    CorrectionConversation {
+      enters a dedicated same-chat correction phase when review identifies a material semantic, architectural, or design problem
+
+      warns the user by naming the exact problem, supporting evidence, likely consequences, and risk
+
+      asks one focused clarification or correction decision at a time
+
+      offers concrete resolution options, their trade-offs, and a reasoned recommendation
+
+      returns to ordinary design work only after the problem is resolved
+    }
+
     DecisionLedger {
       maintains confirmed, provisionally assumed, intentionally deferred, and unresolved decisions
 
@@ -36,6 +48,12 @@ expand SigilDesignConversation {
       An unresolved decision is blocking when it could materially change the contract.
     }
 
+    CorrectionConversation {
+      A correction finding is suspected, confirmed, or resolved.
+
+      A suspected or confirmed material problem keeps the conversation in correction.
+    }
+
     DecisionLedger {
       A material decision is confirmed, provisionally assumed, intentionally deferred, or unresolved.
     }
@@ -54,6 +72,18 @@ expand SigilDesignConversation {
       After each answer, restate the resulting decision and identify dependent questions or conflicts.
 
       When the user is uncertain, present a conservative recommendation and permit only non-blocking uncertainty to be deferred.
+    }
+
+    CorrectionConversation {
+      When review identifies a material semantic, architectural, or design problem, pause ordinary design exploration and enter the same-chat correction phase.
+
+      Separate exact Sigil evidence, repository evidence, and inference before describing a finding as a mistake.
+
+      Explain how the problem could affect contracts, ownership, lifecycle, security, persistence, interoperability, verification, or implementation.
+
+      Recommend a correction, present meaningful alternatives and trade-offs, and ask which intent should govern.
+
+      Update the decision ledger after each answer and resume ordinary design work only when the problem is resolved.
     }
 
     DecisionLedger {
@@ -80,6 +110,16 @@ expand SigilDesignConversation {
       Immaterial hypothetical edge cases are not pursued merely for completeness.
     }
 
+    CorrectionConversation {
+      A subjective preference is not labeled a problem without concrete semantic or risk evidence.
+
+      The affected Sigil is not silently corrected while the user is deciding the intended resolution.
+
+      A confirmed material problem cannot be deferred, treated as a provisional assumption, or bypassed for implementation.
+
+      User resolution of the problem does not replace the existing Sigil proposal and approval gates.
+    }
+
     DecisionLedger {
       Provisional assumptions remain visible and do not become confirmed decisions implicitly.
 
@@ -91,6 +131,22 @@ expand SigilDesignConversation {
     }
   }
 
+  decisions {
+    CorrectionConversation {
+      Decision: Use a dedicated correction phase within the same chat for suspected or confirmed material semantic, architectural, or design problems.
+
+      Scope: Governs Sigil design and review conversations; excludes immaterial preferences and unrelated user discussions.
+
+      Trade-offs: Pausing ordinary design questions adds conversational latency.
+
+      Design issues addressed: Material mistakes and risks could otherwise be mentioned without requiring focused user resolution.
+
+      Consequences: Affected Sigil remains unchanged and unrelated design work pauses until the problem is resolved.
+
+      Revisit when: Host conversation isolation or safety requirements make a separate thread necessary.
+    }
+  }
+
   cases {
     DecisionConversation {
       A vague product idea begins with intended outcome and users rather than implementation technology.
@@ -98,6 +154,14 @@ expand SigilDesignConversation {
       A conflict with an earlier answer is explained before another topic begins.
 
       An uncertain user receives a recommendation with consequences rather than an unexplained default.
+    }
+
+    CorrectionConversation {
+      Contradictory ownership claims trigger a warning, risk explanation, and focused correction decision before proposal synthesis.
+
+      An architectural cycle that creates unclear lifecycle ownership blocks implementation until the user selects a resolution.
+
+      Ambiguous failure behavior with materially different observable outcomes is clarified before Sigil is approved.
     }
 
     DecisionLedger {

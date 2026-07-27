@@ -24,8 +24,15 @@ not invent visual-authority keywords.
 
 ## Decision Rationale
 
-When creating or materially editing a decision, use one concise PascalCase
-concept block and record `Decision`, `Context`, and `Scope`.
+Before presenting any semantic proposal, inventory every new or changed selected
+choice expressed across `goal`, `interface`, `state`, `logic`, `constraints`,
+and `cases`. A choice is material when future review, maintenance, or
+implementation cannot safely reconstruct why it was selected or which
+alternatives it excludes.
+
+Map every material selected choice to one concise PascalCase concept block in
+`decisions`. Record `Decision` and `Scope`; `Context` is not part of the current
+convention.
 
 Use `Scope` to state the governed boundary and important exclusions without
 attempting to enumerate every current dependent.
@@ -33,6 +40,23 @@ attempting to enumerate every current dependent.
 Record `Assumptions`, `Trade-offs`, `Design issues addressed`, `Discarded
 alternatives`, `Consequences`, and `Revisit when` when materially applicable.
 Omit inapplicable labels instead of adding filler.
+
+Include a compact decision-rationale coverage map with every semantic proposal:
+
+| Material choice | Decision concept | Coverage |
+| --- | --- | --- |
+| Exact selected choice | Matching concept identifier | `covered`, `missing`, or `justified omission` |
+
+Use `justified omission` only for a trivial, mechanically derived, or safely
+reconstructable choice, and state the evidence. When the binding outcome is
+confirmed but its rationale record is missing, include the exact decision block
+in the proposal. When the governing rationale is unresolved or conflicts with
+evidence, enter the correction conversation before proposing it.
+
+The absence of a `decisions` section remains structurally valid Sigil, but
+semantic readiness cannot appear aligned while a material selected choice lacks
+durable rationale. Successful CLI validation does not establish
+decision-rationale coverage.
 
 Reuse an accessible concept identifier when decisions concern the same semantic
 idea. Scope remains local to the contextual occurrence; reuse never makes a
@@ -48,13 +72,23 @@ Summarize durable rationale rather than prompts, raw session transcripts, or
 hidden reasoning. Responsibility, accountability, approver, and handoff metadata
 remain outside the convention.
 
+After writing approved Sigil, repeat the coverage audit against the exact
+written semantic lines. A missing material decision returns to an exact Sigil
+proposal and blocks written-Sigil approval and implementation.
+
 ## Concept Identifiers
 
 Treat ungrouped `interface` content reported by
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` as an authoring gap to repair before semantic
-review. Concept-identifier creation, reuse, regrouping, renaming, and warning
-repair always require explicit user approval of the presented proposal before
-any repository mutation.
+`SIGIL_MISSING_CONCEPT_IDENTIFIER` as a deferred authoring gap. First complete
+the pre-grouping semantic-readiness review from `standards-review.md` against
+the exact ungrouped prose. Do not begin concept reuse discovery, grouping,
+identifier generation, or warning repair while semantic readiness is
+`unassessed` or `correction required`.
+
+After semantic readiness appears aligned for the selected scope,
+concept-identifier creation, reuse, regrouping, renaming, and warning repair
+require explicit user approval of the presented proposal before any repository
+mutation.
 
 Before proposing an identifier:
 
@@ -94,6 +128,16 @@ long name as a possible grouping or component-boundary problem.
 
 When subagents are unavailable, perform the same discovery, proposal, and
 validation in the primary agent. Keep anchoring outside concept-identifier work.
+
+After applying an approved grouping or identifier change:
+
+1. run `sigil check`;
+2. use `sigil context` or `sigil graph` when identity relationships changed;
+3. repeat the semantic-readiness review on the grouped Sigil;
+4. return to the same-chat correction conversation if grouping exposes or
+   introduces material ambiguity;
+5. begin glossary candidate extraction only when the final review appears
+   aligned.
 
 ## Semantic Lines
 

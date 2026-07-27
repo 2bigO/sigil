@@ -43,8 +43,6 @@ expand Payments {
     PersistenceChoice {
       Decision: Use PostgreSQL for payment records.
 
-      Context: Concurrent writers require transactional consistency.
-
       Scope: Governs payment persistence and transaction handling. Analytics storage is outside this decision.
 
       Assumptions: The deployment environment provides managed PostgreSQL.
@@ -120,7 +118,7 @@ The Sigil language remains permissive, while the Sigil skill applies a
 consistent authoring discipline when it creates or materially edits a decision:
 
 - use one concise PascalCase concept block for each material decision;
-- record `Decision`, `Context`, and `Scope`;
+- record `Decision` and `Scope`;
 - use `Scope` to identify the governed boundary and important exclusions
   without attempting to enumerate every current dependent;
 - reuse an accessible concept identifier when decisions concern the same

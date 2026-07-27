@@ -94,6 +94,16 @@ Apply `references/standards-review.md` before asking for final approval. Review
 semantic readiness, applicable guidance, cross-Sigil coherence, modularity,
 constraint-derived cases, and evidence or uncertainty.
 
+Review the exact ungrouped proposal first. If semantic readiness is
+`correction required`, enter the same-chat correction conversation and stop
+before concept grouping. Only after readiness appears aligned may
+`references/authoring-conventions.md` group interface concepts. Repeat semantic
+review on the grouped proposal before presenting it for approval.
+
+Before approval, inventory every material selected choice in the proposed
+contract and include its matching decision record or justified omission in the
+decision-rationale coverage map.
+
 Then present:
 
 ### Conversation Synthesis
@@ -136,7 +146,13 @@ After explicit approval:
 3. use `sigil graph` or `sigil context` when relationships changed;
 4. reread the written files and repeat semantic, coherence, and modularity
    review;
-5. stop at the Sigil review gate and report changed files, captured decisions,
+5. repeat the decision-rationale coverage audit against the written semantic
+   lines and return to proposal review when coverage is missing;
+6. if concept grouping is still required, propose and apply it only through its
+   approval workflow, then rerun deterministic and semantic review;
+7. perform glossary candidate extraction only after the final semantic review
+   appears aligned;
+8. stop at the Sigil review gate and report changed files, captured decisions,
    open questions, and validation results.
 
 Do not write implementation code in the same pass. After the user approves the

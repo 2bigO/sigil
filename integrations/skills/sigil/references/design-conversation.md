@@ -14,9 +14,10 @@ questionnaire and does not replace the user's authority.
 2. Prioritize decisions
 3. Run one conversational turn
 4. Handle uncertainty and conflict
-5. Use checkpoints
-6. Finish or block the conversation
-7. Limits and examples
+5. Run a correction conversation
+6. Use checkpoints
+7. Finish or block the conversation
+8. Limits and examples
 
 ## 1. Maintain The Conversation State
 
@@ -123,7 +124,47 @@ When the user appears overwhelmed, reduce the scope to the single most
 foundational decision, shorten the explanation, and defer non-blocking topics.
 Do not lower safety or approval requirements to make the conversation shorter.
 
-## 5. Use Checkpoints
+## 5. Run A Correction Conversation
+
+When review identifies a suspected or confirmed material semantic,
+architectural, or design problem, pause ordinary design exploration and enter a
+dedicated correction phase in the same chat. Do not advance to unrelated
+questions, proposal synthesis, approval, or implementation.
+
+Track each correction finding as:
+
+- **suspected:** evidence indicates a problem, but scope or intent still needs
+  clarification;
+- **confirmed:** the applicable ideas cannot form a coherent or acceptably safe
+  contract as written;
+- **resolved:** the user has selected or supplied a coherent governing intent.
+
+Each correction turn must:
+
+1. identify the exact file, component, section, and problematic idea when
+   available;
+2. separate exact Sigil evidence, repository evidence, applicable guidance, and
+   model inference;
+3. explain the likely contract, ownership, lifecycle, security, persistence,
+   interoperability, verification, or implementation consequence;
+4. state whether the finding is suspected or confirmed and why it is material;
+5. offer concrete corrections with their trade-offs and a reasoned
+   recommendation when alternatives exist;
+6. ask one focused clarification or correction decision in the user's
+   vocabulary.
+
+Do not label a subjective preference as a mistake without concrete semantic or
+risk evidence. Preserve the affected Sigil while the user decides; do not
+silently fix it. A confirmed material problem cannot become a provisional
+assumption, be intentionally deferred, or be accepted merely to unblock
+implementation.
+
+After each answer, update the decision ledger and restate whether the finding is
+resolved. Resume ordinary design work only when every active material correction
+finding is resolved. The resolution still requires the normal exact Sigil
+proposal and approval gates.
+
+## 6. Use Checkpoints
 
 Give a compact checkpoint after several decisions, when the conversation changes
 phase, when a conflict changes earlier conclusions, or when the user asks for
@@ -138,7 +179,7 @@ status. Report:
 Do not repeat the entire conversation. Keep the checkpoint small enough for the
 user to correct the emerging design without losing momentum.
 
-## 6. Finish Or Block The Conversation
+## 7. Finish Or Block The Conversation
 
 Move to synthesis only when no unresolved decision can materially change the
 contract being proposed. The synthesis must state:
@@ -154,11 +195,18 @@ contract being proposed. The synthesis must state:
 Then prepare exact proposed Sigil using the applicable Greenfield, Brownfield,
 semantic-review, and implementation-coverage procedures. Conversation is not
 approval. Enter the awaiting-approval phase and wait for explicit review.
+Before presenting the proposal, pass confirmed material selected choices and
+their governing rationale to the decision-rationale coverage audit. A resolved
+conversation does not justify omitting durable decision records.
 
 If a blocking decision remains unresolved, report it and continue the focused
 conversation. Do not synthesize speculative Sigil or begin implementation.
 
-## 7. Limits And Examples
+If a suspected or confirmed material correction finding remains active, keep
+the conversation in correction. Do not treat ordinary design synthesis as a way
+to bypass the finding.
+
+## 8. Limits And Examples
 
 Every question must materially improve product intent, public behavior,
 ownership, lifecycle, architecture, risk handling, or verification. Do not
@@ -181,6 +229,13 @@ questions.
 If the user first requires immediate deletion and later requires a complete
 audit history, explain the conflict and resolve the retention contract before
 continuing to storage design.
+
+### Architectural Correction
+
+If two components both claim ownership of the same mutable state, identify the
+exact claims, explain the lifecycle and consistency risk, recommend concrete
+ownership alternatives, and ask which component should govern. Keep the Sigil
+unchanged and block unrelated design work until ownership is resolved.
 
 ### Intentional Deferral
 

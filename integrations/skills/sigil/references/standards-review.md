@@ -47,6 +47,67 @@ modularity score.
 
 ## 2. Semantic-Readiness Review
 
+### Gate And Ordering
+
+`sigil check` validates deterministic syntax, configuration, resolution,
+workspace relationships, and diagnostics. It does not establish semantic,
+architectural, or design validity.
+
+After deterministic validation completes without error diagnostics, inspect the
+exact Sigil prose, including ungrouped interface content, and classify semantic
+readiness as:
+
+- **unassessed:** the selected scope has not received host-assisted review;
+- **correction required:** a suspected or confirmed material problem remains;
+- **appears aligned:** no unresolved material semantic problem was identified
+  within the stated reviewed scope.
+
+Use `appears aligned` provisionally; never claim absolute semantic correctness.
+When readiness is `unassessed` or `correction required`, do not begin concept
+reuse discovery, concept grouping, identifier proposals, or model-assisted
+glossary candidate extraction.
+
+When a problem is found, follow the correction conversation in
+`references/design-conversation.md`: preserve affected Sigil, identify exact
+evidence and risk, ask one focused correction decision, and block synthesis,
+approval, and implementation until resolution.
+
+Once the pre-grouping review appears aligned, follow
+`references/authoring-conventions.md` for any missing concept identifiers. After
+an approved grouping change, rerun deterministic validation and this
+semantic-readiness review. Glossary candidate extraction begins only after that
+final review appears aligned. When grouping is unnecessary, the post-write
+semantic-readiness review directly gates extraction.
+
+### Decision-Rationale Coverage
+
+Semantic readiness includes durable-rationale coverage. Before presenting a
+proposal, inventory every new or changed selected choice across `goal`,
+`interface`, `state`, `logic`, `constraints`, and `cases`.
+
+For each material selected choice, verify one of:
+
+- a matching `decisions` occurrence records `Decision`, `Scope`, and the
+  materially applicable rationale;
+- a justified omission explains why the choice is trivial, mechanically
+  derived, or safely reconstructable.
+
+`Context` is not part of the current decision convention. Do not add it.
+
+Report the audit as:
+
+| Material choice | Decision concept | Coverage |
+| --- | --- | --- |
+| Exact selected choice | Matching concept or omission evidence | `covered`, `missing`, or `justified omission` |
+
+When a confirmed choice lacks a decision record, add the exact decision block to
+the semantic proposal. When its governing rationale is unresolved or conflicts
+with evidence, enter the same-chat correction conversation. Missing coverage
+keeps semantic readiness at `correction required` and blocks proposal approval.
+
+After approved Sigil is written, repeat the audit against the exact resulting
+semantic lines. Successful CLI validation never substitutes for this audit.
+
 ### Goal Clarity
 
 Check that every goal identifies:
@@ -80,10 +141,13 @@ Imports declare component dependencies. Do not repeat them in `interface`.
 Implementation-hiding rules and forbidden internal access belong in
 `constraints` unless they define an externally observable promise.
 
-Review interface concept blocks as part of interface quality. Repair every
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` warning before semantic review, verify that
-repeated identifiers describe one coherent concept, and keep imported provider
-expands outside the consumer's public dependency context.
+Review exact interface prose during the pre-grouping semantic-readiness pass
+without requiring identifiers first. Treat every
+`SIGIL_MISSING_CONCEPT_IDENTIFIER` warning as a deferred authoring gap. After
+readiness appears aligned, repair it through the approved concept-identifier
+workflow, then verify during final semantic review that repeated identifiers
+describe one coherent concept and imported provider expands remain outside the
+consumer's public dependency context.
 
 For UI components, also check when applicable:
 
@@ -196,6 +260,20 @@ Avoid long quotations. Paraphrase the guidance and link to the primary source.
 
 ## 4. Finding Classification
 
+Classify host-identified semantic, architectural, and design findings as:
+
+- **Suspected problem:** evidence indicates a material defect, contradiction,
+  ambiguity, or risk, but scope or governing intent remains uncertain.
+- **Confirmed problem:** applicable Sigil ideas, repository constraints, or
+  confirmed decisions cannot form a coherent or acceptably safe contract as
+  written.
+- **Resolved problem:** the user has selected or supplied coherent governing
+  intent and no material contradiction remains.
+
+Route suspected and confirmed material problems to the same-chat correction
+conversation. Do not silently repair them, treat preference as evidence, or
+continue to concept grouping or glossary candidate extraction.
+
 Classify every researched finding:
 
 - **Compatible guidance:** adds detail without contradicting approved Sigil,
@@ -214,6 +292,24 @@ constraints, explicit user requirements, and other applicable sources. When two
 standards conflict, present the conflict; do not silently choose one.
 
 ## 5. Action And Approval Policy
+
+### Semantic, Architectural, Or Design Problem
+
+Do not modify affected Sigil merely because review found a problem. Enter the
+same-chat correction conversation and report:
+
+- the exact file, component, section, and problematic idea;
+- the evidence and what remains inference;
+- whether the finding is suspected or confirmed;
+- the likely contract, ownership, lifecycle, security, persistence,
+  interoperability, verification, or implementation impact;
+- concrete corrections and their trade-offs;
+- the focused decision required from the user.
+
+Keep semantic readiness at `correction required` until the problem is resolved.
+A confirmed material problem cannot be deferred, provisionally assumed, or
+bypassed for approval or implementation. Resolution authorizes only preparation
+of an exact Sigil proposal; it does not replace either approval gate.
 
 ### Compatible Guidance
 
@@ -310,6 +406,7 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 ### Proposed Sigil Edits
 
 Show exact semantic lines and their target sections without editing first.
+Include required decision blocks and the decision-rationale coverage map.
 
 ### Approval Request
 

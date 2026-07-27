@@ -32,12 +32,15 @@ interface contains the operations, data, events, results, errors, and observable
 promises available to them. It need not be exposed to an end user, external
 client, or another deployable service.
 
-Group interface content into concept blocks before implementation. Reuse a
-concept identifier across state, logic, constraints, decisions, or cases only
-when the same concept materially connects those sections. Imported dependencies
-expose their public goal and interface concepts. Agent context additionally
-provides direct dependencies' decisions as scoped rationale without adding them
-to the dependent-facing contract. Inspect a provider directly when transitive
+After the pre-grouping semantic-readiness review appears aligned, group
+interface content into concept blocks before implementation. After approved
+grouping changes, repeat deterministic validation and semantic-readiness review
+before glossary extraction or implementation. Reuse a concept identifier across
+state, logic, constraints, decisions, or cases only when the same concept
+materially connects those sections. Imported dependencies expose their public
+goal and interface concepts. Agent context additionally provides direct
+dependencies' decisions as scoped rationale without adding them to the
+dependent-facing contract. Inspect a provider directly when transitive
 decisions or other private expands are required for implementation work.
 
 ## 2. Select Component, Expand, Or Omit
@@ -99,6 +102,11 @@ look material. Do not use numeric coverage scores.
 High-level coverage is insufficient when the map contains a material missing or
 partial implementation component or expand. Incidental mechanics do not block.
 
+Also verify decision-rationale coverage for every material implementation choice
+captured by the selected components and expands. A material choice without a
+matching decision record or justified omission keeps implementation coverage
+partial and blocks coding.
+
 ## 5. Propose And Approve Missing Sigil
 
 When contract and implementation design are both clear, include both layers in
@@ -112,6 +120,7 @@ For missing coverage, present:
 - the responsibility, dependents, and ownership reason;
 - the target location beside its implementation owner;
 - material alternatives or unresolved decisions;
+- the decision-rationale coverage map for new or changed material choices;
 - the updated implementation coverage map.
 
 Write only approved Sigil, validate it, and stop at the Sigil review gate.

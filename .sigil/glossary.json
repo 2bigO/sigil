@@ -271,6 +271,69 @@
           "aliases": ["source selection"]
         }
       ]
+    },
+    {
+      "id": "SigilSkillWorkflow",
+      "include": ["integrations/skills/sigil/**/*.sigil"],
+      "exclude": [],
+      "terms": [
+        {
+          "term": "semantic readiness",
+          "definition": "A provisional skill-assessed state indicating that no unresolved material semantic, architectural, or design problem remains within the reviewed Sigil scope.",
+          "aliases": [
+            "semantic-readiness",
+            "semantic readiness review",
+            "semantic-readiness review"
+          ]
+        },
+        {
+          "term": "correction phase",
+          "definition": "A dedicated same-chat workflow state that pauses ordinary Sigil design or review while a material semantic, architectural, or design problem is explained and resolved with the user.",
+          "aliases": [
+            "same-chat correction phase",
+            "correction conversation"
+          ]
+        },
+        {
+          "term": "concept grouping",
+          "definition": "The reviewed authoring activity that groups coherent interface semantic lines under new or reusable concept identifiers.",
+          "aliases": [
+            "concept-identifier grouping"
+          ]
+        },
+        {
+          "term": "glossary candidate extraction",
+          "definition": "Model-assisted inspection of semantically ready Sigil prose for material project vocabulary, ambiguity, and conflicting usage without granting glossary authority.",
+          "aliases": [
+            "candidate extraction",
+            "model-assisted candidate extraction"
+          ]
+        },
+        {
+          "term": "material selected choice",
+          "definition": "A new or changed binding choice whose rationale or excluded alternatives cannot be safely reconstructed during future review, maintenance, or implementation.",
+          "aliases": [
+            "material selected choices",
+            "material choice",
+            "material choices"
+          ]
+        },
+        {
+          "term": "decision-rationale coverage",
+          "definition": "The reviewed mapping of each material selected choice to a decisions occurrence preserving durable rationale, or to a justified omission for a trivial, mechanically derived, or safely reconstructable choice.",
+          "aliases": [
+            "decision rationale coverage",
+            "rationale coverage"
+          ]
+        },
+        {
+          "term": "durable rationale",
+          "definition": "Concise project reasoning needed for future review, maintenance, or implementation and preserved in Sigil decisions rather than session transcripts.",
+          "aliases": [
+            "durable decision rationale"
+          ]
+        }
+      ]
     }
   ]
 }

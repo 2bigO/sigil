@@ -139,8 +139,6 @@ expand Name {
     PersistenceChoice {
       Decision: Use PostgreSQL.
 
-      Context: Concurrent writers require transactional consistency.
-
       Scope: Governs payment persistence and transaction handling.
     }
   }
@@ -733,8 +731,6 @@ expand Payments {
   decisions {
     PersistenceChoice {
       Decision: Use PostgreSQL for payment records.
-
-      Context: Concurrent writers require transactional consistency.
 
       Scope: Governs payment persistence and transaction handling. Analytics storage is excluded.
 

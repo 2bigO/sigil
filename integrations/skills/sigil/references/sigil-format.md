@@ -118,9 +118,9 @@ expand Name {
     PersistenceChoice {
       Decision: Use PostgreSQL.
 
-      Context: Concurrent writers require transactional consistency.
-
       Scope: Governs payment persistence and transaction handling.
+
+      Design issues addressed: Concurrent writers require transactional consistency.
     }
   }
 
@@ -304,8 +304,6 @@ decisions {
   PersistenceChoice {
     Decision: Use PostgreSQL.
 
-    Context: Concurrent writers require transactional consistency.
-
     Scope: Governs payment persistence and transaction handling. Analytics storage is excluded.
 
     Assumptions: Managed PostgreSQL is available.
@@ -324,9 +322,10 @@ decisions {
 ```
 
 For every material decision authored by the skill, use one concise PascalCase
-concept block and record `Decision`, `Context`, and `Scope`. Scope states the
-governed boundary and important exclusions without enumerating every current
-dependent. Add `Assumptions`, `Trade-offs`, `Design issues addressed`,
+concept block and record `Decision` and `Scope`. `Context` is not part of the
+current convention. Scope states the governed boundary and important exclusions
+without enumerating every current dependent. Add `Assumptions`, `Trade-offs`,
+`Design issues addressed`,
 `Discarded alternatives`, `Consequences`, and `Revisit when` when materially
 applicable, and omit inapplicable labels.
 
@@ -382,7 +381,7 @@ When reviewing Sigil, check:
 - Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in
   `expand` rather than inside `component`?
 - Are architecture and stack decisions expressed as constraints?
-- Do material skill-authored decisions record Decision, Context, Scope, and
+- Do material skill-authored decisions record Decision, Scope, and
   applicable rationale without treating concept reuse as transitive authority?
 - Are implementation-hiding rules and forbidden internal access in constraints
   unless they define an externally observable promise?

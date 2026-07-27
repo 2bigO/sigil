@@ -266,6 +266,16 @@ Before requesting approval, apply semantic-readiness, standards,
 cross-Sigil-coherence, and modularity review. Present sourced suggestions and
 conflicts rather than silently changing the proposal.
 
+Review the exact ungrouped reconstruction first. When semantic readiness is
+`correction required`, preserve the proposal and enter the same-chat correction
+conversation. Begin concept reuse discovery and grouping only after readiness
+appears aligned, then repeat semantic review on the grouped proposal before
+requesting approval.
+
+Inventory every new or changed material selected choice in the reconstruction.
+Include its matching decision record or justified omission in the
+decision-rationale coverage map before requesting approval.
+
 ## 8. Apply Approved Proposals
 
 After explicit task-Sigil approval:
@@ -276,7 +286,13 @@ After explicit task-Sigil approval:
 4. run `sigil check`;
 5. use `sigil graph` or `sigil context` when relationships changed;
 6. reread the files and repeat semantic, coherence, and modularity review;
-7. stop at the task-Sigil review gate.
+7. repeat the decision-rationale coverage audit against the written semantic
+   lines and return to proposal review when coverage is missing;
+8. if concept grouping is still required, use its proposal and approval
+   workflow, then rerun deterministic and semantic review;
+9. perform glossary candidate extraction only after the final semantic review
+   appears aligned;
+10. stop at the task-Sigil review gate.
 
 Do not modify implementation in the same pass. After the user approves the
 written task Sigil and explicitly requests implementation, verify the approved

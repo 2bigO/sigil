@@ -1,8 +1,8 @@
 # Sigil pre-release status
 
-Sigil artifacts 0.6.0 are a work-in-progress pre-production release of the
-platform and agent workflow over Sigil Language 0.5.0. They do not claim
-production readiness or a stable 1.0 contract.
+Sigil platform artifacts 0.6.0 and Sigil skill 0.6.2 are work-in-progress
+pre-production releases over Sigil Language 0.5.0. They do not claim production
+readiness or a stable 1.0 contract.
 
 Included contracts:
 
@@ -10,8 +10,9 @@ Included contracts:
 - `.sigil/config.json` schema 0.5.0;
 - `@qoherent/sigil-core` 0.6.0;
 - `@qoherent/sigil` 0.6.0;
-- standalone host-neutral Sigil skill 0.6.0 with reviewed glossary workflows,
-  implementation-component discovery, coverage review, and proposal-only
+- standalone host-neutral Sigil skill 0.6.2 with reviewed glossary workflows,
+  implementation-component discovery, decision-rationale coverage, correction
+  conversations, semantic-readiness gates, coverage review, and proposal-only
   concept-identifier delegation;
 - language, configuration, API, migration, workflow, and compatibility
   documentation.
@@ -36,6 +37,7 @@ and VS Code extension tests, skill validation, JSR dry runs, VSIX packaging, and
 the documented brownfield pilot to pass.
 
 Native CLI release acceptance also requires all five supported archives to
-compile, contain the version-matched Sigil skill, and be covered by the
-published SHA-256 manifest. GitHub-hosted VS Code releases require a
-version-matched installable VSIX; Marketplace publication remains deferred.
+compile, contain the compatible Sigil skill selected for that release, and be
+covered by the published SHA-256 manifest. GitHub-hosted VS Code releases
+require a version-matched installable VSIX; Marketplace publication remains
+deferred.

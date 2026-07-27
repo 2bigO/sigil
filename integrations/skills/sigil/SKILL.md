@@ -33,20 +33,23 @@ Also load these cross-cutting references when applicable:
 
 - `references/design-conversation.md`: whenever a material decision needs
   clarification. It owns decision states, one-primary-decision turns,
-  checkpoints, deferral, conflict handling, and synthesis.
+  checkpoints, deferral, same-chat correction conversations, conflict handling,
+  and synthesis.
 - `references/standards-review.md`: whenever creating, reviewing, or preparing
-  Sigil for implementation. It owns semantic readiness, standards, evidence,
-  conflicts, and modularity review.
+  Sigil for implementation. It owns the skill-assisted semantic-readiness gate,
+  standards, evidence, conflicts, and modularity review.
 - `references/implementation-design.md`: before writing or changing
   implementation or deciding whether coverage reaches the implementation
   boundary. It owns component/expand/omit selection and the implementation
   coverage map.
 - `references/authoring-conventions.md`: whenever proposing, creating, or
   semantically editing Sigil. It owns section placement, decision rationale,
-  concept identifiers, semantic-line discipline, and colocation.
+  post-readiness concept grouping, semantic-line discipline, and colocation.
 - `references/glossary-workflow.md`: after every approved Sigil write or
   semantic edit; when `.sigil/glossary.json` exists; when the user requests
-  reviewed vocabulary; or when terminology ambiguity is material.
+  reviewed vocabulary; or when terminology ambiguity is material. Candidate
+  extraction begins only after semantic readiness appears aligned and any
+  concept grouping has received a final semantic review.
 - `references/sigil-format.md`: when syntax, workspace structure, section
   meanings, or examples are needed.
 
@@ -77,21 +80,42 @@ applicable across all three semantic workflows.
 
 3. Review semantics and modularity.
    - Follow `references/standards-review.md`.
+   - Treat `sigil check` as deterministic structural and workspace validation,
+     not semantic validation.
    - Separate observed behavior, documented intent, user-confirmed intent,
      unresolved ambiguity, suspected accidents, and external guidance.
    - Use provisional assessment language only: `appears aligned`, `partially
      assessed`, `gap identified`, `conflict identified`, or `not assessable`.
    - Never silently choose code, documentation, a standard, or preference as
      authoritative when evidence conflicts.
+   - Do not begin concept grouping or glossary candidate extraction until
+     semantic readiness appears aligned for the selected scope.
+   - Treat missing decision-rationale coverage for a material selected choice
+     as a semantic-readiness gap even when CLI validation succeeds.
 
 4. Resolve missing intent.
    - Follow `references/design-conversation.md`.
    - Ask one primary decision per turn unless the user requests grouped review.
    - Do not silently invent product, architecture, persistence, authorization,
      deployment, lifecycle, or other binding decisions.
+   - When review finds a suspected or confirmed material semantic,
+     architectural, or design problem, pause ordinary design work and enter the
+     same-chat correction conversation.
+   - Preserve affected Sigil, point to the exact problem and evidence, explain
+     the risk, and require resolution before proposal synthesis or
+     implementation.
 
 5. Prepare exact changes.
    - Follow `references/authoring-conventions.md`.
+   - Inventory every new or changed selected choice across the proposed
+     semantic lines.
+   - Map each material selected choice to an exact `decisions` occurrence or
+     report a justified omission for a trivial, mechanically derived, or safely
+     reconstructable choice.
+   - Include the decision-rationale coverage map and every missing decision
+     block in the exact proposal.
+   - Begin concept reuse discovery, grouping, and identifier proposals only
+     after the pre-grouping semantic-readiness review appears aligned.
    - Show exact component, expand, import, location, and semantic-line changes.
    - For externally informed compatible guidance or any conflict, follow the
      proposal and approval policy in `references/standards-review.md`.
@@ -100,8 +124,16 @@ applicable across all three semantic workflows.
 6. Apply only an approved proposal.
    - Change only the exact approved Sigil and imports.
    - Run `sigil check`; use `graph` or `context` when relationships changed.
-   - Follow `references/glossary-workflow.md`, including deterministic glossary
-     inspection and independent model-assisted candidate extraction.
+   - Repeat the semantic-readiness review on the written Sigil before concept
+     grouping or glossary candidate extraction.
+   - Repeat the decision-rationale coverage audit against the exact written
+     semantic lines; a missing material decision returns to proposal review.
+   - When concept grouping is needed, apply only its separately approved
+     proposal, rerun deterministic validation, and repeat semantic-readiness
+     review.
+   - Follow `references/glossary-workflow.md`. Deterministic glossary inspection
+     remains separate, while model-assisted candidate extraction begins only
+     after the final semantic-readiness review appears aligned.
    - Stop at the Sigil review gate.
 
 7. Implement only after review.
@@ -127,12 +159,20 @@ After creating or semantically changing Sigil:
 
 - list changed Sigil files;
 - summarize captured decisions and assumptions;
+- report decision-rationale coverage for every new or changed material selected
+  choice, including justified omissions;
 - report unresolved questions;
 - report validation and glossary-review results;
 - directly request review and approval before implementation.
 
 Do not continue into implementation merely because the original request
 included code generation. A successful CLI check is not approval.
+
+A successful CLI check also does not establish semantic readiness. Perform the
+skill-assisted semantic-readiness review before concept grouping or glossary
+candidate extraction. A suspected or confirmed material problem enters the
+same-chat correction conversation and blocks synthesis, approval, and
+implementation until resolved.
 
 An approved placement-only move or split that preserves every semantic line may
 proceed during implementation without another semantic proposal. Update affected

@@ -5,12 +5,14 @@
 - Add the optional free-form `decisions` expand section for durable decision
   rationale while keeping binding outcomes in `constraints`.
 - Define the Sigil skill convention for named material decisions with
-  `Decision`, `Context`, `Scope`, applicable assumptions, trade-offs, addressed
-  issues, discarded alternatives, consequences, and revisit conditions.
+  `Decision`, `Scope`, applicable assumptions, trade-offs, addressed issues,
+  discarded alternatives, consequences, and revisit conditions.
 - Preserve contextual imported-concept identity without exposing private
   decision rationale or making decisions transitively binding.
 - Advance the Sigil Language and configuration contract to 0.5.0 and core,
-  CLI, LSP, VS Code extension, and the Sigil skill to 0.6.0.
+  CLI, LSP, and VS Code extension to 0.6.0.
+- Advance the Sigil skill to 0.6.2 with decision-rationale coverage,
+  correction conversations, and semantic-readiness gates.
 
 ## 0.5.1 - 2026-07-23
 

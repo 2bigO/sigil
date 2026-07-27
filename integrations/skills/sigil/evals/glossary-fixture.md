@@ -7,7 +7,9 @@ and one spelling with conflicting meanings. An accepted component contract
 contradicts one glossary definition. Markdown files contain additional
 vocabulary but Markdown extraction is deferred. Deterministic glossary
 inspection returns zero diagnostics even though the changed Sigil prose still
-contains unknown candidate vocabulary requiring model-assisted review.
+contains unknown candidate vocabulary requiring model-assisted review. The
+written Sigil has not yet passed skill-assisted semantic-readiness review, and
+one variant of the fixture requires concept grouping.
 
 Expected skill behavior:
 
@@ -18,41 +20,49 @@ Expected skill behavior:
    separate mandatory stages.
 3. Never infer that no glossary changes are needed from zero CLI diagnostics;
    zero diagnostics establish only a valid deterministic projection.
-4. Perform model-assisted extraction from changed semantic lines regardless of
-   diagnostic count or GlossaryFile presence.
-5. Treat accepted entries and resolved occurrences as authority, not extraction
+4. Treat CLI success as structural evidence rather than semantic readiness.
+5. Do not perform model-assisted extraction while semantic readiness is
+   unassessed or correction is required.
+6. Run the skill-assisted semantic-readiness review before concept grouping or
+   extraction.
+7. When grouping is required, wait for the approved grouping change and repeat
+   deterministic and semantic review afterward.
+8. Perform model-assisted extraction only after the final semantic-readiness
+   review appears aligned, regardless of diagnostic count or GlossaryFile
+   presence.
+9. Treat accepted entries and resolved occurrences as authority, not extraction
    suggestions.
-6. Keep concept identifiers and glossary terms as separate identities.
-7. Extract candidate vocabulary only from eligible free-form `.sigil` prose.
-8. Exclude structural syntax, code fences, inline code, and URLs.
-9. Collect source, owner, section, occurrence text, variants, and supported
+10. Keep concept identifiers and glossary terms as separate identities.
+11. Extract candidate vocabulary only from eligible free-form `.sigil` prose.
+12. Exclude structural syntax, code fences, inline code, and URLs.
+13. Collect source, owner, section, occurrence text, variants, and supported
    meaning for every candidate.
-10. Avoid proposing ordinary English merely because it is frequent.
-11. Present the conflicting unknown term as a review question rather than
-   inventing one merged definition.
-12. Treat approved Sigil as normative and propose correction of the conflicting
-   glossary entry.
-13. Recommend workspace or bounded-context scope from semantic ownership and
-    verify that proposed globs do not overlap.
-14. Explain any context-local replacement of a workspace spelling.
-15. Present canonical term, definition, aliases, scope, evidence, rejected
-    alternatives, classification, and exact JSON changes.
-16. Leave GlossaryFile unchanged until the exact proposal is explicitly
-    approved.
-17. After approval, write only the accepted JSON, run `sigil glossary` and
-    `sigil check`, inspect occurrences, and stop for review.
-18. Block Sigil review and implementation only when terminology could materially
-    change behavior, ownership, state, APIs, or implementation.
-19. Allow ordinary unambiguous vocabulary to proceed without requiring a
+14. Avoid proposing ordinary English merely because it is frequent.
+15. Present the conflicting unknown term as a review question rather than
+    inventing one merged definition.
+16. Treat approved Sigil as normative and propose correction of the conflicting
     glossary entry.
-20. When model-assisted extraction finds no material candidate, report the
+17. Recommend workspace or bounded-context scope from semantic ownership and
+    verify that proposed globs do not overlap.
+18. Explain any context-local replacement of a workspace spelling.
+19. Present canonical term, definition, aliases, scope, evidence, rejected
+    alternatives, classification, and exact JSON changes.
+20. Leave GlossaryFile unchanged until the exact proposal is explicitly
+    approved.
+21. After approval, write only the accepted JSON, run `sigil glossary` and
+    `sigil check`, inspect occurrences, and stop for review.
+22. Block Sigil review and implementation only when terminology could materially
+    change behavior, ownership, state, APIs, or implementation.
+23. Allow ordinary unambiguous vocabulary to proceed without requiring a
+    glossary entry.
+24. When model-assisted extraction finds no material candidate, report the
     changed semantic lines and relevant surrounding occurrences inspected
     instead of citing the diagnostic count.
-21. Return to the Sigil review gate after applying and validating an approved
+25. Return to the Sigil review gate after applying and validating an approved
     glossary change.
-22. Before coding, run `sigil context` and include its scoped `glossaryContext`
+26. Before coding, run `sigil context` and include its scoped `glossaryContext`
     in the coding-agent handoff.
-23. Supplement that handoff with an accepted request-matched term when needed,
+27. Supplement that handoff with an accepted request-matched term when needed,
     without injecting unrelated workspace vocabulary.
-24. Report Markdown extraction as deferred rather than claiming its vocabulary
+28. Report Markdown extraction as deferred rather than claiming its vocabulary
     was reviewed.

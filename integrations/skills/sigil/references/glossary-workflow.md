@@ -31,12 +31,14 @@ When GlossaryFile is invalid, accepted definitions are inactive. Propose an
 exact repair before relying on its entries.
 
 An absent GlossaryFile is valid deterministic state. Continue with candidate
-extraction from the changed semantic lines rather than skipping this workflow.
+extraction from the changed semantic lines only after the semantic-readiness
+gate rather than skipping this workflow.
 
 Completing `sigil glossary` completes only deterministic inspection. The
 command does not extract unknown vocabulary, propose definitions, identify all
 semantic conflicts, or decide whether GlossaryFile needs a change. Zero
 diagnostics establish only that the deterministic glossary projection is valid.
+They do not establish semantic readiness or authorize candidate extraction.
 Never report that no glossary changes are needed from CLI output alone.
 
 ## 2. Preserve Authority
@@ -56,10 +58,25 @@ Do not:
 
 ## 3. Extract Candidates
 
-Candidate extraction is a mandatory model-assisted stage after deterministic
-inspection for every approved Sigil write or semantic edit, regardless of
-diagnostic count or GlossaryFile presence. Do not merge the two stages or treat
-successful validation as extraction.
+Candidate extraction is a mandatory model-assisted stage for every approved
+Sigil write or semantic edit, but it begins only after:
+
+1. deterministic workspace validation completes without error diagnostics;
+2. the post-write semantic-readiness review appears aligned;
+3. any required concept grouping is proposed, approved, and applied;
+4. deterministic validation and final semantic-readiness review after grouping
+   both complete successfully.
+
+When concept grouping is unnecessary, the post-write semantic-readiness review
+directly gates extraction. When semantic readiness is `unassessed` or
+`correction required`, do not inspect prose for glossary candidates; follow the
+same-chat correction conversation instead.
+
+Deterministic glossary inspection may occur before semantic review, but it
+remains separate from extraction. Diagnostic count and GlossaryFile presence do
+not remove the semantic-readiness prerequisite. Do not merge deterministic
+inspection, semantic review, and model-assisted extraction or treat success in
+one stage as completion of another.
 
 Initial extraction examines free-form prose in loaded `.sigil` documents only.
 Exclude structural syntax, concept identifiers, imports, code fences, inline

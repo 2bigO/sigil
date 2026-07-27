@@ -19,8 +19,7 @@ rationale behind material selected choices.
    labeled fields are not required for validity, and ungrouped decision content
    does not produce `SIGIL_MISSING_CONCEPT_IDENTIFIER`.
 8. When using the Sigil skill to create or materially edit a decision, use one
-   concise PascalCase concept block and record `Decision`, `Context`, and
-   `Scope`.
+   concise PascalCase concept block and record `Decision` and `Scope`.
 9. Use `Scope` to state the governed boundary and important exclusions without
    enumerating every current dependent.
 10. Add `Assumptions`, `Trade-offs`, `Design issues addressed`,

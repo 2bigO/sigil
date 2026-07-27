@@ -40,6 +40,14 @@ component SigilSkill {
       separates observed behavior, documented intent, user-confirmed intent, unresolved ambiguity, suspected accidental behavior, and external guidance
     }
 
+    SemanticReadinessReview {
+      distinguishes deterministic structural validation from model-assisted semantic, architectural, and design review
+
+      assesses exact Sigil meaning, coherence, ownership, behavior, lifecycle, risk, and architecture before concept grouping or glossary extraction
+
+      permits enrichment workflows only when no unresolved material semantic problem remains
+    }
+
     StandardsReview {
       assesses applicable authoritative guidance and classifies findings before proposing informed semantic changes
     }
@@ -74,6 +82,10 @@ component SigilSkill {
 
     DecisionConversation {
       resolves material design decisions before exact Sigil synthesis
+
+      routes material semantic, architectural, and design problems into a dedicated same-chat correction phase
+
+      requires each confirmed material problem to be resolved before Sigil synthesis or implementation
     }
 
     DecisionRationaleWorkflow {
@@ -82,6 +94,10 @@ component SigilSkill {
       applies a consistent authoring convention while preserving the language's free-form decisions syntax
 
       uses automatically projected direct-dependency decisions as scoped rationale without treating them as imported public contract
+
+      audits every new or changed material selected choice for durable rationale before proposal approval
+
+      reports each choice as covered by a decisions occurrence or intentionally omitted with concrete evidence
     }
 
     GlossaryWorkflow {
@@ -132,6 +148,10 @@ expand SigilSkill {
       Evidence is classified as observed behavior, documented intent, user-confirmed intent, unresolved ambiguity, suspected accidental behavior, or external guidance.
     }
 
+    SemanticReadinessReview {
+      Semantic readiness is unassessed, correction required, or appears aligned within the stated scope.
+    }
+
     StandardsReview {
       A researched finding is compatible guidance, a potential conflict, a definite conflict, unverifiable guidance, or non-applicable.
     }
@@ -162,6 +182,10 @@ expand SigilSkill {
 
     DecisionConversation {
       Use SigilDesignConversation whenever a material decision remains unresolved before proposal synthesis.
+
+      Use CorrectionConversation when semantic, architectural, or design review identifies a suspected or confirmed material problem.
+
+      Preserve affected Sigil, explain the evidence and risk, and obtain a focused user resolution before continuing ordinary design work.
     }
 
     DecisionRationaleWorkflow {
@@ -180,6 +204,18 @@ expand SigilSkill {
       Scope states the local boundary of a contextual decision occurrence; concept reuse does not make a decision transitively binding.
 
       Keep the binding selected outcome in constraints and use decisions to explain why it was selected.
+
+      Before presenting an exact semantic proposal, inventory every new or changed selected choice expressed across goal, interface, state, logic, constraints, and cases.
+
+      Treat a choice as material when future review, maintenance, or implementation cannot safely reconstruct why it was selected or what alternatives it excludes.
+
+      Map each material selected choice to a matching decisions occurrence that preserves its durable rationale.
+
+      When the binding outcome is confirmed but its decision record is missing, include the exact decision record in the semantic proposal.
+
+      When the governing rationale is unresolved or conflicts with evidence, enter CorrectionConversation before proposing the decision record.
+
+      Repeat the decision-rationale coverage audit after writing approved Sigil and before the Sigil review gate.
     }
 
     EvidenceReview {
@@ -190,10 +226,26 @@ expand SigilSkill {
       Report contradictions instead of silently choosing one source as intent.
     }
 
+    SemanticReadinessReview {
+      After deterministic workspace validation completes without error diagnostics, review the exact ungrouped Sigil for semantic, architectural, and design problems.
+
+      When a suspected or confirmed material problem is found, enter CorrectionConversation and do not begin concept grouping or glossary candidate extraction.
+
+      Mark the selected scope as appears aligned only when no unresolved material problem remains.
+
+      After approved concept grouping changes, rerun deterministic validation and semantic-readiness review before glossary candidate extraction.
+
+      When concept grouping exposes or introduces material ambiguity, return to CorrectionConversation.
+    }
+
     GlossaryWorkflow {
       Collect candidate terms with their source occurrences and resolved bounded contexts.
 
       Separate accepted glossary authority from model-assisted candidate extraction.
+
+      Begin model-assisted glossary candidate extraction only after the post-write and post-grouping SemanticReadinessReview appears aligned for the selected scope.
+
+      When concept grouping is unnecessary, the post-write SemanticReadinessReview directly gates glossary candidate extraction.
 
       After every approved Sigil write or semantic edit, run deterministic glossary and workspace inspection, then independently perform model-assisted extraction from the changed semantic lines regardless of diagnostic count or GlossaryFile presence.
 
@@ -237,6 +289,8 @@ expand SigilSkill {
     }
 
     ConceptIdentifierWorkflow {
+      Begin concept reuse discovery, grouping, and identifier proposals only after SemanticReadinessReview appears aligned for the selected scope.
+
       Inspect the affected section, every other section of the component, and every matching expand for the same semantic idea.
 
       Inspect accessible imported public concepts before creating a local identity.
@@ -248,6 +302,8 @@ expand SigilSkill {
       Classify each affected region as local reuse, imported public reuse, or a new identity.
 
       Give the proposal-only subagent the affected regions, complete component and expands, local occurrences, imported candidates, consumer evidence, and graph paths.
+
+      After approved grouping changes, return to SemanticReadinessReview before glossary candidate extraction.
     }
 
     DelegatedProposalApproval {
@@ -287,7 +343,7 @@ expand SigilSkill {
     SigilReviewGate {
       Present exact semantic changes before editing.
 
-      Write only the approved proposal and repair deterministic warnings before semantic review.
+      Write only the approved proposal and run deterministic validation before semantic-readiness review.
 
       Validate structure, imports, collected expands, workspace relationships, and concept diagnostics.
 
@@ -326,6 +382,22 @@ expand SigilSkill {
       Suspected accidental behavior does not become a contract without user confirmation.
     }
 
+    SemanticReadinessReview {
+      Successful CLI validation does not establish semantic readiness.
+
+      Pre-grouping semantic review inspects exact prose without requiring concept identifiers to be assigned first.
+
+      Missing concept identifiers remain deferred authoring gaps until semantic readiness appears aligned.
+
+      Concept grouping and glossary candidate extraction cannot run while semantic readiness is unassessed or correction is required.
+
+      An appears-aligned result is provisional within the reviewed scope and is not a claim of absolute correctness.
+    }
+
+    DecisionConversation {
+      A confirmed material semantic, architectural, or design problem blocks Sigil synthesis, approval, and implementation until resolved.
+    }
+
     StandardsReview {
       Source details remain in the review summary rather than Sigil.
 
@@ -347,7 +419,7 @@ expand SigilSkill {
     }
 
     ConceptIdentifierWorkflow {
-      Missing interface concept identifiers are repaired before semantic review.
+      Missing interface concept identifiers remain deferred until pre-grouping SemanticReadinessReview appears aligned, then are repaired before final semantic review.
 
       Consumer terminology is naming evidence but is not reusable identity unless accessible through valid imports.
 
@@ -373,7 +445,13 @@ expand SigilSkill {
 
       Responsibility, accountability, approver, and handoff metadata are outside the initial authoring convention.
 
-      The absence of decisions does not make otherwise complete Sigil invalid.
+      The absence of a decisions section is structurally valid but blocks skill semantic readiness when a material selected choice lacks durable rationale.
+
+      A material selected choice cannot reach proposal approval, written-Sigil approval, or implementation without decision-rationale coverage.
+
+      A trivial, mechanically derived, or safely reconstructable choice does not require a filler decision record.
+
+      Successful CLI validation does not establish decision-rationale coverage.
     }
 
     GlossaryWorkflow {
@@ -430,6 +508,34 @@ expand SigilSkill {
   }
 
   decisions {
+    DecisionRationaleWorkflow {
+      Decision: Require a decision-rationale coverage audit before proposal approval and again after approved Sigil is written.
+
+      Scope: Governs new or changed material selected choices in semantic Sigil proposals; excludes trivial, mechanically derived, and safely reconstructable choices.
+
+      Trade-offs: Every material proposal requires an additional coverage review and may require more semantic lines.
+
+      Design issues addressed: Material workflow choices previously reached approval because decision authoring described record format without requiring coverage.
+
+      Consequences: Missing rationale blocks semantic readiness, and exact decision records must be included in the approved proposal.
+
+      Revisit when: Deterministic tooling can identify decision-rationale coverage without treating model judgment as language validity.
+    }
+
+    SemanticReadinessReview {
+      Decision: Treat CLI validation as structural only and require skill-assisted semantic readiness before concept grouping or glossary candidate extraction, followed by another semantic review after grouping.
+
+      Scope: Governs Sigil skill review ordering; excludes deterministic glossary inspection and core CLI validity semantics.
+
+      Trade-offs: Two semantic reviews may be required when concept grouping changes written Sigil.
+
+      Design issues addressed: Structurally valid Sigil may still contain unresolved semantic, architectural, or design problems.
+
+      Consequences: Correction-required Sigil blocks enrichment, approval, and implementation until resolved.
+
+      Revisit when: Deterministic tooling provides reviewed semantic validation with equivalent human decision authority.
+    }
+
     SigilReviewGate {
       Decision: Require approval of exact semantic changes before mutation and a second review of written Sigil before implementation.
 
@@ -462,8 +568,24 @@ expand SigilSkill {
       Conflicting code, tests, and documentation are reported for user decision rather than silently reconciled.
     }
 
+    SemanticReadinessReview {
+      Structurally valid Sigil with contradictory state ownership enters CorrectionConversation before concept grouping or glossary extraction.
+
+      Ungrouped Sigil that appears semantically aligned proceeds to concept grouping, then receives another semantic-readiness review before glossary extraction.
+    }
+
+    DecisionConversation {
+      A review that finds conflicting state ownership enters a same-chat correction phase instead of continuing to unrelated design questions.
+    }
+
     DecisionRationaleWorkflow {
       An importer may reuse a provider's public concept in decisions to explain local rationale while Scope confines that decision to the importer.
+
+      A proposal that changes validation and enrichment ordering includes a matching decision record explaining why the order was selected.
+
+      A proposal with no material selected choice reports the inspected changes and why no decision record is required.
+
+      A written material constraint without matching durable rationale returns to proposal review before implementation.
     }
 
     GlossaryWorkflow {
