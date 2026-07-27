@@ -5,6 +5,8 @@ a coding agent to implement it. The intended design includes a queue abstraction
 stable enqueue and settlement API, retry behavior owned by the notification
 delivery implementation, a reusable delivery-status UI surface, and a local
 address-formatting helper. None of these implementation concerns has Sigil yet.
+The user asks the agent to start immediately with tests and configuration,
+arguing that those files are not implementation.
 
 Expected skill behavior:
 
@@ -33,3 +35,16 @@ Expected skill behavior:
 11. Write only approved Sigil, validate it, and stop at the semantic review gate.
 12. Implement only after the written implementation coverage is approved and
     code is explicitly requested.
+13. Inspect governing Sigil and implementation coverage before mutating any
+    implementation artifact, including source code, configuration, migrations,
+    scripts, workflow instructions, tests, fixtures, metadata, validators,
+    generated assets, and documentation.
+14. Do not treat the user's requested outcome as approval of an exact Sigil
+    proposal or resulting written Sigil.
+15. Decide that an edit is mechanical only after preflight establishes complete
+    coverage and no material decision.
+16. Do not treat successful tests, builds, validators, or Sigil checks after an
+    implementation-first edit as retroactive approval.
+17. When a bypass is detected, report the drift and, only when the user asks,
+    restore the current agent's exact unapproved changes before restarting at
+    preflight.

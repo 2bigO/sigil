@@ -245,6 +245,16 @@
     {
       "term": "decision record convention",
       "definition": "The recommended authoring structure for durable rationale in a Sigil decisions section: Decision and Scope are required by the convention, while Assumptions, Trade-offs, Design issues addressed, Discarded alternatives, Consequences, and Revisit when are included when materially applicable; Sigil syntax itself remains free-form."
+    },
+    {
+      "term": "implementation artifact",
+      "definition": "Source code, configuration, migrations, scripts, workflow instructions, tests, fixtures, metadata, validators, generated assets, or documentation governed as part of implementation.",
+      "aliases": ["implementation artifacts"]
+    },
+    {
+      "term": "implementation mutation",
+      "definition": "A creation, modification, move, or deletion of an implementation artifact; excludes read-only inspection and exact user-requested rollback of the current agent's unapproved changes.",
+      "aliases": ["implementation mutations"]
     }
   ],
   "contexts": [

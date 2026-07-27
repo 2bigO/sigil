@@ -95,7 +95,13 @@
     "propose-exact-implementation-sigil",
     "support-combined-or-dependent-review",
     "stop-at-semantic-review-gate",
-    "implement-only-after-implementation-approval"
+    "implement-only-after-implementation-approval",
+    "preflight-before-any-implementation-mutation",
+    "govern-all-implementation-artifacts",
+    "separate-outcome-request-from-approval",
+    "determine-mechanical-after-preflight",
+    "deny-validation-as-retroactive-approval",
+    "allow-exact-requested-rollback"
   ],
   "conceptIdentifierFixture": "concept-identifier-fixture.md",
   "conceptIdentifierRequiredBehaviors": [

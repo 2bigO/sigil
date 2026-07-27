@@ -1,6 +1,7 @@
 const root = "integrations/skills/sigil";
 const required = [
   "SKILL.md",
+  "#module.sigil",
   "VERSION",
   "compatibility.json",
   "agents/openai.yaml",
@@ -27,6 +28,7 @@ const required = [
 for (const path of required) await requireFile(`${root}/${path}`);
 
 const skill = await Deno.readTextFile(`${root}/SKILL.md`);
+const skillContract = await Deno.readTextFile(`${root}/#module.sigil`);
 const workspaceBootstrap = await Deno.readTextFile(
   `${root}/references/workspace-bootstrap.md`,
 );
@@ -41,6 +43,9 @@ const designConversationReference = await Deno.readTextFile(
 );
 const sigilFormat = await Deno.readTextFile(
   `${root}/references/sigil-format.md`,
+);
+const implementationDesign = await Deno.readTextFile(
+  `${root}/references/implementation-design.md`,
 );
 requireText(skill, "name: sigil", "SKILL.md name");
 requireText(skill, "description:", "SKILL.md description");
@@ -61,6 +66,21 @@ requireText(
   skill,
   "references/implementation-design.md",
   "implementation design routing",
+);
+requireText(
+  skill,
+  "Inspect governing Sigil before every implementation mutation.",
+  "implementation mutation preflight",
+);
+requireText(
+  skill,
+  "A requested outcome is not approval of\nan exact Sigil proposal or of resulting written Sigil",
+  "outcome and approval separation",
+);
+requireText(
+  skillContract,
+  "ImplementationGovernance",
+  "implementation governance contract",
 );
 requireText(
   skill,
@@ -266,8 +286,8 @@ requireText(
 );
 
 const version = (await Deno.readTextFile(`${root}/VERSION`)).trim();
-if (version !== "0.6.2") {
-  throw new Error(`Expected skill VERSION 0.6.2, got ${version}`);
+if (version !== "0.6.3") {
+  throw new Error(`Expected skill VERSION 0.6.3, got ${version}`);
 }
 
 const compatibility = JSON.parse(
@@ -564,6 +584,12 @@ const requiredImplementationBehaviors = [
   "support-combined-or-dependent-review",
   "stop-at-semantic-review-gate",
   "implement-only-after-implementation-approval",
+  "preflight-before-any-implementation-mutation",
+  "govern-all-implementation-artifacts",
+  "separate-outcome-request-from-approval",
+  "determine-mechanical-after-preflight",
+  "deny-validation-as-retroactive-approval",
+  "allow-exact-requested-rollback",
 ];
 if (!Array.isArray(expected.implementationRequiredBehaviors)) {
   throw new Error("Implementation fixture must declare required behaviors.");
@@ -592,6 +618,42 @@ requireText(
   implementationFixture,
   "component/expand/omit decision",
   "implementation coverage map",
+);
+requireText(
+  implementationDesign,
+  "Before each repository mutation intended to implement a request, confirm that\n" +
+    "the mutation remains within a completed implementation preflight.",
+  "universal implementation preflight",
+);
+requireText(
+  implementationDesign,
+  "repeat it whenever the requested scope,\ngoverning Sigil, implementation evidence, or material concerns change",
+  "implementation preflight invalidation",
+);
+requireText(
+  implementationDesign,
+  "File extension, directory, documentation\nappearance, generated status, or tooling classification never exempts a\nmutation from preflight.",
+  "artifact classification cannot bypass preflight",
+);
+requireText(
+  implementationDesign,
+  "Make that determination from inspected\nevidence rather than before loading the governing contract.",
+  "post-preflight mechanical classification",
+);
+requireText(
+  implementationDesign,
+  "Passing tests, builds,\nvalidators, or deterministic Sigil checks after an implementation-first edit\ndoes not legitimize the bypass.",
+  "validation cannot retroactively approve mutation",
+);
+requireText(
+  implementationFixture,
+  "including source code, configuration, migrations,\n    scripts, workflow instructions, tests, fixtures, metadata, validators,\n    generated assets, and documentation",
+  "fixture universal artifact governance",
+);
+requireText(
+  implementationFixture,
+  "restore the current agent's exact unapproved changes before restarting at\n    preflight",
+  "fixture restorative rollback recovery",
 );
 
 const conceptIdentifierFixture = await Deno.readTextFile(
@@ -945,9 +1007,6 @@ requireText(
   "greenfield exact proposal",
 );
 
-const implementationDesign = await Deno.readTextFile(
-  `${root}/references/implementation-design.md`,
-);
 requireText(
   implementationDesign,
   "A component's goal and interface are public relative to its dependents.",
@@ -1025,7 +1084,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.6.2 dispatcher, decision-rationale coverage, semantic readiness, correction conversation, workspace bootstrap, compatibility, authoring, glossary, review gates, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.6.3 dispatcher, implementation governance, decision-rationale coverage, semantic readiness, correction conversation, workspace bootstrap, compatibility, authoring, glossary, review gates, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

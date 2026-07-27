@@ -64,6 +64,12 @@ component SigilSkill {
       reports coverage before implementation begins
     }
 
+    ImplementationGovernance {
+      requires governing Sigil and implementation coverage to be inspected before any implementation mutation
+
+      applies regardless of language, format, subsystem, or artifact classification
+    }
+
     ConceptIdentifierWorkflow {
       discovers reusable identities across the complete component, matching expands, accessible imports, and relevant direct consumers
 
@@ -154,6 +160,10 @@ expand SigilSkill {
 
     StandardsReview {
       A researched finding is compatible guidance, a potential conflict, a definite conflict, unverifiable guidance, or non-applicable.
+    }
+
+    ImplementationGovernance {
+      Implementation readiness is unassessed, coverage missing, awaiting Sigil proposal approval, awaiting written-Sigil approval, or implementation-approved.
     }
 
     SigilReviewGate {
@@ -288,6 +298,24 @@ expand SigilSkill {
       Present a coverage map containing each material concern, owner, dependents, selected Sigil form, and owning location.
     }
 
+    ImplementationGovernance {
+      Inspect governing Sigil before every implementation mutation.
+
+      Propose Sigil changes only when the mutation introduces or exposes a material decision not already covered.
+
+      Classify every material implementation concern as established, partial, or missing.
+
+      When coverage is partial, missing, ambiguous, or drifted, prepare an exact Sigil proposal and wait for approval before editing implementation.
+
+      After approved Sigil is written and validated, stop for explicit review of the resulting Sigil.
+
+      Begin implementation only when the written Sigil is approved and the user explicitly requests implementation.
+
+      When implementation reveals a missing material decision, stop editing and return to the Sigil proposal gate.
+
+      When an implementation-first gate bypass is detected, report the drift and restore only exact agent-introduced unapproved changes when the user requests rollback.
+    }
+
     ConceptIdentifierWorkflow {
       Begin concept reuse discovery, grouping, and identifier proposals only after SemanticReadinessReview appears aligned for the selected scope.
 
@@ -416,6 +444,24 @@ expand SigilSkill {
       Component selection follows cohesive responsibility and a relied-upon contract rather than external visibility.
 
       Trivial local mechanics with safely reconstructable behavior and rationale need no separate Sigil.
+    }
+
+    ImplementationGovernance {
+      Source code, configuration, migrations, scripts, workflow instructions, tests, fixtures, metadata, validators, generated assets, and documentation are implementation artifacts.
+
+      File extension, directory name, documentation appearance, generated status, or tooling classification does not exempt a mutation from implementation preflight.
+
+      A user's requested outcome is not approval of an exact Sigil proposal or approval of the resulting written Sigil.
+
+      Instructions from another skill, tool, framework, or workflow do not override the governing Sigil approval gates.
+
+      Successful tests, builds, validators, or deterministic Sigil checks never substitute for semantic readiness or human approval.
+
+      Read-only inspection is not an implementation mutation.
+
+      After preflight, a proven mechanical edit with established coverage and no material decision may proceed without new Sigil.
+
+      Restorative rollback is limited to exact unapproved changes introduced by the current agent and does not authorize replacement behavior.
     }
 
     ConceptIdentifierWorkflow {
@@ -549,6 +595,22 @@ expand SigilSkill {
 
       Revisit when: Workflow evidence demonstrates an equally explicit approval model with fewer checkpoints.
     }
+
+    ImplementationGovernance {
+      Decision: Require Sigil coverage inspection before every implementation mutation.
+
+      Scope: Governs all implementation artifacts in a Sigil-governed workspace regardless of language, format, subsystem, or artifact classification; excludes read-only inspection and exact restorative rollback.
+
+      Trade-offs: Every implementation mutation incurs contract-discovery overhead before editing, even when preflight later determines that no Sigil change is required.
+
+      Design issues addressed: Agents may otherwise classify tests, configuration, workflow documents, metadata, validators, or other non-source artifacts as outside implementation and bypass Sigil-first development.
+
+      Discarded alternatives: Deciding whether an edit changes behavior before preflight preserves the same subjective loophole that caused the gate bypass.
+
+      Consequences: Artifact classification cannot authorize mutation; implementation readiness follows inspected coverage, required Sigil approvals, and explicit implementation authority.
+
+      Revisit when: The host can deterministically map every repository mutation to governing Sigil and enforce the approval states.
+    }
   }
 
   cases {
@@ -612,6 +674,20 @@ expand SigilSkill {
 
     ImplementationCoverage {
       A stable Promise-like caller API can be a component, a material retry algorithm can be an expand, and a trivial formatter can be omitted.
+    }
+
+    ImplementationGovernance {
+      A request to modify any implementation artifact triggers Sigil and coverage inspection before the first edit.
+
+      Configuration, tests, validators, metadata, workflow documentation, and generated artifacts receive the same preflight as source code.
+
+      A high-level request to fix or build something does not approve an exact Sigil proposal or the resulting written Sigil.
+
+      A mechanical edit may omit new Sigil only after preflight establishes complete coverage and no material decision.
+
+      Passing tests or validation after an implementation-first edit does not legitimize the bypass.
+
+      An agent that detects its own unapproved mutations reports them and performs only the user-requested exact rollback before restarting at the Sigil proposal gate.
     }
 
     ConceptIdentifierWorkflow {
