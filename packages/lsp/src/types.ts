@@ -13,8 +13,6 @@ export interface JsonRpcNotification {
   readonly params?: unknown;
 }
 
-export type JsonRpcIncoming = JsonRpcRequest | JsonRpcNotification;
-
 export interface JsonRpcSuccess {
   readonly jsonrpc: "2.0";
   readonly id: JsonRpcId | null;
@@ -31,6 +29,13 @@ export interface JsonRpcFailure {
   };
 }
 
+export type JsonRpcResponse = JsonRpcSuccess | JsonRpcFailure;
+
+export type JsonRpcIncoming =
+  | JsonRpcRequest
+  | JsonRpcNotification
+  | JsonRpcResponse;
+
 export interface JsonRpcOutgoingNotification {
   readonly jsonrpc: "2.0";
   readonly method: string;
@@ -40,6 +45,7 @@ export interface JsonRpcOutgoingNotification {
 export type JsonRpcOutgoing =
   | JsonRpcSuccess
   | JsonRpcFailure
+  | JsonRpcRequest
   | JsonRpcOutgoingNotification;
 
 export interface Position {
@@ -70,6 +76,11 @@ export interface InitializeParams {
   readonly rootUri?: string | null;
   readonly workspaceFolders?: readonly { readonly uri: string }[] | null;
   readonly capabilities?: {
+    readonly workspace?: {
+      readonly didChangeWatchedFiles?: {
+        readonly dynamicRegistration?: boolean;
+      };
+    };
     readonly general?: {
       readonly positionEncodings?: readonly string[];
     };
@@ -141,5 +152,11 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function isRequest(message: JsonRpcIncoming): message is JsonRpcRequest {
-  return "id" in message;
+  return "method" in message && "id" in message;
+}
+
+export function isResponse(
+  message: JsonRpcIncoming,
+): message is JsonRpcResponse {
+  return !("method" in message);
 }

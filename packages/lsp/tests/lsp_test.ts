@@ -64,6 +64,71 @@ Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async 
 
 /*
  * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+ */
+Deno.test("dynamically registers one ownership-source workspace watcher", async () => {
+  const server = makeServer();
+  const initialized = await server.handle(request(1, "initialize", {
+    rootUri,
+    capabilities: {
+      workspace: {
+        didChangeWatchedFiles: { dynamicRegistration: true },
+      },
+    },
+  }));
+  assertEquals(errorCode(initialized), undefined);
+
+  const outgoing = await server.handle(notification("initialized"));
+  const registration = outgoing.find((message) =>
+    "method" in message && message.method === "client/registerCapability"
+  ) as Record<string, unknown> | undefined;
+  assert(registration);
+  assertEquals(registration.id, "sigil/ownership-watch/request");
+  const params = registration.params as Record<string, unknown>;
+  const registrations = params.registrations as Array<Record<string, unknown>>;
+  assertEquals(registrations.length, 1);
+  assertEquals(registrations[0].id, "sigil/ownership-watch");
+  assertEquals(
+    registrations[0].method,
+    "workspace/didChangeWatchedFiles",
+  );
+  const options = registrations[0].registerOptions as Record<string, unknown>;
+  const watchers = options.watchers as Array<Record<string, unknown>>;
+  assertEquals(watchers.length, 1);
+  assertEquals(watchers[0].globPattern, "**/*");
+  assertEquals(watchers[0].kind, 7);
+
+  const registrationResponse = await server.handle(
+    response("sigil/ownership-watch/request", null),
+  );
+  assertEquals(registrationResponse.length, 0);
+  const repeated = await server.handle(notification("initialized"));
+  assert(
+    !repeated.some((message) =>
+      "method" in message && message.method === "client/registerCapability"
+    ),
+  );
+});
+
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching
+Deno.test("does not register watched files without client support", async () => {
+  const server = makeServer();
+  const initialized = await server.handle(
+    request(1, "initialize", { rootUri }),
+  );
+  assertEquals(errorCode(initialized), undefined);
+  const outgoing = await server.handle(notification("initialized"));
+  assert(
+    !outgoing.some((message) =>
+      "method" in message && message.method === "client/registerCapability"
+    ),
+  );
+  assertEquals(server.state, "running");
+});
+
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
  * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
  */
 Deno.test("publishes and clears diagnostics from open document overlays", async () => {
@@ -374,6 +439,27 @@ Deno.test("ownership hover cache shares scans and invalidates on watched changes
   }));
   await hoverRequest(5);
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 1);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/src/created.ts`), type: 1 }],
+  }));
+  await hoverRequest(6);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 2);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/src/created.ts`), type: 3 }],
+  }));
+  await hoverRequest(7);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 3);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [
+      { uri: pathToFileUri(`${root}/src/worker.ts`), type: 3 },
+      { uri: pathToFileUri(`${root}/src/renamed.ts`), type: 1 },
+    ],
+  }));
+  await hoverRequest(8);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 4);
 });
 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
@@ -898,7 +984,14 @@ Deno.test("exit without shutdown reports an unsuccessful process status", async 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 Deno.test("frames split messages and runs an ordered in-memory protocol session", async () => {
   const initializeMessage = encodeLspMessage(
-    request(1, "initialize", { rootUri }),
+    request(1, "initialize", {
+      rootUri,
+      capabilities: {
+        workspace: {
+          didChangeWatchedFiles: { dynamicRegistration: true },
+        },
+      },
+    }),
   );
   const framer = new LspMessageFramer();
   assertEquals(framer.feed(initializeMessage.slice(0, 12)).length, 0);
@@ -907,6 +1000,7 @@ Deno.test("frames split messages and runs an ordered in-memory protocol session"
   const inputBytes = joinBytes([
     initializeMessage,
     encodeLspMessage(notification("initialized")),
+    encodeLspMessage(response("sigil/ownership-watch/request", null)),
     encodeLspMessage(request(2, "shutdown")),
     encodeLspMessage(notification("exit")),
   ]);
@@ -929,9 +1023,10 @@ Deno.test("frames split messages and runs an ordered in-memory protocol session"
   const messages = new LspMessageFramer().feed(joinBytes(output)) as Array<
     Record<string, unknown>
   >;
-  assertEquals(messages.length, 2);
+  assertEquals(messages.length, 3);
   assertEquals(messages[0].id, 1);
-  assertEquals(messages[1].id, 2);
+  assertEquals(messages[1].method, "client/registerCapability");
+  assertEquals(messages[2].id, 2);
 });
 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
@@ -1099,6 +1194,13 @@ function notification(
   params?: unknown,
 ): JsonRpcIncoming {
   return { jsonrpc: "2.0", method, params };
+}
+
+function response(
+  id: number | string,
+  result: unknown,
+): JsonRpcIncoming {
+  return { jsonrpc: "2.0", id, result };
 }
 
 function responseResult(messages: readonly JsonRpcOutgoing[]): unknown {

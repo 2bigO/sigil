@@ -32,7 +32,7 @@ import type {
   SemanticTokensParams,
   TextDocumentPositionParams,
 } from "./types.ts";
-import { isRecord, isRequest } from "./types.ts";
+import { isRecord, isRequest, isResponse } from "./types.ts";
 import metadata from "../deno.json" with { type: "json" };
 
 export const SIGIL_LSP_VERSION = metadata.version;
@@ -43,6 +43,8 @@ const ERROR_INVALID_PARAMS = -32602;
 const ERROR_INTERNAL = -32603;
 const ERROR_SERVER_NOT_INITIALIZED = -32002;
 const ERROR_REQUEST_CANCELLED = -32800;
+const OWNERSHIP_WATCH_REQUEST_ID = "sigil/ownership-watch/request";
+const OWNERSHIP_WATCH_REGISTRATION_ID = "sigil/ownership-watch";
 
 type ServerState =
   | "uninitialized"
@@ -72,10 +74,13 @@ export class SigilLanguageServer {
   readonly #openDocuments = new Map<string, { uri: string; version: number }>();
   readonly #publishedUris = new Set<string>();
   readonly #cancelled = new Set<JsonRpcId>();
+  readonly #pendingServerRequests = new Set<JsonRpcId>();
   #state: ServerState = "uninitialized";
   #workspaceStart: string;
   #resolved?: ResolvedSigilWorkspace;
   #ownershipHoverCache?: OwnershipHoverCache;
+  #supportsOwnershipWatchRegistration = false;
+  #ownershipWatchRegistrationRequested = false;
   #exitCode: number | undefined;
 
   constructor(options: SigilLanguageServerOptions = {}) {
@@ -101,6 +106,10 @@ export class SigilLanguageServer {
   }
 
   async handle(message: JsonRpcIncoming): Promise<readonly JsonRpcOutgoing[]> {
+    if (isResponse(message)) {
+      if (message.id !== null) this.#pendingServerRequests.delete(message.id);
+      return [];
+    }
     if (message.method === "$/cancelRequest") {
       const id = cancellationId(message.params);
       if (id !== undefined) this.cancel(id);
@@ -184,7 +193,10 @@ export class SigilLanguageServer {
     try {
       switch (method) {
         case "initialized":
-          return this.#diagnosticNotifications();
+          return [
+            ...this.#diagnosticNotifications(),
+            ...this.#ownershipWatchRegistration(),
+          ];
         case "textDocument/didOpen":
           return await this.#didOpen(params);
         case "textDocument/didChange":
@@ -209,6 +221,9 @@ export class SigilLanguageServer {
     const value = initializeParams(params);
     const uri = value.workspaceFolders?.[0]?.uri ?? value.rootUri ?? undefined;
     this.#workspaceStart = uri ? fileUriToPath(uri) : this.#currentDirectory;
+    this.#supportsOwnershipWatchRegistration =
+      value.capabilities?.workspace?.didChangeWatchedFiles
+        ?.dynamicRegistration === true;
     await this.#reload();
     this.#state = "running";
     return {
@@ -325,6 +340,29 @@ export class SigilLanguageServer {
       : undefined;
   }
 
+  #ownershipWatchRegistration(): readonly JsonRpcOutgoing[] {
+    if (
+      !this.#supportsOwnershipWatchRegistration ||
+      this.#ownershipWatchRegistrationRequested
+    ) return [];
+    this.#ownershipWatchRegistrationRequested = true;
+    this.#pendingServerRequests.add(OWNERSHIP_WATCH_REQUEST_ID);
+    return [{
+      jsonrpc: "2.0",
+      id: OWNERSHIP_WATCH_REQUEST_ID,
+      method: "client/registerCapability",
+      params: {
+        registrations: [{
+          id: OWNERSHIP_WATCH_REGISTRATION_ID,
+          method: "workspace/didChangeWatchedFiles",
+          registerOptions: {
+            watchers: [{ globPattern: "**/*", kind: 7 }],
+          },
+        }],
+      },
+    }];
+  }
+
   #diagnosticNotifications(
     extraUris: readonly string[] = [],
   ): readonly JsonRpcOutgoing[] {
@@ -396,7 +434,29 @@ function initializeParams(params: unknown): InitializeParams {
       return { uri: folder.uri };
     });
   }
-  return { rootUri: rootUri as string | null | undefined, workspaceFolders };
+  const capabilities = optionalRecord(value.capabilities);
+  const workspace = optionalRecord(capabilities.workspace);
+  const watchedFiles = optionalRecord(workspace.didChangeWatchedFiles);
+  const dynamicRegistration = watchedFiles.dynamicRegistration;
+  if (
+    dynamicRegistration !== undefined &&
+    typeof dynamicRegistration !== "boolean"
+  ) {
+    throw new InvalidParamsError(
+      "initialize watched-file dynamicRegistration must be a boolean.",
+    );
+  }
+  return {
+    rootUri: rootUri as string | null | undefined,
+    workspaceFolders,
+    capabilities: {
+      workspace: {
+        didChangeWatchedFiles: {
+          dynamicRegistration,
+        },
+      },
+    },
+  };
 }
 
 function didOpenParams(params: unknown): DidOpenTextDocumentParams {

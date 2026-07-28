@@ -19,6 +19,8 @@ component SigilLsp {
 
       supports initialize, initialized, shutdown, and exit lifecycle messages
 
+      supports client responses to server-initiated capability-registration requests
+
       uses UTF-16 positions
 
       rejects requests received before initialization
@@ -29,7 +31,9 @@ component SigilLsp {
 
       open-document content overrides filesystem content until close
 
-      accepts workspace/didChangeWatchedFiles notifications for supported ownership implementation sources
+      after initialized, requests client-side workspace/didChangeWatchedFiles registration when the client advertises dynamic registration
+
+      accepts workspace/didChangeWatchedFiles notifications delivered for the registered workspace watch
     }
 
     DiagnosticPublishing {
@@ -102,6 +106,8 @@ expand SigilLsp {
       shutdown completes outstanding work, returns null, and enters shutdown-requested state.
 
       exit succeeds only after shutdown.
+
+      Client responses to server-initiated capability-registration requests complete without entering client-request dispatch.
     }
 
     DocumentSynchronization {
@@ -110,6 +116,8 @@ expand SigilLsp {
       didClose removes the overlay and republishes diagnostics from the filesystem source when available.
 
       Workspace operations prefer open-document overlays.
+
+      When the client advertises workspace/didChangeWatchedFiles dynamic registration, initialized requests one **/* workspace watcher for create, change, and delete events.
     }
 
     NavigationAndInspection {
@@ -193,7 +201,13 @@ expand SigilLsp {
     OwnershipHoverCache {
       The cache is process-local, read-only, and never reused across resolved workspace generations.
 
-      Clients that require immediate ownership-link freshness send workspace/didChangeWatchedFiles for supported implementation-source changes.
+      Immediate ownership-link freshness uses successfully registered client watchers and their delivered workspace/didChangeWatchedFiles notifications.
+    }
+
+    OwnershipSourceWatching {
+      The server requests watched-file capability only when the client advertises workspace/didChangeWatchedFiles dynamic registration.
+
+      Clients without watched-file dynamic-registration support remain limited to cache invalidation from notifications they independently deliver or from workspace reloads.
     }
 
     ConceptLanguageFeatures {
@@ -267,6 +281,24 @@ expand SigilLsp {
 
       Revisit when: Large-workspace evidence requires incremental per-file indexing or clients cannot reliably provide watched-file notifications.
     }
+
+    OwnershipSourceWatching {
+      Decision: Dynamically register one client-side **/* workspace watcher for create, change, and delete events after initialized when the client advertises watched-file dynamic registration.
+
+      Scope: Governs SigilLsp acquisition of workspace file-change notifications for ownership-hover cache invalidation; excludes client implementations and server-side filesystem watching.
+
+      Assumptions: A registration-capable client that accepts the request delivers matching external filesystem events, with renames represented by delete and create events.
+
+      Trade-offs: A broad workspace watcher avoids duplicating SigilCore's supported implementation-extension policy and captures directory-level changes, but unrelated file events can cause unnecessary ownership-cache invalidation.
+
+      Design issues addressed: Registration-capable clients no longer need independent watcher configuration for external ownership-source changes to invalidate cached hover projections.
+
+      Discarded alternatives: Depending on independently configured client notifications does not follow the protocol registration model; server-side polling or filesystem watching duplicates client resource cost and cross-platform complexity.
+
+      Consequences: Successfully registered clients refresh ownership links after external source edits, creations, deletions, and rename-generated delete and create events.
+
+      Revisit when: The protocol supports static server-declared file watches, broad watcher traffic becomes material, or reliable freshness is required from clients without dynamic-registration support.
+    }
   }
 
   cases {
@@ -302,6 +334,16 @@ expand SigilLsp {
       Concurrent and repeated hovers within one workspace generation share one ownership-source load.
 
       Creating, changing, or deleting a supported ownership implementation source invalidates the cache and the next hover reflects the refreshed links.
+    }
+
+    OwnershipSourceWatching {
+      A client advertising workspace/didChangeWatchedFiles dynamic registration receives one client/registerCapability request after initialized for create, change, and delete events under **/*.
+
+      A successful registration followed by an external implementation-source edit, creation, deletion, or rename-generated delete and create events invalidates the ownership-hover cache before the next hover.
+
+      A client response to the server-initiated registration request is accepted without producing a method-not-found response.
+
+      A client without watched-file dynamic-registration support receives no registration request and the protocol session remains valid.
     }
 
     ConceptLanguageFeatures {
