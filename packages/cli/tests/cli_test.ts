@@ -4,7 +4,7 @@ import {
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import { CoreAdapter } from "../src/core-adapter.ts";
-import { DenoSigilFileSystem } from "../src/fs-adapter.ts";
+import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
 import {
@@ -1141,11 +1141,11 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
   readonly #unreadablePath: string;
 
   constructor(unreadablePath: string) {
-    this.#unreadablePath = unreadablePath;
+    this.#unreadablePath = normalizePath(unreadablePath);
   }
 
   readTextFile(path: string): Promise<string> {
-    if (path === this.#unreadablePath) {
+    if (normalizePath(path) === this.#unreadablePath) {
       return Promise.reject(new Error(`File not found: ${path}`));
     }
     return this.#base.readTextFile(path);
