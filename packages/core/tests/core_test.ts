@@ -27,7 +27,7 @@ import { resolveSigilRelationships } from "../src/resolver.ts";
  * @sigil tests packages/core/src/model.sigil::SigilSemanticModel::SupportedLanguageVersion
  */
 Deno.test("separates the core artifact and language contract versions", () => {
-  assertEquals(SIGIL_CORE_VERSION, "0.6.0");
+  assertEquals(SIGIL_CORE_VERSION, "0.7.0");
   assertEquals(SIGIL_VERSION, "0.5.0");
 });
 

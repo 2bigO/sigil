@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add shared implementation-ownership discovery, CLI integration, cached
+  component and concept ownership links in LSP hover, watched-file cache
+  invalidation in VS Code, and the corresponding Sigil implementation workflow;
+  advance core, CLI, LSP, VS Code, and the Sigil skill to 0.7.0.
 - Add contextual CLI help for every recognized command path and include the
   relevant help with usage errors; advance the CLI artifact to 0.6.1.
 - Add the optional free-form `decisions` expand section for durable decision

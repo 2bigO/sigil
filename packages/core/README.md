@@ -1,9 +1,9 @@
 # sigil-core
 
-Current package version: **0.6.0**. Import with:
+Current package version: **0.7.0**. Import with:
 
 ```ts
-import { parseSigilDocument } from "jsr:@qoherent/sigil-core@0.6";
+import { parseSigilDocument } from "jsr:@qoherent/sigil-core@0.7";
 ```
 
 Raw parsing requires an explicit `sigilVersion`. Workspace APIs discover and
@@ -19,7 +19,7 @@ Package docs:
 
 - [#module.sigil](./%23module.sigil): public `SigilCore` contract and
   package-wide operational decisions.
-- [spec.md](spec.md): version 0.6 product requirements and acceptance scenarios.
+- [spec.md](spec.md): version 0.7 product requirements and acceptance scenarios.
 - [architecture.md](architecture.md): architecture style, internal modules,
   dependency rules, and implementation guidelines.
 

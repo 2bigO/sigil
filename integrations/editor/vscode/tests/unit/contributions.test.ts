@@ -36,7 +36,7 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   const packaging = await readFile("scripts/package-extension.mjs", "utf8");
-  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.6.0"), false);
+  assert.equal(manifest.scripts.package.includes("sigil-vscode-0.7.0"), false);
   assert.equal(packaging.includes("manifest.version"), true);
   assert.equal(
     packaging.includes("sigil-vscode-${manifest.version}.vsix"),
