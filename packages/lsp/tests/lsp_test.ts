@@ -239,6 +239,60 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   assert(decoded.some((item) => item.tokenType === 1));
 });
 
+Deno.test("component hover includes clickable owned implementation links", async () => {
+  const source = `component Thing {
+  goal {
+    Own the implementation targets.
+  }
+
+  interface {
+    @sigil implements packages/core/src/config.ts::parseSigilConfig [interface]
+    @sigil tests packages/core/tests/core_test.ts::implementationTargets [cases]
+    @sigil related packages/cli/README.md [constraints]
+  }
+}
+`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-owned-implementation-hover", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [contractPath]: source,
+    }),
+  });
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(2, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 0, character: 11 },
+    })),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
+  assert(markdown.includes("**Owned implementations**"));
+  assert(
+    markdown.includes(
+      "implements [parseSigilConfig · packages/core/src/config.ts](file:///workspace/packages/core/src/config.ts#L1,1) (code)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "tests [implementationTargets · packages/core/tests/core_test.ts](file:///workspace/packages/core/tests/core_test.ts#L1,1) (test)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "related [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (markdown)",
+    ),
+  );
+});
+
 Deno.test("navigates and hovers contextual imported concepts", async () => {
   const server = makeServer();
   await initialize(server);

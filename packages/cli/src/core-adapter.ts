@@ -14,6 +14,8 @@ import {
   type GlossaryContextProjection,
   type GlossaryProjection,
   loadSigilWorkspace,
+  type OwnedImplementationProjection,
+  ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
   parseSigilDocument,
   type ResolvedConceptNamespace,
   type ResolvedSigilWorkspace,
@@ -182,6 +184,17 @@ export class CoreAdapter {
     resolved: ResolvedSigilWorkspace,
   ): readonly ComponentContractView[] {
     return componentContracts(resolved);
+  }
+  ownedImplementationTargetsFor(
+    resolved: ResolvedSigilWorkspace,
+    componentName: string,
+    conceptName?: string,
+  ): OwnedImplementationProjection | undefined {
+    return coreOwnedImplementationTargetsFor(
+      resolved,
+      componentName,
+      conceptName,
+    );
   }
   collectedExpansionFor(
     resolved: ResolvedSigilWorkspace,

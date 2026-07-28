@@ -10,6 +10,7 @@ import {
   loadSigilWorkspace,
   matchesSigilFile,
   normalizePath,
+  ownedImplementationTargetsFor,
   parseSigilConfig,
   parseSigilDocument,
   parseSigilGlossary,
@@ -776,6 +777,69 @@ component Consumer {
     !context.dependencyContracts.some((contract) => contract.name === "Leaf"),
   );
   assertEquals(agentDependencyContextFor(resolved, "Missing"), undefined);
+});
+
+Deno.test("projects contract-owned implementation targets from explicit annotations", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    OwnedImplementationTargets {
+      @sigil implements packages/core/src/parser.ts::parseSigilDocument
+      @sigil tests packages/core/tests/core_test.ts::implementationTargets
+    }
+
+    OtherTargets {
+      @sigil related packages/cli/README.md
+    }
+  }
+}
+
+expand Ownership {
+  constraints {
+    OwnedImplementationTargets {
+      @sigil validates packages/core/src/config.ts::parseSigilConfig
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const full = ownedImplementationTargetsFor(resolved, "Ownership");
+  assert(full);
+  assertEquals(full.owningComponent.name, "Ownership");
+  assertEquals(full.targets.length, 4);
+  assertEquals(
+    full.targets.map((item) => item.artifactKind).join(","),
+    "markdown,code,code,test",
+  );
+  assertEquals(
+    full.targets.map((item) => `${item.filePath}:${item.symbolIdentity ?? ""}`)
+      .join(","),
+    "packages/cli/README.md:,packages/core/src/config.ts:parseSigilConfig,packages/core/src/parser.ts:parseSigilDocument,packages/core/tests/core_test.ts:implementationTargets",
+  );
+  const scoped = ownedImplementationTargetsFor(
+    resolved,
+    "Ownership",
+    "OwnedImplementationTargets",
+  );
+  assert(scoped);
+  assertEquals(scoped.targets.length, 3);
+  const other = ownedImplementationTargetsFor(
+    resolved,
+    "Ownership",
+    "OtherTargets",
+  );
+  assert(other);
+  assertEquals(other.targets.length, 1);
+  assertEquals(other.targets[0].artifactKind, "markdown");
+  assertEquals(other.targets[0].filePath, "packages/cli/README.md");
 });
 
 Deno.test("separates relationship resolution from graph construction", async () => {

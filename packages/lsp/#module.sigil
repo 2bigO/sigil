@@ -41,6 +41,8 @@ component SigilLsp {
 
       supports hover for component contracts and collected expansions
 
+      hover for a component contract presents any owned implementation targets as clickable Markdown links to their originating artifacts
+
       supports full-document semantic tokens for resolved component names
 
       every hover renders resolver-confirmed component and concept references in displayed Sigil semantic lines as inline links to their originating declarations
@@ -109,6 +111,10 @@ expand SigilLsp {
 
       Hover derives inline navigation targets from the shared component and concept reference resolvers and encodes them as file-URI Markdown links to declaration identifier ranges.
 
+      Hover resolves owned implementation targets through the shared core ownership query and renders them as standard Markdown links.
+
+      Hover does not cache owned implementation targets.
+
       Document symbols preserve declaration and section hierarchy.
     }
 
@@ -162,6 +168,8 @@ expand SigilLsp {
       Hover navigation uses standard LSP Markdown links without command URIs, trusted command execution, or custom protocol methods.
 
       Only resolver-confirmed component and concept references become links; unresolved identifiers and ordinary prose remain unchanged.
+
+      Owned implementation hover links point to the originating artifact location and remain standard Markdown links.
     }
 
     ConceptLanguageFeatures {
@@ -209,6 +217,18 @@ expand SigilLsp {
 
       Revisit when: Large-document evidence requires incremental synchronization or a supported non-stdio host becomes necessary.
     }
+
+    NavigationAndInspection {
+      Decision: Surface contract-owned implementation targets in hover as clickable Markdown links.
+
+      Scope: Governs SigilLsp hover for component contracts and the shared core ownership query result; excludes transport changes, persistence, and caching.
+
+      Trade-offs: Reusing the shared core ownership query keeps CLI and LSP aligned, and on-demand resolution avoids a premature cache, but hover pays the lookup cost per request.
+
+      Consequences: Users can discover a contract's owned implementation targets directly from hover while implementation stays a thin presentation layer over core ownership data.
+
+      Revisit when: Hover latency or request volume makes on-demand resolution too expensive.
+    }
   }
 
   cases {
@@ -230,6 +250,8 @@ expand SigilLsp {
       Unmatched capitalized prose remains ordinary text.
 
       Component-contract and collected-expansion hovers link displayed component and concept references to their origins.
+
+      Component-contract hover also lists owned implementation targets as clickable links when the contract declares them.
 
       A displayed name without a resolved component or concept identity remains plain hover text.
     }

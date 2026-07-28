@@ -212,6 +212,29 @@ export interface GlossaryContextProjection {
   readonly occurrences: readonly GlossaryOccurrence[];
 }
 
+export type ImplementationRelation =
+  | "follows"
+  | "implements"
+  | "tests"
+  | "validates"
+  | "related";
+
+export type ImplementationArtifactKind = "code" | "test" | "markdown";
+
+export interface OwnedImplementationTarget {
+  readonly relation: ImplementationRelation;
+  readonly artifactKind: ImplementationArtifactKind;
+  readonly filePath: string;
+  readonly symbolIdentity?: string;
+}
+
+export interface OwnedImplementationProjection {
+  readonly owningComponent: ResolvedComponent;
+  readonly concept?: ResolvedConcept;
+  readonly targets: readonly OwnedImplementationTarget[];
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+
 export interface SigilFileSystem {
   readTextFile(path: string): Promise<string>;
   exists(path: string): Promise<boolean>;

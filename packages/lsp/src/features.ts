@@ -10,7 +10,9 @@ import type {
   SigilDocument,
   SigilFileSystem,
   SourceRange,
+  OwnedImplementationTarget,
 } from "@qoherent/sigil-core";
+import { ownedImplementationTargetsFor } from "@qoherent/sigil-core";
 import { normalizePath, relativePath } from "@qoherent/sigil-core";
 import { pathToFileUri } from "./filesystem.ts";
 import type {
@@ -711,6 +713,12 @@ async function componentMarkdown(
     "**Interface**",
     ...markdownList(await markdown.semanticLines(iface?.lines ?? [])),
   ];
+  const ownedImplementationLines = await markdown.ownedImplementationLines(
+    component,
+  );
+  if (ownedImplementationLines.length) {
+    lines.push("", ...ownedImplementationLines);
+  }
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
@@ -846,6 +854,22 @@ class HoverMarkdownRenderer {
       : `\`${concept.identifier}\``;
   }
 
+  async ownedImplementationLines(
+    component: ResolvedComponent,
+  ): Promise<string[]> {
+    const projection = ownedImplementationTargetsFor(
+      this.#resolved,
+      component.name,
+    );
+    if (!projection || projection.targets.length === 0) return [];
+
+    const lines = ["**Owned implementations**"];
+    for (const target of projection.targets) {
+      lines.push(`- ${await this.#ownedImplementationTargetLine(target)}`);
+    }
+    return lines;
+  }
+
   async semanticLines(lines: readonly SemanticLine[]): Promise<string[]> {
     return await Promise.all(lines.map((line) => this.semanticLine(line)));
   }
@@ -934,6 +958,25 @@ class HoverMarkdownRenderer {
     }
     return [...byRange.values()];
   }
+
+  async #ownedImplementationTargetLine(
+    target: OwnedImplementationTarget,
+  ): Promise<string> {
+    const absoluteFilePath = workspaceRelativeToAbsolute(
+      this.#resolved.workspace.root,
+      target.filePath,
+    );
+    const fileLabel = relativePath(
+      this.#resolved.workspace.root,
+      absoluteFilePath,
+    );
+    const label = target.symbolIdentity
+      ? `${target.symbolIdentity} · ${fileLabel}`
+      : fileLabel;
+    return `${target.relation} ${
+      markdownLink(label, location(absoluteFilePath))
+    } (${target.artifactKind})`;
+  }
 }
 
 function locationMarkdownUri(location: Location): string {
@@ -972,6 +1015,15 @@ function markdownList(lines: readonly string[]): string[] {
 
 function location(filePath: string, range?: SourceRange): Location {
   return { uri: pathToFileUri(filePath), range: sourceRangeToLsp(range) };
+}
+
+function workspaceRelativeToAbsolute(
+  workspaceRoot: string,
+  filePath: string,
+): string {
+  const normalized = normalizePath(filePath);
+  if (/^(?:[A-Za-z]:[\\/]|\/)/.test(normalized)) return normalized;
+  return normalizePath(`${normalizePath(workspaceRoot)}/${normalized}`);
 }
 
 function contains(range: Range, position: Position): boolean {
