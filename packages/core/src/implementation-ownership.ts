@@ -500,6 +500,8 @@ function entrypointMatch(
   extension: string,
 ): EntrypointMatch | undefined {
   let patterns: readonly RegExp[];
+  let matchSource = source;
+  let matchOffset = 0;
   if ([".sh", ".bash", ".zsh"].includes(extension)) {
     patterns = [
       /^\s*(?:function\s+)?([A-Za-z_]\w*)\s*(?:\(\s*\))?\s*\{/,
@@ -533,13 +535,22 @@ function entrypointMatch(
     [".c", ".cc", ".cpp", ".cs", ".cxx", ".dart", ".h", ".hpp", ".java"]
       .includes(extension)
   ) {
-    const templatePrefix = [".cc", ".cpp", ".cxx", ".h", ".hpp"].includes(
-        extension,
-      )
-      ? String.raw`(?:template\s*<[^;{}]*>\s*)*`
+    const isCpp = [".cc", ".cpp", ".cxx", ".h", ".hpp"].includes(
+      extension,
+    );
+    if (isCpp) {
+      const templateEnd = cppTemplatePrefixEnd(source);
+      if (templateEnd === undefined) return undefined;
+      matchSource = source.slice(templateEnd);
+      matchOffset = templateEnd;
+    }
+    const modifier = String
+      .raw`(?:(?:@\w+(?:\([^)]*\))?|public|private|protected|internal|static|final|sealed|abstract|virtual|override|async|extern|inline|constexpr|unsafe|partial)\s+)*`;
+    const requiresPrefix = isCpp
+      ? String.raw`(?:requires\b(?:[^;{}]|\{[^{}]*\})*?\s+)?`
       : "";
     const modifiers = String
-      .raw`^\s*${templatePrefix}(?:(?:@\w+(?:\([^)]*\))?|public|private|protected|internal|static|final|sealed|abstract|virtual|override|async|extern|inline|constexpr|unsafe|partial)\s+)*`;
+      .raw`^\s*${modifier}${requiresPrefix}${modifier}`;
     patterns = [
       new RegExp(
         `${modifiers}(?:class|interface|struct|enum|record)\\s+([A-Za-z_]\\w*)`,
@@ -566,15 +577,66 @@ function entrypointMatch(
     ];
   }
   for (const pattern of patterns) {
-    const match = source.match(pattern);
+    const match = matchSource.match(pattern);
     const name = match?.[1];
     if (!match || !name) continue;
     return {
       name,
-      offset: (match.index ?? 0) + match[0].lastIndexOf(name),
+      offset: matchOffset + (match.index ?? 0) + match[0].lastIndexOf(name),
     };
   }
   return undefined;
+}
+
+function cppTemplatePrefixEnd(source: string): number | undefined {
+  let offset = skipWhitespace(source, 0);
+  let foundTemplate = false;
+  while (
+    source.startsWith("template", offset) &&
+    !isIdentifierCharacter(source[offset + "template".length])
+  ) {
+    foundTemplate = true;
+    offset = skipWhitespace(source, offset + "template".length);
+    if (source[offset] !== "<") return undefined;
+    let depth = 0;
+    let quote: '"' | "'" | undefined;
+    let closed = false;
+    for (; offset < source.length; offset++) {
+      const character = source[offset];
+      if (quote) {
+        if (character === "\\") {
+          offset++;
+        } else if (character === quote) {
+          quote = undefined;
+        }
+        continue;
+      }
+      if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === "<") {
+        depth++;
+      } else if (character === ">") {
+        depth--;
+        if (depth === 0) {
+          offset++;
+          closed = true;
+          break;
+        }
+      }
+    }
+    if (!closed) return undefined;
+    offset = skipWhitespace(source, offset);
+  }
+  return foundTemplate ? offset : 0;
+}
+
+function skipWhitespace(source: string, offset: number): number {
+  while (offset < source.length && /\s/.test(source[offset])) offset++;
+  return offset;
+}
+
+function isIdentifierCharacter(character: string | undefined): boolean {
+  return character !== undefined && /[A-Za-z0-9_]/.test(character);
 }
 
 function annotationDiagnostic(

@@ -1040,7 +1040,7 @@ Deno.test("resolves entrypoints using each language's declaration syntax", async
 });
 
 // @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
-Deno.test("resolves C++ template entrypoints", async () => {
+Deno.test("resolves nested and constrained C++ template entrypoints", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
     "ownership.sigil": `component Ownership {
@@ -1073,6 +1073,31 @@ Deno.test("resolves C++ template entrypoints", async () => {
         text:
           `// @sigil implements ${target}\ntemplate <typename T>\nT makeRepository() {}\n`,
       },
+      {
+        filePath: "src/default-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T = std::vector<int>>\nclass DefaultRepository {};\n`,
+      },
+      {
+        filePath: "src/deep-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T = std::map<int, std::vector<std::pair<int, int>>>>\nclass DeepRepository {};\n`,
+      },
+      {
+        filePath: "src/constrained-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nrequires std::default_initializable<T>\nclass ConstrainedRepository {};\n`,
+      },
+      {
+        filePath: "src/sized-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nrequires (\n  sizeof(T) > 0\n)\nclass SizedRepository {};\n`,
+      },
+      {
+        filePath: "src/constrained-repository.cpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nrequires std::copyable<T>\nT makeConstrainedRepository() {}\n`,
+      },
     ],
     "Ownership",
     "EntryPoint",
@@ -1081,7 +1106,7 @@ Deno.test("resolves C++ template entrypoints", async () => {
   assertEquals(projection.diagnostics.length, 0);
   assertEquals(
     projection.targets.map((item) => item.symbolIdentity).sort().join(","),
-    "Repository,makeRepository",
+    "ConstrainedRepository,DeepRepository,DefaultRepository,Repository,SizedRepository,makeConstrainedRepository,makeRepository",
   );
 });
 
