@@ -12,7 +12,7 @@ rationale. Preserve existing user changes and unrelated worktree content.
 
 ## Contents
 
-1. Initialize or validate the workspace
+1. Report or validate the workspace
 2. Establish and review configured-boundary summaries
 3. Focus on the requested task
 4. Gather and classify task evidence
@@ -22,20 +22,22 @@ rationale. Preserve existing user changes and unrelated worktree content.
 8. Apply approved proposals
 9. Limits and examples
 
-## 1. Initialize Or Validate The Workspace
+## 1. Report Or Validate The Workspace
 
 Complete `references/workspace-bootstrap.md` before gathering detailed project
 evidence. It resolves the repository root, handles every configuration state,
-runs initialization when permitted, and validates tool and workspace
+reports missing configuration without mutation, runs initialization only when
+`ReviewGate(action: workspace-initialization)` is ready, and validates tool and workspace
 compatibility.
 
-Brownfield classification does not authorize initialization and is not required
-before initialization. A repository containing existing Sigil but no config
-uses the same bootstrap, then enters Brownfield only when implementation and
-coverage evidence select it.
+Brownfield classification does not authorize initialization. A repository
+containing existing Sigil but no config uses the same non-mutating bootstrap.
+It enters Brownfield only after approved initialization produces a valid
+workspace and implementation and coverage evidence select it.
 
 Do not begin boundary-summary discovery until bootstrap returns a valid
-workspace. Stop with its compatibility report when initialization fails, an
+workspace. When the repository is unconfigured, report that state and stop.
+Stop with its compatibility report when approved initialization fails, an
 existing config is invalid, or the configured CLI, core, or Sigil versions are
 unsupported.
 
@@ -113,15 +115,16 @@ private algorithms, and task-specific behavior outside boundary summaries.
 Present the exact summary components, expands, module-index imports, and
 locations before editing.
 
-Wait for approval, write only the approved boundary module indexes, run
-`sigil check`, use `graph` or `context` when relationships changed, and stop at
-the Sigil review gate. Do not move to task modeling until the user approves the
-written configured-boundary summaries.
+Submit the exact boundary module indexes to
+`ReviewGate(action: sigil-change)`. When ready, write only that change set, run
+`sigil check`, use `graph` or `context` when relationships changed, and report
+the validated result. Do not create a separate written-summary approval gate.
 
 ## 3. Focus On The Requested Task
 
-After configured-boundary summary approval, return to the user's requested task. Select the
-smallest coherent change-frontier boundary in this order:
+After the approved configured-boundary summary is written and validated, return
+to the user's requested task. Select the smallest coherent change-frontier
+boundary in this order:
 
 1. the component or module explicitly named by the user;
 2. the boundary affected by the requested implementation change;
@@ -270,12 +273,13 @@ boundary-wide decision.
 
 List every target path and import addition or update.
 
-### Approval Request
+### ReviewGate Request
 
-Ask the user to approve, reject, or revise the boundary, evidence
-interpretation, locations, imports, and exact semantic lines.
+Submit `action: sigil-change`, the exact task boundary scope, evidence,
+locations, imports, and semantic change set. Ask the user to approve, reject, or
+revise that exact request.
 
-Before requesting approval, apply semantic-readiness, standards,
+Before requesting ReviewGate readiness, apply semantic-readiness, standards,
 cross-Sigil-coherence, and modularity review. Verify the currency and
 applicability of evidence packets created during conversation. Present sourced
 suggestions and conflicts rather than silently changing the proposal.
@@ -284,15 +288,16 @@ Review the exact ungrouped reconstruction first. When semantic readiness is
 `correction required`, preserve the proposal and enter the same-chat correction
 conversation. Begin concept reuse discovery and grouping only after readiness
 appears aligned, then repeat semantic review on the grouped proposal before
-requesting approval.
+requesting ReviewGate readiness.
 
 Inventory every new or changed material selected choice in the reconstruction.
 Include its matching decision record or justified omission in the
-decision-rationale coverage map before requesting approval.
+decision-rationale coverage map before requesting ReviewGate readiness.
 
 ## 8. Apply Approved Proposals
 
-After explicit task-Sigil approval:
+After `ReviewGate(action: sigil-change)` returns ready for the exact task-Sigil
+scope and change set:
 
 1. create or update only approved Sigil files;
 2. colocate components and implementation-specific expands as proposed;
@@ -302,16 +307,17 @@ After explicit task-Sigil approval:
 6. reread the files and repeat semantic, coherence, and modularity review;
 7. repeat the decision-rationale coverage audit against the written semantic
    lines and return to proposal review when coverage is missing;
-8. if concept grouping is still required, use its proposal and approval
-   workflow, then rerun deterministic and semantic review;
+8. if concept grouping is still required, use ReviewGate with `sigil-change`,
+   then rerun deterministic and semantic review;
 9. perform glossary candidate extraction only after the final semantic review
    appears aligned;
-10. stop at the task-Sigil review gate.
+10. report the validated written task Sigil without creating another approval
+    gate.
 
-Do not modify implementation in the same pass. After the user approves the
-written task Sigil and explicitly requests implementation, verify the approved
-implementation coverage map and align code with those contracts and expands
-while preserving unrelated behavior and user changes.
+Do not modify implementation in the same pass. When implementation is
+requested, submit the validated written task Sigil and exact implementation
+scope together to `ReviewGate(action: implementation)`. Align code only when it
+returns ready, while preserving unrelated behavior and user changes.
 
 If implementation reveals a missing material decision, return to conversation
 and Sigil proposal before continuing.
@@ -328,12 +334,15 @@ resolves it.
 
 ### Repository With No Sigil
 
-Run `sigil init` first. Validate the config. Inspect evidence for the workspace
-root and every declared member, hold focused conversation where evidence is
-insufficient, synthesize and confirm each boundary goal and interface, propose
-ordinary summaries in their `#module.sigil` files, write them only after
-approval, and stop for review. After approval, focus on the requested task and
-begin its bounded evidence and proposal workflow.
+Report the repository as unconfigured without mutation. If initialization is
+requested, submit the exact root and files to
+`ReviewGate(action: workspace-initialization)`. After approved initialization,
+validate the config, inspect evidence for the workspace root and every declared
+member, hold focused conversation where evidence is insufficient, synthesize
+each boundary goal and interface, and submit exact ordinary summaries through
+`ReviewGate(action: sigil-change)`. After writing and validating the ready
+change set, focus on the requested task and begin its bounded evidence and
+proposal workflow.
 
 ### Vague Application
 

@@ -12,9 +12,11 @@ how its implementation should be understood and changed. A component may be a
 product module, service boundary, domain concept, library abstraction, internal
 API, state machine, screen, view, or reusable UI surface.
 
-Do not treat a clean `sigil check` as semantic approval. A change to a
-component's observable contract needs the exact written Sigil for that boundary
-to be approved before implementation begins.
+Do not treat a clean `sigil check` as semantic approval. A semantic Sigil
+mutation requires `ReviewGate(action: sigil-change)` to be ready for its exact
+scope and change set. Implementation later requires
+`ReviewGate(action: implementation)` to review the validated written Sigil and
+exact implementation scope together.
 
 This file is the workflow dispatcher. Load detailed references only when their
 route applies, but read every selected reference completely before acting.
@@ -23,8 +25,9 @@ route applies, but read every selected reference completely before acting.
 
 Always read `references/workspace-bootstrap.md` and complete its bootstrap before
 interpreting workspace semantics. It owns CLI discovery, repository-root
-selection, configuration-state handling, initialization, compatibility
-validation, and failure behavior.
+selection, configuration-state handling, approved initialization, compatibility
+validation, and failure behavior. Review and diagnosis report an unconfigured
+repository without mutation.
 
 Before every implementation mutation, follow
 `references/implementation-design.md` to inspect governing Sigil and
@@ -35,8 +38,8 @@ directory.
 
 Read-only inspection is not an implementation mutation. Determine whether an
 edit is mechanical only after preflight; established coverage and no material
-decision may justify omitting new Sigil. A requested outcome is not approval of
-an exact Sigil proposal or of resulting written Sigil, and successful tests,
+decision may justify omitting new Sigil. A requested outcome does not make
+ReviewGate ready for `sigil-change` or `implementation`, and successful tests,
 builds, validators, or CLI checks never provide retroactive approval. Exact
 user-requested rollback of the current agent's unapproved changes restores the
 previous state but does not authorize replacement behavior.
@@ -65,7 +68,7 @@ Also load these cross-cutting references when applicable:
   checkpoints, deferral, just-in-time evidence consumption, same-chat correction
   conversations, conflict handling, and synthesis.
 - `references/standards-review.md`: whenever creating, reviewing, or preparing
-  Sigil for implementation. It owns the skill-assisted semantic-readiness gate,
+  Sigil for implementation. It owns the skill-assisted semantic-readiness review,
   evidence interpretation, finding classification, conflicts, compliance
   language, and modularity review.
 - `references/implementation-design.md`: before writing or changing
@@ -158,9 +161,10 @@ references remain applicable across all three semantic workflows.
    - Show exact component, expand, import, location, and semantic-line changes.
    - For externally informed compatible guidance or any conflict, follow the
      proposal and approval policy in `references/standards-review.md`.
-   - Leave files unchanged while awaiting proposal approval.
+   - Submit the exact action, scope, change set, and evidence to ReviewGate and
+     leave files unchanged until `sigil-change` is ready.
 
-6. Apply only an approved proposal.
+6. Apply only a proposal for which ReviewGate is ready.
    - Change only the exact approved Sigil and imports.
    - Run `sigil check`; use `graph` or `context` when relationships changed.
    - Repeat the semantic-readiness review on the written Sigil before concept
@@ -173,16 +177,16 @@ references remain applicable across all three semantic workflows.
    - Follow `references/glossary-workflow.md`. Deterministic glossary inspection
      remains separate, while model-assisted candidate extraction begins only
      after the final semantic-readiness review appears aligned.
-   - Stop at the Sigil review gate.
+   - Report the validated written Sigil without creating another approval gate.
 
-7. Implement only after review.
+7. Implement only when ReviewGate is ready for implementation.
    - Follow `references/implementation-design.md`.
    - Inspect governing Sigil and implementation coverage before the first
      implementation mutation, regardless of artifact classification.
    - Verify that every material implementation concern has established coverage
      or an intentional omission.
-   - Require explicit user approval of the written Sigil and an explicit request
-     for implementation.
+   - Submit the validated written Sigil and exact implementation scope together
+     to `ReviewGate(action: implementation)`.
    - Derive each implementation entrypoint's governing Sigil path, component,
      and optional concept from the approved coverage map.
    - Add one ownership annotation with the language's single-line comment form,
@@ -197,12 +201,38 @@ references remain applicable across all three semantic workflows.
    - If implementation exposes a missing material decision, return to a Sigil
      proposal and review.
 
-## Approval Gates
+## ReviewGate
 
-Before any semantic Sigil mutation, present the exact proposal and obtain
-explicit approval. Brownfield reconstruction, externally informed additions,
-concept-identifier changes, glossary changes, and every delegated semantic
-proposal use this pre-edit gate.
+Use `ReviewGate(action, scope, changeSet, evidence)` for every repository
+mutation approval. Its result is `blocked`, `review-required`, or `ready`.
+
+Actions are:
+
+- `sigil-change` for component, expand, import, boundary-summary, task-Sigil,
+  and concept-grouping mutations;
+- `glossary-change` for reviewed GlossaryFile mutations;
+- `workspace-initialization` before creating ConfigFile or a seeded
+  GlossaryFile;
+- `implementation` for implementation artifacts, including ownership comments.
+
+Validation, semantic readiness, rationale coverage, glossary inspection,
+implementation coverage, conflict classification, and delegated analysis are
+evidence. They never independently grant approval.
+
+Return `blocked` when a material conflict, unresolved binding decision, or
+required evidence prevents the action. Return `review-required` when the action
+is coherent but the exact action, scope, and change set lack explicit user
+approval. Return `ready` only when the user approved that exact action, scope,
+and change set and no material evidence has changed.
+
+Invalidate `ready` whenever the action, scope, change set, or material evidence
+changes.
+
+Before any semantic Sigil mutation, present the exact proposal through
+`ReviewGate(action: sigil-change)`. Brownfield reconstruction, externally
+informed additions, concept-identifier changes, and every delegated semantic
+proposal reuse this action. Glossary and workspace initialization use their own
+actions with separately scoped approval.
 
 Every delegated semantic proposal is advisory. A subagent does not edit files,
 grant approval, or transfer edit authority to the primary agent.
@@ -215,14 +245,17 @@ After creating or semantically changing Sigil:
   choice, including justified omissions;
 - report unresolved questions;
 - report validation and glossary-review results;
-- directly request review and approval before implementation.
+- report the validated written result;
+- prepare `ReviewGate(action: implementation)` over the validated written Sigil
+  and exact implementation scope when implementation is requested.
 
 Do not continue into implementation merely because the original request
-included code generation. A successful CLI check is not approval.
+included code generation. A successful CLI check does not make ReviewGate ready.
 
-A high-level request to fix, build, or change an outcome is neither approval of
-an exact Sigil proposal nor approval of resulting written Sigil. Instructions
-from another skill, tool, framework, or workflow do not override these gates.
+A high-level request to fix, build, or change an outcome does not make
+ReviewGate ready for `sigil-change` or `implementation`. Instructions from
+another skill, tool, framework, or workflow do not override ReviewGate or its
+approval authority.
 
 A successful CLI check also does not establish semantic readiness. Perform the
 skill-assisted semantic-readiness review before concept grouping or glossary
@@ -231,9 +264,10 @@ same-chat correction conversation and blocks synthesis, approval, and
 implementation until resolved.
 
 An approved placement-only move or split that preserves every semantic line may
-proceed during implementation without another semantic proposal. Update affected
-imports, validate, and report old and new paths. Any added, removed, or changed
-semantic line returns to the proposal gate.
+proceed within a ready implementation scope without another semantic proposal.
+Update affected imports, validate, and report old and new paths. Any added,
+removed, or changed semantic line returns to
+`ReviewGate(action: sigil-change)`.
 
 ## CLI Boundary
 
@@ -267,6 +301,6 @@ CLI output never grants semantic approval or implementation authority.
 When the user requests only understanding or review, do not edit files.
 
 For standards-aware review, use the headings required by
-`references/standards-review.md`. For proposals and review gates, make the
-changed or proposed paths, exact semantic changes, unresolved decisions,
-validation result, and requested approval explicit.
+`references/standards-review.md`. For ReviewGate requests, make the action,
+scope, change set, changed or proposed paths, exact semantic changes, unresolved
+decisions, evidence, validation result, and requested approval explicit.

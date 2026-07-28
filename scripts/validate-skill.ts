@@ -80,7 +80,7 @@ requireText(
 );
 requireText(
   skill,
-  "A requested outcome is not approval of\nan exact Sigil proposal or of resulting written Sigil",
+  "A requested outcome does not make\nReviewGate ready for `sigil-change` or `implementation`",
   "outcome and approval separation",
 );
 requireText(
@@ -166,10 +166,15 @@ requireText(
   "Verify that every material implementation concern has established coverage",
   "clear Sigil coverage guard",
 );
-requireText(skill, "Stop at the Sigil review gate", "semantic review gate");
 requireText(
   skill,
-  "Require explicit user approval of the written Sigil",
+  "Report the validated written Sigil without creating another approval gate.",
+  "no separate written-Sigil approval stage",
+);
+requireText(
+  skill,
+  "Submit the validated written Sigil and exact implementation scope together\n" +
+    "     to `ReviewGate(action: implementation)`",
   "implementation approval boundary",
 );
 requireText(
@@ -276,13 +281,13 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "warning repair\nrequire explicit user approval of the presented proposal before any repository\nmutation",
-  "concept identifier pre-edit approval gate",
+  "warning repair use\n`ReviewGate(action: sigil-change)` for the exact proposal before any repository\nmutation",
+  "concept identifier ReviewGate action",
 );
 requireText(
   skill,
   "Every delegated semantic proposal is advisory",
-  "global delegated proposal gate",
+  "global delegated proposal evidence boundary",
 );
 requireText(
   authoringConventions,
@@ -377,7 +382,8 @@ const requiredWorkspaceBootstrapBehaviors = [
   "discover-compatible-cli-first",
   "classify-unconfigured-existing-sigil",
   "inventory-existing-sigil-read-only",
-  "initialize-before-workflow-selection",
+  "report-unconfigured-without-mutation",
+  "require-reviewgate-before-initialization",
   "preserve-existing-sigil-sources",
   "validate-initialized-workspace",
   "preserve-post-init-diagnostics",
@@ -415,7 +421,7 @@ requireText(
 );
 requireText(
   workspaceBootstrapFixture,
-  "Only after bootstrap",
+  "Only after approved initialization and validation",
   "fixture bootstrap-before-workflow ordering",
 );
 requireText(
@@ -429,7 +435,8 @@ const fixture = await Deno.readTextFile(
 );
 const requiredBrownfieldBehaviors = [
   "detect-missing-config",
-  "initialize-config-first",
+  "report-unconfigured-without-mutation",
+  "require-reviewgate-before-initialization",
   "validate-initialized-config",
   "classify-repository-evidence",
   "scan-application-evidence",
@@ -443,13 +450,13 @@ const requiredBrownfieldBehaviors = [
   "propose-minimal-boundary-expands",
   "preserve-only-binding-boundary-constraints",
   "exclude-incidental-and-task-specific-boundary-details",
-  "propose-before-edit",
-  "review-boundaries-before-task-focus",
-  "focus-requested-task-after-boundary-approval",
+  "use-reviewgate-for-boundary-sigil-change",
+  "report-written-boundary-without-second-gate",
+  "focus-requested-task-after-ready-boundary-write",
   "collaborate-on-missing-sigil-before-implementation",
   "validate-written-sigil",
-  "stop-at-semantic-review-gate",
-  "implement-only-after-approval",
+  "report-written-sigil-without-second-gate",
+  "combine-written-sigil-and-implementation-review",
 ];
 if (!Array.isArray(expected.requiredBehaviors)) {
   throw new Error(
@@ -463,8 +470,8 @@ for (const behavior of requiredBrownfieldBehaviors) {
 }
 requireText(
   fixture,
-  "run `sigil init` before detailed project",
-  "fixture initialization-first rule",
+  "report the\n   repository as unconfigured without mutation",
+  "fixture non-mutating unconfigured report",
 );
 requireText(
   fixture,
@@ -483,7 +490,7 @@ requireText(
 );
 requireText(
   fixture,
-  "Only after configured-boundary summary approval, focus on the requested",
+  "After the ready boundary summary is written and validated, focus on the",
   "fixture boundary-before-task ordering",
 );
 requireText(
@@ -511,8 +518,8 @@ const requiredGreenfieldBehaviors = [
   "synthesize-conversation-into-exact-sigil",
   "confirm-before-writing-sigil",
   "collaborate-on-missing-sigil-before-implementation",
-  "stop-at-semantic-review-gate",
-  "implement-only-after-approval",
+  "report-written-sigil-without-second-gate",
+  "combine-written-sigil-and-implementation-review",
 ];
 if (!Array.isArray(expected.greenfieldRequiredBehaviors)) {
   throw new Error("Greenfield fixture must declare required behaviors.");
@@ -539,8 +546,8 @@ requireText(
 );
 requireText(
   greenfieldFixture,
-  "exact proposed Sigil",
-  "greenfield exact proposal",
+  "exact\n    `ReviewGate(action: sigil-change)` request",
+  "greenfield exact ReviewGate request",
 );
 requireText(
   greenfieldFixture,
@@ -579,7 +586,7 @@ const requiredDesignConversationBehaviors = [
   "avoid-preference-as-defect",
   "block-on-confirmed-material-problem",
   "resume-only-after-correction",
-  "preserve-proposal-approval-gates",
+  "use-reviewgate-for-exact-sigil-change",
 ];
 if (!Array.isArray(expected.designConversationRequiredBehaviors)) {
   throw new Error(
@@ -712,9 +719,9 @@ const requiredImplementationBehaviors = [
   "omit-trivial-mechanics",
   "report-implementation-coverage-map",
   "propose-exact-implementation-sigil",
-  "support-combined-or-dependent-review",
-  "stop-at-semantic-review-gate",
-  "implement-only-after-implementation-approval",
+  "support-combined-or-dependent-sigil-change-scope",
+  "report-written-sigil-without-second-gate",
+  "use-reviewgate-for-implementation",
   "preflight-before-any-implementation-mutation",
   "govern-all-implementation-artifacts",
   "separate-outcome-request-from-approval",
@@ -855,7 +862,7 @@ const requiredConceptIdentifierBehaviors = [
   "present-exact-proposal",
   "enter-awaiting-approval",
   "deny-primary-edit-authority",
-  "require-explicit-pre-edit-approval",
+  "use-reviewgate-for-concept-sigil-change",
   "repeat-semantic-review-after-grouping",
   "block-glossary-extraction-until-final-review",
   "return-to-correction-on-grouping-ambiguity",
@@ -890,8 +897,9 @@ requireText(
 );
 requireText(
   conceptIdentifierFixture,
-  "leave every repository file unchanged",
-  "concept fixture awaiting approval",
+  "Submit the exact proposal to `ReviewGate(action: sigil-change)` and leave\n" +
+    "    every repository file unchanged while its result is review-required",
+  "concept fixture ReviewGate waiting state",
 );
 requireText(
   conceptIdentifierFixture,
@@ -1022,9 +1030,9 @@ const requiredGlossaryBehaviors = [
   "select-nonoverlapping-scope",
   "explain-context-override",
   "present-exact-json-proposal",
-  "require-explicit-pre-edit-approval",
+  "use-reviewgate-for-glossary-change",
   "validate-approved-glossary",
-  "stop-at-glossary-review-gate",
+  "report-glossary-without-second-gate",
   "inspect-after-every-sigil-mutation",
   "inspect-when-glossary-absent",
   "separate-deterministic-inspection-from-model-extraction",
@@ -1038,7 +1046,7 @@ const requiredGlossaryBehaviors = [
   "record-evidence-based-no-candidate-result",
   "block-material-terminology-ambiguity",
   "allow-ordinary-unambiguous-vocabulary",
-  "return-to-sigil-review-gate",
+  "continue-to-next-reviewgate-action",
   "include-scoped-glossary-in-coding-context",
   "supplement-request-matched-accepted-term",
   "exclude-unrelated-glossary-context",
@@ -1070,8 +1078,9 @@ requireText(
 );
 requireText(
   glossaryFixture,
-  "Leave GlossaryFile unchanged",
-  "glossary fixture approval boundary",
+  "Submit the exact proposal to `ReviewGate(action: glossary-change)` and leave\n" +
+    "    GlossaryFile unchanged until ready",
+  "glossary fixture ReviewGate boundary",
 );
 requireText(
   glossaryFixture,
@@ -1191,7 +1200,12 @@ requireText(
 );
 requireText(
   brownfield,
-  "Do not move to task modeling until the user approves the\nwritten configured-boundary summaries.",
+  "Do not create a separate written-summary approval gate.",
+  "brownfield no second written-summary gate",
+);
+requireText(
+  brownfield,
+  "After the approved configured-boundary summary is written and validated",
   "brownfield boundary-before-task ordering",
 );
 
@@ -1293,8 +1307,8 @@ requireText(
 );
 requireText(
   glossaryWorkflow,
-  "When semantic readiness is `unassessed` or\n`correction required`, do not inspect prose for glossary candidates",
-  "glossary semantic readiness gate",
+  "When semantic readiness is\n`unassessed` or\n`correction required`, do not inspect prose for glossary candidates",
+  "glossary semantic readiness prerequisite",
 );
 requireText(
   glossaryWorkflow,
@@ -1308,8 +1322,8 @@ requireText(
 );
 requireText(
   glossaryWorkflow,
-  "Leave repository\nfiles unchanged while awaiting approval.",
-  "glossary exact proposal gate",
+  "Leave repository files unchanged until ReviewGate returns ready.",
+  "glossary exact ReviewGate request",
 );
 requireText(
   glossaryWorkflow,
@@ -1318,7 +1332,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.6.3 dispatcher, external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, correction conversation, workspace bootstrap, compatibility, authoring, glossary, review gates, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.6.3 dispatcher, external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, correction conversation, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

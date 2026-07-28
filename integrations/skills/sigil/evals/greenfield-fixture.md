@@ -30,11 +30,11 @@ Expected skill behavior:
 11. Apply semantic-readiness, standards, coherence, and modularity review,
     verifying the currency and applicability of evidence created during
     conversation.
-12. Synthesize conversation and review findings into exact proposed Sigil and
-    request confirmation.
-13. Write only approved Sigil, validate it, and stop at the semantic review
-    gate.
+12. Synthesize conversation and review findings into an exact
+    `ReviewGate(action: sigil-change)` request.
+13. Write only when ReviewGate is ready, validate the Sigil, and report the
+    result without another approval gate.
 14. Treat the missing Sigil coverage as a reason to collaborate with the user on
     the affected Sigil before adding implementation.
-15. Implement only after the written Sigil is approved and implementation is
-    explicitly requested.
+15. Implement only when `ReviewGate(action: implementation)` is ready for the
+    validated written Sigil and exact implementation scope.

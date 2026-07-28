@@ -9,7 +9,7 @@ Use this procedure when current authoritative external guidance could materially
 change a binding contract decision, its risks, available alternatives, or
 acceptance criteria. It owns evidence acquisition for both design conversation
 and standards-aware review. It does not select project decisions, classify
-review findings, grant approval, or act as an implementation gate.
+review findings, grant approval, or determine a ReviewGate result.
 
 ## Contents
 
@@ -179,7 +179,7 @@ The packet never:
 - converts advisory practice into a mandatory requirement;
 - claims certification or complete compliance;
 - hides unavailable material behind a confident conclusion;
-- decides whether proposal approval or implementation is blocked.
+- decides whether ReviewGate returns blocked, review-required, or ready.
 
 Use these completeness states:
 

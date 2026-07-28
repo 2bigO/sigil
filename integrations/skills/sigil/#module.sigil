@@ -29,7 +29,7 @@ component SigilSkill {
 
       handles configured workspaces, unconfigured repositories with existing Sigil, and unconfigured repositories without Sigil
 
-      initializes a missing ConfigFile without overwriting existing Sigil sources, then validates tool and workspace compatibility
+      reports a missing ConfigFile without mutation and initializes only when ReviewGate for workspace-initialization returns ready
     }
 
     WorkflowSelection {
@@ -75,11 +75,11 @@ component SigilSkill {
     ImplementationGovernance {
       requires governing Sigil and implementation coverage to be inspected before any implementation mutation
 
-      requires the exact written Sigil for the current boundary to be approved before implementation begins
+      uses ReviewGate with implementation over the validated written Sigil and exact implementation scope before implementation begins
 
       treats deterministic CLI validation as structural only and never as semantic approval
 
-      requires a new Sigil review when a request changes the observable contract of a different component or surface
+      uses ReviewGate with sigil-change when a request changes the observable contract of a different component or surface
 
       applies regardless of language, format, subsystem, or artifact classification
     }
@@ -90,10 +90,6 @@ component SigilSkill {
       checks deterministic concept diagnostics before proposing identifiers
 
       uses one proposal-only concept-identifier subagent when subagents are available
-    }
-
-    DelegatedProposalApproval {
-      treats delegated proposals as advisory and requires the primary agent to validate and present the exact proposal for human approval before mutation
     }
 
     SemanticLineDiscipline {
@@ -115,7 +111,7 @@ component SigilSkill {
 
       uses automatically projected direct-dependency decisions as scoped rationale without treating them as imported public contract
 
-      audits every new or changed material selected choice for durable rationale before proposal approval
+      audits every new or changed material selected choice for durable rationale before ReviewGate for sigil-change can return ready
 
       reports each choice as covered by a decisions occurrence or intentionally omitted with concrete evidence
     }
@@ -142,16 +138,14 @@ component SigilSkill {
       includes a glossary eval fixture covering extraction, ambiguity, context placement, and approval
     }
 
-    SigilReviewGate {
-      requires an exact proposal before semantic editing
+    ReviewGate {
+      ReviewGate(action, scope, changeSet, evidence) returns blocked, review-required, or ready
 
-      requires explicit approval of the exact written proposal before any repository mutation
+      evaluates mutation approval through one reusable workflow
 
-      stops for human review after approved Sigil is written
+      keeps approval bound to the exact action, scope, and change set
 
-      grants approval only for the current session and presented proposal
-
-      returns to review when implementation exposes a material missing decision
+      treats delegated proposals, validation, readiness reviews, coverage, and diagnostics as evidence rather than approval
     }
   }
 }
@@ -182,12 +176,14 @@ expand SigilSkill {
       A researched finding is compatible guidance, a potential conflict, a definite conflict, unverifiable guidance, or non-applicable.
     }
 
-    ImplementationGovernance {
-      Implementation readiness is unassessed, coverage missing, awaiting Sigil proposal approval, awaiting written-Sigil approval, or implementation-approved.
+    ReviewGate {
+      Action is sigil-change, glossary-change, workspace-initialization, or implementation.
+
+      Result is blocked, review-required, or ready.
     }
 
-    SigilReviewGate {
-      Review state is discovering, proposing, awaiting proposal approval, writing approved Sigil, awaiting Sigil approval, or implementation-approved.
+    ImplementationGovernance {
+      Implementation coverage is unassessed, partial, or established.
     }
   }
 
@@ -195,13 +191,15 @@ expand SigilSkill {
     WorkspaceBootstrap {
       Resolve the selected repository root and any eligible ancestor workspace before interpreting Sigil sources.
 
-      When a valid ConfigFile governs the target, use that configured workspace without initialization.
+      When a valid ConfigFile governs the target, validate that configured workspace without initialization.
 
-      When no ConfigFile governs the target, inventory existing Sigil paths without interpreting workspace semantics, run non-overwriting initialization at the selected repository root, then validate versions and the resulting workspace.
+      When no ConfigFile governs the target, inventory existing Sigil paths and report the repository as unconfigured without mutation.
 
-      When an existing ConfigFile is invalid, preserve it and stop with diagnostics instead of initializing over it.
+      Invoke initialization only when ReviewGate for workspace-initialization returns ready.
 
-      When initialization or compatibility validation fails, preserve existing sources and stop before semantic workflow selection.
+      When an existing ConfigFile is invalid, preserve it and stop with diagnostics.
+
+      Stop before semantic workflow selection when compatibility validation fails.
     }
 
     WorkflowSelection {
@@ -245,7 +243,7 @@ expand SigilSkill {
 
       When the governing rationale is unresolved or conflicts with evidence, enter CorrectionConversation before proposing the decision record.
 
-      Repeat the decision-rationale coverage audit after writing approved Sigil and before the Sigil review gate.
+      Repeat the decision-rationale coverage audit after writing approved Sigil and before ReviewGate for implementation can return ready.
     }
 
     EvidenceReview {
@@ -295,13 +293,13 @@ expand SigilSkill {
 
       Report conflicting definitions, aliases, scope placement, and normative-contract drift.
 
-      Present exact JSON additions, replacements, or removals and wait for human approval before mutation.
+      Present exact JSON additions, replacements, or removals to ReviewGate with glossary-change before mutation.
 
       After approved Sigil is written or semantically edited, run workspace and glossary validation and inspect changed semantic lines for candidate terms.
 
       Block review and implementation when undefined or conflicting terminology could materially alter behavior, ownership, state, APIs, or implementation.
 
-      After glossary approval, write only the accepted proposal, rerun glossary and workspace validation, and return to Sigil review.
+      After ReviewGate for glossary-change returns ready, write only the accepted proposal, rerun glossary and workspace validation, and return to ReviewGate for implementation.
 
       Before implementation, obtain context through sigil context and make its scoped glossary projection available to the coding agent.
     }
@@ -343,29 +341,21 @@ expand SigilSkill {
 
       Return mismatched or stale annotations to reconciliation rather than silently rewriting Sigil.
 
-      For reconciliation, inspect the selected component and expands together with code, tests, and agent-facing workflow Markdown, then present evidence-backed candidate implementation comments for approval.
+      For reconciliation, inspect the selected component and expands together with code, tests, and agent-facing workflow Markdown, then present evidence-backed candidate implementation comments to ReviewGate with implementation.
     }
 
     ImplementationGovernance {
       Inspect governing Sigil before every implementation mutation.
 
-      Treat deterministic CLI validation as structural only and never as semantic approval.
-
-      Propose Sigil changes only when the mutation introduces or exposes a material decision not already covered.
-
       Classify every material implementation concern as established, partial, or missing.
 
-      Require a new Sigil review when a request changes the observable contract of a different component or surface.
+      Use ReviewGate with sigil-change when implementation requires new or changed governing Sigil.
 
-      When coverage is partial, missing, ambiguous, or drifted, prepare an exact Sigil proposal and wait for approval before editing implementation.
+      After writing approved Sigil, run deterministic validation and report the written result without creating another approval gate.
 
-      After approved Sigil is written and validated, stop for explicit review of the resulting Sigil.
+      Before implementation, use ReviewGate with implementation over the validated written Sigil and exact implementation scope.
 
-      Begin implementation only when the written Sigil is approved and the user explicitly requests implementation.
-
-      When implementation reveals a missing material decision, stop editing and return to the Sigil proposal gate.
-
-      When an implementation-first gate bypass is detected, report the drift and restore only exact agent-introduced unapproved changes when the user requests rollback.
+      Stop implementation and return to sigil-change when implementation exposes a missing material decision.
     }
 
     ConceptIdentifierWorkflow {
@@ -386,24 +376,6 @@ expand SigilSkill {
       After approved grouping changes, return to SemanticReadinessReview before glossary candidate extraction.
     }
 
-    ImplementationGovernance {
-      Decision: Treat deterministic Sigil validation as structural validation only, never as semantic approval or implementation permission.
-
-      Scope: Governs implementation gating for any boundary change; excludes final code behavior.
-
-      Trade-offs: This adds another explicit stop, but prevents false confidence from clean CLI output.
-
-      Consequences: Every new or changed observable contract must have an approved exact Sigil proposal before edits begin.
-
-      Revisit when: The workflow adopts a different approval mechanism that can genuinely certify semantic readiness.
-    }
-
-    DelegatedProposalApproval {
-      Validate delegated names for grammar, case-insensitive uniqueness, visibility, collective coherence, and transitive import ambiguity.
-
-      Present the complete validated proposal and exact changes, then await explicit user approval.
-    }
-
     GreenfieldWorkflow {
       Begin with the problem, intended users or callers, outcomes, boundaries, non-responsibilities, and important constraints.
 
@@ -413,11 +385,11 @@ expand SigilSkill {
 
       Run evidence, standards, modularity, implementation-coverage, and concept-identifier review as applicable.
 
-      Synthesize exact Sigil, obtain proposal approval, write and validate it, then stop at SigilReviewGate.
+      Synthesize exact Sigil, obtain ReviewGate readiness for sigil-change, write and validate it, then report the result before implementation review.
     }
 
     BrownfieldWorkflow {
-      Locate ConfigFile and initialize it only when the workspace has none.
+      Use WorkspaceBootstrap and stop boundary inspection while the repository remains unconfigured.
 
       Validate WorkspaceBoundary and inspect the root plus every declared member.
 
@@ -427,29 +399,29 @@ expand SigilSkill {
 
       Propose and review an ordinary summary component in each boundary's ModuleIndexFile.
 
-      After summary approval, narrow to the requested coherent task boundary and reconcile its evidence.
+      After ReviewGate returns ready for the boundary-summary sigil-change and the summary is written and validated, narrow to the requested coherent task boundary and reconcile its evidence.
 
-      Present exact task components, expands, locations, and imports before writing approved Sigil and stopping at SigilReviewGate.
+      Present exact task components, expands, locations, and imports to ReviewGate with sigil-change, then write only when ready and validate the result.
     }
 
-    SigilReviewGate {
-      Present exact semantic changes before editing.
+    ReviewGate {
+      Collect applicable evidence from workspace bootstrap, semantic review, decision-rationale coverage, glossary inspection, implementation coverage, deterministic validation, and delegated analysis.
 
-      Write only the approved proposal and run deterministic validation before semantic-readiness review.
+      Return blocked when a material conflict, unresolved binding decision, or required evidence prevents the action.
 
-      A successful sigil check does not authorize implementation.
+      Return review-required when the action is coherent but the exact action, scope, and change set lack explicit user approval.
 
-      Approval applies only to the exact written proposal for the current session.
+      Return ready only when the user approved the exact action, scope, and change set and no material evidence has changed.
 
-      A feature refinement that changes the observable contract of a different component requires its own approved Sigil before edits.
+      Invalidate ready when the action, scope, change set, or material evidence changes.
 
-      Adjacent core coverage does not authorize LSP presentation changes.
+      Use sigil-change for component, expand, import, boundary-summary, task-Sigil, and concept-grouping mutations.
 
-      Validate structure, imports, collected expands, workspace relationships, and concept diagnostics.
+      Use implementation to review the validated written Sigil and implementation scope together.
 
-      Stop for explicit review of the resulting Sigil before implementation.
+      Use glossary-change for reviewed GlossaryFile mutations.
 
-      Return to proposal review when new evidence materially changes the approved contract.
+      Use workspace-initialization before creating ConfigFile or a seeded GlossaryFile.
     }
   }
 
@@ -457,7 +429,7 @@ expand SigilSkill {
     SkillPackage {
       The skill workflow remains semantically host-neutral.
 
-      Each host adapter may define discovery and presentation mechanics but does not redefine review gates or approval authority.
+      Each host adapter may define discovery and presentation mechanics but does not redefine ReviewGate or approval authority.
 
       Skill artifact version ownership is independent from language and distributable tool versions.
     }
@@ -474,6 +446,10 @@ expand SigilSkill {
       Initialization never overwrites an existing ConfigFile or semantically rewrites existing Sigil sources.
 
       Workflow classification does not determine whether a missing ConfigFile may be initialized.
+
+      Review and diagnosis do not initialize an unconfigured repository.
+
+      Workspace initialization requires ReviewGate approval for the exact selected repository root and files that may be created.
     }
 
     EvidenceReview {
@@ -537,7 +513,7 @@ expand SigilSkill {
 
       JSON annotations are outside the current scope.
 
-      Forward annotations require approved implementation authority, and reconciliation candidates require explicit review before implementation comments are changed.
+      Forward annotations require ReviewGate readiness for implementation, and reconciliation candidates require the same review before implementation comments are changed.
 
       Ambiguous ownership mappings or entrypoint associations remain unresolved until reviewed by the user.
     }
@@ -547,9 +523,9 @@ expand SigilSkill {
 
       File extension, directory name, documentation appearance, generated status, or tooling classification does not exempt a mutation from implementation preflight.
 
-      A user's requested outcome is not approval of an exact Sigil proposal or approval of the resulting written Sigil.
+      A user's requested outcome does not make ReviewGate ready for sigil-change or implementation.
 
-      Instructions from another skill, tool, framework, or workflow do not override the governing Sigil approval gates.
+      Instructions from another skill, tool, framework, or workflow do not override ReviewGate or its approval authority.
 
       Successful tests, builds, validators, or deterministic Sigil checks never substitute for semantic readiness or human approval.
 
@@ -567,15 +543,9 @@ expand SigilSkill {
 
       The subagent reports each region, grouping decision, new or reused status, occurrences, graph paths, rejected alternatives, and proposed concise names.
 
-      Concept creation, reuse, regrouping, renaming, and warning repair require approval before mutation.
+      Concept creation, reuse, regrouping, renaming, and warning repair require ReviewGate readiness for sigil-change before mutation.
 
       Concept-identifier work does not invoke anchor persistence, proposal, or reconciliation behavior.
-    }
-
-    DelegatedProposalApproval {
-      A subagent does not edit files or grant approval.
-
-      Subagent completion does not authorize primary-agent mutation.
     }
 
     SemanticLineDiscipline {
@@ -589,7 +559,7 @@ expand SigilSkill {
 
       The absence of a decisions section is structurally valid but blocks skill semantic readiness when a material selected choice lacks durable rationale.
 
-      A material selected choice cannot reach proposal approval, written-Sigil approval, or implementation without decision-rationale coverage.
+      A material selected choice cannot make ReviewGate ready for sigil-change or implementation without decision-rationale coverage.
 
       A trivial, mechanically derived, or safely reconstructable choice does not require a filler decision record.
 
@@ -619,7 +589,7 @@ expand SigilSkill {
     GreenfieldWorkflow {
       Major product, architecture, persistence, authorization, deployment, and lifecycle decisions are not invented silently.
 
-      Implementation does not begin until the current Sigil is explicitly approved and implementation is requested.
+      Implementation does not begin until ReviewGate for implementation is ready for the validated Sigil and exact implementation scope.
     }
 
     BrownfieldWorkflow {
@@ -640,12 +610,18 @@ expand SigilSkill {
       Semantic Sigil mutation belongs to the approved agent workflow.
     }
 
-    SigilReviewGate {
-      Proposal approval authorizes only the exact presented Sigil mutation.
+    ReviewGate {
+      All explicit mutation approval flows through ReviewGate.
 
-      Resulting Sigil requires a second explicit review before implementation.
+      Validation, semantic readiness, coverage, evidence, delegated analysis, and conflict classification do not independently grant approval.
 
-      Approval is session-scoped and does not survive a material proposal change.
+      Approval for one action or scope does not authorize another.
+
+      Review and diagnosis perform no repository mutation.
+
+      A blocked result cannot be bypassed by successful deterministic validation.
+
+      A ready result remains valid only for its approved action, scope, and change set.
     }
   }
 
@@ -665,7 +641,7 @@ expand SigilSkill {
     }
 
     DecisionRationaleWorkflow {
-      Decision: Require a decision-rationale coverage audit before proposal approval and again after approved Sigil is written.
+      Decision: Require a decision-rationale coverage audit before ReviewGate can return ready for sigil-change and again after approved Sigil is written.
 
       Scope: Governs new or changed material selected choices in semantic Sigil proposals; excludes trivial, mechanically derived, and safely reconstructable choices.
 
@@ -708,18 +684,34 @@ expand SigilSkill {
       Revisit when: Deterministic tooling can identify candidate vocabulary or the host exposes workflow-stage status directly.
     }
 
-    SigilReviewGate {
-      Decision: Require approval of exact semantic changes before mutation and a second review of written Sigil before implementation.
+    ReviewGate {
+      Decision: Use one reusable ReviewGate for every mutation approval while keeping checks, evidence, and blockers outside approval authority.
 
-      Scope: Governs semantic Sigil creation and modification; excludes approved placement-only relocation and import-path maintenance.
+      Scope: Governs Sigil changes, glossary changes, workspace initialization, and implementation; excludes read-only inspection and deterministic validation.
 
-      Trade-offs: Two explicit checkpoints add conversational latency.
+      Trade-offs: Different actions reuse one mechanism but still require separately scoped approval.
 
-      Design issues addressed: Prevents advisory analysis, delegated proposals, or successful validation from becoming implicit human approval.
+      Design issues addressed: Multiple gate names duplicated authority, obscured workflow state, and created unnecessary approval stages.
 
-      Consequences: Materially changed proposals invalidate earlier approval and implementation waits for review of the resulting Sigil.
+      Discarded alternatives: Separate proposal, pre-edit, semantic-review, task-Sigil, boundary-summary, written-Sigil, glossary-review, and implementation gates were rejected as overlapping representations of the same approval responsibility.
 
-      Revisit when: Workflow evidence demonstrates an equally explicit approval model with fewer checkpoints.
+      Consequences: Sigil changes receive one approval, and implementation receives one later approval that reviews the validated written Sigil together with implementation scope.
+
+      Revisit when: A mutation type requires materially different approval authority rather than different evidence.
+    }
+
+    WorkspaceBootstrap {
+      Decision: Keep review and diagnosis bootstrap non-mutating and require ReviewGate approval before workspace initialization.
+
+      Scope: Governs repositories without an eligible ConfigFile; excludes validation of already configured workspaces.
+
+      Trade-offs: An unconfigured repository requires one explicit initialization approval before semantic workspace interpretation.
+
+      Design issues addressed: Automatic initialization contradicted the read-only review contract.
+
+      Consequences: Missing configuration is reported without mutation, and initialization creates files only after scoped approval.
+
+      Revisit when: The host provides an explicitly authorized initialization mode before the Sigil workflow begins.
     }
 
     ImplementationGovernance {
@@ -733,7 +725,7 @@ expand SigilSkill {
 
       Discarded alternatives: Deciding whether an edit changes behavior before preflight preserves the same subjective loophole that caused the gate bypass.
 
-      Consequences: Artifact classification cannot authorize mutation; implementation readiness follows inspected coverage, required Sigil approvals, and explicit implementation authority.
+      Consequences: Artifact classification cannot authorize mutation; implementation readiness follows inspected coverage and ReviewGate readiness for the exact implementation scope.
 
       Revisit when: The host can deterministically map every repository mutation to governing Sigil and enforce the approval states.
     }
@@ -755,9 +747,9 @@ expand SigilSkill {
 
   cases {
     WorkspaceBootstrap {
-      A repository containing Sigil sources but no governing ConfigFile inventories those paths read-only, initializes the selected root, validates the workspace, and only then classifies the semantic workflow.
+      An unconfigured repository is inventoried and reported without creating files during review or diagnosis.
 
-      A repository containing neither Sigil nor ConfigFile initializes and validates before implementation evidence selects Greenfield or Brownfield work.
+      Approved workspace-initialization creates only the reviewed ConfigFile and optional seeded GlossaryFile.
 
       An invalid existing ConfigFile is reported without replacement.
     }
@@ -797,7 +789,7 @@ expand SigilSkill {
 
       When model-assisted inspection finds no material candidate, the host records the changed lines and surrounding evidence inspected before proceeding to Sigil review.
 
-      An approved Sigil edit with no material terminology candidate proceeds to Sigil review after workspace and glossary validation.
+      An approved Sigil edit with no material terminology candidate proceeds to ReviewGate for implementation after workspace and glossary validation.
 
       A correction-required session reports glossary extraction as deferred and names the unresolved semantic blocker.
 
@@ -805,7 +797,7 @@ expand SigilSkill {
 
       An explicit vocabulary-review request extracts candidates from the selected semantically aligned Sigil scope even when no Sigil line changed.
 
-      An approved candidate is written to its selected workspace or bounded-context scope, validated, and returned to Sigil review before further implementation.
+      An approved candidate is written to its selected workspace or bounded-context scope, validated, and returned to ReviewGate for implementation.
 
       A coding handoff includes only glossary terms relevant to the selected component or file and related sources.
     }
@@ -839,13 +831,13 @@ expand SigilSkill {
 
       Configuration, tests, validators, metadata, workflow documentation, and generated artifacts receive the same preflight as source code.
 
-      A high-level request to fix or build something does not approve an exact Sigil proposal or the resulting written Sigil.
+      A high-level request to fix or build something does not make ReviewGate ready for sigil-change or implementation.
 
       A mechanical edit may omit new Sigil only after preflight establishes complete coverage and no material decision.
 
       Passing tests or validation after an implementation-first edit does not legitimize the bypass.
 
-      An agent that detects its own unapproved mutations reports them and performs only the user-requested exact rollback before restarting at the Sigil proposal gate.
+      An agent that detects its own unapproved mutations reports them and performs only the user-requested exact rollback before returning to ReviewGate with sigil-change.
     }
 
     ConceptIdentifierWorkflow {
@@ -856,24 +848,28 @@ expand SigilSkill {
       Two accessible imported identities with the same name are reported for resolution rather than qualified with dotted syntax.
     }
 
-    DelegatedProposalApproval {
-      A completed proposal leaves repository files unchanged until the user approves the primary agent's exact presentation.
-    }
-
     GreenfieldWorkflow {
-      An undecided public behavior discovered during implementation returns to Sigil review.
+      An undecided public behavior discovered during implementation returns to ReviewGate with sigil-change.
     }
 
     BrownfieldWorkflow {
-      A workspace without ConfigFile is initialized before boundary inspection, while an existing ConfigFile is only validated.
+      A workspace without ConfigFile is reported as unconfigured before boundary inspection and initialized only when ReviewGate for workspace-initialization returns ready.
     }
 
     WorkspaceMutationBoundary {
       A read-only validation command reports diagnostics without rewriting Sigil sources.
     }
 
-    SigilReviewGate {
-      A material missing decision invalidates implementation approval and requires a new proposal.
+    ReviewGate {
+      A boundary-summary proposal, task-Sigil proposal, and concept-grouping proposal all use sigil-change rather than separate named gates.
+
+      Written Sigil is validated and reported without a separate written-Sigil approval gate.
+
+      Requested implementation uses implementation to review the validated written Sigil and implementation scope together.
+
+      A delegated proposal remains evidence and cannot produce ready without user approval.
+
+      A material validation or semantic problem produces blocked even when deterministic commands complete successfully.
     }
   }
 }

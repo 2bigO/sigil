@@ -140,15 +140,15 @@ will be added or updated.
 Report unresolved conflicts, unavailable guidance, intentionally deferred
 choices, and any uncertainty that blocks implementation.
 
-### Approval Request
+### ReviewGate Request
 
-Ask the user to approve, reject, or revise the synthesis, boundaries, choices,
-locations, imports, and exact semantic lines. Conversation is not approval;
-approval applies to the synthesized proposal.
+Submit `action: sigil-change`, the exact scope, synthesized semantic change set,
+and evidence. Ask the user to approve, reject, or revise it. Conversation is
+evidence and does not make ReviewGate ready.
 
 ## 5. Apply An Approved Proposal
 
-After explicit approval:
+After `ReviewGate(action: sigil-change)` returns ready:
 
 1. create or update only the approved Sigil files;
 2. run `sigil check` on the workspace;
@@ -157,22 +157,22 @@ After explicit approval:
    review;
 5. repeat the decision-rationale coverage audit against the written semantic
    lines and return to proposal review when coverage is missing;
-6. if concept grouping is still required, propose and apply it only through its
-   approval workflow, then rerun deterministic and semantic review;
+6. if concept grouping is still required, propose and apply it only through
+   ReviewGate with `sigil-change`, then rerun deterministic and semantic review;
 7. perform glossary candidate extraction only after the final semantic review
    appears aligned;
-8. stop at the Sigil review gate and report changed files, captured decisions,
-   open questions, and validation results.
+8. report changed files, captured decisions, open questions, and validation
+   results without creating another approval gate.
 
-Do not write implementation code in the same pass. After the user approves the
-written Sigil and explicitly requests implementation, run the implementation
-coverage procedure if it was not already completed. Implement only after every
-material implementation concern has an approved component, expand, or
-intentional omit decision, and colocate implementation-specific Sigil with its
-owner.
+Do not write implementation code in the same pass. When implementation is
+requested, run the implementation coverage procedure if it was not already
+completed and submit the validated written Sigil and exact implementation scope
+together to `ReviewGate(action: implementation)`. Implement only when it
+returns ready and every material implementation concern has established
+coverage or an intentional omit decision.
 
 If implementation reveals a missing material decision, return to conversation,
-update the Sigil proposal, and repeat the review gate.
+update the Sigil proposal, and use `ReviewGate(action: sigil-change)`.
 
 ## 6. Limits And Examples
 

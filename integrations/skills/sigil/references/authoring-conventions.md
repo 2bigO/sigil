@@ -78,8 +78,8 @@ hidden reasoning. Responsibility, accountability, approver, and handoff metadata
 remain outside the convention.
 
 After writing approved Sigil, repeat the coverage audit against the exact
-written semantic lines. A missing material decision returns to an exact Sigil
-proposal and blocks written-Sigil approval and implementation.
+written semantic lines. A missing material decision returns to
+`ReviewGate(action: sigil-change)` and blocks implementation readiness.
 
 ## Concept Identifiers
 
@@ -91,8 +91,8 @@ identifier generation, or warning repair while semantic readiness is
 `unassessed` or `correction required`.
 
 After semantic readiness appears aligned for the selected scope,
-concept-identifier creation, reuse, regrouping, renaming, and warning repair
-require explicit user approval of the presented proposal before any repository
+concept-identifier creation, reuse, regrouping, renaming, and warning repair use
+`ReviewGate(action: sigil-change)` for the exact proposal before any repository
 mutation.
 
 Before proposing an identifier:
@@ -127,9 +127,10 @@ private visibility, collective coherence, and transitive import ambiguity.
 Subagent completion is not user approval and grants no edit authority to the
 primary agent.
 
-Present the complete exact proposal, enter awaiting approval, and leave files
-unchanged. Prefer PascalCase without hyphens or underscores. Treat an unusually
-long name as a possible grouping or component-boundary problem.
+Present the complete exact proposal to ReviewGate, enter awaiting approval, and
+leave files unchanged until `sigil-change` is ready. Prefer PascalCase without
+hyphens or underscores. Treat an unusually long name as a possible grouping or
+component-boundary problem.
 
 When subagents are unavailable, perform the same discovery, proposal, and
 validation in the primary agent. Keep anchoring outside concept-identifier work.
@@ -170,4 +171,4 @@ move with their owning directories.
 
 Update affected imports after an approved placement-only move, run
 `sigil check`, and use `graph` or `context` when relationships matter. Any
-semantic-line change requires the semantic proposal and review gates.
+semantic-line change requires `ReviewGate(action: sigil-change)`.

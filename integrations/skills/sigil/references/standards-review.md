@@ -44,11 +44,11 @@ modularity score.
 
 ## 2. Semantic-Readiness Review
 
-### Gate And Ordering
+### Review And Ordering
 
 `sigil check` validates deterministic syntax, configuration, resolution,
 workspace relationships, and diagnostics. It does not establish semantic,
-architectural, or design validity.
+architectural, or design validity and never determines a ReviewGate result.
 
 After deterministic validation completes without error diagnostics, inspect the
 exact Sigil prose, including ungrouped interface content, and classify semantic
@@ -74,7 +74,7 @@ Once the pre-grouping review appears aligned, follow
 an approved grouping change, rerun deterministic validation and this
 semantic-readiness review. Glossary candidate extraction begins only after that
 final review appears aligned. When grouping is unnecessary, the post-write
-semantic-readiness review directly gates extraction.
+semantic-readiness review directly controls extraction eligibility.
 
 ### Decision-Rationale Coverage
 
@@ -223,7 +223,8 @@ contracts. Do not assign arbitrary scores or thresholds.
 ## 3. Evidence Consumption And Provenance
 
 Use the shared evidence packet rather than creating a second research policy in
-this procedure. Standards review owns interpretation and gate consequences:
+this procedure. Standards review owns interpretation and ReviewGate
+consequences:
 
 1. verify that the packet is current and applicable to the exact reviewed
    component and environment;
@@ -310,8 +311,8 @@ same-chat correction conversation and report:
 
 Keep semantic readiness at `correction required` until the problem is resolved.
 A confirmed material problem cannot be deferred, provisionally assumed, or
-bypassed for approval or implementation. Resolution authorizes only preparation
-of an exact Sigil proposal; it does not replace either approval gate.
+bypassed for approval or implementation. Resolution is evidence that authorizes
+only preparation of an exact Sigil proposal; it does not make ReviewGate ready.
 
 ### Compatible Guidance
 
@@ -323,10 +324,10 @@ Before editing, present:
 - the source record in the review summary;
 - whether the suggestion is blocking or optional.
 
-Wait for explicit approval. After approval, write the lines as project
-decisions, not claims such as “ISO requires this.” Then run `sigil check`, use
-`context` or `graph` when relationships changed, and stop at the normal Sigil
-review gate.
+Submit the exact lines to `ReviewGate(action: sigil-change)`. When it returns
+ready, write the lines as project decisions, not claims such as “ISO requires
+this.” Then run `sigil check`, use `context` or `graph` when relationships
+changed, and report the validated result without another approval gate.
 
 ### Potential Or Definite Conflict
 
@@ -410,10 +411,11 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 Show exact semantic lines and their target sections without editing first.
 Include required decision blocks and the decision-rationale coverage map.
 
-### Approval Request
+### ReviewGate Request
 
-Ask the user to approve, reject, or revise the proposed lines and to resolve any
-blocking conflict or uncertainty.
+State the exact action, scope, change set, and evidence. Ask the user to approve,
+reject, or revise the proposed lines and to resolve any blocking conflict or
+uncertainty.
 
 ## 8. Examples
 

@@ -69,14 +69,14 @@ Classify the selected target before semantic work:
 | State | Evidence | Action |
 | --- | --- | --- |
 | Configured | A valid eligible ConfigFile governs the target | Validate in place; never run `init` |
-| Unconfigured with Sigil | No ConfigFile governs the target and `.sigil` sources exist | Inventory paths read-only, initialize the selected root, then validate |
-| Unconfigured without Sigil | No ConfigFile governs the target and no `.sigil` sources exist | Initialize the selected root, then validate |
+| Unconfigured with Sigil | No ConfigFile governs the target and `.sigil` sources exist | Inventory paths and report the unconfigured repository without mutation |
+| Unconfigured without Sigil | No ConfigFile governs the target and no `.sigil` sources exist | Report the unconfigured repository without mutation |
 | Invalid config | A ConfigFile exists but is malformed, unsupported, or invalid | Preserve it and stop with diagnostics |
 | Outside selected target | A discovered config or Sigil path belongs to an unrelated or excluded root | Exclude it from the current bootstrap |
 
-Missing config is not itself a compatibility failure. It becomes a blocking
-bootstrap failure only when the target cannot be resolved, compatible tooling is
-unavailable, initialization fails, or the resulting workspace is invalid.
+Missing config is not itself a compatibility failure. It prevents workspace
+semantic interpretation until `ReviewGate(action: workspace-initialization)` is
+ready for the exact repository root and files and initialization succeeds.
 
 Workflow classification never decides whether missing config may be
 initialized. Both repositories with implementation and repositories containing
@@ -99,7 +99,13 @@ diagnostics.
 ### Unconfigured With Existing Sigil
 
 Record the existing `.sigil` paths without parsing them as workspace members or
-contracts. Then run:
+contracts. Report the repository as unconfigured and stop without creating
+files.
+
+When initialization is requested, present the exact repository root,
+ConfigFile, optional seeded GlossaryFile, command, and evidence to
+`ReviewGate(action: workspace-initialization)`. Only when it returns `ready`,
+run:
 
 ```bash
 sigil init <repository-root>
@@ -107,7 +113,7 @@ sigil version <repository-root> --format json --pretty
 sigil check <repository-root> --format json --pretty
 ```
 
-Initialization may create `.sigil/config.json` and a missing seeded
+Approved initialization may create `.sigil/config.json` and a missing seeded
 `.sigil/glossary.json`; it must not overwrite existing
 config or semantically rewrite existing `.sigil` sources. It also preserves an existing glossary
 without merging, replacing, or normalizing it. Diagnostics after initialization
@@ -119,9 +125,11 @@ reconciliation.
 
 ### Unconfigured Without Sigil
 
-Run the same initialization and validation sequence. After validation, select
-Greenfield when no implementation constrains the requested behavior or
-Brownfield when relevant implementation already exists.
+Report the repository as unconfigured without mutation. If initialization is
+requested, use the same scoped ReviewGate and approved initialization sequence.
+After successful validation, select Greenfield when no implementation constrains
+the requested behavior or Brownfield when relevant implementation already
+exists.
 
 Use `sigil init --name`, `--include`, or `--exclude` only when repository facts
 or an explicit user decision require non-default values. Do not guess workspace
@@ -138,7 +146,7 @@ Bootstrap returns:
 - existing unconfigured Sigil paths, when any;
 - check diagnostics and usable partial results;
 - excluded independent or unrelated roots;
-- initialization mutation, when performed.
+- initialization mutation, only when separately approved and performed.
 
 Only after this handoff may the agent interpret components, imports, expands,
 configured members, or module indexes and choose the semantic workflow.
@@ -161,7 +169,7 @@ Stop before semantic workflow selection when:
 
 - compatible CLI discovery fails;
 - repository-root selection remains materially ambiguous;
-- initialization fails;
+- approved initialization fails;
 - an existing config is invalid;
 - resolved CLI, core, or Sigil versions are unsupported;
 - a host/runtime failure prevents reliable workspace loading.
@@ -185,22 +193,25 @@ CLI exit codes:
 ### Existing Sigil, No Config
 
 The repository contains `architecture/api.sigil` and `#module.sigil` but no
-governing `.sigil/config.json`. Inventory both paths, run `sigil init` at the
-resolved repository root, validate versions and the workspace, then use code and
-Sigil evidence to choose reconciliation or established review. Do not reject the
-repository merely because config was initially absent.
+governing `.sigil/config.json`. Inventory both paths and report the repository
+as unconfigured without mutation. If the user requests initialization, obtain
+`ReviewGate(action: workspace-initialization)` readiness for the exact root and
+files, initialize, validate versions and the workspace, then use code and Sigil
+evidence to choose reconciliation or established review.
 
 ### Code, No Sigil
 
-The repository contains implementation but neither config nor Sigil. Initialize
-and validate first, then enter Brownfield adoption. Boundary evidence gathering
-does not precede bootstrap.
+The repository contains implementation but neither config nor Sigil. Report it
+as unconfigured. Initialize and validate only after scoped ReviewGate approval,
+then enter Brownfield adoption. Boundary evidence gathering does not precede
+successful bootstrap.
 
 ### Design-Only Repository
 
 The repository contains design Sigil but no implementation or config.
-Initialize and validate without converting it to Brownfield merely because
-Sigil files predate the config.
+Report it as unconfigured without mutation. After approved initialization,
+validate without converting it to Brownfield merely because Sigil files predate
+the config.
 
 ### Invalid Existing Config
 

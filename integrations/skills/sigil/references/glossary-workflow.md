@@ -52,8 +52,8 @@ When GlossaryFile is invalid, accepted definitions are inactive. Propose an
 exact repair before relying on its entries.
 
 An absent GlossaryFile is valid deterministic state. Continue with candidate
-extraction from the changed semantic lines only after the semantic-readiness
-gate rather than skipping this workflow.
+extraction from the changed semantic lines only after semantic readiness
+appears aligned rather than skipping this workflow.
 
 Completing `sigil glossary` completes only deterministic inspection. The
 command does not extract unknown vocabulary, propose definitions, identify all
@@ -90,7 +90,8 @@ terminology ambiguity in the selected scope, but it begins only after:
    both complete successfully.
 
 When concept grouping is unnecessary, the post-write semantic-readiness review
-directly gates extraction. When semantic readiness is `unassessed` or
+directly controls extraction eligibility. When semantic readiness is
+`unassessed` or
 `correction required`, do not inspect prose for glossary candidates; follow the
 same-chat correction conversation instead.
 
@@ -147,7 +148,7 @@ Always report the extraction result:
   component, expand, glossary, and variant occurrences inspected. A diagnostic
   count is not evidence for this conclusion.
 
-Only then continue to the Sigil review gate.
+Only then prepare the next applicable ReviewGate action.
 
 ## 4. Select Scope
 
@@ -191,19 +192,21 @@ Classify the proposal as:
 - `normative conflict repair`;
 - `removal`.
 
-Ask the user to approve, reject, or revise the exact JSON. Leave repository
-files unchanged while awaiting approval.
+Submit the exact JSON, scope, and evidence to
+`ReviewGate(action: glossary-change)`. Ask the user to approve, reject, or
+revise it. Leave repository files unchanged until ReviewGate returns ready.
 
 ## 6. Apply And Review
 
-After explicit approval:
+After `ReviewGate(action: glossary-change)` returns ready:
 
 1. write only the accepted JSON change;
 2. preserve strict schema version 1 structure;
 3. run `sigil glossary . --format json --pretty`;
 4. run `sigil check . --format json --pretty`;
 5. inspect changed context resolution and occurrences;
-6. return to the Sigil review gate and stop for human review.
+6. report the validated glossary and continue to the next applicable ReviewGate
+   action without creating a separate glossary-review gate.
 
 Do not continue into unrelated Sigil or implementation changes merely because
 the glossary validates.

@@ -45,7 +45,7 @@ Expected skill behavior:
 15. Stop research when applicability, environment match, material claims,
     limitations, freshness, and conflicts are proportionally established.
 16. Keep the evidence packet nonbinding and separate from project decisions,
-    finding classification, approval, and implementation gates.
+    finding classification, and ReviewGate authority.
 17. Reuse evidence only while its question, boundary, environment, jurisdiction,
     risk, source status, and applicability assumptions remain unchanged.
 18. Verify packet currency and applicability again when standards review

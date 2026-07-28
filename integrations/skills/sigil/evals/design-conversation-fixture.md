@@ -64,5 +64,5 @@ Expected skill behavior:
     affected Sigil.
 25. Keep a confirmed material problem blocking and resume ordinary design work
     only after it is resolved.
-26. Treat the resolved correction as input to the normal exact-proposal and
-    approval gates rather than as edit authority.
+26. Treat the resolved correction as evidence for
+    `ReviewGate(action: sigil-change)` rather than as edit authority.

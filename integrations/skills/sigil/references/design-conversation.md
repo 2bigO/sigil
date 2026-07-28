@@ -103,7 +103,7 @@ When research is required, use its evidence packet to:
   and links.
 
 The evidence remains nonbinding. The user retains decision authority, and
-research never becomes an independent approval gate.
+research never determines a ReviewGate result.
 
 When authoritative sources disagree before a project decision exists, record
 the disagreement as an unresolved design constraint rather than a correction
@@ -210,8 +210,8 @@ implementation.
 
 After each answer, update the decision ledger and restate whether the finding is
 resolved. Resume ordinary design work only when every active material correction
-finding is resolved. The resolution still requires the normal exact Sigil
-proposal and approval gates.
+finding is resolved. The resolution remains evidence and still requires
+`ReviewGate(action: sigil-change)` for the exact proposal.
 
 ## 7. Use Checkpoints
 
@@ -247,8 +247,9 @@ contract being proposed. The synthesis must state:
   requires acceptance.
 
 Then prepare exact proposed Sigil using the applicable Greenfield, Brownfield,
-semantic-review, and implementation-coverage procedures. Conversation is not
-approval. Enter the awaiting-approval phase and wait for explicit review.
+semantic-review, and implementation-coverage procedures. Conversation is
+evidence, not approval. Enter the awaiting-approval phase and submit the exact
+scope and change set to `ReviewGate(action: sigil-change)`.
 Before presenting the proposal, pass confirmed material selected choices and
 their governing rationale to the decision-rationale coverage audit. A resolved
 conversation does not justify omitting durable decision records.

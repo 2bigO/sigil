@@ -29,18 +29,21 @@ Expected skill behavior:
    component/expand/omit decision, owning location, and coverage state.
 9. Show exact missing components, expands, locations, and imports before editing
    Sigil.
-10. Allow contract-level and implementation-level Sigil to share a review when
-    both are clear, but require a later review when implementation design depends
-    on an approved higher-level decision.
-11. Write only approved Sigil, validate it, and stop at the semantic review gate.
-12. Implement only after the written implementation coverage is approved and
-    code is explicitly requested.
+10. Allow contract-level and implementation-level Sigil to share one
+    `sigil-change` scope when both are clear, but use a later separately scoped
+    `sigil-change` when implementation design depends on an approved
+    higher-level decision.
+11. Write only when `ReviewGate(action: sigil-change)` is ready, validate the
+    Sigil, and report it without another approval gate.
+12. Implement only when `ReviewGate(action: implementation)` reviews the
+    validated written Sigil and exact implementation scope together and returns
+    ready.
 13. Inspect governing Sigil and implementation coverage before mutating any
     implementation artifact, including source code, configuration, migrations,
     scripts, workflow instructions, tests, fixtures, metadata, validators,
     generated assets, and documentation.
-14. Do not treat the user's requested outcome as approval of an exact Sigil
-    proposal or resulting written Sigil.
+14. Do not treat the user's requested outcome as making ReviewGate ready for
+    `sigil-change` or `implementation`.
 15. Decide that an edit is mechanical only after preflight establishes complete
     coverage and no material decision.
 16. Do not treat successful tests, builds, validators, or Sigil checks after an
@@ -48,8 +51,9 @@ Expected skill behavior:
 17. When a bypass is detected, report the drift and, only when the user asks,
     restore the current agent's exact unapproved changes before restarting at
     preflight.
-18. Derive forward ownership links from the approved implementation coverage map
-    and add them only while implementing after both Sigil review gates.
+18. Derive forward ownership links from the established implementation coverage
+    map and add them only within the exact change set for which
+    `ReviewGate(action: implementation)` is ready.
 19. Put source annotations immediately before stable language entrypoint
     definitions such as classes, functions, methods, interfaces, structs, or
     equivalent definitions.

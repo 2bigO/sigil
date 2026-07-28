@@ -51,10 +51,11 @@ Expected skill behavior:
 18. Explain any context-local replacement of a workspace spelling.
 19. Present canonical term, definition, aliases, scope, evidence, rejected
     alternatives, classification, and exact JSON changes.
-20. Leave GlossaryFile unchanged until the exact proposal is explicitly
-    approved.
-21. After approval, write only the accepted JSON, run `sigil glossary` and
-    `sigil check`, inspect occurrences, and stop for review.
+20. Submit the exact proposal to `ReviewGate(action: glossary-change)` and leave
+    GlossaryFile unchanged until ready.
+21. When ReviewGate returns ready, write only the accepted JSON, run
+    `sigil glossary` and `sigil check`, inspect occurrences, and report the
+    result without another glossary approval gate.
 22. Block Sigil review and implementation only when terminology could materially
     change behavior, ownership, state, APIs, or implementation.
 23. Allow ordinary unambiguous vocabulary to proceed without requiring a
@@ -62,8 +63,8 @@ Expected skill behavior:
 24. When model-assisted extraction finds no material candidate, report the
     changed semantic lines and relevant surrounding occurrences inspected
     instead of citing the diagnostic count.
-25. Return to the Sigil review gate after applying and validating an approved
-    glossary change.
+25. Continue to the next applicable ReviewGate action after applying and
+    validating an approved glossary change.
 26. Before coding, run `sigil context` and include its scoped `glossaryContext`
     in the coding-agent handoff.
 27. Supplement that handoff with an accepted request-matched term when needed,

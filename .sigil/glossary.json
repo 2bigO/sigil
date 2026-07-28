@@ -88,7 +88,7 @@
     },
     {
       "term": "review gate",
-      "definition": "A workflow checkpoint requiring explicit human review and approval of semantic Sigil changes before implementation proceeds.",
+      "definition": "The reusable workflow that determines whether a repository mutation is blocked, requires review, or is ready from the exact action, scope, change set, applicable evidence, and explicit user approval.",
       "aliases": ["review gates"]
     },
     {

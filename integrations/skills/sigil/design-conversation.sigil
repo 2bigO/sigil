@@ -151,7 +151,7 @@ expand SigilDesignConversation {
 
       A confirmed material problem cannot be deferred, treated as a provisional assumption, or bypassed for implementation.
 
-      User resolution of the problem does not replace the existing Sigil proposal and approval gates.
+      User resolution of the problem is evidence and does not make the governing mutation-approval workflow ready.
     }
 
     DecisionLedger {
