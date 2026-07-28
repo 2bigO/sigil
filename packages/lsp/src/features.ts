@@ -1,6 +1,8 @@
 import type {
   ConceptIdentity,
   GlossaryTerm,
+  ImplementationSource,
+  OwnedImplementationTarget,
   ResolvedComponent,
   ResolvedConcept,
   ResolvedSigilWorkspace,
@@ -10,9 +12,11 @@ import type {
   SigilDocument,
   SigilFileSystem,
   SourceRange,
-  OwnedImplementationTarget,
 } from "@qoherent/sigil-core";
-import { ownedImplementationTargetsFor } from "@qoherent/sigil-core";
+import {
+  isSupportedImplementationSource,
+  ownedImplementationTargetsFor,
+} from "@qoherent/sigil-core";
 import { normalizePath, relativePath } from "@qoherent/sigil-core";
 import { pathToFileUri } from "./filesystem.ts";
 import type {
@@ -854,18 +858,20 @@ class HoverMarkdownRenderer {
       : `\`${concept.identifier}\``;
   }
 
+  // @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
   async ownedImplementationLines(
     component: ResolvedComponent,
   ): Promise<string[]> {
     const projection = ownedImplementationTargetsFor(
       this.#resolved,
+      await implementationSources(this.#resolved, this.#fs),
       component.name,
     );
     if (!projection || projection.targets.length === 0) return [];
 
     const lines = ["**Owned implementations**"];
     for (const target of projection.targets) {
-      lines.push(`- ${await this.#ownedImplementationTargetLine(target)}`);
+      lines.push(`- ${this.#ownedImplementationTargetLine(target)}`);
     }
     return lines;
   }
@@ -959,9 +965,9 @@ class HoverMarkdownRenderer {
     return [...byRange.values()];
   }
 
-  async #ownedImplementationTargetLine(
+  #ownedImplementationTargetLine(
     target: OwnedImplementationTarget,
-  ): Promise<string> {
+  ): string {
     const absoluteFilePath = workspaceRelativeToAbsolute(
       this.#resolved.workspace.root,
       target.filePath,
@@ -974,9 +980,26 @@ class HoverMarkdownRenderer {
       ? `${target.symbolIdentity} · ${fileLabel}`
       : fileLabel;
     return `${target.relation} ${
-      markdownLink(label, location(absoluteFilePath))
+      markdownLink(label, location(absoluteFilePath, target.range))
     } (${target.artifactKind})`;
   }
+}
+
+async function implementationSources(
+  resolved: ResolvedSigilWorkspace,
+  fs: SigilFileSystem,
+): Promise<readonly ImplementationSource[]> {
+  const paths = (await fs.listFiles(resolved.workspace.root))
+    .filter(isSupportedImplementationSource);
+  const sources: ImplementationSource[] = [];
+  for (const filePath of paths) {
+    try {
+      sources.push({ filePath, text: await fs.readTextFile(filePath) });
+    } catch {
+      // A file can disappear between listing and hover; omit that stale entry.
+    }
+  }
+  return sources;
 }
 
 function locationMarkdownUri(location: Location): string {

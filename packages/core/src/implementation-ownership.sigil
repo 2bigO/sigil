@@ -1,15 +1,15 @@
 component SigilImplementationOwnership {
   goal {
-    Provide the shared core query that returns the implementation targets owned by a Sigil contract.
+    Provide the shared core query that returns implementation targets linked to a Sigil contract from implementation comments.
 
-    Keep contract-to-implementation ownership deterministic and reusable for CLI and LSP without adding new Sigil syntax.
+    Keep implementation-to-contract ownership discovery deterministic and reusable for CLI and LSP without writing annotations into Sigil source.
   }
 
   interface {
     OwnedImplementationLookup {
-      ownedImplementationTargetsFor(resolvedWorkspace, componentName, conceptName?) returns an owned-implementation projection or undefined
+      ownedImplementationTargetsFor(resolvedWorkspace, implementationSources, componentName, conceptName?) returns an owned-implementation projection or undefined
 
-      The query is contract-centric and uses an optional concept scope when a contract concept owns a narrower set of targets.
+      The query scans implementation comments that link entrypoint definitions or agent-facing Markdown back to the selected Sigil component and optional concept.
     }
 
     OwnedImplementationProjection {
@@ -21,51 +21,89 @@ component SigilImplementationOwnership {
 
       each target preserves the artifact kind, file path, and optional symbol identity when available
     }
+
+    ImplementationAnnotation {
+      identifies a relation, repository-relative Sigil path, component name, and optional concept name
+
+      the containing implementation file and adjacent entrypoint definition identify the owned implementation target
+    }
   }
 }
 
 expand SigilImplementationOwnership {
   logic {
     OwnedImplementationProjection {
-      resolve results from the selected Sigil contract and optional concept scope
+      scan supplied implementation sources for supported ownership comments
 
-      normalize code, tests, and agent-facing instruction or workflow Markdown targets into one shared result shape
+      resolve each annotation target against the selected Sigil workspace
 
-      prefer symbol-level targets when available and fall back to file-level targets when necessary
+      normalize code, tests, and agent-facing workflow Markdown into one shared result shape
+
+      derive symbol-level targets from annotated language entrypoint definitions and use file-level targets for Markdown
     }
   }
 
   constraints {
-    ContractOwnership {
-      The Sigil contract is the owner of the implementation relationship.
+    AnnotationStorage {
+      Ownership annotations exist only in implementation comments and never in Sigil source.
 
-      CLI and LSP consume the shared core query rather than maintaining separate ownership maps.
+      Each annotation points from an implementation artifact to a repository-relative Sigil path, component, and optional concept.
+    }
+
+    AnnotationPlacement {
+      A source annotation is immediately associated with a language entrypoint definition such as a class, function, method, interface, struct, or equivalent stable definition.
+
+      One annotation uses the language's single-line comment form.
+
+      Multiple annotations use the language's multiline comment form.
+
+      Markdown annotations use HTML comments.
+
+      JSON annotations are outside the current scope.
     }
 
     ImplementationTargetScope {
-      v1 includes code and tests.
+      v1 includes source code and tests with supported comment syntax.
 
-      v1 includes Markdown files only when they are agent-facing instructions or workflow documents.
+      v1 includes Markdown only for agent-facing instructions or workflow documents.
 
-      general prose documentation, configs, and non-text artifacts remain out of scope.
+      Sigil sources, JSON, general prose documentation, configs, and non-text artifacts remain out of scope.
     }
 
     TargetResolution {
-      Prefer symbol-level targets when available and fall back to file-level targets when symbol resolution is unavailable.
+      Resolve source annotations to their adjacent entrypoint definition.
+
+      Resolve agent-facing Markdown annotations at file level.
+
+      Ignore ambiguous or detached annotations and return diagnostics rather than inferring ownership.
     }
   }
 
   decisions {
-    ContractOwnership {
-      Decision: Model implementation ownership as a contract-owned core query so one Sigil contract can list the implementation targets it owns.
+    AnnotationStorage {
+      Decision: Store ownership links in implementation comments that point back to governing Sigil components and concepts.
 
-      Scope: Governs shared CLI and LSP ownership lookup for a selected contract and optional concept; excludes new Sigil syntax and persisted anchor storage.
+      Scope: Governs shared CLI and LSP ownership discovery for source code, tests, and agent-facing Markdown; excludes annotations inside Sigil and JSON support.
 
-      Trade-offs: Contract-centric ownership is easier to review from the Sigil side, but implementation-first lookup is deferred.
+      Trade-offs: Implementation-local links are visible where code changes occur, but scanners must understand language comment and entrypoint syntax.
 
-      Consequences: CLI and LSP can share one authoritative ownership view while the language grammar stays unchanged.
+      Design issues addressed: Sigil contracts should remain implementation-independent while code retains a reviewable link to its governing rationale.
 
-      Revisit when: We need implementation-first navigation or persisted ownership storage.
+      Consequences: Ownership discovery scans implementation artifacts, and Sigil files contain no implementation-link annotations.
+
+      Revisit when: A language cannot expose a stable comment or entrypoint association.
+    }
+
+    AnnotationPlacement {
+      Decision: Attach annotations to stable language entrypoint definitions, using single-line comments for one link and multiline comments for multiple links.
+
+      Scope: Governs source annotation placement and comment form; Markdown uses HTML comments and remains file-scoped.
+
+      Trade-offs: Entrypoint placement improves symbol navigation but requires language-aware scanning.
+
+      Consequences: Classes, functions, methods, interfaces, structs, and equivalent definitions become linkable ownership entrypoints.
+
+      Revisit when: Supported languages require declaration metadata instead of comments.
     }
 
     ScopeSelection {
@@ -81,43 +119,47 @@ expand SigilImplementationOwnership {
     }
 
     ImplementationTargetScope {
-      Decision: Limit v1 implementation targets to code, tests, and agent-facing instruction or workflow Markdown.
+      Decision: Limit v1 implementation targets to source code and tests with supported comments plus agent-facing instruction or workflow Markdown.
 
-      Scope: Governs which repository artifacts may appear in owned-implementation results; excludes general prose documentation, configs, and non-text artifacts.
+      Scope: Governs which repository artifacts may appear in owned-implementation results; excludes Sigil sources, JSON, general prose documentation, configs, and non-text artifacts.
 
-      Trade-offs: The scope captures behavior-shaping Markdown that matters to agent workflows, but intentionally leaves ordinary documentation out.
+      Trade-offs: The scope captures behavior-shaping Markdown that matters to agent workflows, but intentionally leaves ordinary documentation and unsupported artifact formats out.
 
-      Consequences: The feature stays focused on implementation-bearing material while still covering instruction docs.
+      Consequences: The feature stays focused on comment-bearing implementation material while still covering instruction docs.
 
       Revisit when: Other artifact classes become meaningful implementation evidence.
     }
 
     TargetResolution {
-      Decision: Prefer symbol-level targets when available and fall back to file-level targets when symbol resolution is unavailable.
+      Decision: Resolve source annotations to adjacent language entrypoint definitions and resolve agent-facing Markdown at file level.
 
-      Scope: Governs how owned implementation targets are normalized inside the query result; excludes cross-file inference and human approval.
+      Scope: Governs how owned implementation targets are normalized inside the query result; excludes detached-annotation inference and human approval.
 
-      Trade-offs: Symbol-level precision improves navigation, but file fallback keeps the feature useful for less structured artifacts.
+      Trade-offs: Language-aware entrypoint resolution improves navigation, while Markdown remains useful through file-level links.
 
-      Consequences: The same query can link source symbols, test symbols, and file-level Markdown targets.
+      Consequences: The same query can link source and test entrypoints plus file-level Markdown targets without guessing ambiguous ownership.
 
-      Revisit when: Symbol resolution becomes too noisy or file-level targets are insufficient.
+      Revisit when: Supported languages need declaration metadata or Markdown requires section-level targets.
     }
   }
 
   cases {
     OwnedImplementationLookup {
-      A contract query for a TypeScript component returns its code and test targets.
+      A TypeScript line comment immediately before one function links that function to a Sigil component or concept.
 
-      A contract query for a contract with an agent-facing Markdown workflow doc returns that Markdown file as an implementation target.
+      A language multiline comment contains multiple ownership annotations for one class, method, interface, struct, or equivalent entrypoint.
 
-      A concept-scoped query returns only the targets owned by that concept.
+      An HTML comment links an agent-facing Markdown workflow file to a Sigil component or concept.
+
+      JSON content is ignored.
     }
 
     TargetResolution {
-      A symbol-level implementation target carries a symbol identity instead of only a file path.
+      A source annotation adjacent to a supported entrypoint produces a symbol-level implementation target.
 
-      A Markdown instruction file without symbols falls back to a file-level target.
+      A Markdown instruction comment produces a file-level implementation target.
+
+      A detached or ambiguous annotation produces a diagnostic instead of an inferred target.
     }
   }
 }

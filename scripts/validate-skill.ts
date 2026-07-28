@@ -704,6 +704,14 @@ const requiredImplementationBehaviors = [
   "determine-mechanical-after-preflight",
   "deny-validation-as-retroactive-approval",
   "allow-exact-requested-rollback",
+  "add-forward-ownership-comments",
+  "attach-comments-to-entrypoints",
+  "use-language-comment-cardinality",
+  "use-markdown-html-comments",
+  "exclude-sigil-and-json-annotations",
+  "scan-for-reconciliation-links",
+  "review-reconciliation-candidates",
+  "verify-ownership-links",
 ];
 if (!Array.isArray(expected.implementationRequiredBehaviors)) {
   throw new Error("Implementation fixture must declare required behaviors.");
@@ -768,6 +776,46 @@ requireText(
   implementationFixture,
   "restore the current agent's exact unapproved changes before restarting at\n    preflight",
   "fixture restorative rollback recovery",
+);
+requireText(
+  implementationDesign,
+  "Ownership annotations are implementation comments, not Sigil semantic lines.",
+  "implementation-side ownership storage",
+);
+requireText(
+  implementationDesign,
+  "class, function, method, interface, struct, or equivalent definition",
+  "language entrypoint ownership placement",
+);
+requireText(
+  implementationDesign,
+  "when the same entrypoint has multiple annotations, use one multiline comment",
+  "ownership comment cardinality",
+);
+requireText(
+  implementationDesign,
+  "use an HTML comment in agent-facing instruction or workflow Markdown",
+  "Markdown ownership comment syntax",
+);
+requireText(
+  implementationDesign,
+  "never add ownership annotations to Sigil or JSON",
+  "ownership annotation exclusions",
+);
+requireText(
+  implementationDesign,
+  "### Reconciliation Linking",
+  "ownership reconciliation workflow",
+);
+requireText(
+  implementationFixture,
+  "Require explicit review of reconciliation candidates",
+  "reconciliation review gate",
+);
+requireText(
+  implementationFixture,
+  "report stale, detached, malformed, or unresolved\n    links",
+  "post-link verification",
 );
 
 const conceptIdentifierFixture = await Deno.readTextFile(

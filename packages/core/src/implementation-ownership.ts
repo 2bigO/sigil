@@ -3,9 +3,9 @@ import { normalizePath } from "./path.ts";
 import type {
   ImplementationArtifactKind,
   ImplementationRelation,
+  ImplementationSource,
   OwnedImplementationProjection,
   OwnedImplementationTarget,
-  ResolvedComponent,
   ResolvedSigilWorkspace,
   SigilDiagnostic,
   SourceRange,
@@ -20,13 +20,58 @@ const IMPLEMENTATION_RELATIONS: ReadonlySet<ImplementationRelation> = new Set([
 ]);
 
 const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdown"];
+const HASH_COMMENT_EXTENSIONS = new Set([".py", ".rb", ".sh", ".bash", ".zsh"]);
+const SLASH_COMMENT_EXTENSIONS = new Set([
+  ".c",
+  ".cc",
+  ".cpp",
+  ".cs",
+  ".cxx",
+  ".dart",
+  ".go",
+  ".h",
+  ".hpp",
+  ".java",
+  ".js",
+  ".jsx",
+  ".kt",
+  ".kts",
+  ".mjs",
+  ".rs",
+  ".scala",
+  ".swift",
+  ".ts",
+  ".tsx",
+]);
 
 interface ParsedAnnotation {
-  readonly target: OwnedImplementationTarget;
+  readonly relation: ImplementationRelation;
+  readonly sigilPath: string;
+  readonly componentName: string;
+  readonly conceptName?: string;
 }
 
+interface CommentBlock {
+  readonly kind: "line" | "multiline" | "markdown";
+  readonly text: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+interface Entrypoint {
+  readonly identity: string;
+  readonly range: SourceRange;
+}
+
+interface EntrypointMatch {
+  readonly name: string;
+  readonly offset: number;
+}
+
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
 export function ownedImplementationTargetsFor(
   resolved: ResolvedSigilWorkspace,
+  implementationSources: readonly ImplementationSource[],
   componentName: string,
   conceptName?: string,
 ): OwnedImplementationProjection | undefined {
@@ -46,23 +91,35 @@ export function ownedImplementationTargetsFor(
   const targets: OwnedImplementationTarget[] = [];
   const seen = new Set<string>();
 
-  for (const line of implementationAnnotationLines(owningComponent, conceptName)) {
-    const annotations = parseImplementationAnnotations(line.text);
-    if (annotations.length === 0 && line.text.includes("@sigil")) {
-      diagnostics.push(diagnostic(
-        "SIGIL_PARSE_STRUCTURE",
-        `Unable to parse implementation annotation: ${line.text}`,
-        { filePath: line.filePath, range: line.range },
-      ));
-      continue;
-    }
-    for (const annotation of annotations) {
-      const key = `${annotation.target.relation}\0${annotation.target.filePath}\0${
-        annotation.target.symbolIdentity ?? ""
+  for (const source of implementationSources) {
+    const normalizedSource = {
+      filePath: normalizePath(source.filePath),
+      text: source.text,
+    };
+    if (!isSupportedImplementationSource(normalizedSource.filePath)) continue;
+    for (
+      const result of implementationAnnotations(
+        resolved,
+        normalizedSource,
+        diagnostics,
+      )
+    ) {
+      if (
+        result.annotation.componentName !== componentName ||
+        (conceptName !== undefined &&
+          result.annotation.conceptName !== conceptName)
+      ) continue;
+      const componentPath = relativeToWorkspace(
+        resolved,
+        owningComponent.filePath,
+      );
+      if (result.annotation.sigilPath !== componentPath) continue;
+      const key = `${result.target.relation}\0${result.target.filePath}\0${
+        result.target.symbolIdentity ?? ""
       }`;
       if (seen.has(key)) continue;
       seen.add(key);
-      targets.push(annotation.target);
+      targets.push(result.target);
     }
   }
 
@@ -80,69 +137,486 @@ export function ownedImplementationTargetsFor(
   };
 }
 
-function implementationAnnotationLines(
-  component: ResolvedComponent,
-  conceptName?: string,
-): readonly {
-  readonly filePath: string;
-  readonly range: SourceRange;
-  readonly text: string;
-}[] {
-  const lines = [
-    ...component.declaration.sections.flatMap((section) => section.lines),
-    ...component.expansions.expands.flatMap((expand) =>
-      expand.declaration.sections.flatMap((section) => section.lines)
-    ),
-  ];
-  return conceptName
-    ? lines.filter((line) => line.conceptIdentifier === conceptName)
-    : lines;
+export function isSupportedImplementationSource(filePath: string): boolean {
+  const normalized = normalizePath(filePath).toLowerCase();
+  if (normalized.endsWith(".sigil") || normalized.endsWith(".json")) {
+    return false;
+  }
+  const extension = fileExtension(normalized);
+  return MARKDOWN_EXTENSIONS.includes(extension) ||
+    HASH_COMMENT_EXTENSIONS.has(extension) ||
+    SLASH_COMMENT_EXTENSIONS.has(extension);
 }
 
-function parseImplementationAnnotations(
-  text: string,
-): readonly ParsedAnnotation[] {
-  if (!text.includes("@sigil")) return [];
-  const annotations: ParsedAnnotation[] = [];
-  for (const segment of text.split("@sigil").slice(1)) {
-    const parsed = parseImplementationAnnotation(segment);
-    if (parsed) annotations.push(parsed);
+function implementationAnnotations(
+  resolved: ResolvedSigilWorkspace,
+  source: ImplementationSource,
+  diagnostics: SigilDiagnostic[],
+): readonly {
+  readonly annotation: ParsedAnnotation;
+  readonly target: OwnedImplementationTarget;
+}[] {
+  const results: {
+    annotation: ParsedAnnotation;
+    target: OwnedImplementationTarget;
+  }[] = [];
+  const markdown = isMarkdown(source.filePath);
+  for (const comment of commentBlocks(source)) {
+    const annotationLines = normalizedCommentLines(comment)
+      .filter((line) => line.includes("@sigil"));
+    if (annotationLines.length === 0) continue;
+    if (
+      !markdown &&
+      ((comment.kind === "line" &&
+        annotationLines.length !== 1 &&
+        !HASH_COMMENT_EXTENSIONS.has(fileExtension(source.filePath))) ||
+        (comment.kind === "multiline" && annotationLines.length < 2))
+    ) {
+      diagnostics.push(annotationDiagnostic(
+        source,
+        comment,
+        "Use one line comment for one ownership annotation and one multiline comment for multiple annotations.",
+      ));
+      continue;
+    }
+
+    const parsed = annotationLines.map(parseImplementationAnnotation);
+    if (parsed.some((annotation) => annotation === undefined)) {
+      diagnostics.push(annotationDiagnostic(
+        source,
+        comment,
+        "Unable to parse implementation ownership annotation.",
+      ));
+      continue;
+    }
+
+    const entrypoint = markdown
+      ? undefined
+      : entrypointAfter(source, comment.end);
+    if (!markdown && !entrypoint) {
+      diagnostics.push(annotationDiagnostic(
+        source,
+        comment,
+        "Implementation ownership annotation is not adjacent to a supported entrypoint definition.",
+      ));
+      continue;
+    }
+
+    for (const annotation of parsed as ParsedAnnotation[]) {
+      const resolvedTarget = resolveAnnotationTarget(resolved, annotation);
+      if (resolvedTarget) {
+        diagnostics.push(annotationDiagnostic(
+          source,
+          comment,
+          resolvedTarget,
+        ));
+        continue;
+      }
+      results.push({
+        annotation,
+        target: {
+          relation: annotation.relation,
+          artifactKind: inferArtifactKind(source.filePath, annotation.relation),
+          filePath: relativeToWorkspace(resolved, source.filePath),
+          symbolIdentity: entrypoint?.identity,
+          range: entrypoint?.range,
+        },
+      });
+    }
   }
-  return annotations;
+  return results;
 }
 
 function parseImplementationAnnotation(
-  segment: string,
+  line: string,
 ): ParsedAnnotation | undefined {
-  const cleaned = segment.trim();
-  if (!cleaned) return undefined;
-  const relationMatch = cleaned.match(
-    /^(follows|implements|tests|validates|related)\s+(.+)$/i,
+  const match = line.trim().match(
+    /^@sigil\s+(follows|implements|tests|validates|related)\s+(\S+)\s*$/i,
   );
-  if (!relationMatch) return undefined;
-
-  const relation = relationMatch[1].toLowerCase() as ImplementationRelation;
+  if (!match) return undefined;
+  const relation = match[1].toLowerCase() as ImplementationRelation;
   if (!IMPLEMENTATION_RELATIONS.has(relation)) return undefined;
-
-  const body = relationMatch[2].trim();
-  const sectionless = body.replace(/\s+\[[^\]]*\]\s*$/, "").trim();
-  if (!sectionless) return undefined;
-
-  const targetParts = sectionless.split("::").map((part) => part.trim());
-  const filePath = normalizePath(targetParts[0] ?? "");
-  if (!filePath || filePath === ".") return undefined;
-  const symbolIdentity = targetParts.length > 1
-    ? targetParts.slice(1).join("::") || undefined
-    : undefined;
-
+  const parts = match[2].split("::");
+  if (parts.length < 2 || parts.length > 3 || parts.some((part) => !part)) {
+    return undefined;
+  }
+  const sigilPath = normalizePath(parts[0]);
+  if (!sigilPath.endsWith(".sigil")) return undefined;
   return {
-    target: {
-      relation,
-      artifactKind: inferArtifactKind(filePath, relation),
-      filePath,
-      symbolIdentity,
-    },
+    relation,
+    sigilPath,
+    componentName: parts[1],
+    conceptName: parts[2],
   };
+}
+
+function resolveAnnotationTarget(
+  resolved: ResolvedSigilWorkspace,
+  annotation: ParsedAnnotation,
+): string | undefined {
+  const component = resolved.components.find((item) =>
+    item.name === annotation.componentName &&
+    relativeToWorkspace(resolved, item.filePath) === annotation.sigilPath
+  );
+  if (!component) {
+    return `Ownership annotation references unknown Sigil component ${annotation.componentName} in ${annotation.sigilPath}.`;
+  }
+  if (
+    annotation.conceptName &&
+    !component.conceptNamespace.concepts.some((concept) =>
+      concept.identifier === annotation.conceptName
+    )
+  ) {
+    return `Ownership annotation references unknown concept ${annotation.conceptName} on ${annotation.componentName}.`;
+  }
+  return undefined;
+}
+
+function commentBlocks(source: ImplementationSource): readonly CommentBlock[] {
+  const extension = fileExtension(source.filePath.toLowerCase());
+  if (MARKDOWN_EXTENSIONS.includes(extension)) {
+    return markdownCommentBlocks(source.text);
+  }
+  if (HASH_COMMENT_EXTENSIONS.has(extension)) {
+    return hashCommentBlocks(source.text);
+  }
+  if (SLASH_COMMENT_EXTENSIONS.has(extension)) {
+    return slashCommentBlocks(source.text);
+  }
+  return [];
+}
+
+function markdownCommentBlocks(source: string): CommentBlock[] {
+  const fencedRanges: { start: number; end: number }[] = [];
+  let fenceStart: number | undefined;
+  let fenceMarker: string | undefined;
+  let offset = 0;
+  for (const line of source.split(/(?<=\n)/)) {
+    const marker = line.trimStart().match(/^(`{3,}|~{3,})/)?.[1];
+    if (marker) {
+      if (fenceStart === undefined) {
+        fenceStart = offset;
+        fenceMarker = marker[0];
+      } else if (marker[0] === fenceMarker) {
+        fencedRanges.push({ start: fenceStart, end: offset + line.length });
+        fenceStart = undefined;
+        fenceMarker = undefined;
+      }
+    }
+    offset += line.length;
+  }
+  if (fenceStart !== undefined) {
+    fencedRanges.push({ start: fenceStart, end: source.length });
+  }
+  return [...source.matchAll(/<!--[\s\S]*?-->/g)]
+    .map((match) => ({
+      kind: "markdown" as const,
+      text: match[0],
+      start: match.index ?? 0,
+      end: (match.index ?? 0) + match[0].length,
+    }))
+    .filter((comment) =>
+      !fencedRanges.some((range) =>
+        comment.start >= range.start && comment.start < range.end
+      )
+    );
+}
+
+function slashCommentBlocks(source: string): CommentBlock[] {
+  const comments: CommentBlock[] = [];
+  let index = 0;
+  let quote: "'" | '"' | "`" | undefined;
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (quote) {
+      if (char === "\\") {
+        index += 2;
+        continue;
+      }
+      if (char === quote) quote = undefined;
+      index++;
+      continue;
+    }
+    if (char === "'" || char === '"' || char === "`") {
+      quote = char;
+      index++;
+      continue;
+    }
+    if (char === "/" && next === "/") {
+      const start = index;
+      index += 2;
+      while (index < source.length && !/[\r\n]/.test(source[index])) index++;
+      comments.push({
+        kind: "line",
+        text: source.slice(start, index),
+        start,
+        end: index,
+      });
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      const start = index;
+      const close = source.indexOf("*/", index + 2);
+      index = close < 0 ? source.length : close + 2;
+      comments.push({
+        kind: "multiline",
+        text: source.slice(start, index),
+        start,
+        end: index,
+      });
+      continue;
+    }
+    index++;
+  }
+  return mergeAdjacentLineComments(source, comments);
+}
+
+function hashCommentBlocks(source: string): CommentBlock[] {
+  const comments: CommentBlock[] = [];
+  let index = 0;
+  let quote: "'" | '"' | undefined;
+  let triple: "'''" | '"""' | undefined;
+  while (index < source.length) {
+    if (triple) {
+      if (source.startsWith(triple, index)) {
+        index += 3;
+        triple = undefined;
+      } else {
+        index++;
+      }
+      continue;
+    }
+    const tripleStart = source.slice(index, index + 3);
+    if (!quote && tripleStart === "'''") {
+      triple = "'''";
+      index += 3;
+      continue;
+    }
+    if (!quote && tripleStart === '"""') {
+      triple = '"""';
+      index += 3;
+      continue;
+    }
+    const char = source[index];
+    if (quote) {
+      if (char === "\\") {
+        index += 2;
+        continue;
+      }
+      if (char === quote) quote = undefined;
+      index++;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      index++;
+      continue;
+    }
+    if (char === "#") {
+      const start = index;
+      while (index < source.length && !/[\r\n]/.test(source[index])) index++;
+      comments.push({
+        kind: "line",
+        text: source.slice(start, index),
+        start,
+        end: index,
+      });
+      continue;
+    }
+    index++;
+  }
+  return mergeAdjacentLineComments(source, comments);
+}
+
+function mergeAdjacentLineComments(
+  source: string,
+  comments: readonly CommentBlock[],
+): CommentBlock[] {
+  const merged: CommentBlock[] = [];
+  for (const comment of comments) {
+    const previous = merged.at(-1);
+    const gap = previous ? source.slice(previous.end, comment.start) : "";
+    if (
+      previous?.kind === "line" &&
+      comment.kind === "line" &&
+      /^\s*$/.test(gap) &&
+      (gap.match(/\n/g)?.length ?? 0) <= 1
+    ) {
+      merged[merged.length - 1] = {
+        kind: "line",
+        text: source.slice(previous.start, comment.end),
+        start: previous.start,
+        end: comment.end,
+      };
+    } else {
+      merged.push(comment);
+    }
+  }
+  return merged;
+}
+
+function normalizedCommentLines(comment: CommentBlock): string[] {
+  return comment.text
+    .replace(/^<!--|-->$/g, "")
+    .replace(/^\/\*|\*\/$/g, "")
+    .split(/\r?\n/)
+    .map((line) =>
+      line.trim()
+        .replace(/^\/\/\s?/, "")
+        .replace(/^\#\s?/, "")
+        .replace(/^\*\s?/, "")
+        .trim()
+    )
+    .filter(Boolean);
+}
+
+function entrypointAfter(
+  source: ImplementationSource,
+  offset: number,
+): Entrypoint | undefined {
+  const rest = source.text.slice(offset);
+  const extension = fileExtension(source.filePath.toLowerCase());
+  const match = entrypointMatch(rest, extension);
+  if (!match) return undefined;
+  const start = offset + match.offset;
+  return {
+    identity: match.name,
+    range: rangeForOffsets(
+      source.text,
+      start,
+      start + match.name.length,
+    ),
+  };
+}
+
+function entrypointMatch(
+  source: string,
+  extension: string,
+): EntrypointMatch | undefined {
+  let patterns: readonly RegExp[];
+  if ([".sh", ".bash", ".zsh"].includes(extension)) {
+    patterns = [
+      /^\s*(?:function\s+)?([A-Za-z_]\w*)\s*(?:\(\s*\))?\s*\{/,
+    ];
+  } else if (HASH_COMMENT_EXTENSIONS.has(extension)) {
+    patterns = [
+      /^\s*(?:@[A-Za-z_][\w.]*(?:\([^\r\n]*\))?\s*)*(?:async\s+)?(?:def|class)\s+([A-Za-z_]\w*)/,
+    ];
+  } else if (extension === ".rs") {
+    patterns = [
+      /^\s*(?:#\[[^\]]+\]\s*)*(?:pub(?:\([^)]*\))?\s+)?(?:async\s+)?(?:fn|struct|trait|enum)\s+([A-Za-z_]\w*)/,
+    ];
+  } else if (extension === ".go") {
+    patterns = [
+      /^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)/,
+      /^\s*type\s+([A-Za-z_]\w*)\s+(?:struct|interface)/,
+    ];
+  } else if (extension === ".swift") {
+    patterns = [
+      /^\s*(?:(?:@\w+(?:\([^)]*\))?|public|private|fileprivate|internal|open|final|static|mutating|nonmutating|override|async)\s+)*(?:func|class|struct|protocol|enum)\s+([A-Za-z_]\w*)/,
+    ];
+  } else if (extension === ".kt" || extension === ".kts") {
+    patterns = [
+      /^\s*(?:(?:@\w+(?:\([^)]*\))?|public|private|protected|internal|open|final|abstract|override|suspend|inline|data|sealed)\s+)*(?:fun|class|interface|object|struct|enum\s+class)\s+([A-Za-z_]\w*)/,
+    ];
+  } else if (extension === ".scala") {
+    patterns = [
+      /^\s*(?:(?:@\w+(?:\([^)]*\))?|private|protected|final|sealed|abstract|override|implicit|lazy)\s+)*(?:def|class|trait|object|enum)\s+([A-Za-z_]\w*)/,
+    ];
+  } else if (
+    [".c", ".cc", ".cpp", ".cs", ".cxx", ".dart", ".h", ".hpp", ".java"]
+      .includes(extension)
+  ) {
+    const modifiers = String
+      .raw`^\s*(?:(?:@\w+(?:\([^)]*\))?|public|private|protected|internal|static|final|sealed|abstract|virtual|override|async|extern|inline|constexpr|unsafe|partial)\s+)*`;
+    patterns = [
+      new RegExp(
+        `${modifiers}(?:class|interface|struct|enum|record)\\s+([A-Za-z_]\\w*)`,
+      ),
+      new RegExp(
+        `${modifiers}(?:[A-Za-z_]\\w*(?:[<>,.?\\[\\]:*&]\\s*|\\s+))+([A-Za-z_]\\w*)\\s*\\(`,
+      ),
+    ];
+  } else {
+    const prefix = String
+      .raw`^\s*(?:(?:@[A-Za-z_$][\w$]*(?:\([^\r\n]*\))?|#\[[^\]]+\])\s*)*(?:(?:export|default|declare|abstract|public|protected|private|static|final|sealed|partial|override|readonly|async|unsafe|extern)\s+)*`;
+    patterns = [
+      new RegExp(
+        `${prefix}(?:class|interface|struct|trait|enum|function)\\s+\\*?\\s*([A-Za-z_$][\\w$]*)`,
+      ),
+      new RegExp(
+        `${prefix}(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*(?:async\\s*)?(?:\\([^)]*\\)|[A-Za-z_$][\\w$]*)\\s*=>`,
+      ),
+      new RegExp(
+        `${prefix}(?:(?:get|set|async)\\s+)*([A-Za-z_$][\\w$]*)\\s*(?:<[^>{}]*>)?\\s*\\(`,
+      ),
+      /^\s*Deno\.test\(\s*["'`]([^"'`]+)["'`]/,
+    ];
+  }
+  for (const pattern of patterns) {
+    const match = source.match(pattern);
+    const name = match?.[1];
+    if (!match || !name) continue;
+    return {
+      name,
+      offset: (match.index ?? 0) + match[0].lastIndexOf(name),
+    };
+  }
+  return undefined;
+}
+
+function annotationDiagnostic(
+  source: ImplementationSource,
+  comment: CommentBlock,
+  message: string,
+): SigilDiagnostic {
+  return diagnostic("SIGIL_PARSE_STRUCTURE", message, {
+    filePath: source.filePath,
+    range: rangeForOffsets(source.text, comment.start, comment.end),
+  });
+}
+
+function rangeForOffsets(
+  source: string,
+  start: number,
+  end: number,
+): SourceRange {
+  return { start: positionAt(source, start), end: positionAt(source, end) };
+}
+
+function positionAt(
+  source: string,
+  offset: number,
+): { readonly line: number; readonly column: number } {
+  const prefix = source.slice(0, Math.max(0, offset));
+  const lines = prefix.split(/\r?\n/);
+  return {
+    line: lines.length,
+    column: (lines.at(-1)?.length ?? 0) + 1,
+  };
+}
+
+function relativeToWorkspace(
+  resolved: ResolvedSigilWorkspace,
+  filePath: string,
+): string {
+  const root = normalizePath(resolved.workspace.root);
+  const normalized = normalizePath(filePath);
+  if (root === ".") return normalized;
+  return normalized.startsWith(`${root}/`)
+    ? normalized.slice(root.length + 1)
+    : normalized;
+}
+
+function isMarkdown(filePath: string): boolean {
+  return MARKDOWN_EXTENSIONS.includes(fileExtension(filePath.toLowerCase()));
+}
+
+function fileExtension(filePath: string): string {
+  const basename = normalizePath(filePath).split("/").at(-1) ?? "";
+  const index = basename.lastIndexOf(".");
+  return index < 0 ? "" : basename.slice(index);
 }
 
 function inferArtifactKind(

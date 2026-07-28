@@ -779,7 +779,8 @@ component Consumer {
   assertEquals(agentDependencyContextFor(resolved, "Missing"), undefined);
 });
 
-Deno.test("projects contract-owned implementation targets from explicit annotations", async () => {
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
+Deno.test("projects implementation targets from entrypoint comments", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
     "ownership.sigil": `component Ownership {
@@ -789,20 +790,11 @@ Deno.test("projects contract-owned implementation targets from explicit annotati
 
   interface {
     OwnedImplementationTargets {
-      @sigil implements packages/core/src/parser.ts::parseSigilDocument
-      @sigil tests packages/core/tests/core_test.ts::implementationTargets
+      Own source and test entrypoints.
     }
 
     OtherTargets {
-      @sigil related packages/cli/README.md
-    }
-  }
-}
-
-expand Ownership {
-  constraints {
-    OwnedImplementationTargets {
-      @sigil validates packages/core/src/config.ts::parseSigilConfig
+      Own an agent-facing workflow.
     }
   }
 }
@@ -811,7 +803,38 @@ expand Ownership {
   const resolved = resolveSigilWorkspace(
     await loadSigilWorkspace(fs, { startPath: "." }),
   );
-  const full = ownedImplementationTargetsFor(resolved, "Ownership");
+  const implementationSources = [
+    {
+      filePath: "packages/core/src/parser.ts",
+      text:
+        "// @sigil implements ownership.sigil::Ownership::OwnedImplementationTargets\nexport function parseSigilDocument() {}\n",
+    },
+    {
+      filePath: "packages/core/tests/core_test.ts",
+      text:
+        "// @sigil tests ownership.sigil::Ownership::OwnedImplementationTargets\nfunction implementationTargets() {}\n",
+    },
+    {
+      filePath: "packages/core/src/config.ts",
+      text:
+        "// @sigil validates ownership.sigil::Ownership::OwnedImplementationTargets\nexport function parseSigilConfig() {}\n",
+    },
+    {
+      filePath: "packages/cli/README.md",
+      text:
+        "<!-- @sigil related ownership.sigil::Ownership::OtherTargets -->\n# CLI\n",
+    },
+    {
+      filePath: "packages/core/tests/ignored.json",
+      text:
+        '{"annotation":"@sigil tests ownership.sigil::Ownership::OwnedImplementationTargets"}\n',
+    },
+  ];
+  const full = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    "Ownership",
+  );
   assert(full);
   assertEquals(full.owningComponent.name, "Ownership");
   assertEquals(full.targets.length, 4);
@@ -826,6 +849,7 @@ expand Ownership {
   );
   const scoped = ownedImplementationTargetsFor(
     resolved,
+    implementationSources,
     "Ownership",
     "OwnedImplementationTargets",
   );
@@ -833,6 +857,7 @@ expand Ownership {
   assertEquals(scoped.targets.length, 3);
   const other = ownedImplementationTargetsFor(
     resolved,
+    implementationSources,
     "Ownership",
     "OtherTargets",
   );
@@ -840,6 +865,183 @@ expand Ownership {
   assertEquals(other.targets.length, 1);
   assertEquals(other.targets[0].artifactKind, "markdown");
   assertEquals(other.targets[0].filePath, "packages/cli/README.md");
+  assertEquals(full.diagnostics.length, 0);
+  assertEquals(full.targets[1].range?.start.line, 2);
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+Deno.test("requires multiline comments for multiple ownership annotations", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [{
+      filePath: "src/entrypoint.ts",
+      text: `/*
+ * @sigil implements ownership.sigil::Ownership::EntryPoint
+ * @sigil validates ownership.sigil::Ownership::EntryPoint
+ */
+export class EntryPoint {}
+`,
+    }],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 2);
+  assertEquals(projection.targets[0].symbolIdentity, "EntryPoint");
+  assertEquals(projection.diagnostics.length, 0);
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+Deno.test("diagnoses detached implementation ownership comments", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [{
+      filePath: "src/detached.ts",
+      text:
+        "// @sigil implements ownership.sigil::Ownership::EntryPoint\nconst value = 1;\n",
+    }],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 0);
+  assertEquals(projection.diagnostics.length, 1);
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+Deno.test("resolves entrypoints using each language's declaration syntax", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own language entrypoints.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint";
+  const sources = [
+    {
+      filePath: "src/worker.py",
+      text: `# @sigil implements ${target}\ndef process_job():\n    pass\n`,
+    },
+    {
+      filePath: "src/worker.rs",
+      text: `// @sigil implements ${target}\npub struct Worker {}\n`,
+    },
+    {
+      filePath: "src/worker.go",
+      text: `// @sigil implements ${target}\nfunc Run() {}\n`,
+    },
+    {
+      filePath: "src/Worker.java",
+      text: `// @sigil implements ${target}\npublic void execute() {}\n`,
+    },
+    {
+      filePath: "src/Worker.swift",
+      text: `// @sigil implements ${target}\npublic func start() {}\n`,
+    },
+    {
+      filePath: "src/Worker.kt",
+      text: `// @sigil implements ${target}\nsuspend fun dispatch() {}\n`,
+    },
+  ];
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    sources,
+    "Ownership",
+    "EntryPoint",
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) => item.symbolIdentity).join(","),
+    "Run,execute,dispatch,process_job,Worker,start",
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+Deno.test("ignores annotation examples inside strings and Markdown fences", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint";
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [
+      {
+        filePath: "src/examples.ts",
+        text:
+          `const example = \`// @sigil implements ${target}\nfunction fake() {}\`;\n`,
+      },
+      {
+        filePath: "workflow.md",
+        text: `\`\`\`md\n<!-- @sigil follows ${target} -->\n\`\`\`\n`,
+      },
+    ],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 0);
+  assertEquals(projection.diagnostics.length, 0);
 });
 
 Deno.test("separates relationship resolution from graph construction", async () => {

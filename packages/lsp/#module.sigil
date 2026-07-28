@@ -41,7 +41,7 @@ component SigilLsp {
 
       supports hover for component contracts and collected expansions
 
-      hover for a component contract presents any owned implementation targets as clickable Markdown links to their originating artifacts
+      hover for a component contract presents implementation targets discovered from source and agent-facing Markdown comments as clickable links to their originating artifacts
 
       supports full-document semantic tokens for resolved component names
 
@@ -111,7 +111,7 @@ expand SigilLsp {
 
       Hover derives inline navigation targets from the shared component and concept reference resolvers and encodes them as file-URI Markdown links to declaration identifier ranges.
 
-      Hover resolves owned implementation targets through the shared core ownership query and renders them as standard Markdown links.
+      Hover supplies supported workspace implementation sources to the shared core ownership query and renders resolved targets as standard Markdown links.
 
       Hover does not cache owned implementation targets.
 
@@ -219,15 +219,15 @@ expand SigilLsp {
     }
 
     NavigationAndInspection {
-      Decision: Surface contract-owned implementation targets in hover as clickable Markdown links.
+      Decision: Surface implementation-comment-linked targets in contract hover as clickable Markdown links.
 
-      Scope: Governs SigilLsp hover for component contracts and the shared core ownership query result; excludes transport changes, persistence, and caching.
+      Scope: Governs SigilLsp hover, supported workspace implementation-source scanning, and the shared core ownership query result; excludes persistence and caching.
 
-      Trade-offs: Reusing the shared core ownership query keeps CLI and LSP aligned, and on-demand resolution avoids a premature cache, but hover pays the lookup cost per request.
+      Trade-offs: Reusing the shared core query keeps CLI and LSP aligned, but on-demand source scanning adds hover lookup cost.
 
-      Consequences: Users can discover a contract's owned implementation targets directly from hover while implementation stays a thin presentation layer over core ownership data.
+      Consequences: Users can navigate from a contract to entrypoints and agent-facing Markdown that explicitly link back to it.
 
-      Revisit when: Hover latency or request volume makes on-demand resolution too expensive.
+      Revisit when: Hover latency or request volume requires indexed ownership annotations.
     }
   }
 

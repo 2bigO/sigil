@@ -135,7 +135,15 @@
     "separate-outcome-request-from-approval",
     "determine-mechanical-after-preflight",
     "deny-validation-as-retroactive-approval",
-    "allow-exact-requested-rollback"
+    "allow-exact-requested-rollback",
+    "add-forward-ownership-comments",
+    "attach-comments-to-entrypoints",
+    "use-language-comment-cardinality",
+    "use-markdown-html-comments",
+    "exclude-sigil-and-json-annotations",
+    "scan-for-reconciliation-links",
+    "review-reconciliation-candidates",
+    "verify-ownership-links"
   ],
   "conceptIdentifierFixture": "concept-identifier-fixture.md",
   "conceptIdentifierRequiredBehaviors": [

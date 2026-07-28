@@ -13,6 +13,7 @@ import {
   glossaryContextForFiles,
   type GlossaryContextProjection,
   type GlossaryProjection,
+  type ImplementationSource,
   loadSigilWorkspace,
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
@@ -185,13 +186,16 @@ export class CoreAdapter {
   ): readonly ComponentContractView[] {
     return componentContracts(resolved);
   }
+  // @sigil follows packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
   ownedImplementationTargetsFor(
     resolved: ResolvedSigilWorkspace,
+    implementationSources: readonly ImplementationSource[],
     componentName: string,
     conceptName?: string,
   ): OwnedImplementationProjection | undefined {
     return coreOwnedImplementationTargetsFor(
       resolved,
+      implementationSources,
       componentName,
       conceptName,
     );

@@ -1,5 +1,6 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig, SigilModuleIndex }
 @packages/cli import { SigilCli }
+@packages/core import { SigilImplementationOwnership }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
 @integrations/skills/sigil/external-guidance-evidence.sigil import { ExternalGuidanceEvidence }
 
@@ -63,6 +64,12 @@ component SigilSkill {
       classifies each material concern as an independent component, an expand owned by an existing component, or an omitted trivial mechanic
 
       reports coverage before implementation begins
+    }
+
+    ImplementationOwnershipWorkflow {
+      records explicit implementation comments that link language entrypoint definitions or agent-facing Markdown to a governing component or concept using SigilImplementationOwnership
+
+      supports forward linking during approved code generation and reconciliation linking from inspected Sigil and existing implementation
     }
 
     ImplementationGovernance {
@@ -307,6 +314,22 @@ expand SigilSkill {
       Present a coverage map containing each material concern, owner, dependents, selected Sigil form, and owning location.
     }
 
+    ImplementationOwnershipWorkflow {
+      During approved implementation, derive governing component and concept identities from the implementation coverage map and add ownership comments beside the implementation entrypoints being written.
+
+      Use the implementation language's entrypoint syntax to associate annotations with classes, functions, methods, interfaces, structs, or equivalent stable definitions.
+
+      Use one single-line comment for one source annotation and one multiline comment for multiple source annotations.
+
+      Use HTML comments for annotations in agent-facing Markdown.
+
+      After implementation, verify each comment's Sigil path, component, optional concept, and entrypoint association.
+
+      Return mismatched or stale annotations to reconciliation rather than silently rewriting Sigil.
+
+      For reconciliation, inspect the selected component and expands together with code, tests, and agent-facing workflow Markdown, then present evidence-backed candidate implementation comments for approval.
+    }
+
     ImplementationGovernance {
       Inspect governing Sigil before every implementation mutation.
 
@@ -483,6 +506,24 @@ expand SigilSkill {
       Component selection follows cohesive responsibility and a relied-upon contract rather than external visibility.
 
       Trivial local mechanics with safely reconstructable behavior and rationale need no separate Sigil.
+    }
+
+    ImplementationOwnershipWorkflow {
+      Ownership annotations use only the relations and target forms supported by SigilImplementationOwnership.
+
+      Each annotation points to a normalized repository-relative Sigil path, component, and optional concept.
+
+      Ownership annotations never appear in Sigil source.
+
+      Source annotations are adjacent to stable language entrypoint definitions.
+
+      Markdown annotations use HTML comments and remain file-scoped.
+
+      JSON annotations are outside the current scope.
+
+      Forward annotations require approved implementation authority, and reconciliation candidates require explicit review before implementation comments are changed.
+
+      Ambiguous ownership mappings or entrypoint associations remain unresolved until reviewed by the user.
     }
 
     ImplementationGovernance {
@@ -664,6 +705,20 @@ expand SigilSkill {
 
       Revisit when: The host can deterministically map every repository mutation to governing Sigil and enforce the approval states.
     }
+
+    ImplementationOwnershipWorkflow {
+      Decision: Support forward and reconciliation ownership links through implementation comments that point to governing Sigil components and concepts.
+
+      Scope: Governs skill-authored ownership comments in source code, tests, and agent-facing workflow Markdown; excludes annotations inside Sigil, JSON, ordinary documentation, non-text artifacts, and unreviewed reconciliation mutation.
+
+      Trade-offs: Implementation-local comments keep links visible beside changing entrypoints, but agents must follow language-specific comment and definition syntax.
+
+      Design issues addressed: Ownership links otherwise depend on manual follow-up, can become detached from their symbols, or can couple Sigil contracts to implementation locations.
+
+      Consequences: Generated entrypoints carry links to governing Sigil, existing repositories gain a controlled reconciliation path, and Sigil source remains free of implementation annotations.
+
+      Revisit when: A supported language cannot provide stable comment-to-entrypoint association or another artifact format needs annotation support.
+    }
   }
 
   cases {
@@ -727,6 +782,18 @@ expand SigilSkill {
 
     ImplementationCoverage {
       A stable Promise-like caller API can be a component, a material retry algorithm can be an expand, and a trivial formatter can be omitted.
+    }
+
+    ImplementationOwnershipWorkflow {
+      A new TypeScript function with one ownership link receives one adjacent line comment during approved implementation.
+
+      One entrypoint with multiple ownership links receives one multiline comment containing each annotation.
+
+      An agent-facing Markdown workflow uses an HTML comment and resolves as a file-level target.
+
+      A brownfield reconciliation scans relevant Sigil, code, tests, and workflow instructions and proposes only implementation comments supported by inspected evidence.
+
+      JSON remains unchanged during ownership annotation.
     }
 
     ImplementationGovernance {

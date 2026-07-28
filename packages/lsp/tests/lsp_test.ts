@@ -239,6 +239,7 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   assert(decoded.some((item) => item.tokenType === 1));
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
 Deno.test("component hover includes clickable owned implementation links", async () => {
   const source = `component Thing {
   goal {
@@ -246,9 +247,9 @@ Deno.test("component hover includes clickable owned implementation links", async
   }
 
   interface {
-    @sigil implements packages/core/src/config.ts::parseSigilConfig [interface]
-    @sigil tests packages/core/tests/core_test.ts::implementationTargets [cases]
-    @sigil related packages/cli/README.md [constraints]
+    OwnedTargets {
+      Own code, tests, and workflow instructions.
+    }
   }
 }
 `;
@@ -262,6 +263,12 @@ Deno.test("component hover includes clickable owned implementation links", async
         tools: {},
       }),
       [contractPath]: source,
+      [`${root}/packages/core/src/config.ts`]:
+        "// @sigil implements contract.sigil::Thing::OwnedTargets\nexport function parseSigilConfig() {}\n",
+      [`${root}/packages/core/tests/core_test.ts`]:
+        "// @sigil tests contract.sigil::Thing::OwnedTargets\nfunction implementationTargets() {}\n",
+      [`${root}/packages/cli/README.md`]:
+        "<!-- @sigil related contract.sigil::Thing::OwnedTargets -->\n# CLI\n",
     }),
   });
   await initialize(server);
@@ -278,12 +285,12 @@ Deno.test("component hover includes clickable owned implementation links", async
   assert(markdown.includes("**Owned implementations**"));
   assert(
     markdown.includes(
-      "implements [parseSigilConfig · packages/core/src/config.ts](file:///workspace/packages/core/src/config.ts#L1,1) (code)",
+      "implements [parseSigilConfig · packages/core/src/config.ts](file:///workspace/packages/core/src/config.ts#L2,17) (code)",
     ),
   );
   assert(
     markdown.includes(
-      "tests [implementationTargets · packages/core/tests/core_test.ts](file:///workspace/packages/core/tests/core_test.ts#L1,1) (test)",
+      "tests [implementationTargets · packages/core/tests/core_test.ts](file:///workspace/packages/core/tests/core_test.ts#L2,10) (test)",
     ),
   );
   assert(

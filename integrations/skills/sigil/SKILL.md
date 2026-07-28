@@ -3,6 +3,8 @@ name: sigil
 description: Work with Sigil, a lightweight rationale-oriented modeling language for software systems, and its CLI for AI-assisted development. Use when a coding-agent host needs to read, write, improve, reconcile, validate, query, render, or use `.sigil` files; introduce Sigil into an existing or partially documented brownfield codebase; assess semantic readiness, applicable standards, best practices, pitfalls, coherence, or modularity; create or update component/expand specs; describe product modules, programming abstractions, APIs, state machines, or architecture decisions; align code with Sigil; resolve ambiguity before code generation; or build from a Sigil-driven workflow. Prefer `sigil-cli` for mechanical parsing, checks, graph, context, and render operations. Inspect governing Sigil before every implementation mutation. Stop for human review after creating or semantically changing Sigil, and do not implement until the user explicitly approves the agreed Sigil.
 ---
 
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow -->
+
 # Sigil
 
 Sigil records what a software component is, why it exists, how it behaves, and
@@ -68,8 +70,8 @@ Also load these cross-cutting references when applicable:
   language, and modularity review.
 - `references/implementation-design.md`: before writing or changing
   implementation or deciding whether coverage reaches the implementation
-  boundary. It owns component/expand/omit selection and the implementation
-  coverage map.
+  boundary. It owns component/expand/omit selection, the implementation coverage
+  map, forward ownership comments, and reconciliation linking.
 - `references/authoring-conventions.md`: whenever proposing, creating, or
   semantically editing Sigil. It owns section placement, decision rationale,
   post-readiness concept grouping, semantic-line discipline, and colocation.
@@ -179,6 +181,17 @@ references remain applicable across all three semantic workflows.
      or an intentional omission.
    - Require explicit user approval of the written Sigil and an explicit request
      for implementation.
+   - Derive each implementation entrypoint's governing Sigil path, component,
+     and optional concept from the approved coverage map.
+   - Add one ownership annotation with the language's single-line comment form,
+     or use its multiline comment form when one entrypoint has multiple
+     annotations.
+   - Put source annotations immediately beside stable language entrypoint
+     definitions such as classes, functions, methods, interfaces, structs, or
+     equivalent definitions.
+   - Use HTML comments for agent-facing Markdown, never add ownership
+     annotations to Sigil, and leave JSON unchanged.
+   - Verify annotation targets and entrypoint associations after implementation.
    - If implementation exposes a missing material decision, return to a Sigil
      proposal and review.
 

@@ -48,3 +48,19 @@ Expected skill behavior:
 17. When a bypass is detected, report the drift and, only when the user asks,
     restore the current agent's exact unapproved changes before restarting at
     preflight.
+18. Derive forward ownership links from the approved implementation coverage map
+    and add them only while implementing after both Sigil review gates.
+19. Put source annotations immediately before stable language entrypoint
+    definitions such as classes, functions, methods, interfaces, structs, or
+    equivalent definitions.
+20. Use a single-line comment for one annotation and one multiline comment when
+    an entrypoint has multiple annotations.
+21. Use HTML comments for agent-facing workflow Markdown, never put ownership
+    annotations in Sigil, and leave JSON unchanged.
+22. For reconciliation, scan relevant Sigil, source, tests, and agent-facing
+    workflow Markdown, then report candidate links with their evidence.
+23. Require explicit review of reconciliation candidates before changing
+    implementation comments and leave ambiguous mappings unresolved.
+24. After forward implementation or reconciliation, verify Sigil targets and
+    entrypoint associations and report stale, detached, malformed, or unresolved
+    links.

@@ -1,5 +1,7 @@
 # Implementation Coverage And Component Selection
 
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow -->
+
 Use this procedure before every implementation mutation. It prevents artifact
 classification, an outcome request, or successful validation from bypassing
 governing Sigil and the implementation coverage needed to produce coherent
@@ -12,8 +14,9 @@ changes.
 3. Select component, expand, or omit
 4. Review UI component coverage
 5. Build the implementation coverage map
-6. Propose and approve missing Sigil
-7. Limits and examples
+6. Link implementation ownership
+7. Propose and approve missing Sigil
+8. Limits and examples
 
 ## 1. Run Implementation Preflight
 
@@ -132,8 +135,8 @@ every visual element as a component.
 
 Before implementation, report a compact map with these columns:
 
-| Concern | Owner | Dependents | Sigil decision | Owning location | Coverage |
-| --- | --- | --- | --- | --- | --- |
+| Concern | Owner | Dependents | Sigil decision | Owning location | Ownership target | Coverage |
+| --- | --- | --- | --- | --- | --- | --- |
 
 Use `component`, `expand`, or `omit` for the Sigil decision and `established`,
 `partial`, or `missing` for coverage. Explain every `omit` that could otherwise
@@ -147,7 +150,93 @@ captured by the selected components and expands. A material choice without a
 matching decision record or justified omission keeps implementation coverage
 partial and blocks coding.
 
-## 6. Propose And Approve Missing Sigil
+## 6. Link Implementation Ownership
+
+Ownership annotations are implementation comments, not Sigil semantic lines.
+Never write them into a `.sigil` file. Add or reconcile them only with approved
+implementation authority after the governing written Sigil has passed both
+review gates.
+
+Each annotation has this payload:
+
+```text
+@sigil <relation> <repository-relative-sigil-path>::<Component>[::<Concept>]
+```
+
+Use only `follows`, `implements`, `tests`, `validates`, or `related`. Select the
+strongest relation supported by inspected evidence; do not use `related` merely
+to avoid deciding whether code implements, tests, validates, or follows a
+contract.
+
+### Forward Linking
+
+When writing implementation:
+
+1. derive the repository-relative Sigil path, component, and optional concept
+   from the approved implementation coverage map;
+2. select the stable language entrypoint that owns the behavior, such as a
+   class, function, method, interface, struct, or equivalent definition;
+3. place one annotation immediately before that entrypoint using the language's
+   single-line comment syntax;
+4. when the same entrypoint has multiple annotations, use one multiline comment
+   in the language's normal syntax rather than several single-line comments;
+5. use an HTML comment in agent-facing instruction or workflow Markdown, which
+   remains a file-level target;
+6. never add ownership annotations to Sigil or JSON;
+7. after implementation, verify that every Sigil path, component, optional
+   concept, relation, and entrypoint association still resolves.
+
+TypeScript examples:
+
+```ts
+// @sigil implements contracts/booking.sigil::Booking::CreateBooking
+export function createBooking() {}
+```
+
+```ts
+/*
+ * @sigil implements contracts/booking.sigil::Booking::CreateBooking
+ * @sigil validates contracts/booking.sigil::Booking::BookingValidation
+ */
+export class BookingService {}
+```
+
+Markdown examples:
+
+```markdown
+<!-- @sigil follows contracts/agents.sigil::AgentWorkflow -->
+```
+
+```markdown
+<!--
+@sigil follows contracts/agents.sigil::AgentWorkflow
+@sigil validates contracts/agents.sigil::AgentWorkflow::SafetyChecks
+-->
+```
+
+### Reconciliation Linking
+
+When relevant implementation already exists:
+
+1. inspect the selected component and matching expands together with nearby
+   source, tests, and agent-facing workflow Markdown;
+2. inventory existing ownership comments and stable unlinked entrypoints;
+3. compare contract concepts, entrypoint behavior, callers, imports, tests, and
+   file purpose without treating name similarity alone as ownership evidence;
+4. report candidate links with implementation entrypoint, Sigil target,
+   relation, evidence, and status;
+5. present the exact proposed comments and obtain explicit review before
+   changing implementation artifacts;
+6. leave ambiguous ownership or entrypoint association unresolved instead of
+   guessing;
+7. apply only reviewed comments using the target language's syntax, then rescan
+   and report stale, detached, malformed, or unresolved links.
+
+Reconciliation does not semantically edit Sigil and never creates annotations
+inside Sigil. If scanning exposes missing or conflicting contract intent, return
+to the normal Sigil proposal and review gates before linking implementation.
+
+## 7. Propose And Approve Missing Sigil
 
 When contract and implementation design are both clear, include both layers in
 one exact Sigil proposal and one review cycle. When implementation design
@@ -167,7 +256,11 @@ Write only approved Sigil, validate it, and stop at the Sigil review gate.
 Implementation begins only after the written implementation coverage is
 approved and the user explicitly requests code.
 
-## 7. Limits And Examples
+Ownership comments are not part of the Sigil proposal. Plan their targets in the
+implementation coverage map, then add them to implementation artifacts only
+after implementation is approved.
+
+## 8. Limits And Examples
 
 ### Programming Abstraction
 

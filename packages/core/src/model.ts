@@ -221,11 +221,18 @@ export type ImplementationRelation =
 
 export type ImplementationArtifactKind = "code" | "test" | "markdown";
 
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
+export interface ImplementationSource {
+  readonly filePath: string;
+  readonly text: string;
+}
+
 export interface OwnedImplementationTarget {
   readonly relation: ImplementationRelation;
   readonly artifactKind: ImplementationArtifactKind;
   readonly filePath: string;
   readonly symbolIdentity?: string;
+  readonly range?: SourceRange;
 }
 
 export interface OwnedImplementationProjection {

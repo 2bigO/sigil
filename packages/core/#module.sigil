@@ -41,7 +41,7 @@ component SigilCore {
 
       agentDependencyContextFor(resolvedWorkspace, componentName) returns bounded agent context containing direct dependency contracts and rationale
 
-      ownedImplementationTargetsFor(resolvedWorkspace, componentName, conceptName?) returns implementation targets owned by that Sigil contract (SigilImplementationOwnership)
+      ownedImplementationTargetsFor(resolvedWorkspace, implementationSources, componentName, conceptName?) returns implementation targets linked to that Sigil contract from implementation comments (SigilImplementationOwnership)
     }
 
     GlossaryInspection {
