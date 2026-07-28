@@ -287,13 +287,13 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   );
   assert(
     markdown.includes(
-      "**interface** — [Thing](file:///workspace/contract.sigil#L1,11) in `/workspace/contract.sigil`",
+      "**interface** — [Thing](file:///workspace/contract.sigil#L1,11) in `contract.sigil`",
     ),
   );
   assert(markdown.includes("run()"));
   assert(
     markdown.includes(
-      "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `/workspace/consumer.sigil`",
+      "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `consumer.sigil`",
     ),
   );
   assert(
@@ -682,11 +682,40 @@ Deno.test("directory-index definitions navigate to the original declaration", as
       },
     )),
   ) as Record<string, unknown>;
+  const indexedHoverValue = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
   assert(
-    String((hover.contents as Record<string, unknown>).value).includes(
+    indexedHoverValue.includes(
       "component [Thing](file:///workspace/module/contract.sigil#L1,11)",
     ),
   );
+  assert(indexedHoverValue.includes("Source: `module/contract.sigil`"));
+  assert(!indexedHoverValue.includes("Source: `/workspace"));
+});
+
+Deno.test("renders component and collected-expansion source paths relative to the workspace root", async () => {
+  const server = makeServer();
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(
+      2,
+      "textDocument/hover",
+      {
+        textDocument: { uri: contractUri },
+        position: { line: 0, character: 12 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const value = String((hover.contents as Record<string, unknown>).value);
+
+  assert(value.includes("Source: `contract.sigil`"));
+  assert(value.includes("**Collected expansions**"));
+  // The collected-expansion path is displayed relative, not as `/workspace/...`.
+  assert(value.includes("\n`contract.sigil`"));
+  assert(!value.includes("Source: `/workspace"));
+  assert(!value.includes("`/workspace/contract.sigil`"));
 });
 
 Deno.test("returns protocol errors for bad requests and observes cancellation", async () => {

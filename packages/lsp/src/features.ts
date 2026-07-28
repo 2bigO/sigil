@@ -703,7 +703,7 @@ async function componentMarkdown(
   const lines = [
     `### component ${componentLink}`,
     "",
-    `Source: \`${component.filePath}\``,
+    `Source: \`${markdown.displayPath(component.filePath)}\``,
     "",
     "**Goal**",
     ...markdownList(await markdown.semanticLines(goal?.lines ?? [])),
@@ -714,7 +714,7 @@ async function componentMarkdown(
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
-      lines.push("", `\`${expansion.filePath}\``);
+      lines.push("", `\`${markdown.displayPath(expansion.filePath)}\``);
       for (const section of expansion.declaration.sections) {
         const semanticLines = await markdown.semanticLines(section.lines);
         lines.push(
@@ -772,7 +772,7 @@ async function conceptMarkdown(
   const lines = [
     `### concept ${conceptLink}`,
     "",
-    `Origin: ${originLink} in \`${identity.filePath}\``,
+    `Origin: ${originLink} in \`${markdown.displayPath(identity.filePath)}\``,
   ];
   for (const occurrence of reference.concept.occurrences) {
     const semanticLines = await markdown.semanticLines(occurrence.block.lines);
@@ -785,7 +785,9 @@ async function conceptMarkdown(
       : `\`${occurrence.componentName}\``;
     lines.push(
       "",
-      `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${occurrence.filePath}\``,
+      `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${
+        markdown.displayPath(occurrence.filePath)
+      }\``,
       ...markdownList(semanticLines),
     );
   }
@@ -809,6 +811,10 @@ class HoverMarkdownRenderer {
   constructor(resolved: ResolvedSigilWorkspace, fs: SigilFileSystem) {
     this.#resolved = resolved;
     this.#fs = fs;
+  }
+
+  displayPath(filePath: string): string {
+    return relativePath(this.#resolved.workspace.root, filePath);
   }
 
   component(
