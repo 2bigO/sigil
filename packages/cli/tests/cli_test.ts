@@ -354,6 +354,47 @@ Deno.test("context exposes concept blocks and resolved namespaces", async () => 
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::OwnershipContext
+Deno.test("context includes owned implementation targets and diagnostics", async () => {
+  const root = await makeWorkspace("ownership-context");
+  try {
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      validSigil("Feature"),
+    );
+    await Deno.writeTextFile(
+      `${root}/implementation.ts`,
+      `// @sigil implements contract.sigil::Feature
+export function runFeature() {}
+
+// @sigil tests contract.sigil::Feature
+const detached = 1;
+`,
+    );
+
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const output = parseJson(result.stdout);
+    const projection = output.ownedImplementationProjections[0];
+    assertEquals(projection.owningComponent.name, "Feature");
+    assertEquals(projection.targets.length, 1);
+    assertEquals(projection.targets[0].relation, "implements");
+    assertEquals(projection.targets[0].filePath, "implementation.ts");
+    assertEquals(projection.targets[0].symbolIdentity, "runFeature");
+    assertHasCode(projection.diagnostics, "SIGIL_PARSE_STRUCTURE");
+    assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("context includes direct dependency contracts and decision rationale", async () => {
   const root = await makeWorkspace("agent-dependency-context");

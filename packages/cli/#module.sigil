@@ -52,6 +52,12 @@ component SigilCli {
       context automatically reports public contracts and durable decisions from direct dependencies
     }
 
+    OwnershipContext {
+      context reports one owned-implementation projection for each selected component
+
+      Each projection contains normalized owned implementation targets and ownership diagnostics from supported workspace implementation sources.
+    }
+
     GlossaryInspection {
       sigil glossary [path]
 
@@ -128,6 +134,10 @@ expand SigilCli {
       A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
     }
 
+    OwnershipContext {
+      context loads supported implementation sources once and delegates ownership lookup for each selected component to SigilCore.
+    }
+
     GlossaryInspection {
       glossary delegates loading, context resolution, occurrence matching, and diagnostics to SigilCore.
     }
@@ -150,6 +160,12 @@ expand SigilCli {
       context JSON labels dependency decisions as agent rationale outside the dependent-facing contract.
 
       glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
+    }
+
+    OwnershipContext {
+      context JSON includes ownedImplementationProjections.
+
+      Ownership diagnostics are also included in the command diagnostics.
     }
 
     WorkspaceMutationBoundary {
@@ -237,6 +253,16 @@ expand SigilCli {
 
       Revisit when: The decision-record convention adds, removes, or renames a field.
     }
+
+    OwnershipContext {
+      Decision: Expose one core-owned implementation projection per selected component and aggregate its diagnostics into context command diagnostics.
+
+      Scope: Governs component and file selections for context; excludes concept-scoped CLI selection and LSP presentation.
+
+      Trade-offs: Context performs a workspace implementation-source scan, but preserves the shared core ownership result instead of defining a CLI-specific shape.
+
+      Consequences: Automation callers receive owned implementation targets, malformed-annotation diagnostics affect command status, and files containing multiple components retain separate projections.
+    }
   }
 
   cases {
@@ -294,6 +320,12 @@ expand SigilCli {
       context for a component reports each direct dependency's public contract and decision sections once.
 
       context excludes transitive dependency decisions and non-decision private dependency sections.
+    }
+
+    OwnershipContext {
+      context for a component with valid ownership annotations reports its implementation targets.
+
+      context reports malformed or detached ownership annotations through both the component projection and command diagnostics.
     }
 
     GlossaryInspection {

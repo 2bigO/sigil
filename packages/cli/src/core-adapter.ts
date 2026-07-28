@@ -14,6 +14,7 @@ import {
   type GlossaryContextProjection,
   type GlossaryProjection,
   type ImplementationSource,
+  isSupportedImplementationSource,
   loadSigilWorkspace,
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
@@ -205,6 +206,21 @@ export class CoreAdapter {
       componentName,
       conceptName,
     );
+  }
+  // @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext
+  async implementationSourcesFor(
+    resolved: ResolvedSigilWorkspace,
+  ): Promise<readonly ImplementationSource[]> {
+    const paths = (await this.#fs.listFiles(resolved.workspace.root))
+      .filter(isSupportedImplementationSource);
+    const sources: ImplementationSource[] = [];
+    for (const filePath of paths) {
+      sources.push({
+        filePath,
+        text: await this.#fs.readTextFile(filePath),
+      });
+    }
+    return sources;
   }
   // @sigil follows packages/core/src/projections.sigil::SigilProjections::ExpansionProjection
   collectedExpansionFor(

@@ -6,6 +6,7 @@ import type {
   GlossaryContextProjection,
   GlossaryOccurrence,
   GlossaryTerm,
+  OwnedImplementationProjection,
   ResolvedComponent,
   ResolvedConceptNamespace,
   ResolvedGlossaryContext,
@@ -98,6 +99,7 @@ export interface GraphCommandResult extends WorkspaceMetadata {
   readonly graph: SigilGraph;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
+// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext
 export interface ContextCommandResult extends WorkspaceMetadata {
   readonly command: "context";
   readonly selectedComponents: readonly ResolvedComponent[];
@@ -105,6 +107,8 @@ export interface ContextCommandResult extends WorkspaceMetadata {
   readonly conceptNamespaces: readonly ResolvedConceptNamespace[];
   readonly collectedExpansions: readonly CollectedExpansion[];
   readonly agentDependencyContexts: readonly AgentDependencyContext[];
+  readonly ownedImplementationProjections:
+    readonly OwnedImplementationProjection[];
   readonly relatedFilePaths: readonly string[];
   readonly glossaryContext: GlossaryContextProjection | null;
   readonly diagnostics: readonly SigilDiagnostic[];

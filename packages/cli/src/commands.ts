@@ -114,7 +114,7 @@ export async function runCommand(
     };
   }
   if (request.command === "context") {
-    return contextCommand(request, core, resolved);
+    return await contextCommand(request, core, resolved);
   }
   return {
     command: "render",
@@ -124,11 +124,12 @@ export async function runCommand(
   };
 }
 
-function contextCommand(
+// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext
+async function contextCommand(
   request: ContextRequest,
   core: CoreAdapter,
   resolved: Awaited<ReturnType<CoreAdapter["resolveWorkspace"]>>,
-): CommandResult {
+): Promise<CommandResult> {
   const selectedFile = request.file
     ? core.resolveTarget(request.file)
     : undefined;
@@ -152,6 +153,17 @@ function contextCommand(
   const agentDependencyContexts = selectedComponents.map((component) =>
     core.agentDependencyContextFor(resolved, component.name)
   ).filter((item) => item !== undefined);
+  const implementationSources = await core.implementationSourcesFor(resolved);
+  const ownedImplementationProjections = selectedComponents.map((component) =>
+    core.ownedImplementationTargetsFor(
+      resolved,
+      implementationSources,
+      component.name,
+    )
+  ).filter((item) => item !== undefined);
+  const ownershipDiagnostics = ownedImplementationProjections.flatMap(
+    (projection) => projection.diagnostics,
+  );
   const relatedFilePaths = [
     ...new Set([
       ...agentDependencyContexts.flatMap((context) => context.relatedFilePaths),
@@ -169,9 +181,10 @@ function contextCommand(
     conceptNamespaces,
     collectedExpansions: expansions,
     agentDependencyContexts,
+    ownedImplementationProjections,
     relatedFilePaths,
     glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
-    diagnostics: resolved.diagnostics,
+    diagnostics: [...resolved.diagnostics, ...ownershipDiagnostics],
   };
 }
 
