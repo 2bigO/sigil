@@ -26,6 +26,20 @@ component SigilImplementationOwnership {
       identifies a relation, repository-relative Sigil path, component name, and optional concept name
 
       the containing implementation file and adjacent entrypoint definition identify the owned implementation target
+
+      uses @sigil <relation> <file>::<component>[::<concept>]
+
+      file is a repository-relative Sigil path
+
+      follows links an artifact that follows the selected Sigil.
+
+      implements links an artifact that implements the concept.
+
+      tests links an artifact that tests the concept.
+
+      validates links an artifact that validates a constraint or case.
+
+      related creates an informational link only.
     }
   }
 }
@@ -92,6 +106,20 @@ expand SigilImplementationOwnership {
       Consequences: Ownership discovery scans implementation artifacts, and Sigil files contain no implementation-link annotations.
 
       Revisit when: A language cannot expose a stable comment or entrypoint association.
+    }
+
+    AnnotationGrammar {
+      Decision: Encode each ownership link as @sigil <relation> <file>::<component>[::<concept>] and allow only follows, implements, tests, validates, or related.
+
+      Scope: Governs payloads parsed from supported implementation comments; file is a repository-relative Sigil path, component is required, and concept is optional.
+
+      Trade-offs: A small fixed vocabulary keeps ownership queries deterministic and reviewable, but relationships outside these meanings require related or a future vocabulary change.
+
+      Design issues addressed: An annotation target alone cannot distinguish following a contract, implementation, testing, validation, and informational association.
+
+      Consequences: Parsers reject unsupported relation words and consumers preserve the selected relation with each implementation target.
+
+      Revisit when: Ownership queries need a relationship that the five defined relations cannot express without ambiguity.
     }
 
     AnnotationPlacement {

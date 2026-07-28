@@ -24,6 +24,24 @@ The first version is contract-owned, not implementation-owned. A Sigil contract 
 
 The query is optional concept-scoped, so callers can ask for the whole contract or a narrower contract concept.
 
+Ownership links are stored in implementation comments that point back to the governing Sigil contract. This implementation-to-contract link direction does not change the contract-owned query: callers still select a contract or concept and receive matching implementation targets.
+
+The annotation payload is:
+
+```text
+@sigil <relation> <file>::<component>[::<concept>]
+```
+
+`file` is a repository-relative Sigil path. `component` is required and `concept` is optional.
+
+Relations:
+
+- `follows` — this artifact follows the selected Sigil.
+- `implements` — this artifact implements the concept.
+- `tests` — this artifact tests the concept.
+- `validates` — this artifact validates a constraint or case.
+- `related` — informational link only.
+
 The first version includes:
 
 - code;
