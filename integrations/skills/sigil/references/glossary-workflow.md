@@ -92,8 +92,9 @@ terminology ambiguity in the selected scope, but it begins only after:
 When concept grouping is unnecessary, the post-write semantic-readiness review
 directly controls extraction eligibility. When semantic readiness is
 `unassessed` or
-`correction required`, do not inspect prose for glossary candidates; follow the
-same-chat correction conversation instead.
+`correction required`, do not inspect prose for glossary candidates. Investigate
+suspected findings while readiness remains unassessed; enter DesignConversation
+in correction mode only for a confirmed material problem.
 
 Deterministic glossary inspection may occur before semantic review, but it
 remains separate from extraction. Diagnostic count and GlossaryFile presence do

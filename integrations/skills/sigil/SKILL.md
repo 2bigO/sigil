@@ -58,15 +58,16 @@ Then select one semantic workflow:
 
 Also load these cross-cutting references when applicable:
 
-- `references/external-guidance-evidence.md`: after sufficient framing whenever
-  current authoritative guidance could materially change a binding contract
-  decision, its risks, alternatives, or acceptance criteria. It owns shared
-  applicability assessment, source authority, environment and version matching,
-  secure evidence acquisition, evidence packets, sufficiency, and reuse.
-- `references/design-conversation.md`: whenever a material decision needs
-  clarification. It owns decision states, one-primary-decision turns,
-  checkpoints, deferral, just-in-time evidence consumption, same-chat correction
-  conversations, conflict handling, and synthesis.
+- `references/external-guidance-evidence.md`: after sufficient framing on every
+  design or Sigil-review scope. It distinguishes required, recommended, and
+  not-material research and owns shared applicability assessment, source
+  authority, environment and version matching, secure evidence acquisition,
+  evidence packets, sufficiency, and reuse.
+- `references/design-conversation.md`: for explicit design, review, or
+  improvement work or when inspected evidence exposes a material decision that
+  requires user judgment. It owns exploration, improvement, and correction
+  modes, decision states, one-primary-decision turns, checkpoints, deferral,
+  evidence consumption, conflict handling, and synthesis.
 - `references/standards-review.md`: whenever creating, reviewing, or preparing
   Sigil for implementation. It owns the skill-assisted semantic-readiness review,
   evidence interpretation, finding classification, conflicts, compliance
@@ -116,9 +117,9 @@ references remain applicable across all three semantic workflows.
 
 3. Review semantics and modularity.
    - Follow `references/standards-review.md`.
-   - Use `references/external-guidance-evidence.md` when its material-effect
-     trigger applies, and verify any design-conversation evidence packet before
-     reusing it.
+   - Use `references/external-guidance-evidence.md` to assess research
+     applicability on every review, acquire required or recommended evidence,
+     and verify any design-conversation evidence packet before reusing it.
    - Treat `sigil check` as deterministic structural and workspace validation,
      not semantic validation.
    - Separate observed behavior, documented intent, user-confirmed intent,
@@ -132,20 +133,31 @@ references remain applicable across all three semantic workflows.
    - Treat missing decision-rationale coverage for a material selected choice
      as a semantic-readiness gap even when CLI validation succeeds.
 
-4. Resolve missing intent.
-   - Follow `references/design-conversation.md`.
-   - After initial purpose and boundary framing, acquire applicable external
-     guidance before presenting guidance-sensitive alternatives or a
-     recommendation.
+4. Resolve or improve design intent when applicable.
+   - Follow `references/design-conversation.md` only for explicit design,
+     review, or improvement work or when a material unresolved decision or
+     finding requires user judgment.
+   - Do not enter design conversation for ordinary status, explanation,
+     diagnosis, or mechanical work with no material design choice.
+   - Supply the selected component, matching expands, imports, importers,
+     relevant summaries, repository evidence, and reviewed findings as the
+     DesignContext.
+   - After sufficient framing, acquire required or recommended external
+     guidance before presenting affected alternatives, improvement
+     opportunities, or recommendations.
    - Ask one primary decision per turn unless the user requests grouped review.
    - Do not silently invent product, architecture, persistence, authorization,
      deployment, lifecycle, or other binding decisions.
-   - When review finds a suspected or confirmed material semantic,
-     architectural, or design problem, pause ordinary design work and enter the
-     same-chat correction conversation.
-   - Preserve affected Sigil, point to the exact problem and evidence, explain
-     the risk, and require resolution before proposal synthesis or
-     implementation.
+   - Investigate suspected findings proportionally without automatically
+     entering correction or blocking unrelated work.
+   - Use improvement mode for coherent existing contracts with credible
+     improvement opportunities.
+   - Enter correction mode only for a confirmed material semantic,
+     architectural, or design problem.
+   - Preserve affected Sigil in correction mode, point to the exact problem and
+     evidence, explain the risk, and require resolution before proposal
+     synthesis or implementation.
+   - Recheck affected related-Sigil coherence before proposal synthesis.
 
 5. Prepare exact changes.
    - Follow `references/authoring-conventions.md`.
@@ -259,9 +271,9 @@ approval authority.
 
 A successful CLI check also does not establish semantic readiness. Perform the
 skill-assisted semantic-readiness review before concept grouping or glossary
-candidate extraction. A suspected or confirmed material problem enters the
-same-chat correction conversation and blocks synthesis, approval, and
-implementation until resolved.
+candidate extraction. Investigate a suspected problem before classifying it.
+Only a confirmed material problem enters DesignConversation in correction mode
+and blocks synthesis, approval, and implementation until resolved.
 
 An approved placement-only move or split that preserves every semantic line may
 proceed within a ready implementation scope without another semantic proposal.

@@ -96,10 +96,12 @@ component SigilSkill {
       preserves one distinct idea per semantic line and separates distinct prose-level ideas with blank lines
     }
 
-    DecisionConversation {
-      resolves material design decisions before exact Sigil synthesis
+    DesignConversation {
+      resolves incomplete material design decisions and reviews coherent written contracts for improvements before exact Sigil synthesis
 
-      routes material semantic, architectural, and design problems into a dedicated same-chat correction phase
+      uses exploration, improvement, and correction modes within one conversation
+
+      investigates suspected findings before classifying them as correction
 
       requires each confirmed material problem to be resolved before Sigil synthesis or implementation
     }
@@ -176,6 +178,10 @@ expand SigilSkill {
       A researched finding is compatible guidance, a potential conflict, a definite conflict, unverifiable guidance, or non-applicable.
     }
 
+    DesignConversation {
+      Mode is exploration, improvement, or correction.
+    }
+
     ReviewGate {
       Action is sigil-change, glossary-change, workspace-initialization, or implementation.
 
@@ -208,12 +214,16 @@ expand SigilSkill {
       Select GreenfieldWorkflow, BrownfieldWorkflow, or established-Sigil review from that evidence.
     }
 
-    DecisionConversation {
-      Use SigilDesignConversation whenever a material decision remains unresolved before proposal synthesis.
+    DesignConversation {
+      Build the relevant component picture before entering SigilDesignConversation.
 
-      Use CorrectionConversation when semantic, architectural, or design review identifies a suspected or confirmed material problem.
+      Invoke SigilDesignConversation only for explicit design, review, or improvement work or when a material unresolved decision or finding requires user judgment.
 
-      Preserve affected Sigil, explain the evidence and risk, and obtain a focused user resolution before continuing ordinary design work.
+      Investigate suspected findings without automatically entering correction or blocking unrelated work.
+
+      Enter correction mode only for a confirmed material semantic, architectural, or design problem.
+
+      Recheck affected related-Sigil coherence before proposal synthesis.
     }
 
     DecisionRationaleWorkflow {
@@ -241,7 +251,7 @@ expand SigilSkill {
 
       When the binding outcome is confirmed but its decision record is missing, include the exact decision record in the semantic proposal.
 
-      When the governing rationale is unresolved or conflicts with evidence, enter CorrectionConversation before proposing the decision record.
+      When the governing rationale is unresolved or conflicts with evidence, return to DesignConversation in the applicable mode before proposing the decision record.
 
       Repeat the decision-rationale coverage audit after writing approved Sigil and before ReviewGate for implementation can return ready.
     }
@@ -257,13 +267,15 @@ expand SigilSkill {
     SemanticReadinessReview {
       After deterministic workspace validation completes without error diagnostics, review the exact ungrouped Sigil for semantic, architectural, and design problems.
 
-      When a suspected or confirmed material problem is found, enter CorrectionConversation and do not begin concept grouping or glossary candidate extraction.
+      When evidence suggests a possible material problem, investigate and classify it before declaring correction required.
 
-      Mark the selected scope as appears aligned only when no unresolved material problem remains.
+      When a confirmed material problem is found, enter DesignConversation in correction mode and do not begin concept grouping or glossary candidate extraction.
+
+      Mark the selected scope as appears aligned only when no unresolved confirmed material problem or materially unsafe uncertainty remains.
 
       After approved concept grouping changes, rerun deterministic validation and semantic-readiness review before glossary candidate extraction.
 
-      When concept grouping exposes or introduces material ambiguity, return to CorrectionConversation.
+      When concept grouping exposes or introduces material ambiguity, return to DesignConversation in the applicable mode.
     }
 
     GlossaryWorkflow {
@@ -305,7 +317,7 @@ expand SigilSkill {
     }
 
     StandardsReview {
-      Use ApplicabilityAssessment and EvidencePacket from ExternalGuidanceEvidence for applicable authoritative research.
+      Use ApplicabilityAssessment and EvidencePacket from ExternalGuidanceEvidence on every Sigil review and acquire required or recommended authoritative research.
 
       Verify the currency and environment match of evidence created during design conversation before reusing it.
 
@@ -379,7 +391,7 @@ expand SigilSkill {
     GreenfieldWorkflow {
       Begin with the problem, intended users or callers, outcomes, boundaries, non-responsibilities, and important constraints.
 
-      Resolve material product, contract, ownership, lifecycle, architecture, risk, and verification decisions through DecisionConversation.
+      Resolve material product, contract, ownership, lifecycle, architecture, risk, and verification decisions through DesignConversation.
 
       Establish the smallest coherent component boundary and draft goal and interface before operational detail.
 
@@ -470,7 +482,7 @@ expand SigilSkill {
       An appears-aligned result is provisional within the reviewed scope and is not a claim of absolute correctness.
     }
 
-    DecisionConversation {
+    DesignConversation {
       A confirmed material semantic, architectural, or design problem blocks Sigil synthesis, approval, and implementation until resolved.
     }
 
@@ -626,6 +638,20 @@ expand SigilSkill {
   }
 
   decisions {
+    DesignConversation {
+      Decision: Route material design work through imported SigilDesignConversation while keeping conversation modes and evidence-acquisition mechanics owned by their providing components.
+
+      Scope: Governs SigilSkill workflow dispatch; excludes the internal mechanics of SigilDesignConversation and ExternalGuidanceEvidence.
+
+      Trade-offs: The dispatcher relies on imported component contracts instead of restating their complete behavior.
+
+      Design issues addressed: Duplicated correction and applicability behavior created competing authorities and semantic drift.
+
+      Consequences: SigilSkill selects the workflow, SigilDesignConversation owns user-facing design resolution, and ExternalGuidanceEvidence owns research applicability.
+
+      Revisit when: These responsibilities are intentionally recombined into one component.
+    }
+
     StandardsReview {
       Decision: Consume shared ExternalGuidanceEvidence while retaining standards review authority over finding classification and gate consequences.
 
@@ -763,13 +789,15 @@ expand SigilSkill {
     }
 
     SemanticReadinessReview {
-      Structurally valid Sigil with contradictory state ownership enters CorrectionConversation before concept grouping or glossary extraction.
+      Structurally valid Sigil with contradictory state ownership enters DesignConversation in correction mode before concept grouping or glossary extraction.
 
       Ungrouped Sigil that appears semantically aligned proceeds to concept grouping, then receives another semantic-readiness review before glossary extraction.
     }
 
-    DecisionConversation {
-      A review that finds conflicting state ownership enters a same-chat correction phase instead of continuing to unrelated design questions.
+    DesignConversation {
+      A suspected ownership problem is investigated before it is classified as correction.
+
+      A confirmed ownership conflict enters correction mode instead of continuing to unrelated design questions.
     }
 
     DecisionRationaleWorkflow {

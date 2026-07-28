@@ -204,12 +204,12 @@ requireText(
 );
 requireText(
   designConversationReference,
-  "dedicated correction phase in the same chat",
-  "same-chat correction phase",
+  "A suspected finding remains under investigation. It does not automatically\nenter correction mode or block unrelated user work.",
+  "suspected finding investigation",
 );
 requireText(
   designConversationReference,
-  "A confirmed material problem cannot become a provisional\nassumption",
+  "A confirmed material problem\ncannot be deferred, treated as provisional, or bypassed for implementation.",
   "material correction blocker",
 );
 requireText(
@@ -219,8 +219,18 @@ requireText(
 );
 requireText(
   externalGuidanceEvidence,
-  "Research is required when current authoritative guidance could materially\nchange a binding contract decision",
-  "material-effect research trigger",
+  "Research is required for material standard-risk or high-risk concerns",
+  "required research classification",
+);
+requireText(
+  externalGuidanceEvidence,
+  "Research is recommended when credible current guidance could reveal material\npitfalls, alternatives, architecture or modularity improvements",
+  "recommended research classification",
+);
+requireText(
+  externalGuidanceEvidence,
+  "Classify research as not material only when the work is low-risk, local,\nreversible",
+  "not-material research classification",
 );
 requireText(
   externalGuidanceEvidence,
@@ -507,14 +517,16 @@ const requiredGreenfieldBehaviors = [
   "ask-multiple-manageable-rounds",
   "build-questions-on-answers",
   "surface-weak-assumptions",
+  "build-greenfield-design-context",
   "assess-guidance-after-framing",
-  "research-before-guidance-sensitive-choices",
+  "research-when-required-or-recommended",
   "match-guidance-to-environment",
   "present-choices-and-tradeoffs",
   "provide-reasoned-recommendation",
   "allow-user-to-reject-all-choices",
   "continue-until-contract-is-clear",
   "revalidate-design-evidence-during-review",
+  "recheck-related-sigil-before-synthesis",
   "synthesize-conversation-into-exact-sigil",
   "confirm-before-writing-sigil",
   "collaborate-on-missing-sigil-before-implementation",
@@ -559,7 +571,10 @@ const designConversationFixture = await Deno.readTextFile(
   `${root}/evals/design-conversation-fixture.md`,
 );
 const requiredDesignConversationBehaviors = [
+  "enter-only-when-design-conversation-applies",
+  "build-related-design-context",
   "track-conversation-phase",
+  "track-conversation-mode",
   "maintain-decision-ledger",
   "prioritize-foundational-decisions",
   "ask-one-primary-decision-per-turn",
@@ -567,7 +582,8 @@ const requiredDesignConversationBehaviors = [
   "explain-question-dependencies",
   "offer-choices-and-recommendation",
   "frame-before-guidance-assessment",
-  "acquire-evidence-before-sensitive-choice",
+  "acquire-required-evidence",
+  "acquire-recommended-improvement-evidence",
   "show-source-identity-with-recommendation",
   "preserve-authoritative-disagreement",
   "preserve-user-authority",
@@ -576,16 +592,18 @@ const requiredDesignConversationBehaviors = [
   "resolve-conflicts-before-advancing",
   "reduce-scope-when-overwhelmed",
   "provide-decision-checkpoints",
-  "avoid-reasking-confirmed-decisions",
+  "reopen-confirmed-decision-for-conflict-or-improvement",
+  "use-improvement-mode-for-compatible-opportunity",
+  "investigate-suspected-finding",
+  "enter-correction-only-after-confirmation",
   "synthesize-only-without-blockers",
+  "recheck-related-sigil-before-synthesis",
   "preserve-evidence-limitations-in-synthesis",
   "preserve-deferrals-in-synthesis",
-  "enter-same-chat-correction-phase",
   "report-exact-problem-evidence-and-risk",
   "separate-evidence-from-inference",
   "avoid-preference-as-defect",
   "block-on-confirmed-material-problem",
-  "resume-only-after-correction",
   "use-reviewgate-for-exact-sigil-change",
 ];
 if (!Array.isArray(expected.designConversationRequiredBehaviors)) {
@@ -612,7 +630,7 @@ requireText(
 );
 requireText(
   designConversationFixture,
-  "confirmed decisions, assumptions,\n    deferrals, blockers, and the next decision",
+  "mode, confirmed decisions, assumptions,\n    deferrals, blockers, evidence limitations, and the next decision",
   "design conversation checkpoint",
 );
 requireText(
@@ -622,22 +640,22 @@ requireText(
 );
 requireText(
   designConversationFixture,
-  "Synthesize exact proposed Sigil only after no unresolved decision",
+  "Synthesize exact proposed Sigil only after no blocking decision or confirmed\n    material problem remains",
   "design conversation blocker exit condition",
 );
 requireText(
   designConversationFixture,
-  "dedicated correction phase in the same chat",
-  "design conversation correction phase",
+  "Enter correction mode only after evidence confirms the material ownership",
+  "design conversation confirmed correction mode",
 );
 requireText(
   designConversationFixture,
-  "Point to the exact conflicting ideas, separate evidence from inference",
+  "Point to the exact conflicting ideas, explain lifecycle and consistency",
   "design conversation evidence and risk",
 );
 requireText(
   designConversationFixture,
-  "Keep a confirmed material problem blocking",
+  "Keep the confirmed material problem blocking",
   "design conversation correction blocker",
 );
 
@@ -646,7 +664,9 @@ const externalGuidanceEvidenceFixture = await Deno.readTextFile(
 );
 const requiredExternalGuidanceEvidenceBehaviors = [
   "frame-before-research",
-  "trigger-on-material-contract-effect",
+  "require-research-for-material-standard-or-high-risk",
+  "recommend-research-for-material-improvement",
+  "classify-low-risk-local-work-not-material",
   "share-one-evidence-policy",
   "use-primary-first-authority",
   "treat-secondary-as-discovery",
@@ -849,7 +869,8 @@ const requiredConceptIdentifierBehaviors = [
   "distinguish-structural-from-semantic-readiness",
   "review-ungrouped-sigil-first",
   "block-grouping-until-semantic-readiness",
-  "enter-correction-before-grouping",
+  "investigate-before-correction",
+  "enter-correction-only-for-confirmed-problem",
   "inspect-complete-local-collective",
   "inspect-local-and-imported-concepts",
   "inspect-direct-consumers",
@@ -865,7 +886,7 @@ const requiredConceptIdentifierBehaviors = [
   "use-reviewgate-for-concept-sigil-change",
   "repeat-semantic-review-after-grouping",
   "block-glossary-extraction-until-final-review",
-  "return-to-correction-on-grouping-ambiguity",
+  "investigate-grouping-ambiguity-before-correction",
   "exclude-anchor-workflow",
 ];
 if (!Array.isArray(expected.conceptIdentifierRequiredBehaviors)) {
@@ -1332,7 +1353,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.6.3 dispatcher, external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, correction conversation, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.6.3 dispatcher, unified design conversation, proactive external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

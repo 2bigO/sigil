@@ -56,7 +56,8 @@ Use `justified omission` only for a trivial, mechanically derived, or safely
 reconstructable choice, and state the evidence. When the binding outcome is
 confirmed but its rationale record is missing, include the exact decision block
 in the proposal. When the governing rationale is unresolved or conflicts with
-evidence, enter the correction conversation before proposing it.
+evidence, return to DesignConversation in the applicable mode before proposing
+it.
 
 The absence of a `decisions` section remains structurally valid Sigil, but
 semantic readiness cannot appear aligned while a material selected choice lacks
@@ -140,8 +141,8 @@ After applying an approved grouping or identifier change:
 1. run `sigil check`;
 2. use `sigil context` or `sigil graph` when identity relationships changed;
 3. repeat the semantic-readiness review on the grouped Sigil;
-4. return to the same-chat correction conversation if grouping exposes or
-   introduces material ambiguity;
+4. investigate any suspected material ambiguity and return to DesignConversation
+   in correction mode only when the ambiguity confirms a material problem;
 5. begin glossary candidate extraction only when the final review appears
    aligned.
 

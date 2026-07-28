@@ -5,8 +5,10 @@
 
 # External Guidance Evidence
 
-Use this procedure when current authoritative external guidance could materially
-change a binding contract decision, its risks, available alternatives, or
+Use this procedure after sufficient framing on every Sigil design or review
+scope. It determines whether current authoritative guidance is required,
+recommended, or not material and acquires evidence that can materially inform
+or improve design decisions, semantic assessment, risks, alternatives, or
 acceptance criteria. It owns evidence acquisition for both design conversation
 and standards-aware review. It does not select project decisions, classify
 review findings, grant approval, or determine a ReviewGate result.
@@ -26,8 +28,8 @@ review findings, grant approval, or determine a ReviewGate result.
 
 ## 1. Establish Sufficient Framing
 
-Do not research merely because the user mentions a technical topic. First
-establish enough context to make applicability and source scope meaningful:
+First establish enough context to make applicability and source scope
+meaningful:
 
 - intended outcome;
 - affected users, callers, or systems;
@@ -36,17 +38,14 @@ establish enough context to make applicability and source scope meaningful:
 - known data sensitivity, security, safety, regulatory, or platform
   constraints.
 
-Initial purpose and boundary questions precede research. Once these facts are
-sufficient, assess guidance before framing any affected alternatives or
-recommendation.
+Initial purpose and boundary questions precede research. A technical topic alone
+does not determine research scope, but it does not suppress research after the
+affected boundary and decision are understood. Once framing is sufficient,
+assess guidance before affected alternatives, improvements, or recommendations.
 
 ## 2. Assess Applicability
 
-Research is required when current authoritative guidance could materially
-change a binding contract decision, its risks, available alternatives, or
-acceptance criteria.
-
-Treat these concerns as research-sensitive when they are material:
+Research is required for material standard-risk or high-risk concerns involving:
 
 - authentication, authorization, secrets, cryptography, or other security
   boundaries;
@@ -61,20 +60,30 @@ Treat these concerns as research-sensitive when they are material:
 - legal, regulatory, contractual, organizational, or explicit user-mandated
   requirements.
 
-Research performance, architecture patterns, modularity, and technology
-selection only when the guidance becomes binding or could materially affect the
-contract. Naming, subjective preference, local reversible mechanics, and
-choices already governed by credible approved evidence do not trigger filler
-research.
+Research is recommended when credible current guidance could reveal material
+pitfalls, alternatives, architecture or modularity improvements, or outdated
+assumptions even when the existing contract is coherent.
+
+Classify research as not material only when the work is low-risk, local,
+reversible, and external guidance is not reasonably likely to improve the
+selected assessment.
+
+Existing or approved decisions may satisfy research through reusable current
+evidence, but they do not make improvement research inapplicable. Naming,
+subjective preference, and local reversible mechanics do not require filler
+research unless their surrounding scope creates a material concern.
 
 Classify the disposition as:
 
-- **required:** the material-effect test is met;
-- **conditional:** applicability depends on a still-unresolved framing fact;
-- **not material:** external guidance cannot materially affect the selected
-  decision within the known scope.
+- **required:** a material standard-risk or high-risk concern requires current
+  authoritative evidence;
+- **recommended:** credible guidance could materially improve the assessment,
+  alternatives, or design without a known defect;
+- **not material:** the work is low-risk, local, reversible, and external
+  guidance is not reasonably likely to improve the selected assessment.
 
-Reassess when the boundary, risk, environment, or binding requirements change.
+Reassess when the boundary, risk, environment, reviewed contract, or binding
+requirements change.
 
 ## 3. Select Authoritative Sources
 
@@ -235,9 +244,10 @@ refresh policy. A saved packet never proves that its guidance remains current.
 
 ## 9. Hand Evidence To Consumers
 
-`references/design-conversation.md` consumes evidence just in time to improve a
-question, alternatives, consequences, and recommendation. It decides how
-incomplete or conflicting evidence affects the decision ledger.
+`references/design-conversation.md` consumes required or recommended evidence
+after framing to discover pitfalls and improvements and to improve questions,
+alternatives, consequences, and recommendations. It decides how incomplete or
+conflicting evidence affects the decision ledger.
 
 `references/standards-review.md` consumes evidence systematically during
 semantic review. It owns finding classification, compliance language,
@@ -266,6 +276,13 @@ difference from the target upgrade version before recommending alternatives.
 A user asks for “secure authentication.” First establish users, trust boundary,
 credential type, and affected data. Then research applicable authentication
 guidance before presenting binding session or recovery choices.
+
+### Coherent Architecture Improvement
+
+An existing architecture is internally coherent, but current authoritative
+platform and reliability guidance could reveal a materially simpler or safer
+design. Classify targeted research as recommended and present compatible
+improvements as optional unless they affect a binding requirement.
 
 ### Incomplete Compliance Material
 

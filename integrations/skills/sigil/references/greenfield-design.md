@@ -26,15 +26,16 @@ unresolved ownership, lifecycle, failure, security, persistence, compatibility,
 or verification decisions.
 
 Follow `references/design-conversation.md` for conversation phases, decision
-states, prioritization, one-primary-decision turns, recommendations,
-checkpoints, conflict handling, and the synthesis exit condition. Conversation
-is a normal design activity even when the initial request appears clear.
+states, exploration and correction modes, DesignContext, prioritization,
+one-primary-decision turns, recommendations, checkpoints, conflict handling,
+and the synthesis exit condition. Greenfield design is explicit design work, so
+conversation applies even when the initial request appears clear.
 
 After the intended outcome, affected users or callers, responsibility boundary,
 external surface, and known risk constraints are sufficiently framed, follow
-`references/external-guidance-evidence.md`. Acquire applicable authoritative
-evidence before the design conversation presents alternatives or a
-recommendation for a guidance-sensitive material decision.
+`references/external-guidance-evidence.md`. Assess applicability and acquire
+required or recommended authoritative evidence before the design conversation
+presents affected alternatives, pitfalls, or recommendations.
 
 Use the shared protocol to resolve Greenfield decisions about:
 
@@ -104,8 +105,9 @@ conversation, then review semantic readiness, applicable guidance, cross-Sigil
 coherence, modularity, constraint-derived cases, and evidence or uncertainty.
 
 Review the exact ungrouped proposal first. If semantic readiness is
-`correction required`, enter the same-chat correction conversation and stop
-before concept grouping. Only after readiness appears aligned may
+`correction required`, enter DesignConversation in correction mode and stop
+before concept grouping. Investigate a suspected finding before assigning that
+state. Only after readiness appears aligned may
 `references/authoring-conventions.md` group interface concepts. Repeat semantic
 review on the grouped proposal before presenting it for approval.
 

@@ -14,8 +14,9 @@ Expected skill behavior:
    readiness.
 2. Review the exact ungrouped Sigil semantically before concept reuse discovery
    or grouping.
-3. Enter the same-chat correction conversation and leave grouping untouched if
-   semantic readiness is unassessed or correction is required.
+3. Investigate a suspected material problem while semantic readiness remains
+   unassessed and enter DesignConversation in correction mode only when the
+   problem is confirmed.
 4. Begin concept grouping only after semantic readiness appears aligned.
 5. Inspect the remainder of the same section, every other component section,
    and every matching expand before proposing an identifier.
@@ -42,5 +43,7 @@ Expected skill behavior:
     when ReviewGate is ready for the exact sigil-change scope and change set.
 18. After approved grouping, rerun deterministic and semantic review before
     glossary candidate extraction.
-19. Return to correction if grouping exposes or introduces material ambiguity.
+19. Investigate material ambiguity exposed by grouping and return to
+    DesignConversation in correction mode only when it confirms a material
+    problem.
 20. Keep anchor proposal and persistence behavior outside this workflow.

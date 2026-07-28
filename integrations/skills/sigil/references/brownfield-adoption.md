@@ -82,12 +82,14 @@ When any material part remains vague, unsupported, or contradictory, use
 `references/design-conversation.md`. Begin from what evidence suggests and what
 remains unknown, then resolve missing purpose, boundary, and interface decisions
 one primary decision at a time unless the user requests a faster grouped review.
+Use improvement mode when the user requests review of a coherent existing
+boundary or credible evidence exposes a material improvement opportunity.
 
 After purpose, users or callers, responsibility boundary, external surface, and
 known risk constraints are sufficiently framed, follow
-`references/external-guidance-evidence.md`. Acquire applicable authoritative
-evidence before presenting alternatives or a recommendation for a
-guidance-sensitive boundary decision.
+`references/external-guidance-evidence.md`. Assess applicability and acquire
+required or recommended authoritative evidence before presenting affected
+alternatives, pitfalls, improvements, or recommendations.
 
 Maintain confirmed, provisionally assumed, intentionally deferred, and
 unresolved decisions through the shared protocol. Do not guess missing purpose
@@ -196,10 +198,12 @@ focused question through `references/design-conversation.md` when resolution
 could change public behavior, ownership, permissions, sensitive data, persistent
 state, lifecycle, compatibility, failure behavior, or acceptance criteria.
 
-When current authoritative guidance could materially affect that question,
-acquire an evidence packet before presenting choices. Treat disagreement between
-authoritative sources as unresolved evidence; enter the correction conversation
-only when applicable guidance conflicts with approved Sigil or confirmed intent.
+Assess external-guidance applicability for the reconciliation scope and acquire
+required or recommended evidence before presenting affected choices. Treat
+disagreement between authoritative sources as unresolved evidence. Investigate
+suspected conflicts and enter DesignConversation in correction mode only when
+applicable guidance confirms a material conflict with approved Sigil or
+confirmed intent.
 
 Do not silently treat code, tests, documentation, directory structure, or a
 preferred architecture as authoritative. Suspected accidental behavior does not
@@ -285,10 +289,11 @@ applicability of evidence packets created during conversation. Present sourced
 suggestions and conflicts rather than silently changing the proposal.
 
 Review the exact ungrouped reconstruction first. When semantic readiness is
-`correction required`, preserve the proposal and enter the same-chat correction
-conversation. Begin concept reuse discovery and grouping only after readiness
-appears aligned, then repeat semantic review on the grouped proposal before
-requesting ReviewGate readiness.
+`correction required`, preserve the proposal and enter DesignConversation in
+correction mode. Investigate suspected findings before assigning that state.
+Begin concept reuse discovery and grouping only after readiness appears
+aligned, then repeat semantic review on the grouped proposal before requesting
+ReviewGate readiness.
 
 Inventory every new or changed material selected choice in the reconstruction.
 Include its matching decision record or justified omission in the
