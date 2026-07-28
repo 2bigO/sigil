@@ -2,6 +2,7 @@ import type {
   ConceptIdentity,
   GlossaryTerm,
   ImplementationSource,
+  OwnedImplementationProjection,
   OwnedImplementationTarget,
   ResolvedComponent,
   ResolvedConcept,
@@ -57,6 +58,44 @@ interface GlossaryReference {
 interface SemanticReference {
   readonly range: Range;
   readonly tokenType: number;
+}
+
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+export class OwnershipHoverCache {
+  readonly #resolved: ResolvedSigilWorkspace;
+  readonly #sources: Promise<readonly ImplementationSource[]>;
+  readonly #projections = new Map<
+    string,
+    Promise<OwnedImplementationProjection | undefined>
+  >();
+
+  constructor(
+    resolved: ResolvedSigilWorkspace,
+    fs: SigilFileSystem,
+  ) {
+    this.#resolved = resolved;
+    this.#sources = implementationSources(resolved, fs);
+  }
+
+  projection(
+    componentName: string,
+    conceptName?: string,
+  ): Promise<OwnedImplementationProjection | undefined> {
+    const key = `${componentName}\0${conceptName ?? ""}`;
+    let projection = this.#projections.get(key);
+    if (!projection) {
+      projection = this.#sources.then((sources) =>
+        ownedImplementationTargetsFor(
+          this.#resolved,
+          sources,
+          componentName,
+          conceptName,
+        )
+      );
+      this.#projections.set(key, projection);
+    }
+    return projection;
+  }
 }
 
 export function sourceRangeToLsp(range?: SourceRange): Range {
@@ -199,16 +238,21 @@ export async function definitionAt(
     : null;
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
+/*
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+ */
 export async function hoverAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
+  ownership: OwnershipHoverCache,
   filePath: string,
   position: Position,
 ): Promise<Hover | null> {
   const source = await fs.readTextFile(filePath);
   const normalized = normalizePath(filePath);
-  const markdown = new HoverMarkdownRenderer(resolved, fs);
+  const markdown = new HoverMarkdownRenderer(resolved, fs, ownership);
   const conceptReference = conceptReferences(
     resolved,
     normalized,
@@ -221,12 +265,28 @@ export async function hoverAt(
     const glossaryReference = glossaryOccurrence ??
       glossaryReferenceForConcept(resolved, normalized, conceptReference);
     const concept = await conceptMarkdown(conceptReference, markdown);
+    const identity = conceptReference.concept.identity;
+    const owningComponent = markdown.component(
+      identity.componentName,
+      identity.filePath,
+    );
+    const ownedImplementationLines = owningComponent
+      ? await markdown.ownedImplementationLines(
+        owningComponent,
+        identity.identifier,
+      )
+      : [];
+    const sections = [
+      concept,
+      ...(glossaryReference ? [glossaryMarkdown(glossaryReference)] : []),
+      ...(ownedImplementationLines.length
+        ? [ownedImplementationLines.join("\n")]
+        : []),
+    ];
     return {
       contents: {
         kind: "markdown",
-        value: glossaryReference
-          ? `${concept}\n\n---\n\n${glossaryMarkdown(glossaryReference)}`
-          : concept,
+        value: sections.join("\n\n---\n\n"),
       },
       range: conceptReference.range,
     };
@@ -722,12 +782,6 @@ async function componentMarkdown(
     "**Interface**",
     ...markdownList(await markdown.semanticLines(iface?.lines ?? [])),
   ];
-  const ownedImplementationLines = await markdown.ownedImplementationLines(
-    component,
-  );
-  if (ownedImplementationLines.length) {
-    lines.push("", ...ownedImplementationLines);
-  }
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
@@ -739,6 +793,12 @@ async function componentMarkdown(
         );
       }
     }
+  }
+  const ownedImplementationLines = await markdown.ownedImplementationLines(
+    component,
+  );
+  if (ownedImplementationLines.length) {
+    lines.push("", ...ownedImplementationLines);
   }
   return lines.join("\n");
 }
@@ -817,15 +877,21 @@ interface HoverLinkReference {
 class HoverMarkdownRenderer {
   readonly #resolved: ResolvedSigilWorkspace;
   readonly #fs: SigilFileSystem;
+  readonly #ownership: OwnershipHoverCache;
   readonly #sources = new Map<string, Promise<string>>();
   readonly #references = new Map<
     string,
     Promise<readonly HoverLinkReference[]>
   >();
 
-  constructor(resolved: ResolvedSigilWorkspace, fs: SigilFileSystem) {
+  constructor(
+    resolved: ResolvedSigilWorkspace,
+    fs: SigilFileSystem,
+    ownership: OwnershipHoverCache,
+  ) {
     this.#resolved = resolved;
     this.#fs = fs;
+    this.#ownership = ownership;
   }
 
   component(
@@ -866,11 +932,11 @@ class HoverMarkdownRenderer {
   // @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
   async ownedImplementationLines(
     component: ResolvedComponent,
+    conceptName?: string,
   ): Promise<string[]> {
-    const projection = ownedImplementationTargetsFor(
-      this.#resolved,
-      await implementationSources(this.#resolved, this.#fs),
+    const projection = await this.#ownership.projection(
       component.name,
+      conceptName,
     );
     if (!projection || projection.targets.length === 0) return [];
 

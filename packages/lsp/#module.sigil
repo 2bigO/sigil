@@ -28,6 +28,8 @@ component SigilLsp {
       supports textDocument/didOpen, textDocument/didChange, and textDocument/didClose with full-document synchronization
 
       open-document content overrides filesystem content until close
+
+      accepts workspace/didChangeWatchedFiles notifications for supported ownership implementation sources
     }
 
     DiagnosticPublishing {
@@ -41,7 +43,11 @@ component SigilLsp {
 
       supports hover for component contracts and collected expansions
 
-      hover for a component contract presents implementation targets discovered from source and agent-facing Markdown comments as clickable links to their originating artifacts
+      component hover presents every owned implementation target linked to the selected component
+
+      concept hover presents owned implementation targets explicitly linked to the hovered concept identity at its originating component
+
+      owned implementation targets appear in the final hover section after contract, collected-expansion, and glossary content
 
       supports full-document semantic tokens for resolved component names
 
@@ -80,6 +86,10 @@ expand SigilLsp {
       Open documents retain URI, client version, and current in-memory text.
     }
 
+    OwnershipHoverCache {
+      The process-local ownership-hover cache is empty, loading, or ready for one resolved workspace generation.
+    }
+
     WorkspaceSupport {
       The initialized workspace starts from the first workspaceFolders entry, rootUri, or current directory.
     }
@@ -111,11 +121,19 @@ expand SigilLsp {
 
       Hover derives inline navigation targets from the shared component and concept reference resolvers and encodes them as file-URI Markdown links to declaration identifier ranges.
 
-      Hover supplies supported workspace implementation sources to the shared core ownership query and renders resolved targets as standard Markdown links.
+      Concept hover queries ownership using the originating component and hovered concept identifier.
 
-      Hover does not cache owned implementation targets.
+      Hover appends owned implementation targets after all other hover content.
 
       Document symbols preserve declaration and section hierarchy.
+    }
+
+    OwnershipHoverCache {
+      Workspace resolution starts one shared load of supported ownership implementation sources.
+
+      Concurrent and later component or concept hovers reuse the in-flight or ready source snapshot and memoized ownership query for the same component and optional concept.
+
+      A workspace reload or workspace/didChangeWatchedFiles notification for a supported implementation source invalidates the cache before the next hover.
     }
 
     ConceptLanguageFeatures {
@@ -172,6 +190,12 @@ expand SigilLsp {
       Owned implementation hover links point to the originating artifact location and remain standard Markdown links.
     }
 
+    OwnershipHoverCache {
+      The cache is process-local, read-only, and never reused across resolved workspace generations.
+
+      Clients that require immediate ownership-link freshness send workspace/didChangeWatchedFiles for supported implementation-source changes.
+    }
+
     ConceptLanguageFeatures {
       Imported-concept hover does not expose private state, logic, constraints, decisions, cases, or expansion occurrences.
     }
@@ -219,15 +243,29 @@ expand SigilLsp {
     }
 
     NavigationAndInspection {
-      Decision: Surface implementation-comment-linked targets in contract hover as clickable Markdown links.
+      Decision: Surface implementation-comment-linked targets in component and concept hover as clickable Markdown links in a final Owned implementations section.
 
-      Scope: Governs SigilLsp hover, supported workspace implementation-source scanning, and the shared core ownership query result; excludes persistence and caching.
+      Scope: Governs ownership-link content and placement in SigilLsp hover; cache lifecycle is governed by OwnershipHoverCache.
 
-      Trade-offs: Reusing the shared core query keeps CLI and LSP aligned, but on-demand source scanning adds hover lookup cost.
+      Trade-offs: Placing links last keeps contract, expansion, and glossary content together but may require scrolling in large hovers.
 
-      Consequences: Users can navigate from a contract to entrypoints and agent-facing Markdown that explicitly link back to it.
+      Consequences: Users can navigate from components and originating concept identities to explicitly linked implementation artifacts.
 
-      Revisit when: Hover latency or request volume requires indexed ownership annotations.
+      Revisit when: Hover content requires collapsible or separately requested implementation details.
+    }
+
+    OwnershipHoverCache {
+      Decision: Reuse one process-local ownership-source snapshot and memoized component-or-concept queries per resolved workspace generation, invalidating them on workspace reload or supported watched-file changes.
+
+      Scope: Governs SigilLsp ownership-hover loading and invalidation; excludes persistence and changes to shared core ownership-query semantics.
+
+      Trade-offs: Repeated hovers avoid workspace rescanning, while the first hover after initialization or invalidation may wait for a refreshed scan and immediate freshness depends on client change notifications.
+
+      Discarded alternatives: Scanning on every hover preserves freshness but causes the reported latency; time-based expiration permits stale links and periodically repeats the expensive scan.
+
+      Consequences: Concurrent and repeated ownership hovers share loading and query work without persisting an ownership index.
+
+      Revisit when: Large-workspace evidence requires incremental per-file indexing or clients cannot reliably provide watched-file notifications.
     }
   }
 
@@ -253,7 +291,17 @@ expand SigilLsp {
 
       Component-contract hover also lists owned implementation targets as clickable links when the contract declares them.
 
+      Concept hover lists implementation targets annotated to the concept's originating component and identifier.
+
+      The Owned implementations section is the final section of component and concept hover.
+
       A displayed name without a resolved component or concept identity remains plain hover text.
+    }
+
+    OwnershipHoverCache {
+      Concurrent and repeated hovers within one workspace generation share one ownership-source load.
+
+      Creating, changing, or deleting a supported ownership implementation source invalidates the cache and the next hover reflects the refreshed links.
     }
 
     ConceptLanguageFeatures {

@@ -1,4 +1,8 @@
-import { InMemorySigilFileSystem, SIGIL_VERSION } from "@qoherent/sigil-core";
+import {
+  InMemorySigilFileSystem,
+  SIGIL_VERSION,
+  type SigilFileSystem,
+} from "@qoherent/sigil-core";
 import {
   encodeLspMessage,
   fileUriToPath,
@@ -259,6 +263,14 @@ Deno.test("component hover includes clickable owned implementation links", async
     }
   }
 }
+
+expand Thing {
+  cases {
+    OwnedTargets {
+      Ownership links remain visible after collected expansions.
+    }
+  }
+}
 `;
   const server = new SigilLanguageServer({
     currentDirectory: root,
@@ -274,6 +286,8 @@ Deno.test("component hover includes clickable owned implementation links", async
         "// @sigil implements contract.sigil::Thing::OwnedTargets\nexport function parseSigilConfig() {}\n",
       [`${root}/packages/core/tests/core_test.ts`]:
         "// @sigil tests contract.sigil::Thing::OwnedTargets\nfunction implementationTargets() {}\n",
+      [`${root}/packages/core/src/workspace.ts`]:
+        "// @sigil implements contract.sigil::Thing\nexport function loadWorkspace() {}\n",
       [`${root}/packages/cli/README.md`]:
         "<!-- @sigil related contract.sigil::Thing::OwnedTargets -->\n# CLI\n",
     }),
@@ -305,6 +319,61 @@ Deno.test("component hover includes clickable owned implementation links", async
       "related [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (markdown)",
     ),
   );
+  assert(
+    markdown.indexOf("**Owned implementations**") >
+      markdown.indexOf("**Collected expansions**"),
+  );
+
+  const conceptHover = responseResult(
+    await server.handle(request(3, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 6, character: 8 },
+    })),
+  ) as Record<string, unknown>;
+  const conceptMarkdown = String(
+    (conceptHover.contents as Record<string, unknown>).value,
+  );
+  assert(conceptMarkdown.includes("**Owned implementations**"));
+  assert(conceptMarkdown.includes("parseSigilConfig"));
+  assert(conceptMarkdown.includes("implementationTargets"));
+  assert(!conceptMarkdown.includes("loadWorkspace"));
+});
+
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+Deno.test("ownership hover cache shares scans and invalidates on watched changes", async () => {
+  const fs = new CountingSigilFileSystem(
+    new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-ownership-hover-cache", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [contractPath]: contractSource,
+      [`${root}/src/worker.ts`]:
+        "// @sigil implements contract.sigil::Thing::Execution\nexport function run() {}\n",
+    }),
+  );
+  const server = new SigilLanguageServer({ currentDirectory: root, fs });
+  await initialize(server);
+
+  const hoverRequest = (id: number) =>
+    server.handle(request(id, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 0, character: 11 },
+    }));
+  await Promise.all([hoverRequest(2), hoverRequest(3)]);
+  const readsAfterConcurrentHovers = fs.implementationReads;
+  assertEquals(readsAfterConcurrentHovers, 1);
+
+  await hoverRequest(4);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/src/worker.ts`), type: 2 }],
+  }));
+  await hoverRequest(5);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 1);
 });
 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
@@ -555,6 +624,7 @@ Deno.test("highlights, explains, and navigates reviewed glossary terms", async (
 });
 
 /*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
  * @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
  * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
  */
@@ -596,6 +666,8 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
         }],
       }),
       [contractPath]: source,
+      [`${root}/src/execution.ts`]:
+        "// @sigil implements contract.sigil::Thing::Execution\nexport function execute() {}\n",
     }),
   });
   await initialize(server);
@@ -613,8 +685,11 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
     "### concept [Execution](file:///workspace/contract.sigil#L7,5)",
   );
   const termHeading = markdown.indexOf("### term execution model");
+  const ownershipHeading = markdown.indexOf("**Owned implementations**");
   assert(conceptHeading >= 0);
   assert(termHeading > conceptHeading);
+  assert(ownershipHeading > termHeading);
+  assert(markdown.includes("execute · src/execution.ts"));
   assert(markdown.includes("Reviewed execution meaning."));
   assert(markdown.includes("Matched alias: `Execution`"));
   assert(markdown.includes("Bounded context: `runtime`"));
@@ -981,6 +1056,28 @@ function makeServer(): SigilLanguageServer {
       [consumerPath]: consumerSource,
     }),
   });
+}
+
+class CountingSigilFileSystem implements SigilFileSystem {
+  readonly #base: SigilFileSystem;
+  implementationReads = 0;
+
+  constructor(base: SigilFileSystem) {
+    this.#base = base;
+  }
+
+  async readTextFile(path: string): Promise<string> {
+    if (path.endsWith(".ts")) this.implementationReads++;
+    return await this.#base.readTextFile(path);
+  }
+
+  exists(path: string): Promise<boolean> {
+    return this.#base.exists(path);
+  }
+
+  listFiles(root: string): Promise<readonly string[]> {
+    return this.#base.listFiles(root);
+  }
 }
 
 async function initialize(server: SigilLanguageServer): Promise<void> {

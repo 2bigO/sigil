@@ -10,6 +10,7 @@ import {
   diagnosticsByUri,
   documentSymbols,
   hoverAt,
+  OwnershipHoverCache,
   semanticTokens,
 } from "./features.ts";
 import {
@@ -63,6 +64,7 @@ export interface SigilLanguageServerOptions {
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::ReadOnlyLanguageService
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
  */
 export class SigilLanguageServer {
   readonly #fs: OverlaySigilFileSystem;
@@ -73,6 +75,7 @@ export class SigilLanguageServer {
   #state: ServerState = "uninitialized";
   #workspaceStart: string;
   #resolved?: ResolvedSigilWorkspace;
+  #ownershipHoverCache?: OwnershipHoverCache;
   #exitCode: number | undefined;
 
   constructor(options: SigilLanguageServerOptions = {}) {
@@ -188,6 +191,9 @@ export class SigilLanguageServer {
           return await this.#didChange(params);
         case "textDocument/didClose":
           return await this.#didClose(params);
+        case "workspace/didChangeWatchedFiles":
+          this.#refreshOwnershipHoverCache();
+          return [];
         default:
           return [];
       }
@@ -283,10 +289,11 @@ export class SigilLanguageServer {
 
   async #hover(params: unknown): Promise<unknown> {
     const value = textDocumentPositionParams(params);
-    if (!this.#resolved) return null;
+    if (!this.#resolved || !this.#ownershipHoverCache) return null;
     return await hoverAt(
       this.#resolved,
       this.#fs,
+      this.#ownershipHoverCache,
       fileUriToPath(value.textDocument.uri),
       value.position,
     );
@@ -309,6 +316,13 @@ export class SigilLanguageServer {
       currentDirectory: this.#currentDirectory,
     });
     this.#resolved = resolveSigilWorkspace(workspace);
+    this.#refreshOwnershipHoverCache();
+  }
+
+  #refreshOwnershipHoverCache(): void {
+    this.#ownershipHoverCache = this.#resolved
+      ? new OwnershipHoverCache(this.#resolved, this.#fs)
+      : undefined;
   }
 
   #diagnosticNotifications(

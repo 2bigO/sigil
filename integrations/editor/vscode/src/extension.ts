@@ -10,6 +10,8 @@ import { type HoverLike, hoverToMarkdown } from "./preview.ts";
 
 const PREVIEW_COMMAND = "sigil.showComponentPreview";
 const PREVIEW_SCHEME = "sigil-preview";
+const OWNERSHIP_SOURCE_GLOB =
+  "**/*.{c,cc,cjs,cpp,cs,cts,cxx,dart,go,h,hpp,java,js,jsx,kt,kts,md,markdown,mdown,mjs,mts,py,rb,rs,scala,sh,bash,swift,ts,tsx,zsh}";
 
 let client: LanguageClient | undefined;
 
@@ -38,6 +40,7 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
  * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview
  * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::SupportedExtensionHosts
  * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ReadOnlyEditorSupport
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::OwnershipCacheInvalidation
  */
 export async function activate(
   context: vscode.ExtensionContext,
@@ -60,12 +63,17 @@ export async function activate(
     run: { module: serverModule, transport: TransportKind.stdio },
     debug: { module: serverModule, transport: TransportKind.stdio },
   };
+  const ownershipSources = vscode.workspace.createFileSystemWatcher(
+    OWNERSHIP_SOURCE_GLOB,
+  );
+  context.subscriptions.push(ownershipSources);
   client = new LanguageClient(
     "sigil",
     "Sigil",
     serverOptions,
     {
       documentSelector: [{ scheme: "file", language: "sigil" }],
+      synchronize: { fileEvents: ownershipSources },
       outputChannel: output,
       revealOutputChannelOn: RevealOutputChannelOn.Error,
     },
