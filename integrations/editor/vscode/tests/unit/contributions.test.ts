@@ -25,6 +25,34 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
   );
 });
 
+test("manifest contributes the preview command to the editor title toolbar for Sigil editors", async () => {
+  const manifest = JSON.parse(await readFile("package.json", "utf8"));
+
+  // The command carries a Codicon so it renders as a title-bar button.
+  assert.equal(manifest.contributes.commands[0].icon, "$(open-preview)");
+
+  type MenuItem = {
+    command?: string;
+    when?: string;
+    group?: string;
+  };
+  const editorTitle = manifest.contributes.menus["editor/title"];
+  assert(Array.isArray(editorTitle), "editor/title menu contribution missing");
+  const entry = editorTitle.find(
+    (item: MenuItem) => item.command === "sigil.showComponentPreview",
+  );
+  assert(entry, "editor/title must contribute the preview command");
+  assert.equal(entry.when, "editorLangId == sigil");
+  assert.equal(entry.group, "navigation");
+
+  // The Command Palette entry remains available and Sigil-scoped.
+  const palette = manifest.contributes.menus.commandPalette.find(
+    (item: MenuItem) => item.command === "sigil.showComponentPreview",
+  );
+  assert(palette, "Command Palette entry must remain");
+  assert.equal(palette.when, "editorLangId == sigil");
+});
+
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   const packaging = await readFile("scripts/package-extension.mjs", "utf8");

@@ -28,6 +28,8 @@ component SigilVsCodeExtension {
       contributes the Sigil: Show Component Preview command
 
       opens the selected component contract and collected expansions as read-only Markdown
+
+      provides an Open Component Preview to the Side action in the editor title toolbar for Sigil documents
     }
 
     SupportedExtensionHosts {
@@ -74,6 +76,8 @@ expand SigilVsCodeExtension {
       A successful result opens read-only Markdown beside the Sigil document.
 
       A missing component or unavailable hover result shows a non-destructive informational message.
+
+      The editor-title preview action invokes the existing Show Component Preview command at the active cursor.
     }
   }
 
@@ -100,6 +104,10 @@ expand SigilVsCodeExtension {
       Component preview uses standard hover and introduces no custom protocol method.
     }
 
+    ComponentPreview {
+      The editor-title action is visible only for Sigil editors, and the existing Command Palette action remains available.
+    }
+
     SupportedExtensionHosts {
       extensionKind is workspace.
 
@@ -124,6 +132,16 @@ expand SigilVsCodeExtension {
       Consequences: Preview, navigation, diagnostics, and highlighting remain compatible with the shared LSP contract.
 
       Revisit when: A separately installed shared server becomes operationally preferable.
+    }
+
+    ComponentPreview {
+      Decision: Expose component preview as an editor-title toolbar action for Sigil editors that invokes the existing Show Component Preview command, rather than adding a second preview implementation or auto-opening previews when a file opens.
+
+      Scope: Governs preview discoverability on the VS Code editor-title surface; excludes preview content, component resolution, and the hover protocol.
+
+      Design issues addressed: Preview was discoverable mainly through the Command Palette, unlike the Markdown editor's title-bar preview button.
+
+      Consequences: The action is visible only for Sigil editors, reuses the standard hover-backed preview path with no custom protocol method, and leaves the existing Command Palette entry unchanged.
     }
 
     SupportedExtensionHosts {
@@ -156,6 +174,10 @@ expand SigilVsCodeExtension {
       Running preview on a component opens read-only Markdown.
 
       Running preview without an active component leaves editors unchanged and shows information.
+
+      Selecting the editor-title preview action on a component opens its read-only Markdown beside the Sigil editor.
+
+      Selecting the editor-title preview action without a component leaves editors unchanged and shows an informational message.
     }
 
     SupportedExtensionHosts {

@@ -78,7 +78,8 @@
       {
         "command": "sigil.showComponentPreview",
         "title": "Sigil: Show Component Preview",
-        "category": "Sigil"
+        "category": "Sigil",
+        "icon": "$(open-preview)"
       }
     ],
     "menus": {
@@ -86,6 +87,13 @@
         {
           "command": "sigil.showComponentPreview",
           "when": "editorLangId == sigil"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "sigil.showComponentPreview",
+          "when": "editorLangId == sigil",
+          "group": "navigation"
         }
       ]
     }

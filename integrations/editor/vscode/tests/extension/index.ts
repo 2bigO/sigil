@@ -89,6 +89,46 @@ export async function run(): Promise<void> {
   const preview = vscode.window.activeTextEditor?.document;
   assert.equal(preview?.uri.scheme, "sigil-preview");
   assert(preview.getText().includes("UserProfile"));
+
+  // Empty case: with the cursor away from any component reference, the same
+  // command (invoked by the editor-title action) leaves editors unchanged and
+  // shows an informational message rather than opening a preview.
+  //
+  // The command awaits showInformationMessage; in the headless host that
+  // promise does not resolve on its own, so stub it to resolve immediately and
+  // capture the surfaced message.
+  const sourceEditor = await vscode.window.showTextDocument(document, {
+    viewColumn: vscode.ViewColumn.One,
+    preserveFocus: false,
+  });
+  const blankPosition = new vscode.Position(1, 0);
+  sourceEditor.selection = new vscode.Selection(blankPosition, blankPosition);
+
+  const originalShowInfo = vscode.window.showInformationMessage;
+  let infoMessage: string | undefined;
+  // deno-lint-ignore no-explicit-any
+  (vscode.window as any).showInformationMessage = (message: string) => {
+    infoMessage = message;
+    return Promise.resolve(undefined);
+  };
+  try {
+    await vscode.commands.executeCommand("sigil.showComponentPreview");
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (vscode.window as any).showInformationMessage = originalShowInfo;
+  }
+
+  assert(
+    infoMessage?.includes("No Sigil component"),
+    "Empty preview should surface the existing informational message",
+  );
+  const activeAfterEmpty = vscode.window.activeTextEditor;
+  assert.equal(
+    activeAfterEmpty?.document.uri.scheme,
+    "file",
+    "No component at the cursor should not open a preview editor",
+  );
+  assert.equal(activeAfterEmpty?.document.languageId, "sigil");
 }
 
 async function eventually<T>(
