@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::BrownfieldWorkflow -->
+
 # Brownfield Sigil Adoption
 
 Use this procedure when implementation exists but Sigil coverage is absent,

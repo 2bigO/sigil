@@ -130,6 +130,7 @@ export interface ExpandDeclaration {
   readonly sections: readonly Section[];
 }
 
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::SourceModel
 export interface SigilDocument {
   readonly filePath: string;
   readonly imports: readonly ImportDeclaration[];
@@ -167,6 +168,7 @@ export interface GlossaryContext {
   readonly terms: readonly GlossaryTerm[];
 }
 
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::GlossaryModel
 export interface WorkspaceGlossary {
   readonly schemaVersion: 1;
   readonly filePath: string;
@@ -242,6 +244,7 @@ export interface OwnedImplementationProjection {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::FileSystemModel
 export interface SigilFileSystem {
   readTextFile(path: string): Promise<string>;
   exists(path: string): Promise<boolean>;
@@ -371,6 +374,7 @@ export interface ResolvedConceptNamespace {
   readonly references: readonly ResolvedConceptReference[];
 }
 
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::ResolutionModel
 export interface SigilResolution {
   readonly workspace: SigilWorkspace;
   readonly imports: readonly ResolvedImport[];
@@ -378,6 +382,7 @@ export interface SigilResolution {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::GraphModel
 export interface SigilGraph {
   readonly componentNodes: readonly ComponentNode[];
   readonly fileEdges: readonly FileDependencyEdge[];
@@ -409,6 +414,7 @@ export interface ComponentExpansionEdge {
   readonly expandFile: string;
 }
 
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::ResolvedWorkspaceModel
 export interface ResolvedSigilWorkspace {
   readonly workspace: SigilWorkspace;
   readonly imports: readonly ResolvedImport[];

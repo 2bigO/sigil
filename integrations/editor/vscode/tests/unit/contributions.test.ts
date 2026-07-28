@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+/*
+ * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport
+ * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview
+ */
 test("manifest contributes the Sigil language, grammar, and preview command", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   assert.equal(manifest.publisher, "sigil-dev");
@@ -25,6 +29,10 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
   );
 });
 
+/*
+ * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ExtensionPackage
+ * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ArtifactVersionOwnership
+ */
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   const packaging = await readFile("scripts/package-extension.mjs", "utf8");
@@ -36,6 +44,7 @@ test("package command derives the VSIX filename from the manifest version", asyn
   );
 });
 
+// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport
 test("TextMate grammar colors syntax without treating capitalized prose as names", async () => {
   const grammar = JSON.parse(
     await readFile("syntaxes/sigil.tmLanguage.json", "utf8"),
@@ -61,6 +70,7 @@ test("TextMate grammar colors syntax without treating capitalized prose as names
   assert.equal(JSON.stringify(grammar).includes("comment"), false);
 });
 
+// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport
 test("manifest maps concept and glossary semantic tokens to a visible TextMate scope", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   assert.deepEqual(

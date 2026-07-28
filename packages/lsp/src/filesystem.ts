@@ -1,6 +1,7 @@
 import type { SigilFileSystem } from "@qoherent/sigil-core";
 import { normalizePath } from "@qoherent/sigil-core";
 
+// @sigil follows packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort
 export class DenoSigilFileSystem implements SigilFileSystem {
   async readTextFile(path: string): Promise<string> {
     return await Deno.readTextFile(path);
@@ -23,6 +24,7 @@ export class DenoSigilFileSystem implements SigilFileSystem {
   }
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
 export class OverlaySigilFileSystem implements SigilFileSystem {
   readonly #base: SigilFileSystem;
   readonly #overlays = new Map<string, string>();
@@ -85,6 +87,7 @@ async function collectFiles(path: string, files: string[]): Promise<void> {
   }
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
 export function fileUriToPath(uri: string): string {
   const url = new URL(uri);
   if (url.protocol !== "file:") {
@@ -96,6 +99,7 @@ export function fileUriToPath(uri: string): string {
   return normalizePath(path);
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
 export function pathToFileUri(path: string): string {
   const normalized = normalizePath(path);
   const url = new URL("file:///");

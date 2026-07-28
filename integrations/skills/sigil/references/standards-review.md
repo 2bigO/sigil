@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview -->
+
 # Standards-Aware Semantic Review
 
 Use this procedure when creating, reviewing, or preparing Sigil for

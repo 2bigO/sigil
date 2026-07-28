@@ -16,6 +16,7 @@ const consumerPath = `${root}/consumer.sigil`;
 const contractUri = pathToFileUri(contractPath);
 const consumerUri = pathToFileUri(consumerPath);
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
 Deno.test("file URI conversion preserves Sigil paths", () => {
   assertEquals(
     fileUriToPath(pathToFileUri("/tmp/a #module.sigil")),
@@ -23,6 +24,7 @@ Deno.test("file URI conversion preserves Sigil paths", () => {
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async () => {
   const server = makeServer();
   const before = await server.handle(request(1, "shutdown"));
@@ -56,6 +58,10 @@ Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async 
   assertEquals(server.exitCode, 0);
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ */
 Deno.test("publishes and clears diagnostics from open document overlays", async () => {
   const server = makeServer();
   await initialize(server);
@@ -79,6 +85,7 @@ Deno.test("publishes and clears diagnostics from open document overlays", async 
   assertEquals(diagnosticsFor(closed, contractUri).length, 0);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
 Deno.test("returns hierarchical symbols, definitions, and component hover", async () => {
   const server = makeServer();
   await initialize(server);
@@ -300,6 +307,7 @@ Deno.test("component hover includes clickable owned implementation links", async
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
 Deno.test("navigates and hovers contextual imported concepts", async () => {
   const server = makeServer();
   await initialize(server);
@@ -456,6 +464,7 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
 Deno.test("highlights, explains, and navigates reviewed glossary terms", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const glossaryUri = pathToFileUri(glossaryPath);
@@ -545,6 +554,10 @@ Deno.test("highlights, explains, and navigates reviewed glossary terms", async (
   assert(!termTokens.some((item) => item.line === 4));
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
+ */
 Deno.test("combines concept and glossary hover while preserving concept navigation", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const source = `component Thing {
@@ -652,6 +665,10 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
   assert(!overlapTokens.some((item) => item.tokenType === 2));
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ */
 Deno.test("publishes invalid glossary diagnostics without crashing", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const server = new SigilLanguageServer({
@@ -676,6 +693,7 @@ Deno.test("publishes invalid glossary diagnostics without crashing", async () =>
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
 Deno.test("publishes concept style information as an LSP hint", async () => {
   const source = contractSource.replaceAll("Execution", "session-lifecycle");
   const server = new SigilLanguageServer({
@@ -699,6 +717,7 @@ Deno.test("publishes concept style information as an LSP hint", async () => {
   assertEquals(hint.severity, 4);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
 Deno.test("directory-index definitions navigate to the original declaration", async () => {
   const modulePath = `${root}/module/#module.sigil`;
   const indexedContractPath = `${root}/module/contract.sigil`;
@@ -750,6 +769,7 @@ Deno.test("directory-index definitions navigate to the original declaration", as
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 Deno.test("returns protocol errors for bad requests and observes cancellation", async () => {
   const server = makeServer();
   await initialize(server);
@@ -766,6 +786,10 @@ Deno.test("returns protocol errors for bad requests and observes cancellation", 
   assertEquals(errorCode(cancelled), -32800);
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ */
 Deno.test("surfaces workspace configuration failures without crashing", async () => {
   const server = new SigilLanguageServer({
     currentDirectory: root,
@@ -788,6 +812,7 @@ Deno.test("surfaces workspace configuration failures without crashing", async ()
   assertEquals(server.state, "running");
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 Deno.test("exit without shutdown reports an unsuccessful process status", async () => {
   const server = makeServer();
   await initialize(server);
@@ -795,6 +820,7 @@ Deno.test("exit without shutdown reports an unsuccessful process status", async 
   assertEquals(server.exitCode, 1);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 Deno.test("frames split messages and runs an ordered in-memory protocol session", async () => {
   const initializeMessage = encodeLspMessage(
     request(1, "initialize", { rootUri }),
@@ -833,6 +859,7 @@ Deno.test("frames split messages and runs an ordered in-memory protocol session"
   assertEquals(messages[1].id, 2);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 Deno.test("malformed JSON returns a parse error without dropping adjacent frames", async () => {
   const inputBytes = joinBytes([
     rawFrame("{"),
@@ -865,6 +892,10 @@ Deno.test("malformed JSON returns a parse error without dropping adjacent frames
   assertEquals(messages[2].id, 2);
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::LspPackage
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+ */
 Deno.test("stdio executable completes initialize, shutdown, and exit", async () => {
   const input = joinBytes([
     encodeLspMessage(request(1, "initialize", { rootUri })),

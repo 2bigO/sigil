@@ -22,11 +22,16 @@ import {
 import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
 
+/*
+ * @sigil tests packages/core/#module.sigil::SigilCore::PackageVersionOwnership
+ * @sigil tests packages/core/src/model.sigil::SigilSemanticModel::SupportedLanguageVersion
+ */
 Deno.test("separates the core artifact and language contract versions", () => {
   assertEquals(SIGIL_CORE_VERSION, "0.6.0");
   assertEquals(SIGIL_VERSION, "0.5.0");
 });
 
+// @sigil tests packages/core/#module.sigil::SigilCore::DeterministicCore
 Deno.test("normalizes and walks POSIX and Windows paths", () => {
   assertEquals(normalizePath("/work/./sigil/../project"), "/work/project");
   assertEquals(
@@ -40,6 +45,7 @@ Deno.test("normalizes and walks POSIX and Windows paths", () => {
   );
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("parses the canonical Sigil version and preserves semantic lines", async () => {
   const source = await Deno.readTextFile(
     "../../examples/promise/promise.sigil",
@@ -61,6 +67,7 @@ Deno.test("parses the canonical Sigil version and preserves semantic lines", asy
   assert(goal.lines[0].range.start.line > 0);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("raw parsing requires a supported explicit Sigil version", () => {
   const parsed = parseSigilDocument("future.sigil", rootModule, {
     sigilVersion: "2.0.0",
@@ -69,6 +76,7 @@ Deno.test("raw parsing requires a supported explicit Sigil version", () => {
   assertHasCode(parsed.diagnostics, "SIGIL_UNSUPPORTED_VERSION");
 });
 
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexContents
 Deno.test("requires every module index to declare a local component", () => {
   const parsed = parseSigilDocument(
     "internal/#module.sigil",
@@ -87,6 +95,10 @@ Deno.test("requires every module index to declare a local component", () => {
   assertNoErrors(valid.diagnostics);
 });
 
+/*
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::ConfigValidation
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::WorkspaceBoundary
+ */
 Deno.test("strict config accepts workspace defaults and rejects invalid members", () => {
   const valid = parseSigilConfig(configSource());
   assert(valid.config);
@@ -124,6 +136,10 @@ Deno.test("strict config accepts workspace defaults and rejects invalid members"
   }
 });
 
+/*
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::ConfigValidation
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::ConfiguredLanguageVersion
+ */
 Deno.test("config reports malformed and unsupported versions", () => {
   assertHasCode(parseSigilConfig("{").diagnostics, "SIGIL_CONFIG_PARSE");
   assertHasCode(
@@ -132,6 +148,7 @@ Deno.test("config reports malformed and unsupported versions", () => {
   );
 });
 
+// @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInterpretation
 Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
   const valid = parseSigilGlossary(glossarySource());
   assert(valid.glossary);
@@ -195,6 +212,10 @@ Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
   );
 });
 
+/*
+ * @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution
+ * @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition
+ */
 Deno.test("loads and projects longest glossary terms in bounded contexts", async () => {
   const source = `component Booking {
   goal {
@@ -243,6 +264,7 @@ Deno.test("loads and projects longest glossary terms in bounded contexts", async
   assertEquals(hold.term.definition, "Booking capacity before confirmation.");
 });
 
+// @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection
 Deno.test("projects only glossary terms occurring in selected files", async () => {
   const resolved = resolveSigilWorkspace(
     await loadSigilWorkspace(
@@ -354,6 +376,7 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
   );
 });
 
+// @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution
 Deno.test("reports glossary context overlap through ordinary workspace checks", async () => {
   const overlapping = glossarySource({
     contexts: [
@@ -388,6 +411,10 @@ Deno.test("reports glossary context overlap through ordinary workspace checks", 
   assertEquals(resolved.glossary.occurrences.length, 0);
 });
 
+/*
+ * @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery
+ * @sigil tests packages/core/src/resolver.sigil::SigilResolver::RelationshipResolution
+ */
 Deno.test("discovers the nearest excluded workspace config and resolves imports", async () => {
   const fs = workspaceFs();
   const workspace = await loadSigilWorkspace(fs, {
@@ -406,6 +433,7 @@ Deno.test("discovers the nearest excluded workspace config and resolves imports"
   assert(resolved.graph.componentNodes.some((node) => node.name === "Auth"));
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery
 Deno.test("requires config and rejects an unexcluded nearer config", async () => {
   const missing = await loadSigilWorkspace(
     new InMemorySigilFileSystem({ "feature/auth.sigil": rootModule }),
@@ -462,6 +490,7 @@ Deno.test("requires config and rejects an unexcluded nearer config", async () =>
   assertEquals(independent.files.length, 1);
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery
 Deno.test("explicit root must directly contain config", async () => {
   const workspace = await loadSigilWorkspace(
     new InMemorySigilFileSystem({
@@ -472,6 +501,7 @@ Deno.test("explicit root must directly contain config", async () => {
   assertHasCode(workspace.diagnostics, "SIGIL_CONFIG_NOT_FOUND");
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceLoading
 Deno.test("nested config below selected root is diagnosed and its subtree skipped", async () => {
   const workspace = await loadSigilWorkspace(
     new InMemorySigilFileSystem({
@@ -521,6 +551,7 @@ Deno.test("nested config below selected root is diagnosed and its subtree skippe
   assertHasCode(memberWithConfig.diagnostics, "SIGIL_NESTED_CONFIG");
 });
 
+// @sigil tests spec/language.sigil::SigilWorkspaceConfig::SourceSelection
 Deno.test("glob includes root files and exclusion wins", async () => {
   const parsed = parseSigilConfig(configSource({
     files: { include: ["**/*.sigil"], exclude: ["generated/**"] },
@@ -543,6 +574,7 @@ Deno.test("glob includes root files and exclusion wins", async () => {
   assertEquals(workspace.files.length, 1);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("returns partial models and stable diagnostics for malformed Sigil", () => {
   const source =
     `component Broken {\n  weird {\n    ignored\n  }\n}\n\nexpand Missing {\n  logic {\n    orphan detail\n  }\n}\n`;
@@ -563,6 +595,7 @@ Deno.test("returns partial models and stable diagnostics for malformed Sigil", (
   assertHasCode(resolved.diagnostics, "SIGIL_EXPAND_WITHOUT_COMPONENT");
 });
 
+// @sigil tests spec/language.sigil::SigilModuleIndex::DirectoryImportSurface
 Deno.test("resolves directory indexes independently of workspace members", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -615,6 +648,7 @@ Deno.test("resolves directory indexes independently of workspace members", async
   );
 });
 
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexContents
 Deno.test("does not add unnamed component dependencies to a module index", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -639,6 +673,7 @@ Deno.test("does not add unnamed component dependencies to a module index", async
   );
 });
 
+// @sigil tests packages/core/src/projections.sigil::SigilProjections::ExpansionProjection
 Deno.test("collects expansion file paths and exposes projections", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -661,6 +696,7 @@ Deno.test("collects expansion file paths and exposes projections", async () => {
   );
 });
 
+// @sigil tests packages/core/src/projections.sigil::SigilProjections::AgentDependencyContext
 Deno.test("projects direct dependency contracts and decisions for agents", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -1004,6 +1040,60 @@ Deno.test("resolves entrypoints using each language's declaration syntax", async
 });
 
 // @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+Deno.test("resolves Go and Node test entrypoints", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own language entrypoints.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint";
+  const sources = [
+    {
+      filePath: "src/worker_test.go",
+      text: `// @sigil tests ${target}\nfunc TestWorker(t *testing.T) {}\n`,
+    },
+    {
+      filePath: "src/worker.test.ts",
+      text: `// @sigil tests ${target}\ntest("runs worker", () => {});\n`,
+    },
+    {
+      filePath: "src/worker.test.cjs",
+      text: `// @sigil tests ${target}\nit.skip("skips worker", () => {});\n`,
+    },
+    {
+      filePath: "src/worker.test.mts",
+      text:
+        `// @sigil tests ${target}\ndescribe.only("worker suite", () => {});\n`,
+    },
+  ];
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    sources,
+    "Ownership",
+    "EntryPoint",
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) => item.symbolIdentity).sort().join(","),
+    "TestWorker,runs worker,skips worker,worker suite",
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
 Deno.test("ignores annotation examples inside strings and Markdown fences", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -1044,6 +1134,10 @@ Deno.test("ignores annotation examples inside strings and Markdown fences", asyn
   assertEquals(projection.diagnostics.length, 0);
 });
 
+/*
+ * @sigil tests packages/core/src/resolver.sigil::SigilResolver::RelationshipResolution
+ * @sigil tests packages/core/src/graph.sigil::SigilGraphBuilder::GraphConstruction
+ */
 Deno.test("separates relationship resolution from graph construction", async () => {
   const workspace = await loadSigilWorkspace(workspaceFs(), {
     startPath: "examples/slotted/auth.sigil",
@@ -1066,6 +1160,7 @@ Deno.test("separates relationship resolution from graph construction", async () 
   assertEquals(JSON.stringify(composed.graph), JSON.stringify(graph));
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("parses flat concept blocks and diagnoses interface authoring gaps", () => {
   const source = `component Account {
   goal {
@@ -1125,6 +1220,7 @@ expand Account {
   );
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("reports each blank-line-separated ungrouped interface region", () => {
   const source = `component Account {
   goal {
@@ -1150,6 +1246,7 @@ Deno.test("reports each blank-line-separated ungrouped interface region", () => 
   assertNoErrors(parsed.diagnostics);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("parses optional grouped and ungrouped decision rationale", () => {
   const source = `component Payments {
   goal {
@@ -1198,6 +1295,7 @@ expand Payments {
   assertEquals(decisions.lines.at(-1)?.conceptIdentifier, undefined);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument
 Deno.test("rejects empty, nested, and invalid concept blocks", () => {
   const source = `component BrokenConcepts {
   goal {
@@ -1228,6 +1326,7 @@ Deno.test("rejects empty, nested, and invalid concept blocks", () => {
   assertHasCode(parsed.diagnostics, "SIGIL_INVALID_CONCEPT_IDENTIFIER");
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ConceptResolution
 Deno.test("resolves collective and contextual concept identities", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -1358,6 +1457,7 @@ component App {
   );
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ConceptResolution
 Deno.test("resolves contextual whole-word concept references in source order", async () => {
   const consumerSource = `@account.sigil import { Account }
 
@@ -1436,6 +1536,7 @@ expand Consumer {
   }
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ConceptResolution
 Deno.test("rejects case-insensitive concept ambiguity across imports", async () => {
   const provider = (component: string, concept: string) =>
     `component ${component} {\n  goal {\n    Provide ${component}.\n  }\n\n  interface {\n    ${concept} {\n      Public ${concept}.\n    }\n  }\n}\n`;
@@ -1471,6 +1572,7 @@ component Consumer {
   assertEquals(consumer.references.length, 0);
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceLoading
 Deno.test("filesystem read failures propagate to the host", async () => {
   const base = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),

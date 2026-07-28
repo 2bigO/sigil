@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionConversation -->
+
 # Sigil Design Conversation
 
 Use this procedure whenever material clarification is needed before Sigil can be

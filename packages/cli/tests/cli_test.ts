@@ -8,6 +8,10 @@ import {
   EXIT_USAGE,
 } from "../src/exit.ts";
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::StructuredOutput
+ */
 Deno.test("parse discovers config and emits workspace metadata", async () => {
   const result = await runCli([
     "parse",
@@ -23,6 +27,7 @@ Deno.test("parse discovers config and emits workspace metadata", async () => {
   assertEquals(json.document.components[0].name, "Promise");
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("check resolves repository config from a nested working directory", async () => {
   const result = await runCli(["check", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_OK);
@@ -32,6 +37,7 @@ Deno.test("check resolves repository config from a nested working directory", as
   assertEquals(json.diagnosticCounts.error, 0);
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInitialization
 Deno.test("init creates defaults, accepts a custom name, and refuses overwrite", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-init-" });
   try {
@@ -78,6 +84,7 @@ Deno.test("init creates defaults, accepts a custom name, and refuses overwrite",
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInitialization
 Deno.test("init preserves an existing glossary", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-init-glossary-" });
   const glossaryPath = `${root}/.sigil/glossary.json`;
@@ -101,6 +108,7 @@ Deno.test("init preserves an existing glossary", async () => {
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInitialization
 Deno.test("init defaults workspace name to directory basename", async () => {
   const parent = await Deno.makeTempDir({ prefix: "sigil-parent-" });
   const root = `${parent}/sample-project`;
@@ -116,6 +124,10 @@ Deno.test("init defaults workspace name to directory basename", async () => {
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ArtifactVersionOwnership
+ */
 Deno.test("version reports tool and resolved contract versions", async () => {
   const result = await runCli([
     "version",
@@ -131,6 +143,10 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus
+ */
 Deno.test("configuration failure returns document null and exit 1", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-bad-config-" });
   try {
@@ -152,6 +168,10 @@ Deno.test("configuration failure returns document null and exit 1", async () => 
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus
+ */
 Deno.test("check returns 1 for Sigil diagnostics and 0 for a valid empty workspace", async () => {
   const root = await makeWorkspace("diagnostics");
   try {
@@ -172,6 +192,10 @@ Deno.test("check returns 1 for Sigil diagnostics and 0 for a valid empty workspa
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus
+ */
 Deno.test("check reports missing interface concepts as warning-only", async () => {
   const root = await makeWorkspace("concept-warning");
   try {
@@ -190,6 +214,7 @@ Deno.test("check reports missing interface concepts as warning-only", async () =
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection
 Deno.test("glossary reports reviewed terms, contexts, and occurrences", async () => {
   const root = await makeWorkspace("glossary");
   try {
@@ -264,6 +289,10 @@ Deno.test("glossary reports reviewed terms, contexts, and occurrences", async ()
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus
+ */
 Deno.test("glossary is absent without error and invalid data exits 1", async () => {
   const root = await makeWorkspace("glossary-errors");
   try {
@@ -283,6 +312,7 @@ Deno.test("glossary is absent without error and invalid data exits 1", async () 
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("context exposes concept blocks and resolved namespaces", async () => {
   const root = await makeWorkspace("concept-context");
   try {
@@ -324,6 +354,7 @@ Deno.test("context exposes concept blocks and resolved namespaces", async () => 
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("context includes direct dependency contracts and decision rationale", async () => {
   const root = await makeWorkspace("agent-dependency-context");
   try {
@@ -416,6 +447,7 @@ ${validSigil("Consumer")}`,
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("check rejects an imports-only module index in an internal directory", async () => {
   const root = await makeWorkspace("internal-module-index");
   try {
@@ -443,6 +475,7 @@ Deno.test("check rejects an imports-only module index in an internal directory",
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("graph includes component nodes and imported-component edges", async () => {
   const repository = await runCli(["graph", "../..", "--format", "json"]);
   assertEquals(repository.exitCode, EXIT_OK);
@@ -473,6 +506,7 @@ Deno.test("graph includes component nodes and imported-component edges", async (
   );
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
 Deno.test("context reports every collected expansion file", async () => {
   const root = await makeWorkspace("multi-expand");
   try {
@@ -503,6 +537,10 @@ Deno.test("context reports every collected expansion file", async () => {
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection
+ */
 Deno.test("context includes only glossary terms from related Sigil files", async () => {
   const root = await makeWorkspace("glossary-context");
   try {
@@ -622,6 +660,10 @@ Deno.test("context includes only glossary terms from related Sigil files", async
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil tests packages/cli/#module.sigil::SigilCli::StructuredOutput
+ */
 Deno.test("render JSON includes workspace metadata and Markdown", async () => {
   const result = await runCli(["render", "../..", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_OK);
@@ -630,6 +672,10 @@ Deno.test("render JSON includes workspace metadata and Markdown", async () => {
   assert(json.markdown.includes("# Sigil Workspace"));
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CliInvocation
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus
+ */
 Deno.test("invalid usage and runtime failures keep stable exit codes", async () => {
   const usage = await runCli([
     "context",
@@ -646,6 +692,7 @@ Deno.test("invalid usage and runtime failures keep stable exit codes", async () 
   assertEquals(runtime.exitCode, EXIT_RUNTIME);
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::CliInvocation
 Deno.test("help is scoped to every recognized command path", async () => {
   const help = await runCli(["--help"]);
   assertEquals(help.exitCode, EXIT_OK);
@@ -676,6 +723,7 @@ Deno.test("help is scoped to every recognized command path", async () => {
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::CliInvocation
 Deno.test("usage errors include help for the longest recognized command path", async () => {
   const cases = [
     {
@@ -724,6 +772,10 @@ Deno.test("usage errors include help for the longest recognized command path", a
   }
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CliInvocation
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ArtifactVersionOwnership
+ */
 Deno.test("version flag reports CLI information", async () => {
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
@@ -731,6 +783,10 @@ Deno.test("version flag reports CLI information", async () => {
   assertEquals(version.stderr, "");
 });
 
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SkillInstallation
+ * @sigil tests packages/cli/src/installer.sigil::SkillInstaller::SkillInstallation
+ */
 Deno.test("skill install defaults global and supports project agent targets", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-install-" });
   const source = `${root}/installation/integrations/skills`;
@@ -816,6 +872,7 @@ Deno.test("skill install defaults global and supports project agent targets", as
   }
 });
 
+// @sigil tests packages/cli/src/installer.sigil::SkillInstaller::SkillCatalog
 Deno.test("skill discovery resolves valid skills from the source installation", async () => {
   const source = await resolveInstalledSkillsDirectory();
   const names: string[] = [];
@@ -826,6 +883,7 @@ Deno.test("skill discovery resolves valid skills from the source installation", 
   assert(names.includes("sigil-anchor-indexer"));
 });
 
+// @sigil tests packages/cli/src/installer.sigil::SkillInstaller::SkillSourceDiscovery
 Deno.test("skill install resolves skills beside a selected versioned binary", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-versioned-install-" });
   const installation = `${root}/0.6.0`;
@@ -842,6 +900,7 @@ Deno.test("skill install resolves skills beside a selected versioned binary", as
   }
 });
 
+// @sigil tests packages/cli/src/installer.sigil::SkillInstaller::SkillInstallation
 Deno.test("skill install copies when links are unavailable and updates managed copies", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-copy-install-" });
   const source = `${root}/v1/integrations/skills`;
@@ -870,6 +929,7 @@ Deno.test("skill install copies when links are unavailable and updates managed c
   }
 });
 
+// @sigil tests packages/cli/src/installer.sigil::SkillInstaller::SkillInstallation
 Deno.test("skill install refuses unmanaged destinations before changing others", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-conflict-install-" });
   const source = `${root}/skills`;
@@ -889,6 +949,7 @@ Deno.test("skill install refuses unmanaged destinations before changing others",
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::CliInvocation
 Deno.test("executable subprocess returns version JSON", async () => {
   const command = new Deno.Command(Deno.execPath(), {
     args: [

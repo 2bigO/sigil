@@ -24,8 +24,10 @@ const HASH_COMMENT_EXTENSIONS = new Set([".py", ".rb", ".sh", ".bash", ".zsh"]);
 const SLASH_COMMENT_EXTENSIONS = new Set([
   ".c",
   ".cc",
+  ".cjs",
   ".cpp",
   ".cs",
+  ".cts",
   ".cxx",
   ".dart",
   ".go",
@@ -37,6 +39,7 @@ const SLASH_COMMENT_EXTENSIONS = new Set([
   ".kt",
   ".kts",
   ".mjs",
+  ".mts",
   ".rs",
   ".scala",
   ".swift",
@@ -137,6 +140,7 @@ export function ownedImplementationTargetsFor(
   };
 }
 
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope
 export function isSupportedImplementationSource(filePath: string): boolean {
   const normalized = normalizePath(filePath).toLowerCase();
   if (normalized.endsWith(".sigil") || normalized.endsWith(".json")) {
@@ -490,6 +494,7 @@ function entrypointAfter(
   };
 }
 
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
 function entrypointMatch(
   source: string,
   extension: string,
@@ -542,6 +547,7 @@ function entrypointMatch(
     const prefix = String
       .raw`^\s*(?:(?:@[A-Za-z_$][\w$]*(?:\([^\r\n]*\))?|#\[[^\]]+\])\s*)*(?:(?:export|default|declare|abstract|public|protected|private|static|final|sealed|partial|override|readonly|async|unsafe|extern)\s+)*`;
     patterns = [
+      /^\s*(?:test|it|describe|suite)(?:\.(?:only|skip|todo))?\s*\(\s*["'`]([^"'`]+)["'`]/,
       new RegExp(
         `${prefix}(?:class|interface|struct|trait|enum|function)\\s+\\*?\\s*([A-Za-z_$][\\w$]*)`,
       ),

@@ -1,3 +1,8 @@
+<!--
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticLineDiscipline
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionRationaleWorkflow
+-->
+
 # Sigil Authoring Conventions
 
 Use these conventions whenever proposing, creating, or semantically editing

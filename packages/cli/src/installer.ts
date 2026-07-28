@@ -63,6 +63,7 @@ interface PlannedInstall {
   readonly action: "install" | "update" | "existing";
 }
 
+// @sigil implements packages/cli/src/installer.sigil::SkillInstaller::SkillCatalog
 export async function listInstalledSkills(
   sourceDirectory?: string,
 ): Promise<
@@ -78,6 +79,7 @@ export async function listInstalledSkills(
   return { sourceDirectory: source, skills };
 }
 
+// @sigil implements packages/cli/src/installer.sigil::SkillInstaller::SkillInstallation
 export async function installSkills(
   options: InstallSkillsOptions = {},
 ): Promise<InstallSkillsResult> {
@@ -157,6 +159,7 @@ export async function installSkills(
   return { scope, agents, sourceDirectory, skills: results };
 }
 
+// @sigil implements packages/cli/src/installer.sigil::SkillInstaller::SkillSourceDiscovery
 export async function resolveInstalledSkillsDirectory(
   moduleUrl = import.meta.url,
   executablePath = Deno.execPath(),

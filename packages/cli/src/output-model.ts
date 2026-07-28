@@ -115,6 +115,7 @@ export interface RenderCommandResult extends WorkspaceMetadata {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
+// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput
 export function workspaceMetadata(
   workspace: {
     readonly root: string;
@@ -130,6 +131,7 @@ export function workspaceMetadata(
   };
 }
 
+// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput
 export function diagnosticCounts(
   diagnostics: readonly SigilDiagnostic[],
 ): DiagnosticCounts {

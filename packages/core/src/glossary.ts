@@ -21,6 +21,7 @@ import { normalizePath, relativePath } from "./path.ts";
 
 export const GLOSSARY_SCHEMA_VERSION = 1 as const;
 
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInterpretation
 export function parseSigilGlossary(
   source: string,
   filePath: string = SIGIL_GLOSSARY_PATH,
@@ -103,6 +104,7 @@ export function parseSigilGlossary(
   };
 }
 
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution
 export function resolveGlossaryForFile(
   glossary: WorkspaceGlossary,
   filePath: string,
@@ -142,6 +144,7 @@ export function resolveGlossaryForFile(
   };
 }
 
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition
 export function glossaryOccurrencesForDocument(
   context: ResolvedGlossaryContext,
   document: SigilDocument,
@@ -176,6 +179,7 @@ export function glossaryOccurrencesForDocument(
   return occurrences;
 }
 
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection
 export function glossaryProjectionForWorkspace(
   workspace: SigilWorkspace,
 ): GlossaryProjection {
@@ -218,6 +222,7 @@ export function glossaryProjectionForWorkspace(
   };
 }
 
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection
 export function glossaryContextForFiles(
   projection: GlossaryProjection,
   filePaths: readonly string[],

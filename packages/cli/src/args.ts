@@ -90,6 +90,7 @@ export type ParseArgsResult = {
   readonly kind: "cli-version";
 } | UsageError;
 
+// @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation
 export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (argv[0] === "--help") return { kind: "help", helpTopic: "root" };
   if (argv[0] === "--version") return { kind: "cli-version" };

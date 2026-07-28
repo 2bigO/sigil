@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::WorkspaceBootstrap -->
+
 # Workspace Bootstrap
 
 Complete this procedure before selecting Greenfield, Brownfield, or

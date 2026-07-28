@@ -54,6 +54,16 @@ export interface SigilLanguageServerOptions {
   readonly currentDirectory?: string;
 }
 
+/**
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ReadOnlyLanguageService
+ */
 export class SigilLanguageServer {
   readonly #fs: OverlaySigilFileSystem;
   readonly #currentDirectory: string;

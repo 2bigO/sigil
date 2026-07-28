@@ -1,3 +1,8 @@
+<!--
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::EvidenceReview
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview
+-->
+
 # External Guidance Evidence
 
 Use this procedure when current authoritative external guidance could materially

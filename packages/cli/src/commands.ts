@@ -16,6 +16,13 @@ export interface CommandHandlerOptions {
   readonly install?: InstallSkillsOptions;
 }
 
+/**
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+ * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection
+ */
 export async function runCommand(
   request: CommandRequest,
   options: CommandHandlerOptions = {},

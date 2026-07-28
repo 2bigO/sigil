@@ -10,6 +10,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const FRAME_PARSE_ERROR = Symbol("FRAME_PARSE_ERROR");
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 export class LspMessageFramer {
   #buffer: Uint8Array<ArrayBufferLike> = new Uint8Array();
 
@@ -35,6 +36,7 @@ export class LspMessageFramer {
   }
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 export function encodeLspMessage(
   message: JsonRpcIncoming | JsonRpcOutgoing,
 ): Uint8Array {
@@ -43,6 +45,7 @@ export function encodeLspMessage(
   return concatenate(header, body);
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 export function parseIncoming(
   value: unknown,
 ): JsonRpcIncoming | JsonRpcFailure {
@@ -59,6 +62,7 @@ export function parseIncoming(
   return value as unknown as JsonRpcIncoming;
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession
 export async function runLanguageServer(
   input: ReadableStream<Uint8Array>,
   output: WritableStream<Uint8Array>,

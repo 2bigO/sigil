@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GreenfieldWorkflow -->
+
 # Greenfield Sigil Design
 
 Use this procedure when the selected behavior or component has no existing

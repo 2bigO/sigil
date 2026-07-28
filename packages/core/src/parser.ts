@@ -53,6 +53,7 @@ interface ConceptDraft {
 const CONCEPT_IDENTIFIER = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const PREFERRED_CONCEPT_IDENTIFIER = /^[A-Z][A-Za-z0-9]*$/;
 
+// @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocument
 export function parseSigilDocument(
   filePath: string,
   source: string,

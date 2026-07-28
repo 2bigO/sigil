@@ -8,12 +8,14 @@ import type {
   ResolvedSigilWorkspace,
 } from "./model.ts";
 
+// @sigil implements packages/core/src/projections.sigil::SigilProjections::ContractProjection
 export function componentContracts(
   resolved: ResolvedSigilWorkspace,
 ): readonly ComponentContractView[] {
   return resolved.components.map(componentContractView);
 }
 
+// @sigil implements packages/core/src/projections.sigil::SigilProjections::ConceptNamespaceProjection
 export function conceptNamespaceFor(
   resolved: ResolvedSigilWorkspace,
   componentName: string,
@@ -23,6 +25,7 @@ export function conceptNamespaceFor(
   )?.conceptNamespace;
 }
 
+// @sigil implements packages/core/src/projections.sigil::SigilProjections::ExpansionProjection
 export function collectedExpansionFor(
   resolved: ResolvedSigilWorkspace,
   componentName: string,
@@ -32,6 +35,7 @@ export function collectedExpansionFor(
   )?.expansions;
 }
 
+// @sigil implements packages/core/src/projections.sigil::SigilProjections::AgentDependencyContext
 export function agentDependencyContextFor(
   resolved: ResolvedSigilWorkspace,
   componentName: string,

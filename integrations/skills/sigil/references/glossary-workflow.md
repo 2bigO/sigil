@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GlossaryWorkflow -->
+
 # Reviewed Glossary Workflow
 
 Use this procedure after every approved `.sigil` write or semantic edit, when

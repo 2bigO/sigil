@@ -13,6 +13,7 @@ const PREVIEW_SCHEME = "sigil-preview";
 
 let client: LanguageClient | undefined;
 
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   readonly #contents = new Map<string, string>();
   #sequence = 0;
@@ -32,6 +33,12 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   }
 }
 
+/**
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::SupportedExtensionHosts
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ReadOnlyEditorSupport
+ */
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
@@ -77,6 +84,7 @@ export async function activate(
   }
 }
 
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport
 export async function deactivate(): Promise<void> {
   const running = client;
   client = undefined;

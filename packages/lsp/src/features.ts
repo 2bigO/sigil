@@ -73,6 +73,7 @@ export function sourceRangeToLsp(range?: SourceRange): Range {
   };
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
 export function diagnosticsByUri(
   diagnostics: readonly SigilDiagnostic[],
 ): ReadonlyMap<string, PublishDiagnosticsParams["diagnostics"]> {
@@ -97,6 +98,7 @@ export function diagnosticsByUri(
   return grouped;
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
 export function documentSymbols(
   document: SigilDocument,
   source: string,
@@ -133,6 +135,7 @@ export function documentSymbols(
   ];
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
 export async function definitionAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
@@ -196,6 +199,7 @@ export async function definitionAt(
     : null;
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
 export async function hoverAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
@@ -253,6 +257,7 @@ export async function hoverAt(
   };
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
 export function semanticTokens(
   resolved: ResolvedSigilWorkspace,
   filePath: string,
