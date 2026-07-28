@@ -68,6 +68,12 @@ component SigilSkill {
     ImplementationGovernance {
       requires governing Sigil and implementation coverage to be inspected before any implementation mutation
 
+      requires the exact written Sigil for the current boundary to be approved before implementation begins
+
+      treats deterministic CLI validation as structural only and never as semantic approval
+
+      requires a new Sigil review when a request changes the observable contract of a different component or surface
+
       applies regardless of language, format, subsystem, or artifact classification
     }
 
@@ -127,6 +133,8 @@ component SigilSkill {
 
     SigilReviewGate {
       requires an exact proposal before semantic editing
+
+      requires explicit approval of the exact written proposal before any repository mutation
 
       stops for human review after approved Sigil is written
 
@@ -302,9 +310,13 @@ expand SigilSkill {
     ImplementationGovernance {
       Inspect governing Sigil before every implementation mutation.
 
+      Treat deterministic CLI validation as structural only and never as semantic approval.
+
       Propose Sigil changes only when the mutation introduces or exposes a material decision not already covered.
 
       Classify every material implementation concern as established, partial, or missing.
+
+      Require a new Sigil review when a request changes the observable contract of a different component or surface.
 
       When coverage is partial, missing, ambiguous, or drifted, prepare an exact Sigil proposal and wait for approval before editing implementation.
 
@@ -333,6 +345,18 @@ expand SigilSkill {
       Give the proposal-only subagent the affected regions, complete component and expands, local occurrences, imported candidates, consumer evidence, and graph paths.
 
       After approved grouping changes, return to SemanticReadinessReview before glossary candidate extraction.
+    }
+
+    ImplementationGovernance {
+      Decision: Treat deterministic Sigil validation as structural validation only, never as semantic approval or implementation permission.
+
+      Scope: Governs implementation gating for any boundary change; excludes final code behavior.
+
+      Trade-offs: This adds another explicit stop, but prevents false confidence from clean CLI output.
+
+      Consequences: Every new or changed observable contract must have an approved exact Sigil proposal before edits begin.
+
+      Revisit when: The workflow adopts a different approval mechanism that can genuinely certify semantic readiness.
     }
 
     DelegatedProposalApproval {
@@ -373,6 +397,14 @@ expand SigilSkill {
       Present exact semantic changes before editing.
 
       Write only the approved proposal and run deterministic validation before semantic-readiness review.
+
+      A successful sigil check does not authorize implementation.
+
+      Approval applies only to the exact written proposal for the current session.
+
+      A feature refinement that changes the observable contract of a different component requires its own approved Sigil before edits.
+
+      Adjacent core coverage does not authorize LSP presentation changes.
 
       Validate structure, imports, collected expands, workspace relationships, and concept diagnostics.
 

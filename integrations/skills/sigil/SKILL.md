@@ -10,6 +10,10 @@ how its implementation should be understood and changed. A component may be a
 product module, service boundary, domain concept, library abstraction, internal
 API, state machine, screen, view, or reusable UI surface.
 
+Do not treat a clean `sigil check` as semantic approval. A change to a
+component's observable contract needs the exact written Sigil for that boundary
+to be approved before implementation begins.
+
 This file is the workflow dispatcher. Load detailed references only when their
 route applies, but read every selected reference completely before acting.
 
@@ -34,6 +38,9 @@ an exact Sigil proposal or of resulting written Sigil, and successful tests,
 builds, validators, or CLI checks never provide retroactive approval. Exact
 user-requested rollback of the current agent's unapproved changes restores the
 previous state but does not authorize replacement behavior.
+
+If a request changes the observable contract of a different component or
+surface, stop and review that boundary's Sigil before editing implementation.
 
 Then select one semantic workflow:
 
