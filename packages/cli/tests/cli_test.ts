@@ -1,4 +1,10 @@
-import { SIGIL_CORE_VERSION, SIGIL_VERSION } from "@qoherent/sigil-core";
+import {
+  SIGIL_CORE_VERSION,
+  SIGIL_VERSION,
+  type SigilFileSystem,
+} from "@qoherent/sigil-core";
+import { CoreAdapter } from "../src/core-adapter.ts";
+import { DenoSigilFileSystem } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
 import {
@@ -388,6 +394,63 @@ const detached = 1;
     assertEquals(projection.targets[0].relation, "implements");
     assertEquals(projection.targets[0].filePath, "implementation.ts");
     assertEquals(projection.targets[0].symbolIdentity, "runFeature");
+    assertHasCode(projection.diagnostics, "SIGIL_PARSE_STRUCTURE");
+    assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::OwnershipContext
+Deno.test("context omits unreadable implementation sources without aborting", async () => {
+  const root = await makeWorkspace("unreadable-ownership-source");
+  const unreadablePath = `${root}/unreadable.ts`;
+  try {
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      validSigil("Feature"),
+    );
+    await Deno.writeTextFile(
+      `${root}/readable.ts`,
+      `// @sigil implements contract.sigil::Feature
+export function runFeature() {}
+
+// @sigil tests contract.sigil::Feature
+const detached = 1;
+`,
+    );
+    await Deno.writeTextFile(
+      unreadablePath,
+      `// @sigil implements contract.sigil::Feature
+export function hiddenFeature() {}
+`,
+    );
+
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ], {
+      core: new CoreAdapter({
+        currentDirectory: root,
+        fs: new UnreadableImplementationFileSystem(unreadablePath),
+      }),
+    });
+
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const output = parseJson(result.stdout);
+    const projection = output.ownedImplementationProjections[0];
+    assertEquals(projection.targets.length, 1);
+    assertEquals(projection.targets[0].symbolIdentity, "runFeature");
+    assert(
+      !projection.targets.some(
+        (target: { symbolIdentity?: string }) =>
+          target.symbolIdentity === "hiddenFeature",
+      ),
+    );
     assertHasCode(projection.diagnostics, "SIGIL_PARSE_STRUCTURE");
     assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
   } finally {
@@ -1070,5 +1133,29 @@ async function exists(path: string): Promise<boolean> {
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) return false;
     throw error;
+  }
+}
+
+class UnreadableImplementationFileSystem implements SigilFileSystem {
+  readonly #base = new DenoSigilFileSystem();
+  readonly #unreadablePath: string;
+
+  constructor(unreadablePath: string) {
+    this.#unreadablePath = unreadablePath;
+  }
+
+  readTextFile(path: string): Promise<string> {
+    if (path === this.#unreadablePath) {
+      return Promise.reject(new Error(`File not found: ${path}`));
+    }
+    return this.#base.readTextFile(path);
+  }
+
+  exists(path: string): Promise<boolean> {
+    return this.#base.exists(path);
+  }
+
+  listFiles(root: string): Promise<readonly string[]> {
+    return this.#base.listFiles(root);
   }
 }

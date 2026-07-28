@@ -215,10 +215,14 @@ export class CoreAdapter {
       .filter(isSupportedImplementationSource);
     const sources: ImplementationSource[] = [];
     for (const filePath of paths) {
-      sources.push({
-        filePath,
-        text: await this.#fs.readTextFile(filePath),
-      });
+      try {
+        sources.push({
+          filePath,
+          text: await this.#fs.readTextFile(filePath),
+        });
+      } catch {
+        // A file can disappear or become unreadable after workspace listing.
+      }
     }
     return sources;
   }

@@ -136,6 +136,8 @@ expand SigilCli {
 
     OwnershipContext {
       context loads supported implementation sources once and delegates ownership lookup for each selected component to SigilCore.
+
+      context continues scanning when a discovered implementation source disappears or cannot be read.
     }
 
     GlossaryInspection {
@@ -326,6 +328,8 @@ expand SigilCli {
       context for a component with valid ownership annotations reports its implementation targets.
 
       context reports malformed or detached ownership annotations through both the component projection and command diagnostics.
+
+      context with an unreadable or concurrently deleted implementation source omits that source and still returns structured context, projections, and diagnostics from readable sources.
     }
 
     GlossaryInspection {
