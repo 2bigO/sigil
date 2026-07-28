@@ -79,7 +79,9 @@ Also load these cross-cutting references when applicable:
   semantic edit; when `.sigil/glossary.json` exists; when the user requests
   reviewed vocabulary; or when terminology ambiguity is material. Candidate
   extraction begins only after semantic readiness appears aligned and any
-  concept grouping has received a final semantic review.
+  concept grouping has received a final semantic review. In every Sigil
+  session, explicitly report whether glossary extraction is required, deferred,
+  or deterministic inspection only; never silently omit its status.
 - `references/sigil-format.md`: when syntax, workspace structure, section
   meanings, or examples are needed.
 

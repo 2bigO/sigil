@@ -225,6 +225,12 @@
     "include-scoped-glossary-in-coding-context",
     "supplement-request-matched-accepted-term",
     "exclude-unrelated-glossary-context",
-    "defer-markdown-extraction"
+    "defer-markdown-extraction",
+    "classify-session-glossary-status",
+    "inspect-existing-glossary-every-session",
+    "report-deferred-extraction-blocker",
+    "report-inspection-only-reason",
+    "extract-explicit-vocabulary-request",
+    "preserve-selected-vocabulary-scope"
   ]
 }

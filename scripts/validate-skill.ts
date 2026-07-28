@@ -31,6 +31,7 @@ for (const path of required) await requireFile(`${root}/${path}`);
 
 const skill = await Deno.readTextFile(`${root}/SKILL.md`);
 const skillContract = await Deno.readTextFile(`${root}/#module.sigil`);
+const openAiAdapter = await Deno.readTextFile(`${root}/agents/openai.yaml`);
 const workspaceBootstrap = await Deno.readTextFile(
   `${root}/references/workspace-bootstrap.md`,
 );
@@ -101,6 +102,22 @@ requireText(
   skill,
   "references/glossary-workflow.md",
   "glossary workflow routing",
+);
+requireText(
+  skill,
+  "explicitly report whether glossary extraction is required, deferred,\n" +
+    "  or deterministic inspection only",
+  "explicit session glossary status routing",
+);
+requireText(
+  openAiAdapter,
+  "maintain reviewed workspace vocabulary",
+  "default prompt glossary maintenance",
+);
+requireText(
+  openAiAdapter,
+  "glossary extraction is required, deferred, or deterministic inspection only",
+  "default prompt glossary status",
 );
 requireText(skill, "sigil glossary", "glossary deterministic inspection");
 requireText(
@@ -1026,6 +1043,12 @@ const requiredGlossaryBehaviors = [
   "supplement-request-matched-accepted-term",
   "exclude-unrelated-glossary-context",
   "defer-markdown-extraction",
+  "classify-session-glossary-status",
+  "inspect-existing-glossary-every-session",
+  "report-deferred-extraction-blocker",
+  "report-inspection-only-reason",
+  "extract-explicit-vocabulary-request",
+  "preserve-selected-vocabulary-scope",
 ];
 if (!Array.isArray(expected.glossaryRequiredBehaviors)) {
   throw new Error("Glossary fixture must declare required behaviors.");
@@ -1109,6 +1132,33 @@ requireText(
   glossaryFixture,
   "without injecting unrelated workspace vocabulary",
   "glossary fixture scoped request supplement",
+);
+requireText(
+  glossaryFixture,
+  "Classify every Sigil session as `extraction required`,\n" +
+    "    `extraction deferred`, or `deterministic inspection only`",
+  "glossary fixture session status classification",
+);
+requireText(
+  glossaryFixture,
+  "report extraction as deferred and name the blocking\n" +
+    "    review state",
+  "glossary fixture deferred extraction status",
+);
+requireText(
+  glossaryFixture,
+  "explain that no semantic Sigil lines entered candidate extraction",
+  "glossary fixture inspection-only reason",
+);
+requireText(
+  glossaryFixture,
+  "explicit vocabulary-review request triggers extraction after semantic",
+  "glossary fixture explicit vocabulary trigger",
+);
+requireText(
+  glossaryFixture,
+  "selected loaded\n    Sigil scope rather than expanding into an unrelated workspace-wide scan",
+  "glossary fixture bounded vocabulary scope",
 );
 
 const brownfield = await Deno.readTextFile(
@@ -1221,6 +1271,28 @@ requireText(
 );
 requireText(
   glossaryWorkflow,
+  "In every Sigil session, explicitly classify and report one glossary status",
+  "glossary session routing status",
+);
+requireText(
+  glossaryWorkflow,
+  "When GlossaryFile exists, perform deterministic glossary inspection even when\n" +
+    "model-assisted extraction is not triggered",
+  "glossary existing-file deterministic inspection",
+);
+requireText(
+  glossaryWorkflow,
+  "For a deferred status, name the blocking review\nstate",
+  "glossary deferred status blocker",
+);
+requireText(
+  glossaryWorkflow,
+  "For an explicit vocabulary review or material terminology ambiguity\n" +
+    "without changed Sigil, extract from the selected loaded Sigil scope",
+  "glossary explicit vocabulary selected scope",
+);
+requireText(
+  glossaryWorkflow,
   "When semantic readiness is `unassessed` or\n`correction required`, do not inspect prose for glossary candidates",
   "glossary semantic readiness gate",
 );
@@ -1231,7 +1303,7 @@ requireText(
 );
 requireText(
   glossaryWorkflow,
-  "A diagnostic count is not evidence for\n  this conclusion.",
+  "A diagnostic\n  count is not evidence for this conclusion.",
   "glossary evidence-based no-candidate result",
 );
 requireText(

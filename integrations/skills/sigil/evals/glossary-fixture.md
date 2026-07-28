@@ -11,6 +11,10 @@ contains unknown candidate vocabulary requiring model-assisted review. The
 written Sigil has not yet passed skill-assisted semantic-readiness review, and
 one variant of the fixture requires concept grouping.
 
+Session variants also include an implementation-only change with an existing
+GlossaryFile, a correction-required semantic review, and an explicit vocabulary
+review request without changed Sigil.
+
 Expected skill behavior:
 
 1. After every approved Sigil write or semantic edit, run deterministic glossary
@@ -66,3 +70,17 @@ Expected skill behavior:
     without injecting unrelated workspace vocabulary.
 28. Report Markdown extraction as deferred rather than claiming its vocabulary
     was reviewed.
+29. Classify every Sigil session as `extraction required`,
+    `extraction deferred`, or `deterministic inspection only`.
+30. When GlossaryFile exists, perform deterministic glossary inspection even
+    when model-assisted extraction is not triggered.
+31. When extraction is triggered but semantic readiness is unassessed or
+    correction required, report extraction as deferred and name the blocking
+    review state.
+32. For an implementation-only or read-only session without a vocabulary-review
+    or material-ambiguity trigger, report deterministic inspection only and
+    explain that no semantic Sigil lines entered candidate extraction.
+33. An explicit vocabulary-review request triggers extraction after semantic
+    readiness appears aligned even when no Sigil line changed.
+34. Vocabulary review without changed Sigil examines only the selected loaded
+    Sigil scope rather than expanding into an unrelated workspace-wide scan.

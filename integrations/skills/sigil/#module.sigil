@@ -129,6 +129,10 @@ component SigilSkill {
 
       reports candidate evidence or an explicit evidence-based no-material-candidate result before Sigil review
 
+      classifies every Sigil session as glossary extraction required, extraction deferred, or deterministic inspection only
+
+      reports the selected glossary status and its evidence instead of silently skipping candidate identification
+
       presents exact reviewed GlossaryFile proposals without automatically changing authority
 
       requires post-write glossary inspection and candidate extraction after approved Sigil is created or semantically edited
@@ -269,13 +273,25 @@ expand SigilSkill {
 
       Separate accepted glossary authority from model-assisted candidate extraction.
 
+      When GlossaryFile exists, perform deterministic glossary inspection and explicitly classify whether model-assisted extraction applies.
+
       Begin model-assisted glossary candidate extraction only after the post-write and post-grouping SemanticReadinessReview appears aligned for the selected scope.
 
       When concept grouping is unnecessary, the post-write SemanticReadinessReview directly gates glossary candidate extraction.
 
       After every approved Sigil write or semantic edit, run deterministic glossary and workspace inspection, then independently perform model-assisted extraction from the changed semantic lines regardless of diagnostic count or GlossaryFile presence.
 
+      Require model-assisted extraction after an approved semantic Sigil write or edit, when the user requests vocabulary review, or when terminology ambiguity materially affects the selected scope.
+
+      For an explicit vocabulary review or material ambiguity without changed Sigil, extract from the selected loaded Sigil scope only after SemanticReadinessReview appears aligned.
+
+      When semantic readiness is unassessed or correction required, report extraction as deferred and name the blocking review state.
+
+      When a session changes only implementation or performs read-only work without a vocabulary-review trigger, report deterministic inspection only and explain that no semantic Sigil lines entered candidate extraction.
+
       Conclude that no material candidate exists only after inspecting the changed semantic lines, relevant surrounding occurrences, and accepted glossary entries.
+
+      Before completing a triggered session, report candidates with evidence or an evidence-based no-material-candidate result.
 
       Report conflicting definitions, aliases, scope placement, and normative-contract drift.
 
@@ -676,6 +692,22 @@ expand SigilSkill {
       Revisit when: Deterministic tooling provides reviewed semantic validation with equivalent human decision authority.
     }
 
+    GlossaryWorkflow {
+      Decision: Make glossary routing and completion status explicit in every Sigil session while keeping model-assisted extraction scope-triggered and semantic-readiness-gated.
+
+      Scope: Governs sessions using the Sigil skill when a GlossaryFile exists, approved Sigil is written or edited, vocabulary review is requested, or material terminology ambiguity is identified; excludes unrelated implementation prose and deferred Markdown extraction.
+
+      Trade-offs: Every Sigil session gains a small deterministic inspection and reporting cost, while implementation-only sessions avoid repeated full candidate extraction.
+
+      Design issues addressed: Silent routing and removal of glossary language from the host prompt made correctly deferred or inapplicable extraction appear not to run.
+
+      Discarded alternatives: Extracting candidates from the entire workspace in every session would create repeated noise and could bypass semantic-readiness ordering.
+
+      Consequences: Triggered extraction cannot disappear silently, deferred extraction names its blocker, and inspection-only sessions explain why candidate identification did not apply.
+
+      Revisit when: Deterministic tooling can identify candidate vocabulary or the host exposes workflow-stage status directly.
+    }
+
     SigilReviewGate {
       Decision: Require approval of exact semantic changes before mutation and a second review of written Sigil before implementation.
 
@@ -766,6 +798,12 @@ expand SigilSkill {
       When model-assisted inspection finds no material candidate, the host records the changed lines and surrounding evidence inspected before proceeding to Sigil review.
 
       An approved Sigil edit with no material terminology candidate proceeds to Sigil review after workspace and glossary validation.
+
+      A correction-required session reports glossary extraction as deferred and names the unresolved semantic blocker.
+
+      An implementation-only session with no semantic Sigil edit reports deterministic inspection only rather than implying candidate extraction completed.
+
+      An explicit vocabulary-review request extracts candidates from the selected semantically aligned Sigil scope even when no Sigil line changed.
 
       An approved candidate is written to its selected workspace or bounded-context scope, validated, and returned to Sigil review before further implementation.
 
