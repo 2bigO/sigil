@@ -1,0 +1,123 @@
+component SigilImplementationOwnership {
+  goal {
+    Provide the shared core query that returns the implementation targets owned by a Sigil contract.
+
+    Keep contract-to-implementation ownership deterministic and reusable for CLI and LSP without adding new Sigil syntax.
+  }
+
+  interface {
+    OwnedImplementationLookup {
+      ownedImplementationTargetsFor(resolvedWorkspace, componentName, conceptName?) returns an owned-implementation projection or undefined
+
+      The query is contract-centric and uses an optional concept scope when a contract concept owns a narrower set of targets.
+    }
+
+    OwnedImplementationProjection {
+      includes the owning contract, optional concept scope, normalized implementation targets, and diagnostics
+    }
+
+    OwnedImplementationTarget {
+      each target identifies one owned implementation artifact
+
+      each target preserves the artifact kind, file path, and optional symbol identity when available
+    }
+  }
+}
+
+expand SigilImplementationOwnership {
+  logic {
+    OwnedImplementationProjection {
+      resolve results from the selected Sigil contract and optional concept scope
+
+      normalize code, tests, and agent-facing instruction or workflow Markdown targets into one shared result shape
+
+      prefer symbol-level targets when available and fall back to file-level targets when necessary
+    }
+  }
+
+  constraints {
+    ContractOwnership {
+      The Sigil contract is the owner of the implementation relationship.
+
+      CLI and LSP consume the shared core query rather than maintaining separate ownership maps.
+    }
+
+    ImplementationTargetScope {
+      v1 includes code and tests.
+
+      v1 includes Markdown files only when they are agent-facing instructions or workflow documents.
+
+      general prose documentation, configs, and non-text artifacts remain out of scope.
+    }
+
+    TargetResolution {
+      Prefer symbol-level targets when available and fall back to file-level targets when symbol resolution is unavailable.
+    }
+  }
+
+  decisions {
+    ContractOwnership {
+      Decision: Model implementation ownership as a contract-owned core query so one Sigil contract can list the implementation targets it owns.
+
+      Scope: Governs shared CLI and LSP ownership lookup for a selected contract and optional concept; excludes new Sigil syntax and persisted anchor storage.
+
+      Trade-offs: Contract-centric ownership is easier to review from the Sigil side, but implementation-first lookup is deferred.
+
+      Consequences: CLI and LSP can share one authoritative ownership view while the language grammar stays unchanged.
+
+      Revisit when: We need implementation-first navigation or persisted ownership storage.
+    }
+
+    ScopeSelection {
+      Decision: Allow an optional concept scope so a contract can return all owned targets or just the subset governed by one concept.
+
+      Scope: Governs query scoping within one contract; excludes cross-contract aggregation and transitive ownership inference.
+
+      Trade-offs: Concept scoping increases precision without forcing separate query shapes, but callers must supply the correct concept when they need a narrower view.
+
+      Consequences: The same API serves whole-contract and concept-specific ownership views.
+
+      Revisit when: Concept scoping proves too coarse or too fine for routine use.
+    }
+
+    ImplementationTargetScope {
+      Decision: Limit v1 implementation targets to code, tests, and agent-facing instruction or workflow Markdown.
+
+      Scope: Governs which repository artifacts may appear in owned-implementation results; excludes general prose documentation, configs, and non-text artifacts.
+
+      Trade-offs: The scope captures behavior-shaping Markdown that matters to agent workflows, but intentionally leaves ordinary documentation out.
+
+      Consequences: The feature stays focused on implementation-bearing material while still covering instruction docs.
+
+      Revisit when: Other artifact classes become meaningful implementation evidence.
+    }
+
+    TargetResolution {
+      Decision: Prefer symbol-level targets when available and fall back to file-level targets when symbol resolution is unavailable.
+
+      Scope: Governs how owned implementation targets are normalized inside the query result; excludes cross-file inference and human approval.
+
+      Trade-offs: Symbol-level precision improves navigation, but file fallback keeps the feature useful for less structured artifacts.
+
+      Consequences: The same query can link source symbols, test symbols, and file-level Markdown targets.
+
+      Revisit when: Symbol resolution becomes too noisy or file-level targets are insufficient.
+    }
+  }
+
+  cases {
+    OwnedImplementationLookup {
+      A contract query for a TypeScript component returns its code and test targets.
+
+      A contract query for a contract with an agent-facing Markdown workflow doc returns that Markdown file as an implementation target.
+
+      A concept-scoped query returns only the targets owned by that concept.
+    }
+
+    TargetResolution {
+      A symbol-level implementation target carries a symbol identity instead of only a file path.
+
+      A Markdown instruction file without symbols falls back to a file-level target.
+    }
+  }
+}
