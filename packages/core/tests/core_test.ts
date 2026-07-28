@@ -1040,6 +1040,52 @@ Deno.test("resolves entrypoints using each language's declaration syntax", async
 });
 
 // @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+Deno.test("resolves C++ template entrypoints", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own language entrypoints.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint";
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [
+      {
+        filePath: "src/repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <\n  typename T\n>\nclass Repository {};\n`,
+      },
+      {
+        filePath: "src/repository.cpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nT makeRepository() {}\n`,
+      },
+    ],
+    "Ownership",
+    "EntryPoint",
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) => item.symbolIdentity).sort().join(","),
+    "Repository,makeRepository",
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
 Deno.test("resolves Go and Node test entrypoints", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),

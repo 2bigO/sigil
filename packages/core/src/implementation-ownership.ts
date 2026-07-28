@@ -533,8 +533,13 @@ function entrypointMatch(
     [".c", ".cc", ".cpp", ".cs", ".cxx", ".dart", ".h", ".hpp", ".java"]
       .includes(extension)
   ) {
+    const templatePrefix = [".cc", ".cpp", ".cxx", ".h", ".hpp"].includes(
+        extension,
+      )
+      ? String.raw`(?:template\s*<[^;{}]*>\s*)*`
+      : "";
     const modifiers = String
-      .raw`^\s*(?:(?:@\w+(?:\([^)]*\))?|public|private|protected|internal|static|final|sealed|abstract|virtual|override|async|extern|inline|constexpr|unsafe|partial)\s+)*`;
+      .raw`^\s*${templatePrefix}(?:(?:@\w+(?:\([^)]*\))?|public|private|protected|internal|static|final|sealed|abstract|virtual|override|async|extern|inline|constexpr|unsafe|partial)\s+)*`;
     patterns = [
       new RegExp(
         `${modifiers}(?:class|interface|struct|enum|record)\\s+([A-Za-z_]\\w*)`,
