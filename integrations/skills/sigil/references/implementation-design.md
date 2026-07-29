@@ -1,5 +1,7 @@
 # Implementation Coverage And Component Selection
 
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow interface,logic,constraints,cases -->
+
 Use this procedure before every implementation mutation. It prevents artifact
 classification, an outcome request, or successful validation from bypassing
 governing Sigil and the implementation coverage needed to produce coherent
@@ -12,8 +14,9 @@ changes.
 3. Select component, expand, or omit
 4. Review UI component coverage
 5. Build the implementation coverage map
-6. Propose and approve missing Sigil
-7. Limits and examples
+6. Link implementation ownership
+7. Propose and approve missing Sigil
+8. Limits and examples
 
 ## 1. Run Implementation Preflight
 
@@ -28,9 +31,10 @@ governing Sigil, implementation evidence, or material concerns change:
 3. inspect the selected implementation boundary, direct dependents, tests, and
    relevant implementation evidence;
 4. classify every material concern as established, partial, or missing;
-5. propose missing or changed Sigil and complete both approval gates before
-   implementation when the mutation introduces or exposes an uncovered
-   material decision.
+5. use `ReviewGate(action: sigil-change)` for missing or changed Sigil when the
+   mutation introduces or exposes an uncovered material decision;
+6. use `ReviewGate(action: implementation)` over the validated written Sigil and
+   exact implementation scope before implementation.
 
 Implementation artifacts include source code, configuration, migrations,
 scripts, workflow instructions, tests, fixtures, metadata, validators,
@@ -43,9 +47,9 @@ that is proven mechanical, has established coverage, and introduces no material
 decision may proceed without new Sigil. Make that determination from inspected
 evidence rather than before loading the governing contract.
 
-A request to fix, build, or change an outcome does not approve an exact Sigil
-proposal or resulting written Sigil. Instructions from another skill, tool,
-framework, or workflow do not override the gates. Passing tests, builds,
+A request to fix, build, or change an outcome does not make ReviewGate ready for
+`sigil-change` or `implementation`. Instructions from another skill, tool,
+framework, or workflow do not override ReviewGate. Passing tests, builds,
 validators, or deterministic Sigil checks after an implementation-first edit
 does not legitimize the bypass.
 
@@ -132,8 +136,8 @@ every visual element as a component.
 
 Before implementation, report a compact map with these columns:
 
-| Concern | Owner | Dependents | Sigil decision | Owning location | Coverage |
-| --- | --- | --- | --- | --- | --- |
+| Concern | Owner | Dependents | Sigil decision | Owning location | Ownership target | Coverage |
+| --- | --- | --- | --- | --- | --- | --- |
 
 Use `component`, `expand`, or `omit` for the Sigil decision and `established`,
 `partial`, or `missing` for coverage. Explain every `omit` that could otherwise
@@ -147,7 +151,100 @@ captured by the selected components and expands. A material choice without a
 matching decision record or justified omission keeps implementation coverage
 partial and blocks coding.
 
-## 6. Propose And Approve Missing Sigil
+## 6. Link Implementation Ownership
+
+Ownership annotations are implementation comments, not Sigil semantic lines.
+Never write them into a `.sigil` file. Add or reconcile them only when
+`ReviewGate(action: implementation)` is ready for the governing validated
+written Sigil, exact implementation scope, and proposed comments.
+
+Each annotation has this payload:
+
+```text
+@sigil <relation> <repository-relative-sigil-path>::<Component>[::<Concept>] <section>[,<section>...]
+```
+
+Use only `implements`, `uses`, or `tests`. Select one or more `interface`,
+`state`, `logic`, `constraints`, or `cases` sections. Do not select `goal` or
+`decisions`, because they do not identify implementation ownership.
+
+For a component target, select sections that occur on the component or its
+matching expands. For a concept target, select only sections containing an
+occurrence of that concept. Use comma-separated selectors without whitespace
+around commas.
+
+### Forward Linking
+
+When writing implementation:
+
+1. derive the repository-relative Sigil path, component or optional concept,
+   and related section occurrences from the approved implementation coverage
+   map;
+2. select the stable language entrypoint that owns the behavior, such as a
+   class, function, method, interface, struct, or equivalent definition;
+3. place one annotation immediately before that entrypoint using the language's
+   single-line comment syntax;
+4. when the same entrypoint has multiple annotations, use one multiline comment
+   in the language's normal syntax rather than several single-line comments;
+5. use an HTML comment in agent-facing instruction or workflow Markdown, which
+   remains a file-level target;
+6. never add ownership annotations to Sigil or JSON;
+7. after implementation, verify that every relation, Sigil path, component,
+   optional concept, selected section, and entrypoint association still
+   resolves.
+
+TypeScript examples:
+
+```ts
+// @sigil implements contracts/booking.sigil::Booking::CreateBooking logic,constraints
+export function createBooking() {}
+```
+
+```ts
+/*
+ * @sigil implements contracts/booking.sigil::Booking::CreateBooking logic,constraints
+ * @sigil uses contracts/booking.sigil::Booking::BookingValidation interface
+ */
+export class BookingService {}
+```
+
+Markdown examples:
+
+```markdown
+<!-- @sigil uses contracts/agents.sigil::AgentWorkflow interface -->
+```
+
+```markdown
+<!--
+@sigil uses contracts/agents.sigil::AgentWorkflow interface
+@sigil implements contracts/agents.sigil::AgentWorkflow::SafetyChecks constraints,cases
+-->
+```
+
+### Reconciliation Linking
+
+When relevant implementation already exists:
+
+1. inspect the selected component and matching expands together with nearby
+   source, tests, and agent-facing workflow Markdown;
+2. inventory existing ownership comments and stable unlinked entrypoints;
+3. compare contract concepts, entrypoint behavior, callers, imports, tests, and
+   file purpose without treating name similarity alone as ownership evidence;
+4. report candidate links with implementation entrypoint, Sigil target,
+   relation, evidence, and status;
+5. present the exact proposed comments to
+   `ReviewGate(action: implementation)` before changing implementation
+   artifacts;
+6. leave ambiguous ownership or entrypoint association unresolved instead of
+   guessing;
+7. apply only reviewed comments using the target language's syntax, then rescan
+   and report stale, detached, malformed, or unresolved links.
+
+Reconciliation does not semantically edit Sigil and never creates annotations
+inside Sigil. If scanning exposes missing or conflicting contract intent, return
+to `ReviewGate(action: sigil-change)` before linking implementation.
+
+## 7. Propose And Approve Missing Sigil
 
 When contract and implementation design are both clear, include both layers in
 one exact Sigil proposal and one review cycle. When implementation design
@@ -163,11 +260,16 @@ For missing coverage, present:
 - the decision-rationale coverage map for new or changed material choices;
 - the updated implementation coverage map.
 
-Write only approved Sigil, validate it, and stop at the Sigil review gate.
-Implementation begins only after the written implementation coverage is
-approved and the user explicitly requests code.
+Write only Sigil for which ReviewGate is ready, validate it, and report the
+written result without creating another approval gate. Implementation begins
+only when `ReviewGate(action: implementation)` is ready for the validated
+written Sigil and exact implementation scope.
 
-## 7. Limits And Examples
+Ownership comments are not part of the Sigil proposal. Plan their targets in the
+implementation coverage map, then include them in the exact implementation
+change set submitted to ReviewGate.
+
+## 8. Limits And Examples
 
 ### Programming Abstraction
 

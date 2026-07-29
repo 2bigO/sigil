@@ -1,6 +1,6 @@
 # sigil-cli Requirements
 
-**Status:** Accepted for 0.6.1 **Last updated:** 2026-07-27
+**Status:** Accepted for 0.7.0 **Last updated:** 2026-07-28
 
 This document defines the 0.6 product requirements for `sigil-cli`.
 
@@ -16,9 +16,9 @@ extract information from Sigil workspaces.
 It should make the shared `sigil-core` model usable from a terminal without
 reinterpreting Sigil independently.
 
-## 2. Version 0.6 Scope
+## 2. Version 0.7 Scope
 
-Version 0.6 must provide commands to:
+Version 0.7 must provide commands to:
 
 - parse one Sigil file;
 - check a file or workspace for diagnostics;
@@ -29,12 +29,12 @@ Version 0.6 must provide commands to:
 - report CLI, core, and Sigil versions.
 - surface concept-identifier diagnostics and resolved concept namespaces.
 
-Version 0.6 should favor predictable, machine-readable behavior over rich
+Version 0.7 should favor predictable, machine-readable behavior over rich
 terminal UI.
 
 ## 3. Out Of Scope
 
-Version 0.6 must not implement:
+Version 0.7 must not implement:
 
 - editor UI;
 - LSP transport;
@@ -211,13 +211,13 @@ Required output data:
 - component-to-expansion edges;
 - diagnostics.
 
-The command should not generate diagrams in version 0.6.
+The command should not generate diagrams in version 0.7.
 
 ### `sigil context`
 
 Produces deterministic agent-oriented context data from resolved Sigil.
 
-Version 0.6 should use graph and exact-match signals only.
+Version 0.7 should use graph and exact-match signals only.
 
 Supported selectors:
 
@@ -240,7 +240,7 @@ Required output data:
 The scoped glossary context excludes accepted vocabulary that does not occur in
 the selected component or file and its collected expansion sources.
 
-Version 0.6 must not implement embeddings, opaque ranking, or full semantic
+Version 0.7 must not implement embeddings, opaque ranking, or full semantic
 search.
 
 ### `sigil render [path]`
@@ -299,7 +299,7 @@ boundaries.
 
 ## 10. Acceptance Scenarios
 
-Version 0.6 is acceptable when tests or scripted checks demonstrate that
+Version 0.7 is acceptable when tests or scripted checks demonstrate that
 `sigil-cli` can:
 
 - parse `examples/promise/promise.sigil` and emit JSON;
@@ -331,11 +331,11 @@ entrypoint as commands grow.
 Keep command shaping separate from `sigil-core` data models so the core API
 remains reusable by LSP and editor integrations.
 
-Do not add interactive prompts in version 0.6.
+Do not add interactive prompts in version 0.7.
 
 ## 12. Historical Anchor Command Proposal
 
-The following rejected design is retained for history. Version 0.6 has no
+The following rejected design is retained for history. Version 0.7 has no
 `sigil-indexer` dependency or `anchors` command group.
 
 ### `sigil anchors candidates [path] --component <name>`

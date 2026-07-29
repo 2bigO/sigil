@@ -1,12 +1,12 @@
 # sigil-lsp
 
 Implemented pre-production language-server package for editor-facing Sigil
-semantics, versioned for publication as `@qoherent/sigil-lsp` 0.6.0.
+semantics, versioned for publication as `@qoherent/sigil-lsp` 0.7.0.
 
 The language server should be the reusable bridge between `sigil-core` and
 concrete editor integrations.
 
-Version 0.6 responsibilities:
+Version 0.7 responsibilities:
 
 - implement Language Server Protocol 3.18 over standard input and output;
 - implement initialize, initialized, shutdown, and exit lifecycle handling;

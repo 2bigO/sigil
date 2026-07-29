@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GlossaryWorkflow interface,logic,constraints,cases -->
+
 # Reviewed Glossary Workflow
 
 Use this procedure after every approved `.sigil` write or semantic edit, when
@@ -9,9 +11,28 @@ The glossary is reviewed authority. Deterministic tools inspect accepted entries
 and occurrences; the host model must separately extract candidates and identify
 semantic conflicts but cannot make inferred language authoritative.
 
+## Session Routing Status
+
+In every Sigil session, explicitly classify and report one glossary status:
+
+- `extraction required`: approved semantic Sigil was written or edited, the
+  user requested vocabulary review, or material terminology ambiguity affects
+  the selected scope;
+- `extraction deferred`: extraction is triggered but semantic readiness is
+  `unassessed` or `correction required`;
+- `deterministic inspection only`: the session is read-only or changes only
+  implementation and has no vocabulary-review or material-ambiguity trigger.
+
+When GlossaryFile exists, perform deterministic glossary inspection even when
+model-assisted extraction is not triggered. After an approved semantic Sigil
+write or edit, inspect deterministic state even when GlossaryFile is absent.
+Never silently omit the status. For a deferred status, name the blocking review
+state. For inspection only, explain that no semantic Sigil lines entered
+candidate extraction.
+
 ## 1. Inspect Deterministic State
 
-After writing approved Sigil, always run:
+When GlossaryFile exists or after writing approved Sigil, run:
 
 ```bash
 sigil glossary . --format json --pretty
@@ -31,8 +52,8 @@ When GlossaryFile is invalid, accepted definitions are inactive. Propose an
 exact repair before relying on its entries.
 
 An absent GlossaryFile is valid deterministic state. Continue with candidate
-extraction from the changed semantic lines only after the semantic-readiness
-gate rather than skipping this workflow.
+extraction from the changed semantic lines only after semantic readiness
+appears aligned rather than skipping this workflow.
 
 Completing `sigil glossary` completes only deterministic inspection. The
 command does not extract unknown vocabulary, propose definitions, identify all
@@ -59,7 +80,8 @@ Do not:
 ## 3. Extract Candidates
 
 Candidate extraction is a mandatory model-assisted stage for every approved
-Sigil write or semantic edit, but it begins only after:
+Sigil write or semantic edit, explicit vocabulary-review request, or material
+terminology ambiguity in the selected scope, but it begins only after:
 
 1. deterministic workspace validation completes without error diagnostics;
 2. the post-write semantic-readiness review appears aligned;
@@ -68,9 +90,11 @@ Sigil write or semantic edit, but it begins only after:
    both complete successfully.
 
 When concept grouping is unnecessary, the post-write semantic-readiness review
-directly gates extraction. When semantic readiness is `unassessed` or
-`correction required`, do not inspect prose for glossary candidates; follow the
-same-chat correction conversation instead.
+directly controls extraction eligibility. When semantic readiness is
+`unassessed` or
+`correction required`, do not inspect prose for glossary candidates. Investigate
+suspected findings while readiness remains unassessed; enter DesignConversation
+in correction mode only for a confirmed material problem.
 
 Deterministic glossary inspection may occur before semantic review, but it
 remains separate from extraction. Diagnostic count and GlossaryFile presence do
@@ -81,6 +105,11 @@ one stage as completion of another.
 Initial extraction examines free-form prose in loaded `.sigil` documents only.
 Exclude structural syntax, concept identifiers, imports, code fences, inline
 code, and URLs.
+
+After an approved semantic mutation, extraction starts from the changed semantic
+lines. For an explicit vocabulary review or material terminology ambiguity
+without changed Sigil, extract from the selected loaded Sigil scope. Do not
+expand either form into an unrelated workspace-wide scan.
 
 Prefer candidates that are:
 
@@ -93,8 +122,7 @@ Prefer candidates that are:
 Do not propose ordinary English or language syntax merely because it occurs
 frequently.
 
-After an approved Sigil mutation, begin with its changed semantic lines and
-inspect enough surrounding component, expand, and glossary occurrences to
+Inspect enough surrounding component, expand, and glossary occurrences to
 determine whether each candidate meaning is coherent.
 
 For every candidate collect:
@@ -117,11 +145,11 @@ Always report the extraction result:
 - When a material candidate exists, collect its evidence and follow the exact
   proposal workflow below.
 - When no material candidate exists, record an evidence-based result naming the
-  changed semantic lines and relevant surrounding component, expand, glossary,
-  and variant occurrences inspected. A diagnostic count is not evidence for
-  this conclusion.
+  changed semantic lines or selected loaded scope and the relevant surrounding
+  component, expand, glossary, and variant occurrences inspected. A diagnostic
+  count is not evidence for this conclusion.
 
-Only then continue to the Sigil review gate.
+Only then prepare the next applicable ReviewGate action.
 
 ## 4. Select Scope
 
@@ -165,19 +193,21 @@ Classify the proposal as:
 - `normative conflict repair`;
 - `removal`.
 
-Ask the user to approve, reject, or revise the exact JSON. Leave repository
-files unchanged while awaiting approval.
+Submit the exact JSON, scope, and evidence to
+`ReviewGate(action: glossary-change)`. Ask the user to approve, reject, or
+revise it. Leave repository files unchanged until ReviewGate returns ready.
 
 ## 6. Apply And Review
 
-After explicit approval:
+After `ReviewGate(action: glossary-change)` returns ready:
 
 1. write only the accepted JSON change;
 2. preserve strict schema version 1 structure;
 3. run `sigil glossary . --format json --pretty`;
 4. run `sigil check . --format json --pretty`;
 5. inspect changed context resolution and occurrences;
-6. return to the Sigil review gate and stop for human review.
+6. report the validated glossary and continue to the next applicable ReviewGate
+   action without creating a separate glossary-review gate.
 
 Do not continue into unrelated Sigil or implementation changes merely because
 the glossary validates.

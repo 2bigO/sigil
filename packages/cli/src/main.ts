@@ -137,6 +137,11 @@ export interface CliRunResult {
 
 export type CliRunOptions = CommandHandlerOptions;
 
+/**
+ * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
+ * @sigil implements packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
+ */
 export async function runCli(
   argv: readonly string[],
   options: CliRunOptions = {},
