@@ -74,6 +74,10 @@ component SigilCli {
       commands that produce no required stdout support --quiet
     }
 
+    CheckSourceLocations {
+      sigil check [path] --format text supports an opt-in --show-locations flag
+    }
+
     WorkspaceMutationBoundary {
       workspace inspection commands do not modify .sigil source
 
@@ -149,6 +153,12 @@ expand SigilCli {
     GlossaryInspection {
       glossary delegates loading, context resolution, occurrence matching, and diagnostics to SigilCore.
     }
+
+    CheckSourceLocations {
+      --show-locations renders each diagnostic's available file path and, when a range is present, its one-based line and column before the message.
+
+      Only check accepts --show-locations; other commands reject it as an unsupported option.
+    }
   }
 
   constraints {
@@ -168,6 +178,12 @@ expand SigilCli {
       context JSON labels dependency decisions as agent rationale outside the dependent-facing contract.
 
       glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
+    }
+
+    CheckSourceLocations {
+      --show-locations affects only check text output; default text output and every JSON and Markdown result are unchanged when the flag is absent.
+
+      Rendered locations reuse the diagnostic file path and range already normalized for CLI output, and one-based line and column agree with the diagnostic model; no new coordinates are computed.
     }
 
     OwnershipContext {
@@ -236,6 +252,18 @@ expand SigilCli {
       Consequences: Workspace-dependent JSON exposes consistent metadata, diagnostics, and command-specific data.
 
       Revisit when: A reviewed interactive terminal workflow becomes a primary user requirement.
+    }
+
+    CheckSourceLocations {
+      Decision: Expose diagnostic source locations in check text output only behind an opt-in --show-locations flag, reusing the existing normalized diagnostic file path and range.
+
+      Scope: Governs check text presentation; excludes JSON and Markdown output, diagnostic generation, ordering, and exit codes.
+
+      Design issues addressed: Text output omits locations already present in the diagnostic model, forcing a rerun in JSON mode, but changing default text output could break existing scripts and expectations.
+
+      Consequences: Default text output stays byte-for-byte unchanged; JSON and other formats are unaffected; locations use the same path normalization as other CLI output; other commands reject the flag.
+
+      Revisit when: Source locations become useful in default text output or in additional commands.
     }
 
     WorkspaceMutationBoundary {
@@ -352,6 +380,12 @@ expand SigilCli {
       A workspace without GlossaryFile reports an absent glossary and no glossary error.
 
       Context overlap or spelling collision appears in text and JSON output and exits with code 1.
+    }
+
+    CheckSourceLocations {
+      A ranged diagnostic rendered with --show-locations includes its normalized file path, one-based line, and one-based column.
+
+      A diagnostic without a range rendered with --show-locations remains readable and omits unavailable coordinates.
     }
 
     ExitStatus {

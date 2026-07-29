@@ -56,6 +56,7 @@ export interface ParseRequest extends GlobalOptions {
 export interface CheckRequest extends GlobalOptions {
   readonly command: "check";
   readonly path?: string;
+  readonly showLocations: boolean;
 }
 export interface GlossaryRequest extends GlobalOptions {
   readonly command: "glossary";
@@ -140,6 +141,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   const exclude: string[] = [];
   let project = false;
   let agent: SkillAgent | "all" | undefined;
+  let showLocations = false;
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -173,6 +175,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         break;
       case "--quiet":
         quiet = true;
+        break;
+      case "--show-locations":
+        showLocations = true;
         break;
       case "--project":
         project = true;
@@ -243,6 +248,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (commandName !== "skill" && (project || agent)) {
     return usage(
       `${commandName} does not accept skill options.`,
+      commandHelpTopic,
+    );
+  }
+  if (commandName !== "check" && showLocations) {
+    return usage(
+      `${commandName} does not accept --show-locations.`,
       commandHelpTopic,
     );
   }
@@ -342,7 +353,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     }
     return {
       kind: "ok",
-      request: { command: commandName, path: positional[0], ...base } as
+      request: {
+        command: commandName,
+        path: positional[0],
+        ...base,
+        ...(commandName === "check" ? { showLocations } : {}),
+      } as
         | CheckRequest
         | GlossaryRequest
         | GraphRequest

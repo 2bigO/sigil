@@ -7,6 +7,9 @@ import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
+import type { CheckRequest } from "../src/args.ts";
+import { formatResult } from "../src/formatters.ts";
+import type { CheckCommandResult } from "../src/output-model.ts";
 import {
   EXIT_DIAGNOSTICS,
   EXIT_OK,
@@ -218,6 +221,162 @@ Deno.test("check reports missing interface concepts as warning-only", async () =
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CheckSourceLocations interface,logic,constraints,cases
+ */
+Deno.test("check --show-locations adds file, line, and column to text diagnostics", async () => {
+  const root = await makeWorkspace("show-locations");
+  try {
+    await Deno.writeTextFile(
+      `${root}/broken.sigil`,
+      "component Broken {\n  mystery {\n    bad\n  }\n}\n",
+    );
+
+    const withFlag = await runCli([
+      "check",
+      root,
+      "--format",
+      "text",
+      "--show-locations",
+    ]);
+    assertEquals(withFlag.exitCode, EXIT_DIAGNOSTICS);
+    assert(
+      /SIGIL_UNKNOWN_SECTION .*broken\.sigil:\d+:\d+: /.test(withFlag.stdout),
+      `expected a file:line:column location, got:\n${withFlag.stdout}`,
+    );
+
+    const withoutFlag = await runCli(["check", root, "--format", "text"]);
+    assert(
+      !withoutFlag.stdout.includes("broken.sigil"),
+      "default text output must not include source locations",
+    );
+    assert(
+      withoutFlag.stdout.includes("error SIGIL_UNKNOWN_SECTION:"),
+      "default text output keeps the severity code: message form",
+    );
+
+    // The flag never affects JSON output.
+    const jsonPlain = await runCli(["check", root, "--format", "json"]);
+    const jsonFlagged = await runCli([
+      "check",
+      root,
+      "--format",
+      "json",
+      "--show-locations",
+    ]);
+    assertEquals(jsonFlagged.stdout, jsonPlain.stdout);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CheckSourceLocations logic
+Deno.test("--show-locations is rejected outside check", async () => {
+  const result = await runCli(["graph", "--show-locations"]);
+  assertEquals(result.exitCode, EXIT_USAGE);
+  assert(
+    result.stderr.includes("does not accept --show-locations"),
+    result.stderr,
+  );
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
+ */
+Deno.test("check location rendering handles ranges, missing ranges, and path styles", () => {
+  const base = {
+    command: "check",
+    pretty: false,
+    quiet: false,
+    showLocations: true,
+  } as const;
+
+  // Explicit absolute root preserves absolute paths (Windows drive style).
+  const winRoot = "C:/repo";
+  const winResult: CheckCommandResult = {
+    command: "check",
+    workspaceRoot: winRoot,
+    configPath: `${winRoot}/.sigil/config.json`,
+    sigilVersion: SIGIL_VERSION,
+    workspaceName: "repo",
+    diagnosticCounts: { error: 1, warning: 1, info: 1 },
+    diagnostics: [
+      {
+        severity: "error",
+        code: "SIGIL_UNKNOWN_SECTION",
+        message: "Unknown section.",
+        filePath: `${winRoot}/pkg/a.sigil`,
+        range: {
+          start: { line: 8, column: 3 },
+          end: { line: 8, column: 9 },
+        },
+      },
+      {
+        severity: "warning",
+        code: "SIGIL_MISSING_CONCEPT_IDENTIFIER",
+        message: "Missing identifier.",
+        filePath: `${winRoot}/pkg/b.sigil`,
+      },
+      {
+        severity: "info",
+        code: "SIGIL_UNSUPPORTED_VERSION",
+        message: "No location here.",
+      },
+    ],
+  };
+  const winRequest: CheckRequest = { ...base, format: "text", root: winRoot };
+  const winText = formatResult(winResult, winRequest);
+  assert(
+    winText.includes(
+      "error SIGIL_UNKNOWN_SECTION C:/repo/pkg/a.sigil:8:3: Unknown section.",
+    ),
+    winText,
+  );
+  assert(
+    winText.includes(
+      "warning SIGIL_MISSING_CONCEPT_IDENTIFIER C:/repo/pkg/b.sigil: Missing identifier.",
+    ),
+    winText,
+  );
+  assert(
+    winText.includes("info SIGIL_UNSUPPORTED_VERSION: No location here."),
+    winText,
+  );
+  assert(!winText.includes("\\"), "paths must render with forward slashes");
+
+  // A relative invocation normalizes absolute workspace paths to relative POSIX.
+  const cwd = normalizePath(Deno.cwd());
+  const posixRoot = `${cwd}/demo`;
+  const posixResult: CheckCommandResult = {
+    command: "check",
+    workspaceRoot: posixRoot,
+    configPath: `${posixRoot}/.sigil/config.json`,
+    sigilVersion: SIGIL_VERSION,
+    workspaceName: "demo",
+    diagnosticCounts: { error: 1, warning: 0, info: 0 },
+    diagnostics: [
+      {
+        severity: "error",
+        code: "SIGIL_UNKNOWN_SECTION",
+        message: "Unknown section.",
+        filePath: `${posixRoot}/pkg/a.sigil`,
+        range: {
+          start: { line: 4, column: 2 },
+          end: { line: 4, column: 5 },
+        },
+      },
+    ],
+  };
+  const posixRequest: CheckRequest = { ...base, format: "text" };
+  const posixText = formatResult(posixResult, posixRequest);
+  assert(
+    posixText.includes(
+      "error SIGIL_UNKNOWN_SECTION demo/pkg/a.sigil:4:2: Unknown section.",
+    ),
+    posixText,
+  );
 });
 
 // @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases

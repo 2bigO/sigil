@@ -86,6 +86,7 @@ Options:
   --format <value>  Output json, text, or markdown
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
+  --show-locations  Add file path, line, and column to text diagnostics
   --help            Show this help
 `,
   glossary: `Usage: sigil glossary [path] [options]

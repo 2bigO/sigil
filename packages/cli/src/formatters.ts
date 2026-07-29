@@ -31,7 +31,8 @@ export function formatResult(
     return `${lines.join("\n")}\n`;
   }
   if (request.format === "text" && result.command === "check") {
-    return formatCheckText(result);
+    const showLocations = request.command === "check" && request.showLocations;
+    return formatCheckText(result, showLocations);
   }
   if (
     result.command === "glossary" &&
@@ -107,6 +108,7 @@ function isAbsolute(path: string): boolean {
 
 function formatCheckText(
   result: Extract<CommandResult, { command: "check" }>,
+  showLocations: boolean,
 ): string {
   const counts = result.diagnosticCounts;
   const lines = [
@@ -114,9 +116,15 @@ function formatCheckText(
     `Diagnostics: ${counts.error} error, ${counts.warning} warning, ${counts.info} info`,
   ];
   for (const diagnostic of result.diagnostics) {
-    lines.push(
-      `${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}`,
-    );
+    const label = `${diagnostic.severity} ${diagnostic.code}`;
+    const location = showLocations && diagnostic.filePath
+      ? ` ${diagnostic.filePath}${
+        diagnostic.range
+          ? `:${diagnostic.range.start.line}:${diagnostic.range.start.column}`
+          : ""
+      }`
+      : "";
+    lines.push(`${label}${location}: ${diagnostic.message}`);
   }
   return `${lines.join("\n")}\n`;
 }
