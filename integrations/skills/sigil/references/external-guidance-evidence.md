@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::EvidenceReview
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::EvidenceReview interface,state,logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases
 -->
 
 # External Guidance Evidence

@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticLineDiscipline
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionRationaleWorkflow
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticLineDiscipline interface,constraints
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionRationaleWorkflow interface,logic,constraints,cases
 -->
 
 # Sigil Authoring Conventions

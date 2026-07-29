@@ -56,6 +56,8 @@ component SigilCli {
       context reports one owned-implementation projection for each selected component
 
       Each projection contains normalized owned implementation targets and ownership diagnostics from supported workspace implementation sources.
+
+      Each owned implementation target preserves its relation, artifact kind, file path, selected sections, and optional symbol identity.
     }
 
     GlossaryInspection {
@@ -166,6 +168,8 @@ expand SigilCli {
 
     OwnershipContext {
       context JSON includes ownedImplementationProjections.
+
+      context JSON preserves every owned implementation target's selected sections.
 
       Ownership diagnostics are also included in the command diagnostics.
     }

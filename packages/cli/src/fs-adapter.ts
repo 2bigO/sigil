@@ -1,6 +1,6 @@
 import type { SigilFileSystem } from "@qoherent/sigil-core";
 
-// @sigil follows packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort
+// @sigil uses packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort interface,constraints,cases
 export class DenoSigilFileSystem implements SigilFileSystem {
   async readTextFile(path: string): Promise<string> {
     return await Deno.readTextFile(path);

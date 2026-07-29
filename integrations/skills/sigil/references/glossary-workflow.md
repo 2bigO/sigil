@@ -1,4 +1,4 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GlossaryWorkflow -->
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GlossaryWorkflow interface,logic,constraints,cases -->
 
 # Reviewed Glossary Workflow
 

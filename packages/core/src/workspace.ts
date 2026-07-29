@@ -22,7 +22,7 @@ import {
   relativePath,
 } from "./path.ts";
 
-// @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery
+// @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery interface,logic,cases
 export interface WorkspaceDiscoveryResult {
   readonly root: string;
   readonly configPath?: string;
@@ -30,7 +30,7 @@ export interface WorkspaceDiscoveryResult {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
-// @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery
+// @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery interface,logic,cases
 export async function discoverSigilWorkspace(
   fs: SigilFileSystem,
   options: WorkspaceLoadOptions,
@@ -98,7 +98,7 @@ export async function discoverSigilWorkspace(
   return selected;
 }
 
-// @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceLoading
+// @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceLoading interface,logic,cases
 export async function loadSigilWorkspace(
   fs: SigilFileSystem,
   options: WorkspaceLoadOptions,

@@ -1,6 +1,7 @@
 import type {
   ConceptIdentity,
   GlossaryTerm,
+  ImplementationSection,
   ImplementationSource,
   OwnedImplementationProjection,
   OwnedImplementationTarget,
@@ -12,6 +13,7 @@ import type {
   SigilDiagnostic,
   SigilDocument,
   SigilFileSystem,
+  SigilSectionName,
   SourceRange,
 } from "@qoherent/sigil-core";
 import {
@@ -46,6 +48,7 @@ interface ComponentReference {
 interface ConceptReference {
   readonly concept: ResolvedConcept;
   readonly context: ResolvedComponent;
+  readonly sectionName: SigilSectionName;
   readonly range: Range;
 }
 
@@ -60,7 +63,7 @@ interface SemanticReference {
   readonly tokenType: number;
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
 export class OwnershipHoverCache {
   readonly #resolved: ResolvedSigilWorkspace;
   readonly #sources: Promise<readonly ImplementationSource[]>;
@@ -80,8 +83,9 @@ export class OwnershipHoverCache {
   projection(
     componentName: string,
     conceptName?: string,
+    sectionName?: ImplementationSection,
   ): Promise<OwnedImplementationProjection | undefined> {
-    const key = `${componentName}\0${conceptName ?? ""}`;
+    const key = `${componentName}\0${conceptName ?? ""}\0${sectionName ?? ""}`;
     let projection = this.#projections.get(key);
     if (!projection) {
       projection = this.#sources.then((sources) =>
@@ -90,6 +94,7 @@ export class OwnershipHoverCache {
           sources,
           componentName,
           conceptName,
+          sectionName,
         )
       );
       this.#projections.set(key, projection);
@@ -112,7 +117,7 @@ export function sourceRangeToLsp(range?: SourceRange): Range {
   };
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
 export function diagnosticsByUri(
   diagnostics: readonly SigilDiagnostic[],
 ): ReadonlyMap<string, PublishDiagnosticsParams["diagnostics"]> {
@@ -137,7 +142,7 @@ export function diagnosticsByUri(
   return grouped;
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 export function documentSymbols(
   document: SigilDocument,
   source: string,
@@ -174,7 +179,7 @@ export function documentSymbols(
   ];
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 export async function definitionAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
@@ -239,9 +244,9 @@ export async function definitionAt(
 }
 
 /*
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
  */
 export async function hoverAt(
   resolved: ResolvedSigilWorkspace,
@@ -274,6 +279,7 @@ export async function hoverAt(
       ? await markdown.ownedImplementationLines(
         owningComponent,
         identity.identifier,
+        implementationSection(conceptReference.sectionName),
       )
       : [];
     const sections = [
@@ -317,7 +323,7 @@ export async function hoverAt(
   };
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
 export function semanticTokens(
   resolved: ResolvedSigilWorkspace,
   filePath: string,
@@ -536,6 +542,7 @@ function conceptReferences(
           references.push({
             concept: conceptForHover(concept, context),
             context,
+            sectionName: section.name,
             range: declarationNameRange(
               source,
               block.range.start.line,
@@ -559,6 +566,7 @@ function conceptReferences(
         references.push({
           concept: conceptForHover(concept, context),
           context,
+          sectionName: reference.sectionName,
           range: sourceRangeToLsp(reference.range),
         });
       }
@@ -929,14 +937,17 @@ class HoverMarkdownRenderer {
       : `\`${concept.identifier}\``;
   }
 
-  // @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+  // @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
   async ownedImplementationLines(
     component: ResolvedComponent,
     conceptName?: string,
+    sectionName?: ImplementationSection,
   ): Promise<string[]> {
+    if (conceptName && !sectionName) return [];
     const projection = await this.#ownership.projection(
       component.name,
       conceptName,
+      sectionName,
     );
     if (!projection || projection.targets.length === 0) return [];
 
@@ -1054,6 +1065,18 @@ class HoverMarkdownRenderer {
       markdownLink(label, location(absoluteFilePath, target.range))
     } (${target.artifactKind})`;
   }
+}
+
+function implementationSection(
+  sectionName: SigilSectionName,
+): ImplementationSection | undefined {
+  return sectionName === "interface" ||
+      sectionName === "state" ||
+      sectionName === "logic" ||
+      sectionName === "constraints" ||
+      sectionName === "cases"
+    ? sectionName
+    : undefined;
 }
 
 async function implementationSources(

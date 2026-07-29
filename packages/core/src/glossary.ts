@@ -21,7 +21,7 @@ import { normalizePath, relativePath } from "./path.ts";
 
 export const GLOSSARY_SCHEMA_VERSION = 1 as const;
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInterpretation
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInterpretation interface,logic,constraints,cases
 export function parseSigilGlossary(
   source: string,
   filePath: string = SIGIL_GLOSSARY_PATH,
@@ -104,7 +104,7 @@ export function parseSigilGlossary(
   };
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution interface,logic,constraints,cases
 export function resolveGlossaryForFile(
   glossary: WorkspaceGlossary,
   filePath: string,
@@ -144,7 +144,7 @@ export function resolveGlossaryForFile(
   };
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition interface,logic,constraints,cases
 export function glossaryOccurrencesForDocument(
   context: ResolvedGlossaryContext,
   document: SigilDocument,
@@ -179,7 +179,7 @@ export function glossaryOccurrencesForDocument(
   return occurrences;
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
 export function glossaryProjectionForWorkspace(
   workspace: SigilWorkspace,
 ): GlossaryProjection {
@@ -222,7 +222,7 @@ export function glossaryProjectionForWorkspace(
   };
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
 export function glossaryContextForFiles(
   projection: GlossaryProjection,
   filePaths: readonly string[],

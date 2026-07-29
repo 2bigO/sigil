@@ -1,4 +1,4 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::BrownfieldWorkflow -->
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::BrownfieldWorkflow logic,constraints,cases -->
 
 # Brownfield Sigil Adoption
 

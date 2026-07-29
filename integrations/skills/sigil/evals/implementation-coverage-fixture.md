@@ -54,17 +54,22 @@ Expected skill behavior:
 18. Derive forward ownership links from the established implementation coverage
     map and add them only within the exact change set for which
     `ReviewGate(action: implementation)` is ready.
-19. Put source annotations immediately before stable language entrypoint
+19. Require each link to use `implements`, `uses`, or `tests` and select one or
+    more `interface`, `state`, `logic`, `constraints`, or `cases` occurrences.
+20. Resolve component selectors across the component and matching expands, and
+    concept selectors only where that concept occurs; never select `goal` or
+    `decisions`.
+21. Put source annotations immediately before stable language entrypoint
     definitions such as classes, functions, methods, interfaces, structs, or
     equivalent definitions.
-20. Use a single-line comment for one annotation and one multiline comment when
+22. Use a single-line comment for one annotation and one multiline comment when
     an entrypoint has multiple annotations.
-21. Use HTML comments for agent-facing workflow Markdown, never put ownership
+23. Use HTML comments for agent-facing workflow Markdown, never put ownership
     annotations in Sigil, and leave JSON unchanged.
-22. For reconciliation, scan relevant Sigil, source, tests, and agent-facing
+24. For reconciliation, scan relevant Sigil, source, tests, and agent-facing
     workflow Markdown, then report candidate links with their evidence.
-23. Require explicit review of reconciliation candidates before changing
+25. Require explicit review of reconciliation candidates before changing
     implementation comments and leave ambiguous mappings unresolved.
-24. After forward implementation or reconciliation, verify Sigil targets and
-    entrypoint associations and report stale, detached, malformed, or unresolved
+26. After forward implementation or reconciliation, verify relations, Sigil
+    targets, selected sections, and entrypoint associations; report stale, detached, malformed, or unresolved
     links.

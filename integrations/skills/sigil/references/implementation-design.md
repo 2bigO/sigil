@@ -1,6 +1,6 @@
 # Implementation Coverage And Component Selection
 
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow -->
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow interface,logic,constraints,cases -->
 
 Use this procedure before every implementation mutation. It prevents artifact
 classification, an outcome request, or successful validation from bypassing
@@ -161,20 +161,25 @@ written Sigil, exact implementation scope, and proposed comments.
 Each annotation has this payload:
 
 ```text
-@sigil <relation> <repository-relative-sigil-path>::<Component>[::<Concept>]
+@sigil <relation> <repository-relative-sigil-path>::<Component>[::<Concept>] <section>[,<section>...]
 ```
 
-Use only `follows`, `implements`, `tests`, `validates`, or `related`. Select the
-strongest relation supported by inspected evidence; do not use `related` merely
-to avoid deciding whether code implements, tests, validates, or follows a
-contract.
+Use only `implements`, `uses`, or `tests`. Select one or more `interface`,
+`state`, `logic`, `constraints`, or `cases` sections. Do not select `goal` or
+`decisions`, because they do not identify implementation ownership.
+
+For a component target, select sections that occur on the component or its
+matching expands. For a concept target, select only sections containing an
+occurrence of that concept. Use comma-separated selectors without whitespace
+around commas.
 
 ### Forward Linking
 
 When writing implementation:
 
-1. derive the repository-relative Sigil path, component, and optional concept
-   from the approved implementation coverage map;
+1. derive the repository-relative Sigil path, component or optional concept,
+   and related section occurrences from the approved implementation coverage
+   map;
 2. select the stable language entrypoint that owns the behavior, such as a
    class, function, method, interface, struct, or equivalent definition;
 3. place one annotation immediately before that entrypoint using the language's
@@ -184,20 +189,21 @@ When writing implementation:
 5. use an HTML comment in agent-facing instruction or workflow Markdown, which
    remains a file-level target;
 6. never add ownership annotations to Sigil or JSON;
-7. after implementation, verify that every Sigil path, component, optional
-   concept, relation, and entrypoint association still resolves.
+7. after implementation, verify that every relation, Sigil path, component,
+   optional concept, selected section, and entrypoint association still
+   resolves.
 
 TypeScript examples:
 
 ```ts
-// @sigil implements contracts/booking.sigil::Booking::CreateBooking
+// @sigil implements contracts/booking.sigil::Booking::CreateBooking logic,constraints
 export function createBooking() {}
 ```
 
 ```ts
 /*
- * @sigil implements contracts/booking.sigil::Booking::CreateBooking
- * @sigil validates contracts/booking.sigil::Booking::BookingValidation
+ * @sigil implements contracts/booking.sigil::Booking::CreateBooking logic,constraints
+ * @sigil uses contracts/booking.sigil::Booking::BookingValidation interface
  */
 export class BookingService {}
 ```
@@ -205,13 +211,13 @@ export class BookingService {}
 Markdown examples:
 
 ```markdown
-<!-- @sigil follows contracts/agents.sigil::AgentWorkflow -->
+<!-- @sigil uses contracts/agents.sigil::AgentWorkflow interface -->
 ```
 
 ```markdown
 <!--
-@sigil follows contracts/agents.sigil::AgentWorkflow
-@sigil validates contracts/agents.sigil::AgentWorkflow::SafetyChecks
+@sigil uses contracts/agents.sigil::AgentWorkflow interface
+@sigil implements contracts/agents.sigil::AgentWorkflow::SafetyChecks constraints,cases
 -->
 ```
 

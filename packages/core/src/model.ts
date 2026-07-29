@@ -130,7 +130,7 @@ export interface ExpandDeclaration {
   readonly sections: readonly Section[];
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::SourceModel
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::SourceModel interface,constraints,cases
 export interface SigilDocument {
   readonly filePath: string;
   readonly imports: readonly ImportDeclaration[];
@@ -168,7 +168,7 @@ export interface GlossaryContext {
   readonly terms: readonly GlossaryTerm[];
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::GlossaryModel
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::GlossaryModel interface,constraints,cases
 export interface WorkspaceGlossary {
   readonly schemaVersion: 1;
   readonly filePath: string;
@@ -214,16 +214,18 @@ export interface GlossaryContextProjection {
   readonly occurrences: readonly GlossaryOccurrence[];
 }
 
-export type ImplementationRelation =
-  | "follows"
-  | "implements"
-  | "tests"
-  | "validates"
-  | "related";
+export type ImplementationRelation = "implements" | "uses" | "tests";
+
+export type ImplementationSection =
+  | "interface"
+  | "state"
+  | "logic"
+  | "constraints"
+  | "cases";
 
 export type ImplementationArtifactKind = "code" | "test" | "markdown";
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
 export interface ImplementationSource {
   readonly filePath: string;
   readonly text: string;
@@ -233,6 +235,7 @@ export interface OwnedImplementationTarget {
   readonly relation: ImplementationRelation;
   readonly artifactKind: ImplementationArtifactKind;
   readonly filePath: string;
+  readonly sections: readonly ImplementationSection[];
   readonly symbolIdentity?: string;
   readonly range?: SourceRange;
 }
@@ -240,11 +243,12 @@ export interface OwnedImplementationTarget {
 export interface OwnedImplementationProjection {
   readonly owningComponent: ResolvedComponent;
   readonly concept?: ResolvedConcept;
+  readonly sectionName?: ImplementationSection;
   readonly targets: readonly OwnedImplementationTarget[];
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::FileSystemModel
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::FileSystemModel interface
 export interface SigilFileSystem {
   readTextFile(path: string): Promise<string>;
   exists(path: string): Promise<boolean>;
@@ -374,7 +378,7 @@ export interface ResolvedConceptNamespace {
   readonly references: readonly ResolvedConceptReference[];
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::ResolutionModel
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::ResolutionModel interface,constraints,cases
 export interface SigilResolution {
   readonly workspace: SigilWorkspace;
   readonly imports: readonly ResolvedImport[];
@@ -382,7 +386,7 @@ export interface SigilResolution {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::GraphModel
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::GraphModel interface
 export interface SigilGraph {
   readonly componentNodes: readonly ComponentNode[];
   readonly fileEdges: readonly FileDependencyEdge[];
@@ -414,7 +418,7 @@ export interface ComponentExpansionEdge {
   readonly expandFile: string;
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::ResolvedWorkspaceModel
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::ResolvedWorkspaceModel interface,cases
 export interface ResolvedSigilWorkspace {
   readonly workspace: SigilWorkspace;
   readonly imports: readonly ResolvedImport[];

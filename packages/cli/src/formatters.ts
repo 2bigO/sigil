@@ -1,7 +1,7 @@
 import type { CommandRequest } from "./args.ts";
 import type { CommandResult } from "./output-model.ts";
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput
+// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
 export function formatResult(
   result: CommandResult,
   request: CommandRequest,

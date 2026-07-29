@@ -99,7 +99,7 @@ export interface GraphCommandResult extends WorkspaceMetadata {
   readonly graph: SigilGraph;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
-// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext
+// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
 export interface ContextCommandResult extends WorkspaceMetadata {
   readonly command: "context";
   readonly selectedComponents: readonly ResolvedComponent[];
@@ -119,7 +119,7 @@ export interface RenderCommandResult extends WorkspaceMetadata {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput
+// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
 export function workspaceMetadata(
   workspace: {
     readonly root: string;
@@ -135,7 +135,7 @@ export function workspaceMetadata(
   };
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput
+// @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
 export function diagnosticCounts(
   diagnostics: readonly SigilDiagnostic[],
 ): DiagnosticCounts {

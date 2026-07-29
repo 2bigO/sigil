@@ -58,7 +58,7 @@ interface NamespaceState {
   namespace: ResolvedConceptNamespace;
 }
 
-// @sigil implements packages/core/src/resolver.sigil::SigilResolver::RelationshipResolution
+// @sigil implements packages/core/src/resolver.sigil::SigilResolver::RelationshipResolution interface,logic,constraints,cases
 export function resolveSigilRelationships(
   workspace: SigilWorkspace,
 ): SigilResolution {

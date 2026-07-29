@@ -3,7 +3,7 @@ name: sigil
 description: Work with Sigil, a lightweight rationale-oriented modeling language for software systems, and its CLI for AI-assisted development. Use when a coding-agent host needs to read, write, improve, reconcile, validate, query, render, or use `.sigil` files; introduce Sigil into an existing or partially documented brownfield codebase; assess semantic readiness, applicable standards, best practices, pitfalls, coherence, or modularity; create or update component/expand specs; describe product modules, programming abstractions, APIs, state machines, or architecture decisions; align code with Sigil; resolve ambiguity before code generation; or build from a Sigil-driven workflow. Prefer `sigil-cli` for mechanical parsing, checks, graph, context, and render operations. Inspect governing Sigil before every implementation mutation. Stop for human review after creating or semantically changing Sigil, and do not implement until the user explicitly approves the agreed Sigil.
 ---
 
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow -->
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow interface,logic,constraints,cases -->
 
 # Sigil
 
@@ -199,8 +199,9 @@ references remain applicable across all three semantic workflows.
      or an intentional omission.
    - Submit the validated written Sigil and exact implementation scope together
      to `ReviewGate(action: implementation)`.
-   - Derive each implementation entrypoint's governing Sigil path, component,
-     and optional concept from the approved coverage map.
+   - Derive each implementation entrypoint's governing Sigil path, component or
+     optional concept, and related section occurrences from the approved
+     coverage map.
    - Add one ownership annotation with the language's single-line comment form,
      or use its multiline comment form when one entrypoint has multiple
      annotations.
@@ -209,7 +210,8 @@ references remain applicable across all three semantic workflows.
      equivalent definitions.
    - Use HTML comments for agent-facing Markdown, never add ownership
      annotations to Sigil, and leave JSON unchanged.
-   - Verify annotation targets and entrypoint associations after implementation.
+   - Verify annotation relations, targets, selected sections, and entrypoint
+     associations after implementation.
    - If implementation exposes a missing material decision, return to a Sigil
      proposal and review.
 

@@ -20,7 +20,7 @@ const consumerPath = `${root}/consumer.sigil`;
 const contractUri = pathToFileUri(contractPath);
 const consumerUri = pathToFileUri(consumerPath);
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
 Deno.test("file URI conversion preserves Sigil paths", () => {
   assertEquals(
     fileUriToPath(pathToFileUri("/tmp/a #module.sigil")),
@@ -28,7 +28,7 @@ Deno.test("file URI conversion preserves Sigil paths", () => {
   );
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async () => {
   const server = makeServer();
   const before = await server.handle(request(1, "shutdown"));
@@ -63,9 +63,9 @@ Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async 
 });
 
 /*
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization interface,state,logic,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
  */
 Deno.test("dynamically registers one ownership-source workspace watcher", async () => {
   const server = makeServer();
@@ -111,7 +111,7 @@ Deno.test("dynamically registers one ownership-source workspace watcher", async 
   );
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching constraints,cases
 Deno.test("does not register watched files without client support", async () => {
   const server = makeServer();
   const initialized = await server.handle(
@@ -128,8 +128,8 @@ Deno.test("does not register watched files without client support", async () => 
 });
 
 /*
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization interface,state,logic,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
  */
 Deno.test("publishes and clears diagnostics from open document overlays", async () => {
   const server = makeServer();
@@ -154,7 +154,7 @@ Deno.test("publishes and clears diagnostics from open document overlays", async 
   assertEquals(diagnosticsFor(closed, contractUri).length, 0);
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 Deno.test("returns hierarchical symbols, definitions, and component hover", async () => {
   const server = makeServer();
   await initialize(server);
@@ -315,7 +315,7 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   assert(decoded.some((item) => item.tokenType === 1));
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 Deno.test("component hover includes clickable owned implementation links", async () => {
   const source = `component Thing {
   goal {
@@ -348,13 +348,13 @@ expand Thing {
       }),
       [contractPath]: source,
       [`${root}/packages/core/src/config.ts`]:
-        "// @sigil implements contract.sigil::Thing::OwnedTargets\nexport function parseSigilConfig() {}\n",
+        "// @sigil implements contract.sigil::Thing::OwnedTargets interface\nexport function parseSigilConfig() {}\n",
       [`${root}/packages/core/tests/core_test.ts`]:
-        "// @sigil tests contract.sigil::Thing::OwnedTargets\nfunction implementationTargets() {}\n",
+        "// @sigil tests contract.sigil::Thing::OwnedTargets cases\nfunction implementationTargets() {}\n",
       [`${root}/packages/core/src/workspace.ts`]:
-        "// @sigil implements contract.sigil::Thing\nexport function loadWorkspace() {}\n",
+        "// @sigil implements contract.sigil::Thing interface\nexport function loadWorkspace() {}\n",
       [`${root}/packages/cli/README.md`]:
-        "<!-- @sigil related contract.sigil::Thing::OwnedTargets -->\n# CLI\n",
+        "<!-- @sigil uses contract.sigil::Thing::OwnedTargets interface -->\n# CLI\n",
     }),
   });
   await initialize(server);
@@ -381,7 +381,7 @@ expand Thing {
   );
   assert(
     markdown.includes(
-      "related [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (markdown)",
+      "uses [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (markdown)",
     ),
   );
   assert(
@@ -400,11 +400,25 @@ expand Thing {
   );
   assert(conceptMarkdown.includes("**Owned implementations**"));
   assert(conceptMarkdown.includes("parseSigilConfig"));
-  assert(conceptMarkdown.includes("implementationTargets"));
+  assert(conceptMarkdown.includes("packages/cli/README.md"));
+  assert(!conceptMarkdown.includes("implementationTargets"));
   assert(!conceptMarkdown.includes("loadWorkspace"));
+
+  const casesHover = responseResult(
+    await server.handle(request(4, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 14, character: 8 },
+    })),
+  ) as Record<string, unknown>;
+  const casesMarkdown = String(
+    (casesHover.contents as Record<string, unknown>).value,
+  );
+  assert(casesMarkdown.includes("implementationTargets"));
+  assert(!casesMarkdown.includes("parseSigilConfig"));
+  assert(!casesMarkdown.includes("packages/cli/README.md"));
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
 Deno.test("ownership hover cache shares scans and invalidates on watched changes", async () => {
   const fs = new CountingSigilFileSystem(
     new InMemorySigilFileSystem({
@@ -416,7 +430,7 @@ Deno.test("ownership hover cache shares scans and invalidates on watched changes
       }),
       [contractPath]: contractSource,
       [`${root}/src/worker.ts`]:
-        "// @sigil implements contract.sigil::Thing::Execution\nexport function run() {}\n",
+        "// @sigil implements contract.sigil::Thing::Execution interface\nexport function run() {}\n",
     }),
   );
   const server = new SigilLanguageServer({ currentDirectory: root, fs });
@@ -462,7 +476,7 @@ Deno.test("ownership hover cache shares scans and invalidates on watched changes
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 4);
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
 Deno.test("navigates and hovers contextual imported concepts", async () => {
   const server = makeServer();
   await initialize(server);
@@ -619,7 +633,7 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   );
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
 Deno.test("highlights, explains, and navigates reviewed glossary terms", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const glossaryUri = pathToFileUri(glossaryPath);
@@ -710,9 +724,9 @@ Deno.test("highlights, explains, and navigates reviewed glossary terms", async (
 });
 
 /*
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
  */
 Deno.test("combines concept and glossary hover while preserving concept navigation", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
@@ -753,7 +767,7 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
       }),
       [contractPath]: source,
       [`${root}/src/execution.ts`]:
-        "// @sigil implements contract.sigil::Thing::Execution\nexport function execute() {}\n",
+        "// @sigil implements contract.sigil::Thing::Execution interface\nexport function execute() {}\n",
     }),
   });
   await initialize(server);
@@ -761,7 +775,7 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
   const hover = responseResult(
     await server.handle(request(2, "textDocument/hover", {
       textDocument: { uri: contractUri },
-      position: { line: 2, character: 9 },
+      position: { line: 6, character: 8 },
     })),
   ) as Record<string, unknown>;
   const markdown = String(
@@ -827,8 +841,8 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
 });
 
 /*
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
  */
 Deno.test("publishes invalid glossary diagnostics without crashing", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
@@ -854,7 +868,7 @@ Deno.test("publishes invalid glossary diagnostics without crashing", async () =>
   );
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
 Deno.test("publishes concept style information as an LSP hint", async () => {
   const source = contractSource.replaceAll("Execution", "session-lifecycle");
   const server = new SigilLanguageServer({
@@ -878,7 +892,7 @@ Deno.test("publishes concept style information as an LSP hint", async () => {
   assertEquals(hint.severity, 4);
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 Deno.test("directory-index definitions navigate to the original declaration", async () => {
   const modulePath = `${root}/module/#module.sigil`;
   const indexedContractPath = `${root}/module/contract.sigil`;
@@ -930,7 +944,7 @@ Deno.test("directory-index definitions navigate to the original declaration", as
   );
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("returns protocol errors for bad requests and observes cancellation", async () => {
   const server = makeServer();
   await initialize(server);
@@ -948,8 +962,8 @@ Deno.test("returns protocol errors for bad requests and observes cancellation", 
 });
 
 /*
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
  */
 Deno.test("surfaces workspace configuration failures without crashing", async () => {
   const server = new SigilLanguageServer({
@@ -973,7 +987,7 @@ Deno.test("surfaces workspace configuration failures without crashing", async ()
   assertEquals(server.state, "running");
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("exit without shutdown reports an unsuccessful process status", async () => {
   const server = makeServer();
   await initialize(server);
@@ -981,7 +995,7 @@ Deno.test("exit without shutdown reports an unsuccessful process status", async 
   assertEquals(server.exitCode, 1);
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("frames split messages and runs an ordered in-memory protocol session", async () => {
   const initializeMessage = encodeLspMessage(
     request(1, "initialize", {
@@ -1029,7 +1043,7 @@ Deno.test("frames split messages and runs an ordered in-memory protocol session"
   assertEquals(messages[2].id, 2);
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("malformed JSON returns a parse error without dropping adjacent frames", async () => {
   const inputBytes = joinBytes([
     rawFrame("{"),
@@ -1063,8 +1077,8 @@ Deno.test("malformed JSON returns a parse error without dropping adjacent frames
 });
 
 /*
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::LspPackage
- * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::LspPackage interface
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
  */
 Deno.test("stdio executable completes initialize, shutdown, and exit", async () => {
   const input = joinBytes([

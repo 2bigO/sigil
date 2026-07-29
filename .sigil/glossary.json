@@ -291,6 +291,11 @@
       "term": "implementation mutation",
       "definition": "A creation, modification, move, or deletion of an implementation artifact; excludes read-only inspection and exact user-requested rollback of the current agent's unapproved changes.",
       "aliases": ["implementation mutations"]
+    },
+    {
+      "term": "section selector",
+      "definition": "A section name in an implementation ownership annotation that identifies an implementation-related section occurrence on the targeted component or concept.",
+      "aliases": ["section selectors"]
     }
   ],
   "contexts": [

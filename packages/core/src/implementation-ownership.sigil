@@ -7,39 +7,35 @@ component SigilImplementationOwnership {
 
   interface {
     OwnedImplementationLookup {
-      ownedImplementationTargetsFor(resolvedWorkspace, implementationSources, componentName, conceptName?) returns an owned-implementation projection or undefined
+      ownedImplementationTargetsFor(resolvedWorkspace, implementationSources, componentName, conceptName?, sectionName?) returns an owned-implementation projection or undefined
 
-      The query scans implementation comments that link entrypoint definitions or agent-facing Markdown back to the selected Sigil component and optional concept.
+      The query scans implementation comments that link entrypoint definitions or agent-facing Markdown back to the selected Sigil component and optional concept and section scopes.
     }
 
     OwnedImplementationProjection {
-      includes the owning contract, optional concept scope, normalized implementation targets, and diagnostics
+      includes the owning contract, optional concept and section scopes, normalized implementation targets, and diagnostics
     }
 
     OwnedImplementationTarget {
       each target identifies one owned implementation artifact
 
-      each target preserves the artifact kind, file path, and optional symbol identity when available
+      each target preserves the artifact kind, file path, selected sections, and optional symbol identity when available
     }
 
     ImplementationAnnotation {
-      identifies a relation, repository-relative Sigil path, component name, and optional concept name
+      identifies a relation, repository-relative Sigil path, component name, optional concept name, and one or more selected sections
 
       the containing implementation file and adjacent entrypoint definition identify the owned implementation target
 
-      uses @sigil <relation> <file>::<component>[::<concept>]
+      uses @sigil <relation> <file>::<component>[::<concept>] <section>[,<section>...]
 
       file is a repository-relative Sigil path
 
-      follows links an artifact that follows the selected Sigil.
+      implements links an artifact that implements the selected section occurrences.
 
-      implements links an artifact that implements the concept.
+      uses links an artifact that uses the selected section occurrences.
 
-      tests links an artifact that tests the concept.
-
-      validates links an artifact that validates a constraint or case.
-
-      related creates an informational link only.
+      tests links an artifact that tests the selected section occurrences.
     }
   }
 }
@@ -51,6 +47,8 @@ expand SigilImplementationOwnership {
 
       resolve each annotation target against the selected Sigil workspace
 
+      resolve each annotation's selected sections against the targeted component or concept occurrences
+
       normalize code, tests, and agent-facing workflow Markdown into one shared result shape
 
       derive symbol-level targets from annotated language entrypoint definitions and use file-level targets for Markdown
@@ -61,7 +59,19 @@ expand SigilImplementationOwnership {
     AnnotationStorage {
       Ownership annotations exist only in implementation comments and never in Sigil source.
 
-      Each annotation points from an implementation artifact to a repository-relative Sigil path, component, and optional concept.
+      Each annotation points from an implementation artifact to a repository-relative Sigil path, component, optional concept, and selected sections.
+    }
+
+    SectionSelection {
+      Every annotation selects one or more interface, state, logic, constraints, or cases sections.
+
+      Goal and decisions sections cannot be ownership targets.
+
+      For a component target, each selector resolves to an existing section occurrence on the component or one of its matching expands.
+
+      For a concept target, each selector resolves to an occurrence of that concept in the selected section.
+
+      Empty, repeated, unknown, or unresolved section selectors produce diagnostics instead of an inferred relationship.
     }
 
     AnnotationPlacement {
@@ -109,17 +119,19 @@ expand SigilImplementationOwnership {
     }
 
     AnnotationGrammar {
-      Decision: Encode each ownership link as @sigil <relation> <file>::<component>[::<concept>] and allow only follows, implements, tests, validates, or related.
+      Decision: Encode each ownership link as @sigil <relation> <file>::<component>[::<concept>] <section>[,<section>...] and allow only implements, uses, or tests.
 
-      Scope: Governs payloads parsed from supported implementation comments; file is a repository-relative Sigil path, component is required, and concept is optional.
+      Scope: Governs payloads parsed from supported implementation comments; file is a repository-relative Sigil path, component is required, concept is optional, and one or more sections are required.
 
-      Trade-offs: A small fixed vocabulary keeps ownership queries deterministic and reviewable, but relationships outside these meanings require related or a future vocabulary change.
+      Trade-offs: A small fixed vocabulary and required occurrence selectors keep ownership queries precise and deterministic, but existing sectionless annotations require reviewed migration.
 
-      Design issues addressed: An annotation target alone cannot distinguish following a contract, implementation, testing, validation, and informational association.
+      Design issues addressed: Component-level and concept-level links otherwise cannot identify which contract occurrences the implementation uses, implements, or tests.
 
-      Consequences: Parsers reject unsupported relation words and consumers preserve the selected relation with each implementation target.
+      Discarded alternatives: follows, validates, related, goal and decisions selectors, and sectionless annotations do not provide the selected implementation-occurrence precision required by the ownership query.
 
-      Revisit when: Ownership queries need a relationship that the five defined relations cannot express without ambiguity.
+      Consequences: Parsers reject unsupported relations and annotations without valid implementation-related section selectors.
+
+      Revisit when: Ownership queries need another behavioral relation or section occurrences are insufficiently precise.
     }
 
     AnnotationPlacement {
@@ -135,15 +147,29 @@ expand SigilImplementationOwnership {
     }
 
     ScopeSelection {
-      Decision: Allow an optional concept scope so a contract can return all owned targets or just the subset governed by one concept.
+      Decision: Allow optional concept and section scopes so a contract can return all owned targets, one concept's targets, or only targets selecting one section occurrence.
 
-      Scope: Governs query scoping within one contract; excludes cross-contract aggregation and transitive ownership inference.
+      Scope: Governs query scoping within one contract; section scope filters selected annotation sections and excludes cross-contract aggregation and transitive ownership inference.
 
-      Trade-offs: Concept scoping increases precision without forcing separate query shapes, but callers must supply the correct concept when they need a narrower view.
+      Trade-offs: Concept and section scoping increase precision without forcing separate query shapes, but callers must supply the occurrence scope when they need a narrower view.
 
-      Consequences: The same API serves whole-contract and concept-specific ownership views.
+      Consequences: The same API serves whole-contract, concept-specific, and section-specific ownership views.
 
-      Revisit when: Concept scoping proves too coarse or too fine for routine use.
+      Revisit when: Component, concept, and section scoping prove too coarse or too fine for routine use.
+    }
+
+    SectionSelection {
+      Decision: Resolve component-target selectors against component and matching-expand sections, and resolve concept-target selectors only against sections containing that concept.
+
+      Scope: Governs annotation validation, projection metadata, and optional section-scoped lookup; excludes goal, decisions, and semantic-line-level selectors.
+
+      Trade-offs: Occurrence validation detects stale or impossible links, but moving a concept between sections requires its annotations to be reconciled.
+
+      Design issues addressed: A section name has different precision when the annotation targets an entire component versus one concept.
+
+      Consequences: Component annotations may select implementation-related component or expand sections, while concept annotations may select only implementation-related sections where that concept occurs.
+
+      Revisit when: Ownership needs semantic-line-level or cross-component occurrence selection.
     }
 
     ImplementationTargetScope {
@@ -179,6 +205,10 @@ expand SigilImplementationOwnership {
 
       An HTML comment links an agent-facing Markdown workflow file to a Sigil component or concept.
 
+      A component annotation can implement logic and constraints occurrences without naming a concept.
+
+      A concept annotation can use the interface occurrence of that concept.
+
       JSON content is ignored.
     }
 
@@ -188,6 +218,8 @@ expand SigilImplementationOwnership {
       A Markdown instruction comment produces a file-level implementation target.
 
       A detached or ambiguous annotation produces a diagnostic instead of an inferred target.
+
+      A concept annotation naming a section where the concept does not occur produces a diagnostic.
     }
   }
 }

@@ -1,4 +1,4 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GreenfieldWorkflow -->
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GreenfieldWorkflow logic,constraints,cases -->
 
 # Greenfield Sigil Design
 

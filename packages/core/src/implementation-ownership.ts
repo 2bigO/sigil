@@ -3,6 +3,7 @@ import { normalizePath } from "./path.ts";
 import type {
   ImplementationArtifactKind,
   ImplementationRelation,
+  ImplementationSection,
   ImplementationSource,
   OwnedImplementationProjection,
   OwnedImplementationTarget,
@@ -12,11 +13,16 @@ import type {
 } from "./model.ts";
 
 const IMPLEMENTATION_RELATIONS: ReadonlySet<ImplementationRelation> = new Set([
-  "follows",
   "implements",
+  "uses",
   "tests",
-  "validates",
-  "related",
+]);
+const IMPLEMENTATION_SECTIONS: ReadonlySet<ImplementationSection> = new Set([
+  "interface",
+  "state",
+  "logic",
+  "constraints",
+  "cases",
 ]);
 
 const MARKDOWN_EXTENSIONS = [".md", ".markdown", ".mdown"];
@@ -52,6 +58,7 @@ interface ParsedAnnotation {
   readonly sigilPath: string;
   readonly componentName: string;
   readonly conceptName?: string;
+  readonly sectionNames: readonly string[];
 }
 
 interface CommentBlock {
@@ -71,12 +78,13 @@ interface EntrypointMatch {
   readonly offset: number;
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
 export function ownedImplementationTargetsFor(
   resolved: ResolvedSigilWorkspace,
   implementationSources: readonly ImplementationSource[],
   componentName: string,
   conceptName?: string,
+  sectionName?: ImplementationSection,
 ): OwnedImplementationProjection | undefined {
   const owningComponent = resolved.components.find((component) =>
     component.name === componentName
@@ -110,7 +118,9 @@ export function ownedImplementationTargetsFor(
       if (
         result.annotation.componentName !== componentName ||
         (conceptName !== undefined &&
-          result.annotation.conceptName !== conceptName)
+          result.annotation.conceptName !== conceptName) ||
+        (sectionName !== undefined &&
+          !result.target.sections.includes(sectionName))
       ) continue;
       const componentPath = relativeToWorkspace(
         resolved,
@@ -119,7 +129,7 @@ export function ownedImplementationTargetsFor(
       if (result.annotation.sigilPath !== componentPath) continue;
       const key = `${result.target.relation}\0${result.target.filePath}\0${
         result.target.symbolIdentity ?? ""
-      }`;
+      }\0${result.target.sections.join(",")}`;
       if (seen.has(key)) continue;
       seen.add(key);
       targets.push(result.target);
@@ -129,18 +139,20 @@ export function ownedImplementationTargetsFor(
   targets.sort((left, right) =>
     left.filePath.localeCompare(right.filePath) ||
     (left.symbolIdentity ?? "").localeCompare(right.symbolIdentity ?? "") ||
-    left.relation.localeCompare(right.relation)
+    left.relation.localeCompare(right.relation) ||
+    left.sections.join(",").localeCompare(right.sections.join(","))
   );
 
   return {
     owningComponent,
     concept,
+    sectionName,
     targets,
     diagnostics,
   };
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope constraints
 export function isSupportedImplementationSource(filePath: string): boolean {
   const normalized = normalizePath(filePath).toLowerCase();
   if (normalized.endsWith(".sigil") || normalized.endsWith(".json")) {
@@ -222,6 +234,7 @@ function implementationAnnotations(
           relation: annotation.relation,
           artifactKind: inferArtifactKind(source.filePath, annotation.relation),
           filePath: relativeToWorkspace(resolved, source.filePath),
+          sections: annotation.sectionNames as readonly ImplementationSection[],
           symbolIdentity: entrypoint?.identity,
           range: entrypoint?.range,
         },
@@ -235,7 +248,7 @@ function parseImplementationAnnotation(
   line: string,
 ): ParsedAnnotation | undefined {
   const match = line.trim().match(
-    /^@sigil\s+(follows|implements|tests|validates|related)\s+(\S+)\s*$/i,
+    /^@sigil\s+(implements|uses|tests)\s+(\S+)\s+(\S+)\s*$/i,
   );
   if (!match) return undefined;
   const relation = match[1].toLowerCase() as ImplementationRelation;
@@ -251,6 +264,7 @@ function parseImplementationAnnotation(
     sigilPath,
     componentName: parts[1],
     conceptName: parts[2],
+    sectionNames: match[3].split(",").map((section) => section.toLowerCase()),
   };
 }
 
@@ -272,6 +286,43 @@ function resolveAnnotationTarget(
     )
   ) {
     return `Ownership annotation references unknown concept ${annotation.conceptName} on ${annotation.componentName}.`;
+  }
+  if (
+    annotation.sectionNames.length === 0 ||
+    annotation.sectionNames.some((section) => section.length === 0)
+  ) {
+    return "Ownership annotation requires one or more section selectors.";
+  }
+  const repeatedSection = annotation.sectionNames.find((section, index) =>
+    annotation.sectionNames.indexOf(section) !== index
+  );
+  if (repeatedSection) {
+    return `Ownership annotation repeats section selector ${repeatedSection}.`;
+  }
+  const unsupportedSection = annotation.sectionNames.find((section) =>
+    !IMPLEMENTATION_SECTIONS.has(section as ImplementationSection)
+  );
+  if (unsupportedSection) {
+    return `Ownership annotation uses unsupported section selector ${unsupportedSection}.`;
+  }
+  const availableSections = annotation.conceptName
+    ? component.conceptNamespace.concepts
+      .find((concept) => concept.identifier === annotation.conceptName)
+      ?.occurrences.map((occurrence) => occurrence.sectionName) ?? []
+    : [
+      ...component.declaration.sections.map((section) => section.name),
+      ...component.expansions.expands.flatMap((expansion) =>
+        expansion.declaration.sections.map((section) => section.name)
+      ),
+    ];
+  const unresolvedSection = annotation.sectionNames.find((section) =>
+    !availableSections.includes(section as ImplementationSection)
+  );
+  if (unresolvedSection) {
+    const target = annotation.conceptName
+      ? `concept ${annotation.conceptName} on ${annotation.componentName}`
+      : `component ${annotation.componentName}`;
+    return `Ownership annotation references section ${unresolvedSection} without a matching occurrence on ${target}.`;
   }
   return undefined;
 }
@@ -494,7 +545,7 @@ function entrypointAfter(
   };
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
 function entrypointMatch(
   source: string,
   extension: string,

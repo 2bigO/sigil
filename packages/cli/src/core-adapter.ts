@@ -13,6 +13,7 @@ import {
   glossaryContextForFiles,
   type GlossaryContextProjection,
   type GlossaryProjection,
+  type ImplementationSection,
   type ImplementationSource,
   isSupportedImplementationSource,
   loadSigilWorkspace,
@@ -78,7 +79,7 @@ export class CoreAdapter {
     );
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   async parseFile(
     path: string,
     explicitRoot?: string,
@@ -103,7 +104,7 @@ export class CoreAdapter {
     };
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   async loadWorkspace(
     path?: string,
     explicitRoot?: string,
@@ -115,7 +116,7 @@ export class CoreAdapter {
     });
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   async resolveWorkspace(
     path?: string,
     explicitRoot?: string,
@@ -123,7 +124,7 @@ export class CoreAdapter {
     return resolveSigilWorkspace(await this.loadWorkspace(path, explicitRoot));
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization
+  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
   async initConfig(
     path: string | undefined,
     name: string | undefined,
@@ -180,34 +181,36 @@ export class CoreAdapter {
     return { root, configPath, glossaryPath, config, diagnostics: [] };
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection
+  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   versions(): VersionInfo {
     return {
       cliVersion: SIGIL_CLI_VERSION,
       coreVersion: SIGIL_CORE_VERSION,
     };
   }
-  // @sigil follows packages/core/src/projections.sigil::SigilProjections::ContractProjection
+  // @sigil uses packages/core/src/projections.sigil::SigilProjections::ContractProjection interface,logic,cases
   componentContracts(
     resolved: ResolvedSigilWorkspace,
   ): readonly ComponentContractView[] {
     return componentContracts(resolved);
   }
-  // @sigil follows packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup
+  // @sigil uses packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
   ownedImplementationTargetsFor(
     resolved: ResolvedSigilWorkspace,
     implementationSources: readonly ImplementationSource[],
     componentName: string,
     conceptName?: string,
+    sectionName?: ImplementationSection,
   ): OwnedImplementationProjection | undefined {
     return coreOwnedImplementationTargetsFor(
       resolved,
       implementationSources,
       componentName,
       conceptName,
+      sectionName,
     );
   }
-  // @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext
+  // @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
   async implementationSourcesFor(
     resolved: ResolvedSigilWorkspace,
   ): Promise<readonly ImplementationSource[]> {
@@ -226,28 +229,28 @@ export class CoreAdapter {
     }
     return sources;
   }
-  // @sigil follows packages/core/src/projections.sigil::SigilProjections::ExpansionProjection
+  // @sigil uses packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
   collectedExpansionFor(
     resolved: ResolvedSigilWorkspace,
     componentName: string,
   ): CollectedExpansion | undefined {
     return collectedExpansionFor(resolved, componentName);
   }
-  // @sigil follows packages/core/src/projections.sigil::SigilProjections::AgentDependencyContext
+  // @sigil uses packages/core/src/projections.sigil::SigilProjections::AgentDependencyContext interface,logic,constraints,cases
   agentDependencyContextFor(
     resolved: ResolvedSigilWorkspace,
     componentName: string,
   ): AgentDependencyContext | undefined {
     return agentDependencyContextFor(resolved, componentName);
   }
-  // @sigil follows packages/core/src/projections.sigil::SigilProjections::ConceptNamespaceProjection
+  // @sigil uses packages/core/src/projections.sigil::SigilProjections::ConceptNamespaceProjection interface,logic,cases
   conceptNamespaceFor(
     resolved: ResolvedSigilWorkspace,
     componentName: string,
   ): ResolvedConceptNamespace | undefined {
     return conceptNamespaceFor(resolved, componentName);
   }
-  // @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection
+  // @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
   glossaryContextForFiles(
     projection: GlossaryProjection,
     filePaths: readonly string[],

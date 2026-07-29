@@ -4,7 +4,7 @@ import type {
   SourceRange,
 } from "./model.ts";
 
-// @sigil implements packages/core/src/diagnostics.sigil::SigilDiagnostics::DiagnosticConstruction
+// @sigil implements packages/core/src/diagnostics.sigil::SigilDiagnostics::DiagnosticConstruction interface,constraints,cases
 export function diagnostic(
   code: SigilDiagnosticCode,
   message: string,

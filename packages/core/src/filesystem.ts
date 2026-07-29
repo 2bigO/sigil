@@ -1,7 +1,7 @@
 import type { SigilFileSystem } from "./model.ts";
 import { normalizePath } from "./path.ts";
 
-// @sigil implements packages/core/src/filesystem.sigil::SigilFileSystem::InMemoryFileSystem
+// @sigil implements packages/core/src/filesystem.sigil::SigilFileSystem::InMemoryFileSystem interface,logic,constraints,cases
 export class InMemorySigilFileSystem implements SigilFileSystem {
   readonly #files: Map<string, string>;
 

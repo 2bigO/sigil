@@ -19,7 +19,7 @@ export const DEFAULT_SIGIL_EXCLUDES = [
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::ConfigValidation
+// @sigil implements spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
 export function parseSigilConfig(
   source: string,
   filePath: string = SIGIL_CONFIG_PATH,
@@ -92,7 +92,7 @@ export function parseSigilConfig(
   };
 }
 
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection
+// @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
 export function matchesSigilFile(path: string, config: SigilConfig): boolean {
   const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "");
   return config.files.include.some((pattern) =>
@@ -101,7 +101,7 @@ export function matchesSigilFile(path: string, config: SigilConfig): boolean {
     !config.files.exclude.some((pattern) => globMatches(pattern, normalized));
 }
 
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::WorkspaceBoundary
+// @sigil implements spec/language.sigil::SigilWorkspaceConfig::WorkspaceBoundary interface,logic,constraints,cases
 export function excludesSigilSubtree(
   path: string,
   config: SigilConfig,
@@ -114,7 +114,7 @@ export function excludesSigilSubtree(
   return config.files.exclude.some((pattern) => globMatches(pattern, probe));
 }
 
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection
+// @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
 export function globMatches(pattern: string, path: string): boolean {
   const normalizedPattern = pattern.replaceAll("\\", "/").replace(/^\.\//, "");
   let source = "^";

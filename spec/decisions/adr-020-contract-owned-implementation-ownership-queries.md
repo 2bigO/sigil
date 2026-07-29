@@ -6,7 +6,7 @@
 
 **Reviewers:** _TBD_
 
-**Last updated:** 2026-07-28
+**Last updated:** 2026-07-29
 
 ## Context
 
@@ -22,25 +22,35 @@ Sigil will add a shared core query that returns the implementation targets owned
 
 The first version is contract-owned, not implementation-owned. A Sigil contract is the owner, and the query returns the implementation artifacts it owns.
 
-The query is optional concept-scoped, so callers can ask for the whole contract or a narrower contract concept.
+The query is optionally concept- and section-scoped, so callers can ask for the
+whole contract, a narrower contract concept, or one implementation-related
+section occurrence.
 
 Ownership links are stored in implementation comments that point back to the governing Sigil contract. This implementation-to-contract link direction does not change the contract-owned query: callers still select a contract or concept and receive matching implementation targets.
 
 The annotation payload is:
 
 ```text
-@sigil <relation> <file>::<component>[::<concept>]
+@sigil <relation> <file>::<component>[::<concept>] <section>[,<section>...]
 ```
 
-`file` is a repository-relative Sigil path. `component` is required and `concept` is optional.
+`file` is a repository-relative Sigil path. `component` is required, `concept`
+is optional, and one or more comma-separated section selectors are required.
+Canonical annotations contain no whitespace around selector commas.
 
 Relations:
 
-- `follows` — this artifact follows the selected Sigil.
-- `implements` — this artifact implements the concept.
-- `tests` — this artifact tests the concept.
-- `validates` — this artifact validates a constraint or case.
-- `related` — informational link only.
+- `implements` — this artifact implements the selected section occurrences.
+- `uses` — this artifact uses the selected section occurrences.
+- `tests` — this artifact tests the selected section occurrences.
+
+Allowed selectors are `interface`, `state`, `logic`, `constraints`, and
+`cases`. `goal` and `decisions` are not implementation ownership targets.
+
+For a component target, each selector must resolve to a section on that
+component or one of its matching expands. For a concept target, each selector
+must resolve to a section containing an occurrence of that concept. Missing,
+empty, repeated, unknown, or unresolved selectors produce diagnostics.
 
 The first version includes:
 
@@ -57,7 +67,9 @@ The first version excludes:
 - persisted ownership storage;
 - caching.
 
-The shared core result should prefer symbol-level targets when available and fall back to file-level targets when symbol resolution is unavailable.
+The shared core result preserves each target's selected sections, prefers
+symbol-level targets when available, and falls back to file-level targets when
+symbol resolution is unavailable.
 
 ## Consequences
 
@@ -73,6 +85,8 @@ Costs:
 - the first version will not persist ownership across sessions;
 - no cache is introduced in the first attempt;
 - implementation coverage remains smaller than a future persisted system.
+- existing sectionless ownership annotations require migration;
+- moving a concept between sections can make its ownership annotations stale.
 
 ## Revisit when
 
@@ -80,3 +94,4 @@ Costs:
 - cross-session caching becomes necessary;
 - implementation-first navigation becomes a primary user need;
 - the artifact scope needs to expand beyond code, tests, and agent-facing Markdown.
+- ownership needs semantic-line-level precision beyond section occurrences.

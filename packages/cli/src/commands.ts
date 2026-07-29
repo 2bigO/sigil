@@ -17,11 +17,11 @@ export interface CommandHandlerOptions {
 }
 
 /**
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection
- * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation interface,logic,constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
  */
 export async function runCommand(
   request: CommandRequest,
@@ -124,7 +124,7 @@ export async function runCommand(
   };
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext
+// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
 async function contextCommand(
   request: ContextRequest,
   core: CoreAdapter,

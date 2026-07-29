@@ -49,7 +49,7 @@ component SigilLsp {
 
       component hover presents every owned implementation target linked to the selected component
 
-      concept hover presents owned implementation targets explicitly linked to the hovered concept identity at its originating component
+      concept hover presents owned implementation targets linked to the hovered concept identity and section occurrence at its originating component
 
       owned implementation targets appear in the final hover section after contract, collected-expansion, and glossary content
 
@@ -129,7 +129,7 @@ expand SigilLsp {
 
       Hover derives inline navigation targets from the shared component and concept reference resolvers and encodes them as file-URI Markdown links to declaration identifier ranges.
 
-      Concept hover queries ownership using the originating component and hovered concept identifier.
+      Concept hover queries ownership using the originating component, hovered concept identifier, and hovered section.
 
       Hover appends owned implementation targets after all other hover content.
 
@@ -139,7 +139,7 @@ expand SigilLsp {
     OwnershipHoverCache {
       Workspace resolution starts one shared load of supported ownership implementation sources.
 
-      Concurrent and later component or concept hovers reuse the in-flight or ready source snapshot and memoized ownership query for the same component and optional concept.
+      Concurrent and later component or concept hovers reuse the in-flight or ready source snapshot and memoized ownership query for the same component, optional concept, and optional section.
 
       A workspace reload or workspace/didChangeWatchedFiles notification for a supported implementation source invalidates the cache before the next hover.
     }
@@ -257,19 +257,19 @@ expand SigilLsp {
     }
 
     NavigationAndInspection {
-      Decision: Surface implementation-comment-linked targets in component and concept hover as clickable Markdown links in a final Owned implementations section.
+      Decision: Surface implementation-comment-linked targets in component hover and section-filtered targets in concept-occurrence hover as clickable Markdown links in a final Owned implementations section.
 
-      Scope: Governs ownership-link content and placement in SigilLsp hover; cache lifecycle is governed by OwnershipHoverCache.
+      Scope: Governs ownership-link content, occurrence filtering, and placement in SigilLsp hover; cache lifecycle is governed by OwnershipHoverCache.
 
       Trade-offs: Placing links last keeps contract, expansion, and glossary content together but may require scrolling in large hovers.
 
-      Consequences: Users can navigate from components and originating concept identities to explicitly linked implementation artifacts.
+      Consequences: Users can navigate from components and exact concept section occurrences to explicitly linked implementation artifacts.
 
       Revisit when: Hover content requires collapsible or separately requested implementation details.
     }
 
     OwnershipHoverCache {
-      Decision: Reuse one process-local ownership-source snapshot and memoized component-or-concept queries per resolved workspace generation, invalidating them on workspace reload or supported watched-file changes.
+      Decision: Reuse one process-local ownership-source snapshot and memoized component, concept, and optional section queries per resolved workspace generation, invalidating them on workspace reload or supported watched-file changes.
 
       Scope: Governs SigilLsp ownership-hover loading and invalidation; excludes persistence and changes to shared core ownership-query semantics.
 
@@ -323,7 +323,7 @@ expand SigilLsp {
 
       Component-contract hover also lists owned implementation targets as clickable links when the contract declares them.
 
-      Concept hover lists implementation targets annotated to the concept's originating component and identifier.
+      Concept hover lists implementation targets annotated to the concept's originating component, identifier, and hovered section.
 
       The Owned implementations section is the final section of component and concept hover.
 

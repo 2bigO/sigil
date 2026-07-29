@@ -58,15 +58,15 @@ export interface SigilLanguageServerOptions {
 }
 
 /**
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::ReadOnlyLanguageService
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization interface,state,logic,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ReadOnlyLanguageService interface,constraints
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
  */
 export class SigilLanguageServer {
   readonly #fs: OverlaySigilFileSystem;

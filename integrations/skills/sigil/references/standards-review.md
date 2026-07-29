@@ -1,4 +1,4 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview -->
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases -->
 
 # Standards-Aware Semantic Review
 
