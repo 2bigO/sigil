@@ -1,5 +1,6 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
+@packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }
 
 component SigilCore {
   goal {
@@ -41,6 +42,9 @@ component SigilCore {
       agentDependencyContextFor(resolvedWorkspace, componentName) returns bounded agent context containing direct dependency contracts and rationale
 
       agentDependentContextFor(resolvedWorkspace, componentName) returns direct importing-file context derived from imported-component graph edges
+      ownedImplementationTargetsFor(resolvedWorkspace, implementationSources, componentName, conceptName?, sectionName?) returns implementation targets linked to that Sigil contract from implementation comments (SigilImplementationOwnership)
+
+      isSupportedImplementationSource and supportedImplementationSourceGlobPatterns expose the shared ownership-source policy (SigilImplementationOwnership)
     }
 
     GlossaryInspection {

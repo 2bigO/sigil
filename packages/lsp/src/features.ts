@@ -1,6 +1,10 @@
 import type {
   ConceptIdentity,
   GlossaryTerm,
+  ImplementationSection,
+  ImplementationSource,
+  OwnedImplementationProjection,
+  OwnedImplementationTarget,
   ResolvedComponent,
   ResolvedConcept,
   ResolvedSigilWorkspace,
@@ -9,7 +13,12 @@ import type {
   SigilDiagnostic,
   SigilDocument,
   SigilFileSystem,
+  SigilSectionName,
   SourceRange,
+} from "@qoherent/sigil-core";
+import {
+  isSupportedImplementationSource,
+  ownedImplementationTargetsFor,
 } from "@qoherent/sigil-core";
 import { normalizePath, relativePath } from "@qoherent/sigil-core";
 import { pathToFileUri } from "./filesystem.ts";
@@ -39,6 +48,7 @@ interface ComponentReference {
 interface ConceptReference {
   readonly concept: ResolvedConcept;
   readonly context: ResolvedComponent;
+  readonly sectionName: SigilSectionName;
   readonly range: Range;
 }
 
@@ -51,6 +61,62 @@ interface GlossaryReference {
 interface SemanticReference {
   readonly range: Range;
   readonly tokenType: number;
+}
+
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
+export class OwnershipSourceIndex {
+  readonly #sources: Promise<readonly ImplementationSource[]>;
+
+  constructor(
+    workspaceRoot: string,
+    fs: SigilFileSystem,
+  ) {
+    this.#sources = implementationSources(workspaceRoot, fs);
+  }
+
+  sources(): Promise<readonly ImplementationSource[]> {
+    return this.#sources;
+  }
+}
+
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+export class OwnershipHoverCache {
+  readonly #resolved: ResolvedSigilWorkspace;
+  readonly #sourceIndex: OwnershipSourceIndex;
+  readonly #projections = new Map<
+    string,
+    Promise<OwnedImplementationProjection | undefined>
+  >();
+
+  constructor(
+    resolved: ResolvedSigilWorkspace,
+    sourceIndex: OwnershipSourceIndex,
+  ) {
+    this.#resolved = resolved;
+    this.#sourceIndex = sourceIndex;
+  }
+
+  projection(
+    componentName: string,
+    conceptName?: string,
+    sectionName?: ImplementationSection,
+  ): Promise<OwnedImplementationProjection | undefined> {
+    const key = `${componentName}\0${conceptName ?? ""}\0${sectionName ?? ""}`;
+    let projection = this.#projections.get(key);
+    if (!projection) {
+      projection = this.#sourceIndex.sources().then((sources) =>
+        ownedImplementationTargetsFor(
+          this.#resolved,
+          sources,
+          componentName,
+          conceptName,
+          sectionName,
+        )
+      );
+      this.#projections.set(key, projection);
+    }
+    return projection;
+  }
 }
 
 export function sourceRangeToLsp(range?: SourceRange): Range {
@@ -67,6 +133,7 @@ export function sourceRangeToLsp(range?: SourceRange): Range {
   };
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
 export function diagnosticsByUri(
   diagnostics: readonly SigilDiagnostic[],
 ): ReadonlyMap<string, PublishDiagnosticsParams["diagnostics"]> {
@@ -91,6 +158,7 @@ export function diagnosticsByUri(
   return grouped;
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 export function documentSymbols(
   document: SigilDocument,
   source: string,
@@ -127,6 +195,7 @@ export function documentSymbols(
   ];
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 export async function definitionAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
@@ -190,15 +259,21 @@ export async function definitionAt(
     : null;
 }
 
+/*
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+ */
 export async function hoverAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
+  ownership: OwnershipHoverCache,
   filePath: string,
   position: Position,
 ): Promise<Hover | null> {
   const source = await fs.readTextFile(filePath);
   const normalized = normalizePath(filePath);
-  const markdown = new HoverMarkdownRenderer(resolved, fs);
+  const markdown = new HoverMarkdownRenderer(resolved, fs, ownership);
   const conceptReference = conceptReferences(
     resolved,
     normalized,
@@ -211,12 +286,29 @@ export async function hoverAt(
     const glossaryReference = glossaryOccurrence ??
       glossaryReferenceForConcept(resolved, normalized, conceptReference);
     const concept = await conceptMarkdown(conceptReference, markdown);
+    const identity = conceptReference.concept.identity;
+    const owningComponent = markdown.component(
+      identity.componentName,
+      identity.filePath,
+    );
+    const ownedImplementationLines = owningComponent
+      ? await markdown.ownedImplementationLines(
+        owningComponent,
+        identity.identifier,
+        implementationSection(conceptReference.sectionName),
+      )
+      : [];
+    const sections = [
+      concept,
+      ...(glossaryReference ? [glossaryMarkdown(glossaryReference)] : []),
+      ...(ownedImplementationLines.length
+        ? [ownedImplementationLines.join("\n")]
+        : []),
+    ];
     return {
       contents: {
         kind: "markdown",
-        value: glossaryReference
-          ? `${concept}\n\n---\n\n${glossaryMarkdown(glossaryReference)}`
-          : concept,
+        value: sections.join("\n\n---\n\n"),
       },
       range: conceptReference.range,
     };
@@ -247,6 +339,7 @@ export async function hoverAt(
   };
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
 export function semanticTokens(
   resolved: ResolvedSigilWorkspace,
   filePath: string,
@@ -465,6 +558,7 @@ function conceptReferences(
           references.push({
             concept: conceptForHover(concept, context),
             context,
+            sectionName: section.name,
             range: declarationNameRange(
               source,
               block.range.start.line,
@@ -488,6 +582,7 @@ function conceptReferences(
         references.push({
           concept: conceptForHover(concept, context),
           context,
+          sectionName: reference.sectionName,
           range: sourceRangeToLsp(reference.range),
         });
       }
@@ -723,6 +818,12 @@ async function componentMarkdown(
       }
     }
   }
+  const ownedImplementationLines = await markdown.ownedImplementationLines(
+    component,
+  );
+  if (ownedImplementationLines.length) {
+    lines.push("", ...ownedImplementationLines);
+  }
   return lines.join("\n");
 }
 
@@ -800,15 +901,21 @@ interface HoverLinkReference {
 class HoverMarkdownRenderer {
   readonly #resolved: ResolvedSigilWorkspace;
   readonly #fs: SigilFileSystem;
+  readonly #ownership: OwnershipHoverCache;
   readonly #sources = new Map<string, Promise<string>>();
   readonly #references = new Map<
     string,
     Promise<readonly HoverLinkReference[]>
   >();
 
-  constructor(resolved: ResolvedSigilWorkspace, fs: SigilFileSystem) {
+  constructor(
+    resolved: ResolvedSigilWorkspace,
+    fs: SigilFileSystem,
+    ownership: OwnershipHoverCache,
+  ) {
     this.#resolved = resolved;
     this.#fs = fs;
+    this.#ownership = ownership;
   }
 
   component(
@@ -844,6 +951,27 @@ class HoverMarkdownRenderer {
     return target
       ? markdownLink(concept.identifier, target)
       : `\`${concept.identifier}\``;
+  }
+
+  // @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+  async ownedImplementationLines(
+    component: ResolvedComponent,
+    conceptName?: string,
+    sectionName?: ImplementationSection,
+  ): Promise<string[]> {
+    if (conceptName && !sectionName) return [];
+    const projection = await this.#ownership.projection(
+      component.name,
+      conceptName,
+      sectionName,
+    );
+    if (!projection || projection.targets.length === 0) return [];
+
+    const lines = ["**Owned implementations**"];
+    for (const target of projection.targets) {
+      lines.push(`- ${this.#ownedImplementationTargetLine(target)}`);
+    }
+    return lines;
   }
 
   async semanticLines(lines: readonly SemanticLine[]): Promise<string[]> {
@@ -934,6 +1062,54 @@ class HoverMarkdownRenderer {
     }
     return [...byRange.values()];
   }
+
+  #ownedImplementationTargetLine(
+    target: OwnedImplementationTarget,
+  ): string {
+    const absoluteFilePath = workspaceRelativeToAbsolute(
+      this.#resolved.workspace.root,
+      target.filePath,
+    );
+    const fileLabel = relativePath(
+      this.#resolved.workspace.root,
+      absoluteFilePath,
+    );
+    const label = target.symbolIdentity
+      ? `${target.symbolIdentity} · ${fileLabel}`
+      : fileLabel;
+    return `${target.relation} ${
+      markdownLink(label, location(absoluteFilePath, target.range))
+    } (${target.sections.join(", ")})`;
+  }
+}
+
+function implementationSection(
+  sectionName: SigilSectionName,
+): ImplementationSection | undefined {
+  return sectionName === "interface" ||
+      sectionName === "state" ||
+      sectionName === "logic" ||
+      sectionName === "constraints" ||
+      sectionName === "cases"
+    ? sectionName
+    : undefined;
+}
+
+async function implementationSources(
+  workspaceRoot: string,
+  fs: SigilFileSystem,
+): Promise<readonly ImplementationSource[]> {
+  const paths = (await fs.listFiles(workspaceRoot))
+    .filter(isSupportedImplementationSource);
+  const sources: ImplementationSource[] = [];
+  for (const filePath of paths) {
+    try {
+      sources.push({ filePath, text: await fs.readTextFile(filePath) });
+    } catch {
+      // A file can disappear between listing and hover; omit that stale entry.
+    }
+  }
+  return sources;
 }
 
 function locationMarkdownUri(location: Location): string {
@@ -972,6 +1148,15 @@ function markdownList(lines: readonly string[]): string[] {
 
 function location(filePath: string, range?: SourceRange): Location {
   return { uri: pathToFileUri(filePath), range: sourceRangeToLsp(range) };
+}
+
+function workspaceRelativeToAbsolute(
+  workspaceRoot: string,
+  filePath: string,
+): string {
+  const normalized = normalizePath(filePath);
+  if (/^(?:[A-Za-z]:[\\/]|\/)/.test(normalized)) return normalized;
+  return normalizePath(`${normalizePath(workspaceRoot)}/${normalized}`);
 }
 
 function contains(range: Range, position: Position): boolean {

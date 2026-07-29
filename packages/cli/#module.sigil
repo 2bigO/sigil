@@ -54,6 +54,16 @@ component SigilCli {
       context with --include-dependents reports direct importing files for the selected component and contextual public contracts declared in those files without proving component-level dependency
     }
 
+    OwnershipContext {
+      context reports one owned-implementation projection for each selected component
+
+      Each projection contains normalized owned implementation targets and ownership diagnostics from supported workspace implementation sources.
+
+      Each owned implementation target preserves its relation, artifact kind, file path, selected sections, and optional symbol identity.
+
+      When implementation-source enumeration fails after workspace resolution, context returns resolved contracts and one empty ownership projection per selected component with a warning diagnostic.
+    }
+
     GlossaryInspection {
       sigil glossary [path]
 
@@ -130,6 +140,14 @@ expand SigilCli {
       A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
     }
 
+    OwnershipContext {
+      context loads supported implementation sources once and delegates ownership lookup for each selected component to SigilCore.
+
+      context continues scanning when a discovered implementation source disappears or cannot be read.
+
+      context converts a failed optional implementation-source enumeration into SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY, supplies no ownership sources, and continues building structured context.
+    }
+
     GlossaryInspection {
       glossary delegates loading, context resolution, occurrence matching, and diagnostics to SigilCore.
     }
@@ -156,6 +174,18 @@ expand SigilCli {
       context dependent context is file-level importing context derived from resolved imported-component graph edges.
 
       glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
+    }
+
+    OwnershipContext {
+      context JSON includes ownedImplementationProjections.
+
+      context JSON preserves every owned implementation target's selected sections.
+
+      Ownership diagnostics are also included in the command diagnostics.
+
+      Implementation-source enumeration recovery applies only after required workspace resolution succeeds.
+
+      SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY has warning severity and does not change the successful exit status.
     }
 
     WorkspaceMutationBoundary {
@@ -243,6 +273,18 @@ expand SigilCli {
 
       Revisit when: The decision-record convention adds, removes, or renames a field.
     }
+
+    OwnershipContext {
+      Decision: Expose one core-owned implementation projection per selected component, aggregate its diagnostics into context command diagnostics, and recover failed optional ownership-source enumeration as a command-level warning when workspace resolution already produced meaningful context.
+
+      Scope: Governs component and file selections for context and post-resolution ownership enrichment; excludes concept-scoped CLI selection, LSP presentation, and required workspace loading.
+
+      Trade-offs: Context performs a workspace implementation-source scan and may return incomplete ownership targets after a warning, but preserves resolved contract context and the shared core ownership result instead of defining a CLI-specific projection shape.
+
+      Discarded alternatives: Propagating an optional ownership-source enumeration failure discards meaningful resolved context, while inserting the host failure into every core-owned projection misattributes the diagnostic.
+
+      Consequences: Automation callers receive owned implementation targets when available, retain resolved contracts when optional enumeration fails, inspect command diagnostics for completeness, and receive separate projections for files containing multiple components.
+    }
   }
 
   cases {
@@ -302,6 +344,16 @@ expand SigilCli {
       context excludes transitive dependency decisions and non-decision private dependency sections.
 
       context with --include-dependents reports direct importing files and contextual public contracts declared in those files without proving component-level dependency.
+    }
+
+    OwnershipContext {
+      context for a component with valid ownership annotations reports its implementation targets.
+
+      context reports malformed or detached ownership annotations through both the component projection and command diagnostics.
+
+      context with an unreadable or concurrently deleted implementation source omits that source and still returns structured context, projections, and diagnostics from readable sources.
+
+      When workspace resolution succeeds but the subsequent ownership-source enumeration fails, context returns selected contracts, an empty projection for each selected component, SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY, and exit code 0.
     }
 
     GlossaryInspection {

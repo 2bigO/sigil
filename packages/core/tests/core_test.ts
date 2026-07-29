@@ -8,9 +8,11 @@ import {
   dirname,
   glossaryContextForFiles,
   InMemorySigilFileSystem,
+  isSupportedImplementationSource,
   loadSigilWorkspace,
   matchesSigilFile,
   normalizePath,
+  ownedImplementationTargetsFor,
   parseSigilConfig,
   parseSigilDocument,
   parseSigilGlossary,
@@ -18,15 +20,44 @@ import {
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
+  supportedImplementationSourceGlobPatterns,
 } from "../src/mod.ts";
 import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
 
+/*
+ * @sigil tests packages/core/#module.sigil::SigilCore::PackageVersionOwnership constraints
+ * @sigil tests packages/core/src/model.sigil::SigilSemanticModel::SupportedLanguageVersion interface,constraints
+ */
 Deno.test("separates the core artifact and language contract versions", () => {
-  assertEquals(SIGIL_CORE_VERSION, "0.6.0");
+  assertEquals(SIGIL_CORE_VERSION, "0.7.0");
   assertEquals(SIGIL_VERSION, "0.5.0");
 });
 
+/*
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport interface,cases
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope constraints
+ */
+Deno.test("shares supported implementation-source watcher patterns", () => {
+  const patterns = supportedImplementationSourceGlobPatterns();
+  assert(patterns.length > 0);
+  for (const pattern of patterns) {
+    assert(pattern.startsWith("**/*."));
+    assert(isSupportedImplementationSource(`src/file${pattern.slice(4)}`));
+  }
+  for (
+    const path of [
+      "contract.sigil",
+      "config.json",
+      "README.txt",
+      "Makefile",
+    ]
+  ) {
+    assertEquals(isSupportedImplementationSource(path), false);
+  }
+});
+
+// @sigil tests packages/core/#module.sigil::SigilCore::DeterministicCore constraints,cases
 Deno.test("normalizes and walks POSIX and Windows paths", () => {
   assertEquals(normalizePath("/work/./sigil/../project"), "/work/project");
   assertEquals(
@@ -40,6 +71,7 @@ Deno.test("normalizes and walks POSIX and Windows paths", () => {
   );
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("parses the canonical Sigil version and preserves semantic lines", async () => {
   const source = await Deno.readTextFile(
     "../../examples/promise/promise.sigil",
@@ -61,6 +93,7 @@ Deno.test("parses the canonical Sigil version and preserves semantic lines", asy
   assert(goal.lines[0].range.start.line > 0);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("raw parsing requires a supported explicit Sigil version", () => {
   const parsed = parseSigilDocument("future.sigil", rootModule, {
     sigilVersion: "2.0.0",
@@ -69,6 +102,7 @@ Deno.test("raw parsing requires a supported explicit Sigil version", () => {
   assertHasCode(parsed.diagnostics, "SIGIL_UNSUPPORTED_VERSION");
 });
 
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexContents interface,constraints,cases
 Deno.test("requires every module index to declare a local component", () => {
   const parsed = parseSigilDocument(
     "internal/#module.sigil",
@@ -87,6 +121,10 @@ Deno.test("requires every module index to declare a local component", () => {
   assertNoErrors(valid.diagnostics);
 });
 
+/*
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::WorkspaceBoundary interface,logic,constraints,cases
+ */
 Deno.test("strict config accepts workspace defaults and rejects invalid members", () => {
   const valid = parseSigilConfig(configSource());
   assert(valid.config);
@@ -124,6 +162,10 @@ Deno.test("strict config accepts workspace defaults and rejects invalid members"
   }
 });
 
+/*
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
+ * @sigil tests spec/language.sigil::SigilWorkspaceConfig::ConfiguredLanguageVersion interface,state,constraints,cases
+ */
 Deno.test("config reports malformed and unsupported versions", () => {
   assertHasCode(parseSigilConfig("{").diagnostics, "SIGIL_CONFIG_PARSE");
   assertHasCode(
@@ -132,6 +174,7 @@ Deno.test("config reports malformed and unsupported versions", () => {
   );
 });
 
+// @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInterpretation interface,logic,constraints,cases
 Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
   const valid = parseSigilGlossary(glossarySource());
   assert(valid.glossary);
@@ -195,6 +238,10 @@ Deno.test("parses strict reviewed glossary data and rejects collisions", () => {
   );
 });
 
+/*
+ * @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution interface,logic,constraints,cases
+ * @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition interface,logic,constraints,cases
+ */
 Deno.test("loads and projects longest glossary terms in bounded contexts", async () => {
   const source = `component Booking {
   goal {
@@ -243,6 +290,7 @@ Deno.test("loads and projects longest glossary terms in bounded contexts", async
   assertEquals(hold.term.definition, "Booking capacity before confirmation.");
 });
 
+// @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
 Deno.test("projects only glossary terms occurring in selected files", async () => {
   const resolved = resolveSigilWorkspace(
     await loadSigilWorkspace(
@@ -354,6 +402,7 @@ Deno.test("projects only glossary terms occurring in selected files", async () =
   );
 });
 
+// @sigil tests packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution interface,logic,constraints,cases
 Deno.test("reports glossary context overlap through ordinary workspace checks", async () => {
   const overlapping = glossarySource({
     contexts: [
@@ -388,6 +437,10 @@ Deno.test("reports glossary context overlap through ordinary workspace checks", 
   assertEquals(resolved.glossary.occurrences.length, 0);
 });
 
+/*
+ * @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery interface,logic,cases
+ * @sigil tests packages/core/src/resolver.sigil::SigilResolver::RelationshipResolution interface,logic,constraints,cases
+ */
 Deno.test("discovers the nearest excluded workspace config and resolves imports", async () => {
   const fs = workspaceFs();
   const workspace = await loadSigilWorkspace(fs, {
@@ -406,6 +459,7 @@ Deno.test("discovers the nearest excluded workspace config and resolves imports"
   assert(resolved.graph.componentNodes.some((node) => node.name === "Auth"));
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery interface,logic,cases
 Deno.test("requires config and rejects an unexcluded nearer config", async () => {
   const missing = await loadSigilWorkspace(
     new InMemorySigilFileSystem({ "feature/auth.sigil": rootModule }),
@@ -462,6 +516,7 @@ Deno.test("requires config and rejects an unexcluded nearer config", async () =>
   assertEquals(independent.files.length, 1);
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery interface,logic,cases
 Deno.test("explicit root must directly contain config", async () => {
   const workspace = await loadSigilWorkspace(
     new InMemorySigilFileSystem({
@@ -472,6 +527,7 @@ Deno.test("explicit root must directly contain config", async () => {
   assertHasCode(workspace.diagnostics, "SIGIL_CONFIG_NOT_FOUND");
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceLoading interface,logic,cases
 Deno.test("nested config below selected root is diagnosed and its subtree skipped", async () => {
   const workspace = await loadSigilWorkspace(
     new InMemorySigilFileSystem({
@@ -521,6 +577,7 @@ Deno.test("nested config below selected root is diagnosed and its subtree skippe
   assertHasCode(memberWithConfig.diagnostics, "SIGIL_NESTED_CONFIG");
 });
 
+// @sigil tests spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
 Deno.test("glob includes root files and exclusion wins", async () => {
   const parsed = parseSigilConfig(configSource({
     files: { include: ["**/*.sigil"], exclude: ["generated/**"] },
@@ -543,6 +600,7 @@ Deno.test("glob includes root files and exclusion wins", async () => {
   assertEquals(workspace.files.length, 1);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("returns partial models and stable diagnostics for malformed Sigil", () => {
   const source =
     `component Broken {\n  weird {\n    ignored\n  }\n}\n\nexpand Missing {\n  logic {\n    orphan detail\n  }\n}\n`;
@@ -563,6 +621,7 @@ Deno.test("returns partial models and stable diagnostics for malformed Sigil", (
   assertHasCode(resolved.diagnostics, "SIGIL_EXPAND_WITHOUT_COMPONENT");
 });
 
+// @sigil tests spec/language.sigil::SigilModuleIndex::DirectoryImportSurface interface,logic,constraints,cases
 Deno.test("resolves directory indexes independently of workspace members", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -615,6 +674,7 @@ Deno.test("resolves directory indexes independently of workspace members", async
   );
 });
 
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexContents interface,constraints,cases
 Deno.test("does not add unnamed component dependencies to a module index", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -639,6 +699,7 @@ Deno.test("does not add unnamed component dependencies to a module index", async
   );
 });
 
+// @sigil tests packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
 Deno.test("collects expansion file paths and exposes projections", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -661,6 +722,7 @@ Deno.test("collects expansion file paths and exposes projections", async () => {
   );
 });
 
+// @sigil tests packages/core/src/projections.sigil::SigilProjections::AgentDependencyContext interface,logic,constraints,cases
 Deno.test("projects direct dependency contracts and decisions for agents", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -847,6 +909,273 @@ component ConsumerC {
   interface {
     UnusedApi {
       unused()
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
+Deno.test("projects implementation targets from entrypoint comments", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    OwnedImplementationTargets {
+      Own source and test entrypoints.
+    }
+
+    OtherTargets {
+      Own an agent-facing workflow.
+    }
+  }
+
+  logic {
+    OwnedImplementationTargets {
+      Resolve ownership annotations.
+    }
+  }
+
+  constraints {
+    Ownership annotations remain deterministic.
+  }
+}
+
+expand Ownership {
+  cases {
+    OwnedImplementationTargets {
+      A test entrypoint links to this behavior.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const implementationSources = [
+    {
+      filePath: "packages/core/src/parser.ts",
+      text:
+        "// @sigil implements ownership.sigil::Ownership::OwnedImplementationTargets interface,logic\nexport function parseSigilDocument() {}\n",
+    },
+    {
+      filePath: "packages/core/tests/core_test.ts",
+      text:
+        "// @sigil tests ownership.sigil::Ownership::OwnedImplementationTargets cases\nfunction implementationTargets() {}\n",
+    },
+    {
+      filePath: "packages/core/src/config.ts",
+      text:
+        "// @sigil uses ownership.sigil::Ownership logic,constraints\nexport function parseSigilConfig() {}\n",
+    },
+    {
+      filePath: "packages/cli/README.md",
+      text: "<!-- @sigil uses ownership.sigil::Ownership cases -->\n# CLI\n",
+    },
+    {
+      filePath: "packages/core/tests/ignored.json",
+      text:
+        '{"annotation":"@sigil tests ownership.sigil::Ownership::OwnedImplementationTargets interface"}\n',
+    },
+  ];
+  const full = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    "Ownership",
+  );
+  assert(full);
+  assertEquals(full.owningComponent.name, "Ownership");
+  assertEquals(full.targets.length, 4);
+  assertEquals(full.sectionName, undefined);
+  assertEquals(
+    full.targets.map((item) => item.artifactKind).join(","),
+    "markdown,code,code,test",
+  );
+  assertEquals(
+    full.targets.map((item) => item.sections.join("+")).join(","),
+    "cases,logic+constraints,interface+logic,cases",
+  );
+  assertEquals(
+    full.targets.map((item) => `${item.filePath}:${item.symbolIdentity ?? ""}`)
+      .join(","),
+    "packages/cli/README.md:,packages/core/src/config.ts:parseSigilConfig,packages/core/src/parser.ts:parseSigilDocument,packages/core/tests/core_test.ts:implementationTargets",
+  );
+  const scoped = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    "Ownership",
+    "OwnedImplementationTargets",
+  );
+  assert(scoped);
+  assertEquals(scoped.targets.length, 2);
+  const sectionScoped = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    "Ownership",
+    "OwnedImplementationTargets",
+    "logic",
+  );
+  assert(sectionScoped);
+  assertEquals(sectionScoped.sectionName, "logic");
+  assertEquals(sectionScoped.targets.length, 1);
+  assertEquals(sectionScoped.targets[0].symbolIdentity, "parseSigilDocument");
+  assertEquals(full.targets[0].artifactKind, "markdown");
+  assertEquals(full.targets[0].filePath, "packages/cli/README.md");
+  assertEquals(full.diagnostics.length, 0);
+  assertEquals(full.targets[1].range?.start.line, 2);
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::SectionSelection constraints
+Deno.test("diagnoses invalid implementation relations and section selectors", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+
+  logic {
+    Resolve ownership.
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const invalidAnnotations = [
+    "@sigil follows ownership.sigil::Ownership logic",
+    "@sigil validates ownership.sigil::Ownership logic",
+    "@sigil related ownership.sigil::Ownership logic",
+    "@sigil implements ownership.sigil::Ownership",
+    "@sigil implements ownership.sigil::Ownership logic,",
+    "@sigil implements ownership.sigil::Ownership logic, constraints",
+    "@sigil implements ownership.sigil::Ownership logic,logic",
+    "@sigil implements ownership.sigil::Ownership goal",
+    "@sigil implements ownership.sigil::Ownership decisions",
+    "@sigil implements ownership.sigil::Ownership unknown",
+    "@sigil implements ownership.sigil::Ownership::EntryPoint logic",
+  ];
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    invalidAnnotations.map((annotation, index) => ({
+      filePath: `src/invalid-${index}.ts`,
+      text: `// ${annotation}\nexport function invalid${index}() {}\n`,
+    })),
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 0);
+  assertEquals(projection.diagnostics.length, invalidAnnotations.length);
+  assert(
+    projection.diagnostics.some((item) =>
+      item.message.includes("repeats section selector logic")
+    ),
+  );
+  assert(
+    projection.diagnostics.some((item) =>
+      item.message.includes("unsupported section selector goal")
+    ),
+  );
+  assert(
+    projection.diagnostics.some((item) =>
+      item.message.includes(
+        "section logic without a matching occurrence on concept EntryPoint",
+      )
+    ),
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+Deno.test("requires multiline comments for multiple ownership annotations", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [{
+      filePath: "src/entrypoint.ts",
+      text: `/*
+ * @sigil implements ownership.sigil::Ownership::EntryPoint interface
+ * @sigil tests ownership.sigil::Ownership::EntryPoint interface
+ */
+export class EntryPoint {}
+`,
+    }],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 2);
+  assertEquals(projection.targets[0].symbolIdentity, "EntryPoint");
+  assertEquals(projection.diagnostics.length, 0);
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+Deno.test("diagnoses detached implementation ownership comments", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [{
+      filePath: "src/detached.ts",
+      text:
+        "// @sigil implements ownership.sigil::Ownership::EntryPoint interface\nconst value = 1;\n",
+    }],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 0);
+  assertEquals(projection.diagnostics.length, 1);
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+Deno.test("resolves entrypoints using each language's declaration syntax", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own language entrypoints.
     }
   }
 }
@@ -925,6 +1254,217 @@ component ConsumerC {
   assertEquals(agentDependentContextFor(resolved, "Missing"), undefined);
 });
 
+  const target = "ownership.sigil::Ownership::EntryPoint interface";
+  const sources = [
+    {
+      filePath: "src/worker.py",
+      text: `# @sigil implements ${target}\ndef process_job():\n    pass\n`,
+    },
+    {
+      filePath: "src/worker.rs",
+      text: `// @sigil implements ${target}\npub struct Worker {}\n`,
+    },
+    {
+      filePath: "src/worker.go",
+      text: `// @sigil implements ${target}\nfunc Run() {}\n`,
+    },
+    {
+      filePath: "src/Worker.java",
+      text: `// @sigil implements ${target}\npublic void execute() {}\n`,
+    },
+    {
+      filePath: "src/Worker.swift",
+      text: `// @sigil implements ${target}\npublic func start() {}\n`,
+    },
+    {
+      filePath: "src/Worker.kt",
+      text: `// @sigil implements ${target}\nsuspend fun dispatch() {}\n`,
+    },
+  ];
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    sources,
+    "Ownership",
+    "EntryPoint",
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) => item.symbolIdentity).join(","),
+    "Run,execute,dispatch,process_job,Worker,start",
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+Deno.test("resolves nested and constrained C++ template entrypoints", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own language entrypoints.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint interface";
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [
+      {
+        filePath: "src/repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <\n  typename T\n>\nclass Repository {};\n`,
+      },
+      {
+        filePath: "src/repository.cpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nT makeRepository() {}\n`,
+      },
+      {
+        filePath: "src/default-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T = std::vector<int>>\nclass DefaultRepository {};\n`,
+      },
+      {
+        filePath: "src/deep-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T = std::map<int, std::vector<std::pair<int, int>>>>\nclass DeepRepository {};\n`,
+      },
+      {
+        filePath: "src/constrained-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nrequires std::default_initializable<T>\nclass ConstrainedRepository {};\n`,
+      },
+      {
+        filePath: "src/sized-repository.hpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nrequires (\n  sizeof(T) > 0\n)\nclass SizedRepository {};\n`,
+      },
+      {
+        filePath: "src/constrained-repository.cpp",
+        text:
+          `// @sigil implements ${target}\ntemplate <typename T>\nrequires std::copyable<T>\nT makeConstrainedRepository() {}\n`,
+      },
+    ],
+    "Ownership",
+    "EntryPoint",
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) => item.symbolIdentity).sort().join(","),
+    "ConstrainedRepository,DeepRepository,DefaultRepository,Repository,SizedRepository,makeConstrainedRepository,makeRepository",
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+Deno.test("resolves Go and Node test entrypoints", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own language entrypoints.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint interface";
+  const sources = [
+    {
+      filePath: "src/worker_test.go",
+      text: `// @sigil tests ${target}\nfunc TestWorker(t *testing.T) {}\n`,
+    },
+    {
+      filePath: "src/worker.test.ts",
+      text: `// @sigil tests ${target}\ntest("runs worker", () => {});\n`,
+    },
+    {
+      filePath: "src/worker.test.cjs",
+      text: `// @sigil tests ${target}\nit.skip("skips worker", () => {});\n`,
+    },
+    {
+      filePath: "src/worker.test.mts",
+      text:
+        `// @sigil tests ${target}\ndescribe.only("worker suite", () => {});\n`,
+    },
+  ];
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    sources,
+    "Ownership",
+    "EntryPoint",
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) => item.symbolIdentity).sort().join(","),
+    "TestWorker,runs worker,skips worker,worker suite",
+  );
+});
+
+// @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+Deno.test("ignores annotation examples inside strings and Markdown fences", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = "ownership.sigil::Ownership::EntryPoint interface";
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [
+      {
+        filePath: "src/examples.ts",
+        text:
+          `const example = \`// @sigil implements ${target}\nfunction fake() {}\`;\n`,
+      },
+      {
+        filePath: "workflow.md",
+        text: `\`\`\`md\n<!-- @sigil uses ${target} -->\n\`\`\`\n`,
+      },
+    ],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 0);
+  assertEquals(projection.diagnostics.length, 0);
+});
+
+/*
+ * @sigil tests packages/core/src/resolver.sigil::SigilResolver::RelationshipResolution interface,logic,constraints,cases
+ * @sigil tests packages/core/src/graph.sigil::SigilGraphBuilder::GraphConstruction interface,logic,constraints
+ */
 Deno.test("separates relationship resolution from graph construction", async () => {
   const workspace = await loadSigilWorkspace(workspaceFs(), {
     startPath: "examples/slotted/auth.sigil",
@@ -947,6 +1487,7 @@ Deno.test("separates relationship resolution from graph construction", async () 
   assertEquals(JSON.stringify(composed.graph), JSON.stringify(graph));
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("parses flat concept blocks and diagnoses interface authoring gaps", () => {
   const source = `component Account {
   goal {
@@ -1006,6 +1547,7 @@ expand Account {
   );
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("reports each blank-line-separated ungrouped interface region", () => {
   const source = `component Account {
   goal {
@@ -1031,6 +1573,7 @@ Deno.test("reports each blank-line-separated ungrouped interface region", () => 
   assertNoErrors(parsed.diagnostics);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("parses optional grouped and ungrouped decision rationale", () => {
   const source = `component Payments {
   goal {
@@ -1079,6 +1622,7 @@ expand Payments {
   assertEquals(decisions.lines.at(-1)?.conceptIdentifier, undefined);
 });
 
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
 Deno.test("rejects empty, nested, and invalid concept blocks", () => {
   const source = `component BrokenConcepts {
   goal {
@@ -1109,6 +1653,7 @@ Deno.test("rejects empty, nested, and invalid concept blocks", () => {
   assertHasCode(parsed.diagnostics, "SIGIL_INVALID_CONCEPT_IDENTIFIER");
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ConceptResolution interface,logic,constraints,cases
 Deno.test("resolves collective and contextual concept identities", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -1239,6 +1784,7 @@ component App {
   );
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ConceptResolution interface,logic,constraints,cases
 Deno.test("resolves contextual whole-word concept references in source order", async () => {
   const consumerSource = `@account.sigil import { Account }
 
@@ -1317,6 +1863,7 @@ expand Consumer {
   }
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ConceptResolution interface,logic,constraints,cases
 Deno.test("rejects case-insensitive concept ambiguity across imports", async () => {
   const provider = (component: string, concept: string) =>
     `component ${component} {\n  goal {\n    Provide ${component}.\n  }\n\n  interface {\n    ${concept} {\n      Public ${concept}.\n    }\n  }\n}\n`;
@@ -1352,6 +1899,7 @@ component Consumer {
   assertEquals(consumer.references.length, 0);
 });
 
+// @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceLoading interface,logic,cases
 Deno.test("filesystem read failures propagate to the host", async () => {
   const base = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),

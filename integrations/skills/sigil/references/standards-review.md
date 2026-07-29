@@ -1,3 +1,5 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases -->
+
 # Standards-Aware Semantic Review
 
 Use this procedure when creating, reviewing, or preparing Sigil for
@@ -19,9 +21,9 @@ as core validation.
 ## 1. Applicability And Risk
 
 Follow `references/external-guidance-evidence.md` to assess applicability on
-every Sigil review. Do not browse by default when current authoritative
-guidance cannot materially affect a binding contract decision, its risks,
-available alternatives, or acceptance criteria.
+every Sigil review. Acquire evidence when its disposition is required or
+recommended. Record a concise reason when it is not material instead of using
+the absence of a known conflict to suppress research.
 
 When design conversation already produced an evidence packet, verify its
 question, boundary, environment and version match, source currency, risk,
@@ -42,37 +44,40 @@ modularity score.
 
 ## 2. Semantic-Readiness Review
 
-### Gate And Ordering
+### Review And Ordering
 
 `sigil check` validates deterministic syntax, configuration, resolution,
 workspace relationships, and diagnostics. It does not establish semantic,
-architectural, or design validity.
+architectural, or design validity and never determines a ReviewGate result.
 
 After deterministic validation completes without error diagnostics, inspect the
 exact Sigil prose, including ungrouped interface content, and classify semantic
 readiness as:
 
-- **unassessed:** the selected scope has not received host-assisted review;
-- **correction required:** a suspected or confirmed material problem remains;
-- **appears aligned:** no unresolved material semantic problem was identified
-  within the stated reviewed scope.
+- **unassessed:** the selected scope has not received host-assisted review or a
+  suspected finding still requires classification;
+- **correction required:** a confirmed material problem remains;
+- **appears aligned:** no unresolved confirmed material problem or materially
+  unsafe uncertainty was identified within the stated reviewed scope.
 
 Use `appears aligned` provisionally; never claim absolute semantic correctness.
 When readiness is `unassessed` or `correction required`, do not begin concept
 reuse discovery, concept grouping, identifier proposals, or model-assisted
 glossary candidate extraction.
 
-When a problem is found, follow the correction conversation in
-`references/design-conversation.md`: preserve affected Sigil, identify exact
-evidence and risk, ask one focused correction decision, and block synthesis,
-approval, and implementation until resolution.
+When evidence suggests a possible problem, investigate and classify it before
+declaring correction required. A suspicion does not automatically enter
+correction or block unrelated work. When a material problem is confirmed, use
+`references/design-conversation.md` in correction mode: preserve affected
+Sigil, identify exact evidence and risk, ask one focused correction decision,
+and block synthesis, approval, and implementation until resolution.
 
 Once the pre-grouping review appears aligned, follow
 `references/authoring-conventions.md` for any missing concept identifiers. After
 an approved grouping change, rerun deterministic validation and this
 semantic-readiness review. Glossary candidate extraction begins only after that
 final review appears aligned. When grouping is unnecessary, the post-write
-semantic-readiness review directly gates extraction.
+semantic-readiness review directly controls extraction eligibility.
 
 ### Decision-Rationale Coverage
 
@@ -97,8 +102,9 @@ Report the audit as:
 
 When a confirmed choice lacks a decision record, add the exact decision block to
 the semantic proposal. When its governing rationale is unresolved or conflicts
-with evidence, enter the same-chat correction conversation. Missing coverage
-keeps semantic readiness at `correction required` and blocks proposal approval.
+with evidence, return to DesignConversation in the applicable mode. Missing
+coverage keeps semantic readiness from appearing aligned and blocks proposal
+approval.
 
 After approved Sigil is written, repeat the audit against the exact resulting
 semantic lines. Successful CLI validation never substitutes for this audit.
@@ -221,7 +227,8 @@ contracts. Do not assign arbitrary scores or thresholds.
 ## 3. Evidence Consumption And Provenance
 
 Use the shared evidence packet rather than creating a second research policy in
-this procedure. Standards review owns interpretation and gate consequences:
+this procedure. Standards review owns interpretation and ReviewGate
+consequences:
 
 1. verify that the packet is current and applicable to the exact reviewed
    component and environment;
@@ -270,9 +277,15 @@ Classify host-identified semantic, architectural, and design findings as:
 - **Resolved problem:** the user has selected or supplied coherent governing
   intent and no material contradiction remains.
 
-Route suspected and confirmed material problems to the same-chat correction
-conversation. Do not silently repair them, treat preference as evidence, or
-continue to concept grouping or glossary candidate extraction.
+Investigate suspected problems proportionally by inspecting exact related Sigil,
+repository evidence, applicable guidance, and governing intent. Keep semantic
+readiness unassessed when missing evidence leaves the affected material
+decision unsafe, but do not automatically enter correction or block unrelated
+work.
+
+Route only confirmed material problems to DesignConversation in correction
+mode. Do not silently repair them, treat preference as evidence, or continue to
+concept grouping or glossary candidate extraction.
 
 Classify every researched finding:
 
@@ -293,10 +306,18 @@ standards conflict, present the conflict; do not silently choose one.
 
 ## 5. Action And Approval Policy
 
-### Semantic, Architectural, Or Design Problem
+### Semantic, Architectural, Or Design Finding
 
-Do not modify affected Sigil merely because review found a problem. Enter the
-same-chat correction conversation and report:
+Do not modify affected Sigil merely because review found a possible problem.
+For a suspected finding, investigate scope and governing intent and report:
+
+- the exact file, component, section, and possibly problematic idea;
+- the evidence and what remains inference;
+- why the possible impact is material;
+- the evidence or focused user clarification needed to confirm or dismiss it.
+
+Do not enter correction solely from suspicion. When evidence confirms a
+material problem, enter DesignConversation in correction mode and report:
 
 - the exact file, component, section, and problematic idea;
 - the evidence and what remains inference;
@@ -306,10 +327,11 @@ same-chat correction conversation and report:
 - concrete corrections and their trade-offs;
 - the focused decision required from the user.
 
-Keep semantic readiness at `correction required` until the problem is resolved.
-A confirmed material problem cannot be deferred, provisionally assumed, or
-bypassed for approval or implementation. Resolution authorizes only preparation
-of an exact Sigil proposal; it does not replace either approval gate.
+Keep semantic readiness at `correction required` until the confirmed problem is
+resolved. A confirmed material problem cannot be deferred, provisionally
+assumed, or bypassed for approval or implementation. Resolution is evidence
+that authorizes only preparation of an exact Sigil proposal; it does not make
+ReviewGate ready.
 
 ### Compatible Guidance
 
@@ -321,10 +343,15 @@ Before editing, present:
 - the source record in the review summary;
 - whether the suggestion is blocking or optional.
 
-Wait for explicit approval. After approval, write the lines as project
-decisions, not claims such as “ISO requires this.” Then run `sigil check`, use
-`context` or `graph` when relationships changed, and stop at the normal Sigil
-review gate.
+Compatible guidance may identify an optional improvement to coherent approved
+Sigil. Present it through DesignConversation improvement mode when adopting it
+requires a material project decision. Rejecting or deferring an optional
+improvement does not make the existing contract defective.
+
+Submit the exact lines to `ReviewGate(action: sigil-change)`. When it returns
+ready, write the lines as project decisions, not claims such as “ISO requires
+this.” Then run `sigil check`, use `context` or `graph` when relationships
+changed, and report the validated result without another approval gate.
 
 ### Potential Or Definite Conflict
 
@@ -408,10 +435,11 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 Show exact semantic lines and their target sections without editing first.
 Include required decision blocks and the decision-rationale coverage map.
 
-### Approval Request
+### ReviewGate Request
 
-Ask the user to approve, reject, or revise the proposed lines and to resolve any
-blocking conflict or uncertainty.
+State the exact action, scope, change set, and evidence. Ask the user to approve,
+reject, or revise the proposed lines and to resolve any blocking conflict or
+uncertainty.
 
 ## 8. Examples
 

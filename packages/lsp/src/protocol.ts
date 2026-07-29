@@ -10,6 +10,7 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const FRAME_PARSE_ERROR = Symbol("FRAME_PARSE_ERROR");
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 export class LspMessageFramer {
   #buffer: Uint8Array<ArrayBufferLike> = new Uint8Array();
 
@@ -35,6 +36,7 @@ export class LspMessageFramer {
   }
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 export function encodeLspMessage(
   message: JsonRpcIncoming | JsonRpcOutgoing,
 ): Uint8Array {
@@ -43,22 +45,35 @@ export function encodeLspMessage(
   return concatenate(header, body);
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 export function parseIncoming(
   value: unknown,
-): JsonRpcIncoming | JsonRpcFailure {
-  if (
-    !isRecord(value) || value.jsonrpc !== "2.0" ||
-    typeof value.method !== "string"
-  ) {
-    return protocolFailure(null, -32600, "Invalid Request");
+): { readonly message: JsonRpcIncoming } | {
+  readonly failure: JsonRpcFailure;
+} {
+  if (!isRecord(value) || value.jsonrpc !== "2.0") {
+    return { failure: protocolFailure(null, -32600, "Invalid Request") };
+  }
+  if (typeof value.method === "string") {
+    if (
+      "id" in value && typeof value.id !== "string" &&
+      typeof value.id !== "number"
+    ) {
+      return { failure: protocolFailure(null, -32600, "Invalid Request") };
+    }
+    return { message: value as unknown as JsonRpcIncoming };
   }
   if (
-    "id" in value && typeof value.id !== "string" &&
-    typeof value.id !== "number"
-  ) return protocolFailure(null, -32600, "Invalid Request");
-  return value as unknown as JsonRpcIncoming;
+    ("result" in value || isFailure(value)) &&
+    (value.id === null || typeof value.id === "string" ||
+      typeof value.id === "number")
+  ) {
+    return { message: value as unknown as JsonRpcIncoming };
+  }
+  return { failure: protocolFailure(null, -32600, "Invalid Request") };
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 export async function runLanguageServer(
   input: ReadableStream<Uint8Array>,
   output: WritableStream<Uint8Array>,
@@ -74,7 +89,7 @@ export async function runLanguageServer(
       try {
         values = framer.feed(chunk);
       } catch {
-        values = [protocolFailure(null, -32700, "Parse error")];
+        values = [FRAME_PARSE_ERROR];
       }
       for (const value of values) {
         if (value === FRAME_PARSE_ERROR) {
@@ -82,26 +97,25 @@ export async function runLanguageServer(
           queue = queue.then(() => writer.write(encodeLspMessage(parseError)));
           continue;
         }
-        if (isFailure(value)) {
-          queue = queue.then(() => writer.write(encodeLspMessage(value)));
-          continue;
-        }
         const parsed = parseIncoming(value);
-        if (isFailure(parsed)) {
-          queue = queue.then(() => writer.write(encodeLspMessage(parsed)));
+        if ("failure" in parsed) {
+          queue = queue.then(() =>
+            writer.write(encodeLspMessage(parsed.failure))
+          );
           continue;
         }
-        if (parsed.method === "$/cancelRequest") {
-          await server.handle(parsed);
+        const message = parsed.message;
+        if ("method" in message && message.method === "$/cancelRequest") {
+          await server.handle(message);
           continue;
         }
         queue = queue.then(async () => {
-          const outgoing = await server.handle(parsed);
-          for (const message of outgoing) {
-            await writer.write(encodeLspMessage(message));
+          const outgoing = await server.handle(message);
+          for (const outgoingMessage of outgoing) {
+            await writer.write(encodeLspMessage(outgoingMessage));
           }
         });
-        if (parsed.method === "exit") {
+        if ("method" in message && message.method === "exit") {
           exitSeen = true;
           break;
         }

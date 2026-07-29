@@ -16,6 +16,13 @@ export interface CommandHandlerOptions {
   readonly install?: InstallSkillsOptions;
 }
 
+/**
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation interface,logic,constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+ */
 export async function runCommand(
   request: CommandRequest,
   options: CommandHandlerOptions = {},
@@ -107,7 +114,7 @@ export async function runCommand(
     };
   }
   if (request.command === "context") {
-    return contextCommand(request, core, resolved);
+    return await contextCommand(request, core, resolved);
   }
   return {
     command: "render",
@@ -117,11 +124,12 @@ export async function runCommand(
   };
 }
 
-function contextCommand(
+// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+async function contextCommand(
   request: ContextRequest,
   core: CoreAdapter,
   resolved: Awaited<ReturnType<CoreAdapter["resolveWorkspace"]>>,
-): CommandResult {
+): Promise<CommandResult> {
   const selectedFile = request.file
     ? core.resolveTarget(request.file)
     : undefined;
@@ -150,6 +158,19 @@ function contextCommand(
       core.agentDependentContextFor(resolved, component.name)
     ).filter((item) => item !== undefined)
     : undefined;
+  const implementationSourceDiscovery = await core.implementationSourcesFor(
+    resolved,
+  );
+  const ownedImplementationProjections = selectedComponents.map((component) =>
+    core.ownedImplementationTargetsFor(
+      resolved,
+      implementationSourceDiscovery.sources,
+      component.name,
+    )
+  ).filter((item) => item !== undefined);
+  const ownershipDiagnostics = ownedImplementationProjections.flatMap(
+    (projection) => projection.diagnostics,
+  );
   const relatedFilePaths = [
     ...new Set([
       ...agentDependencyContexts.flatMap((context) => context.relatedFilePaths),
@@ -171,9 +192,14 @@ function contextCommand(
     collectedExpansions: expansions,
     agentDependencyContexts,
     ...(agentDependentContexts ? { agentDependentContexts } : {}),
+    ownedImplementationProjections,
     relatedFilePaths,
     glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
-    diagnostics: resolved.diagnostics,
+    diagnostics: [
+      ...resolved.diagnostics,
+      ...implementationSourceDiscovery.diagnostics,
+      ...ownershipDiagnostics,
+    ],
   };
 }
 

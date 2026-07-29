@@ -88,7 +88,7 @@
     },
     {
       "term": "review gate",
-      "definition": "A workflow checkpoint requiring explicit human review and approval of semantic Sigil changes before implementation proceeds.",
+      "definition": "The reusable workflow that determines whether a repository mutation is blocked, requires review, or is ready from the exact action, scope, change set, applicable evidence, and explicit user approval.",
       "aliases": ["review gates"]
     },
     {
@@ -193,13 +193,23 @@
     },
     {
       "term": "host failure",
-      "definition": "A filesystem or runtime failure from the host environment that propagates to the caller instead of becoming a Sigil diagnostic.",
+      "definition": "A filesystem or runtime failure from the host environment; a required-operation host failure propagates to the caller, while a failure during optional enrichment may become a diagnostic when a meaningful primary result remains available.",
       "aliases": [
         "host failures",
         "host filesystem failure",
         "host filesystem failures",
         "host runtime failure",
         "host runtime failures"
+      ]
+    },
+    {
+      "term": "optional enrichment",
+      "definition": "Host-side work that augments an already meaningful primary result and may be omitted with a structured diagnostic when it fails.",
+      "aliases": [
+        "optional enrichments",
+        "optional host enrichment",
+        "optional host-enrichment",
+        "post-resolution ownership enrichment"
       ]
     },
     {
@@ -291,6 +301,16 @@
       "term": "implementation mutation",
       "definition": "A creation, modification, move, or deletion of an implementation artifact; excludes read-only inspection and exact user-requested rollback of the current agent's unapproved changes.",
       "aliases": ["implementation mutations"]
+    },
+    {
+      "term": "ownership-source snapshot",
+      "definition": "A process-local, workspace-root-scoped collection of supported implementation-source contents reused for ownership queries until a supported source or the workspace root changes.",
+      "aliases": ["ownership source snapshot", "source snapshot"]
+    },
+    {
+      "term": "section selector",
+      "definition": "A section name in an implementation ownership annotation that identifies an implementation-related section occurrence on the targeted component or concept.",
+      "aliases": ["section selectors"]
     }
   ],
   "contexts": [

@@ -278,8 +278,8 @@ specification remains [spec/sigil-language.md](spec/sigil-language.md).
 
 ## Current Status
 
-The core, CLI, LSP, and VS Code extension are pre-production artifacts at
-0.6.0, and the Sigil skill is at 0.6.2, over Sigil Language and configuration
+The core, CLI, LSP, VS Code extension, and Sigil skill are pre-production
+artifacts at 0.7.0, over Sigil Language and configuration
 contract 0.5.0. See
 [PRE_RELEASE.md](PRE_RELEASE.md), [configuration](spec/sigil-config.md), and the
 [0.5 language migration guide](spec/migrating-to-0.5.md). Reviewed project

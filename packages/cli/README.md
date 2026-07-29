@@ -1,6 +1,6 @@
 # sigil-cli
 
-Current package version: **0.6.1**.
+Current package version: **0.7.0**.
 
 Command-line interface for agents, CI, scripts, and platform debugging.
 
@@ -10,7 +10,7 @@ main human UI.
 
 Package docs:
 
-- [spec.md](spec.md): version 0.6 CLI requirements, command behavior, output
+- [spec.md](spec.md): version 0.7 CLI requirements, command behavior, output
   contracts, and acceptance scenarios.
 - [architecture.md](architecture.md): command architecture, module boundaries,
   dependency rules, and implementation guidelines.
