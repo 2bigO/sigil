@@ -8,20 +8,22 @@ Version 0.6 responsibilities:
   concept, and reviewed glossary-term highlighting through LSP semantic tokens;
 - bundle and connect to `sigil-lsp` for diagnostics, symbols, navigation, hover,
   and semantic highlighting;
-- expose `Sigil: Show Component Preview` using the standard LSP hover response,
-  available from the Command Palette and from a preview button in the editor
-  title toolbar of `.sigil` editors (Markdown-style *Open Preview to the Side*);
+- expose `Sigil: Open Preview`, which renders the whole active `.sigil` file to
+  Markdown and opens it in VS Code's built-in Markdown preview, available from
+  the Command Palette and from a preview button in the editor title toolbar of
+  `.sigil` editors (Markdown-style *Open Preview to the Side*);
 - provide editor-native affordances without duplicating `sigil-core` behavior.
 
-## Component preview
+## Document preview
 
-Open a `.sigil` file and place the cursor on a component reference, then either
-run **Sigil: Show Component Preview** from the Command Palette or click the
-preview icon (`$(open-preview)`) in the editor title toolbar. The component
-contract and its collected expansions open as read-only Markdown beside the
-source editor. The toolbar button appears only for Sigil editors and reuses the
-same command; if no component is available at the cursor, an informational
-message is shown and no preview opens.
+Open a `.sigil` file and either run **Sigil: Open Preview** from the Command
+Palette or click the preview icon (`$(open-preview)`) in the editor title
+toolbar. The whole file is rendered to Markdown by the language server (every
+component declared in the file, with its collected expansions) and shown in the
+built-in Markdown preview beside the source editor. The preview is not
+cursor-dependent — it always renders the entire file. The toolbar button appears
+only for Sigil editors; if the language server is unavailable or the file has no
+components, an informational message is shown and no preview opens.
 
 This integration should become the first concrete human UI for Sigil.
 

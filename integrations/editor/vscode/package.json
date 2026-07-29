@@ -38,7 +38,7 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:sigil",
-    "onCommand:sigil.showComponentPreview"
+    "onCommand:sigil.openPreview"
   ],
   "contributes": {
     "languages": [
@@ -76,8 +76,8 @@
     ],
     "commands": [
       {
-        "command": "sigil.showComponentPreview",
-        "title": "Sigil: Show Component Preview",
+        "command": "sigil.openPreview",
+        "title": "Sigil: Open Preview",
         "category": "Sigil",
         "icon": "$(open-preview)"
       }
@@ -85,13 +85,13 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "sigil.showComponentPreview",
+          "command": "sigil.openPreview",
           "when": "editorLangId == sigil"
         }
       ],
       "editor/title": [
         {
-          "command": "sigil.showComponentPreview",
+          "command": "sigil.openPreview",
           "when": "editorLangId == sigil",
           "group": "navigation"
         }

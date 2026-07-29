@@ -58,6 +58,10 @@ component SigilLsp {
       supports hover, definition navigation, and semantic highlighting for resolved glossary occurrences
     }
 
+    DocumentRendering {
+      renders a resolved Sigil document to Markdown through a standard workspace executeCommand
+    }
+
     WorkspaceSupport {
       operates on file-backed workspaces selected from workspaceFolders, rootUri, or the current directory
     }
@@ -137,6 +141,12 @@ expand SigilLsp {
 
       Semantic tokens classify resolved occurrences with the term token type.
     }
+
+    DocumentRendering {
+      Rendering projects every component declared in the requested file, with its collected expansions, to Markdown by reusing the hover contract projection.
+
+      A file with no declared component renders to an empty result.
+    }
   }
 
   constraints {
@@ -182,6 +192,10 @@ expand SigilLsp {
       Combined hover does not change semantic-token overlap resolution.
     }
 
+    DocumentRendering {
+      Rendering uses a standard LSP workspace executeCommand and adds no bespoke protocol method.
+    }
+
     WorkspaceSupport {
       Transport and workspace access support standard input/output and file URIs only.
     }
@@ -208,6 +222,18 @@ expand SigilLsp {
       Consequences: Editors can reuse standard lifecycle, diagnostics, navigation, hover, and semantic-token behavior.
 
       Revisit when: Large-document evidence requires incremental synchronization or a supported non-stdio host becomes necessary.
+    }
+
+    DocumentRendering {
+      Decision: Expose whole-document Markdown rendering through a standard workspace executeCommand that reuses the hover contract projection, rather than a bespoke request or a duplicate renderer.
+
+      Scope: Governs how editors obtain a rendered Sigil document; excludes hover, navigation, and diagnostics.
+
+      Design issues addressed: Editors need a whole-file rendered view without depending on the CLI or duplicating core semantics.
+
+      Consequences: The server advertises an executeCommand capability; rendered output stays consistent with the hover contract projection.
+
+      Revisit when: A richer rendered representation than the hover projection becomes necessary.
     }
   }
 
@@ -260,6 +286,10 @@ expand SigilLsp {
       Hovering a concept declaration or reference whose identifier matches a canonical glossary term or alias shows concept details followed by reviewed glossary details.
 
       Go to Definition on that concept opens the originating concept declaration rather than GlossaryFile.
+    }
+
+    DocumentRendering {
+      Requesting a render for a file returns Markdown for every component declared in that file.
     }
 
     WorkspaceSupport {

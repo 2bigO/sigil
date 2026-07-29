@@ -21,7 +21,15 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
   assert.equal(manifest.contributes.grammars[0].scopeName, "source.sigil");
   assert.equal(
     manifest.contributes.commands[0].command,
-    "sigil.showComponentPreview",
+    "sigil.openPreview",
+  );
+  assert.equal(
+    manifest.contributes.commands[0].title,
+    "Sigil: Open Preview",
+  );
+  assert(
+    manifest.activationEvents.includes("onCommand:sigil.openPreview"),
+    "activation event should reference the preview command",
   );
 });
 
@@ -39,7 +47,7 @@ test("manifest contributes the preview command to the editor title toolbar for S
   const editorTitle = manifest.contributes.menus["editor/title"];
   assert(Array.isArray(editorTitle), "editor/title menu contribution missing");
   const entry = editorTitle.find(
-    (item: MenuItem) => item.command === "sigil.showComponentPreview",
+    (item: MenuItem) => item.command === "sigil.openPreview",
   );
   assert(entry, "editor/title must contribute the preview command");
   assert.equal(entry.when, "editorLangId == sigil");
@@ -47,7 +55,7 @@ test("manifest contributes the preview command to the editor title toolbar for S
 
   // The Command Palette entry remains available and Sigil-scoped.
   const palette = manifest.contributes.menus.commandPalette.find(
-    (item: MenuItem) => item.command === "sigil.showComponentPreview",
+    (item: MenuItem) => item.command === "sigil.openPreview",
   );
   assert(palette, "Command Palette entry must remain");
   assert.equal(palette.when, "editorLangId == sigil");

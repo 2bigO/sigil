@@ -81,28 +81,35 @@ export async function run(): Promise<void> {
     "A component reference inside a section should provide a definition",
   );
 
-  await vscode.commands.executeCommand("sigil.showComponentPreview");
-  await eventually(() => {
-    const active = vscode.window.activeTextEditor;
-    return active?.document.uri.scheme === "sigil-preview" ? [active] : [];
-  });
-  const preview = vscode.window.activeTextEditor?.document;
-  assert.equal(preview?.uri.scheme, "sigil-preview");
-  assert(preview.getText().includes("UserProfile"));
-
-  // Empty case: with the cursor away from any component reference, the same
-  // command (invoked by the editor-title action) leaves editors unchanged and
-  // shows an informational message rather than opening a preview.
-  //
-  // The command awaits showInformationMessage; in the headless host that
-  // promise does not resolve on its own, so stub it to resolve immediately and
-  // capture the surfaced message.
-  const sourceEditor = await vscode.window.showTextDocument(document, {
+  // Success: previewing the whole Sigil file opens a Markdown preview webview
+  // beside the source editor, independent of cursor position.
+  await vscode.window.showTextDocument(document, {
     viewColumn: vscode.ViewColumn.One,
     preserveFocus: false,
   });
-  const blankPosition = new vscode.Position(1, 0);
-  sourceEditor.selection = new vscode.Selection(blankPosition, blankPosition);
+  await vscode.commands.executeCommand("sigil.openPreview");
+  const previewTabs = await eventually(() =>
+    vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .filter((tab) => tab.input instanceof vscode.TabInputWebview)
+  );
+  assert(previewTabs.length > 0, "Expected a Markdown preview webview tab");
+
+  // Informational path: running preview on a non-Sigil editor shows a
+  // non-destructive message and opens no additional preview. The command awaits
+  // showInformationMessage, which does not resolve on its own in the headless
+  // host, so stub it to resolve immediately and capture the message.
+  const plain = await vscode.workspace.openTextDocument({
+    content: "not sigil",
+    language: "plaintext",
+  });
+  await vscode.window.showTextDocument(plain, {
+    viewColumn: vscode.ViewColumn.One,
+    preserveFocus: false,
+  });
+  const webviewCountBefore = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter((tab) => tab.input instanceof vscode.TabInputWebview).length;
 
   const originalShowInfo = vscode.window.showInformationMessage;
   let infoMessage: string | undefined;
@@ -112,23 +119,24 @@ export async function run(): Promise<void> {
     return Promise.resolve(undefined);
   };
   try {
-    await vscode.commands.executeCommand("sigil.showComponentPreview");
+    await vscode.commands.executeCommand("sigil.openPreview");
   } finally {
     // deno-lint-ignore no-explicit-any
     (vscode.window as any).showInformationMessage = originalShowInfo;
   }
 
   assert(
-    infoMessage?.includes("No Sigil component"),
-    "Empty preview should surface the existing informational message",
+    infoMessage?.includes("Open a Sigil document"),
+    "A non-Sigil editor should surface the informational message",
   );
-  const activeAfterEmpty = vscode.window.activeTextEditor;
+  const webviewCountAfter = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter((tab) => tab.input instanceof vscode.TabInputWebview).length;
   assert.equal(
-    activeAfterEmpty?.document.uri.scheme,
-    "file",
-    "No component at the cursor should not open a preview editor",
+    webviewCountAfter,
+    webviewCountBefore,
+    "A non-Sigil editor should not open another preview",
   );
-  assert.equal(activeAfterEmpty?.document.languageId, "sigil");
 }
 
 async function eventually<T>(

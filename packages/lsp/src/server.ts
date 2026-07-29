@@ -10,6 +10,7 @@ import {
   diagnosticsByUri,
   documentSymbols,
   hoverAt,
+  renderDocumentMarkdown,
   semanticTokens,
 } from "./features.ts";
 import {
@@ -42,6 +43,8 @@ const ERROR_INVALID_PARAMS = -32602;
 const ERROR_INTERNAL = -32603;
 const ERROR_SERVER_NOT_INITIALIZED = -32002;
 const ERROR_REQUEST_CANCELLED = -32800;
+
+const RENDER_DOCUMENT_COMMAND = "sigil.renderDocument";
 
 type ServerState =
   | "uninitialized"
@@ -142,6 +145,9 @@ export class SigilLanguageServer {
         case "textDocument/semanticTokens/full":
           result = await this.#semanticTokens(request.params);
           break;
+        case "workspace/executeCommand":
+          result = await this.#executeCommand(request.params);
+          break;
         default:
           return failure(
             request.id,
@@ -208,6 +214,9 @@ export class SigilLanguageServer {
             tokenModifiers: [],
           },
           full: true,
+        },
+        executeCommandProvider: {
+          commands: [RENDER_DOCUMENT_COMMAND],
         },
       },
       serverInfo: { name: "sigil-lsp", version: SIGIL_LSP_VERSION },
@@ -290,6 +299,25 @@ export class SigilLanguageServer {
       this.#resolved,
       path,
       await this.#fs.readTextFile(path),
+    );
+  }
+
+  async #executeCommand(params: unknown): Promise<unknown> {
+    const value = executeCommandParams(params);
+    if (value.command !== RENDER_DOCUMENT_COMMAND) {
+      throw new InvalidParamsError(`Unknown command: ${value.command}`);
+    }
+    const uri = value.arguments?.[0];
+    if (typeof uri !== "string") {
+      throw new InvalidParamsError(
+        `${RENDER_DOCUMENT_COMMAND} requires a document URI argument.`,
+      );
+    }
+    if (!this.#resolved) return "";
+    return await renderDocumentMarkdown(
+      this.#resolved,
+      this.#fs,
+      fileUriToPath(uri),
     );
   }
 
@@ -446,6 +474,20 @@ function textDocumentPositionParams(
     textDocument: textDocumentIdentifier(value.textDocument),
     position: { line: position.line, character: position.character },
   };
+}
+
+function executeCommandParams(
+  params: unknown,
+): { command: string; arguments?: unknown[] } {
+  const value = requiredRecord(params, "executeCommand params");
+  if (typeof value.command !== "string") {
+    throw new InvalidParamsError("executeCommand requires a command string.");
+  }
+  const args = value.arguments;
+  if (args !== undefined && !Array.isArray(args)) {
+    throw new InvalidParamsError("executeCommand arguments must be an array.");
+  }
+  return { command: value.command, arguments: args };
 }
 
 function textDocumentIdentifier(value: unknown): { uri: string } {
