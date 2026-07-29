@@ -1079,7 +1079,7 @@ class HoverMarkdownRenderer {
       : fileLabel;
     return `${target.relation} ${
       markdownLink(label, location(absoluteFilePath, target.range))
-    } (${target.artifactKind})`;
+    } (${target.sections.join(", ")})`;
   }
 }
 

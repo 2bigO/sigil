@@ -355,7 +355,7 @@ expand Thing {
       [`${root}/packages/core/tests/core_test.ts`]:
         "// @sigil tests contract.sigil::Thing::OwnedTargets cases\nfunction implementationTargets() {}\n",
       [`${root}/packages/core/src/workspace.ts`]:
-        "// @sigil implements contract.sigil::Thing interface\nexport function loadWorkspace() {}\n",
+        "// @sigil implements contract.sigil::Thing interface,cases\nexport function loadWorkspace() {}\n",
       [`${root}/packages/cli/README.md`]:
         "<!-- @sigil uses contract.sigil::Thing::OwnedTargets interface -->\n# CLI\n",
     }),
@@ -374,19 +374,27 @@ expand Thing {
   assert(markdown.includes("**Owned implementations**"));
   assert(
     markdown.includes(
-      "implements [parseSigilConfig · packages/core/src/config.ts](file:///workspace/packages/core/src/config.ts#L2,17) (code)",
+      "implements [parseSigilConfig · packages/core/src/config.ts](file:///workspace/packages/core/src/config.ts#L2,17) (interface)",
     ),
   );
   assert(
     markdown.includes(
-      "tests [implementationTargets · packages/core/tests/core_test.ts](file:///workspace/packages/core/tests/core_test.ts#L2,10) (test)",
+      "tests [implementationTargets · packages/core/tests/core_test.ts](file:///workspace/packages/core/tests/core_test.ts#L2,10) (cases)",
     ),
   );
   assert(
     markdown.includes(
-      "uses [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (markdown)",
+      "uses [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (interface)",
     ),
   );
+  assert(
+    markdown.includes(
+      "implements [loadWorkspace · packages/core/src/workspace.ts](file:///workspace/packages/core/src/workspace.ts#L2,17) (interface, cases)",
+    ),
+  );
+  assert(!markdown.includes("(code)"));
+  assert(!markdown.includes("(test)"));
+  assert(!markdown.includes("(markdown)"));
   assert(
     markdown.indexOf("**Owned implementations**") >
       markdown.indexOf("**Collected expansions**"),

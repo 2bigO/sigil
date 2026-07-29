@@ -53,6 +53,8 @@ component SigilLsp {
 
       owned implementation targets appear in the final hover section after contract, collected-expansion, and glossary content
 
+      each owned implementation target displays its selected Sigil occurrence sections
+
       supports full-document semantic tokens for resolved component names
 
       every hover renders resolver-confirmed component and concept references in displayed Sigil semantic lines as inline links to their originating declarations
@@ -281,11 +283,11 @@ expand SigilLsp {
     }
 
     NavigationAndInspection {
-      Decision: Surface implementation-comment-linked targets in component hover and section-filtered targets in concept-occurrence hover as clickable Markdown links in a final Owned implementations section.
+      Decision: Surface implementation-comment-linked targets in component hover and section-filtered targets in concept-occurrence hover as clickable Markdown links labeled with their selected occurrence sections in a final Owned implementations section.
 
       Scope: Governs ownership-link content, occurrence filtering, and placement in SigilLsp hover; cache lifecycle is governed by OwnershipHoverCache.
 
-      Trade-offs: Placing links last keeps contract, expansion, and glossary content together but may require scrolling in large hovers.
+      Trade-offs: Placing links last keeps contract, expansion, and glossary content together but may require scrolling in large hovers; section labels expose contract relevance directly but omit the implementation artifact kind from hover.
 
       Consequences: Users can navigate from components and exact concept section occurrences to explicitly linked implementation artifacts.
 
@@ -344,6 +346,8 @@ expand SigilLsp {
       Component-contract hover also lists owned implementation targets as clickable links when the contract declares them.
 
       Concept hover lists implementation targets annotated to the concept's originating component, identifier, and hovered section.
+
+      Owned implementation target links display their selected interface, state, logic, constraints, or cases sections.
 
       The Owned implementations section is the final section of component and concept hover.
 
