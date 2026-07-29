@@ -293,6 +293,11 @@
       "aliases": ["implementation mutations"]
     },
     {
+      "term": "ownership-source snapshot",
+      "definition": "A process-local, workspace-root-scoped collection of supported implementation-source contents reused for ownership queries until a supported source or the workspace root changes.",
+      "aliases": ["ownership source snapshot", "source snapshot"]
+    },
+    {
       "term": "section selector",
       "definition": "A section name in an implementation ownership annotation that identifies an implementation-related section occurrence on the targeted component or concept.",
       "aliases": ["section selectors"]

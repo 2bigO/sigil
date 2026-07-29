@@ -63,10 +63,26 @@ interface SemanticReference {
   readonly tokenType: number;
 }
 
+// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
+export class OwnershipSourceIndex {
+  readonly #sources: Promise<readonly ImplementationSource[]>;
+
+  constructor(
+    workspaceRoot: string,
+    fs: SigilFileSystem,
+  ) {
+    this.#sources = implementationSources(workspaceRoot, fs);
+  }
+
+  sources(): Promise<readonly ImplementationSource[]> {
+    return this.#sources;
+  }
+}
+
 // @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
 export class OwnershipHoverCache {
   readonly #resolved: ResolvedSigilWorkspace;
-  readonly #sources: Promise<readonly ImplementationSource[]>;
+  readonly #sourceIndex: OwnershipSourceIndex;
   readonly #projections = new Map<
     string,
     Promise<OwnedImplementationProjection | undefined>
@@ -74,10 +90,10 @@ export class OwnershipHoverCache {
 
   constructor(
     resolved: ResolvedSigilWorkspace,
-    fs: SigilFileSystem,
+    sourceIndex: OwnershipSourceIndex,
   ) {
     this.#resolved = resolved;
-    this.#sources = implementationSources(resolved, fs);
+    this.#sourceIndex = sourceIndex;
   }
 
   projection(
@@ -88,7 +104,7 @@ export class OwnershipHoverCache {
     const key = `${componentName}\0${conceptName ?? ""}\0${sectionName ?? ""}`;
     let projection = this.#projections.get(key);
     if (!projection) {
-      projection = this.#sources.then((sources) =>
+      projection = this.#sourceIndex.sources().then((sources) =>
         ownedImplementationTargetsFor(
           this.#resolved,
           sources,
@@ -1080,10 +1096,10 @@ function implementationSection(
 }
 
 async function implementationSources(
-  resolved: ResolvedSigilWorkspace,
+  workspaceRoot: string,
   fs: SigilFileSystem,
 ): Promise<readonly ImplementationSource[]> {
-  const paths = (await fs.listFiles(resolved.workspace.root))
+  const paths = (await fs.listFiles(workspaceRoot))
     .filter(isSupportedImplementationSource);
   const sources: ImplementationSource[] = [];
   for (const filePath of paths) {

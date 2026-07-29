@@ -10,9 +10,6 @@ import { type HoverLike, hoverToMarkdown } from "./preview.ts";
 
 const PREVIEW_COMMAND = "sigil.showComponentPreview";
 const PREVIEW_SCHEME = "sigil-preview";
-const OWNERSHIP_SOURCE_GLOB =
-  "**/*.{c,cc,cjs,cpp,cs,cts,cxx,dart,go,h,hpp,java,js,jsx,kt,kts,md,markdown,mdown,mjs,mts,py,rb,rs,scala,sh,bash,swift,ts,tsx,zsh}";
-
 let client: LanguageClient | undefined;
 
 // @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
@@ -63,17 +60,12 @@ export async function activate(
     run: { module: serverModule, transport: TransportKind.stdio },
     debug: { module: serverModule, transport: TransportKind.stdio },
   };
-  const ownershipSources = vscode.workspace.createFileSystemWatcher(
-    OWNERSHIP_SOURCE_GLOB,
-  );
-  context.subscriptions.push(ownershipSources);
   client = new LanguageClient(
     "sigil",
     "Sigil",
     serverOptions,
     {
       documentSelector: [{ scheme: "file", language: "sigil" }],
-      synchronize: { fileEvents: ownershipSources },
       outputChannel: output,
       revealOutputChannelOn: RevealOutputChannelOn.Error,
     },

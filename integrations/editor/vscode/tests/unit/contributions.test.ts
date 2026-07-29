@@ -84,3 +84,10 @@ test("manifest maps concept and glossary semantic tokens to a visible TextMate s
     },
   );
 });
+
+// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport logic,constraints,cases
+test("delegates ownership-source watching to server registration", async () => {
+  const source = await readFile("src/extension.ts", "utf8");
+  assert.equal(source.includes("createFileSystemWatcher"), false);
+  assert.equal(source.includes("synchronize:"), false);
+});

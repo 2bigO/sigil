@@ -90,8 +90,12 @@ expand SigilLsp {
       Open documents retain URI, client version, and current in-memory text.
     }
 
+    OwnershipSourceIndex {
+      The process-local ownership-source snapshot is empty, loading, or ready for one initialized workspace root.
+    }
+
     OwnershipHoverCache {
-      The process-local ownership-hover cache is empty, loading, or ready for one resolved workspace generation.
+      Generation-specific component, concept, and optional section projections are empty, loading, or ready for the current resolved workspace generation.
     }
 
     WorkspaceSupport {
@@ -136,12 +140,26 @@ expand SigilLsp {
       Document symbols preserve declaration and section hierarchy.
     }
 
+    OwnershipSourceIndex {
+      Initial workspace resolution starts one shared asynchronous load of supported ownership implementation sources without delaying the initialize response for completion.
+
+      Sigil document reloads reuse the in-flight or ready source snapshot while the workspace root remains unchanged.
+
+      A supported workspace/didChangeWatchedFiles event or workspace-root change invalidates the source snapshot.
+    }
+
     OwnershipHoverCache {
-      Workspace resolution starts one shared load of supported ownership implementation sources.
+      Each resolved workspace generation receives a new memoized component, concept, and optional section projection cache over the current ownership-source snapshot.
 
-      Concurrent and later component or concept hovers reuse the in-flight or ready source snapshot and memoized ownership query for the same component, optional concept, and optional section.
+      Concurrent and later hovers reuse in-flight or ready projection work for the same component, optional concept, and optional section.
 
-      A workspace reload or workspace/didChangeWatchedFiles notification for a supported implementation source invalidates the cache before the next hover.
+      Sigil document reloads replace generation-specific projections without rereading unchanged implementation sources.
+    }
+
+    OwnershipSourceWatching {
+      After initialized, the server requests watched-file registration using the shared supported implementation-source patterns.
+
+      Received watched-file changes invalidate ownership state only when at least one changed URI is accepted by the shared implementation-source predicate.
     }
 
     ConceptLanguageFeatures {
@@ -198,10 +216,16 @@ expand SigilLsp {
       Owned implementation hover links point to the originating artifact location and remain standard Markdown links.
     }
 
-    OwnershipHoverCache {
-      The cache is process-local, read-only, and never reused across resolved workspace generations.
+    OwnershipSourceIndex {
+      The source snapshot is process-local, read-only, root-scoped, and reusable across resolved workspace generations for the same workspace root.
 
-      Immediate ownership-link freshness uses successfully registered client watchers and their delivered workspace/didChangeWatchedFiles notifications.
+      A workspace-root change never reuses the previous root's source snapshot.
+    }
+
+    OwnershipHoverCache {
+      Projection results are process-local, read-only, and never reused across resolved workspace generations.
+
+      Immediate ownership-link freshness uses successfully registered client watchers and their delivered supported workspace/didChangeWatchedFiles notifications.
     }
 
     OwnershipSourceWatching {
@@ -269,35 +293,31 @@ expand SigilLsp {
     }
 
     OwnershipHoverCache {
-      Decision: Reuse one process-local ownership-source snapshot and memoized component, concept, and optional section queries per resolved workspace generation, invalidating them on workspace reload or supported watched-file changes.
+      Decision: Reuse one process-local ownership-source snapshot across resolved workspace generations for the same root while keeping memoized component, concept, and optional section projections generation-specific.
 
-      Scope: Governs SigilLsp ownership-hover loading and invalidation; excludes persistence and changes to shared core ownership-query semantics.
+      Scope: Governs SigilLsp ownership-hover loading, reuse, and invalidation; excludes persistence and shared core ownership-query semantics.
 
-      Trade-offs: Repeated hovers avoid workspace rescanning, while the first hover after initialization or invalidation may wait for a refreshed scan and immediate freshness depends on client change notifications.
+      Trade-offs: Sigil document reloads avoid implementation rescans, while the first hover may still await an unfinished initial load and supported implementation changes require a refreshed snapshot.
 
-      Discarded alternatives: Scanning on every hover preserves freshness but causes the reported latency; time-based expiration permits stale links and periodically repeats the expensive scan.
+      Discarded alternatives: Replacing the snapshot on every Sigil reload repeats workspace I/O; scanning on every hover causes the reported latency; time-based expiration permits stale links and periodically repeats the scan.
 
-      Consequences: Concurrent and repeated ownership hovers share loading and query work without persisting an ownership index.
+      Consequences: Opening, editing, or closing Sigil documents rebuilds semantic projections without rereading unchanged implementation sources.
 
-      Revisit when: Large-workspace evidence requires incremental per-file indexing or clients cannot reliably provide watched-file notifications.
+      Revisit when: Large-workspace evidence requires incremental per-file indexing.
     }
 
     OwnershipSourceWatching {
-      Decision: Dynamically register one client-side **/* workspace watcher for create, change, and delete events after initialized when the client advertises watched-file dynamic registration.
+      Decision: Dynamically register shared supported implementation-source watcher patterns after initialized and validate received paths with the shared core predicate before invalidating ownership state.
 
-      Scope: Governs SigilLsp acquisition of workspace file-change notifications for ownership-hover cache invalidation; excludes client implementations and server-side filesystem watching.
+      Scope: Governs SigilLsp acquisition and filtering of ownership-source file changes; excludes client implementation and server-side filesystem watching.
 
       Assumptions: A registration-capable client that accepts the request delivers matching external filesystem events, with renames represented by delete and create events.
 
-      Trade-offs: A broad workspace watcher avoids duplicating SigilCore's supported implementation-extension policy and captures directory-level changes, but unrelated file events can cause unnecessary ownership-cache invalidation.
+      Trade-offs: Precise watcher patterns reduce unrelated traffic, while predicate validation preserves correctness if a client delivers broader notifications.
 
-      Design issues addressed: Registration-capable clients no longer need independent watcher configuration for external ownership-source changes to invalidate cached hover projections.
+      Consequences: Unrelated workspace changes do not discard ownership data, while supported source changes refresh the next ownership hover.
 
-      Discarded alternatives: Depending on independently configured client notifications does not follow the protocol registration model; server-side polling or filesystem watching duplicates client resource cost and cross-platform complexity.
-
-      Consequences: Successfully registered clients refresh ownership links after external source edits, creations, deletions, and rename-generated delete and create events.
-
-      Revisit when: The protocol supports static server-declared file watches, broad watcher traffic becomes material, or reliable freshness is required from clients without dynamic-registration support.
+      Revisit when: The protocol provides an incremental ownership-index update or reliable freshness is required from clients without dynamic-registration support.
     }
   }
 
@@ -331,17 +351,19 @@ expand SigilLsp {
     }
 
     OwnershipHoverCache {
-      Concurrent and repeated hovers within one workspace generation share one ownership-source load.
+      Concurrent and repeated hovers within one workspace generation share projection work.
 
-      Creating, changing, or deleting a supported ownership implementation source invalidates the cache and the next hover reflects the refreshed links.
+      Opening, changing, or closing a Sigil document creates new projections while reusing the same ownership-source snapshot.
+
+      Changing the workspace root replaces both the source snapshot and projections.
     }
 
     OwnershipSourceWatching {
-      A client advertising workspace/didChangeWatchedFiles dynamic registration receives one client/registerCapability request after initialized for create, change, and delete events under **/*.
+      A capable client receives watcher registration for the shared supported implementation-source patterns after initialized.
 
-      A successful registration followed by an external implementation-source edit, creation, deletion, or rename-generated delete and create events invalidates the ownership-hover cache before the next hover.
+      Creating, changing, or deleting a supported ownership source invalidates the source snapshot and projections.
 
-      A client response to the server-initiated registration request is accepted without producing a method-not-found response.
+      An unsupported watched-file change leaves ownership state intact.
 
       A client without watched-file dynamic-registration support receives no registration request and the protocol session remains valid.
     }

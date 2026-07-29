@@ -2,6 +2,7 @@ import {
   InMemorySigilFileSystem,
   SIGIL_VERSION,
   type SigilFileSystem,
+  supportedImplementationSourceGlobPatterns,
 } from "@qoherent/sigil-core";
 import {
   encodeLspMessage,
@@ -67,7 +68,7 @@ Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async 
  * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching constraints,cases
  * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
  */
-Deno.test("dynamically registers one ownership-source workspace watcher", async () => {
+Deno.test("dynamically registers ownership-source workspace watchers", async () => {
   const server = makeServer();
   const initialized = await server.handle(request(1, "initialize", {
     rootUri,
@@ -95,9 +96,11 @@ Deno.test("dynamically registers one ownership-source workspace watcher", async 
   );
   const options = registrations[0].registerOptions as Record<string, unknown>;
   const watchers = options.watchers as Array<Record<string, unknown>>;
-  assertEquals(watchers.length, 1);
-  assertEquals(watchers[0].globPattern, "**/*");
-  assertEquals(watchers[0].kind, 7);
+  assert(
+    JSON.stringify(watchers.map((watcher) => watcher.globPattern)) ===
+      JSON.stringify(supportedImplementationSourceGlobPatterns()),
+  );
+  assert(watchers.every((watcher) => watcher.kind === 7));
 
   const registrationResponse = await server.handle(
     response("sigil/ownership-watch/request", null),
@@ -418,7 +421,11 @@ expand Thing {
   assert(!casesMarkdown.includes("packages/cli/README.md"));
 });
 
-// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching logic,constraints,cases
+ */
 Deno.test("ownership hover cache shares scans and invalidates on watched changes", async () => {
   const fs = new CountingSigilFileSystem(
     new InMemorySigilFileSystem({
@@ -448,22 +455,51 @@ Deno.test("ownership hover cache shares scans and invalidates on watched changes
   await hoverRequest(4);
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
 
+  await server.handle(notification("textDocument/didOpen", {
+    textDocument: {
+      uri: contractUri,
+      version: 1,
+      text: contractSource,
+    },
+  }));
+  await hoverRequest(5);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("textDocument/didChange", {
+    textDocument: { uri: contractUri, version: 2 },
+    contentChanges: [{ text: contractSource }],
+  }));
+  await hoverRequest(6);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("textDocument/didClose", {
+    textDocument: { uri: contractUri },
+  }));
+  await hoverRequest(7);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/config.json`), type: 2 }],
+  }));
+  await hoverRequest(8);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
   await server.handle(notification("workspace/didChangeWatchedFiles", {
     changes: [{ uri: pathToFileUri(`${root}/src/worker.ts`), type: 2 }],
   }));
-  await hoverRequest(5);
+  await hoverRequest(9);
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 1);
 
   await server.handle(notification("workspace/didChangeWatchedFiles", {
     changes: [{ uri: pathToFileUri(`${root}/src/created.ts`), type: 1 }],
   }));
-  await hoverRequest(6);
+  await hoverRequest(10);
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 2);
 
   await server.handle(notification("workspace/didChangeWatchedFiles", {
     changes: [{ uri: pathToFileUri(`${root}/src/created.ts`), type: 3 }],
   }));
-  await hoverRequest(7);
+  await hoverRequest(11);
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 3);
 
   await server.handle(notification("workspace/didChangeWatchedFiles", {
@@ -472,7 +508,7 @@ Deno.test("ownership hover cache shares scans and invalidates on watched changes
       { uri: pathToFileUri(`${root}/src/renamed.ts`), type: 1 },
     ],
   }));
-  await hoverRequest(8);
+  await hoverRequest(12);
   assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 4);
 });
 

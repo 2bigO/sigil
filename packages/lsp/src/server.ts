@@ -1,9 +1,11 @@
 import {
+  isSupportedImplementationSource,
   loadSigilWorkspace,
   normalizePath,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
   type SigilFileSystem,
+  supportedImplementationSourceGlobPatterns,
 } from "@qoherent/sigil-core";
 import {
   definitionAt,
@@ -11,6 +13,7 @@ import {
   documentSymbols,
   hoverAt,
   OwnershipHoverCache,
+  OwnershipSourceIndex,
   semanticTokens,
 } from "./features.ts";
 import {
@@ -20,6 +23,7 @@ import {
 } from "./filesystem.ts";
 import type {
   DidChangeTextDocumentParams,
+  DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
   DocumentSymbolParams,
@@ -66,7 +70,9 @@ export interface SigilLanguageServerOptions {
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::ReadOnlyLanguageService interface,constraints
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
  * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching logic,constraints,cases
  */
 export class SigilLanguageServer {
   readonly #fs: OverlaySigilFileSystem;
@@ -78,6 +84,8 @@ export class SigilLanguageServer {
   #state: ServerState = "uninitialized";
   #workspaceStart: string;
   #resolved?: ResolvedSigilWorkspace;
+  #ownershipSourceIndex?: OwnershipSourceIndex;
+  #ownershipSourceRoot?: string;
   #ownershipHoverCache?: OwnershipHoverCache;
   #supportsOwnershipWatchRegistration = false;
   #ownershipWatchRegistrationRequested = false;
@@ -203,9 +211,17 @@ export class SigilLanguageServer {
           return await this.#didChange(params);
         case "textDocument/didClose":
           return await this.#didClose(params);
-        case "workspace/didChangeWatchedFiles":
-          this.#refreshOwnershipHoverCache();
+        case "workspace/didChangeWatchedFiles": {
+          const value = didChangeWatchedFilesParams(params);
+          if (
+            value.changes.some((change) =>
+              isSupportedImplementationSource(fileUriToPath(change.uri))
+            )
+          ) {
+            this.#invalidateOwnershipSourceIndex();
+          }
           return [];
+        }
         default:
           return [];
       }
@@ -331,13 +347,36 @@ export class SigilLanguageServer {
       currentDirectory: this.#currentDirectory,
     });
     this.#resolved = resolveSigilWorkspace(workspace);
-    this.#refreshOwnershipHoverCache();
+    this.#rebuildOwnershipProjectionCache();
   }
 
-  #refreshOwnershipHoverCache(): void {
-    this.#ownershipHoverCache = this.#resolved
-      ? new OwnershipHoverCache(this.#resolved, this.#fs)
-      : undefined;
+  #rebuildOwnershipProjectionCache(): void {
+    if (!this.#resolved) {
+      this.#ownershipSourceIndex = undefined;
+      this.#ownershipSourceRoot = undefined;
+      this.#ownershipHoverCache = undefined;
+      return;
+    }
+    const root = normalizePath(this.#resolved.workspace.root);
+    if (!this.#ownershipSourceIndex || this.#ownershipSourceRoot !== root) {
+      this.#ownershipSourceIndex = new OwnershipSourceIndex(root, this.#fs);
+      this.#ownershipSourceRoot = root;
+    }
+    this.#ownershipHoverCache = new OwnershipHoverCache(
+      this.#resolved,
+      this.#ownershipSourceIndex,
+    );
+  }
+
+  #invalidateOwnershipSourceIndex(): void {
+    if (!this.#resolved) return;
+    const root = normalizePath(this.#resolved.workspace.root);
+    this.#ownershipSourceIndex = new OwnershipSourceIndex(root, this.#fs);
+    this.#ownershipSourceRoot = root;
+    this.#ownershipHoverCache = new OwnershipHoverCache(
+      this.#resolved,
+      this.#ownershipSourceIndex,
+    );
   }
 
   #ownershipWatchRegistration(): readonly JsonRpcOutgoing[] {
@@ -356,7 +395,9 @@ export class SigilLanguageServer {
           id: OWNERSHIP_WATCH_REGISTRATION_ID,
           method: "workspace/didChangeWatchedFiles",
           registerOptions: {
-            watchers: [{ globPattern: "**/*", kind: 7 }],
+            watchers: supportedImplementationSourceGlobPatterns().map(
+              (globPattern) => ({ globPattern, kind: 7 }),
+            ),
           },
         }],
       },
@@ -500,6 +541,30 @@ function didChangeParams(params: unknown): DidChangeTextDocumentParams {
 function didCloseParams(params: unknown): DidCloseTextDocumentParams {
   const value = requiredRecord(params, "didClose params");
   return { textDocument: textDocumentIdentifier(value.textDocument) };
+}
+
+function didChangeWatchedFilesParams(
+  params: unknown,
+): DidChangeWatchedFilesParams {
+  const value = requiredRecord(params, "didChangeWatchedFiles params");
+  if (
+    !Array.isArray(value.changes) ||
+    !value.changes.every((change) =>
+      isRecord(change) &&
+      typeof change.uri === "string" &&
+      (change.type === 1 || change.type === 2 || change.type === 3)
+    )
+  ) {
+    throw new InvalidParamsError(
+      "didChangeWatchedFiles requires URI and change type entries.",
+    );
+  }
+  return {
+    changes: value.changes.map((change) => ({
+      uri: change.uri as string,
+      type: change.type as 1 | 2 | 3,
+    })),
+  };
 }
 
 function documentSymbolParams(params: unknown): DocumentSymbolParams {

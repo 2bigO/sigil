@@ -23,7 +23,7 @@ component SigilVsCodeExtension {
 
       surfaces diagnostics, document symbols, definition navigation, hover, and semantic highlighting
 
-      watches supported ownership implementation sources and forwards create, change, and delete events through workspace/didChangeWatchedFiles
+      accepts the bundled server's dynamic registration for supported ownership implementation-source changes
     }
 
     ComponentPreview {
@@ -65,7 +65,7 @@ expand SigilVsCodeExtension {
 
       The language client forwards document lifecycle and language-feature requests through LSP.
 
-      The language client supplies supported implementation-source file events to the bundled server for ownership-cache invalidation.
+      The language client delivers file events for watcher patterns dynamically registered by the bundled server.
 
       Startup and runtime failures are written to the Sigil output channel and surfaced to the user.
 
@@ -133,15 +133,15 @@ expand SigilVsCodeExtension {
     }
 
     OwnershipCacheInvalidation {
-      Decision: Use the standard language-client file watcher and workspace/didChangeWatchedFiles notification to invalidate cached ownership links.
+      Decision: Let the bundled language server dynamically register supported ownership-source watcher patterns through standard Language Server Protocol capability registration.
 
-      Scope: Governs VS Code change notification for supported ownership implementation sources; excludes ownership parsing and cache storage.
+      Scope: Governs VS Code delivery of registered ownership-source changes; excludes ownership parsing, cache storage, and source-support policy.
 
-      Trade-offs: File watching adds a bounded editor-host subscription while avoiding polling and stale cached links.
+      Trade-offs: Server-directed registration removes the redundant extension-owned watcher while depending on the language client's dynamic-registration support.
 
-      Consequences: The bundled server can reuse ownership results while responding promptly to ownership-comment changes.
+      Consequences: The extension does not duplicate supported source patterns and the server receives standard workspace/didChangeWatchedFiles notifications.
 
-      Revisit when: The language client or protocol provides a more specific incremental ownership-index update.
+      Revisit when: The language client cannot reliably honor dynamic registration or the protocol provides incremental ownership-index updates.
     }
 
     SupportedExtensionHosts {

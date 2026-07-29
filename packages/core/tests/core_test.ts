@@ -7,6 +7,7 @@ import {
   dirname,
   glossaryContextForFiles,
   InMemorySigilFileSystem,
+  isSupportedImplementationSource,
   loadSigilWorkspace,
   matchesSigilFile,
   normalizePath,
@@ -18,6 +19,7 @@ import {
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
+  supportedImplementationSourceGlobPatterns,
 } from "../src/mod.ts";
 import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
@@ -29,6 +31,29 @@ import { resolveSigilRelationships } from "../src/resolver.ts";
 Deno.test("separates the core artifact and language contract versions", () => {
   assertEquals(SIGIL_CORE_VERSION, "0.7.0");
   assertEquals(SIGIL_VERSION, "0.5.0");
+});
+
+/*
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport interface,cases
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope constraints
+ */
+Deno.test("shares supported implementation-source watcher patterns", () => {
+  const patterns = supportedImplementationSourceGlobPatterns();
+  assert(patterns.length > 0);
+  for (const pattern of patterns) {
+    assert(pattern.startsWith("**/*."));
+    assert(isSupportedImplementationSource(`src/file${pattern.slice(4)}`));
+  }
+  for (
+    const path of [
+      "contract.sigil",
+      "config.json",
+      "README.txt",
+      "Makefile",
+    ]
+  ) {
+    assertEquals(isSupportedImplementationSource(path), false);
+  }
 });
 
 // @sigil tests packages/core/#module.sigil::SigilCore::DeterministicCore constraints,cases

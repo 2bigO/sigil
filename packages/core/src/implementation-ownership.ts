@@ -52,6 +52,11 @@ const SLASH_COMMENT_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
 ]);
+const SUPPORTED_IMPLEMENTATION_SOURCE_GLOB_PATTERNS = Object.freeze([
+  ...MARKDOWN_EXTENSIONS,
+  ...HASH_COMMENT_EXTENSIONS,
+  ...SLASH_COMMENT_EXTENSIONS,
+].map((extension) => `**/*${extension}`));
 
 interface ParsedAnnotation {
   readonly relation: ImplementationRelation;
@@ -152,7 +157,10 @@ export function ownedImplementationTargetsFor(
   };
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope constraints
+/*
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport interface,cases
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope constraints
+ */
 export function isSupportedImplementationSource(filePath: string): boolean {
   const normalized = normalizePath(filePath).toLowerCase();
   if (normalized.endsWith(".sigil") || normalized.endsWith(".json")) {
@@ -162,6 +170,11 @@ export function isSupportedImplementationSource(filePath: string): boolean {
   return MARKDOWN_EXTENSIONS.includes(extension) ||
     HASH_COMMENT_EXTENSIONS.has(extension) ||
     SLASH_COMMENT_EXTENSIONS.has(extension);
+}
+
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport interface,cases
+export function supportedImplementationSourceGlobPatterns(): readonly string[] {
+  return SUPPORTED_IMPLEMENTATION_SOURCE_GLOB_PATTERNS;
 }
 
 function implementationAnnotations(

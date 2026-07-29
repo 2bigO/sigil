@@ -107,6 +107,13 @@ export interface DidCloseTextDocumentParams {
   readonly textDocument: TextDocumentIdentifier;
 }
 
+export interface DidChangeWatchedFilesParams {
+  readonly changes: readonly {
+    readonly uri: string;
+    readonly type: 1 | 2 | 3;
+  }[];
+}
+
 export interface DocumentSymbolParams {
   readonly textDocument: TextDocumentIdentifier;
 }

@@ -22,6 +22,12 @@ component SigilImplementationOwnership {
       each target preserves the artifact kind, file path, selected sections, and optional symbol identity when available
     }
 
+    ImplementationSourceSupport {
+      isSupportedImplementationSource(filePath) returns whether the path can contain a supported ownership annotation
+
+      supportedImplementationSourceGlobPatterns returns immutable workspace watcher patterns covering the same supported source extensions
+    }
+
     ImplementationAnnotation {
       identifies a relation, repository-relative Sigil path, component name, optional concept name, and one or more selected sections
 
@@ -92,6 +98,10 @@ expand SigilImplementationOwnership {
       v1 includes Markdown only for agent-facing instructions or workflow documents.
 
       Sigil sources, JSON, general prose documentation, configs, and non-text artifacts remain out of scope.
+
+      The exported support predicate and watcher patterns describe one shared implementation-source extension policy.
+
+      Every watcher-pattern match is accepted by isSupportedImplementationSource, while the predicate remains authoritative for received paths.
     }
 
     TargetResolution {
@@ -173,15 +183,15 @@ expand SigilImplementationOwnership {
     }
 
     ImplementationTargetScope {
-      Decision: Limit v1 implementation targets to source code and tests with supported comments plus agent-facing instruction or workflow Markdown.
+      Decision: Limit v1 implementation targets to source code and tests with supported comments plus agent-facing instruction or workflow Markdown, and expose one shared source-support policy for host filtering and watcher registration.
 
-      Scope: Governs which repository artifacts may appear in owned-implementation results; excludes Sigil sources, JSON, general prose documentation, configs, and non-text artifacts.
+      Scope: Governs eligible implementation artifacts, the support predicate, and extension-based watcher patterns; excludes filesystem traversal and host-specific watcher lifecycle.
 
-      Trade-offs: The scope captures behavior-shaping Markdown that matters to agent workflows, but intentionally leaves ordinary documentation and unsupported artifact formats out.
+      Trade-offs: Shared patterns prevent host integrations from duplicating the extension list, while received paths still require predicate validation.
 
-      Consequences: The feature stays focused on comment-bearing implementation material while still covering instruction docs.
+      Consequences: CLI, LSP, and editor integrations can share one definition of supported ownership sources.
 
-      Revisit when: Other artifact classes become meaningful implementation evidence.
+      Revisit when: Other artifact classes become meaningful implementation evidence or a supported host cannot express the shared patterns.
     }
 
     TargetResolution {
@@ -198,6 +208,12 @@ expand SigilImplementationOwnership {
   }
 
   cases {
+    ImplementationSourceSupport {
+      A supported source path is accepted by the predicate and matched by a shared watcher pattern.
+
+      Sigil, JSON, unsupported, and extensionless paths are rejected by the predicate.
+    }
+
     OwnedImplementationLookup {
       A TypeScript line comment immediately before one function links that function to a Sigil component or concept.
 
