@@ -1,6 +1,7 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { runTests } from "@vscode/test-electron";
+import { downloadAndUnzipVSCode, runTests } from "@vscode/test-electron";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const extension = path.resolve(directory, "..");
@@ -14,8 +15,21 @@ for (const key of Object.keys(process.env)) {
   }
 }
 
+let vscodeExecutablePath = await downloadAndUnzipVSCode("stable");
+if (
+  process.platform === "darwin" &&
+  !existsSync(vscodeExecutablePath) &&
+  vscodeExecutablePath.endsWith("/Electron")
+) {
+  const renamedExecutable = vscodeExecutablePath.slice(
+    0,
+    -"/Electron".length,
+  ) + "/Code";
+  if (existsSync(renamedExecutable)) vscodeExecutablePath = renamedExecutable;
+}
+
 await runTests({
-  version: "stable",
+  vscodeExecutablePath,
   extensionDevelopmentPath: extension,
   extensionTestsPath: path.join(extension, "dist/test/extension.js"),
   launchArgs: [

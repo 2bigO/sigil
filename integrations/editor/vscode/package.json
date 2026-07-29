@@ -38,7 +38,9 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:sigil",
-    "onCommand:sigil.showComponentPreview"
+    "onCommand:sigil.showComponentPreview",
+    "onCommand:sigil.compileComponent",
+    "onCommand:sigil.compileWorkspace"
   ],
   "contributes": {
     "languages": [
@@ -79,13 +81,53 @@
         "command": "sigil.showComponentPreview",
         "title": "Sigil: Show Component Preview",
         "category": "Sigil"
+      },
+      {
+        "command": "sigil.compileComponent",
+        "title": "Sigil: Compile Component",
+        "category": "Sigil",
+        "icon": "$(play)"
+      },
+      {
+        "command": "sigil.compileWorkspace",
+        "title": "Sigil: Compile Workspace",
+        "category": "Sigil"
       }
     ],
+    "configuration": {
+      "title": "Sigil",
+      "properties": {
+        "sigil.compile.executable": {
+          "type": "string",
+          "default": "sigil",
+          "description": "Path to a compatible external Sigil CLI executable."
+        },
+        "sigil.compile.profile": {
+          "type": "string",
+          "default": "standard",
+          "description": "Compilation profile used by editor commands."
+        }
+      }
+    },
     "menus": {
       "commandPalette": [
         {
           "command": "sigil.showComponentPreview",
           "when": "editorLangId == sigil"
+        },
+        {
+          "command": "sigil.compileComponent",
+          "when": "editorLangId == sigil"
+        },
+        {
+          "command": "sigil.compileWorkspace"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "sigil.compileComponent",
+          "when": "editorLangId == sigil",
+          "group": "navigation"
         }
       ]
     }

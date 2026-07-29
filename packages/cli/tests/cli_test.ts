@@ -3,6 +3,7 @@ import {
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
+import type { CompilationReport } from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
@@ -1226,6 +1227,54 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
     return this.#base.listFiles(root);
   }
 }
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
+ */
+Deno.test("compile preserves JSONL events and compiler status exits", async () => {
+  const report: CompilationReport = {
+    reportVersion: 1,
+    runId: "run-1",
+    workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
+    componentNames: ["Example"],
+    status: "yellow",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    profile: {
+      name: "standard",
+      stages: [],
+      fingerprint: "profile",
+    },
+    stages: [],
+    diagnostics: [],
+  };
+  const result = await runCli(["compile", ".", "--format", "jsonl"], {
+    compiler: async (_workspace, _target, options) => {
+      await options?.onEvent?.({
+        protocolVersion: 1,
+        runId: "run-1",
+        sequence: 1,
+        type: "completed",
+        payload: { report },
+      });
+      return report;
+    },
+  });
+  assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+  const event = JSON.parse(result.stdout.trim());
+  assertEquals(event.type, "completed");
+  assertEquals(event.payload.report.status, "yellow");
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,constraints,cases
+Deno.test("compile rejects incompatible output formats", async () => {
+  const result = await runCli(["compile", "--format", "json"]);
+  assertEquals(result.exitCode, EXIT_USAGE);
+  assert(result.stderr.includes("--format must be text or jsonl"));
+});
 
 class FailingListFileSystem implements SigilFileSystem {
   readonly #base = new DenoSigilFileSystem();

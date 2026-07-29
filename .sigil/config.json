@@ -4,6 +4,7 @@
     "name": "sigil",
     "members": [
       "packages/cli",
+      "packages/compiler",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",

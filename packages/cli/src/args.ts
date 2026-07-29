@@ -7,9 +7,10 @@ export type CommandName =
   | "glossary"
   | "graph"
   | "context"
+  | "compile"
   | "render";
 export type HelpTopic = "root" | CommandName | "skill-list" | "skill-install";
-export type OutputFormat = "json" | "text" | "markdown";
+export type OutputFormat = "json" | "jsonl" | "text" | "markdown";
 export type SkillAgent = "codex" | "claude" | "opencode" | "pi";
 
 export interface GlobalOptions {
@@ -29,6 +30,7 @@ export type CommandRequest =
   | GlossaryRequest
   | GraphRequest
   | ContextRequest
+  | CompileRequest
   | RenderRequest;
 export interface SkillListRequest extends GlobalOptions {
   readonly command: "skill-list";
@@ -71,6 +73,15 @@ export interface ContextRequest extends GlobalOptions {
   readonly file?: string;
   readonly path?: string;
 }
+export interface CompileRequest extends GlobalOptions {
+  readonly command: "compile";
+  readonly component?: string;
+  readonly file?: string;
+  readonly path?: string;
+  readonly profile?: string;
+  readonly noCache: boolean;
+  readonly output?: string;
+}
 export interface RenderRequest extends GlobalOptions {
   readonly command: "render";
   readonly path?: string;
@@ -100,7 +111,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(
       commandName
         ? `Unknown command "${commandName}".`
-        : "Expected command: skill, init, version, parse, check, glossary, graph, context, or render.",
+        : "Expected command: skill, init, version, parse, check, glossary, graph, context, compile, or render.",
       "root",
     );
   }
@@ -140,6 +151,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   const exclude: string[] = [];
   let project = false;
   let agent: SkillAgent | "all" | undefined;
+  let profile: string | undefined;
+  let noCache = false;
+  let output: string | undefined;
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -201,6 +215,21 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         file = value;
         break;
       }
+      case "--profile": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        profile = value;
+        break;
+      }
+      case "--no-cache":
+        noCache = true;
+        break;
+      case "--output": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        output = value;
+        break;
+      }
       case "--name": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -228,7 +257,10 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
 
   const base = { root, format, pretty, quiet };
-  if (commandName !== "context" && (component || file)) {
+  if (
+    commandName !== "context" && commandName !== "compile" &&
+    (component || file)
+  ) {
     return usage(
       `${commandName} does not accept --component or --file.`,
       commandHelpTopic,
@@ -243,6 +275,15 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (commandName !== "skill" && (project || agent)) {
     return usage(
       `${commandName} does not accept skill options.`,
+      commandHelpTopic,
+    );
+  }
+  if (
+    commandName !== "compile" &&
+    (profile || noCache || output || format === "jsonl")
+  ) {
+    return usage(
+      `${commandName} does not accept compile options.`,
       commandHelpTopic,
     );
   }
@@ -349,6 +390,33 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         | RenderRequest,
     };
   }
+  if (commandName === "compile") {
+    if (positional.length > 1) {
+      return usage("compile accepts at most one path.", "compile");
+    }
+    if (component && file) {
+      return usage(
+        "compile accepts only one of --component or --file.",
+        "compile",
+      );
+    }
+    if (format && format !== "jsonl" && format !== "text") {
+      return usage("--format must be text or jsonl for compile.", "compile");
+    }
+    return {
+      kind: "ok",
+      request: {
+        command: "compile",
+        component,
+        file,
+        path: positional[0],
+        profile,
+        noCache,
+        output,
+        ...base,
+      },
+    };
+  }
   if (positional.length > 1) {
     return usage("context accepts at most one path.", "context");
   }
@@ -378,6 +446,7 @@ function isCommand(value: string | undefined): value is CommandName {
     value === "parse" ||
     value === "check" || value === "glossary" || value === "graph" ||
     value === "context" ||
+    value === "compile" ||
     value === "render";
 }
 function isSkillAgent(value: string): value is SkillAgent {
@@ -385,7 +454,8 @@ function isSkillAgent(value: string): value is SkillAgent {
     value === "pi";
 }
 function isFormat(value: string): value is OutputFormat {
-  return value === "json" || value === "text" || value === "markdown";
+  return value === "json" || value === "jsonl" || value === "text" ||
+    value === "markdown";
 }
 function helpTopicFor(
   commandName: CommandName,

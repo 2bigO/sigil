@@ -1,0 +1,9 @@
+{
+  "id": "semantic-readiness",
+  "version": "1.0.0",
+  "inputs": ["component-context", "glossary"],
+  "dependencies": ["deterministic-foundation"],
+  "capabilities": ["read-workspace"],
+  "rules": ["SEMANTIC_AMBIGUITY", "SEMANTIC_CONTRADICTION", "RATIONALE_GAP"],
+  "output": "compiler-findings-v1"
+}

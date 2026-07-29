@@ -1,6 +1,7 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig, SigilModuleIndex }
 @packages/core import { SigilCore }
 @packages/cli import { SigilCli }
+@packages/compiler import { SigilCompiler }
 @packages/lsp import { SigilLsp }
 @integrations/editor/vscode import { SigilVsCodeExtension }
 @integrations/skills/sigil import { SigilSkill }
@@ -38,6 +39,12 @@ component Sigil {
     HumanReviewWorkflow {
       provides a host-neutral agent workflow for design clarification, semantic review, explicit approval, and Sigil-guided implementation
     }
+
+    AgenticCompilation {
+      provides profile-scoped, read-only, evidence-backed compilation through shared compiler, CLI, CI, and editor surfaces
+
+      distinguishes compilation status from human design approval and implementation authorization
+    }
   }
 }
 
@@ -55,6 +62,10 @@ expand Sigil {
 
     HumanReviewWorkflow {
       The host skill applies semantic judgment, conducts design and review conversations, and uses ReviewGate for scoped approval of Sigil changes and implementation.
+    }
+
+    AgenticCompilation {
+      SigilCompiler combines deterministic SigilCore evidence with bounded agentic evaluation while thin host façades present the shared result.
     }
   }
 
@@ -89,8 +100,28 @@ expand Sigil {
       The review workflow remains host-neutral and requires explicit human approval before semantic Sigil edits or implementation.
     }
 
+    AgenticCompilation {
+      Agentic compilation remains outside SigilCore and does not modify selected workspace content.
+
+      Green status is scoped to one source snapshot, profile, stage set, and evaluator environment.
+    }
+
     ReleaseMaturity {
       Pre-production artifacts make no production-readiness or compatibility guarantee beyond their declared versioned contracts.
+    }
+  }
+
+  decisions {
+    AgenticCompilation {
+      Decision: Introduce a separate shared compiler for profile-scoped agentic evaluation while retaining deterministic semantics in SigilCore.
+
+      Scope: Governs compiler, CLI, CI, and editor compilation surfaces; excludes human approval and implementation authorization.
+
+      Trade-offs: The platform gains a provider-adapter and report-version compatibility boundary.
+
+      Design issues addressed: Designers need an iterative compiler-like path from errors through warnings to green without conflating model judgment with deterministic language facts.
+
+      Consequences: Every host consumes the same evidence-backed compilation protocol and status semantics.
     }
   }
 
@@ -105,6 +136,12 @@ expand Sigil {
 
     ArtifactVersionOwnership {
       Changing a distributable artifact version updates its owning manifest without requiring a duplicate root-contract version edit.
+    }
+
+    AgenticCompilation {
+      The same source snapshot and effective profile produce one shared report contract across CLI, CI, and VS Code.
+
+      A green compilation result remains subject to explicit human design approval.
     }
   }
 }

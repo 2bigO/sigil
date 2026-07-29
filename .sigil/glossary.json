@@ -311,6 +311,103 @@
       "term": "section selector",
       "definition": "A section name in an implementation ownership annotation that identifies an implementation-related section occurrence on the targeted component or concept.",
       "aliases": ["section selectors"]
+    },
+    {
+      "term": "compilation profile",
+      "definition": "A named compiler configuration selecting an evaluation-stage dependency graph, evaluators, evaluation skills, capability limits, and execution budgets.",
+      "aliases": [
+        "compilation profiles",
+        "effective profile",
+        "effective profiles",
+        "project profile",
+        "project profiles"
+      ]
+    },
+    {
+      "term": "compilation status",
+      "definition": "The red, yellow, or green outcome computed for one exact source snapshot and effective compilation profile.",
+      "aliases": [
+        "compilation color",
+        "green status"
+      ]
+    },
+    {
+      "term": "compilation report",
+      "definition": "The authoritative versioned JSON result binding compilation status and diagnostics to source, profile, stage, skill, adapter, and evaluator provenance.",
+      "aliases": [
+        "compilation reports",
+        "CompilationReport",
+        "authoritative report",
+        "authoritative reports"
+      ]
+    },
+    {
+      "term": "compilation event",
+      "definition": "One ordered versioned JSON Lines envelope carrying progress or a terminal compilation outcome.",
+      "aliases": [
+        "compilation events",
+        "CompilationEvent",
+        "CompilationEvents"
+      ]
+    },
+    {
+      "term": "evaluation stage",
+      "definition": "A profile-selected unit of compilation work whose dependencies and lifecycle determine when it may execute.",
+      "aliases": [
+        "evaluation stages"
+      ]
+    },
+    {
+      "term": "evaluator",
+      "definition": "One profile-selected execution of evaluation work whose completion and findings contribute to compilation status.",
+      "aliases": [
+        "evaluators",
+        "required evaluator",
+        "required evaluators",
+        "configured evaluator",
+        "configured evaluators"
+      ]
+    },
+    {
+      "term": "evaluation skill",
+      "definition": "A compiler-native package containing SKILL.md guidance and a compile.json manifest that defines one evaluation procedure and its contract.",
+      "aliases": [
+        "evaluation skills",
+        "compiler-native evaluation skill",
+        "compiler-native evaluation skills"
+      ]
+    },
+    {
+      "term": "agent adapter",
+      "definition": "A provider integration that executes bounded evaluation requests and declares enforceable capabilities without owning compiler semantics.",
+      "aliases": [
+        "agent adapters"
+      ]
+    },
+    {
+      "term": "profile fingerprint",
+      "definition": "A stable identity derived from the effective stages, skills, adapters, models, capabilities, budgets, and relevant versions of a compilation profile.",
+      "aliases": [
+        "profile fingerprints"
+      ]
+    },
+    {
+      "term": "diagnostic fingerprint",
+      "definition": "A diagnostic identity derived from stable rule, stage, subject, and source-location facts rather than evaluator wording.",
+      "aliases": [
+        "diagnostic fingerprints",
+        "stable diagnostic fingerprint",
+        "stable diagnostic fingerprints"
+      ]
+    },
+    {
+      "term": "experimental workspace",
+      "definition": "An enforced disposable environment used for generated implementation experiments without modifying the selected workspace.",
+      "aliases": [
+        "experimental workspaces",
+        "disposable sandbox",
+        "disposable sandboxes"
+      ]
     }
   ],
   "contexts": [

@@ -1,0 +1,9 @@
+{
+  "id": "current-code-compatibility",
+  "version": "1.0.0",
+  "inputs": ["component-context", "owned-implementation"],
+  "dependencies": ["architecture-design"],
+  "capabilities": ["read-workspace"],
+  "rules": ["IMPLEMENTATION_DRIFT", "OWNERSHIP_GAP", "CONTRACT_COMPATIBILITY"],
+  "output": "compiler-findings-v1"
+}

@@ -61,7 +61,9 @@ function normalizeResultPaths(
 
 function controllingPath(request: CommandRequest): string | undefined {
   if (request.command === "parse") return request.file;
-  if (request.command === "context") return request.path ?? request.file;
+  if (request.command === "context" || request.command === "compile") {
+    return request.path ?? request.file;
+  }
   return "path" in request ? request.path : undefined;
 }
 

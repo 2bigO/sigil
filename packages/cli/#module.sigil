@@ -1,12 +1,13 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core import { SigilCore }
+@packages/compiler import { SigilCompiler }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 
 component SigilCli {
   goal {
-    Expose deterministic Sigil language and workspace operations to agents, CI, scripts, debugging, and review workflows through a non-interactive command line.
+    Expose deterministic Sigil language and workspace operations plus profile-scoped agentic compilation to agents, CI, scripts, debugging, and review workflows through a non-interactive command line.
 
-    Keep workspace commands thin over core contracts while isolating skill installation as a focused host-filesystem responsibility.
+    Keep deterministic workspace commands thin over SigilCore, keep compilation thin over SigilCompiler, and isolate skill installation as a focused host-filesystem responsibility.
   }
 
   interface {
@@ -79,6 +80,16 @@ component SigilCli {
 
       init may create the .sigil directory, a missing ConfigFile, and a missing seeded GlossaryFile but no .sigil source
     }
+
+    CompilationFacade {
+      sigil compile [path] [--component name | --file file] [--profile name] [--no-cache] [--output file] [--format jsonl]
+
+      compile presents human progress by default and exposes the structured compiler event and report protocol for automation
+
+      compile returns the status and authoritative CompilationReport produced by SigilCompiler
+
+      in JSON Lines mode standard output contains only the versioned CompilationEvent stream and human progress or host logs use standard error
+    }
   }
 }
 
@@ -149,6 +160,12 @@ expand SigilCli {
     GlossaryInspection {
       glossary delegates loading, context resolution, occurrence matching, and diagnostics to SigilCore.
     }
+
+    CompilationFacade {
+      compile resolves CLI operands and options, delegates evaluation to SigilCompiler, and projects compiler events and the final report without reinterpreting findings.
+
+      compile preserves deterministic workspace diagnostics as compiler inputs rather than replacing or duplicating them.
+    }
   }
 
   constraints {
@@ -161,7 +178,9 @@ expand SigilCli {
     StructuredOutput {
       Every workspace-dependent JSON result includes workspaceRoot, configPath, sigilVersion, and workspaceName.
 
-      CLI operations are deterministic and non-interactive.
+      Deterministic CLI commands are non-interactive and reproducible from the same inputs.
+
+      compile is non-interactive but preserves the configured agentic evaluation variability in its profile fingerprint and CompilationReport.
 
       context JSON output includes glossaryContext with the glossary path, resolved bounded contexts, canonical terms, definitions, aliases, and relevant occurrences.
 
@@ -201,13 +220,31 @@ expand SigilCli {
 
       Empty, unknown, incomplete, or invalid usage exits with code 2, writes the problem and contextually relevant help to stderr, and leaves stdout empty.
 
-      Exit code 0 means success or warnings only.
+      For commands other than compile, exit code 0 means success or warnings only.
 
-      Exit code 1 means configuration or Sigil error diagnostics.
+      For commands other than compile, exit code 1 means configuration or Sigil error diagnostics.
 
       Exit code 2 means invalid command usage.
 
       Exit code 3 means a host or runtime failure.
+    }
+
+    CompilationFacade {
+      compile is a thin agentic façade and is excluded from the deterministic workspace-inspection guarantee.
+
+      compile does not modify selected workspace content.
+
+      CLI exit status and structured output preserve compiler red, yellow, green, failed, and cancelled outcomes without independently computing them.
+
+      A green compilation exits with code 0.
+
+      A red or yellow compilation exits with code 1.
+
+      Invalid compile usage exits with code 2.
+
+      A compiler or host failure that cannot produce a valid compilation result exits with code 3.
+
+      A compilation cancelled after invocation begins exits with code 130.
     }
   }
 
@@ -227,13 +264,13 @@ expand SigilCli {
     }
 
     StructuredOutput {
-      Decision: Treat the CLI as a deterministic automation interface with JSON as its stable output contract and human text as a convenience.
+      Decision: Treat deterministic CLI commands as automation interfaces with JSON as their stable output contract, and expose agentic compilation through the compiler-owned JSON Lines protocol.
 
-      Scope: Governs CLI result shaping and workspace metadata; excludes LSP and editor presentation.
+      Scope: Governs CLI result shaping and transport adaptation; excludes semantic interpretation, compilation-status computation, LSP, and editor presentation.
 
-      Trade-offs: Rich interactive terminal workflows remain outside the CLI.
+      Trade-offs: Rich interactive terminal workflows remain outside the CLI, while compile may stream human progress separately from machine-readable output.
 
-      Consequences: Workspace-dependent JSON exposes consistent metadata, diagnostics, and command-specific data.
+      Consequences: Deterministic commands expose consistent JSON results and compile preserves the shared versioned CompilationEvent stream.
 
       Revisit when: A reviewed interactive terminal workflow becomes a primary user requirement.
     }
@@ -278,6 +315,34 @@ expand SigilCli {
       Discarded alternatives: Propagating an optional ownership-source enumeration failure discards meaningful resolved context, while inserting the host failure into every core-owned projection misattributes the diagnostic.
 
       Consequences: Automation callers receive owned implementation targets when available, retain resolved contracts when optional enumeration fails, inspect command diagnostics for completeness, and receive separate projections for files containing multiple components.
+    }
+
+    CompilationFacade {
+      Decision: Expose SigilCompiler through sigil compile while keeping evaluation ownership and status computation in the compiler package.
+
+      Scope: Governs terminal and automation invocation; excludes editor presentation and compiler semantics.
+
+      Trade-offs: The CLI distribution must maintain compiler protocol compatibility.
+
+      Design issues addressed: Editor and automation consumers require incremental structured progress without parsing human terminal output.
+
+      Discarded alternatives: Bundling progress and the final report into one JSON document was rejected because it cannot represent a live event stream.
+
+      Consequences: Terminal, CI, and editor callers can invoke the same compiler runtime and report contract.
+    }
+
+    CompilationExitStatus {
+      Decision: Reserve compile exit code 0 for green, use code 1 for red or yellow, preserve usage and host-failure codes 2 and 3, and use code 130 for cancellation.
+
+      Scope: Governs sigil compile process termination; excludes status computation inside SigilCompiler and every other CLI command.
+
+      Trade-offs: Yellow remains distinguishable in the report but fails shell pipelines without additional parsing.
+
+      Design issues addressed: CI and automation should naturally require zero errors and zero warnings.
+
+      Discarded alternatives: Returning code 0 for yellow was rejected because it would let a non-green design pass an ordinary shell quality gate.
+
+      Consequences: A successful compile process has the same strict meaning as green compilation status.
     }
   }
 
@@ -356,6 +421,22 @@ expand SigilCli {
 
     ExitStatus {
       An unreadable required file produces exit code 3 rather than an unresolved-import diagnostic.
+    }
+
+    CompilationFacade {
+      Running sigil compile for a component streams progress and returns the authoritative report for that component and profile.
+
+      Cancelling compilation terminates delegated work and reports cancellation without changing workspace files.
+    }
+
+    CompilationExitStatus {
+      A green report exits with code 0.
+
+      A yellow report containing warnings exits with code 1.
+
+      A red report containing errors exits with code 1.
+
+      Cancelling an active compilation exits with code 130.
     }
   }
 }

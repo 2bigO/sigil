@@ -27,6 +27,20 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
     manifest.contributes.commands[0].command,
     "sigil.showComponentPreview",
   );
+  assert.equal(
+    manifest.contributes.commands[1].command,
+    "sigil.compileComponent",
+  );
+  assert.equal(
+    manifest.contributes.commands[2].command,
+    "sigil.compileWorkspace",
+  );
+  assert.equal(
+    manifest.contributes.configuration.properties[
+      "sigil.compile.executable"
+    ].default,
+    "sigil",
+  );
 });
 
 /*
