@@ -1,5 +1,6 @@
 import type { CommandRequest } from "./args.ts";
 import type { CommandResult } from "./output-model.ts";
+import { renderContextMarkdown } from "./markdown.ts";
 
 // @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
 export function formatResult(
@@ -13,6 +14,9 @@ export function formatResult(
     (request.format === undefined || request.format === "markdown")
   ) {
     return result.markdown;
+  }
+  if (result.command === "context" && request.format === "markdown") {
+    return renderContextMarkdown(result);
   }
   if (
     result.command === "version" &&

@@ -355,6 +355,21 @@ Deno.test("context exposes concept blocks and resolved namespaces", async () => 
       output.conceptNamespaces[0].publicConcepts[0].identifier,
       "Execution",
     );
+
+    const markdown = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(markdown.exitCode, EXIT_OK);
+    assert(markdown.stdout.includes("### Concept Namespace"));
+    assert(markdown.stdout.includes("#### Public Concepts"));
+    assert(markdown.stdout.includes("#### Accessible Concepts"));
+    assert(markdown.stdout.includes("#### Declared Concepts"));
+    assert(markdown.stdout.includes("- Execution (Feature,"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -613,6 +628,317 @@ ${validSigil("Consumer")}`,
       ).join(","),
       "consumer.sigil,provider-detail.sigil,provider.sigil",
     );
+
+    const markdown = await runCli([
+      "context",
+      root,
+      "--component",
+      "Consumer",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(markdown.exitCode, EXIT_OK);
+    assert(markdown.stdout.includes("### Direct Dependencies"));
+    assert(markdown.stdout.includes("#### Provider"));
+    assert(markdown.stdout.includes("##### Goal"));
+    assert(markdown.stdout.includes("- Test Provider."));
+    assert(markdown.stdout.includes("##### Interface"));
+    assert(markdown.stdout.includes("- run()"));
+    assert(markdown.stdout.includes("##### Dependency Decisions"));
+    assert(markdown.stdout.includes("provider-detail.sigil"));
+    assert(markdown.stdout.includes("Decision: Include direct rationale."));
+    assert(
+      !markdown.stdout.includes("Keep private mechanics hidden."),
+    );
+    assert(
+      markdown.stdout.indexOf("#### Provider") <
+        markdown.stdout.indexOf("Decision: Include direct rationale."),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+Deno.test("context renders component Markdown for contracts, expansions, diagnostics, and no matches", async () => {
+  const root = await makeWorkspace("context-markdown-component");
+  try {
+    await Deno.writeTextFile(
+      `${root}/plain.sigil`,
+      `component Plain {
+  goal {
+    Render without expansions.
+  }
+
+  interface {
+    PlainApi {
+      run plain.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/feature.sigil`,
+      `component Feature {
+  goal {
+    Render punctuation: <angle> & pipes | stars * safely.
+  }
+
+  interface {
+    FeatureApi {
+      run(value: "quoted") -> result?
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/one.sigil`,
+      `expand Feature {
+  logic {
+    FeatureApi {
+      One expansion.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/two.sigil`,
+      `expand Feature {
+  cases {
+    FeatureApi {
+      Second expansion.
+    }
+  }
+}
+`,
+    );
+    const plain = await runCli([
+      "context",
+      root,
+      "--component",
+      "Plain",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(plain.exitCode, EXIT_OK);
+    assert(plain.stdout.startsWith("# Sigil Context\n"));
+    assert(plain.stdout.includes("## Plain"));
+    assert(!plain.stdout.includes("### Expansions"));
+
+    const feature = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(feature.exitCode, EXIT_OK);
+    assert(feature.stdout.includes("## Feature"));
+    assert(
+      feature.stdout.includes(
+        "- Render punctuation: <angle> & pipes | stars * safely.",
+      ),
+    );
+    assert(feature.stdout.includes('- run(value: "quoted") -> result?'));
+    assert(
+      feature.stdout.indexOf("Source:") <
+        feature.stdout.indexOf("One expansion."),
+    );
+    assert(feature.stdout.includes("Source:"));
+    assert(feature.stdout.includes("One expansion."));
+    assert(feature.stdout.includes("Second expansion."));
+    assert(feature.stdout.includes("## Related Files"));
+
+    const missing = await runCli([
+      "context",
+      root,
+      "--component",
+      "Missing",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(missing.exitCode, EXIT_OK);
+    assert(missing.stdout.includes("No context matched"));
+
+    const defaultJson = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+    ]);
+    const explicitJson = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ]);
+    assertEquals(defaultJson.exitCode, EXIT_OK);
+    assertEquals(explicitJson.exitCode, EXIT_OK);
+    assertEquals(defaultJson.stdout, explicitJson.stdout);
+
+    await Deno.writeTextFile(
+      `${root}/broken.sigil`,
+      `component Broken {
+  goal {
+    Recover partial context.
+  }
+}
+`,
+    );
+
+    const broken = await runCli([
+      "context",
+      root,
+      "--component",
+      "Broken",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(broken.exitCode, EXIT_DIAGNOSTICS);
+    assert(broken.stdout.includes("## Broken"));
+    assert(broken.stdout.includes("SIGIL_MISSING_INTERFACE"));
+
+    const json = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ]);
+    assertEquals(json.exitCode, EXIT_DIAGNOSTICS);
+    assertEquals(parseJson(json.stdout).command, "context");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+Deno.test("context Markdown prefers file identity for duplicate component names", async () => {
+  const root = await makeWorkspace("context-markdown-duplicate-name");
+  try {
+    await Deno.writeTextFile(
+      `${root}/first.sigil`,
+      `component Duplicate {
+  goal {
+    First duplicate.
+  }
+
+  interface {
+    FirstApi {
+      first()
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second.sigil`,
+      `component Duplicate {
+  goal {
+    Second duplicate.
+  }
+
+  interface {
+    SecondApi {
+      second()
+    }
+  }
+}
+`,
+    );
+
+    const result = await runCli([
+      "context",
+      root,
+      "--file",
+      `${root}/second.sigil`,
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assert(result.stdout.includes("## Duplicate"));
+    assert(result.stdout.includes("- Second duplicate."));
+    assert(result.stdout.includes("#### SecondApi"));
+    assert(!result.stdout.includes("- First duplicate."));
+    assert(!result.stdout.includes("#### FirstApi"));
+    assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+Deno.test("context renders file Markdown for multiple components and normalizes paths", async () => {
+  const root = await makeWorkspace("context-markdown-file");
+  try {
+    await Deno.writeTextFile(
+      `${root}/multi.sigil`,
+      `component First {
+  goal {
+    First component.
+  }
+
+  interface {
+    FirstApi {
+      first()
+    }
+  }
+}
+
+component Second {
+  goal {
+    Second component.
+  }
+
+  interface {
+    SecondApi {
+      second()
+    }
+  }
+}
+`,
+    );
+
+    const absolute = await runCli([
+      "context",
+      root,
+      "--file",
+      `${root}/multi.sigil`,
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(absolute.exitCode, EXIT_OK);
+    assert(absolute.stdout.includes(`Workspace root: ${root}`));
+    assert(absolute.stdout.includes("## First"));
+    assert(absolute.stdout.includes("## Second"));
+    assert(
+      absolute.stdout.indexOf("## First") <
+        absolute.stdout.indexOf("## Second"),
+    );
+
+    const relative = await runCli([
+      "context",
+      ".",
+      "--file",
+      "multi.sigil",
+      "--format",
+      "markdown",
+    ], {
+      core: new CoreAdapter({ currentDirectory: root }),
+    });
+    assertEquals(relative.exitCode, EXIT_OK);
+    assert(!relative.stdout.includes(`Workspace root: ${root}`));
+    assert(!relative.stdout.includes(`Source: ${root}/multi.sigil`));
+    assert(relative.stdout.includes("multi.sigil"));
+    assert(relative.stdout.includes("## First"));
+    assert(relative.stdout.includes("## Second"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }

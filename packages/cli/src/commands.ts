@@ -10,6 +10,7 @@ import {
   diagnosticCounts,
   workspaceMetadata,
 } from "./output-model.ts";
+import { renderWorkspaceMarkdown } from "./markdown.ts";
 
 export interface CommandHandlerOptions {
   readonly core?: CoreAdapter;
@@ -119,7 +120,7 @@ export async function runCommand(
   return {
     command: "render",
     ...workspaceMetadata(resolved.workspace),
-    markdown: renderMarkdown(resolved, core),
+    markdown: renderWorkspaceMarkdown(resolved, core),
     diagnostics: resolved.diagnostics,
   };
 }
@@ -192,69 +193,4 @@ async function contextCommand(
       ...ownershipDiagnostics,
     ],
   };
-}
-
-function renderMarkdown(
-  resolved: Awaited<ReturnType<CoreAdapter["resolveWorkspace"]>>,
-  core: CoreAdapter,
-): string {
-  const lines = [
-    "# Sigil Workspace",
-    "",
-    `Workspace root: ${resolved.workspace.root}`,
-    `Workspace: ${resolved.workspace.config?.workspace.name ?? "unresolved"}`,
-    `Sigil: ${resolved.workspace.config?.sigilVersion ?? "unresolved"}`,
-    "",
-  ];
-  for (const contract of core.componentContracts(resolved)) {
-    lines.push(
-      `## ${contract.name}`,
-      "",
-      `Source: ${contract.filePath}`,
-      "",
-      "### Goal",
-      ...formatList(contract.goalLines),
-      "",
-      "### Interface",
-    );
-    if (contract.ungroupedInterfaceLines.length) {
-      lines.push(...formatList(contract.ungroupedInterfaceLines));
-    } else if (!contract.interfaceConcepts.length) {
-      lines.push("- none");
-    }
-    for (const concept of contract.interfaceConcepts) {
-      lines.push(
-        "",
-        `#### ${concept.identifier}`,
-        ...formatList(concept.lines),
-      );
-    }
-    const expansion = core.collectedExpansionFor(resolved, contract.name);
-    if (expansion?.expands.length) {
-      lines.push("", "### Expansions");
-      for (const item of expansion.expands) {
-        lines.push("", `Source: ${item.filePath}`);
-        for (const section of item.declaration.sections) {
-          lines.push(
-            "",
-            `#### ${section.name}`,
-            ...formatList(section.lines.map((line) => line.text)),
-          );
-        }
-      }
-    }
-    lines.push("");
-  }
-  lines.push("## Diagnostics", "");
-  if (!resolved.diagnostics.length) lines.push("- none");
-  else {
-    for (const item of resolved.diagnostics) {
-      lines.push(`- ${item.severity} ${item.code}: ${item.message}`);
-    }
-  }
-  return `${lines.join("\n")}\n`;
-}
-
-function formatList(lines: readonly string[]): string[] {
-  return lines.length ? lines.map((line) => `- ${line}`) : ["- none"];
 }
