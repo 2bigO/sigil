@@ -459,6 +459,72 @@ export function hiddenFeature() {}
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+Deno.test("context recovers a failed optional ownership-source enumeration", async () => {
+  const root = await makeWorkspace("failed-ownership-source-enumeration");
+  try {
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      validSigil("Feature"),
+    );
+    await Deno.writeTextFile(
+      `${root}/implementation.ts`,
+      `// @sigil implements contract.sigil::Feature interface
+export function runFeature() {}
+`,
+    );
+
+    const recovered = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ], {
+      core: new CoreAdapter({
+        currentDirectory: root,
+        fs: new FailingListFileSystem(2),
+      }),
+    });
+
+    assertEquals(recovered.exitCode, EXIT_OK);
+    assertEquals(recovered.stderr, "");
+    const output = parseJson(recovered.stdout);
+    assertEquals(output.selectedComponents[0].name, "Feature");
+    assertEquals(output.componentContracts[0].name, "Feature");
+    assertEquals(output.ownedImplementationProjections.length, 1);
+    assertEquals(output.ownedImplementationProjections[0].targets.length, 0);
+    const diagnostic = output.diagnostics.find(
+      (item: { code: string }) =>
+        item.code === "SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY",
+    );
+    assert(diagnostic);
+    assertEquals(diagnostic.severity, "warning");
+    assertEquals(diagnostic.filePath, normalizePath(root));
+    assert(diagnostic.message.includes("Enumeration failed"));
+
+    const requiredFailure = await runCli([
+      "context",
+      root,
+      "--component",
+      "Feature",
+      "--format",
+      "json",
+    ], {
+      core: new CoreAdapter({
+        currentDirectory: root,
+        fs: new FailingListFileSystem(1),
+      }),
+    });
+    assertEquals(requiredFailure.exitCode, EXIT_RUNTIME);
+    assertEquals(requiredFailure.stdout, "");
+    assert(requiredFailure.stderr.includes("Enumeration failed"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
 Deno.test("context includes direct dependency contracts and decision rationale", async () => {
   const root = await makeWorkspace("agent-dependency-context");
@@ -1157,6 +1223,32 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
   }
 
   listFiles(root: string): Promise<readonly string[]> {
+    return this.#base.listFiles(root);
+  }
+}
+
+class FailingListFileSystem implements SigilFileSystem {
+  readonly #base = new DenoSigilFileSystem();
+  readonly #failureCall: number;
+  #listCalls = 0;
+
+  constructor(failureCall: number) {
+    this.#failureCall = failureCall;
+  }
+
+  readTextFile(path: string): Promise<string> {
+    return this.#base.readTextFile(path);
+  }
+
+  exists(path: string): Promise<boolean> {
+    return this.#base.exists(path);
+  }
+
+  listFiles(root: string): Promise<readonly string[]> {
+    this.#listCalls++;
+    if (this.#listCalls === this.#failureCall) {
+      return Promise.reject(new Error(`Enumeration failed: ${root}`));
+    }
     return this.#base.listFiles(root);
   }
 }

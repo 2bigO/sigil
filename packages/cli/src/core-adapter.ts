@@ -68,6 +68,12 @@ export interface VersionInfo {
   readonly coreVersion: string;
 }
 
+// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+interface ImplementationSourceDiscoveryResult {
+  readonly sources: readonly ImplementationSource[];
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+
 export class CoreAdapter {
   readonly #fs: SigilFileSystem;
   readonly #currentDirectory: string;
@@ -213,9 +219,28 @@ export class CoreAdapter {
   // @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
   async implementationSourcesFor(
     resolved: ResolvedSigilWorkspace,
-  ): Promise<readonly ImplementationSource[]> {
-    const paths = (await this.#fs.listFiles(resolved.workspace.root))
-      .filter(isSupportedImplementationSource);
+  ): Promise<ImplementationSourceDiscoveryResult> {
+    let paths: readonly string[];
+    try {
+      paths = (await this.#fs.listFiles(resolved.workspace.root))
+        .filter(isSupportedImplementationSource);
+    } catch (error) {
+      return {
+        sources: [],
+        diagnostics: [
+          diagnostic(
+            "SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY",
+            `Unable to enumerate implementation sources under ${resolved.workspace.root}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            {
+              severity: "warning",
+              filePath: resolved.workspace.root,
+            },
+          ),
+        ],
+      };
+    }
     const sources: ImplementationSource[] = [];
     for (const filePath of paths) {
       try {
@@ -227,7 +252,7 @@ export class CoreAdapter {
         // A file can disappear or become unreadable after workspace listing.
       }
     }
-    return sources;
+    return { sources, diagnostics: [] };
   }
   // @sigil uses packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
   collectedExpansionFor(

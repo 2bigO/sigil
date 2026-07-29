@@ -153,11 +153,13 @@ async function contextCommand(
   const agentDependencyContexts = selectedComponents.map((component) =>
     core.agentDependencyContextFor(resolved, component.name)
   ).filter((item) => item !== undefined);
-  const implementationSources = await core.implementationSourcesFor(resolved);
+  const implementationSourceDiscovery = await core.implementationSourcesFor(
+    resolved,
+  );
   const ownedImplementationProjections = selectedComponents.map((component) =>
     core.ownedImplementationTargetsFor(
       resolved,
-      implementationSources,
+      implementationSourceDiscovery.sources,
       component.name,
     )
   ).filter((item) => item !== undefined);
@@ -184,7 +186,11 @@ async function contextCommand(
     ownedImplementationProjections,
     relatedFilePaths,
     glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
-    diagnostics: [...resolved.diagnostics, ...ownershipDiagnostics],
+    diagnostics: [
+      ...resolved.diagnostics,
+      ...implementationSourceDiscovery.diagnostics,
+      ...ownershipDiagnostics,
+    ],
   };
 }
 
