@@ -12,9 +12,11 @@ documentation.
 
 Expected skill behavior:
 
-1. Determine the repository root and run `sigil init` before detailed project
-   evidence gathering.
-2. Validate the initialized config with `sigil version` and `sigil check`.
+1. Determine the repository root, inventory Sigil paths, and report the
+   repository as unconfigured without mutation.
+2. If initialization is requested, submit the exact root and files to
+   `ReviewGate(action: workspace-initialization)`, run `sigil init` only when
+   ready, and validate with `sigil version` and `sigil check`.
 3. Inspect repository-level documentation, dependency definitions, executable
    configuration, and entrypoints without treating them as desired intent.
 4. Explain what the evidence supports and use the shared design conversation for
@@ -30,16 +32,19 @@ Expected skill behavior:
 8. Propose an exact meaningful ordinary summary component in the workspace-root
    `#module.sigil`; include direct imports only when they define intentional
    directory-import shorthand.
-9. Wait for approval, write only the approved boundary module index, validate
-   it, and stop at the Sigil review gate.
-10. Only after configured-boundary summary approval, focus on the requested
-    component, classify its coverage, and gather task-specific evidence.
+9. Submit the exact boundary module index to
+   `ReviewGate(action: sigil-change)`, write only when ready, validate it, and
+   report the written result without another approval gate.
+10. After the ready boundary summary is written and validated, focus on the
+    requested component, classify its coverage, and gather task-specific
+    evidence.
 11. Report conflicting current and intended behavior and propose exact task
     Sigil before editing.
-12. After task-Sigil approval, write and validate it, then stop at the
-    task-Sigil review gate.
+12. Submit exact task Sigil to `ReviewGate(action: sigil-change)`, then write,
+    validate, and report it only when ready.
 13. If the requested implementation change lacks clear Sigil coverage,
     collaborate with the user to define and approve that coverage before
     changing code.
-14. Write implementation code only after the user approves the written task
-    Sigil and explicitly requests implementation.
+14. Write implementation code only when
+    `ReviewGate(action: implementation)` is ready for the validated written task
+    Sigil and exact implementation scope.

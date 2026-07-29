@@ -2,6 +2,7 @@ import type { SigilGraph, SigilResolution } from "./model.ts";
 
 export type { SigilGraph } from "./model.ts";
 
+// @sigil implements packages/core/src/graph.sigil::SigilGraphBuilder::GraphConstruction interface,logic,constraints
 export function buildSigilGraph(resolution: SigilResolution): SigilGraph {
   return {
     componentNodes: resolution.components.map((component) => ({

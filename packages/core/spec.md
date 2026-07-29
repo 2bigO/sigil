@@ -1,6 +1,6 @@
 # sigil-core Requirements
 
-**Status:** Accepted for 0.6.0 **Last updated:** 2026-07-24
+**Status:** Accepted for 0.7.0 **Last updated:** 2026-07-28
 
 This document defines the 0.6 product requirements for `sigil-core`.
 Architecture style, module boundaries, and dependency rules live in
@@ -13,9 +13,9 @@ Architecture style, module boundaries, and dependency rules live in
 It must give CLI, LSP, editor integrations, renderers, agent context builders,
 and tests one consistent way to understand Sigil.
 
-## 2. Version 0.6 Scope
+## 2. Version 0.7 Scope
 
-Version 0.6 extends the parser and resolver foundation with reviewed glossary
+Version 0.7 extends the parser and resolver foundation with reviewed glossary
 authority, scoped terminology projections, reusable concept identifiers, and
 public/private concept visibility, and optional decision rationale.
 
@@ -63,7 +63,7 @@ It must:
 
 ## 3. Out Of Scope
 
-Version 0.6 must not implement:
+Version 0.7 must not implement:
 
 - CLI argument parsing;
 - LSP transport;
@@ -182,7 +182,7 @@ Malformed Sigil should produce partial models plus diagnostics.
 `sigil-core` should fail only when the host-provided filesystem boundary itself
 cannot satisfy an operation required by the requested API.
 
-Version 0.6 diagnostics must include stable codes for:
+Version 0.7 diagnostics must include stable codes for:
 
 - parse structure errors;
 - unknown section;
@@ -223,7 +223,7 @@ paths.
 
 ## 9. Acceptance Scenarios
 
-Version 0.6 is acceptable when tests demonstrate that `sigil-core` can:
+Version 0.7 is acceptable when tests demonstrate that `sigil-core` can:
 
 - parse `examples/promise/promise.sigil`;
 - preserve semantic lines with owner, section, text, file, and source range;

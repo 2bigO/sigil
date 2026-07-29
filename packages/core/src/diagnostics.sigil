@@ -2,9 +2,9 @@
 
 component SigilDiagnostics {
   goal {
-    Construct stable machine-readable diagnostics for recoverable Sigil source, configuration, workspace, and resolution problems.
+    Construct stable machine-readable diagnostics for recoverable Sigil source, configuration, workspace, resolution, and optional host-enrichment problems.
 
-    Keep diagnostic creation independent from host failures and higher core stages.
+    Keep core-stage diagnostic creation independent from required host failures and higher core stages while allowing hosts to diagnose recoverable optional enrichment failures.
   }
 
   interface {
@@ -29,11 +29,27 @@ expand SigilDiagnostics {
 
       Parsing, configuration, workspace, and resolution problems use diagnostics when partial results remain meaningful.
 
-      Host filesystem and runtime failures are not converted into Sigil diagnostics.
+      Required core filesystem and runtime failures are not converted into Sigil diagnostics.
+
+      Hosts may convert an optional enrichment failure into a diagnostic when the primary result remains meaningful.
     }
 
     DiagnosticCode {
       Every diagnostic code has one stable severity-bearing machine-readable representation.
+    }
+  }
+
+  decisions {
+    DiagnosticConstruction {
+      Decision: Permit hosts to convert a host failure into a structured diagnostic only when it occurs during optional enrichment and a meaningful primary result remains available.
+
+      Scope: Governs diagnostic construction by core consumers after successful primary processing; required core filesystem, runtime, workspace-loading, and resolution failures continue to propagate.
+
+      Trade-offs: Callers retain useful partial results but must inspect diagnostics to determine whether optional enrichment is incomplete.
+
+      Discarded alternatives: Converting every host failure hides required-operation failure boundaries, while propagating optional enrichment failures discards meaningful primary results.
+
+      Consequences: Hosts may report optional enrichment incompleteness without changing required core failure semantics.
     }
   }
 
@@ -56,12 +72,16 @@ expand SigilDiagnostics {
       Two different accessible concepts with identifiers equal without regard to case produce error SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER.
 
       A valid identifier that is not PascalCase or contains a hyphen or underscore produces informational SIGIL_CONCEPT_IDENTIFIER_STYLE.
+
+      An optional ownership-source enumeration failure produces warning SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY when primary context data remains available.
     }
 
     DiagnosticConstruction {
       Omitting severity constructs an error diagnostic.
 
-      A filesystem permission failure rejects the host operation instead of producing a Sigil diagnostic.
+      A filesystem permission failure during a required operation rejects the host operation instead of producing a Sigil diagnostic.
+
+      A filesystem permission failure during optional host enrichment can produce a diagnostic while preserving the primary result.
     }
   }
 }
