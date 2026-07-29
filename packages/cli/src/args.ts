@@ -69,6 +69,7 @@ export interface ContextRequest extends GlobalOptions {
   readonly command: "context";
   readonly component?: string;
   readonly file?: string;
+  readonly includeDependents: boolean;
   readonly path?: string;
 }
 export interface RenderRequest extends GlobalOptions {
@@ -134,6 +135,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let quiet = false;
   let component: string | undefined;
   let file: string | undefined;
+  let includeDependents = false;
   let name: string | undefined;
   const include: string[] = [];
   const exclude: string[] = [];
@@ -200,6 +202,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         file = value;
         break;
       }
+      case "--include-dependents":
+        includeDependents = true;
+        break;
       case "--name": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -230,6 +235,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (commandName !== "context" && (component || file)) {
     return usage(
       `${commandName} does not accept --component or --file.`,
+      commandHelpTopic,
+    );
+  }
+  if (commandName !== "context" && includeDependents) {
+    return usage(
+      `${commandName} does not accept --include-dependents.`,
       commandHelpTopic,
     );
   }
@@ -360,12 +371,19 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (!component && !file) {
     return usage("context requires --component or --file.", "context");
   }
+  if (includeDependents && !component) {
+    return usage(
+      "context accepts --include-dependents only with --component.",
+      "context",
+    );
+  }
   return {
     kind: "ok",
     request: {
       command: "context",
       component,
       file,
+      includeDependents,
       path: positional[0],
       ...base,
     },

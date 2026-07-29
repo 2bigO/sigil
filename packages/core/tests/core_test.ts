@@ -1,5 +1,6 @@
 import {
   agentDependencyContextFor,
+  agentDependentContextFor,
   ancestorsFrom,
   collectedExpansionFor,
   componentContracts,
@@ -776,6 +777,116 @@ component Consumer {
     !context.dependencyContracts.some((contract) => contract.name === "Leaf"),
   );
   assertEquals(agentDependencyContextFor(resolved, "Missing"), undefined);
+});
+
+Deno.test("projects direct importing-file context from graph edges", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "provider.sigil": `@consumer-a.sigil import { ConsumerA }
+
+component Provider {
+  goal {
+    Serve importing files.
+  }
+
+  interface {
+    ProviderApi {
+      provide()
+    }
+  }
+}
+`,
+    "consumer-a.sigil": `@provider.sigil import { Provider }
+@provider.sigil import { Provider }
+
+component ConsumerA {
+  goal {
+    Import provider.
+  }
+
+  interface {
+    ConsumerAApi {
+      consumeA()
+    }
+  }
+}
+
+component ConsumerB {
+  goal {
+    Share an importing file.
+  }
+
+  interface {
+    ConsumerBApi {
+      consumeB()
+    }
+  }
+}
+`,
+    "consumer-b.sigil": `@provider.sigil import { Provider }
+
+component ConsumerC {
+  goal {
+    Import provider separately.
+  }
+
+  interface {
+    ConsumerCApi {
+      consumeC()
+    }
+  }
+}
+`,
+    "orphan-import.sigil": `@provider.sigil import { Provider }
+`,
+    "unused.sigil": `component Unused {
+  goal {
+    Import nothing.
+  }
+
+  interface {
+    UnusedApi {
+      unused()
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const context = agentDependentContextFor(resolved, "Provider");
+
+  assert(context);
+  assertEquals(context.selectedComponent.name, "Provider");
+  assertEquals(
+    context.importingFiles.map((item) => item.filePath).join(","),
+    "consumer-a.sigil,consumer-b.sigil,orphan-import.sigil",
+  );
+  assertEquals(
+    context.importingFiles[0].contextualContracts.map((item) => item.name)
+      .join(","),
+    "ConsumerA,ConsumerB",
+  );
+  assertEquals(context.importingFiles[0].importEdges.length, 1);
+  assertEquals(
+    context.importingFiles[0].importEdges[0].sourceFile,
+    "consumer-a.sigil",
+  );
+  assertEquals(context.importingFiles[0].importedComponent.name, "Provider");
+  assertEquals(context.importingFiles[2].contextualContracts.length, 0);
+  assert(
+    !context.importingFiles.some((item) => item.filePath === "provider.sigil"),
+  );
+  assertEquals(
+    context.relatedFilePaths.join(","),
+    "consumer-a.sigil,consumer-b.sigil,orphan-import.sigil",
+  );
+
+  const unused = agentDependentContextFor(resolved, "Unused");
+  assert(unused);
+  assertEquals(unused.importingFiles.length, 0);
+  assertEquals(agentDependentContextFor(resolved, "Missing"), undefined);
 });
 
 Deno.test("separates relationship resolution from graph construction", async () => {

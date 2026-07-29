@@ -416,6 +416,117 @@ ${validSigil("Consumer")}`,
   }
 });
 
+Deno.test("context optionally includes direct importing-file context", async () => {
+  const root = await makeWorkspace("agent-dependent-context");
+  try {
+    await Deno.writeTextFile(
+      `${root}/provider.sigil`,
+      validSigil("Provider"),
+    );
+    await Deno.writeTextFile(
+      `${root}/consumer.sigil`,
+      `@provider.sigil import { Provider }
+
+component ConsumerA {
+  goal {
+    Import provider.
+  }
+
+  interface {
+    runA()
+  }
+}
+
+component ConsumerB {
+  goal {
+    Share an importing file.
+  }
+
+  interface {
+    runB()
+  }
+}
+`,
+    );
+
+    const defaultResult = await runCli([
+      "context",
+      root,
+      "--component",
+      "Provider",
+      "--format",
+      "json",
+    ]);
+    assertEquals(defaultResult.exitCode, EXIT_OK);
+    assert(!("agentDependentContexts" in parseJson(defaultResult.stdout)));
+
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Provider",
+      "--include-dependents",
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_OK);
+    const output = parseJson(result.stdout);
+    const context = output.agentDependentContexts[0];
+    assertEquals(context.selectedComponent.name, "Provider");
+    assertEquals(
+      context.importingFiles.map((item: { filePath: string }) =>
+        item.filePath.slice(item.filePath.lastIndexOf("/") + 1)
+      ).join(","),
+      "consumer.sigil",
+    );
+    assertEquals(context.importingFiles[0].importedComponent.name, "Provider");
+    assertEquals(
+      context.importingFiles[0].contextualContracts.map((
+        item: { name: string },
+      ) => item.name).join(","),
+      "ConsumerA,ConsumerB",
+    );
+    assertEquals(context.importingFiles[0].importEdges.length, 1);
+
+    const markdown = await runCli([
+      "context",
+      root,
+      "--component",
+      "Provider",
+      "--include-dependents",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(markdown.exitCode, EXIT_OK);
+    assertEquals(parseJson(markdown.stdout).agentDependentContexts.length, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("context dependent flag requires component selection", async () => {
+  const root = await makeWorkspace("dependent-usage");
+  try {
+    await Deno.writeTextFile(`${root}/provider.sigil`, validSigil("Provider"));
+    const usage = await runCli([
+      "context",
+      root,
+      "--file",
+      `${root}/provider.sigil`,
+      "--include-dependents",
+    ]);
+    assertEquals(usage.exitCode, EXIT_USAGE);
+    assertEquals(usage.stdout, "");
+    assert(
+      usage.stderr.includes(
+        "context accepts --include-dependents only with --component",
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("check rejects an imports-only module index in an internal directory", async () => {
   const root = await makeWorkspace("internal-module-index");
   try {
