@@ -1,15 +1,19 @@
 import {
+  isSupportedImplementationSource,
   loadSigilWorkspace,
   normalizePath,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
   type SigilFileSystem,
+  supportedImplementationSourceGlobPatterns,
 } from "@qoherent/sigil-core";
 import {
   definitionAt,
   diagnosticsByUri,
   documentSymbols,
   hoverAt,
+  OwnershipHoverCache,
+  OwnershipSourceIndex,
   renderDocumentMarkdown,
   semanticTokens,
 } from "./features.ts";
@@ -20,6 +24,7 @@ import {
 } from "./filesystem.ts";
 import type {
   DidChangeTextDocumentParams,
+  DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
   DocumentSymbolParams,
@@ -32,7 +37,7 @@ import type {
   SemanticTokensParams,
   TextDocumentPositionParams,
 } from "./types.ts";
-import { isRecord, isRequest } from "./types.ts";
+import { isRecord, isRequest, isResponse } from "./types.ts";
 import metadata from "../deno.json" with { type: "json" };
 
 export const SIGIL_LSP_VERSION = metadata.version;
@@ -43,6 +48,8 @@ const ERROR_INVALID_PARAMS = -32602;
 const ERROR_INTERNAL = -32603;
 const ERROR_SERVER_NOT_INITIALIZED = -32002;
 const ERROR_REQUEST_CANCELLED = -32800;
+const OWNERSHIP_WATCH_REQUEST_ID = "sigil/ownership-watch/request";
+const OWNERSHIP_WATCH_REGISTRATION_ID = "sigil/ownership-watch";
 
 const RENDER_DOCUMENT_COMMAND = "sigil.renderDocument";
 
@@ -57,15 +64,34 @@ export interface SigilLanguageServerOptions {
   readonly currentDirectory?: string;
 }
 
+/**
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization interface,state,logic,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::ReadOnlyLanguageService interface,constraints
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+ * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching logic,constraints,cases
+ */
 export class SigilLanguageServer {
   readonly #fs: OverlaySigilFileSystem;
   readonly #currentDirectory: string;
   readonly #openDocuments = new Map<string, { uri: string; version: number }>();
   readonly #publishedUris = new Set<string>();
   readonly #cancelled = new Set<JsonRpcId>();
+  readonly #pendingServerRequests = new Set<JsonRpcId>();
   #state: ServerState = "uninitialized";
   #workspaceStart: string;
   #resolved?: ResolvedSigilWorkspace;
+  #ownershipSourceIndex?: OwnershipSourceIndex;
+  #ownershipSourceRoot?: string;
+  #ownershipHoverCache?: OwnershipHoverCache;
+  #supportsOwnershipWatchRegistration = false;
+  #ownershipWatchRegistrationRequested = false;
   #exitCode: number | undefined;
 
   constructor(options: SigilLanguageServerOptions = {}) {
@@ -91,6 +117,10 @@ export class SigilLanguageServer {
   }
 
   async handle(message: JsonRpcIncoming): Promise<readonly JsonRpcOutgoing[]> {
+    if (isResponse(message)) {
+      if (message.id !== null) this.#pendingServerRequests.delete(message.id);
+      return [];
+    }
     if (message.method === "$/cancelRequest") {
       const id = cancellationId(message.params);
       if (id !== undefined) this.cancel(id);
@@ -177,13 +207,27 @@ export class SigilLanguageServer {
     try {
       switch (method) {
         case "initialized":
-          return this.#diagnosticNotifications();
+          return [
+            ...this.#diagnosticNotifications(),
+            ...this.#ownershipWatchRegistration(),
+          ];
         case "textDocument/didOpen":
           return await this.#didOpen(params);
         case "textDocument/didChange":
           return await this.#didChange(params);
         case "textDocument/didClose":
           return await this.#didClose(params);
+        case "workspace/didChangeWatchedFiles": {
+          const value = didChangeWatchedFilesParams(params);
+          if (
+            value.changes.some((change) =>
+              isSupportedImplementationSource(fileUriToPath(change.uri))
+            )
+          ) {
+            this.#invalidateOwnershipSourceIndex();
+          }
+          return [];
+        }
         default:
           return [];
       }
@@ -199,6 +243,9 @@ export class SigilLanguageServer {
     const value = initializeParams(params);
     const uri = value.workspaceFolders?.[0]?.uri ?? value.rootUri ?? undefined;
     this.#workspaceStart = uri ? fileUriToPath(uri) : this.#currentDirectory;
+    this.#supportsOwnershipWatchRegistration =
+      value.capabilities?.workspace?.didChangeWatchedFiles
+        ?.dynamicRegistration === true;
     await this.#reload();
     this.#state = "running";
     return {
@@ -282,10 +329,11 @@ export class SigilLanguageServer {
 
   async #hover(params: unknown): Promise<unknown> {
     const value = textDocumentPositionParams(params);
-    if (!this.#resolved) return null;
+    if (!this.#resolved || !this.#ownershipHoverCache) return null;
     return await hoverAt(
       this.#resolved,
       this.#fs,
+      this.#ownershipHoverCache,
       fileUriToPath(value.textDocument.uri),
       value.position,
     );
@@ -313,10 +361,11 @@ export class SigilLanguageServer {
         `${RENDER_DOCUMENT_COMMAND} requires a document URI argument.`,
       );
     }
-    if (!this.#resolved) return "";
+    if (!this.#resolved || !this.#ownershipHoverCache) return "";
     return await renderDocumentMarkdown(
       this.#resolved,
       this.#fs,
+      this.#ownershipHoverCache,
       fileUriToPath(uri),
     );
   }
@@ -327,6 +376,61 @@ export class SigilLanguageServer {
       currentDirectory: this.#currentDirectory,
     });
     this.#resolved = resolveSigilWorkspace(workspace);
+    this.#rebuildOwnershipProjectionCache();
+  }
+
+  #rebuildOwnershipProjectionCache(): void {
+    if (!this.#resolved) {
+      this.#ownershipSourceIndex = undefined;
+      this.#ownershipSourceRoot = undefined;
+      this.#ownershipHoverCache = undefined;
+      return;
+    }
+    const root = normalizePath(this.#resolved.workspace.root);
+    if (!this.#ownershipSourceIndex || this.#ownershipSourceRoot !== root) {
+      this.#ownershipSourceIndex = new OwnershipSourceIndex(root, this.#fs);
+      this.#ownershipSourceRoot = root;
+    }
+    this.#ownershipHoverCache = new OwnershipHoverCache(
+      this.#resolved,
+      this.#ownershipSourceIndex,
+    );
+  }
+
+  #invalidateOwnershipSourceIndex(): void {
+    if (!this.#resolved) return;
+    const root = normalizePath(this.#resolved.workspace.root);
+    this.#ownershipSourceIndex = new OwnershipSourceIndex(root, this.#fs);
+    this.#ownershipSourceRoot = root;
+    this.#ownershipHoverCache = new OwnershipHoverCache(
+      this.#resolved,
+      this.#ownershipSourceIndex,
+    );
+  }
+
+  #ownershipWatchRegistration(): readonly JsonRpcOutgoing[] {
+    if (
+      !this.#supportsOwnershipWatchRegistration ||
+      this.#ownershipWatchRegistrationRequested
+    ) return [];
+    this.#ownershipWatchRegistrationRequested = true;
+    this.#pendingServerRequests.add(OWNERSHIP_WATCH_REQUEST_ID);
+    return [{
+      jsonrpc: "2.0",
+      id: OWNERSHIP_WATCH_REQUEST_ID,
+      method: "client/registerCapability",
+      params: {
+        registrations: [{
+          id: OWNERSHIP_WATCH_REGISTRATION_ID,
+          method: "workspace/didChangeWatchedFiles",
+          registerOptions: {
+            watchers: supportedImplementationSourceGlobPatterns().map(
+              (globPattern) => ({ globPattern, kind: 7 }),
+            ),
+          },
+        }],
+      },
+    }];
   }
 
   #diagnosticNotifications(
@@ -400,7 +504,29 @@ function initializeParams(params: unknown): InitializeParams {
       return { uri: folder.uri };
     });
   }
-  return { rootUri: rootUri as string | null | undefined, workspaceFolders };
+  const capabilities = optionalRecord(value.capabilities);
+  const workspace = optionalRecord(capabilities.workspace);
+  const watchedFiles = optionalRecord(workspace.didChangeWatchedFiles);
+  const dynamicRegistration = watchedFiles.dynamicRegistration;
+  if (
+    dynamicRegistration !== undefined &&
+    typeof dynamicRegistration !== "boolean"
+  ) {
+    throw new InvalidParamsError(
+      "initialize watched-file dynamicRegistration must be a boolean.",
+    );
+  }
+  return {
+    rootUri: rootUri as string | null | undefined,
+    workspaceFolders,
+    capabilities: {
+      workspace: {
+        didChangeWatchedFiles: {
+          dynamicRegistration,
+        },
+      },
+    },
+  };
 }
 
 function didOpenParams(params: unknown): DidOpenTextDocumentParams {
@@ -444,6 +570,30 @@ function didChangeParams(params: unknown): DidChangeTextDocumentParams {
 function didCloseParams(params: unknown): DidCloseTextDocumentParams {
   const value = requiredRecord(params, "didClose params");
   return { textDocument: textDocumentIdentifier(value.textDocument) };
+}
+
+function didChangeWatchedFilesParams(
+  params: unknown,
+): DidChangeWatchedFilesParams {
+  const value = requiredRecord(params, "didChangeWatchedFiles params");
+  if (
+    !Array.isArray(value.changes) ||
+    !value.changes.every((change) =>
+      isRecord(change) &&
+      typeof change.uri === "string" &&
+      (change.type === 1 || change.type === 2 || change.type === 3)
+    )
+  ) {
+    throw new InvalidParamsError(
+      "didChangeWatchedFiles requires URI and change type entries.",
+    );
+  }
+  return {
+    changes: value.changes.map((change) => ({
+      uri: change.uri as string,
+      type: change.type as 1 | 2 | 3,
+    })),
+  };
 }
 
 function documentSymbolParams(params: unknown): DocumentSymbolParams {

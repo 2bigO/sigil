@@ -1,54 +1,132 @@
+<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DesignConversation interface,state,logic,constraints,cases -->
+
 # Sigil Design Conversation
 
-Use this procedure whenever material clarification is needed before Sigil can be
-proposed or implementation can proceed. It is shared by Greenfield design,
-Brownfield reconstruction, established-Sigil review, and implementation work.
+Use this procedure for explicit design, review, or improvement work or when
+inspected evidence exposes a material decision that requires user judgment. It
+is shared by Greenfield design, Brownfield reconstruction, established-Sigil
+review, and implementation work.
 
-The conversation turns an incomplete idea or conflicting evidence into a
-coherent contract through small sequential decisions. It is not an exhaustive
-questionnaire and does not replace the user's authority.
+Do not enter design conversation merely because a request uses Sigil, triggers
+preflight, or asks an ordinary status, explanation, diagnosis, or mechanical
+change with no material design choice.
+
+The conversation guides incomplete intent and existing contracts toward
+coherent, modular, and improvable designs. It is not an exhaustive questionnaire
+and does not replace the user's authority.
 
 ## Contents
 
-1. Maintain the conversation state
-2. Prioritize decisions
-3. Use external guidance evidence
-4. Run one conversational turn
-5. Handle uncertainty and conflict
-6. Run a correction conversation
-7. Use checkpoints
-8. Finish or block the conversation
-9. Limits and examples
+1. Decide whether conversation applies
+2. Build DesignContext
+3. Maintain conversation state and mode
+4. Prioritize decisions
+5. Use external guidance evidence
+6. Run one conversational turn
+7. Handle uncertainty, findings, and conflicts
+8. Use checkpoints
+9. Finish or block the conversation
+10. Limits and examples
 
-## 1. Maintain The Conversation State
+## 1. Decide Whether Conversation Applies
+
+Enter DesignConversation when at least one of these applies:
+
+- the user explicitly requests design, architecture, review, or improvement;
+- product or contract intent is incomplete and a material decision remains;
+- review exposes a suspected or confirmed material problem that requires user
+  judgment;
+- a coherent existing contract has a credible improvement opportunity that
+  requires a project choice;
+- external guidance exposes a material conflict, alternative, or improvement
+  that cannot be adopted without user authority.
+
+Do not enter for:
+
+- ordinary read-only status, explanation, or diagnosis;
+- deterministic validation by itself;
+- a mechanical implementation change with established coverage and no material
+  design choice;
+- an already coherent request whose relevant decisions and Sigil remain
+  established;
+- immaterial preferences or hypothetical edge cases.
+
+Conversation applicability is a routing decision, not an approval gate.
+
+## 2. Build DesignContext
+
+Before asking a material architectural or design question, consume the component
+picture produced by semantic and modularity review. DesignContext includes, when
+applicable:
+
+- the selected component and exact goal and interface;
+- matching expands;
+- imported and importing contracts;
+- relevant workspace-root or declared-member summaries;
+- nearby Sigil that owns related state, policy, lifecycle, or behavior;
+- repository implementation, tests, documentation, and configuration evidence;
+- observed behavior, user-confirmed intent, unresolved ambiguity, improvement
+  opportunities, suspected findings, and confirmed problems;
+- applicable glossary context and external-guidance evidence.
+
+Use `sigil context` and `sigil graph` through the established-Sigil and
+standards-review procedures. DesignConversation consumes this context; it does
+not redefine graph discovery or evidence classification.
+
+Context is sufficient when the affected contract, related ownership and
+dependencies, repository evidence, and material review findings are available
+for the current decision. Refresh affected related-Sigil evidence after a
+material decision and before proposal synthesis.
+
+For Greenfield work with no related contract, record that absence and inspect
+available boundary summaries and neighboring contracts instead of inventing
+relationships.
+
+## 3. Maintain Conversation State And Mode
 
 Track the current phase as:
 
-- **framing:** establish the intended outcome, users or callers, boundary, and
+- **framing:** establish intended outcome, users or callers, boundary, and
   relevant evidence;
-- **exploring:** discover material decisions, assumptions, conflicts, and
-  pitfalls;
+- **exploring:** discover material decisions, assumptions, conflicts,
+  improvements, and pitfalls;
 - **resolving:** decide the questions that shape the contract;
 - **synthesizing:** summarize the coherent design and prepare exact Sigil;
 - **awaiting approval:** wait for the user to approve, reject, or revise the
   proposal.
 
-Maintain a lightweight decision ledger in conversation context. Classify every
+Track one conversation mode:
+
+- **exploration:** intent or contract design is materially incomplete;
+- **improvement:** the existing contract is coherent, but credible evidence
+  indicates an optional material improvement;
+- **correction:** evidence confirms a material semantic, architectural, or
+  design problem.
+
+A suspected finding remains under investigation. It does not automatically
+enter correction mode or block unrelated user work. Correction mode begins only
+after evidence confirms that the affected ideas cannot form a coherent or
+acceptably safe contract as written.
+
+Maintain a lightweight decision ledger in conversation context. Classify each
 material decision as:
 
-- **confirmed:** explicitly decided by the user or already established by
-  approved Sigil;
-- **provisionally assumed:** a conservative, reversible assumption stated to the
-  user;
+- **confirmed:** explicitly decided by the user or established by approved
+  Sigil;
+- **provisionally assumed:** a conservative, reversible assumption stated to
+  the user;
 - **intentionally deferred:** not required for the current contract and retained
-  visibly for later work;
+  visibly;
 - **unresolved:** no safe decision exists yet.
 
-Do not create a repository artifact for the ledger unless the user separately
-requests one. Preserve its relevant confirmed and deferred outcomes in the
-conversation synthesis and proposed Sigil.
+Existing or approved Sigil is evidence of current intent, not proof that the
+design cannot be improved. Reopen a confirmed decision when new evidence
+materially conflicts with it or indicates a material improvement opportunity.
 
-## 2. Prioritize Decisions
+Do not create a repository artifact for the ledger unless the user separately
+requests one.
+
+## 4. Prioritize Decisions
 
 Classify discovered questions by their effect on:
 
@@ -68,56 +146,53 @@ private implementation detail.
 
 A decision is blocking when leaving it unresolved could materially change a
 public contract, ownership, permissions, sensitive or persistent data,
-lifecycle, failure behavior, binding architecture, or acceptance criteria. Other
-decisions may be provisionally assumed or intentionally deferred when the user
-accepts that treatment.
+lifecycle, failure behavior, binding architecture, or acceptance criteria.
+Other decisions may be provisionally assumed or intentionally deferred when the
+user accepts that treatment.
 
-## 3. Use External Guidance Evidence
+An optional improvement is not blocking merely because it could make the design
+better. State its evidence, consequences, and recommendation, and let the user
+accept, revise, reject, or defer it.
 
-Follow `references/external-guidance-evidence.md` after initial framing and
-before presenting alternatives or a recommendation for a guidance-sensitive
-material decision.
+## 5. Use External Guidance Evidence
 
-First establish:
+After sufficient framing, request ApplicabilityAssessment from
+`references/external-guidance-evidence.md` for every design or review scope.
+That procedure solely owns the required, recommended, or not-material
+disposition and evidence acquisition.
 
-- intended outcome;
-- affected users, callers, or systems;
-- responsibility and component boundary;
-- relevant public or external interaction surface;
-- known data, security, safety, regulatory, and platform constraints.
+Acquire required or recommended evidence before presenting affected
+alternatives, pitfalls, improvement opportunities, or recommendations. Research
+may improve a coherent written contract; it does not require a known conflict
+or prior proof that a binding decision will change.
 
-Then assess whether current authoritative guidance could materially change the
-next binding decision, its risks, alternatives, or acceptance criteria. Do not
-research before every question or merely because a technology is mentioned.
-Reassess when the boundary, risk, environment, or binding requirements change.
+Use the evidence packet to:
 
-When research is required, use its evidence packet to:
-
-- identify which alternatives are actually available;
+- discover alternatives and pitfalls that repository evidence alone may omit;
 - explain consequences, uncertainty, and environment or version limits;
+- identify architecture, modularity, security, reliability, accessibility,
+  interoperability, lifecycle, and platform improvements;
 - distinguish binding authority, normative standards, official operational
   guidance, and advisory practice;
-- support the reasoned recommendation with directly relevant source identity
-  and links.
+- support recommendations with directly relevant source identity and links.
 
-The evidence remains nonbinding. The user retains decision authority, and
-research never becomes an independent approval gate.
+Evidence remains nonbinding. The user retains decision authority, and research
+never determines a ReviewGate result.
 
 When authoritative sources disagree before a project decision exists, record
-the disagreement as an unresolved design constraint rather than a correction
-finding. When applicable guidance materially conflicts with approved Sigil or a
-confirmed decision, enter the correction conversation.
+the disagreement as unresolved design evidence. Enter correction mode only when
+applicable evidence confirms a material conflict with approved Sigil or a
+confirmed decision.
 
-Incomplete evidence may support a clearly stated conservative provisional
-option only for a low-risk reversible decision. Require the missing evidence or
-qualified review before recommending a definitive choice involving security,
-regulated data, safety, destructive behavior, or binding compliance.
+Incomplete evidence may support a stated conservative provisional option only
+for a low-risk reversible decision. Require missing evidence or qualified review
+before recommending a definitive high-risk or compliance-critical choice.
 
-Reuse a valid evidence packet while its question, boundary, environment, risk,
-source status, and applicability assumptions remain unchanged. Keep research
-uncertainty visible in checkpoints and synthesis.
+Reuse a valid packet while its question, boundary, environment, risk, source
+status, and applicability assumptions remain unchanged. Avoid irrelevant,
+filler, and repeated research.
 
-## 4. Run One Conversational Turn
+## 6. Run One Conversational Turn
 
 Present one primary design decision per turn unless the user asks for a faster
 grouped review. Include tightly coupled subquestions only when separating them
@@ -127,173 +202,173 @@ Each turn should:
 
 1. acknowledge the user's previous answer and state its effect on the emerging
    contract;
-2. briefly explain why the next decision matters and what later choices depend
+2. state the current conversation mode when it materially affects expectations;
+3. briefly explain why the next decision matters and what later choices depend
    on it;
-3. ask one direct question in the user's vocabulary;
-4. when alternatives exist, offer a small concrete set with their meaningful
-   consequences and a reasoned recommendation, informed by applicable external
-   guidance when required;
-5. make clear that the user may combine, reject, revise, or replace the offered
+4. ask one direct question in the user's vocabulary;
+5. when alternatives exist, offer a small concrete set with meaningful
+   consequences and a reasoned evidence-informed recommendation;
+6. make clear that the user may combine, reject, revise, or replace the offered
    choices.
 
 After the answer, update the decision ledger, restate the resulting decision,
-and detect any new conflict or dependent question. Do not ask a confirmed
-decision again unless new evidence conflicts with it.
+and detect dependent questions, improvements, or conflicts.
 
-If the user requests a faster review, group only closely related decisions and
-retain the same explanation, recommendation, acknowledgement, and ledger
-behavior. Return to one primary decision when the grouped answers reveal a
-conflict or material uncertainty.
+If the user requests a faster review, group only closely related decisions.
+Return to one primary decision when grouped answers reveal conflict or material
+uncertainty.
 
-## 5. Handle Uncertainty And Conflict
+## 7. Handle Uncertainty, Findings, And Conflicts
 
 When the user is unsure, explain the uncertainty and recommend a conservative
-option with its consequences. A low-risk, reversible choice may become a
-provisional assumption after it is stated. A non-blocking choice may be deferred
-and must remain visible in the synthesis.
+option with its consequences. A low-risk reversible choice may become
+provisional after it is stated. A non-blocking choice may be deferred and must
+remain visible in synthesis.
 
-Do not silently default a blocking decision. Ask for the required user decision
-or qualified review when security, permissions, destructive behavior, persistent
+Do not silently default a blocking decision. Ask for user direction or
+qualified review when security, permissions, destructive behavior, persistent
 data, compliance, or another high-impact concern remains ambiguous.
+
+### Suspected Findings
+
+Investigate a suspected finding proportionally:
+
+1. identify the exact affected wording and available evidence;
+2. separate Sigil evidence, repository evidence, external guidance, and
+   inference;
+3. determine whether scope or governing intent can confirm or dismiss it;
+4. ask a focused question only when user authority is required.
+
+A suspicion does not automatically become correction, prevent unrelated work,
+or imply that the existing contract is wrong. It may keep only the affected
+material decision unresolved when missing evidence makes synthesis unsafe.
+
+### Improvement Mode
+
+Use improvement mode when the existing contract is coherent but credible
+evidence supports a materially better alternative. Explain:
+
+- what already works;
+- the improvement and supporting evidence;
+- consequences and trade-offs;
+- whether it is optional or affects a binding requirement;
+- the recommendation and decision requested.
+
+Rejected or deferred optional improvements do not become defects.
+
+### Correction Mode
+
+Enter correction mode only for a confirmed material problem. In each correction
+turn:
+
+1. identify the exact file, component, section, and problematic idea;
+2. separate exact Sigil evidence, repository evidence, applicable guidance, and
+   inference;
+3. explain the contract, ownership, lifecycle, security, persistence,
+   interoperability, verification, or implementation consequence;
+4. explain why the finding is confirmed and material;
+5. offer concrete corrections with trade-offs and a reasoned recommendation;
+6. ask one focused decision in the user's vocabulary.
+
+Preserve affected Sigil while the user decides. A confirmed material problem
+cannot be deferred, treated as provisional, or bypassed for implementation.
+Resume exploration or improvement only after the confirmed problem is resolved.
+Resolution is evidence and still requires
+`ReviewGate(action: sigil-change)` for the exact proposal.
+
+### Conflicting Answers Or Evidence
 
 When an answer conflicts with an earlier decision, approved Sigil, repository
 evidence, or applicable guidance:
 
-1. stop advancing to unrelated questions;
-2. state both conflicting ideas and their evidence or source;
+1. stop advancing to unrelated design questions when the conflict is confirmed
+   and material;
+2. state both ideas and their evidence;
 3. explain the contract or implementation consequence;
-4. offer concrete resolution choices when possible;
-5. ask the user which intent should govern;
-6. update the ledger only after the conflict is resolved or explicitly retained
-   as blocking.
+4. offer concrete resolution choices;
+5. ask which intent should govern;
+6. update the ledger only after resolution or explicit blocking status.
 
-When the user appears overwhelmed, reduce the scope to the single most
-foundational decision, shorten the explanation, and defer non-blocking topics.
-Do not lower safety or approval requirements to make the conversation shorter.
+When the user appears overwhelmed, reduce scope to the single most foundational
+decision and defer non-blocking topics.
 
-## 6. Run A Correction Conversation
+## 8. Use Checkpoints
 
-When review identifies a suspected or confirmed material semantic,
-architectural, or design problem, pause ordinary design exploration and enter a
-dedicated correction phase in the same chat. Do not advance to unrelated
-questions, proposal synthesis, approval, or implementation.
+Give a compact checkpoint after several decisions, when mode or phase changes,
+when a conflict changes earlier conclusions, or when the user asks for status.
+Report:
 
-Track each correction finding as:
-
-- **suspected:** evidence indicates a problem, but scope or intent still needs
-  clarification;
-- **confirmed:** the applicable ideas cannot form a coherent or acceptably safe
-  contract as written;
-- **resolved:** the user has selected or supplied a coherent governing intent.
-
-Each correction turn must:
-
-1. identify the exact file, component, section, and problematic idea when
-   available;
-2. separate exact Sigil evidence, repository evidence, applicable guidance, and
-   model inference;
-3. explain the likely contract, ownership, lifecycle, security, persistence,
-   interoperability, verification, or implementation consequence;
-4. state whether the finding is suspected or confirmed and why it is material;
-5. offer concrete corrections with their trade-offs and a reasoned
-   recommendation when alternatives exist;
-6. ask one focused clarification or correction decision in the user's
-   vocabulary.
-
-Do not label a subjective preference as a mistake without concrete semantic or
-risk evidence. Preserve the affected Sigil while the user decides; do not
-silently fix it. A confirmed material problem cannot become a provisional
-assumption, be intentionally deferred, or be accepted merely to unblock
-implementation.
-
-After each answer, update the decision ledger and restate whether the finding is
-resolved. Resume ordinary design work only when every active material correction
-finding is resolved. The resolution still requires the normal exact Sigil
-proposal and approval gates.
-
-## 7. Use Checkpoints
-
-Give a compact checkpoint after several decisions, when the conversation changes
-phase, when a conflict changes earlier conclusions, or when the user asks for
-status. Report:
-
+- current mode;
 - confirmed decisions;
 - provisional assumptions;
-- intentionally deferred decisions;
+- intentionally deferred decisions and improvements;
 - unresolved blockers;
-- material external-guidance findings or limitations affecting the next
-  decision;
+- material external-guidance findings or limitations;
 - the next decision and why it is next.
 
-Do not repeat the entire conversation. Keep the checkpoint small enough for the
-user to correct the emerging design without losing momentum.
+Do not repeat the entire conversation.
 
-## 8. Finish Or Block The Conversation
+## 9. Finish Or Block The Conversation
 
-Move to synthesis only when no unresolved decision can materially change the
-contract being proposed. The synthesis must state:
+Move to synthesis only when no blocking unresolved decision or confirmed
+material problem remains. Before synthesis, refresh affected related-Sigil
+evidence and verify that the emerging decision preserves coherence and
+modularity.
+
+The synthesis must state:
 
 - intended outcome, users or callers, and boundary;
-- component responsibilities, ownership, and important non-responsibilities;
+- component responsibilities, ownership, and non-responsibilities;
 - public behavior, lifecycle, failure, and risk decisions;
 - binding architecture or platform decisions;
-- confirmed assumptions and accepted tradeoffs;
-- intentionally deferred non-blocking decisions;
-- evidence-informed decisions and their directly relevant source identity when
-  material;
-- any unavailable, partially assessed, or conflicting guidance that still
-  requires acceptance.
+- accepted improvements and retained existing choices;
+- confirmed assumptions and trade-offs;
+- intentionally deferred non-blocking decisions and improvements;
+- evidence-informed decisions and directly relevant source identity;
+- unavailable, partially assessed, or conflicting evidence requiring
+  acceptance.
 
-Then prepare exact proposed Sigil using the applicable Greenfield, Brownfield,
-semantic-review, and implementation-coverage procedures. Conversation is not
-approval. Enter the awaiting-approval phase and wait for explicit review.
-Before presenting the proposal, pass confirmed material selected choices and
-their governing rationale to the decision-rationale coverage audit. A resolved
-conversation does not justify omitting durable decision records.
+Then prepare exact proposed Sigil through the applicable semantic-review and
+implementation-coverage procedures. Conversation is evidence, not approval.
+Submit the exact scope and change set to
+`ReviewGate(action: sigil-change)`.
 
-If a blocking decision remains unresolved, report it and continue the focused
-conversation. Do not synthesize speculative Sigil or begin implementation.
+If a blocking decision remains unresolved, continue the focused conversation.
+Do not synthesize speculative Sigil or begin implementation.
 
-If a suspected or confirmed material correction finding remains active, keep
-the conversation in correction. Do not treat ordinary design synthesis as a way
-to bypass the finding.
-
-## 9. Limits And Examples
+## 10. Limits And Examples
 
 Every question must materially improve product intent, public behavior,
-ownership, lifecycle, architecture, risk handling, or verification. Do not
-pursue immaterial hypothetical edge cases merely for completeness.
+ownership, lifecycle, architecture, risk handling, or verification.
+
+### Unrelated Request
+
+A request for validation status with no material design question is answered
+without entering DesignConversation.
 
 ### Vague Product Idea
 
-Ask who needs the outcome and what successful behavior looks like before asking
-about frameworks, storage, or deployment.
+Enter exploration mode and ask who needs the outcome and what successful
+behavior looks like before asking about frameworks, storage, or deployment.
 
-### Competing Delivery Models
+### Existing Coherent Contract
 
-Explain the consequences of synchronous, queued, and event-driven delivery,
-recommend one based on the confirmed outcome, and ask the user to choose or
-describe another direction. Do not combine this with unrelated retention and UI
-questions.
+Enter improvement mode when current evidence reveals a materially simpler,
+safer, or more modular alternative. Present it as optional unless it conflicts
+with a binding requirement.
 
-When delivery guarantees depend on a versioned platform or protocol, consult
-matching authoritative guidance before presenting the recommendation.
+### Suspected Ownership Problem
 
-### Conflicting Answer
+Inspect both ownership claims and their dependents before classifying the
+finding. Do not enter correction merely because ownership looks unusual.
 
-If the user first requires immediate deletion and later requires a complete
-audit history, explain the conflict and resolve the retention contract before
-continuing to storage design.
+### Confirmed Ownership Conflict
 
-### Architectural Correction
-
-If two components both claim ownership of the same mutable state, identify the
-exact claims, explain the lifecycle and consistency risk, recommend concrete
-ownership alternatives, and ask which component should govern. Keep the Sigil
-unchanged and block unrelated design work until ownership is resolved.
+Enter correction mode when two applicable contracts both claim the same mutable
+state. Explain the lifecycle and consistency risk and resolve ownership before
+synthesis.
 
 ### Intentional Deferral
 
-If branding details do not affect the current UI behavior contract, record them
-as intentionally deferred and keep them visible in the synthesis without
-blocking the proposal.
+If branding details do not affect the current UI behavior contract, retain them
+as intentionally deferred without blocking the proposal.

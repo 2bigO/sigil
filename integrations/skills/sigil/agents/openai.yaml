@@ -1,4 +1,4 @@
 interface:
   display_name: "Sigil"
   short_description: "Model contracts and implementation with Sigil before code"
-  default_prompt: "Use $sigil to inspect governing Sigil before every implementation mutation, establish implementation coverage and durable decision rationale, correct semantic or architectural problems in the same chat, and complete both Sigil review gates before implementation."
+  default_prompt: "Use $sigil to inspect governing Sigil before every implementation mutation, keep review and diagnosis non-mutating, maintain reviewed workspace vocabulary, explicitly report whether glossary extraction is required, deferred, or deterministic inspection only, establish implementation coverage and durable decision rationale, correct semantic or architectural problems in the same chat, and use ReviewGate for exact sigil-change, glossary-change, workspace-initialization, and implementation approval."

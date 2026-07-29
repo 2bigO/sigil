@@ -2,7 +2,7 @@
 
 Implemented pre-production VS Code extension for Sigil.
 
-Version 0.6 responsibilities:
+Version 0.7 responsibilities:
 
 - provide `.sigil` TextMate syntax highlighting and resolver-backed component
   concept, and reviewed glossary-term highlighting through LSP semantic tokens;
@@ -27,7 +27,7 @@ components, an informational message is shown and no preview opens.
 
 This integration should become the first concrete human UI for Sigil.
 
-Version 0.6 targets desktop and remote Node extension hosts with file-backed
+Version 0.7 targets desktop and remote Node extension hosts with file-backed
 workspaces. VS Code for the Web, virtual workspaces, telemetry, document
 mutation, and custom LSP methods remain outside the initial version.
 

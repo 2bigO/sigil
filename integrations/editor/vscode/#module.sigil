@@ -22,6 +22,8 @@ component SigilVsCodeExtension {
       starts the bundled language server through vscode-languageclient
 
       surfaces diagnostics, document symbols, definition navigation, hover, and semantic highlighting
+
+      accepts the bundled server's dynamic registration for supported ownership implementation-source changes
     }
 
     DocumentPreview {
@@ -63,6 +65,8 @@ expand SigilVsCodeExtension {
 
       The language client forwards document lifecycle and language-feature requests through LSP.
 
+      The language client delivers file events for watcher patterns dynamically registered by the bundled server.
+
       Startup and runtime failures are written to the Sigil output channel and surfaced to the user.
 
       Deactivation stops the language client and server process.
@@ -100,6 +104,8 @@ expand SigilVsCodeExtension {
       The extension depends on SigilLsp for language semantics and does not import or duplicate core behavior.
 
       Document preview renders the whole file through a standard server executeCommand and introduces no custom protocol method.
+
+      Ownership file watching is notification-only and does not modify workspace files.
     }
 
     DocumentPreview {
@@ -146,6 +152,18 @@ expand SigilVsCodeExtension {
       Revisit when: A custom rendered preview surface offers clearly better review ergonomics than the built-in Markdown preview.
     }
 
+    OwnershipCacheInvalidation {
+      Decision: Let the bundled language server dynamically register supported ownership-source watcher patterns through standard Language Server Protocol capability registration.
+
+      Scope: Governs VS Code delivery of registered ownership-source changes; excludes ownership parsing, cache storage, and source-support policy.
+
+      Trade-offs: Server-directed registration removes the redundant extension-owned watcher while depending on the language client's dynamic-registration support.
+
+      Consequences: The extension does not duplicate supported source patterns and the server receives standard workspace/didChangeWatchedFiles notifications.
+
+      Revisit when: The language client cannot reliably honor dynamic registration or the protocol provides incremental ownership-index updates.
+    }
+
     SupportedExtensionHosts {
       Decision: Limit the initial extension to trusted file-backed desktop and remote Node workspace hosts.
 
@@ -166,6 +184,8 @@ expand SigilVsCodeExtension {
       Malformed source displays ranged diagnostics.
 
       Imported components and concepts support navigation, hover, and semantic highlighting.
+
+      Changing an ownership annotation invalidates the server cache and the next component or concept hover shows refreshed links.
 
       A failed bundled server produces visible output and an error without crashing VS Code.
 

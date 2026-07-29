@@ -10,9 +10,9 @@ import {
 const PREVIEW_COMMAND = "sigil.openPreview";
 const RENDER_DOCUMENT_COMMAND = "sigil.renderDocument";
 const PREVIEW_SCHEME = "sigil-preview";
-
 let client: LanguageClient | undefined;
 
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   readonly #contents = new Map<string, string>();
   readonly #emitter = new vscode.EventEmitter<vscode.Uri>();
@@ -40,6 +40,13 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   }
 }
 
+/**
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::SupportedExtensionHosts interface,constraints,cases
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ReadOnlyEditorSupport interface,constraints
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,logic,constraints
+ */
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
@@ -85,6 +92,7 @@ export async function activate(
   }
 }
 
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
 export async function deactivate(): Promise<void> {
   const running = client;
   client = undefined;

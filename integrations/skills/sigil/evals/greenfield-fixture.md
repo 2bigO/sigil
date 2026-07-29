@@ -15,26 +15,30 @@ Expected skill behavior:
 3. Explore purpose, users or callers, desired outcomes, boundaries,
    non-responsibilities, lifecycle, failure behavior, permissions, and
    verification.
-4. After sufficient framing, assess whether authoritative guidance could
-   materially affect the public API, retry, delivery, or platform decisions.
-5. Acquire applicable evidence before presenting guidance-sensitive
-   alternatives and match official documentation to the confirmed environment.
-6. Surface weak assumptions, conflicting goals, and missing failure behavior
+4. Record that no related component contract exists and use available boundary
+   summaries and neighboring contracts as DesignContext.
+5. After sufficient framing, assess external-guidance applicability for the
+   design scope.
+6. Acquire required or recommended evidence before presenting affected
+   alternatives, pitfalls, or recommendations and match official documentation
+   to the confirmed environment.
+7. Surface weak assumptions, conflicting goals, and missing failure behavior
    constructively.
-7. Present concrete synchronous, queued, and event-driven choices with
+8. Present concrete synchronous, queued, and event-driven choices with
    consequences and tradeoffs, plus a reasoned recommendation.
-8. Let the user combine, reject, revise, or replace every presented choice.
-9. Maintain decision states and continue until no unresolved decision can
+9. Let the user combine, reject, revise, or replace every presented choice.
+10. Maintain decision states and continue until no unresolved decision can
    materially change the contract.
-10. Establish the smallest coherent component boundaries from agreed intent.
-11. Apply semantic-readiness, standards, coherence, and modularity review,
+11. Establish the smallest coherent component boundaries from agreed intent.
+12. Apply semantic-readiness, standards, coherence, and modularity review,
     verifying the currency and applicability of evidence created during
     conversation.
-12. Synthesize conversation and review findings into exact proposed Sigil and
-    request confirmation.
-13. Write only approved Sigil, validate it, and stop at the semantic review
-    gate.
-14. Treat the missing Sigil coverage as a reason to collaborate with the user on
+13. Recheck affected related-Sigil coherence before synthesis.
+14. Synthesize conversation and review findings into an exact
+    `ReviewGate(action: sigil-change)` request.
+15. Write only when ReviewGate is ready, validate the Sigil, and report the
+    result without another approval gate.
+16. Treat the missing Sigil coverage as a reason to collaborate with the user on
     the affected Sigil before adding implementation.
-15. Implement only after the written Sigil is approved and implementation is
-    explicitly requested.
+17. Implement only when `ReviewGate(action: implementation)` is ready for the
+    validated written Sigil and exact implementation scope.

@@ -54,7 +54,7 @@ expand Sigil {
     }
 
     HumanReviewWorkflow {
-      The host skill applies semantic judgment, conducts design and review conversations, and enforces approval gates around Sigil changes and implementation.
+      The host skill applies semantic judgment, conducts design and review conversations, and uses ReviewGate for scoped approval of Sigil changes and implementation.
     }
   }
 

@@ -1,4 +1,9 @@
-import { InMemorySigilFileSystem, SIGIL_VERSION } from "@qoherent/sigil-core";
+import {
+  InMemorySigilFileSystem,
+  SIGIL_VERSION,
+  type SigilFileSystem,
+  supportedImplementationSourceGlobPatterns,
+} from "@qoherent/sigil-core";
 import {
   encodeLspMessage,
   fileUriToPath,
@@ -16,6 +21,7 @@ const consumerPath = `${root}/consumer.sigil`;
 const contractUri = pathToFileUri(contractPath);
 const consumerUri = pathToFileUri(consumerPath);
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
 Deno.test("file URI conversion preserves Sigil paths", () => {
   assertEquals(
     fileUriToPath(pathToFileUri("/tmp/a #module.sigil")),
@@ -23,6 +29,7 @@ Deno.test("file URI conversion preserves Sigil paths", () => {
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async () => {
   const server = makeServer();
   const before = await server.handle(request(1, "shutdown"));
@@ -60,6 +67,77 @@ Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async 
   assertEquals(server.exitCode, 0);
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization interface,state,logic,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
+ */
+Deno.test("dynamically registers ownership-source workspace watchers", async () => {
+  const server = makeServer();
+  const initialized = await server.handle(request(1, "initialize", {
+    rootUri,
+    capabilities: {
+      workspace: {
+        didChangeWatchedFiles: { dynamicRegistration: true },
+      },
+    },
+  }));
+  assertEquals(errorCode(initialized), undefined);
+
+  const outgoing = await server.handle(notification("initialized"));
+  const registration = outgoing.find((message) =>
+    "method" in message && message.method === "client/registerCapability"
+  ) as Record<string, unknown> | undefined;
+  assert(registration);
+  assertEquals(registration.id, "sigil/ownership-watch/request");
+  const params = registration.params as Record<string, unknown>;
+  const registrations = params.registrations as Array<Record<string, unknown>>;
+  assertEquals(registrations.length, 1);
+  assertEquals(registrations[0].id, "sigil/ownership-watch");
+  assertEquals(
+    registrations[0].method,
+    "workspace/didChangeWatchedFiles",
+  );
+  const options = registrations[0].registerOptions as Record<string, unknown>;
+  const watchers = options.watchers as Array<Record<string, unknown>>;
+  assert(
+    JSON.stringify(watchers.map((watcher) => watcher.globPattern)) ===
+      JSON.stringify(supportedImplementationSourceGlobPatterns()),
+  );
+  assert(watchers.every((watcher) => watcher.kind === 7));
+
+  const registrationResponse = await server.handle(
+    response("sigil/ownership-watch/request", null),
+  );
+  assertEquals(registrationResponse.length, 0);
+  const repeated = await server.handle(notification("initialized"));
+  assert(
+    !repeated.some((message) =>
+      "method" in message && message.method === "client/registerCapability"
+    ),
+  );
+});
+
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching constraints,cases
+Deno.test("does not register watched files without client support", async () => {
+  const server = makeServer();
+  const initialized = await server.handle(
+    request(1, "initialize", { rootUri }),
+  );
+  assertEquals(errorCode(initialized), undefined);
+  const outgoing = await server.handle(notification("initialized"));
+  assert(
+    !outgoing.some((message) =>
+      "method" in message && message.method === "client/registerCapability"
+    ),
+  );
+  assertEquals(server.state, "running");
+});
+
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentSynchronization interface,state,logic,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+ */
 Deno.test("publishes and clears diagnostics from open document overlays", async () => {
   const server = makeServer();
   await initialize(server);
@@ -83,6 +161,7 @@ Deno.test("publishes and clears diagnostics from open document overlays", async 
   assertEquals(diagnosticsFor(closed, contractUri).length, 0);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 Deno.test("returns hierarchical symbols, definitions, and component hover", async () => {
   const server = makeServer();
   await initialize(server);
@@ -243,6 +322,209 @@ Deno.test("returns hierarchical symbols, definitions, and component hover", asyn
   assert(decoded.some((item) => item.tokenType === 1));
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+Deno.test("component hover includes clickable owned implementation links", async () => {
+  const source = `component Thing {
+  goal {
+    Own the implementation targets.
+  }
+
+  interface {
+    OwnedTargets {
+      Own code, tests, and workflow instructions.
+    }
+  }
+}
+
+expand Thing {
+  cases {
+    OwnedTargets {
+      Ownership links remain visible after collected expansions.
+    }
+  }
+}
+`;
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-owned-implementation-hover", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [contractPath]: source,
+      [`${root}/packages/core/src/config.ts`]:
+        "// @sigil implements contract.sigil::Thing::OwnedTargets interface\nexport function parseSigilConfig() {}\n",
+      [`${root}/packages/core/tests/core_test.ts`]:
+        "// @sigil tests contract.sigil::Thing::OwnedTargets cases\nfunction implementationTargets() {}\n",
+      [`${root}/packages/core/src/workspace.ts`]:
+        "// @sigil implements contract.sigil::Thing interface,cases\nexport function loadWorkspace() {}\n",
+      [`${root}/packages/cli/README.md`]:
+        "<!-- @sigil uses contract.sigil::Thing::OwnedTargets interface -->\n# CLI\n",
+    }),
+  });
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(2, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 0, character: 11 },
+    })),
+  ) as Record<string, unknown>;
+  const markdown = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
+  assert(markdown.includes("**Owned implementations**"));
+  assert(
+    markdown.includes(
+      "implements [parseSigilConfig · packages/core/src/config.ts](file:///workspace/packages/core/src/config.ts#L2,17) (interface)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "tests [implementationTargets · packages/core/tests/core_test.ts](file:///workspace/packages/core/tests/core_test.ts#L2,10) (cases)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "uses [packages/cli/README.md](file:///workspace/packages/cli/README.md#L1,1) (interface)",
+    ),
+  );
+  assert(
+    markdown.includes(
+      "implements [loadWorkspace · packages/core/src/workspace.ts](file:///workspace/packages/core/src/workspace.ts#L2,17) (interface, cases)",
+    ),
+  );
+  assert(!markdown.includes("(code)"));
+  assert(!markdown.includes("(test)"));
+  assert(!markdown.includes("(markdown)"));
+  assert(
+    markdown.indexOf("**Owned implementations**") >
+      markdown.indexOf("**Collected expansions**"),
+  );
+
+  const conceptHover = responseResult(
+    await server.handle(request(3, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 6, character: 8 },
+    })),
+  ) as Record<string, unknown>;
+  const conceptMarkdown = String(
+    (conceptHover.contents as Record<string, unknown>).value,
+  );
+  assert(conceptMarkdown.includes("**Owned implementations**"));
+  assert(conceptMarkdown.includes("parseSigilConfig"));
+  assert(conceptMarkdown.includes("packages/cli/README.md"));
+  assert(!conceptMarkdown.includes("implementationTargets"));
+  assert(!conceptMarkdown.includes("loadWorkspace"));
+
+  const casesHover = responseResult(
+    await server.handle(request(4, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 14, character: 8 },
+    })),
+  ) as Record<string, unknown>;
+  const casesMarkdown = String(
+    (casesHover.contents as Record<string, unknown>).value,
+  );
+  assert(casesMarkdown.includes("implementationTargets"));
+  assert(!casesMarkdown.includes("parseSigilConfig"));
+  assert(!casesMarkdown.includes("packages/cli/README.md"));
+});
+
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::OwnershipSourceWatching logic,constraints,cases
+ */
+Deno.test("ownership hover cache shares scans and invalidates on watched changes", async () => {
+  const fs = new CountingSigilFileSystem(
+    new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-ownership-hover-cache", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [contractPath]: contractSource,
+      [`${root}/src/worker.ts`]:
+        "// @sigil implements contract.sigil::Thing::Execution interface\nexport function run() {}\n",
+    }),
+  );
+  const server = new SigilLanguageServer({ currentDirectory: root, fs });
+  await initialize(server);
+
+  const hoverRequest = (id: number) =>
+    server.handle(request(id, "textDocument/hover", {
+      textDocument: { uri: contractUri },
+      position: { line: 0, character: 11 },
+    }));
+  await Promise.all([hoverRequest(2), hoverRequest(3)]);
+  const readsAfterConcurrentHovers = fs.implementationReads;
+  assertEquals(readsAfterConcurrentHovers, 1);
+
+  await hoverRequest(4);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("textDocument/didOpen", {
+    textDocument: {
+      uri: contractUri,
+      version: 1,
+      text: contractSource,
+    },
+  }));
+  await hoverRequest(5);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("textDocument/didChange", {
+    textDocument: { uri: contractUri, version: 2 },
+    contentChanges: [{ text: contractSource }],
+  }));
+  await hoverRequest(6);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("textDocument/didClose", {
+    textDocument: { uri: contractUri },
+  }));
+  await hoverRequest(7);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/config.json`), type: 2 }],
+  }));
+  await hoverRequest(8);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/src/worker.ts`), type: 2 }],
+  }));
+  await hoverRequest(9);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 1);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/src/created.ts`), type: 1 }],
+  }));
+  await hoverRequest(10);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 2);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [{ uri: pathToFileUri(`${root}/src/created.ts`), type: 3 }],
+  }));
+  await hoverRequest(11);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 3);
+
+  await server.handle(notification("workspace/didChangeWatchedFiles", {
+    changes: [
+      { uri: pathToFileUri(`${root}/src/worker.ts`), type: 3 },
+      { uri: pathToFileUri(`${root}/src/renamed.ts`), type: 1 },
+    ],
+  }));
+  await hoverRequest(12);
+  assertEquals(fs.implementationReads, readsAfterConcurrentHovers + 4);
+});
+
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
 Deno.test("navigates and hovers contextual imported concepts", async () => {
   const server = makeServer();
   await initialize(server);
@@ -399,6 +681,7 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
 Deno.test("highlights, explains, and navigates reviewed glossary terms", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const glossaryUri = pathToFileUri(glossaryPath);
@@ -488,6 +771,11 @@ Deno.test("highlights, explains, and navigates reviewed glossary terms", async (
   assert(!termTokens.some((item) => item.line === 4));
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
+ */
 Deno.test("combines concept and glossary hover while preserving concept navigation", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const source = `component Thing {
@@ -526,6 +814,8 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
         }],
       }),
       [contractPath]: source,
+      [`${root}/src/execution.ts`]:
+        "// @sigil implements contract.sigil::Thing::Execution interface\nexport function execute() {}\n",
     }),
   });
   await initialize(server);
@@ -533,7 +823,7 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
   const hover = responseResult(
     await server.handle(request(2, "textDocument/hover", {
       textDocument: { uri: contractUri },
-      position: { line: 2, character: 9 },
+      position: { line: 6, character: 8 },
     })),
   ) as Record<string, unknown>;
   const markdown = String(
@@ -543,8 +833,11 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
     "### concept [Execution](file:///workspace/contract.sigil#L7,5)",
   );
   const termHeading = markdown.indexOf("### term execution model");
+  const ownershipHeading = markdown.indexOf("**Owned implementations**");
   assert(conceptHeading >= 0);
   assert(termHeading > conceptHeading);
+  assert(ownershipHeading > termHeading);
+  assert(markdown.includes("execute · src/execution.ts"));
   assert(markdown.includes("Reviewed execution meaning."));
   assert(markdown.includes("Matched alias: `Execution`"));
   assert(markdown.includes("Bounded context: `runtime`"));
@@ -595,6 +888,10 @@ Deno.test("combines concept and glossary hover while preserving concept navigati
   assert(!overlapTokens.some((item) => item.tokenType === 2));
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+ */
 Deno.test("publishes invalid glossary diagnostics without crashing", async () => {
   const glossaryPath = `${root}/.sigil/glossary.json`;
   const server = new SigilLanguageServer({
@@ -619,6 +916,7 @@ Deno.test("publishes invalid glossary diagnostics without crashing", async () =>
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
 Deno.test("publishes concept style information as an LSP hint", async () => {
   const source = contractSource.replaceAll("Execution", "session-lifecycle");
   const server = new SigilLanguageServer({
@@ -642,6 +940,7 @@ Deno.test("publishes concept style information as an LSP hint", async () => {
   assertEquals(hint.severity, 4);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 Deno.test("directory-index definitions navigate to the original declaration", async () => {
   const modulePath = `${root}/module/#module.sigil`;
   const indexedContractPath = `${root}/module/contract.sigil`;
@@ -693,6 +992,7 @@ Deno.test("directory-index definitions navigate to the original declaration", as
   );
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::DocumentRendering interface,logic,constraints,cases,decisions
 Deno.test("renders a whole document to Markdown through executeCommand", async () => {
   const server = makeServer();
   await initialize(server);
@@ -723,6 +1023,7 @@ Deno.test("renders a whole document to Markdown through executeCommand", async (
   assertEquals(errorCode(unknown), -32602);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("returns protocol errors for bad requests and observes cancellation", async () => {
   const server = makeServer();
   await initialize(server);
@@ -739,6 +1040,10 @@ Deno.test("returns protocol errors for bad requests and observes cancellation", 
   assertEquals(errorCode(cancelled), -32800);
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::WorkspaceSupport interface,state,constraints,cases
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+ */
 Deno.test("surfaces workspace configuration failures without crashing", async () => {
   const server = new SigilLanguageServer({
     currentDirectory: root,
@@ -761,6 +1066,7 @@ Deno.test("surfaces workspace configuration failures without crashing", async ()
   assertEquals(server.state, "running");
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("exit without shutdown reports an unsuccessful process status", async () => {
   const server = makeServer();
   await initialize(server);
@@ -768,9 +1074,17 @@ Deno.test("exit without shutdown reports an unsuccessful process status", async 
   assertEquals(server.exitCode, 1);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("frames split messages and runs an ordered in-memory protocol session", async () => {
   const initializeMessage = encodeLspMessage(
-    request(1, "initialize", { rootUri }),
+    request(1, "initialize", {
+      rootUri,
+      capabilities: {
+        workspace: {
+          didChangeWatchedFiles: { dynamicRegistration: true },
+        },
+      },
+    }),
   );
   const framer = new LspMessageFramer();
   assertEquals(framer.feed(initializeMessage.slice(0, 12)).length, 0);
@@ -779,6 +1093,7 @@ Deno.test("frames split messages and runs an ordered in-memory protocol session"
   const inputBytes = joinBytes([
     initializeMessage,
     encodeLspMessage(notification("initialized")),
+    encodeLspMessage(response("sigil/ownership-watch/request", null)),
     encodeLspMessage(request(2, "shutdown")),
     encodeLspMessage(notification("exit")),
   ]);
@@ -801,11 +1116,13 @@ Deno.test("frames split messages and runs an ordered in-memory protocol session"
   const messages = new LspMessageFramer().feed(joinBytes(output)) as Array<
     Record<string, unknown>
   >;
-  assertEquals(messages.length, 2);
+  assertEquals(messages.length, 3);
   assertEquals(messages[0].id, 1);
-  assertEquals(messages[1].id, 2);
+  assertEquals(messages[1].method, "client/registerCapability");
+  assertEquals(messages[2].id, 2);
 });
 
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
 Deno.test("malformed JSON returns a parse error without dropping adjacent frames", async () => {
   const inputBytes = joinBytes([
     rawFrame("{"),
@@ -838,6 +1155,10 @@ Deno.test("malformed JSON returns a parse error without dropping adjacent frames
   assertEquals(messages[2].id, 2);
 });
 
+/*
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::LspPackage interface
+ * @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
+ */
 Deno.test("stdio executable completes initialize, shutdown, and exit", async () => {
   const input = joinBytes([
     encodeLspMessage(request(1, "initialize", { rootUri })),
@@ -925,6 +1246,28 @@ function makeServer(): SigilLanguageServer {
   });
 }
 
+class CountingSigilFileSystem implements SigilFileSystem {
+  readonly #base: SigilFileSystem;
+  implementationReads = 0;
+
+  constructor(base: SigilFileSystem) {
+    this.#base = base;
+  }
+
+  async readTextFile(path: string): Promise<string> {
+    if (path.endsWith(".ts")) this.implementationReads++;
+    return await this.#base.readTextFile(path);
+  }
+
+  exists(path: string): Promise<boolean> {
+    return this.#base.exists(path);
+  }
+
+  listFiles(root: string): Promise<readonly string[]> {
+    return this.#base.listFiles(root);
+  }
+}
+
 async function initialize(server: SigilLanguageServer): Promise<void> {
   const output = await server.handle(request(1, "initialize", { rootUri }));
   assertEquals(errorCode(output), undefined);
@@ -944,6 +1287,13 @@ function notification(
   params?: unknown,
 ): JsonRpcIncoming {
   return { jsonrpc: "2.0", method, params };
+}
+
+function response(
+  id: number | string,
+  result: unknown,
+): JsonRpcIncoming {
+  return { jsonrpc: "2.0", id, result };
 }
 
 function responseResult(messages: readonly JsonRpcOutgoing[]): unknown {
