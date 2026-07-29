@@ -399,15 +399,6 @@
         "stable diagnostic fingerprint",
         "stable diagnostic fingerprints"
       ]
-    },
-    {
-      "term": "experimental workspace",
-      "definition": "An enforced disposable environment used for generated implementation experiments without modifying the selected workspace.",
-      "aliases": [
-        "experimental workspaces",
-        "disposable sandbox",
-        "disposable sandboxes"
-      ]
     }
   ],
   "contexts": [

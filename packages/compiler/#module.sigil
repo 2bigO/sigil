@@ -29,7 +29,7 @@ component SigilCompiler {
 
       standard and critical-system are built-in profiles
 
-      project profiles may configure or omit stages, including sandbox code-generation validation
+      project profiles may configure or omit evaluation stages
 
       each run records the exact effective profile and environment fingerprint
     }
@@ -157,7 +157,6 @@ expand SigilCompiler {
 
       Import or export durable reports only when explicitly requested.
 
-      Exclude disposable generated code from history unless the user explicitly exports debugging evidence.
     }
   }
 
@@ -171,9 +170,7 @@ expand SigilCompiler {
     ReadOnlyCompilation {
       Compilation does not modify Sigil source, implementation source, configuration, tests, documentation, or other selected-workspace content.
 
-      Generated implementation experiments execute only inside an enforced disposable sandbox.
-
-      Cancelling, failing, or completing a run disposes of its experimental workspace.
+      Compilation does not generate code or execute implementation experiments.
     }
 
     ProfileConfiguration {
@@ -187,19 +184,19 @@ expand SigilCompiler {
     StageConfiguration {
       Profiles may enable, disable, order, and configure evaluation stages subject to declared stage dependencies.
 
-      An intentionally disabled code-generation validation stage does not prevent green for that exact profile.
+      A stage intentionally disabled by the effective profile is not required for green.
 
       The report and profile fingerprint expose every disabled stage.
     }
 
     BuiltInProfiles {
-      standard requires deterministic foundation, semantic readiness, cross-Sigil coherence, architecture and design, current-code compatibility, and applicable sandbox feasibility through one configured evaluator.
+      standard requires deterministic foundation, semantic readiness, cross-Sigil coherence, architecture and design, and current-code compatibility through one configured evaluator.
 
-      critical-system includes standard behavior and additionally requires standards and risk evaluation, multiple evaluators, disagreement detection, and sandbox implementation experiments when the selected component is implementable.
+      critical-system includes standard behavior and additionally requires standards and risk evaluation, multiple evaluators, and disagreement detection.
     }
 
     CapabilityPolicy {
-      Every profile declares readable repository scope, executable tool categories, network policy, temporary-workspace limits, execution budgets, sensitive exclusions, and applicable research requirements.
+      Every profile declares readable repository scope, executable tool categories, network policy, execution budgets, sensitive exclusions, and applicable research requirements.
 
       Network access is disabled unless the effective profile explicitly enables it.
 
@@ -209,13 +206,11 @@ expand SigilCompiler {
     }
 
     EvidenceThreshold {
-      An error identifies a violated rule or contradictory contract and provides reproducible deterministic, repository, or experimental evidence.
+      An error identifies a violated rule or contradictory contract and provides reproducible deterministic or repository evidence.
 
       A warning cites concrete evidence and states the remaining ambiguity or material risk.
 
       An optimization explains its expected benefit and accepted trade-off.
-
-      Experimental evidence records the command, isolated environment, exit status, and relevant output.
 
       Hidden reasoning is never required or retained as diagnostic evidence.
     }
@@ -229,7 +224,7 @@ expand SigilCompiler {
     }
 
     CompilationReport {
-      CompilationReport excludes credentials, hidden reasoning, complete private prompts, and disposable generated code.
+      CompilationReport excludes credentials, hidden reasoning, and complete private prompts.
 
       Ordinary compilation does not create report or cache files inside the selected workspace.
 
@@ -267,13 +262,13 @@ expand SigilCompiler {
     }
 
     ReadOnlyCompilation {
-      Decision: Keep selected workspaces read-only and confine generated experiments to enforced disposable sandboxes.
+      Decision: Keep compilation read-only and exclude implementation-feasibility evaluation, code generation, and implementation experiments from compiler responsibility.
 
       Scope: Governs every compilation stage and adapter.
 
-      Trade-offs: The compiler reports remedies but does not automatically repair source.
+      Trade-offs: The compiler cannot empirically validate whether a proposed contract can be implemented.
 
-      Consequences: Designers retain control of the iterative error, warning, and green loop.
+      Consequences: Compilation evaluates contracts and repository evidence while implementation validation remains a downstream team responsibility.
     }
 
     ProfileScopedCompilation {
@@ -283,7 +278,7 @@ expand SigilCompiler {
 
       Trade-offs: Green is never an unconditional property of a Sigil file.
 
-      Consequences: Teams can omit code-generation validation while preserving an auditable statement of what was evaluated.
+      Consequences: Teams can configure evaluation depth while preserving an auditable statement of what was evaluated.
     }
 
     CompilationColor {
@@ -377,7 +372,7 @@ expand SigilCompiler {
     }
 
     StageConfiguration {
-      A profile with code-generation validation explicitly disabled can become green and records that disabled stage in its fingerprint and report.
+      A profile with an optional evaluation stage explicitly disabled can become green and records that disabled stage in its fingerprint and report.
     }
 
     AgentAdapter {

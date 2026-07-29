@@ -61,15 +61,19 @@ VS Code extension releases are currently available as manually installable
 publishing remains deferred.
 
 ## Contributing
+
 For Contributors using the codebase directly, use the following.
 
-1) Clone the repo:
+1. Clone the repo:
+
 ```sh
 git clone git@github.com:qoherent/sigil.git
 cd sigil
 ```
-2) Install [Deno](https://docs.deno.com/runtime/getting_started/installation/)
-3) Install the Sigil CLI with deno, changes to code are hot reloaded this way:
+
+2. Install [Deno](https://docs.deno.com/runtime/getting_started/installation/)
+3. Install the Sigil CLI with deno, changes to code are hot reloaded this way:
+
 ```sh
 deno task --cwd packages/cli install
 sigil --version
@@ -255,8 +259,8 @@ The skill teaches coding-agent hosts to:
 - preserve material boundary-wide runtime modes, flows, binding architecture
   decisions, and observable outcomes in minimal expands while excluding
   incidental and task-specific details;
-- record durable rationale for material selected choices in optional
-  `decisions` sections while keeping binding outcomes in `constraints`;
+- record durable rationale for material selected choices in optional `decisions`
+  sections while keeping binding outcomes in `constraints`;
 - propose brownfield and externally informed semantic lines before editing;
 - stop at the review gate after semantic changes;
 - colocate approved Sigil with the implementation it explains;
@@ -279,8 +283,7 @@ specification remains [spec/sigil-language.md](spec/sigil-language.md).
 ## Current Status
 
 The core, CLI, LSP, VS Code extension, and Sigil skill are pre-production
-artifacts at 0.7.0, over Sigil Language and configuration
-contract 0.5.0. See
+artifacts at 0.7.0, over Sigil Language and configuration contract 0.5.0. See
 [PRE_RELEASE.md](PRE_RELEASE.md), [configuration](spec/sigil-config.md), and the
 [0.5 language migration guide](spec/migrating-to-0.5.md). Reviewed project
 vocabulary is described in the
@@ -319,8 +322,8 @@ expands and trivial mechanics, and requires an implementation coverage map
 before coding. The active boundary keeps deterministic facts in shared packages
 and model-assisted interpretation in the host-neutral skill workflow.
 
-Editor integrations other than VS Code, stricter body semantics, project
-configuration, and code-generation integrations remain deferred.
+Editor integrations other than VS Code, stricter body semantics, and additional
+project configuration remain deferred.
 
 Receipts and anchors are rejected historical design explorations rather than
 active or deferred Sigil components.

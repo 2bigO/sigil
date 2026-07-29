@@ -39,7 +39,6 @@ abstract class ReadOnlyCliAdapter implements AgentAdapter {
   readonly capabilities = {
     readOnlyWorkspace: true,
     network: false,
-    codeGeneration: false,
   } as const;
 
   constructor(
@@ -113,7 +112,6 @@ export class MockAdapter implements AgentAdapter {
   readonly capabilities = {
     readOnlyWorkspace: true,
     network: false,
-    codeGeneration: false,
   } as const;
 
   constructor(

@@ -1,9 +1,0 @@
-{
-  "id": "implementation-feasibility",
-  "version": "1.0.0",
-  "inputs": ["component-context", "owned-implementation"],
-  "dependencies": ["current-code-compatibility"],
-  "capabilities": ["read-workspace"],
-  "rules": ["IMPLEMENTATION_BLOCKER", "IMPLEMENTATION_RISK", "OPTIMIZATION"],
-  "output": "compiler-findings-v1"
-}

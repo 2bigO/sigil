@@ -71,8 +71,8 @@ Commands:
 - `sigil graph [path]` returns component and import graph data;
 - `sigil context ...` returns agent context JSON with direct dependencies'
   public contracts and decision rationale plus reviewed terminology recognized
-  in the selected and related Sigil files, excluding terms whose
-  `agentContext` value is `false`;
+  in the selected and related Sigil files, excluding terms whose `agentContext`
+  value is `false`;
 - `sigil compile [path] [--component name | --file file]` runs profile-scoped
   deterministic and read-only agent evaluation. Use `--format jsonl` for its
   versioned event stream;
@@ -87,33 +87,25 @@ Configure agentic compilation under `tools.compile`:
       "defaultProfile": "standard",
       "adapter": {
         "provider": "codex"
-      },
-      "profiles": {
-        "design-review": {
-          "extends": "standard",
-          "disabledStages": ["implementation-feasibility"]
-        }
       }
     }
   }
 }
 ```
 
-The initial compiler supports Codex and Claude read-only adapters.
-`critical-system` reports red because its sandbox code-generation stage is
-deliberately deferred.
+The compiler supports Codex and Claude read-only adapters. Compilation does not
+generate code or execute implementation experiments.
 
 Empty, unknown, incomplete, and invalid invocations report the problem together
 with help for the longest recognized command path.
 
-The deterministic commands return exit code `0` for success or warnings, `1`
-for error diagnostics, `2` for usage errors, and `3` for host/runtime failures.
+The deterministic commands return exit code `0` for success or warnings, `1` for
+error diagnostics, `2` for usage errors, and `3` for host/runtime failures.
 Compilation returns `0` only for green, `1` for red or yellow, and `130` when
 cancelled. Use JSON or JSON Lines output for automation; human text and Markdown
-are convenience projections.
-Context output includes resolved concept namespaces, bounded
-`agentDependencyContexts`, and a scoped `glossaryContext`; Markdown render
-output preserves concept grouping.
+are convenience projections. Context output includes resolved concept
+namespaces, bounded `agentDependencyContexts`, and a scoped `glossaryContext`;
+Markdown render output preserves concept grouping.
 
 Versioned binary distributions place assets at `<version>/integrations/skills`
 beside `<version>/bin/sigil`. This keeps each binary paired with the language

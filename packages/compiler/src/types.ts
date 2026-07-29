@@ -137,7 +137,6 @@ export interface AgentAdapter {
   readonly capabilities: {
     readonly readOnlyWorkspace: true;
     readonly network: false;
-    readonly codeGeneration: false;
   };
   evaluate(request: AgentEvaluationRequest): Promise<readonly AgentFinding[]>;
 }

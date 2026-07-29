@@ -92,7 +92,7 @@ Deno.test("warnings produce yellow and errors produce red", async () => {
 });
 
 // @sigil tests packages/compiler/#module.sigil::SigilCompiler::StageConfiguration constraints,cases
-Deno.test("critical-system honestly fails its deferred sandbox stage", async () => {
+Deno.test("critical-system adds risk evaluation without implementation stages", async () => {
   const root = await workspace(`component Example {
   goal {
     Explain the example.
@@ -110,11 +110,16 @@ Deno.test("critical-system honestly fails its deferred sandbox stage", async () 
       profile: "critical-system",
       adapter: new MockAdapter(),
     });
-    assertEquals(report.status, "red");
     assertEquals(
-      report.stages.find((item) => item.id === "sandbox-code-generation")
-        ?.state,
-      "failed",
+      report.stages.find((item) => item.id === "standards-risk")?.state,
+      "completed",
+    );
+    assertEquals(
+      report.stages.some((item) =>
+        item.id.includes("implementation") ||
+        item.id.includes("code-generation")
+      ),
+      false,
     );
   } finally {
     await Deno.remove(root, { recursive: true });

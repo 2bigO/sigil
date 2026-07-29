@@ -66,27 +66,12 @@ const STAGES: readonly StageDefinition[] = [
       "Evaluate whether the contract is coherent with referenced implementation ownership and repository evidence.",
   },
   {
-    id: "implementation-feasibility",
-    required: true,
-    agentic: true,
-    dependencies: ["current-code-compatibility"],
-    skill:
-      "Evaluate implementation feasibility without generating code or executing commands.",
-  },
-  {
     id: "standards-risk",
     required: true,
     agentic: true,
     dependencies: ["architecture-design"],
     skill:
       "Evaluate applicable standards, safety, security, reliability, and operational risks from supplied evidence.",
-  },
-  {
-    id: "sandbox-code-generation",
-    required: true,
-    agentic: true,
-    dependencies: ["current-code-compatibility"],
-    skill: "Deferred in the initial implementation.",
   },
 ];
 
@@ -233,11 +218,6 @@ export async function compile(
     const before = diagnostics.length;
     let state: StageReport["state"] = "completed";
     try {
-      if (stage.id === "sandbox-code-generation") {
-        throw new Error(
-          "Sandbox code-generation validation is not available in this iteration.",
-        );
-      }
       if (stage.agentic) {
         if (!adapter) {
           throw new Error(
@@ -343,9 +323,7 @@ async function effectiveProfile(
     throw new Error(`Unknown compilation profile ${JSON.stringify(name)}.`);
   }
   const included = base === "standard"
-    ? STAGES.filter((stage) =>
-      !["standards-risk", "sandbox-code-generation"].includes(stage.id)
-    )
+    ? STAGES.filter((stage) => stage.id !== "standards-risk")
     : STAGES;
   const disabled = new Set(custom?.disabledStages ?? []);
   const stages = included.map((stage) => ({
