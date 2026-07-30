@@ -43,13 +43,15 @@ component SigilCli {
 
       sigil graph [path]
 
-      sigil context [path] (--component name | --file file)
+      sigil context [path] (--component name | --file file) [--include-dependents]
 
       sigil render [path]
 
       context reports a scoped glossary projection for the selected component or file and its related sources
 
       context automatically reports public contracts and durable decisions from direct dependencies
+
+      context with --include-dependents reports direct importing files for the selected component and contextual public contracts declared in those files without proving component-level dependency
     }
 
     MarkdownOutput {
@@ -190,6 +192,10 @@ expand SigilCli {
       context JSON output includes glossaryContext with the glossary path, resolved bounded contexts, canonical terms, definitions, aliases, and relevant occurrences.
 
       context JSON labels dependency decisions as agent rationale outside the dependent-facing contract.
+
+      context JSON omits dependent context fields unless --include-dependents is requested.
+
+      context dependent context is file-level importing context derived from resolved imported-component graph edges.
 
       glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
     }
@@ -370,6 +376,8 @@ expand SigilCli {
       context for a component reports each direct dependency's public contract and decision sections once.
 
       context excludes transitive dependency decisions and non-decision private dependency sections.
+
+      context with --include-dependents reports direct importing files and contextual public contracts declared in those files without proving component-level dependency.
     }
 
     OwnershipContext {

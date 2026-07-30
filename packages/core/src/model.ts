@@ -325,6 +325,24 @@ export interface AgentDependencyContext {
   readonly relatedFilePaths: readonly string[];
 }
 
+export interface AgentDependentContext {
+  readonly selectedComponent: ResolvedComponent;
+  readonly importingFiles: readonly DependentImportingFileContext[];
+  readonly relatedFilePaths: readonly string[];
+}
+
+export interface DependentImportingFileContext {
+  readonly filePath: string;
+  readonly importedComponent: ImportedComponentReference;
+  readonly importEdges: readonly ImportedComponentEdge[];
+  readonly contextualContracts: readonly ComponentContractView[];
+}
+
+export interface ImportedComponentReference {
+  readonly name: string;
+  readonly filePath: string;
+}
+
 export interface ResolvedExpansion {
   readonly filePath: string;
   readonly declaration: ExpandDeclaration;

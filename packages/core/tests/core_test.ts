@@ -1,5 +1,6 @@
 import {
   agentDependencyContextFor,
+  agentDependentContextFor,
   ancestorsFrom,
   collectedExpansionFor,
   componentContracts,
@@ -840,6 +841,74 @@ component Consumer {
   assertEquals(agentDependencyContextFor(resolved, "Missing"), undefined);
 });
 
+Deno.test("projects direct importing-file context from graph edges", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "provider.sigil": `@consumer-a.sigil import { ConsumerA }
+
+component Provider {
+  goal {
+    Serve importing files.
+  }
+
+  interface {
+    ProviderApi {
+      provide()
+    }
+  }
+}
+`,
+    "consumer-a.sigil": `@provider.sigil import { Provider }
+@provider.sigil import { Provider }
+
+component ConsumerA {
+  goal {
+    Import provider.
+  }
+
+  interface {
+    ConsumerAApi {
+      consumeA()
+    }
+  }
+}
+
+component ConsumerB {
+  goal {
+    Share an importing file.
+  }
+
+  interface {
+    ConsumerBApi {
+      consumeB()
+    }
+  }
+}
+`,
+    "consumer-b.sigil": `@provider.sigil import { Provider }
+
+component ConsumerC {
+  goal {
+    Import provider separately.
+  }
+
+  interface {
+    ConsumerCApi {
+      consumeC()
+    }
+  }
+}
+`,
+    "orphan-import.sigil": `@provider.sigil import { Provider }
+`,
+    "unused.sigil": `component Unused {
+  goal {
+    Import nothing.
+  }
+
+  interface {
+    UnusedApi {
+      unused()
 // @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
 Deno.test("projects implementation targets from entrypoint comments", async () => {
   const fs = new InMemorySigilFileSystem({
@@ -1115,6 +1184,76 @@ Deno.test("resolves entrypoints using each language's declaration syntax", async
   const resolved = resolveSigilWorkspace(
     await loadSigilWorkspace(fs, { startPath: "." }),
   );
+  const context = agentDependentContextFor(resolved, "Provider");
+
+  assert(context);
+  assertEquals(context.selectedComponent.name, "Provider");
+  assertEquals(context.selectedComponent.filePath, "provider.sigil");
+  assertEquals(
+    context.importingFiles.map((item) => item.filePath).join(","),
+    "consumer-a.sigil,consumer-b.sigil,orphan-import.sigil",
+  );
+  assertEquals(context.importingFiles.length, 3);
+  assertEquals(
+    context.importingFiles[0].contextualContracts.map((item) => item.name)
+      .join(","),
+    "ConsumerA,ConsumerB",
+  );
+  assertEquals(context.importingFiles[0].importEdges.length, 1);
+  assertEquals(
+    context.importingFiles[0].importEdges[0].sourceFile,
+    "consumer-a.sigil",
+  );
+  assertEquals(
+    context.importingFiles[0].importEdges[0].targetFile,
+    "provider.sigil",
+  );
+  assertEquals(
+    context.importingFiles[0].importEdges[0].componentName,
+    "Provider",
+  );
+  assertEquals(
+    context.importingFiles[0].importEdges[0].importPath,
+    "provider.sigil",
+  );
+  assertEquals(context.importingFiles[0].importedComponent.name, "Provider");
+  assertEquals(
+    context.importingFiles[0].importedComponent.filePath,
+    "provider.sigil",
+  );
+  assertEquals(
+    context.importingFiles[1].contextualContracts.map((item) => item.name)
+      .join(","),
+    "ConsumerC",
+  );
+  assertEquals(context.importingFiles[1].importEdges.length, 1);
+  assertEquals(
+    context.importingFiles[1].importEdges[0].sourceFile,
+    "consumer-b.sigil",
+  );
+  assertEquals(context.importingFiles[2].contextualContracts.length, 0);
+  assertEquals(context.importingFiles[2].importEdges.length, 1);
+  assertEquals(
+    context.importingFiles[2].importEdges[0].sourceFile,
+    "orphan-import.sigil",
+  );
+  assert(
+    !context.importingFiles.some((item) => item.filePath === "provider.sigil"),
+  );
+  assert(
+    !context.importingFiles.some((item) => item.filePath === "unused.sigil"),
+  );
+  assertEquals(
+    context.relatedFilePaths.join(","),
+    "consumer-a.sigil,consumer-b.sigil,orphan-import.sigil",
+  );
+
+  const unused = agentDependentContextFor(resolved, "Unused");
+  assert(unused);
+  assertEquals(unused.importingFiles.length, 0);
+  assertEquals(agentDependentContextFor(resolved, "Missing"), undefined);
+});
+
   const target = "ownership.sigil::Ownership::EntryPoint interface";
   const sources = [
     {

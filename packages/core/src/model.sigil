@@ -75,6 +75,8 @@ component SigilSemanticModel {
       ResolvedConceptNamespace contains local, accessible, and public concepts plus contextual whole-word references
 
       AgentDependencyContext preserves the selected component, its collected expansions, direct dependency contract views, source-aware decision sections, and related file paths
+
+      AgentDependentContext preserves the selected component, direct importing files, imported-component edge details, contextual public contracts declared by importing files, and related file paths
     }
 
     GraphModel {

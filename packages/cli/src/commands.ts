@@ -160,8 +160,18 @@ async function contextCommand(
     component.conceptNamespace
   );
   const agentDependencyContexts = selectedComponents.map((component) =>
-    agentDependencyContextForComponent(resolved, component, allContracts)
-  );
+const agentDependentContexts = request.includeDependents
+  ? selectedComponents
+      .map((component) =>
+        agentDependencyContextForComponent(
+          resolved,
+          component,
+          allContracts,
+        )
+      )
+      .filter((item) => item !== undefined)
+  : undefined;
+    
   const implementationSourceDiscovery = await core.implementationSourcesFor(
     resolved,
   );
@@ -183,6 +193,9 @@ async function contextCommand(
   const relatedFilePaths = [
     ...new Set([
       ...agentDependencyContexts.flatMap((context) => context.relatedFilePaths),
+      ...(agentDependentContexts?.flatMap((context) =>
+        context.relatedFilePaths
+      ) ?? []),
     ]),
   ].sort();
   const glossaryContext = core.glossaryContextForFiles(
@@ -197,6 +210,7 @@ async function contextCommand(
     conceptNamespaces,
     collectedExpansions: expansions,
     agentDependencyContexts,
+    ...(agentDependentContexts ? { agentDependentContexts } : {}),
     ownedImplementationProjections,
     relatedFilePaths,
     glossaryContext: glossaryContext.glossaryPath ? glossaryContext : null,
