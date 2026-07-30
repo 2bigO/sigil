@@ -52,6 +52,16 @@ component SigilCli {
       context automatically reports public contracts and durable decisions from direct dependencies
     }
 
+    MarkdownOutput {
+      sigil render [path] --format markdown
+
+      sigil context [path] (--component name | --file file) --format markdown
+
+      render markdown reports workspace metadata, component contracts, collected expansions, and diagnostics as deterministic Markdown.
+
+      context markdown reports selected component contracts, selected expansions, concept namespace details, direct dependency contracts and dependency decisions, owned implementation projections, related files, glossary context, and diagnostics as deterministic Markdown.
+    }
+
     OwnershipContext {
       context reports one owned-implementation projection for each selected component
 
@@ -70,6 +80,8 @@ component SigilCli {
 
     StructuredOutput {
       structured output supports --format json and --pretty
+
+      markdown output supports --format markdown for render and context without changing JSON result shape
 
       commands that produce no required stdout support --quiet
     }
@@ -138,6 +150,16 @@ expand SigilCli {
       A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
     }
 
+    MarkdownOutput {
+      render markdown delegates component contract projection to SigilCore and associates expansions only with the exact component identity being rendered.
+
+      context markdown renders only selected contracts, expansions, concept namespaces, dependency contexts, and ownership projections that match the selected component identity.
+
+      dependency decisions are attached to a dependency contract only when the dependency name is unambiguous in the direct dependency context.
+
+      ambiguous dependency decisions remain visible as other dependency decisions rather than being attached to every same-named dependency contract.
+    }
+
     OwnershipContext {
       context loads supported implementation sources once and delegates ownership lookup for each selected component to SigilCore.
 
@@ -168,6 +190,16 @@ expand SigilCli {
       context JSON labels dependency decisions as agent rationale outside the dependent-facing contract.
 
       glossary JSON output includes workspace metadata, glossary path, schema version, contexts, terms, occurrences, and diagnostics.
+    }
+
+    MarkdownOutput {
+      Markdown rendering does not change command JSON behavior.
+
+      Markdown rendering preserves component identity with component name and file path when an exact identity is present in the command result.
+
+      Markdown rendering does not use name-only fallback to associate contracts, dependency contexts, dependency decisions, expansions, concept namespaces, or ownership projections with a selected component when duplicate component names can exist.
+
+      Markdown diagnostics use the stable human diagnostic text form of severity, code, and message.
     }
 
     OwnershipContext {

@@ -819,7 +819,10 @@ Deno.test("context renders component Markdown for contracts, expansions, diagnos
   }
 });
 
-// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ */
 Deno.test("context Markdown prefers file identity for duplicate component names", async () => {
   const root = await makeWorkspace("context-markdown-duplicate-name");
   try {
@@ -853,6 +856,28 @@ Deno.test("context Markdown prefers file identity for duplicate component names"
 }
 `,
     );
+    await Deno.writeTextFile(
+      `${root}/first-detail.sigil`,
+      `expand Duplicate {
+  logic {
+    FirstApi {
+      first expansion.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second-detail.sigil`,
+      `expand Duplicate {
+  logic {
+    SecondApi {
+      second expansion.
+    }
+  }
+}
+`,
+    );
 
     const result = await runCli([
       "context",
@@ -868,13 +893,124 @@ Deno.test("context Markdown prefers file identity for duplicate component names"
     assert(result.stdout.includes("#### SecondApi"));
     assert(!result.stdout.includes("- First duplicate."));
     assert(!result.stdout.includes("#### FirstApi"));
+    assert(!result.stdout.includes("first expansion."));
+    assert(!result.stdout.includes("second expansion."));
     assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
 });
 
-// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ */
+Deno.test("context Markdown preserves duplicate dependency identity by import path", async () => {
+  const root = await makeWorkspace("context-markdown-duplicate-dependencies");
+  try {
+    await Deno.mkdir(`${root}/first`);
+    await Deno.mkdir(`${root}/second`);
+    await Deno.writeTextFile(
+      `${root}/first/provider.sigil`,
+      `component Provider {
+  goal {
+    First provider.
+  }
+
+  interface {
+    FirstProviderApi {
+      first()
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/first/provider-detail.sigil`,
+      `expand Provider {
+  decisions {
+    FirstProviderChoice {
+      Decision: Use the first provider.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second/provider.sigil`,
+      `component Provider {
+  goal {
+    Second provider.
+  }
+
+  interface {
+    SecondProviderApi {
+      second()
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second/provider-detail.sigil`,
+      `expand Provider {
+  decisions {
+    SecondProviderChoice {
+      Decision: Use the second provider.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/consumer.sigil`,
+      `@first/provider.sigil import { Provider }
+@second/provider.sigil import { Provider }
+
+component Consumer {
+  goal {
+    Consume both providers.
+  }
+
+  interface {
+    ConsumerApi {
+      consume()
+    }
+  }
+}
+`,
+    );
+
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Consumer",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assert(result.stdout.includes("first/provider.sigil"));
+    assert(result.stdout.includes("second/provider.sigil"));
+    assert(result.stdout.includes("#### Other Dependency Decisions"));
+    assertEquals(
+      countOccurrences(result.stdout, "Decision: Use the first provider."),
+      1,
+    );
+    assertEquals(
+      countOccurrences(result.stdout, "Decision: Use the second provider."),
+      1,
+    );
+    assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ */
 Deno.test("context renders file Markdown for multiple components and normalizes paths", async () => {
   const root = await makeWorkspace("context-markdown-file");
   try {
@@ -1167,6 +1303,42 @@ Deno.test("render JSON includes workspace metadata and Markdown", async () => {
   const json = parseJson(result.stdout);
   assertEquals(json.workspaceName, "sigil");
   assert(json.markdown.includes("# Sigil Workspace"));
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,constraints,cases
+ */
+Deno.test("render Markdown diagnostics keep stable text formatting", async () => {
+  const root = await makeWorkspace("render-markdown-diagnostics");
+  try {
+    await Deno.writeTextFile(
+      `${root}/broken.sigil`,
+      `component Broken {
+  goal {
+    Render diagnostics.
+  }
+}
+`,
+    );
+    const result = await runCli([
+      "render",
+      root,
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assert(
+      result.stdout.includes(
+        "- error SIGIL_MISSING_INTERFACE: component Broken is missing required interface section.",
+      ),
+    );
+    assert(
+      !result.stdout.includes(`SIGIL_MISSING_INTERFACE ${root}/broken.sigil:`),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 /*
@@ -1517,6 +1689,10 @@ function assertHasCode(
     diagnostics.some((item) => item.code === code),
     `Expected ${code}, got ${diagnostics.map((item) => item.code).join(", ")}`,
   );
+}
+
+function countOccurrences(source: string, needle: string): number {
+  return source.split(needle).length - 1;
 }
 
 async function exists(path: string): Promise<boolean> {
