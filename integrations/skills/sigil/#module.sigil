@@ -46,6 +46,25 @@ component SigilSkill {
       semantics
     }
 
+    ImportSemantics {
+      inspects the complete accessible imported public namespace before creating a
+      local component or concept with overlapping meaning
+
+      reuses every semantically matching imported component and public concept so
+      dependency contracts retain provider identity and vocabulary
+    }
+
+    ModuleIndexFile {
+      keeps one small local summary component and assembles an intentional
+      directory-import surface from cohesive imported components
+
+      retains only boundary-wide goal, interface, architectural constraints, and
+      durable design decisions
+
+      delegates independently owned state, operational logic, lifecycle, and
+      implementation detail to components and expands colocated with their owners
+    }
+
     EvidenceReview {
       separates observed behavior, documented intent, user-confirmed intent,
       unresolved ambiguity, suspected accidental behavior, and external guidance
@@ -70,6 +89,9 @@ component SigilSkill {
     ModularityReview {
       assesses cohesion, interface size, coupling, dependency direction, state
       ownership, and reasons to change without assigning a numeric score
+
+      verifies that contract decomposition can guide implementation into cohesive
+      modules rather than one bulky architectural owner
     }
 
     ImplementationCoverage {
@@ -79,6 +101,9 @@ component SigilSkill {
       by an existing component, or an omitted trivial mechanic
 
       reports coverage before implementation begins
+
+      maps each material contract owner to a corresponding implementation module and
+      treats public index files as namespace-assembly surfaces
     }
 
     ImplementationOwnershipWorkflow {
@@ -442,12 +467,31 @@ expand SigilSkill {
       definitely conflicts.
     }
 
+    ImportSemantics {
+      Inspect accessible imported components and public concepts before proposing
+      local identities.
+
+      Reuse every semantic match and create a local identity only for a materially
+      distinct responsibility or meaning.
+    }
+
+    ModuleIndexFile {
+      Extract independently changing responsibilities and material state, lifecycle,
+      or operational logic into colocated components and expands.
+
+      Import the components intended for directory shorthand and leave the local
+      summary focused on boundary-wide architecture.
+    }
+
     ModularityReview {
       Review component responsibility, dependent-facing interface, imports, collected
       expands, state ownership, dependency direction, and reasons to change.
 
       Propose boundary changes when one component owns unrelated responsibilities or
       multiple components compete for one responsibility.
+
+      Split a proposed owner when separate lifecycle, policy, state ownership, or
+      reasons to change demonstrate independently relied-upon responsibilities.
     }
 
     ImplementationCoverage {
@@ -460,6 +504,9 @@ expand SigilSkill {
 
       Present a coverage map containing each material concern, owner, dependents,
       selected Sigil form, and owning location.
+
+      Project approved component and expand boundaries into implementation modules
+      before code generation.
     }
 
     ImplementationOwnershipWorkflow {
@@ -687,8 +734,33 @@ expand SigilSkill {
       A conflict never silently overrides approved Sigil.
     }
 
+    ImportSemantics {
+      Namespace reuse is maximized only where meaning is coherent; superficially
+      similar but materially distinct concepts retain separate identities.
+
+      Imported public identities are reused directly without aliases, dotted
+      notation, local synonyms, or duplicated provider contracts.
+    }
+
+    ModuleIndexFile {
+      Every semantic unit in ModuleIndexFile applies to the indexed directory or
+      configured boundary as a whole.
+
+      Material operational logic, mutable state, detailed lifecycle behavior, and
+      independently changing policy belong to their owning components or expands.
+
+      ModuleIndexFile may retain only genuinely boundary-wide state or orchestration
+      that cannot coherently belong to a narrower owner.
+
+      Smallness is assessed by responsibility and ownership rather than an arbitrary
+      line-count threshold.
+    }
+
     ModularityReview {
       Modularity conclusions use concrete semantic evidence rather than a score.
+
+      A high-level summary does not substitute for contracts covering independently
+      owned implementation responsibilities.
     }
 
     ImplementationCoverage {
@@ -700,6 +772,11 @@ expand SigilSkill {
 
       Trivial local mechanics with safely reconstructable behavior and rationale need
       no separate Sigil.
+
+      Generated implementation mirrors approved component and expand decomposition.
+
+      An implementation index assembles or re-exports the public namespace and does
+      not accumulate unrelated behavior or mutable state.
     }
 
     ImplementationOwnershipWorkflow {
@@ -882,6 +959,58 @@ expand SigilSkill {
   }
 
   decisions {
+    ModuleIndexFile {
+      Decision: Keep ModuleIndexFile as a small architectural summary and intentional
+      directory-namespace assembly surface.
+
+      Scope: Governs configured-boundary and internal module indexes; excludes
+      independently owned operational behavior and state.
+
+      Trade-offs: A modular boundary uses more Sigil files and explicit imports.
+
+      Design issues addressed: Large module indexes encourage generated god modules
+      whose unrelated responsibilities change together.
+
+      Consequences: Detailed responsibilities move beside their owners while the
+      index preserves the high-level architecture and public usable namespace.
+
+      Revisit when: A boundary-wide responsibility cannot be assigned coherently to a
+      narrower component.
+    }
+
+    ImplementationCoverage {
+      Decision: Require generated implementation structure to mirror approved Sigil
+      component and expand ownership.
+
+      Scope: Governs implementation design and code generation from reviewed Sigil.
+
+      Trade-offs: Implementation planning must establish module ownership before
+      generation begins.
+
+      Design issues addressed: Semantically monolithic Sigil produces bulky code even
+      when the source is later divided mechanically.
+
+      Consequences: Component boundaries determine cohesive modules, while entrypoint
+      files remain assembly surfaces.
+    }
+
+    ImportSemantics {
+      Decision: Maximize coherent reuse of accessible imported public identities
+      before introducing local component or concept identities.
+
+      Scope: Governs Sigil authoring across direct imports and accessible public
+      concept namespaces.
+
+      Trade-offs: Authors must inspect provider contracts before choosing local
+      names.
+
+      Design issues addressed: Local synonyms and duplicated contracts fragment
+      architecture vocabulary and obscure dependency ownership.
+
+      Consequences: Importers remain consistent with provider namespaces while
+      materially distinct meanings retain independent identities.
+    }
+
     DesignConversation {
       Decision: Route material design work through imported SigilDesignConversation
       while keeping conversation modes and evidence-acquisition mechanics owned by
@@ -1192,9 +1321,23 @@ expand SigilSkill {
       reconsidered as multiple owners rather than marked with a low score.
     }
 
+    ModuleIndexFile {
+      A boundary with multiple independently owned responsibilities declares their
+      components beside their owners and imports the intended public components into
+      ModuleIndexFile instead of placing operational detail in its local summary.
+    }
+
     ImplementationCoverage {
       A stable Promise-like caller API can be a component, a material retry algorithm
       can be an expand, and a trivial formatter can be omitted.
+
+      A generated namespace-assembly entrypoint exposes the approved public modules
+      while behavior and state remain in their owning implementation units.
+    }
+
+    ImportSemantics {
+      An importer reuses an accessible provider concept instead of introducing a
+      synonymous local concept, but creates a new identity when the meanings differ.
     }
 
     ImplementationOwnershipWorkflow {

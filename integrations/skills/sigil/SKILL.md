@@ -111,7 +111,12 @@ references remain applicable across all three semantic workflows.
      public and private concepts, state ownership, and direct dependents.
    - Treat imports as dependency declarations; do not repeat imported-component
      dependencies in `interface`.
+   - Inspect the complete accessible imported public namespace and reuse every
+     semantically matching component and public concept before proposing a local
+     identity.
    - Treat a component's `goal` and `interface` as public to its dependents.
+   - Identify each `ModuleIndexFile` as a small boundary summary and intentional
+     namespace-assembly surface, not an owner for unrelated operational detail.
    - Note unresolved imports, contradictions, vague behavior, oversized
      boundaries, and code/spec drift.
 
@@ -132,6 +137,11 @@ references remain applicable across all three semantic workflows.
      semantic readiness appears aligned for the selected scope.
    - Treat missing decision-rationale coverage for a material selected choice
      as a semantic-readiness gap even when CLI validation succeeds.
+   - Require enough component and expand decomposition to guide implementation
+     into cohesive owning modules.
+   - Keep material operational logic, mutable state, detailed lifecycle
+     behavior, and independently changing policy outside `ModuleIndexFile`
+     unless they genuinely govern the whole indexed boundary.
 
 4. Resolve or improve design intent when applicable.
    - Follow `references/design-conversation.md` only for explicit design,
@@ -171,6 +181,9 @@ references remain applicable across all three semantic workflows.
    - Begin concept reuse discovery, grouping, and identifier proposals only
      after the pre-grouping semantic-readiness review appears aligned.
    - Show exact component, expand, import, location, and semantic-unit changes.
+   - Show how each module index remains a small architectural summary, which
+     imported components assemble its usable namespace, and how imported public
+     identities are reused.
    - For externally informed compatible guidance or any conflict, follow the
      proposal and approval policy in `references/standards-review.md`.
    - Submit the exact action, scope, change set, and evidence to ReviewGate and
@@ -199,6 +212,9 @@ references remain applicable across all three semantic workflows.
      implementation mutation, regardless of artifact classification.
    - Verify that every material implementation concern has established coverage
      or an intentional omission.
+   - Verify that generated implementation modules mirror approved component and
+     expand ownership and that implementation indexes remain namespace-assembly
+     surfaces.
    - Submit the validated written Sigil and exact implementation scope together
      to `ReviewGate(action: implementation)`.
    - Derive each implementation entrypoint's governing Sigil path, component or

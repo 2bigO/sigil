@@ -1,6 +1,9 @@
 <!--
 @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticUnitDiscipline interface,constraints
 @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionRationaleWorkflow interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImportSemantics interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModuleIndexFile interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModularityReview interface,logic,constraints
 -->
 
 # Sigil Authoring Conventions
@@ -26,6 +29,39 @@ Sigil. Read `sigil-format.md` when syntax details or examples are needed.
 UI interface content may use natural language, brace-safe ASCII, repository
 image references, or design links. Preserve the author's natural wording and do
 not invent visual-authority keywords.
+
+## Architectural Modularity And Module Indexes
+
+Write Sigil at the architectural boundaries that implementation should preserve.
+When a responsibility owns an independently relied-upon contract, mutable state,
+lifecycle, policy, or durable reason to change, give it its own component. Put
+implementation-specific operational detail in an expand beside its owner. Do
+not place several independently changing responsibilities beneath one
+high-level component merely because they share a package or product boundary.
+
+Before proposing local components or concept identifiers, inspect the complete
+accessible imported public namespace. Reuse every imported component and public
+concept whose meaning matches. Create a local identity only for a materially
+distinct responsibility or meaning. Do not create aliases, dotted names, local
+synonyms, or duplicate provider contracts. Never force reuse when similar words
+represent different concepts.
+
+Keep each `ModuleIndexFile` small by responsibility, not by an arbitrary line
+count. It contains one concise local summary component for its directory or
+configured boundary and imports the cohesive components intended for directory
+shorthand. Its matching expand retains only boundary-wide architecture
+constraints and durable design decisions.
+
+Move material operational logic, mutable state, detailed lifecycle behavior,
+and independently changing policy into components or expands beside their
+owners. A module index may retain state or orchestration only when it genuinely
+governs the whole indexed boundary and cannot coherently belong to a narrower
+owner.
+
+Before approval, verify that the proposed component and expand decomposition can
+guide code generation into cohesive implementation modules. The corresponding
+implementation entrypoint or index assembles the approved public namespace; it
+does not become the default owner of unrelated behavior or state.
 
 ## Decision Rationale
 

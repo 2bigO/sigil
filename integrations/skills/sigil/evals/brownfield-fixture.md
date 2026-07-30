@@ -30,21 +30,27 @@ Expected skill behavior:
    `state`, `logic`, `constraints`, `decisions`, and `cases`. Exclude secrets, incidental
    dependencies, low-level configuration, and task-specific details.
 8. Propose an exact meaningful ordinary summary component in the workspace-root
-   `#module.sigil`; include direct imports only when they define intentional
-   directory-import shorthand.
-9. Submit the exact boundary module index to
+   `#module.sigil`; keep it small by responsibility and include direct imports
+   only when they assemble intentional directory-import shorthand.
+9. Move independently owned state, operational logic, lifecycle behavior, and
+   policy into components or expands beside their owners.
+10. Inspect accessible imported public identities and reuse every semantic match
+    before creating a local component or concept.
+11. Show how the proposed contracts decompose implementation ownership rather
+    than treating the high-level boundary summary as sufficient coverage.
+12. Submit the exact boundary module index to
    `ReviewGate(action: sigil-change)`, write only when ready, validate it, and
    report the written result without another approval gate.
-10. After the ready boundary summary is written and validated, focus on the
+13. After the ready boundary summary is written and validated, focus on the
     requested component, classify its coverage, and gather task-specific
     evidence.
-11. Report conflicting current and intended behavior and propose exact task
+14. Report conflicting current and intended behavior and propose exact task
     Sigil before editing.
-12. Submit exact task Sigil to `ReviewGate(action: sigil-change)`, then write,
+15. Submit exact task Sigil to `ReviewGate(action: sigil-change)`, then write,
     validate, and report it only when ready.
-13. If the requested implementation change lacks clear Sigil coverage,
+16. If the requested implementation change lacks clear Sigil coverage,
     collaborate with the user to define and approve that coverage before
     changing code.
-14. Write implementation code only when
+17. Write implementation code only when
     `ReviewGate(action: implementation)` is ready for the validated written task
     Sigil and exact implementation scope.

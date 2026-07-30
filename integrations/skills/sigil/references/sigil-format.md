@@ -74,6 +74,16 @@ ordinary summary component in its `#module.sigil`. Its `goal` and `interface`
 describe that boundary, and a matching expand uses the general section meanings.
 This summary has no special parser or resolver status.
 
+As an authoring convention, keep every module index small by responsibility.
+Use it to assemble the intentional directory-import namespace and retain only
+the local summary plus boundary-wide architecture constraints and durable design
+decisions. Put material state, operational logic, detailed lifecycle behavior,
+and independently changing policy in components or expands beside their owners.
+
+Before creating local components or concepts, inspect accessible imported public
+identities and reuse every semantic match. Similar wording does not justify
+reuse when the underlying responsibility or meaning differs.
+
 Exclude secrets, incidental dependencies, low-level configuration, and
 module-specific implementation details from configured-boundary summaries.
 `.sigil/config.json` remains the workspace marker and sole workspace-membership
@@ -394,14 +404,22 @@ When reviewing Sigil, check:
 
 - Does every component explain why it exists?
 - Does every `#module.sigil` declare at least one local component?
+- Does each `#module.sigil` remain a concise architectural summary and
+  intentional namespace-assembly surface?
+- Are material state, operational logic, lifecycle behavior, and independently
+  changing policy colocated with narrower owners?
 - Does every component expose how callers, users, modules, or other parts
   interact with it?
 - Is every interface region grouped under one or more concept identifiers?
 - Are repeated concept blocks coherent, flat, nonempty, and unambiguous across
   the accessible import graph?
 - Do imported dependency views exclude private concepts and expands?
+- Were semantically matching imported public identities reused before local
+  synonyms or duplicate contracts were introduced?
 - Were coherent internal abstractions and UI surfaces considered as components
   rather than hidden beneath only high-level project or service contracts?
+- Can the component and expand decomposition guide implementation into cohesive
+  modules whose entrypoints only assemble the approved public namespace?
 - Does each imported name resolve to a matching component in the imported Sigil
   source?
 - Does each resolved imported name have a qualifying use outside `goal`,

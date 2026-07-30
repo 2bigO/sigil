@@ -1,4 +1,7 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases -->
+<!--
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModularityReview interface,logic,constraints
+-->
 
 # Standards-Aware Semantic Review
 
@@ -213,6 +216,13 @@ Assess modularity qualitatively:
   accidental cycles or bidirectional ownership.
 - **Reasons to change:** unrelated product or technical changes do not routinely
   force one component to change.
+- **Contract-to-code structure:** the component and expand decomposition is
+  specific enough to guide implementation into cohesive owning modules.
+- **Module indexes:** each `ModuleIndexFile` remains a concise architectural
+  summary and intentional namespace-assembly surface rather than an owner of
+  unrelated operational behavior or mutable state.
+- **Imported namespace reuse:** semantically matching imported public identities
+  are reused before local synonyms or duplicate contracts are proposed.
 
 Apply these heuristics at implementation boundaries as well as product and
 service boundaries. An internal API, programming abstraction, state machine, or
@@ -223,6 +233,10 @@ and implementation coverage map before coding.
 Warn about god components, duplicated ownership, chatty or oversized
 interfaces, cyclic dependencies, shared mutable state, and implementation-shaped
 contracts. Do not assign arbitrary scores or thresholds.
+
+Treat a high-level summary that hides independently owned implementation
+responsibilities as partial architectural coverage even when its prose is
+internally coherent.
 
 ## 3. Evidence Consumption And Provenance
 
