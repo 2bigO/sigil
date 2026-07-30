@@ -63,6 +63,8 @@ expand Auth {
     constraints {
         Renters and room owners share the same User entity.
 
+        Auth uses UserProfile only through its public contract.
+
         Next.js authentication is the intended auth foundation.
 
         JWT is the session representation exposed to the app.

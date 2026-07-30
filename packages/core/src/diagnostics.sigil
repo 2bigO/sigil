@@ -36,6 +36,20 @@ expand SigilDiagnostics {
 
     DiagnosticCode {
       Every diagnostic code has one stable severity-bearing machine-readable representation.
+
+      SIGIL_UNUSED_IMPORT is an error for one resolved imported name without qualifying local use.
+
+      SIGIL_DETACHED_LITERAL_BLOCK is an error when a blank line separates introducing prose from an opening fence.
+
+      SIGIL_LITERAL_WITHOUT_INTRODUCTION is an error when an opening fence has no preceding prose in its section or concept block.
+
+      SIGIL_UNCLOSED_LITERAL_BLOCK is an error when no qualifying closing fence occurs.
+
+      SIGIL_INVALID_LITERAL_TYPE is an error when a literal type does not match [A-Za-z][A-Za-z0-9_+.-]*.
+
+      SIGIL_LINE_TOO_LONG is informational when ordinary prose can be canonically wrapped to the 79-character content width.
+
+      SIGIL_UNFORMATTABLE_LINE is an error when one indivisible prose token exceeds the 79-character content width.
     }
   }
 
@@ -74,6 +88,12 @@ expand SigilDiagnostics {
       A valid identifier that is not PascalCase or contains a hyphen or underscore produces informational SIGIL_CONCEPT_IDENTIFIER_STYLE.
 
       An optional ownership-source enumeration failure produces warning SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY when primary context data remains available.
+
+      One unused name in a multi-name resolved import produces one SIGIL_UNUSED_IMPORT at that imported name.
+
+      Apparent imports, components, concepts, or braces inside a LiteralBlock produce no structural or reference diagnostic.
+
+      Leading indentation does not contribute to SIGIL_LINE_TOO_LONG or SIGIL_UNFORMATTABLE_LINE.
     }
 
     DiagnosticConstruction {

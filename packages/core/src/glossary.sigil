@@ -53,7 +53,7 @@ expand SigilGlossaryEngine {
     }
 
     TermRecognition {
-      Scan recovered semantic lines while tracking fenced-code regions and excluding inline code and URLs.
+      Scan recovered SemanticUnit prose while excluding inline code and URLs.
 
       Emit non-overlapping occurrences in deterministic source order.
     }
@@ -69,6 +69,8 @@ expand SigilGlossaryEngine {
 
   constraints {
     GlossaryInterpretation {
+      SigilDiagnostics owns every glossary diagnostic emitted by this engine.
+
       JSON syntax failures produce SIGIL_GLOSSARY_PARSE.
 
       Schema and field failures produce SIGIL_GLOSSARY_INVALID.
@@ -86,6 +88,8 @@ expand SigilGlossaryEngine {
       Recognition uses source ranges already owned by recovered Sigil documents.
 
       Unknown prose remains ordinary text without a missing-glossary-term diagnostic.
+
+      LiteralBlock type and body content are excluded without independently tracking fence state.
     }
 
     GlossaryInspection {
@@ -108,6 +112,8 @@ expand SigilGlossaryEngine {
 
     TermRecognition {
       Longest-first matching emits one workspace root occurrence rather than overlapping workspace and workspace root occurrences.
+
+      A glossary spelling appearing only inside a LiteralBlock produces no occurrence.
     }
 
     GlossaryInspection {

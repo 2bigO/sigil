@@ -7,15 +7,15 @@ component SigilLanguage {
 
   interface {
     LanguageVersion {
-      sigilVersion = "0.5.0"
+      sigilVersion = "0.6.0"
 
       workspace configuration declares the LanguageVersion that governs interpretation
     }
 
     SourceDocument {
-      accepts UTF-8 .sigil source containing imports, components, expands, sections, concept blocks, and semantic lines
+      accepts UTF-8 .sigil source containing imports, components, expands, sections, concept blocks, semantic units, and attached literal blocks
 
-      preserves recovered declarations, semantic lines, concept identities, and source ranges
+      preserves recovered declarations, semantic units, literal blocks, concept identities, original physical lines, and source ranges
 
       reports structural diagnostics while retaining a partial document when practical
     }
@@ -31,7 +31,7 @@ component SigilLanguage {
     }
 
     ConceptIdentity {
-      a concept block groups one or more related semantic lines under a reusable identifier
+      a concept block groups one or more related semantic units under a reusable identifier
 
       a concept is public when it occurs in interface and otherwise remains private to its component and matching expands
 
@@ -48,6 +48,8 @@ component SigilLanguage {
       a named import exposes the imported component's public goal, interface, and public concept identities
 
       imported operational detail and private concepts remain unavailable to dependents
+
+      every resolved imported name is used by a qualifying contract, operational, structural, or directory-surface reference
     }
 
     SectionSemantics {
@@ -62,10 +64,28 @@ component SigilLanguage {
       cases describe representative outcomes, examples, edge cases, and observable acceptance scenarios
     }
 
-    SemanticLineDiscipline {
-      each non-empty semantic line expresses one distinct idea
+    SemanticUnitDiscipline {
+      each blank-line-delimited prose paragraph expresses one distinct idea
 
-      blank lines separate distinct prose-level ideas for readability and do not create semantic units
+      physical wrapping inside one paragraph does not change semantic identity
+
+      blank lines terminate semantic units and do not themselves create semantic units
+    }
+
+    LiteralBlock {
+      three or more backticks open a literal block and may be followed by one optional type token matching [A-Za-z][A-Za-z0-9_+.-]*
+
+      a closing fence contains at least as many backticks as its opener and no other content
+
+      an opening fence immediately follows its introducing prose without an intervening blank line
+
+      literal bodies preserve blank lines, braces, apparent Sigil syntax, and relative indentation as uninterpreted content
+    }
+
+    FormattingStyle {
+      ordinary prose uses at most 79 content characters per physical line without counting leading indentation
+
+      structural lines, fence delimiters, and literal bodies are excluded from the prose-width limit
     }
   }
 }
@@ -90,6 +110,8 @@ expand SigilLanguage {
       Ungrouped interface content remains parseable and produces one warning for each contiguous ungrouped region.
 
       Invalid structure produces source-ranged diagnostics while recoverable content remains available.
+
+      Unclosed, detached, unintroduced, or invalidly typed literal blocks produce source-ranged diagnostics while recoverable content remains available when practical.
     }
 
     ComponentContract {
@@ -105,7 +127,7 @@ expand SigilLanguage {
     ConceptIdentity {
       Concept blocks are flat and cannot nest.
 
-      Every concept block contains at least one semantic line.
+      Every concept block contains at least one semantic unit.
 
       Concept identifiers match [A-Za-z][A-Za-z0-9_-]* and contain no spaces.
 
@@ -117,11 +139,11 @@ expand SigilLanguage {
 
       Sigil provides no dotted concept notation, qualification, aliases, or local shadowing.
 
-      Reusing an imported concept preserves its originating identity while keeping importer semantic lines contextual to the importer.
+      Reusing an imported concept preserves its originating identity while keeping importer semantic units contextual to the importer.
 
       Reusing an imported concept in interface re-exposes the same identity to downstream importers.
 
-      Provider context never includes semantic lines contributed by consumers.
+      Provider context never includes semantic units contributed by consumers.
 
       A whole-word accessible identifier in semantic content resolves as a reference.
 
@@ -138,6 +160,16 @@ expand SigilLanguage {
       Imported names must resolve to components exposed by the selected source or directory-import surface.
 
       Import cycles and unresolved paths or names produce diagnostics with partial resolution when practical.
+
+      Import use is evaluated separately for each resolved imported name in its declaring source document.
+
+      Exact-case component references and imported public-concept references in interface, state, logic, constraints, or cases count as use.
+
+      An applicable local expand and intentional ModuleIndexFile directory-surface exposure count as structural use.
+
+      References in goal, decisions, literal bodies, comments, annotations, other source documents, differently cased words, and identifier substrings do not count as use.
+
+      An unresolved or ambiguous imported name does not additionally produce an unused-import diagnostic.
     }
 
     SectionSemantics {
@@ -152,10 +184,32 @@ expand SigilLanguage {
       A binding outcome remains in constraints; decisions explains why that outcome was selected.
     }
 
-    SemanticLineDiscipline {
+    SemanticUnitDiscipline {
       Distinct prose-level ideas are separated by blank lines in every section.
 
-      Lines in one compact free-form construct may remain adjacent when separation would reduce readability.
+      Adjacent wrapped prose lines normalize to one semantic unit with one source range and retained original physical lines.
+
+      A literal block attaches to the immediately preceding prose semantic unit.
+    }
+
+    LiteralBlock {
+      A blank line between introducing prose and its opening fence is invalid.
+
+      A literal block without preceding prose in the same section or concept block is invalid.
+
+      Structural indentation equal to the opening-fence indentation is removed from literal-body lines when present while additional indentation is preserved.
+
+      Literal bodies create no component, concept, import, glossary, ownership, or other semantic references.
+
+      Literal bodies are not prose-wrapped or width-checked.
+    }
+
+    FormattingStyle {
+      Prose width is measured in Unicode code points after leading indentation.
+
+      Canonical wrapping occurs only at whitespace boundaries and never changes semantic identity.
+
+      An indivisible prose token longer than 79 content characters remains unchanged and is unformattable.
     }
   }
 
@@ -173,17 +227,71 @@ expand SigilLanguage {
     }
 
     SourceDocument {
-      Decision: Preserve every non-empty section line as source-ranged semantic data while enforcing structure and tolerating free-form section bodies.
+      Decision: Preserve blank-line-delimited prose and attached literal blocks as source-ranged semantic units while enforcing structure and tolerating free-form section bodies.
 
       Scope: Governs parsing and recovered document representation; excludes host-assisted semantic judgment.
 
-      Trade-offs: Some semantic defects remain review findings rather than parse errors.
+      Trade-offs: Physical line breaks no longer identify distinct ideas and older sources require review when adjacent lines carried separate intent.
 
       Discarded alternatives: A loose text parser would lose structural guarantees, while a rigid body grammar would over-formalize authoring.
 
       Consequences: Recoverable malformed input produces partial documents with diagnostics.
 
       Revisit when: Body tolerance prevents reliable projections or authoring evidence supports additional syntax.
+    }
+
+    StrictImportUse {
+      Decision: Reject each resolved imported name that has no qualifying contract, operational, structural, or directory-surface use in its declaring source.
+
+      Scope: Governs named component imports and imported public-concept reuse; excludes unresolved names and documentary mentions in goal, decisions, literal bodies, comments, and annotations.
+
+      Trade-offs: Authors must state real dependency use outside documentary rationale, while ModuleIndexFile surface imports remain intentionally usable.
+
+      Design issues addressed: Resolution previously accepted dependency declarations that had no effect on the importing contract or operational description.
+
+      Discarded alternatives: Counting every textual mention or treating the import declaration itself as sufficient use was rejected.
+
+      Consequences: Check reports one stable error per unused imported name and dependency graphs no longer accept accidental resolved imports silently.
+    }
+
+    SemanticParagraphs {
+      Decision: Make each blank-line-delimited prose paragraph one semantic unit whose physical wrapping may change without changing identity.
+
+      Scope: Governs free-form content in every component and expand section; excludes structural forms and attached literal-body content.
+
+      Trade-offs: Adjacent physical lines merge semantically and migration from line-based interpretation requires review.
+
+      Design issues addressed: A deterministic formatter cannot wrap prose safely when every physical line creates a different semantic unit.
+
+      Discarded alternatives: Preserving physical-line identity and adding continuation punctuation were rejected.
+
+      Consequences: Formatting can reflow prose while blank lines remain the explicit separator between ideas.
+    }
+
+    LiteralFencedBlocks {
+      Decision: Attach a Markdown-shaped typed backtick fence directly to preceding prose and preserve its body as uninterpreted literal content.
+
+      Scope: Governs examples, configuration, code, data, diagrams, and other multiline literal content inside sections and concept blocks.
+
+      Trade-offs: Standalone or blank-line-detached fences are invalid and literal content is unavailable to semantic reference and glossary scanning.
+
+      Design issues addressed: Multiline code and data currently collide with brace tracking, semantic-unit separation, and line-width formatting.
+
+      Discarded alternatives: Treating each literal line as prose, interpreting literal braces, and inventing format-specific section syntax were rejected.
+
+      Consequences: Authors can embed large typed blocks without changing semantic separators or creating accidental references.
+    }
+
+    DeterministicFormatting {
+      Decision: Canonically wrap ordinary prose to 79 content characters excluding leading indentation while preserving semantic identity and literal bodies.
+
+      Scope: Governs physical presentation of Sigil prose; excludes structural lines, fence delimiters, and literal bodies.
+
+      Trade-offs: An indivisible token longer than the limit remains unformatted and requires an explicit diagnostic.
+
+      Design issues addressed: Unbounded prose lines reduce side-by-side review readability and discourage concrete configuration and code examples.
+
+      Consequences: Deterministic formatting is reviewable, idempotent, and independent from nesting depth.
     }
 
     ConceptIdentity {
@@ -219,15 +327,21 @@ expand SigilLanguage {
     LanguageVersion {
       A tool that does not support the configured LanguageVersion reports an error before interpreting workspace Sigil files.
 
-      A document configured for an earlier incompatible version is not silently reinterpreted using 0.5.0 semantics.
+      A document configured for an earlier incompatible version is not silently reinterpreted using 0.6.0 semantics.
     }
 
     SourceDocument {
-      A malformed but recoverable component retains its declarations and semantic lines with source-ranged diagnostics.
+      A malformed but recoverable component retains its declarations and semantic units with source-ranged diagnostics.
 
       A contiguous ungrouped interface region produces one SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
 
       An empty or nested concept block is invalid.
+
+      Wrapped prose with no blank separator produces one semantic unit.
+
+      Introducing prose immediately followed by a typed fence produces one semantic unit with one attached literal block.
+
+      A blank-line-detached, unintroduced, invalidly typed, or unclosed fence is invalid.
     }
 
     ComponentContract {
@@ -250,6 +364,16 @@ expand SigilLanguage {
       Importing Name makes Name's public contract available without exposing its collected expansions.
 
       A missing source, component, or directory-import name produces a stable diagnostic and partial resolution when practical.
+
+      An import referenced only in goal or decisions produces SIGIL_UNUSED_IMPORT.
+
+      An exact component reference in constraints uses its import.
+
+      An imported public concept reused in logic uses its provider import.
+
+      A provider name occurring only inside a literal block does not use its import.
+
+      A resolved direct import exposed by ModuleIndexFile counts as structural use.
     }
 
     SectionSemantics {
@@ -258,6 +382,14 @@ expand SigilLanguage {
       A decisions section may contain free prose or named concept blocks with rationale labels.
 
       A binding stack choice appears in constraints while a corresponding decisions entry explains its alternatives and trade-offs.
+    }
+
+    FormattingStyle {
+      Rewrapping one prose semantic unit at 79 content characters preserves its semantic identity.
+
+      Six leading spaces do not reduce the 79-character prose-content allowance.
+
+      A literal body remains byte-faithful after structural dedentation and is not wrapped.
     }
   }
 }

@@ -18,13 +18,22 @@
     },
     {
       "term": "concept identity",
-      "definition": "A reusable identity grouping collective semantic-line occurrences across a component and its matching expands; it is public when it occurs in interface.",
+      "definition": "A reusable identity grouping collective semantic-unit occurrences across a component and its matching expands; it is public when it occurs in interface.",
       "aliases": ["concept identities"]
     },
     {
-      "term": "semantic line",
-      "definition": "A non-empty line of Sigil prose expressing one distinct semantic idea.",
-      "aliases": ["semantic lines"]
+      "term": "semantic unit",
+      "definition": "A blank-line-delimited Sigil prose paragraph, including any directly attached literal block, whose physical wrapping may change without changing semantic identity.",
+      "aliases": ["semantic units"]
+    },
+    {
+      "term": "literal block",
+      "definition": "An optionally typed backtick-fenced body attached directly to introducing Sigil prose and preserved as uninterpreted content outside semantic-reference and prose-formatting rules.",
+      "aliases": [
+        "literal blocks",
+        "fenced literal block",
+        "fenced literal blocks"
+      ]
     },
     {
       "term": "collected expansion",
@@ -463,7 +472,7 @@
         },
         {
           "term": "concept grouping",
-          "definition": "The reviewed authoring activity that groups coherent interface semantic lines under new or reusable concept identifiers.",
+          "definition": "The reviewed authoring activity that groups coherent interface semantic units under new or reusable concept identifiers.",
           "aliases": [
             "concept-identifier grouping"
           ]

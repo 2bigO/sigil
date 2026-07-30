@@ -53,6 +53,14 @@ component SigilCli {
       context automatically reports public contracts and durable decisions from direct dependencies
     }
 
+    SourceFormatting {
+      sigil fmt [path]
+
+      sigil fmt [path] --check
+
+      a .sigil file selects that file while a directory selects included .sigil sources beneath that path through ConfigFile source-selection rules
+    }
+
     OwnershipContext {
       context reports one owned-implementation projection for each selected component
 
@@ -79,6 +87,8 @@ component SigilCli {
       workspace inspection commands do not modify .sigil source
 
       init may create the .sigil directory, a missing ConfigFile, and a missing seeded GlossaryFile but no .sigil source
+
+      fmt explicitly rewrites only selected valid .sigil source while fmt --check remains read-only
     }
 
     CompilationFacade {
@@ -149,6 +159,18 @@ expand SigilCli {
       A configuration error prevents source loading and parse JSON reports document: null with diagnostics.
     }
 
+    SourceFormatting {
+      fmt resolves selected sources through ConfigFile and delegates in-memory canonical rendering to SigilCore.
+
+      fmt parses and validates every selected source before any write.
+
+      fmt writes only selected .sigil files whose canonical source differs.
+
+      fmt --check compares canonical source without writing.
+
+      fmt reports formatted, unchanged, noncanonical, and failed sources.
+    }
+
     OwnershipContext {
       context loads supported implementation sources once and delegates ownership lookup for each selected component to SigilCore.
 
@@ -202,13 +224,31 @@ expand SigilCli {
     }
 
     WorkspaceMutationBoundary {
-      parse, version, check, graph, context, and render do not modify .sigil source.
+      parse, version, check, graph, context, render, glossary, and fmt --check do not modify .sigil source.
 
-      init is the only workspace command that creates Sigil-owned content and creates only the .sigil directory, a missing ConfigFile, and a missing seeded GlossaryFile.
+      init creates only the .sigil directory, a missing ConfigFile, and a missing seeded GlossaryFile.
+
+      fmt explicitly mutates only selected .sigil source and never formats ConfigFile or GlossaryFile.
+
+      fmt performs no write when any selected source has an error diagnostic or when canonical rendering fails.
 
       Skill commands do not require or modify ConfigFile.
 
       glossary is a read-only workspace inspection command.
+    }
+
+    SourceFormatting {
+      fmt is deterministic and non-interactive.
+
+      fmt supports --format json, --pretty, and --quiet.
+
+      fmt preserves the core formatter result without repairing semantic or resolution diagnostics.
+
+      fmt --check exits with code 1 when any selected source is noncanonical or has a formatting error.
+
+      successful fmt and canonical fmt --check exit with code 0.
+
+      invalid fmt usage exits with code 2 and host or filesystem failure exits with code 3.
     }
 
     SkillInstallation {
@@ -276,17 +316,31 @@ expand SigilCli {
     }
 
     WorkspaceMutationBoundary {
-      Decision: Keep workspace inspection commands read-only and restrict workspace initialization to creating missing configuration and seed-glossary files.
+      Decision: Keep workspace inspection commands read-only, restrict workspace initialization to missing configuration and seed-glossary files, and permit source mutation only through an explicit fmt invocation.
 
-      Scope: Governs version, parse, check, glossary, graph, context, render, and init; excludes explicitly requested skill-installation side effects.
+      Scope: Governs version, parse, check, glossary, graph, context, render, init, fmt, and fmt --check; excludes explicitly requested skill-installation side effects.
 
-      Trade-offs: Initialization performs two explicit file creations, while inspection provides no automatic formatting or diagnostic repair.
+      Trade-offs: Initialization performs bounded metadata creation and formatting performs explicit source rewrites, while inspection provides no automatic repair.
 
-      Discarded alternatives: Implicit source repair, inspection-time mutation, and overwriting an existing GlossaryFile were rejected.
+      Discarded alternatives: Implicit source repair, inspection-time mutation, formatter changes to ConfigFile or GlossaryFile, and partial formatting after a selected-source error were rejected.
 
-      Consequences: Semantic Sigil mutation remains an explicitly approved host-workflow responsibility and user-owned glossary content is preserved.
+      Consequences: Formatting is deliberate and bounded, semantic mutation remains an explicitly approved host-workflow responsibility, and user-owned glossary content is preserved.
 
-      Revisit when: A separately approved mutation protocol defines preview, ownership, merging, and rollback behavior.
+      Revisit when: Formatting requires cross-file semantic rewrites, merging, or rollback beyond canonical source rendering.
+    }
+
+    ExplicitFormattingCommand {
+      Decision: Expose core-owned deterministic formatting through sigil fmt with a read-only --check mode and all-selected validation before writing.
+
+      Scope: Governs ConfigFile-selected .sigil source formatting; excludes ConfigFile, GlossaryFile, semantic repair, LSP formatting, and automatic invocation by other commands.
+
+      Trade-offs: Large explicit selections may produce broad diffs and require every selected source to validate before any write.
+
+      Design issues addressed: Authors need reproducible prose wrapping and structural formatting without host-specific interpretation or partial mutation.
+
+      Discarded alternatives: Formatting during check, render, compile, or editor inspection and independently implementing formatting inside the CLI were rejected.
+
+      Consequences: Automation can verify canonical source without writes and explicit invocation can update only the selected Sigil sources.
     }
 
     WorkspaceInitialization {
@@ -401,6 +455,18 @@ expand SigilCli {
       context for a component reports each direct dependency's public contract and decision sections once.
 
       context excludes transitive dependency decisions and non-decision private dependency sections.
+    }
+
+    SourceFormatting {
+      fmt --check on canonical source exits with code 0 and writes nothing.
+
+      fmt --check on noncanonical source exits with code 1 and writes nothing.
+
+      fmt rewrites one valid noncanonical selected .sigil file and leaves ConfigFile and GlossaryFile unchanged.
+
+      One selected source with an error prevents every selected source from being written.
+
+      Formatting the result of fmt again produces no source change.
     }
 
     OwnershipContext {

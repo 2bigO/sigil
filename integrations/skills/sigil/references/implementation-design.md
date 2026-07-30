@@ -153,7 +153,7 @@ partial and blocks coding.
 
 ## 6. Link Implementation Ownership
 
-Ownership annotations are implementation comments, not Sigil semantic lines.
+Ownership annotations are implementation comments, not Sigil semantic units.
 Never write them into a `.sigil` file. Add or reconcile them only when
 `ReviewGate(action: implementation)` is ready for the governing validated
 written Sigil, exact implementation scope, and proposed comments.

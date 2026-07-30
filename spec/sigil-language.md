@@ -1,8 +1,8 @@
 # Sigil Language Specification
 
-**Sigil version:** 0.5.0
+**Sigil version:** 0.6.0
 **Status:** Accepted
-**Released:** 2026-07-24
+**Released:** 2026-07-30
 
 Sigil is a lightweight, rationale-oriented modeling language for software systems.
 It records what a system part is, why it exists, how it interacts with its surroundings, and which decisions should guide implementation.
@@ -455,7 +455,7 @@ interface {
 }
 ```
 
-`SessionLifecycle` identifies the concept described by the semantic lines in
+`SessionLifecycle` identifies the concept described by the semantic units in
 the block. A block may represent a single concept with many uses throughout the
 contract or group several lines that are reused together.
 
@@ -491,7 +491,7 @@ collected expansion details.
 Imported public concepts enter the consumer's namespace as bare identifiers.
 Sigil deliberately provides no dotted notation, aliases, or local shadowing.
 Reusing an imported identifier keeps the concept's originating identity while
-the new semantic lines remain contextual to the consumer. Reusing it in the
+the new semantic units remain contextual to the consumer. Reusing it in the
 consumer's `interface` re-exposes that same identity to downstream importers.
 Consumer occurrences never flow backward into the provider.
 
@@ -509,15 +509,17 @@ Concept diagnostics include:
 - `SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER` for case-insensitive namespace collisions;
 - `SIGIL_CONCEPT_IDENTIFIER_STYLE` as an informational formatting suggestion.
 
-## 9. Semantic Lines
+## 9. Semantic Units
 
-Inside each section, each non-empty line is a semantic unit.
+Inside each section, each blank-line-delimited prose paragraph is one semantic
+unit. Adjacent physical prose lines belong to the same semantic unit and
+normalize to one space between their content. Rewrapping those physical lines
+does not change semantic identity.
 
-A concept-block header identifies and groups semantic lines but is not itself a
-semantic line. Each non-empty line inside the block remains a semantic unit and
-records its concept identifier.
+A concept-block header identifies and groups semantic units but is not itself a
+semantic unit. Each paragraph inside the block records the concept identifier.
 
-A semantic line is a:
+A semantic unit is a:
 
 - source unit;
 - interpretation unit;
@@ -526,14 +528,12 @@ A semantic line is a:
 - possible anchor target.
 
 Blank lines are allowed for readability.
-Blank lines do not create semantic units.
+Blank lines terminate semantic units and do not create semantic units.
 
 Separate distinct prose-level semantic ideas with blank lines in every section.
-Lines belonging to one compact free-form construct, such as a type shape or an
-ASCII diagram, may remain adjacent when separation would reduce readability.
-
-Prefer one distinct idea per line.
-Avoid burying multiple decisions in a paragraph when those decisions may need separate review, diffing, or source mapping.
+Prefer one distinct idea per semantic unit. Avoid burying multiple decisions in
+a paragraph when those decisions may need separate review, diffing, or source
+mapping.
 
 Section bodies may use clear free-form notation, including:
 
@@ -547,8 +547,33 @@ Section bodies may use clear free-form notation, including:
 - domain notation;
 - ASCII sketches.
 
-The notation should remain coherent inside a project.
-ASCII content should avoid unmatched `{` or `}` characters because the current parser uses braces to track section boundaries.
+The notation should remain coherent inside a project. Multiline code,
+configuration, data, diagrams, or other content that must preserve physical
+layout belongs in an attached literal block:
+
+````sigil
+Configuration is represented by this JSON:
+```json
+{
+  "enabled": true
+}
+```
+````
+
+Three or more backticks open a literal block. The opener may be followed by one
+optional type matching `[A-Za-z][A-Za-z0-9_+.-]*`. The closing fence contains
+at least as many backticks as the opener and no other content.
+
+The opening fence must directly follow its introducing prose with no blank line.
+The prose and attached literal block form one semantic unit. Literal bodies
+preserve blank lines, braces, apparent Sigil syntax, and relative indentation.
+They do not create component, concept, import, glossary, ownership, or other
+semantic references.
+
+Ordinary prose is limited to 79 content characters per physical line. Leading
+indentation does not count. Structural lines, fence delimiters, and literal
+bodies are excluded. Canonical wrapping occurs only at whitespace boundaries.
+An indivisible prose token longer than 79 content characters is unformattable.
 
 ## 10. Validity Rules
 
@@ -568,6 +593,21 @@ Missing or unexcluded nested configs are invalid, and an explicit root must cont
 
 An imported name must resolve to a matching `component Name`.
 
+Each resolved imported name must also have at least one qualifying use in the
+source that declares it. The following count independently for each name:
+
+- an exact-case component-name reference in `interface`, `state`, `logic`,
+  `constraints`, or `cases`;
+- an exact-case reference to one of the imported component's public concepts in
+  those sections;
+- a local `expand` of the imported component;
+- direct exposure by a `#module.sigil` directory surface.
+
+Mentions in `goal`, `decisions`, literal bodies, comments, annotations, other
+source files, differently cased words, or identifier substrings do not count.
+Each resolved unused name produces `SIGIL_UNUSED_IMPORT`. Unresolved or
+ambiguous names do not also produce that diagnostic.
+
 A `#module.sigil` must declare at least one local component.
 
 A `component` must contain `goal` and `interface`.
@@ -581,7 +621,7 @@ Section names are fixed.
 
 Section bodies are free-form text.
 
-Concept blocks must use a valid identifier, contain at least one semantic line,
+Concept blocks must use a valid identifier, contain at least one semantic unit,
 remain unnested, and be unambiguous across the component's accessible namespace.
 
 The conventional section order is recommended but not semantically required.
@@ -605,11 +645,14 @@ Examples, acceptance criteria, and externally observable edge cases belong in `c
 
 ## 11. Recommended Style
 
-Write concise, reviewable lines.
+Write concise, reviewable semantic units.
 
-Keep each non-empty line focused on one idea.
+Keep each blank-line-delimited paragraph focused on one idea.
 
 Use blank lines between distinct prose-level ideas without changing meaning.
+
+Use `sigil fmt [path]` to canonically wrap selected valid Sigil prose.
+`sigil fmt [path] --check` reports noncanonical sources without writing.
 
 Name components after the concept other parts of the system depend on.
 
@@ -772,7 +815,7 @@ Larger examples live in:
 ## 13. Historical Platform Proposal: Anchors
 
 Anchors are a rejected historical platform proposal for connecting Sigil
-semantic lines to implementation evidence.
+semantic units to implementation evidence.
 
 An anchor would not change the meaning of a Sigil line.
 It would record traceability between specification intent and implementation evidence.

@@ -6,6 +6,7 @@ export * from "./config.ts";
 export * from "./glossary.ts";
 export * from "./implementation-ownership.ts";
 export * from "./parser.ts";
+export * from "./formatter.ts";
 export * from "./workspace.ts";
 export * from "./pipeline.ts";
 export * from "./projections.ts";

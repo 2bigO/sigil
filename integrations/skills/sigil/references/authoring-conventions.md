@@ -1,5 +1,5 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticLineDiscipline interface,constraints
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticUnitDiscipline interface,constraints
 @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionRationaleWorkflow interface,logic,constraints,cases
 -->
 
@@ -79,8 +79,29 @@ hidden reasoning. Responsibility, accountability, approver, and handoff metadata
 remain outside the convention.
 
 After writing approved Sigil, repeat the coverage audit against the exact
-written semantic lines. A missing material decision returns to
+written semantic units. A missing material decision returns to
 `ReviewGate(action: sigil-change)` and blocks implementation readiness.
+
+## Semantic Units, Width, And Literals
+
+Treat each blank-line-delimited prose paragraph as one semantic unit. Physical
+wrapping inside that paragraph is presentation only. Keep distinct ideas
+separated by blank lines and keep ordinary prose within 79 content characters;
+leading indentation does not count.
+
+Use a directly attached typed literal block when code, JSON, configuration,
+data, or a diagram needs multiple physical lines. Put no blank line between the
+introducing prose and opening fence. Literal bodies are preserved and do not
+provide import, concept, glossary, or ownership evidence.
+
+Every resolved imported name needs a qualifying exact-case use in `interface`,
+`state`, `logic`, `constraints`, or `cases`, or a structural use through a
+matching local `expand` or `#module.sigil` surface. `goal`, `decisions`, and
+literal blocks are documentary for import-use purposes.
+
+Use `sigil fmt <selected-path> --check` after approved edits. Apply `sigil fmt`
+only when formatting that selected scope is approved; never infer permission
+for a repository-wide formatting pass.
 
 ## Concept Identifiers
 
@@ -146,9 +167,9 @@ After applying an approved grouping or identifier change:
 5. begin glossary candidate extraction only when the final review appears
    aligned.
 
-## Semantic Lines
+## Semantic Units
 
-- Keep each non-empty line as one distinct idea.
+- Keep each blank-line-delimited semantic unit focused on one distinct idea.
 - Separate distinct prose-level ideas with blank lines in every section.
 - Blank lines do not create semantic units.
 - Keep lines in one compact free-form construct adjacent when separation would
@@ -172,4 +193,4 @@ move with their owning directories.
 
 Update affected imports after an approved placement-only move, run
 `sigil check`, and use `graph` or `context` when relationships matter. Any
-semantic-line change requires `ReviewGate(action: sigil-change)`.
+semantic-unit change requires `ReviewGate(action: sigil-change)`.

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Advance the Sigil Language and configuration contract to 0.6.0.
+- Make blank-line-delimited prose paragraphs the semantic unit so physical
+  wrapping does not change semantic identity.
+- Reject each resolved imported name without a qualifying use; documentary
+  mentions in `goal`, `decisions`, comments, annotations, and literal blocks do
+  not count.
+- Add directly attached, optionally typed backtick literal blocks whose bodies
+  remain outside structural, reference, glossary, and width interpretation.
+- Add the deterministic core formatter and `sigil fmt [path] [--check]` with a
+  79-character prose content width that excludes leading indentation.
 - Add shared implementation-ownership discovery, CLI integration, cached
   component and concept ownership links in LSP hover, watched-file cache
   invalidation in VS Code, and the corresponding Sigil implementation workflow;

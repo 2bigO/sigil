@@ -23,6 +23,7 @@ export type CommandResult =
   | VersionCommandResult
   | ParseCommandResult
   | CheckCommandResult
+  | FmtCommandResult
   | GlossaryCommandResult
   | GraphCommandResult
   | ContextCommandResult
@@ -83,6 +84,15 @@ export interface CheckCommandResult extends WorkspaceMetadata {
   readonly command: "check";
   readonly diagnostics: readonly SigilDiagnostic[];
   readonly diagnosticCounts: DiagnosticCounts;
+}
+export interface FmtCommandResult extends WorkspaceMetadata {
+  readonly command: "fmt";
+  readonly check: boolean;
+  readonly files: readonly {
+    readonly filePath: string;
+    readonly status: "formatted" | "unchanged" | "noncanonical" | "failed";
+  }[];
+  readonly diagnostics: readonly SigilDiagnostic[];
 }
 export interface GlossaryCommandResult extends WorkspaceMetadata {
   readonly command: "glossary";

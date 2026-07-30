@@ -29,7 +29,11 @@ Platform context lives in
 Responsibilities:
 
 - parse `.sigil` files;
-- preserve source locations and semantic lines;
+- preserve source locations and semantic units;
+- preserve attached typed literal blocks outside structural and reference
+  interpretation;
+- report strict per-name unused imports;
+- canonically wrap prose at 79 content characters without counting indentation;
 - parse and validate optional `.sigil/glossary.json`;
 - resolve path-scoped glossary contexts and source-ranged prose occurrences;
 - project only agent-visible glossary terms recognized in selected

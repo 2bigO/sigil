@@ -4,6 +4,7 @@ export type CommandName =
   | "version"
   | "parse"
   | "check"
+  | "fmt"
   | "glossary"
   | "graph"
   | "context"
@@ -27,6 +28,7 @@ export type CommandRequest =
   | VersionRequest
   | ParseRequest
   | CheckRequest
+  | FmtRequest
   | GlossaryRequest
   | GraphRequest
   | ContextRequest
@@ -58,6 +60,11 @@ export interface ParseRequest extends GlobalOptions {
 export interface CheckRequest extends GlobalOptions {
   readonly command: "check";
   readonly path?: string;
+}
+export interface FmtRequest extends GlobalOptions {
+  readonly command: "fmt";
+  readonly path?: string;
+  readonly check: boolean;
 }
 export interface GlossaryRequest extends GlobalOptions {
   readonly command: "glossary";
@@ -111,7 +118,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(
       commandName
         ? `Unknown command "${commandName}".`
-        : "Expected command: skill, init, version, parse, check, glossary, graph, context, compile, or render.",
+        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, compile, or render.",
       "root",
     );
   }
@@ -154,6 +161,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let profile: string | undefined;
   let noCache = false;
   let output: string | undefined;
+  let check = false;
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -224,6 +232,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--no-cache":
         noCache = true;
         break;
+      case "--check":
+        check = true;
+        break;
       case "--output": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -257,6 +268,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
 
   const base = { root, format, pretty, quiet };
+  if (commandName !== "fmt" && check) {
+    return usage(`${commandName} does not accept --check.`, commandHelpTopic);
+  }
   if (
     commandName !== "context" && commandName !== "compile" &&
     (component || file)
@@ -371,10 +385,17 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     };
   }
   if (
-    commandName === "check" || commandName === "glossary" ||
+    commandName === "check" || commandName === "fmt" ||
+    commandName === "glossary" ||
     commandName === "graph" ||
     commandName === "render"
   ) {
+    if (
+      commandName === "fmt" && format &&
+      !["json", "text"].includes(format)
+    ) {
+      return usage("--format must be text or json for fmt.", "fmt");
+    }
     if (positional.length > 1) {
       return usage(
         `${commandName} accepts at most one path.`,
@@ -383,8 +404,14 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     }
     return {
       kind: "ok",
-      request: { command: commandName, path: positional[0], ...base } as
+      request: {
+        command: commandName,
+        path: positional[0],
+        ...(commandName === "fmt" ? { check } : {}),
+        ...base,
+      } as
         | CheckRequest
+        | FmtRequest
         | GlossaryRequest
         | GraphRequest
         | RenderRequest,
@@ -444,7 +471,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
 function isCommand(value: string | undefined): value is CommandName {
   return value === "skill" || value === "init" || value === "version" ||
     value === "parse" ||
-    value === "check" || value === "glossary" || value === "graph" ||
+    value === "check" || value === "fmt" || value === "glossary" ||
+    value === "graph" ||
     value === "context" ||
     value === "compile" ||
     value === "render";

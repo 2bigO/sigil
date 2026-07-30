@@ -1,4 +1,4 @@
-/** Command-line interface for versioned Sigil 0.5 workspaces. @module */
+/** Command-line interface for versioned Sigil 0.6 workspaces. @module */
 import { type HelpTopic, parseArgs } from "./args.ts";
 import {
   type CompilationEvent,
@@ -24,6 +24,7 @@ Commands:
   version           Report workspace and contract versions
   parse             Parse one Sigil file
   check             Report workspace diagnostics
+  fmt               Format selected Sigil source
   glossary          Inspect reviewed glossary terms and occurrences
   graph             Report the component and import graph
   context           Return context for a component or file
@@ -95,6 +96,16 @@ Options:
 Options:
   --root <path>     Use an explicit workspace root
   --format <value>  Output json, text, or markdown
+  --pretty          Pretty-print JSON output
+  --quiet           Suppress command output
+  --help            Show this help
+`,
+  fmt: `Usage: sigil fmt [path] [options]
+
+Options:
+  --check           Report noncanonical source without writing
+  --root <path>     Use an explicit workspace root
+  --format <value>  Output json or text
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
   --help            Show this help
@@ -239,8 +250,12 @@ export async function runCli(
       };
     }
     const result = await runCommand(parsed.request, options);
+    const formatDifference = result.command === "fmt" && result.check &&
+      result.files.some((file) => file.status === "noncanonical");
     return {
-      exitCode: exitCodeForDiagnostics(result.diagnostics),
+      exitCode: formatDifference
+        ? 1
+        : exitCodeForDiagnostics(result.diagnostics),
       stdout: formatResult(result, parsed.request),
       stderr: "",
     };

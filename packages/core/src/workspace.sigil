@@ -70,6 +70,9 @@ expand SigilWorkspaceLoader {
     }
 
     RecoverableResults {
+      SigilSemanticModel owns partial workspace results and SigilDiagnostics owns
+      their accumulated diagnostics.
+
       Configuration and source problems accumulate as diagnostics with partial workspace results when practical.
 
       Required filesystem failures propagate to the caller.

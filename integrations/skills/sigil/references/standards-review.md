@@ -107,7 +107,7 @@ coverage keeps semantic readiness from appearing aligned and blocks proposal
 approval.
 
 After approved Sigil is written, repeat the audit against the exact resulting
-semantic lines. Successful CLI validation never substitutes for this audit.
+semantic units. Successful CLI validation never substitutes for this audit.
 
 ### Goal Clarity
 
@@ -338,7 +338,7 @@ ReviewGate ready.
 Before editing, present:
 
 - the finding and why it applies;
-- the exact proposed semantic line or lines;
+- the exact proposed semantic unit or lines;
 - the target file, component, and section;
 - the source record in the review summary;
 - whether the suggestion is blocking or optional.
@@ -432,7 +432,7 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 
 ### Proposed Sigil Edits
 
-Show exact semantic lines and their target sections without editing first.
+Show exact semantic units and their target sections without editing first.
 Include required decision blocks and the decision-rationale coverage map.
 
 ### ReviewGate Request

@@ -92,8 +92,12 @@ component SigilSkill {
       uses one proposal-only concept-identifier subagent when subagents are available
     }
 
-    SemanticLineDiscipline {
-      preserves one distinct idea per semantic line and separates distinct prose-level ideas with blank lines
+    SemanticUnitDiscipline {
+      preserves one distinct idea per blank-line-delimited semantic unit and allows physical prose wrapping without changing semantic identity
+
+      places an attached LiteralBlock directly after its introducing prose without a blank line
+
+      limits ordinary prose to 79 content characters without counting leading indentation
     }
 
     DesignConversation {
@@ -289,7 +293,7 @@ expand SigilSkill {
 
       When concept grouping is unnecessary, the post-write SemanticReadinessReview directly gates glossary candidate extraction.
 
-      After every approved Sigil write or semantic edit, run deterministic glossary and workspace inspection, then independently perform model-assisted extraction from the changed semantic lines regardless of diagnostic count or GlossaryFile presence.
+      After every approved Sigil write or semantic edit, run deterministic glossary and workspace inspection, then independently perform model-assisted extraction from the changed semantic units regardless of diagnostic count or GlossaryFile presence.
 
       Require model-assisted extraction after an approved semantic Sigil write or edit, when the user requests vocabulary review, or when terminology ambiguity materially affects the selected scope.
 
@@ -299,7 +303,7 @@ expand SigilSkill {
 
       When a session changes only implementation or performs read-only work without a vocabulary-review trigger, report deterministic inspection only and explain that no semantic Sigil lines entered candidate extraction.
 
-      Conclude that no material candidate exists only after inspecting the changed semantic lines, relevant surrounding occurrences, and accepted glossary entries.
+      Conclude that no material candidate exists only after inspecting the changed semantic units, relevant surrounding occurrences, and accepted glossary entries.
 
       Before completing a triggered session, report candidates with evidence or an evidence-based no-material-candidate result.
 
@@ -307,7 +311,7 @@ expand SigilSkill {
 
       Present exact JSON additions, replacements, or removals to ReviewGate with glossary-change before mutation.
 
-      After approved Sigil is written or semantically edited, run workspace and glossary validation and inspect changed semantic lines for candidate terms.
+      After approved Sigil is written or semantically edited, run workspace and glossary validation and inspect changed semantic units for candidate terms.
 
       Block review and implementation when undefined or conflicting terminology could materially alter behavior, ownership, state, APIs, or implementation.
 
@@ -321,7 +325,7 @@ expand SigilSkill {
 
       Verify the currency and environment match of evidence created during design conversation before reusing it.
 
-      Classify each current finding and present compatible changes as exact proposed semantic lines.
+      Classify each current finding and present compatible changes as exact proposed semantic units.
 
       Preserve current Sigil and request a decision when guidance potentially or definitely conflicts.
     }
@@ -568,8 +572,12 @@ expand SigilSkill {
       Concept-identifier work does not invoke anchor persistence, proposal, or reconciliation behavior.
     }
 
-    SemanticLineDiscipline {
-      Concept blocks group coherent identities without merging distinct semantic ideas into one line.
+    SemanticUnitDiscipline {
+      Concept blocks group coherent identities without merging distinct semantic ideas into one unit.
+
+      Goal and decisions references never satisfy strict import use.
+
+      LiteralBlock content remains excluded from import, concept, glossary, and ownership reference evidence.
     }
 
     DecisionRationaleWorkflow {
@@ -679,7 +687,7 @@ expand SigilSkill {
 
       Scope: Governs new or changed material selected choices in semantic Sigil proposals; excludes trivial, mechanically derived, and safely reconstructable choices.
 
-      Trade-offs: Every material proposal requires an additional coverage review and may require more semantic lines.
+      Trade-offs: Every material proposal requires an additional coverage review and may require more semantic units.
 
       Design issues addressed: Material workflow choices previously reached approval because decision authoring described record format without requiring coverage.
 
@@ -821,7 +829,7 @@ expand SigilSkill {
     GlossaryWorkflow {
       Two inconsistent uses of one candidate term produce a review question rather than an inferred definition.
 
-      A zero-diagnostic glossary projection followed by a changed semantic line containing an unknown project-specific term still produces candidate evidence and, when material, an exact glossary proposal.
+      A zero-diagnostic glossary projection followed by a changed semantic unit containing an unknown project-specific term still produces candidate evidence and, when material, an exact glossary proposal.
 
       When model-assisted inspection finds no material candidate, the host records the changed lines and surrounding evidence inspected before proceeding to Sigil review.
 

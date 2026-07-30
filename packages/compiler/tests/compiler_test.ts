@@ -10,7 +10,7 @@ async function workspace(
   await Deno.writeTextFile(
     `${root}/.sigil/config.json`,
     JSON.stringify({
-      sigilVersion: "0.5.0",
+      sigilVersion: "0.6.0",
       workspace: { name: "test", members: [] },
       files: { include: ["**/*.sigil"], exclude: [] },
       tools: {},

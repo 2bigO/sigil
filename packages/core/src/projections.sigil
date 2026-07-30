@@ -61,7 +61,11 @@ expand SigilProjections {
 
   constraints {
     DependencyDirection {
-      Projections consume resolved workspace and graph-backed data without filesystem access, parsing, resolution, Markdown rendering, or agent ranking.
+      Projections consume SigilSemanticModel data resolved by SigilResolver and
+      graph-backed data built by SigilGraphBuilder.
+
+      They perform no filesystem access, parsing, resolution, Markdown rendering,
+      or agent ranking.
     }
 
     RecoverableResults {

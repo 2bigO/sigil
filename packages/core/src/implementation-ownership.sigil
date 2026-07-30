@@ -171,7 +171,7 @@ expand SigilImplementationOwnership {
     SectionSelection {
       Decision: Resolve component-target selectors against component and matching-expand sections, and resolve concept-target selectors only against sections containing that concept.
 
-      Scope: Governs annotation validation, projection metadata, and optional section-scoped lookup; excludes goal, decisions, and semantic-line-level selectors.
+      Scope: Governs annotation validation, projection metadata, and optional section-scoped lookup; excludes goal, decisions, and semantic-unit-level selectors.
 
       Trade-offs: Occurrence validation detects stale or impossible links, but moving a concept between sections requires its annotations to be reconciled.
 
@@ -179,7 +179,7 @@ expand SigilImplementationOwnership {
 
       Consequences: Component annotations may select implementation-related component or expand sections, while concept annotations may select only implementation-related sections where that concept occurs.
 
-      Revisit when: Ownership needs semantic-line-level or cross-component occurrence selection.
+      Revisit when: Ownership needs semantic-unit-level or cross-component occurrence selection.
     }
 
     ImplementationTargetScope {

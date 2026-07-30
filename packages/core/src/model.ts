@@ -24,8 +24,15 @@ export type SigilDiagnosticCode =
   | "SIGIL_NESTED_CONCEPT_BLOCK"
   | "SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER"
   | "SIGIL_CONCEPT_IDENTIFIER_STYLE"
+  | "SIGIL_DETACHED_LITERAL_BLOCK"
+  | "SIGIL_LITERAL_WITHOUT_INTRODUCTION"
+  | "SIGIL_UNCLOSED_LITERAL_BLOCK"
+  | "SIGIL_INVALID_LITERAL_TYPE"
+  | "SIGIL_LINE_TOO_LONG"
+  | "SIGIL_UNFORMATTABLE_LINE"
   | "SIGIL_UNRESOLVED_IMPORT_PATH"
   | "SIGIL_UNRESOLVED_IMPORTED_COMPONENT"
+  | "SIGIL_UNUSED_IMPORT"
   | "SIGIL_EXPAND_WITHOUT_COMPONENT"
   | "SIGIL_DUPLICATE_COMPONENT"
   | "SIGIL_IMPORT_CYCLE"
@@ -41,7 +48,7 @@ export type SigilDiagnosticCode =
   | "SIGIL_GLOSSARY_TERM_COLLISION"
   | "SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY";
 
-export const SIGIL_VERSION = "0.5.0";
+export const SIGIL_VERSION = "0.6.0";
 export const SIGIL_CORE_VERSION = metadata.version;
 export const SIGIL_CONFIG_PATH = ".sigil/config.json" as const;
 export const SIGIL_GLOSSARY_PATH = ".sigil/glossary.json" as const;
@@ -86,34 +93,47 @@ export interface SigilDiagnostic {
   readonly range?: SourceRange;
 }
 
-export interface SemanticLine {
+export interface LiteralBlock {
+  readonly type?: string;
+  readonly body: string;
+  readonly sourceLines: readonly string[];
+  readonly range: SourceRange;
+  readonly bodyRange: SourceRange;
+  readonly fenceLength: number;
+  readonly indentation: number;
+}
+
+export interface SemanticUnit {
   readonly filePath: string;
   readonly range: SourceRange;
   readonly ownerKind: SigilFormKind;
   readonly ownerName: string;
   readonly sectionName: SigilSectionName;
   readonly conceptIdentifier?: string;
-  readonly text: string;
+  readonly prose: string;
+  readonly sourceLines: readonly string[];
+  readonly literalBlocks: readonly LiteralBlock[];
 }
 
 export interface ConceptBlock {
   readonly identifier: string;
   readonly range: SourceRange;
   readonly bodyRange: SourceRange;
-  readonly lines: readonly SemanticLine[];
+  readonly units: readonly SemanticUnit[];
 }
 
 export interface Section {
   readonly name: SigilSectionName;
   readonly range: SourceRange;
   readonly bodyRange: SourceRange;
-  readonly lines: readonly SemanticLine[];
+  readonly units: readonly SemanticUnit[];
   readonly concepts: readonly ConceptBlock[];
 }
 
 export interface ImportDeclaration {
   readonly path: string;
   readonly names: readonly string[];
+  readonly nameRanges: readonly SourceRange[];
   readonly range: SourceRange;
 }
 
@@ -142,6 +162,12 @@ export interface SigilDocument {
 
 export interface ParseResult {
   readonly document: SigilDocument;
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+
+export interface FormatResult {
+  readonly formattedSource?: string;
+  readonly changed: boolean;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
@@ -289,6 +315,21 @@ export interface ResolvedImportName {
   readonly name: string;
   readonly component?: ComponentDeclaration;
   readonly componentFile?: string;
+  readonly used: boolean;
+  readonly uses: readonly ImportUse[];
+}
+
+export interface ImportUse {
+  readonly kind:
+    | "component-reference"
+    | "public-concept-reference"
+    | "structural-expand"
+    | "module-index-surface";
+  readonly filePath: string;
+  readonly ownerKind?: SigilFormKind;
+  readonly ownerName?: string;
+  readonly sectionName?: SigilSectionName;
+  readonly range: SourceRange;
 }
 
 export interface CollectedExpansion {

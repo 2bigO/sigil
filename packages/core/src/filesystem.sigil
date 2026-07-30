@@ -37,6 +37,8 @@ expand SigilFileSystem {
 
   constraints {
     FileSystemPort {
+      SigilFileSystem supplies host-neutral access for SigilSemanticModel data.
+
       Parsing and resolution do not access host filesystems directly.
 
       Filesystem implementations preserve host failures rather than translating them into Sigil diagnostics.

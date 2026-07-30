@@ -52,6 +52,10 @@ expand SigilReleaseDistribution {
   }
 
   constraints {
+    DistributionInputs {
+      SigilCli, SkillInstaller, and SigilVsCodeExtension own the packaged release inputs.
+    }
+
     ReleaseIntegrity {
       GitHub Release assets are the durable public binary distribution channel; workflow artifacts are build intermediates.
 

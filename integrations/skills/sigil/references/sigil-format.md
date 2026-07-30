@@ -28,7 +28,7 @@ deno run --allow-read packages/cli/src/main.ts check . --format json --pretty
 ```
 
 Run `sigil version . --format json --pretty` before `check`. This reference
-describes Sigil version `0.5.0`; do not apply it to an
+describes Sigil version `0.6.0`; do not apply it to an
 unsupported workspace version.
 
 Use CLI diagnostics as stable coded findings. Use CLI context output as a
@@ -205,7 +205,7 @@ interface {
 ```
 
 `SessionLifecycle` is a reusable concept identifier. A block may contain one
-heavily reused idea or several related semantic lines. Concept blocks are flat,
+heavily reused idea or several related semantic units. Concept blocks are flat,
 nonempty, and cannot nest.
 
 Identifiers match `[A-Za-z][A-Za-z0-9_-]*`. References are case-sensitive, but
@@ -255,6 +255,14 @@ provider itself is selected.
 
 Imports are the dependency declarations between Sigil components. Do not repeat
 an imported-component dependency in `interface`.
+
+Every resolved imported name must have a qualifying exact-case use in its
+declaring source. Component names and imported public concepts count in
+`interface`, `state`, `logic`, `constraints`, or `cases`. A matching local
+`expand` and a direct `#module.sigil` surface import also count. Mentions in
+`goal`, `decisions`, literal blocks, comments, annotations, other files,
+differently cased words, or identifier substrings do not count. An unused
+resolved name is a syntax error reported as `SIGIL_UNUSED_IMPORT`.
 
 ## Section Placement
 
@@ -344,22 +352,41 @@ initial convention.
 Use `cases` for examples and acceptance criteria that can be observed from
 outside the component.
 
-## Semantic Lines
+## Semantic Units
 
-Each non-empty line inside a section is a semantic unit and possible future
-anchor target. Separate distinct prose-level ideas with blank lines in every
-section. Blank lines do not create semantic units. Keep lines in one compact
-free-form construct adjacent when separation would reduce readability.
+Each blank-line-delimited prose paragraph inside a section is one semantic unit.
+Adjacent physical lines belong to that unit, so prose may be rewrapped without
+changing semantic identity. Separate distinct ideas with blank lines. Blank
+lines terminate semantic units and do not create them.
 
-A concept-block header identifies and groups semantic lines but is not itself a
-semantic line. Each non-empty line inside the block remains a distinct semantic
-unit and records its concept identifier.
+A concept-block header identifies and groups semantic units but is not itself a
+semantic unit. Each paragraph inside the block records its concept identifier.
 
-Prefer one distinct idea per line. Avoid burying multiple decisions in a
+Prefer one distinct idea per semantic unit. Avoid burying multiple decisions in a
 paragraph when they may need separate review, diffing, or source mapping.
 
-ASCII content should avoid unmatched `{` or `}` characters because the current
-parser uses braces to track section boundaries.
+Ordinary prose has a 79-character content width. Leading indentation does not
+count. Run `sigil fmt [path]` to wrap selected valid sources, or add `--check`
+to verify canonical formatting without writing.
+
+Use a directly attached typed literal block for multiline code, JSON,
+configuration, diagrams, or other layout-sensitive content:
+
+````sigil
+The service uses this configuration:
+```json
+{
+  "enabled": true
+}
+```
+````
+
+Do not put a blank line between introducing prose and its opening fence. The
+opener uses at least three backticks and an optional type matching
+`[A-Za-z][A-Za-z0-9_+.-]*`; the closing fence has at least the opener's length
+and no other content. Literal bodies preserve blank lines, braces, and relative
+indentation. They are excluded from width checks and semantic-reference,
+import-use, glossary, and ownership scanning.
 
 ## Review Checks
 
@@ -377,6 +404,10 @@ When reviewing Sigil, check:
   rather than hidden beneath only high-level project or service contracts?
 - Does each imported name resolve to a matching component in the imported Sigil
   source?
+- Does each resolved imported name have a qualifying use outside `goal`,
+  `decisions`, and literal blocks?
+- Are ordinary prose lines at most 79 content characters excluding indentation?
+- Does every literal block immediately follow its introducing prose?
 - Does each `expand Name` have a matching `component Name`?
 - Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in
   `expand` rather than inside `component`?

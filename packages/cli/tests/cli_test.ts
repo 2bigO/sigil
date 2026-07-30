@@ -549,7 +549,7 @@ Deno.test("context includes direct dependency contracts and decision rationale",
       `${root}/provider.sigil`,
       `@leaf.sigil import { Leaf }
 
-${validSigil("Provider")}`,
+${validSigil("Provider").replace("run()", "run(Leaf)")}`,
     );
     await Deno.writeTextFile(
       `${root}/provider-detail.sigil`,
@@ -572,7 +572,7 @@ ${validSigil("Provider")}`,
       `${root}/consumer.sigil`,
       `@provider.sigil import { Provider }
 
-${validSigil("Consumer")}`,
+${validSigil("Consumer").replace("run()", "run(Provider)")}`,
     );
 
     const result = await runCli([
@@ -595,7 +595,7 @@ ${validSigil("Consumer")}`,
     );
     assertEquals(context.dependencyDecisions.length, 1);
     assertEquals(
-      context.dependencyDecisions[0].section.lines[0].text,
+      context.dependencyDecisions[0].section.units[0].prose,
       "Decision: Include direct rationale.",
     );
     assert(
@@ -1275,6 +1275,89 @@ Deno.test("compile rejects incompatible output formats", async () => {
   const result = await runCli(["compile", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_USAGE);
   assert(result.stderr.includes("--format must be text or jsonl"));
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceMutationBoundary constraints
+ */
+Deno.test("fmt check is read-only and fmt writes canonical Sigil", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-fmt-" });
+  try {
+    const initialized = await runCli(["init", root, "--quiet"]);
+    assertEquals(initialized.exitCode, EXIT_OK);
+    const sourcePath = `${root}/main.sigil`;
+    const source = `component Example {
+  goal {
+    This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`;
+    await Deno.writeTextFile(sourcePath, source);
+
+    const checked = await runCli(["fmt", root, "--check", "--format", "json"]);
+    assertEquals(checked.exitCode, EXIT_DIAGNOSTICS);
+    assertEquals(await Deno.readTextFile(sourcePath), source);
+    assertEquals(parseJson(checked.stdout).files[0].status, "noncanonical");
+
+    const formatted = await runCli(["fmt", root, "--format", "json"]);
+    assertEquals(formatted.exitCode, EXIT_OK);
+    assertEquals(parseJson(formatted.stdout).files[0].status, "formatted");
+    const result = await Deno.readTextFile(sourcePath);
+    assert(result !== source);
+
+    const canonical = await runCli(["fmt", root, "--check", "--quiet"]);
+    assertEquals(canonical.exitCode, EXIT_OK);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormatting constraints,cases
+Deno.test("fmt writes nothing when a selected source has an error", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-fmt-invalid-" });
+  try {
+    assertEquals((await runCli(["init", root, "--quiet"])).exitCode, EXIT_OK);
+    const validPath = `${root}/valid.sigil`;
+    const invalidPath = `${root}/invalid.sigil`;
+    const noncanonical = `component Valid {
+  goal {
+    This prose is deliberately long enough to require canonical wrapping before it can be written safely by the formatter.
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`;
+    await Deno.writeTextFile(validPath, noncanonical);
+    await Deno.writeTextFile(
+      invalidPath,
+      validSigil("Invalid").replace(
+        "Test Invalid.",
+        "x".repeat(80),
+      ),
+    );
+
+    const result = await runCli(["fmt", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assertEquals(await Deno.readTextFile(validPath), noncanonical);
+    assert(
+      parseJson(result.stdout).files.every(
+        (file: { status: string }) => file.status === "failed",
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 class FailingListFileSystem implements SigilFileSystem {

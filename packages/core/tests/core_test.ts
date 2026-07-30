@@ -5,6 +5,7 @@ import {
   componentContracts,
   conceptNamespaceFor,
   dirname,
+  formatSigilDocument,
   glossaryContextForFiles,
   InMemorySigilFileSystem,
   isSupportedImplementationSource,
@@ -30,7 +31,220 @@ import { resolveSigilRelationships } from "../src/resolver.ts";
  */
 Deno.test("separates the core artifact and language contract versions", () => {
   assertEquals(SIGIL_CORE_VERSION, "0.7.0");
-  assertEquals(SIGIL_VERSION, "0.5.0");
+  assertEquals(SIGIL_VERSION, "0.6.0");
+});
+
+/*
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::SemanticUnit constraints,cases
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::LiteralBlock logic,constraints,cases
+ * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::Formatting interface,logic,cases
+ * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::DeterministicFormatting constraints,cases
+ */
+Deno.test("parses semantic paragraphs and attached literal blocks and formats idempotently", () => {
+  const source = `component Example {
+  goal {
+    Describe a configuration whose prose is deliberately long enough that the formatter must wrap it without counting indentation toward the content width.
+    \`\`\`json
+    {
+      "enabled": true
+
+
+      "label": "kept  "
+    }
+    \`\`\`
+  }
+
+  interface {
+    Configuration {
+      read()
+    }
+  }
+}
+`;
+  const parsed = parseSigilDocument("example.sigil", source, {
+    sigilVersion: SIGIL_VERSION,
+  });
+  assertNoErrors(parsed.diagnostics);
+  const goal = parsed.document.components[0].sections[0];
+  assertEquals(goal.units.length, 1);
+  assertEquals(goal.units[0].literalBlocks[0].type, "json");
+  assert(goal.units[0].literalBlocks[0].body.includes('"enabled": true'));
+  const formatted = formatSigilDocument(parsed.document, source);
+  assert(formatted.formattedSource);
+  assert(formatted.changed);
+  assert(
+    formatted.formattedSource.includes(
+      '      "enabled": true\n\n\n      "label": "kept  "',
+    ),
+  );
+  const reparsed = parseSigilDocument(
+    "example.sigil",
+    formatted.formattedSource,
+    { sigilVersion: SIGIL_VERSION },
+  );
+  const second = formatSigilDocument(
+    reparsed.document,
+    formatted.formattedSource,
+  );
+  assertEquals(second.changed, false);
+  assertEquals(second.formattedSource, formatted.formattedSource);
+});
+
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ImportUse interface,logic,constraints,cases
+Deno.test("rejects documentary-only imports and accepts constraint use", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "dep.sigil": `component Dep {
+  goal {
+    Provide a dependency.
+  }
+
+  interface {
+    DepValue {
+      value
+    }
+  }
+}
+`,
+    "consumer.sigil": `@dep.sigil import { Dep }
+
+component Consumer {
+  goal {
+    Document Dep.
+  }
+
+  interface {
+    Run {
+      run()
+    }
+  }
+}
+
+expand Consumer {
+  constraints {
+    DocumentaryExample {
+      The dependency name appears only in this example:
+      \`\`\`text
+      Dep
+      \`\`\`
+    }
+  }
+
+  decisions {
+    Dependency {
+      Decision: Mention Dep only as rationale.
+    }
+  }
+}
+`,
+  });
+  let resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  assertHasCode(resolved.diagnostics, "SIGIL_UNUSED_IMPORT");
+
+  const usedFs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "dep.sigil": await fs.readTextFile("dep.sigil"),
+    "consumer.sigil": `${await fs.readTextFile("consumer.sigil")}
+
+expand Consumer {
+  constraints {
+    Dependency {
+      Consumer depends on Dep.
+    }
+  }
+}
+`,
+  });
+  resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(usedFs, { startPath: "." }),
+  );
+  assert(
+    !resolved.diagnostics.some((item) => item.code === "SIGIL_UNUSED_IMPORT"),
+  );
+});
+
+/*
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::LiteralBlock constraints,cases
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::FormattingStyle constraints,cases
+ */
+Deno.test("diagnoses invalid literal attachment and prose width", () => {
+  const detached = parseSigilDocument(
+    "detached.sigil",
+    `component Example {
+  goal {
+    Introduce an example.
+
+    \`\`\`bad type
+    value
+    \`\`\`
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`,
+    { sigilVersion: SIGIL_VERSION },
+  );
+  assertHasCode(detached.diagnostics, "SIGIL_DETACHED_LITERAL_BLOCK");
+  assertHasCode(detached.diagnostics, "SIGIL_INVALID_LITERAL_TYPE");
+
+  const unintroduced = parseSigilDocument(
+    "unintroduced.sigil",
+    `component Example {
+  goal {
+    \`\`\`
+    value
+    \`\`\`
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`,
+    { sigilVersion: SIGIL_VERSION },
+  );
+  assertHasCode(
+    unintroduced.diagnostics,
+    "SIGIL_LITERAL_WITHOUT_INTRODUCTION",
+  );
+
+  const unclosed = parseSigilDocument(
+    "unclosed.sigil",
+    `component Example {
+  goal {
+    Introduce an example:
+    \`\`\`text
+    value
+`,
+    { sigilVersion: SIGIL_VERSION },
+  );
+  assertHasCode(unclosed.diagnostics, "SIGIL_UNCLOSED_LITERAL_BLOCK");
+
+  const width = parseSigilDocument(
+    "width.sigil",
+    `component Example {
+  goal {
+    ${"x".repeat(80)}
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`,
+    { sigilVersion: SIGIL_VERSION },
+  );
+  assertHasCode(width.diagnostics, "SIGIL_UNFORMATTABLE_LINE");
 });
 
 /*
@@ -71,9 +285,9 @@ Deno.test("normalizes and walks POSIX and Windows paths", () => {
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
-Deno.test("parses the canonical Sigil version and preserves semantic lines", async () => {
+Deno.test("parses the canonical Sigil version and preserves semantic units", async () => {
   const source = await Deno.readTextFile(
-    "../../examples/promise/promise.sigil",
+    new URL("../../../examples/promise/promise.sigil", import.meta.url),
   );
   const result = parseSigilDocument("examples/promise/promise.sigil", source, {
     sigilVersion: SIGIL_VERSION,
@@ -84,12 +298,12 @@ Deno.test("parses the canonical Sigil version and preserves semantic lines", asy
   );
   assert(goal);
   assertEquals(
-    goal.lines[0].text,
+    goal.units[0].prose,
     "Represent a value that may resolve now, later, or fail.",
   );
-  assertEquals(goal.lines[0].ownerName, "Promise");
-  assertEquals(goal.lines[0].filePath, "examples/promise/promise.sigil");
-  assert(goal.lines[0].range.start.line > 0);
+  assertEquals(goal.units[0].ownerName, "Promise");
+  assertEquals(goal.units[0].filePath, "examples/promise/promise.sigil");
+  assert(goal.units[0].range.start.line > 0);
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
@@ -246,8 +460,7 @@ Deno.test("loads and projects longest glossary terms in bounded contexts", async
   goal {
     Explain workspace root and workspace while a hold is active.
 
-    Ignore \`workspace root\` and https://example.test/workspace.
-
+    Ignore \`workspace root\` and https://example.test/workspace:
     \`\`\`
     workspace root
     \`\`\`
@@ -632,14 +845,14 @@ Deno.test("resolves directory indexes independently of workspace members", async
     "internal/contract.sigil": rootModule.replaceAll("Sigil", "Internal"),
     "internal/private.sigil": rootModule.replaceAll("Sigil", "Private"),
     "consumer.sigil":
-      "@internal import { Internal }\n\ncomponent Consumer {\n  goal {\n    Consume.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "@internal import { Internal }\n\ncomponent Consumer {\n  goal {\n    Consume.\n  }\n\n  interface {\n    run(Internal)\n  }\n}\n",
     "explicit-consumer.sigil":
-      "@internal/private.sigil import { Private }\n\ncomponent ExplicitConsumer {\n  goal {\n    Consume a public component by file.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "@internal/private.sigil import { Private }\n\ncomponent ExplicitConsumer {\n  goal {\n    Consume a public component by file.\n  }\n\n  interface {\n    run(Private)\n  }\n}\n",
     "facade/#module.sigil": `@internal import { Internal }\n\n${
       rootModule.replaceAll("Sigil", "FacadeModule")
     }`,
     "facade-consumer.sigil":
-      "@facade import { Internal }\n\ncomponent FacadeConsumer {\n  goal {\n    Consume an explicitly chained index.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "@facade import { Internal }\n\ncomponent FacadeConsumer {\n  goal {\n    Consume an explicitly chained index.\n  }\n\n  interface {\n    run(Internal)\n  }\n}\n",
   });
   const workspace = await loadSigilWorkspace(fs, { startPath: "." });
   const resolved = resolveSigilWorkspace(workspace);
@@ -826,7 +1039,7 @@ component Consumer {
   );
   assertEquals(context.dependencyDecisions[0].section.name, "decisions");
   assertEquals(
-    context.dependencyDecisions[0].section.lines[0].text,
+    context.dependencyDecisions[0].section.units[0].prose,
     "Decision: Preserve the provider rationale.",
   );
   assertEquals(
@@ -1401,9 +1614,9 @@ expand Account {
   assert(iface);
   assertEquals(iface.concepts.length, 1);
   assertEquals(iface.concepts[0].identifier, "SessionLifecycle");
-  assertEquals(iface.concepts[0].lines.length, 2);
+  assertEquals(iface.concepts[0].units.length, 2);
   assertEquals(
-    iface.concepts[0].lines[0].conceptIdentifier,
+    iface.concepts[0].units[0].conceptIdentifier,
     "SessionLifecycle",
   );
 });
@@ -1478,9 +1691,9 @@ expand Payments {
   assert(decisions);
   assertEquals(decisions.concepts.length, 1);
   assertEquals(decisions.concepts[0].identifier, "PersistenceChoice");
-  assertEquals(decisions.concepts[0].lines.length, 3);
-  assertEquals(decisions.lines.at(-1)?.text, "Free-form decision note.");
-  assertEquals(decisions.lines.at(-1)?.conceptIdentifier, undefined);
+  assertEquals(decisions.concepts[0].units.length, 3);
+  assertEquals(decisions.units.at(-1)?.prose, "Free-form decision note.");
+  assertEquals(decisions.units.at(-1)?.conceptIdentifier, undefined);
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
@@ -1883,6 +2096,6 @@ const rootModule =
 const slottedModule =
   `component Slotted {\n  goal {\n    Room booking.\n  }\n\n  interface {\n    accepts bookings\n  }\n}\n`;
 const authSigil =
-  `@user-profile.sigil import { UserProfile }\n\ncomponent Auth {\n  goal {\n    Authenticate users.\n  }\n\n  interface {\n    signIn()\n  }\n}\n`;
+  `@user-profile.sigil import { UserProfile }\n\ncomponent Auth {\n  goal {\n    Authenticate users.\n  }\n\n  interface {\n    signIn(UserProfile)\n  }\n}\n`;
 const userProfileSigil =
   `component UserProfile {\n  goal {\n    Store profile information.\n  }\n\n  interface {\n    getProfile()\n  }\n}\n`;

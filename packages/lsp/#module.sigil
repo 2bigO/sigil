@@ -57,7 +57,7 @@ component SigilLsp {
 
       supports full-document semantic tokens for resolved component names
 
-      every hover renders resolver-confirmed component and concept references in displayed Sigil semantic lines as inline links to their originating declarations
+      every hover renders resolver-confirmed component and concept references in displayed Sigil semantic-unit prose as inline links to their originating declarations
     }
 
     ConceptLanguageFeatures {
@@ -140,6 +140,8 @@ expand SigilLsp {
       Hover appends owned implementation targets after all other hover content.
 
       Document symbols preserve declaration and section hierarchy.
+
+      Hover preserves attached LiteralBlock type and body content without interpreting it as navigation or glossary evidence.
     }
 
     OwnershipSourceIndex {
@@ -215,6 +217,8 @@ expand SigilLsp {
 
       Only resolver-confirmed component and concept references become links; unresolved identifiers and ordinary prose remain unchanged.
 
+      LiteralBlock types and bodies never become component, concept, glossary, or ownership navigation.
+
       Owned implementation hover links point to the originating artifact location and remain standard Markdown links.
     }
 
@@ -238,10 +242,12 @@ expand SigilLsp {
 
     ConceptLanguageFeatures {
       Imported-concept hover does not expose private state, logic, constraints, decisions, cases, or expansion occurrences.
+
+      Concept features use SemanticUnit prose and never independently scan LiteralBlock content.
     }
 
     GlossaryLanguageFeatures {
-      Glossary occurrence features apply only to free-form prose in loaded .sigil documents.
+      Glossary occurrence features apply only to SemanticUnit prose in loaded .sigil documents.
 
       The semantic-token legend includes term and preserves non-overlapping UTF-16 ranges.
 
@@ -252,6 +258,10 @@ expand SigilLsp {
       Definition navigation on a concept declaration or reference targets the concept origin even when its spelling matches an effective glossary entry.
 
       Combined hover does not change semantic-token overlap resolution.
+    }
+
+    SourceFormatting {
+      The initial language-server change consumes SemanticUnit and LiteralBlock models without advertising a document-formatting capability.
     }
 
     WorkspaceSupport {
@@ -352,6 +362,8 @@ expand SigilLsp {
       The Owned implementations section is the final section of component and concept hover.
 
       A displayed name without a resolved component or concept identity remains plain hover text.
+
+      Apparent component and concept names inside a LiteralBlock produce no navigation or semantic highlighting.
     }
 
     OwnershipHoverCache {

@@ -1,4 +1,4 @@
-@spec/language.sigil import { SigilWorkspaceConfig }
+@spec/language.sigil import { SigilLanguage }
 
 component SigilWorkspaceGlossary {
   goal {
@@ -61,9 +61,9 @@ component SigilWorkspaceGlossary {
 
       the longest matching phrase wins
 
-      occurrences resolve only inside free-form Sigil prose
+      occurrences resolve only inside SemanticUnit prose
 
-      structural syntax, code fences, inline code, and URLs do not contain glossary occurrences
+      structural syntax, LiteralBlock types and bodies, inline code, and URLs do not contain glossary occurrences
     }
   }
 }
@@ -79,7 +79,7 @@ expand SigilWorkspaceGlossary {
     }
 
     TermRecognition {
-      Order effective canonical and alias spellings by descending length before scanning each eligible semantic line.
+      Order effective canonical and alias spellings by descending length before scanning each eligible semantic unit.
 
       Accept a match only when adjacent characters are not Unicode letters, numbers, or underscore.
 

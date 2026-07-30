@@ -34,6 +34,18 @@ export function formatResult(
     return formatCheckText(result);
   }
   if (
+    result.command === "fmt" &&
+    (request.format === undefined || request.format === "text")
+  ) {
+    const lines = result.files.map((file) => `${file.status} ${file.filePath}`);
+    for (const diagnostic of result.diagnostics) {
+      lines.push(
+        `${diagnostic.severity} ${diagnostic.code}: ${diagnostic.message}`,
+      );
+    }
+    return lines.length ? `${lines.join("\n")}\n` : "";
+  }
+  if (
     result.command === "glossary" &&
     (request.format === undefined || request.format === "text")
   ) {

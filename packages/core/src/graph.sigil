@@ -45,6 +45,8 @@ expand SigilGraphBuilder {
     }
 
     GraphData {
+      SigilSemanticModel owns the graph data shapes built here.
+
       Graph edges represent resolved structural relationships and do not claim behavioral compliance.
     }
   }

@@ -52,7 +52,7 @@ When GlossaryFile is invalid, accepted definitions are inactive. Propose an
 exact repair before relying on its entries.
 
 An absent GlossaryFile is valid deterministic state. Continue with candidate
-extraction from the changed semantic lines only after semantic readiness
+extraction from the changed semantic units only after semantic readiness
 appears aligned rather than skipping this workflow.
 
 Completing `sigil glossary` completes only deterministic inspection. The
@@ -145,7 +145,7 @@ Always report the extraction result:
 - When a material candidate exists, collect its evidence and follow the exact
   proposal workflow below.
 - When no material candidate exists, record an evidence-based result naming the
-  changed semantic lines or selected loaded scope and the relevant surrounding
+  changed semantic units or selected loaded scope and the relevant surrounding
   component, expand, glossary, and variant occurrences inspected. A diagnostic
   count is not evidence for this conclusion.
 

@@ -1,5 +1,6 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
+@packages/core/src/formatter.sigil import { SigilFormatter }
 @packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }
 
 component SigilCore {
@@ -12,6 +13,10 @@ component SigilCore {
   interface {
     SourceInterpretation {
       parseSigilDocument(filePath, source, options) returns a recovered source document and structural diagnostics
+    }
+
+    SourceFormatting {
+      formatSigilDocument(sourceDocument, source) returns deterministic canonical Sigil source, changed status, and diagnostics through SigilFormatter
     }
 
     ConfigurationInterpretation {
@@ -29,7 +34,7 @@ component SigilCore {
     }
 
     WorkspaceResolution {
-      resolveSigilWorkspace(workspace) returns resolved imports, components, collective expansions, concept namespaces, graph relationships, and diagnostics
+      resolveSigilWorkspace(workspace) returns resolved imports with use evidence, components, collective expansions, concept namespaces, graph relationships, and diagnostics
     }
 
     SemanticProjections {
@@ -78,6 +83,10 @@ expand SigilCore {
       Core does not own CLI arguments, LSP transport, editor APIs, agent-host behavior, approval decisions, or user-interface presentation.
     }
 
+    SourceFormatting {
+      Core formatting is in-memory, deterministic, idempotent, and independent from filesystem mutation.
+    }
+
     DependencyDirection {
       Internal stages depend only in the declared source-to-resolution-to-projection direction and do not create cyclic ownership.
 
@@ -109,7 +118,13 @@ expand SigilCore {
 
   cases {
     WorkspaceResolution {
-      Resolving a loaded workspace returns imports, components, collective expansions, concept namespaces, graph relationships, and accumulated diagnostics.
+      Resolving a loaded workspace returns imports with qualifying-use evidence, components, collective expansions, concept namespaces, graph relationships, and accumulated diagnostics.
+    }
+
+    SourceFormatting {
+      Formatting valid source twice returns identical canonical source.
+
+      Formatting source with error diagnostics returns no writable result.
     }
 
     DeterministicCore {

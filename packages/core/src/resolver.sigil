@@ -4,7 +4,7 @@
 
 component SigilResolver {
   goal {
-    Resolve component imports, collective expansions, and contextual concept namespaces across one loaded workspace.
+    Resolve component imports, their qualifying local use, collective expansions, and contextual concept namespaces across one loaded workspace.
 
     Produce deterministic relationship data and diagnostics without filesystem access, graph construction, or presentation.
   }
@@ -14,6 +14,10 @@ component SigilResolver {
       resolveSigilRelationships(workspace) returns SigilResolution
 
       SigilResolution exposes the source workspace, resolved imports, resolved components, and accumulated diagnostics
+    }
+
+    ImportUse {
+      each resolved imported name exposes whether and where it is used by qualifying component, public-concept, structural-expand, or module-index-surface evidence
     }
 
     CollectiveExpansions {
@@ -36,6 +40,18 @@ expand SigilResolver {
       Resolve explicit source imports and directory imports.
 
       Detect cycles between resolved import files.
+
+      Diagnose each resolved imported name that has no qualifying local use.
+    }
+
+    ImportUse {
+      Scan exact-case component names and imported public-concept identities in interface, state, logic, constraints, and cases.
+
+      Record an applicable local expand as structural use of its imported component.
+
+      Record a resolved direct import in ModuleIndexFile as intentional directory-surface use.
+
+      Preserve source ownership, section, kind, and exact range for every use.
     }
 
     DirectoryImportSurface {
@@ -65,7 +81,7 @@ expand SigilResolver {
 
       Re-expose an imported identity when reused in interface.
 
-      Scan semantic lines against unambiguous accessible concepts and record each exact-case whole-word match in ResolvedConceptNamespace.references.
+      Scan semantic-unit prose against unambiguous accessible concepts and record each exact-case whole-word match in ResolvedConceptNamespace.references.
 
       Diagnose different accessible identities whose names compare equal without regard to case.
     }
@@ -73,9 +89,19 @@ expand SigilResolver {
 
   constraints {
     RelationshipResolution {
+      Resolution consumes SigilSemanticModel data and emits SigilDiagnostics.
+
       Resolution performs no filesystem access.
 
       Missing or ambiguous relationships retain partial deterministic data when practical.
+    }
+
+    ImportUse {
+      Use is evaluated separately for each imported name in its declaring source document.
+
+      Goal, decisions, literal bodies, comments, annotations, other source documents, case-mismatched text, and identifier substrings do not count as use.
+
+      Unresolved or ambiguous imported names do not additionally produce SIGIL_UNUSED_IMPORT.
     }
 
     ComponentContract {
@@ -92,6 +118,8 @@ expand SigilResolver {
       Ambiguous identifiers, case-mismatched text, substrings, and unmatched words do not produce references.
 
       Unmatched words produce no unresolved-concept diagnostic.
+
+      Literal bodies produce no concept references.
     }
 
     DependencyDirection {
@@ -106,6 +134,20 @@ expand SigilResolver {
       Missing sources or components produce stable diagnostics and partial import results.
 
       Duplicate components, unmatched expands, and import cycles produce stable diagnostics.
+
+      One used and one unused component in the same import produce only one SIGIL_UNUSED_IMPORT.
+    }
+
+    ImportUse {
+      A component name referenced only in goal or decisions does not use its import.
+
+      An exact component reference in constraints uses its import.
+
+      An imported public concept referenced in logic uses its provider import.
+
+      A provider name appearing only in a LiteralBlock does not use its import.
+
+      A resolved direct ModuleIndexFile import uses its name through the directory surface.
     }
 
     DirectoryImportSurface {

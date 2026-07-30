@@ -369,7 +369,7 @@ for (
   const [key, expected] of Object.entries({
     cliVersion: "^0.7.0",
     coreVersion: "^0.7.0",
-    sigilVersion: "0.5.0",
+    sigilVersion: "0.6.0",
   })
 ) {
   if (compatibility[key] !== expected) {
@@ -823,7 +823,7 @@ requireText(
 );
 requireText(
   implementationDesign,
-  "Ownership annotations are implementation comments, not Sigil semantic lines.",
+  "Ownership annotations are implementation comments, not Sigil semantic units.",
   "implementation-side ownership storage",
 );
 requireText(

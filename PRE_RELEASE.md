@@ -1,13 +1,13 @@
 # Sigil pre-release status
 
 Sigil platform artifacts and Sigil skill 0.7.0 are work-in-progress
-pre-production releases over Sigil Language 0.5.0. They do not claim production
+pre-production releases over Sigil Language 0.6.0. They do not claim production
 readiness or a stable 1.0 contract.
 
 Included contracts:
 
-- Sigil Language 0.5.0;
-- `.sigil/config.json` schema 0.5.0;
+- Sigil Language 0.6.0;
+- `.sigil/config.json` schema 0.6.0;
 - `@qoherent/sigil-core` 0.7.0;
 - `@qoherent/sigil` 0.7.0;
 - standalone host-neutral Sigil skill 0.7.0 with reviewed glossary workflows,
@@ -28,8 +28,8 @@ matrix records supported combinations.
 
 Artifact release 0.7.0 intentionally excludes the rejected historical anchors,
 Receipts, and `sigil-indexer` implementation, editor integrations other than VS
-Code, plugin packaging, semantic search, interactive CLI workflows, `.sigil`
-mutation, generated diagrams, and persistent approval records. Human approval
+Code, plugin packaging, semantic search, interactive CLI workflows beyond
+explicit formatting, generated diagrams, and persistent approval records. Human approval
 is session-scoped.
 
 Pre-release acceptance requires formatting, lint, type checks, core, CLI, LSP,

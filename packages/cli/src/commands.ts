@@ -22,6 +22,7 @@ export interface CommandHandlerOptions {
  * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
  */
 export async function runCommand(
   request: CommandRequest,
@@ -78,6 +79,20 @@ export async function runCommand(
       ...workspaceMetadata(parsed.discovery),
       document: parsed.document,
       diagnostics: parsed.diagnostics,
+    };
+  }
+  if (request.command === "fmt") {
+    const formatted = await core.formatSources(
+      request.path,
+      request.root,
+      request.check,
+    );
+    return {
+      command: "fmt",
+      ...workspaceMetadata(formatted.workspace),
+      check: request.check,
+      files: formatted.files,
+      diagnostics: formatted.diagnostics,
     };
   }
   const resolved = await core.resolveWorkspace(
@@ -238,7 +253,7 @@ function renderMarkdown(
           lines.push(
             "",
             `#### ${section.name}`,
-            ...formatList(section.lines.map((line) => line.text)),
+            ...formatList(section.units.map((unit) => unit.prose)),
           );
         }
       }

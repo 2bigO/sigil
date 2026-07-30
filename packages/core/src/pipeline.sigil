@@ -2,6 +2,7 @@
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 @packages/core/src/filesystem.sigil import { SigilFileSystem }
 @packages/core/src/parser.sigil import { SigilParser }
+@packages/core/src/formatter.sigil import { SigilFormatter }
 @packages/core/src/workspace.sigil import { SigilWorkspaceLoader }
 @packages/core/src/resolver.sigil import { SigilResolver }
 @packages/core/src/graph.sigil import { SigilGraphBuilder }
@@ -12,6 +13,10 @@ expand SigilCore {
   logic {
     SourceInterpretation {
       parseSigilDocument delegates versioned source interpretation to SigilParser.
+    }
+
+    SourceFormatting {
+      formatSigilDocument delegates deterministic in-memory rendering to SigilFormatter.
     }
 
     GlossaryInterpretation {
@@ -45,6 +50,8 @@ expand SigilCore {
 
       SigilParser depends on model and diagnostics.
 
+      SigilFormatter depends on parser output, model, and diagnostics while remaining independent from filesystem mutation and hosts.
+
       SigilGlossaryEngine depends on shared model and diagnostics while remaining independent from workspace loading, relationship resolution, and hosts.
 
       SigilWorkspaceLoader depends on configuration, filesystem, parser, model, and diagnostics.
@@ -68,6 +75,10 @@ expand SigilCore {
 
     SemanticProjections {
       Existing CLI and LSP consumers obtain contract, concept, and expansion views without accessing internal stage data directly.
+    }
+
+    SourceFormatting {
+      Existing and future hosts obtain one canonical formatter without reimplementing Sigil structure or prose wrapping.
     }
 
     GlossaryInspection {
