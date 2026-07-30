@@ -893,8 +893,7 @@ Deno.test("context Markdown prefers file identity for duplicate component names"
     assert(result.stdout.includes("#### SecondApi"));
     assert(!result.stdout.includes("- First duplicate."));
     assert(!result.stdout.includes("#### FirstApi"));
-    assert(!result.stdout.includes("first expansion."));
-    assert(!result.stdout.includes("second expansion."));
+    assert(result.stdout.includes("second expansion."));
     assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -999,6 +998,139 @@ component Consumer {
     );
     assertEquals(
       countOccurrences(result.stdout, "Decision: Use the second provider."),
+      1,
+    );
+    assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ */
+Deno.test("context Markdown preserves dependency identity for duplicate selected components", async () => {
+  const root = await makeWorkspace("context-markdown-duplicate-selected");
+  try {
+    await Deno.mkdir(`${root}/first`);
+    await Deno.mkdir(`${root}/second`);
+    await Deno.writeTextFile(
+      `${root}/first/provider.sigil`,
+      `component FirstProvider {
+  goal {
+    First dependency.
+  }
+
+  interface {
+    FirstDependencyApi {
+      first()
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/first/provider-detail.sigil`,
+      `expand FirstProvider {
+  decisions {
+    FirstDependencyChoice {
+      Decision: Use the first dependency.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second/provider.sigil`,
+      `component SecondProvider {
+  goal {
+    Second dependency.
+  }
+
+  interface {
+    SecondDependencyApi {
+      second()
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second/provider-detail.sigil`,
+      `expand SecondProvider {
+  decisions {
+    SecondDependencyChoice {
+      Decision: Use the second dependency.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/first/consumer.sigil`,
+      `@first/provider.sigil import { FirstProvider }
+
+component Consumer {
+  goal {
+    First consumer.
+  }
+
+  interface {
+    ConsumerApi {
+      consume first.
+    }
+  }
+}
+`,
+    );
+    await Deno.writeTextFile(
+      `${root}/second/consumer.sigil`,
+      `@second/provider.sigil import { SecondProvider }
+
+component Consumer {
+  goal {
+    Second consumer.
+  }
+
+  interface {
+    ConsumerApi {
+      consume second.
+    }
+  }
+}
+`,
+    );
+
+    const result = await runCli([
+      "context",
+      root,
+      "--component",
+      "Consumer",
+      "--format",
+      "markdown",
+    ]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const firstConsumer = result.stdout.indexOf("first/consumer.sigil");
+    const secondConsumer = result.stdout.indexOf(
+      "second/consumer.sigil",
+    );
+    const firstDependency = result.stdout.indexOf(
+      "first/provider.sigil",
+    );
+    const secondDependency = result.stdout.indexOf(
+      "second/provider.sigil",
+    );
+    assert(firstConsumer >= 0);
+    assert(secondConsumer > firstConsumer);
+    assert(firstDependency > firstConsumer && firstDependency < secondConsumer);
+    assert(secondDependency > secondConsumer);
+    assertEquals(
+      countOccurrences(result.stdout, "Decision: Use the first dependency."),
+      1,
+    );
+    assertEquals(
+      countOccurrences(result.stdout, "Decision: Use the second dependency."),
       1,
     );
     assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));

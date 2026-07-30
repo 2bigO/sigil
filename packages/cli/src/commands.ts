@@ -1,3 +1,10 @@
+import type {
+  AgentDependencyContext,
+  ComponentContractView,
+  OwnedImplementationProjection,
+  ResolvedComponent,
+  ResolvedSigilWorkspace,
+} from "@qoherent/sigil-core";
 import type { CommandRequest, ContextRequest } from "./args.ts";
 import { CoreAdapter } from "./core-adapter.ts";
 import {
@@ -125,7 +132,10 @@ export async function runCommand(
   };
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+/*
+ * @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput logic,constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+ */
 async function contextCommand(
   request: ContextRequest,
   core: CoreAdapter,
@@ -139,21 +149,19 @@ async function contextCommand(
       ? component.name === request.component
       : component.filePath === selectedFile
   );
-  const selectedNames = new Set(
-    selectedComponents.map((component) => component.name),
-  );
-  const contracts = core.componentContracts(resolved).filter((contract) =>
-    selectedNames.has(contract.name)
-  );
+  const allContracts = core.componentContracts(resolved);
+  const contracts = selectedComponents.map((component) =>
+    contractForComponent(allContracts, component)
+  ).filter((item) => item !== undefined);
   const expansions = selectedComponents.map((component) =>
-    core.collectedExpansionFor(resolved, component.name)
-  ).filter((item) => item !== undefined);
+    component.expansions
+  );
   const conceptNamespaces = selectedComponents.map((component) =>
-    core.conceptNamespaceFor(resolved, component.name)
-  ).filter((item) => item !== undefined);
+    component.conceptNamespace
+  );
   const agentDependencyContexts = selectedComponents.map((component) =>
-    core.agentDependencyContextFor(resolved, component.name)
-  ).filter((item) => item !== undefined);
+    agentDependencyContextForComponent(resolved, component, allContracts)
+  );
   const implementationSourceDiscovery = await core.implementationSourcesFor(
     resolved,
   );
@@ -163,7 +171,12 @@ async function contextCommand(
       implementationSourceDiscovery.sources,
       component.name,
     )
-  ).filter((item) => item !== undefined);
+  ).filter((item): item is OwnedImplementationProjection =>
+    item !== undefined &&
+    selectedComponents.some((component) =>
+      componentIdentityMatches(item.owningComponent, component)
+    )
+  );
   const ownershipDiagnostics = ownedImplementationProjections.flatMap(
     (projection) => projection.diagnostics,
   );
@@ -193,4 +206,78 @@ async function contextCommand(
       ...ownershipDiagnostics,
     ],
   };
+}
+
+function agentDependencyContextForComponent(
+  resolved: ResolvedSigilWorkspace,
+  selectedComponent: ResolvedComponent,
+  contracts: readonly ComponentContractView[],
+): AgentDependencyContext {
+  const dependencies: ResolvedComponent[] = [];
+  const seen = new Set<string>();
+  for (
+    const resolvedImport of resolved.imports.filter((item) =>
+      item.sourceFile === selectedComponent.filePath
+    )
+  ) {
+    for (const importedName of resolvedImport.names) {
+      if (!importedName.componentFile) continue;
+      const key = `${importedName.componentFile}\0${importedName.name}`;
+      if (seen.has(key)) continue;
+      const dependency = resolved.components.find((component) =>
+        component.name === importedName.name &&
+        component.filePath === importedName.componentFile
+      );
+      if (!dependency) continue;
+      seen.add(key);
+      dependencies.push(dependency);
+    }
+  }
+
+  const dependencyContracts = dependencies.map((dependency) =>
+    contractForComponent(contracts, dependency)
+  ).filter((item) => item !== undefined);
+  const dependencyDecisions = dependencies.flatMap((dependency) =>
+    dependency.expansions.expands.flatMap((expansion) =>
+      expansion.declaration.sections
+        .filter((section) => section.name === "decisions")
+        .map((section) => ({
+          componentName: dependency.name,
+          filePath: expansion.filePath,
+          section,
+        }))
+    )
+  );
+  const relatedFilePaths = [
+    ...new Set([
+      selectedComponent.filePath,
+      ...selectedComponent.expansions.expands.map((item) => item.filePath),
+      ...dependencyContracts.map((contract) => contract.filePath),
+      ...dependencyDecisions.map((decision) => decision.filePath),
+    ]),
+  ].sort();
+
+  return {
+    selectedComponent,
+    collectedExpansion: selectedComponent.expansions,
+    dependencyContracts,
+    dependencyDecisions,
+    relatedFilePaths,
+  };
+}
+
+function contractForComponent(
+  contracts: readonly ComponentContractView[],
+  component: Pick<ResolvedComponent, "name" | "filePath">,
+): ComponentContractView | undefined {
+  return contracts.find((contract) =>
+    componentIdentityMatches(contract, component)
+  );
+}
+
+function componentIdentityMatches(
+  left: Pick<ResolvedComponent, "name" | "filePath">,
+  right: Pick<ResolvedComponent, "name" | "filePath">,
+): boolean {
+  return left.name === right.name && left.filePath === right.filePath;
 }

@@ -151,7 +151,9 @@ expand SigilCli {
     }
 
     MarkdownOutput {
-      render markdown delegates component contract projection to SigilCore and associates expansions only with the exact component identity being rendered.
+      render markdown delegates component contract projection to SigilCore and renders the resolved expansion projection already carried by each rendered component.
+
+      context command assembly derives selected contracts, expansions, concept namespaces, and dependency contexts from each exact selected component identity.
 
       context markdown renders only selected contracts, expansions, concept namespaces, dependency contexts, and ownership projections that match the selected component identity.
 

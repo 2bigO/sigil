@@ -22,12 +22,10 @@ export function renderWorkspaceMarkdown(
     "",
   ];
   const contracts = core.componentContracts(resolved);
-  const contractNameCounts = componentNameCounts(contracts);
   for (const [index, contract] of contracts.entries()) {
     lines.push(...formatComponentContract(contract));
     const component = resolved.components[index];
-    const expansion = componentIdentityMatches(contract, component) &&
-        contractNameCounts.get(contract.name) === 1
+    const expansion = componentIdentityMatches(contract, component)
       ? component.expansions
       : undefined;
     if (expansion?.expands.length) {
@@ -370,11 +368,6 @@ function expansionForComponent(
   component: ResolvedComponent,
   index: number,
 ): CollectedExpansion | undefined {
-  if (
-    componentNameCounts(result.componentContracts).get(component.name) !== 1
-  ) {
-    return undefined;
-  }
   const indexed = result.selectedComponents[index];
   if (componentIdentityMatches(indexed, component)) return component.expansions;
   return undefined;
@@ -451,14 +444,4 @@ function namespaceMatchesComponent(
     reference.componentName === component.name &&
     reference.filePath === component.filePath
   );
-}
-
-function componentNameCounts(
-  components: readonly Pick<ResolvedComponent, "name">[],
-): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const component of components) {
-    counts.set(component.name, (counts.get(component.name) ?? 0) + 1);
-  }
-  return counts;
 }
