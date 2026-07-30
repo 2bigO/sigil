@@ -38,7 +38,7 @@ Deno.test("separates the core artifact and language contract versions", () => {
  * @sigil tests packages/core/src/parser.sigil::SigilParser::SemanticUnit constraints,cases
  * @sigil tests packages/core/src/parser.sigil::SigilParser::LiteralBlock logic,constraints,cases
  * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::Formatting interface,logic,cases
- * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::DeterministicFormatting constraints,cases
+ * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::DeterministicFormatting constraints
  */
 Deno.test("parses semantic paragraphs and attached literal blocks and formats idempotently", () => {
   const source = `component Example {

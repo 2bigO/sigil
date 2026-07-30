@@ -49,7 +49,13 @@ export async function run(): Promise<void> {
   );
   assert(definitions.length > 0, "Expected go-to-definition results");
 
-  const sectionPosition = new vscode.Position(27, 22);
+  const sectionReferenceOffset = document.getText().indexOf("User.email");
+  assert.notEqual(
+    sectionReferenceOffset,
+    -1,
+    "Expected the section component reference fixture",
+  );
+  const sectionPosition = document.positionAt(sectionReferenceOffset);
   const sectionHovers = await eventually(async () =>
     await vscode.commands.executeCommand<vscode.Hover[]>(
       "vscode.executeHoverProvider",

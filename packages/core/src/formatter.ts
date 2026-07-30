@@ -4,7 +4,7 @@ const PROSE_WIDTH = 79;
 
 /*
  * @sigil implements packages/core/src/formatter.sigil::SigilFormatter::Formatting interface,logic,cases
- * @sigil implements packages/core/src/formatter.sigil::SigilFormatter::DeterministicFormatting constraints,cases
+ * @sigil implements packages/core/src/formatter.sigil::SigilFormatter::DeterministicFormatting constraints
  */
 export function formatSigilDocument(
   document: SigilDocument,

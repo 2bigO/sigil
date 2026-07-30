@@ -4,9 +4,11 @@
 
 component SigilVsCodeExtension {
   goal {
-    Provide a VS Code authoring and review surface for file-backed Sigil workspaces.
+    Provide a VS Code authoring and review surface for file-backed Sigil
+    workspaces.
 
-    Connect editor-native features to the bundled language server without duplicating deterministic Sigil semantics.
+    Connect editor-native features to the bundled language server without
+    duplicating deterministic Sigil semantics.
   }
 
   interface {
@@ -23,19 +25,23 @@ component SigilVsCodeExtension {
 
       starts the bundled language server through vscode-languageclient
 
-      surfaces diagnostics, document symbols, definition navigation, hover, and semantic highlighting
+      surfaces diagnostics, document symbols, definition navigation, hover, and
+      semantic highlighting
 
-      accepts the bundled server's dynamic registration for supported ownership implementation-source changes
+      accepts the bundled server's dynamic registration for supported ownership
+      implementation-source changes
     }
 
     ComponentPreview {
       contributes the Sigil: Show Component Preview command
 
-      opens the selected component contract and collected expansions as read-only Markdown
+      opens the selected component contract and collected expansions as read-only
+      Markdown
     }
 
     SupportedExtensionHosts {
-      runs as a workspace extension in trusted desktop and remote Node extension hosts
+      runs as a workspace extension in trusted desktop and remote Node extension
+      hosts
 
       supports file-backed workspaces and file URIs
 
@@ -51,9 +57,11 @@ component SigilVsCodeExtension {
     CompilationSurface {
       contributes the Sigil: Compile Component and Sigil: Compile Workspace commands
 
-      invokes a compatible external sigil compile process instead of bundling SigilCompiler
+      invokes a compatible external sigil compile process instead of bundling
+      SigilCompiler
 
-      displays compilation progress, red, yellow, or green status, and source-ranged findings from the authoritative CompilationReport
+      displays compilation progress, red, yellow, or green status, and source-ranged
+      findings from the authoritative CompilationReport
 
       groups findings by component, stage, severity, and lifecycle
     }
@@ -67,25 +75,32 @@ expand SigilVsCodeExtension {
     }
 
     ComponentPreview {
-      Preview selection reflects the active Sigil editor and cursor when the command runs.
+      Preview selection reflects the active Sigil editor and cursor when the command
+      runs.
     }
 
     CompilationSurface {
-      The active compilation is idle, starting, running, cancelling, completed, failed, or superseded.
+      The active compilation is idle, starting, running, cancelling, completed,
+      failed, or superseded.
 
-      The displayed report is current or stale relative to the active document and selected profile.
+      The displayed report is current or stale relative to the active document and
+      selected profile.
     }
   }
 
   logic {
     EditorLanguageSupport {
-      Opening or activating a Sigil document starts the bundled server when it is not already running.
+      Opening or activating a Sigil document starts the bundled server when it is not
+      already running.
 
-      The language client forwards document lifecycle and language-feature requests through LSP.
+      The language client forwards document lifecycle and language-feature requests
+      through LSP.
 
-      The language client delivers file events for watcher patterns dynamically registered by the bundled server.
+      The language client delivers file events for watcher patterns dynamically
+      registered by the bundled server.
 
-      Startup and runtime failures are written to the Sigil output channel and surfaced to the user.
+      Startup and runtime failures are written to the Sigil output channel and
+      surfaced to the user.
 
       Deactivation stops the language client and server process.
     }
@@ -95,17 +110,21 @@ expand SigilVsCodeExtension {
 
       A successful result opens read-only Markdown beside the Sigil document.
 
-      A missing component or unavailable hover result shows a non-destructive informational message.
+      A missing component or unavailable hover result shows a non-destructive
+      informational message.
     }
 
     CompilationSurface {
-      Compile Component resolves the component at the active Sigil cursor and invokes external sigil compile for that component.
+      Compile Component resolves the component at the active Sigil cursor and invokes
+      external sigil compile for that component.
 
       Compile Workspace invokes external sigil compile for the configured workspace.
 
-      The extension consumes structured compiler events and projects final findings into a dedicated diagnostic collection and compilation view.
+      The extension consumes structured compiler events and projects final findings
+      into a dedicated diagnostic collection and compilation view.
 
-      Starting a replacement run for the same target and profile cancels or supersedes the obsolete run.
+      Starting a replacement run for the same target and profile cancels or
+      supersedes the obsolete run.
     }
   }
 
@@ -113,7 +132,8 @@ expand SigilVsCodeExtension {
     ArtifactVersionOwnership {
       package.json owns the extension artifact version.
 
-      The extension Sigil contract does not duplicate its manifest-owned version literal.
+      The extension Sigil contract does not duplicate its manifest-owned version
+      literal.
     }
 
     ExtensionPackage {
@@ -121,117 +141,157 @@ expand SigilVsCodeExtension {
 
       Users require neither a globally installed Deno runtime nor a Sigil CLI.
 
-      Distribution uses GitHub-hosted VSIX assets rather than Visual Studio Marketplace or Open VSX.
+      Distribution uses GitHub-hosted VSIX assets rather than Visual Studio
+      Marketplace or Open VSX.
     }
 
     EditorLanguageSupport {
       The extension uses stable public VS Code APIs and vscode-languageclient.
 
-      The extension depends on SigilLsp for language semantics and does not import or duplicate core behavior.
+      The extension depends on SigilLsp for language semantics and does not import or
+      duplicate core behavior.
 
       Component preview uses standard hover and introduces no custom protocol method.
 
-      Ownership file watching is notification-only and does not modify workspace files.
+      Ownership file watching is notification-only and does not modify workspace
+      files.
     }
 
     SupportedExtensionHosts {
       extensionKind is workspace.
 
-      Extension activation requires a trusted workspace under the current manifest behavior.
+      Extension activation requires a trusted workspace under the current manifest
+      behavior.
 
-      File-backed desktop and remote Node hosts are supported; web and virtual hosts are not.
+      File-backed desktop and remote Node hosts are supported; web and virtual hosts
+      are not.
     }
 
     ReadOnlyEditorSupport {
-      The extension registers no document-editing, file-mutation, or telemetry behavior.
+      The extension registers no document-editing, file-mutation, or telemetry
+      behavior.
     }
 
     CompilationSurface {
       Agentic compilation is explicit and does not run automatically while typing.
 
-      Deterministic LSP diagnostics remain live independently from agentic compilation.
+      Deterministic LSP diagnostics remain live independently from agentic
+      compilation.
 
-      The VSIX does not bundle SigilCompiler or require it for ordinary language support.
+      The VSIX does not bundle SigilCompiler or require it for ordinary language
+      support.
 
-      Compilation commands require a compatible external sigil executable and show actionable setup guidance when it is missing or incompatible.
+      Compilation commands require a compatible external sigil executable and show
+      actionable setup guidance when it is missing or incompatible.
 
-      The extension does not reinterpret compiler findings or compute compilation color independently.
+      The extension does not reinterpret compiler findings or compute compilation
+      color independently.
 
-      The extension invokes JSON Lines mode, validates protocol compatibility and event ordering, and accepts the final CompilationReport only from a completed terminal event.
+      The extension invokes JSON Lines mode, validates protocol compatibility and
+      event ordering, and accepts the final CompilationReport only from a completed
+      terminal event.
     }
   }
 
   decisions {
     EditorLanguageSupport {
-      Decision: Bundle the Node-compatible Sigil language server and use standard LSP features, including hover-backed component preview, without custom protocol methods.
+      Decision: Bundle the Node-compatible Sigil language server and use standard LSP
+      features, including hover-backed component preview, without custom protocol
+      methods.
 
-      Scope: Governs the VS Code client-server integration and component preview; excludes Sigil language interpretation.
+      Scope: Governs the VS Code client-server integration and component preview;
+      excludes Sigil language interpretation.
 
-      Trade-offs: Bundling increases package size and requires rebuilding the server with the extension.
+      Trade-offs: Bundling increases package size and requires rebuilding the server
+      with the extension.
 
-      Consequences: Preview, navigation, diagnostics, and highlighting remain compatible with the shared LSP contract.
+      Consequences: Preview, navigation, diagnostics, and highlighting remain
+      compatible with the shared LSP contract.
 
-      Revisit when: A separately installed shared server becomes operationally preferable.
+      Revisit when: A separately installed shared server becomes operationally
+      preferable.
     }
 
     OwnershipCacheInvalidation {
-      Decision: Let the bundled language server dynamically register supported ownership-source watcher patterns through standard Language Server Protocol capability registration.
+      Decision: Let the bundled language server dynamically register supported
+      ownership-source watcher patterns through standard Language Server Protocol
+      capability registration.
 
-      Scope: Governs VS Code delivery of registered ownership-source changes; excludes ownership parsing, cache storage, and source-support policy.
+      Scope: Governs VS Code delivery of registered ownership-source changes;
+      excludes ownership parsing, cache storage, and source-support policy.
 
-      Trade-offs: Server-directed registration removes the redundant extension-owned watcher while depending on the language client's dynamic-registration support.
+      Trade-offs: Server-directed registration removes the redundant extension-owned
+      watcher while depending on the language client's dynamic-registration support.
 
-      Consequences: The extension does not duplicate supported source patterns and the server receives standard workspace/didChangeWatchedFiles notifications.
+      Consequences: The extension does not duplicate supported source patterns and
+      the server receives standard workspace/didChangeWatchedFiles notifications.
 
-      Revisit when: The language client cannot reliably honor dynamic registration or the protocol provides incremental ownership-index updates.
+      Revisit when: The language client cannot reliably honor dynamic registration or
+      the protocol provides incremental ownership-index updates.
     }
 
     SupportedExtensionHosts {
-      Decision: Limit the initial extension to trusted file-backed desktop and remote Node workspace hosts.
+      Decision: Limit the initial extension to trusted file-backed desktop and remote
+      Node workspace hosts.
 
-      Scope: Governs the pre-production extension-host support contract; excludes future browser and virtual-workspace adapters.
+      Scope: Governs the pre-production extension-host support contract; excludes
+      future browser and virtual-workspace adapters.
 
-      Trade-offs: Restricted, virtual, and browser workspaces receive no full extension support.
+      Trade-offs: Restricted, virtual, and browser workspaces receive no full
+      extension support.
 
-      Consequences: The manifest explicitly declares workspace placement and unsupported trust or virtual-workspace modes.
+      Consequences: The manifest explicitly declares workspace placement and
+      unsupported trust or virtual-workspace modes.
 
-      Revisit when: The server supports browser or VS Code filesystem abstractions, or a security review approves a useful Restricted Mode subset.
+      Revisit when: The server supports browser or VS Code filesystem abstractions,
+      or a security review approves a useful Restricted Mode subset.
     }
 
     ExternalCompilerIntegration {
-      Decision: Invoke the external sigil compile process and consume its structured protocol instead of bundling SigilCompiler into the VSIX.
+      Decision: Invoke the external sigil compile process and consume its structured
+      protocol instead of bundling SigilCompiler into the VSIX.
 
-      Scope: Governs the VS Code compilation surface; ordinary bundled language support remains independent.
+      Scope: Governs the VS Code compilation surface; ordinary bundled language
+      support remains independent.
 
       Trade-offs: Agentic compilation requires a compatible host-installed Sigil CLI.
 
-      Design issues addressed: Bundling the compiler would increase an extension artifact already dominated by its client bundle.
+      Design issues addressed: Bundling the compiler would increase an extension
+      artifact already dominated by its client bundle.
 
-      Consequences: The VSIX remains small and terminal and editor compilation use the same runtime.
+      Consequences: The VSIX remains small and terminal and editor compilation use
+      the same runtime.
     }
 
     ExplicitAgenticCompilation {
-      Decision: Keep deterministic diagnostics live while running agentic compilation only through explicit user commands.
+      Decision: Keep deterministic diagnostics live while running agentic compilation
+      only through explicit user commands.
 
-      Scope: Governs VS Code compilation triggering; excludes CI and direct CLI invocation.
+      Scope: Governs VS Code compilation triggering; excludes CI and direct CLI
+      invocation.
 
       Trade-offs: Designers initiate recompilation manually after changing Sigil.
 
-      Consequences: Editing remains responsive and does not incur unexpected agent cost or latency.
+      Consequences: Editing remains responsive and does not incur unexpected agent
+      cost or latency.
     }
   }
 
   cases {
     EditorLanguageSupport {
-      Opening a .sigil file applies TextMate highlighting and starts language features.
+      Opening a .sigil file applies TextMate highlighting and starts language
+      features.
 
       Malformed source displays ranged diagnostics.
 
-      Imported components and concepts support navigation, hover, and semantic highlighting.
+      Imported components and concepts support navigation, hover, and semantic
+      highlighting.
 
-      Changing an ownership annotation invalidates the server cache and the next component or concept hover shows refreshed links.
+      Changing an ownership annotation invalidates the server cache and the next
+      component or concept hover shows refreshed links.
 
-      A failed bundled server produces visible output and an error without crashing VS Code.
+      A failed bundled server produces visible output and an error without crashing
+      VS Code.
 
       Deactivation stops the client and server.
     }
@@ -239,11 +299,13 @@ expand SigilVsCodeExtension {
     ComponentPreview {
       Running preview on a component opens read-only Markdown.
 
-      Running preview without an active component leaves editors unchanged and shows information.
+      Running preview without an active component leaves editors unchanged and shows
+      information.
     }
 
     SupportedExtensionHosts {
-      A trusted desktop or remote file-backed workspace receives full language support.
+      A trusted desktop or remote file-backed workspace receives full language
+      support.
 
       Restricted Mode disables the extension under current manifest defaults.
 
@@ -251,15 +313,19 @@ expand SigilVsCodeExtension {
     }
 
     ExtensionPackage {
-      A user installs the VSIX downloaded from GitHub Releases through Install from VSIX.
+      A user installs the VSIX downloaded from GitHub Releases through Install from
+      VSIX.
     }
 
     CompilationSurface {
-      Compiling the component under the cursor shows progress and then red, yellow, or green status.
+      Compiling the component under the cursor shows progress and then red, yellow,
+      or green status.
 
-      A missing or incompatible sigil executable leaves ordinary language features active and presents setup guidance.
+      A missing or incompatible sigil executable leaves ordinary language features
+      active and presents setup guidance.
 
-      Recompiling after a correction marks resolved findings through the compiler report comparison.
+      Recompiling after a correction marks resolved findings through the compiler
+      report comparison.
 
       Editing after a completed run marks its displayed report stale.
     }

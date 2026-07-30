@@ -2,16 +2,21 @@
 
 component SigilCompiler {
   goal {
-    Give designers and architects a compiler-like improvement loop for high-level Sigil contracts through profile-scoped deterministic and agentic evaluation.
+    Give designers and architects a compiler-like improvement loop for high-level
+    Sigil contracts through profile-scoped deterministic and agentic evaluation.
 
-    Orchestrate evidence-backed evaluation without modifying the selected workspace, replacing human design approval, or moving semantic judgment into SigilCore.
+    Orchestrate evidence-backed evaluation without modifying the selected
+    workspace, replacing human design approval, or moving semantic judgment into
+    SigilCore.
   }
 
   interface {
     CompilationInvocation {
-      compile(workspacePath, target, profileName, options?) streams CompilationEvent and returns CompilationReport
+      compile(workspacePath, target, profileName, options?) streams CompilationEvent
+      and returns CompilationReport
 
-      options may disable external history lookup or explicitly export the resulting CompilationReport
+      options may disable external history lookup or explicitly export the resulting
+      CompilationReport
     }
 
     CompilationTarget {
@@ -21,11 +26,13 @@ component SigilCompiler {
 
       a workspace target resolves to a dependency-aware collection of components
 
-      component evaluation includes matching expands, direct dependency contracts, relevant glossary context, owned implementation targets, and affected importers
+      component evaluation includes matching expands, direct dependency contracts,
+      relevant glossary context, owned implementation targets, and affected importers
     }
 
     CompilationProfile {
-      a named profile selects an ordered dependency graph of stages, evaluators, evaluation skills, capability limits, and execution budgets
+      a named profile selects an ordered dependency graph of stages, evaluators,
+      evaluation skills, capability limits, and execution budgets
 
       standard and critical-system are built-in profiles
 
@@ -39,55 +46,71 @@ component SigilCompiler {
 
       yellow means no error exists and at least one warning exists
 
-      green means every required evaluator completed with zero errors and zero warnings
+      green means every required evaluator completed with zero errors and zero
+      warnings
 
       optimization and information messages do not change the compilation color
     }
 
     CompilationDiagnostic {
-      every error and warning has a stable rule code, diagnostic fingerprint, originating stage and skill, primary location, evidence, impact, correction guidance, and evaluator provenance
+      every error and warning has a stable rule code, diagnostic fingerprint,
+      originating stage and skill, primary location, evidence, impact, correction
+      guidance, and evaluator provenance
 
-      diagnostics may identify related locations and new, unchanged, resolved, or regressed lifecycle state
+      diagnostics may identify related locations and new, unchanged, resolved, or
+      regressed lifecycle state
     }
 
     CompilationReport {
       the versioned JSON CompilationReport is the authoritative durable result
 
-      terminal, Markdown, CI, and editor presentations are projections of the authoritative report
+      terminal, Markdown, CI, and editor presentations are projections of the
+      authoritative report
 
-      a report binds its status to source hashes, component graph, effective profile, stage set, evaluator environment, and completed passes
+      a report binds its status to source hashes, component graph, effective profile,
+      stage set, evaluator environment, and completed passes
 
-      a relevant source, profile, skill, adapter, or evaluator-environment change makes an earlier report stale
+      a relevant source, profile, skill, adapter, or evaluator-environment change
+      makes an earlier report stale
     }
 
     EvaluationSkillPackage {
-      a compiler-native evaluation skill contains SKILL.md guidance and a compile.json manifest
+      a compiler-native evaluation skill contains SKILL.md guidance and a
+      compile.json manifest
 
-      the manifest declares pass identity, version, inputs, dependencies, required capabilities, diagnostic rules, and output contract
+      the manifest declares pass identity, version, inputs, dependencies, required
+      capabilities, diagnostic rules, and output contract
     }
 
     AgentAdapter {
-      an adapter executes a bounded evaluation request through one configured code-agent provider
+      an adapter executes a bounded evaluation request through one configured
+      code-agent provider
 
       an adapter reports its enforceable capabilities before evaluation
 
-      adapter output is untrusted until it satisfies the compiler-owned protocol and evidence requirements
+      adapter output is untrusted until it satisfies the compiler-owned protocol and
+      evidence requirements
     }
 
     EvaluationContext {
       each agent request evaluates exactly one component in one evaluation stage
 
-      context contains the selected contract and expands, direct dependency contracts and decisions, affected importer contracts, relevant glossary context, owned implementation targets, and bounded owned-source evidence
+      context contains the selected contract and expands, direct dependency contracts
+      and decisions, affected importer contracts, relevant glossary context, owned
+      implementation targets, and bounded owned-source evidence
 
-      the effective profile exposes its component-context budget in the profile fingerprint and CompilationReport
+      the effective profile exposes its component-context budget in the profile
+      fingerprint and CompilationReport
     }
 
     CompilationEventProtocol {
-      CompilationEvent uses a versioned JSON Lines envelope containing protocolVersion, runId, sequence, type, and payload
+      CompilationEvent uses a versioned JSON Lines envelope containing
+      protocolVersion, runId, sequence, type, and payload
 
       a completed terminal event contains the authoritative CompilationReport
 
-      failed and cancelled runs emit terminal events whenever the process remains able to report them
+      failed and cancelled runs emit terminal events whenever the process remains
+      able to report them
     }
   }
 }
@@ -95,33 +118,39 @@ component SigilCompiler {
 expand SigilCompiler {
   state {
     CompilationRunLifecycle {
-      A compilation run is queued, running, completed, failed, cancelled, or superseded.
+      A compilation run is queued, running, completed, failed, cancelled, or
+      superseded.
     }
 
     EvaluationStageLifecycle {
-      An enabled stage is pending, running, completed, failed, skipped-by-dependency, or cancelled.
+      An enabled stage is pending, running, completed, failed, skipped-by-dependency,
+      or cancelled.
 
       A stage omitted by the effective profile is disabled rather than incomplete.
     }
 
     DiagnosticLifecycle {
-      A diagnostic is new, unchanged, resolved, or regressed relative to the selected prior report.
+      A diagnostic is new, unchanged, resolved, or regressed relative to the selected
+      prior report.
     }
   }
 
   logic {
     CompilationTarget {
-      Resolve the selected component before gathering its collective Sigil, dependency, glossary, importer, and owned-implementation context.
+      Resolve the selected component before gathering its collective Sigil,
+      dependency, glossary, importer, and owned-implementation context.
 
       Schedule workspace targets in dependency-aware component order.
     }
 
     CompilationProfile {
-      Load built-in defaults and merge the selected namespaced tools.compile project profile.
+      Load built-in defaults and merge the selected namespaced tools.compile project
+      profile.
 
       Validate the profile before invoking any evaluator.
 
-      Compute the profile fingerprint from effective stages, skills, adapters, models, capabilities, budgets, and relevant versions.
+      Compute the profile fingerprint from effective stages, skills, adapters,
+      models, capabilities, budgets, and relevant versions.
     }
 
     PipelineExecution {
@@ -135,7 +164,8 @@ expand SigilCompiler {
     }
 
     AgentAdapter {
-      Supply each adapter only the bounded context and capabilities declared for its evaluation request.
+      Supply each adapter only the bounded context and capabilities declared for its
+      evaluation request.
 
       Validate structured adapter output before normalizing any finding.
 
@@ -143,35 +173,46 @@ expand SigilCompiler {
     }
 
     EvaluationContext {
-      Build compact component context after target resolution from only the selected component and its relevant dependency, glossary, importer, and implementation evidence.
+      Build compact component context after target resolution from only the selected
+      component and its relevant dependency, glossary, importer, and implementation
+      evidence.
 
-      Invoke each enabled agentic stage separately for workspace components in dependency-aware order.
+      Invoke each enabled agentic stage separately for workspace components in
+      dependency-aware order.
 
-      Add owned-source evidence after required contract context and truncate only source text when needed, recording the omitted character count.
+      Add owned-source evidence after required contract context and truncate only
+      source text when needed, recording the omitted character count.
 
-      Validate serialized component context and the final adapter prompt locally before provider invocation.
+      Validate serialized component context and the final adapter prompt locally
+      before provider invocation.
     }
 
     CompilationDiagnostic {
-      Derive diagnostic identity from stable rule, stage, subject, and source-location facts rather than evaluator prose.
+      Derive diagnostic identity from stable rule, stage, subject, and
+      source-location facts rather than evaluator prose.
 
-      Reject or reduce unsupported evaluator claims to information so they cannot make compilation red or yellow.
+      Reject or reduce unsupported evaluator claims to information so they cannot
+      make compilation red or yellow.
 
-      Compare stable fingerprints with the selected prior report to derive lifecycle state.
+      Compare stable fingerprints with the selected prior report to derive lifecycle
+      state.
     }
 
     CompilationStatus {
-      Produce red when an error exists or a required evaluator fails, is unavailable, or returns invalid output.
+      Produce red when an error exists or a required evaluator fails, is unavailable,
+      or returns invalid output.
 
       Produce yellow when no error exists and one or more warnings exist.
 
       Produce a compiler-owned warning when required evaluators materially disagree.
 
-      Produce green only when every required evaluator completes and no error or warning remains.
+      Produce green only when every required evaluator completes and no error or
+      warning remains.
     }
 
     CompilationHistory {
-      Read and update interactive run history only through the operating-system user cache.
+      Read and update interactive run history only through the operating-system user
+      cache.
 
       Import or export durable reports only when explicitly requested.
 
@@ -182,11 +223,13 @@ expand SigilCompiler {
     DependencyDirection {
       SigilCompiler depends on SigilCore for deterministic workspace semantics.
 
-      SigilCore does not depend on SigilCompiler, evaluation skills, agent adapters, CLI behavior, or editor behavior.
+      SigilCore does not depend on SigilCompiler, evaluation skills, agent adapters,
+      CLI behavior, or editor behavior.
     }
 
     ReadOnlyCompilation {
-      Compilation does not modify Sigil source, implementation source, configuration, tests, documentation, or other selected-workspace content.
+      Compilation does not modify Sigil source, implementation source, configuration,
+      tests, documentation, or other selected-workspace content.
 
       Compilation does not generate code or execute implementation experiments.
     }
@@ -194,57 +237,75 @@ expand SigilCompiler {
     ProfileConfiguration {
       Compiler configuration lives in the tools.compile namespace of ConfigFile.
 
-      SigilCore preserves tools.compile without interpreting its compiler-owned schema.
+      SigilCore preserves tools.compile without interpreting its compiler-owned
+      schema.
 
       Credentials and secret values never appear in tools.compile.
     }
 
     StageConfiguration {
-      Profiles may enable, disable, order, and configure evaluation stages subject to declared stage dependencies.
+      Profiles may enable, disable, order, and configure evaluation stages subject to
+      declared stage dependencies.
 
-      A stage intentionally disabled by the effective profile is not required for green.
+      A stage intentionally disabled by the effective profile is not required for
+      green.
 
       The report and profile fingerprint expose every disabled stage.
     }
 
     BuiltInProfiles {
-      standard requires deterministic foundation, semantic readiness, cross-Sigil coherence, architecture and design, and current-code compatibility through one configured evaluator.
+      standard requires deterministic foundation, semantic readiness, cross-Sigil
+      coherence, architecture and design, and current-code compatibility through one
+      configured evaluator.
 
-      critical-system includes standard behavior and additionally requires standards and risk evaluation, multiple evaluators, and disagreement detection.
+      critical-system includes standard behavior and additionally requires standards
+      and risk evaluation, multiple evaluators, and disagreement detection.
     }
 
     CapabilityPolicy {
-      Every profile declares readable repository scope, executable tool categories, network policy, execution budgets, sensitive exclusions, and applicable research requirements.
+      Every profile declares readable repository scope, executable tool categories,
+      network policy, execution budgets, sensitive exclusions, and applicable
+      research requirements.
 
       Network access is disabled unless the effective profile explicitly enables it.
 
-      Enabled network access uses declared destination restrictions when the adapter supports destination enforcement.
+      Enabled network access uses declared destination restrictions when the adapter
+      supports destination enforcement.
 
-      An adapter capability mismatch fails the required evaluation rather than broadening access.
+      An adapter capability mismatch fails the required evaluation rather than
+      broadening access.
     }
 
     EvaluationContext {
       One adapter request never combines multiple selected components.
 
-      Glossary context contains only terms, resolved contexts, and occurrences relevant to the selected component and its related files.
+      Glossary context contains only terms, resolved contexts, and occurrences
+      relevant to the selected component and its related files.
 
-      Workspace-relative and absolute implementation paths are normalized before owned-source matching.
+      Workspace-relative and absolute implementation paths are normalized before
+      owned-source matching.
 
       Built-in effective profiles expose a 900000-character component-context budget.
 
       Codex and Claude CLI adapters reject final prompts above 1000000 characters.
 
-      Required contract, dependency, importer, glossary, and ownership context is not truncated.
+      Required contract, dependency, importer, glossary, and ownership context is not
+      truncated.
 
-      Owned implementation source text may be truncated to the remaining context budget and records omittedCharacters when truncation occurs.
+      Owned implementation source text may be truncated to the remaining context
+      budget and records omittedCharacters when truncation occurs.
 
-      Context that exceeds the effective budget after optional source truncation fails locally before adapter invocation and leaves the required stage incomplete.
+      Context that exceeds the effective budget after optional source truncation
+      fails locally before adapter invocation and leaves the required stage
+      incomplete.
     }
 
     EvidenceThreshold {
-      An error identifies a violated rule or contradictory contract and provides reproducible deterministic or repository evidence.
+      An error identifies a violated rule or contradictory contract and provides
+      reproducible deterministic or repository evidence.
 
-      A warning cites concrete evidence and states the remaining ambiguity or material risk.
+      A warning cites concrete evidence and states the remaining ambiguity or
+      material risk.
 
       An optimization explains its expected benefit and accepted trade-off.
 
@@ -252,73 +313,95 @@ expand SigilCompiler {
     }
 
     CompilationDiagnostic {
-      Evaluation skills may propose findings but cannot redefine compiler severities, diagnostic identity, lifecycle, or compilation color.
+      Evaluation skills may propose findings but cannot redefine compiler severities,
+      diagnostic identity, lifecycle, or compilation color.
 
-      Required evaluator disagreement produces a warning until the conflict is resolved.
+      Required evaluator disagreement produces a warning until the conflict is
+      resolved.
 
       Green permits no warning waiver.
     }
 
     CompilationReport {
-      CompilationReport excludes credentials, hidden reasoning, and complete private prompts.
+      CompilationReport excludes credentials, hidden reasoning, and complete private
+      prompts.
 
-      Ordinary compilation does not create report or cache files inside the selected workspace.
+      Ordinary compilation does not create report or cache files inside the selected
+      workspace.
 
-      Explicit report export is separate from ordinary compilation and does not imply human approval.
+      Explicit report export is separate from ordinary compilation and does not imply
+      human approval.
     }
 
     HumanAuthorityBoundary {
-      Green status is evidence that one exact source snapshot passed one exact profile.
+      Green status is evidence that one exact source snapshot passed one exact
+      profile.
 
-      Green status does not approve the design, authorize implementation, or replace an accountable human review.
+      Green status does not approve the design, authorize implementation, or replace
+      an accountable human review.
     }
 
     CompilationEventProtocol {
       JSON Lines mode writes only CompilationEvent envelopes to standard output.
 
-      Human progress and host logs use standard error and never corrupt the structured event stream.
+      Human progress and host logs use standard error and never corrupt the
+      structured event stream.
 
-      Event sequence values increase within one run and terminal events end that run's stream.
+      Event sequence values increase within one run and terminal events end that
+      run's stream.
     }
   }
 
   decisions {
     CompilerBoundary {
-      Decision: Place agent orchestration in a separate @qoherent/sigil-compiler package and expose it through thin host façades.
+      Decision: Place agent orchestration in a separate @qoherent/sigil-compiler
+      package and expose it through thin host façades.
 
-      Scope: Governs agentic Sigil compilation; excludes deterministic language interpretation owned by SigilCore.
+      Scope: Governs agentic Sigil compilation; excludes deterministic language
+      interpretation owned by SigilCore.
 
       Trade-offs: Distribution gains another package and compatibility boundary.
 
-      Design issues addressed: Agentic evaluation must not weaken the deterministic core contract.
+      Design issues addressed: Agentic evaluation must not weaken the deterministic
+      core contract.
 
-      Discarded alternatives: Making SigilCore or SigilCli directly own semantic evaluation was rejected.
+      Discarded alternatives: Making SigilCore or SigilCli directly own semantic
+      evaluation was rejected.
 
-      Consequences: CLI, editors, and future hosts share one compiler protocol without duplicating orchestration.
+      Consequences: CLI, editors, and future hosts share one compiler protocol
+      without duplicating orchestration.
     }
 
     ReadOnlyCompilation {
-      Decision: Keep compilation read-only and exclude implementation-feasibility evaluation, code generation, and implementation experiments from compiler responsibility.
+      Decision: Keep compilation read-only and exclude implementation-feasibility
+      evaluation, code generation, and implementation experiments from compiler
+      responsibility.
 
       Scope: Governs every compilation stage and adapter.
 
-      Trade-offs: The compiler cannot empirically validate whether a proposed contract can be implemented.
+      Trade-offs: The compiler cannot empirically validate whether a proposed
+      contract can be implemented.
 
-      Consequences: Compilation evaluates contracts and repository evidence while implementation validation remains a downstream team responsibility.
+      Consequences: Compilation evaluates contracts and repository evidence while
+      implementation validation remains a downstream team responsibility.
     }
 
     ProfileScopedCompilation {
-      Decision: Compute status against an exact named profile and environment fingerprint whose stages are configurable.
+      Decision: Compute status against an exact named profile and environment
+      fingerprint whose stages are configurable.
 
       Scope: Governs built-in and project-defined profiles.
 
       Trade-offs: Green is never an unconditional property of a Sigil file.
 
-      Consequences: Teams can configure evaluation depth while preserving an auditable statement of what was evaluated.
+      Consequences: Teams can configure evaluation depth while preserving an
+      auditable statement of what was evaluated.
     }
 
     CompilationColor {
-      Decision: Use red for errors or incomplete required evaluation, yellow for warnings without errors, and green only for complete evaluation with zero errors and zero warnings.
+      Decision: Use red for errors or incomplete required evaluation, yellow for
+      warnings without errors, and green only for complete evaluation with zero
+      errors and zero warnings.
 
       Scope: Governs compiler, CLI, CI, and editor status presentation.
 
@@ -328,7 +411,8 @@ expand SigilCompiler {
     }
 
     ProviderNeutralEvaluation {
-      Decision: Let the compiler own the evaluation protocol, diagnostic schema, and native skill-package contract while adapters only execute bounded requests.
+      Decision: Let the compiler own the evaluation protocol, diagnostic schema, and
+      native skill-package contract while adapters only execute bounded requests.
 
       Scope: Governs every agent and evaluation skill integration.
 
@@ -338,61 +422,83 @@ expand SigilCompiler {
     }
 
     EvaluationContext {
-      Decision: Evaluate one component in one stage per agent request using compact relevant context and compiler-enforced input budgets.
+      Decision: Evaluate one component in one stage per agent request using compact
+      relevant context and compiler-enforced input budgets.
 
-      Scope: Governs component, file, and workspace targets across stage scheduling, context construction, owned-source inclusion, and adapter invocation.
+      Scope: Governs component, file, and workspace targets across stage scheduling,
+      context construction, owned-source inclusion, and adapter invocation.
 
-      Assumptions: Agent providers impose finite input limits and workspace-wide resolved projections contain substantial duplicated context.
+      Assumptions: Agent providers impose finite input limits and workspace-wide
+      resolved projections contain substantial duplicated context.
 
-      Trade-offs: Workspace compilation makes more agent calls and truncated owned-source evidence may require a narrower follow-up evaluation.
+      Trade-offs: Workspace compilation makes more agent calls and truncated
+      owned-source evidence may require a narrower follow-up evaluation.
 
-      Design issues addressed: Monolithic workspace prompts and full workspace glossary projections can exceed provider request limits before evaluation begins.
+      Design issues addressed: Monolithic workspace prompts and full workspace
+      glossary projections can exceed provider request limits before evaluation
+      begins.
 
-      Discarded alternatives: Sending every selected component, the complete workspace glossary, or all owned source text in one request was rejected.
+      Discarded alternatives: Sending every selected component, the complete
+      workspace glossary, or all owned source text in one request was rejected.
 
-      Consequences: Payload size is predictable, workspace evaluation preserves dependency order, omissions are explicit, and oversized requests fail locally with compiler evidence.
+      Consequences: Payload size is predictable, workspace evaluation preserves
+      dependency order, omissions are explicit, and oversized requests fail locally
+      with compiler evidence.
 
-      Revisit when: Provider-neutral structured context caching or reliably larger adapter limits materially change the latency and cost trade-off.
+      Revisit when: Provider-neutral structured context caching or reliably larger
+      adapter limits materially change the latency and cost trade-off.
     }
 
     EvidenceBackedDiagnostics {
-      Decision: Allow only evidence-backed errors and warnings to affect compilation color.
+      Decision: Allow only evidence-backed errors and warnings to affect compilation
+      color.
 
-      Scope: Governs deterministic, model-assisted, repository, and experimental findings.
+      Scope: Governs deterministic, model-assisted, repository, and experimental
+      findings.
 
-      Trade-offs: Some plausible concerns remain informational until sufficient evidence exists.
+      Trade-offs: Some plausible concerns remain informational until sufficient
+      evidence exists.
 
       Consequences: Unsupported model claims cannot block progress toward green.
     }
 
     StableDiagnosticLifecycle {
-      Decision: Derive stable diagnostic fingerprints from rule, stage, subject, and location facts and compare them across runs.
+      Decision: Derive stable diagnostic fingerprints from rule, stage, subject, and
+      location facts and compare them across runs.
 
       Scope: Governs report comparison and editor progress feedback.
 
-      Trade-offs: Rules must define stable semantic subjects independently from message wording.
+      Trade-offs: Rules must define stable semantic subjects independently from
+      message wording.
 
-      Consequences: Users can distinguish new, unchanged, resolved, and regressed findings.
+      Consequences: Users can distinguish new, unchanged, resolved, and regressed
+      findings.
     }
 
     ExternalCompilationHistory {
-      Decision: Keep implicit interactive history outside the repository and make durable report transfer explicit.
+      Decision: Keep implicit interactive history outside the repository and make
+      durable report transfer explicit.
 
-      Scope: Governs local cache, CI, and team handoff; excludes explicit user-selected export destinations.
+      Scope: Governs local cache, CI, and team handoff; excludes explicit
+      user-selected export destinations.
 
-      Consequences: Compilation remains read-only while lifecycle comparison remains available.
+      Consequences: Compilation remains read-only while lifecycle comparison remains
+      available.
     }
 
     ComponentCenteredCompilation {
-      Decision: Make components the primary compilation unit and resolve file and workspace targets into component sets.
+      Decision: Make components the primary compilation unit and resolve file and
+      workspace targets into component sets.
 
       Scope: Governs target resolution across CLI, editor, and CI surfaces.
 
-      Consequences: A component cannot appear green while a matching expand or relevant relationship remains unevaluated.
+      Consequences: A component cannot appear green while a matching expand or
+      relevant relationship remains unevaluated.
     }
 
     HumanAuthorityBoundary {
-      Decision: Treat green as profile-scoped evidence rather than design approval or implementation authorization.
+      Decision: Treat green as profile-scoped evidence rather than design approval or
+      implementation authorization.
 
       Scope: Governs every compilation report and downstream workflow.
 
@@ -400,23 +506,30 @@ expand SigilCompiler {
     }
 
     CompilationEventProtocol {
-      Decision: Use a versioned JSON Lines event stream with one authoritative report in the completed terminal event.
+      Decision: Use a versioned JSON Lines event stream with one authoritative report
+      in the completed terminal event.
 
-      Scope: Governs streaming between SigilCompiler and CLI, editor, CI, and automation consumers.
+      Scope: Governs streaming between SigilCompiler and CLI, editor, CI, and
+      automation consumers.
 
-      Trade-offs: Consumers must process an ordered stream instead of parsing one final JSON object.
+      Trade-offs: Consumers must process an ordered stream instead of parsing one
+      final JSON object.
 
-      Design issues addressed: Long-running compilation requires incremental progress without mixing human output with machine-readable data.
+      Design issues addressed: Long-running compilation requires incremental progress
+      without mixing human output with machine-readable data.
 
-      Discarded alternatives: Mixed stdout and one unframed JSON document were rejected because they cannot safely carry incremental events.
+      Discarded alternatives: Mixed stdout and one unframed JSON document were
+      rejected because they cannot safely carry incremental events.
 
-      Consequences: Hosts share one stream protocol and can validate ordering, compatibility, completion, failure, and cancellation.
+      Consequences: Hosts share one stream protocol and can validate ordering,
+      compatibility, completion, failure, and cancellation.
     }
   }
 
   cases {
     CompilationStatus {
-      A syntax error produces red and prevents only stages that require a valid resolved contract.
+      A syntax error produces red and prevents only stages that require a valid
+      resolved contract.
 
       Zero errors with one architecture warning produces yellow.
 
@@ -426,45 +539,57 @@ expand SigilCompiler {
     }
 
     StageConfiguration {
-      A profile with an optional evaluation stage explicitly disabled can become green and records that disabled stage in its fingerprint and report.
+      A profile with an optional evaluation stage explicitly disabled can become
+      green and records that disabled stage in its fingerprint and report.
     }
 
     AgentAdapter {
-      A required adapter that cannot enforce the configured network policy fails its evaluation and produces red.
+      A required adapter that cannot enforce the configured network policy fails its
+      evaluation and produces red.
 
       Invalid or unsupported adapter output cannot introduce an error or warning.
     }
 
     EvaluationContext {
-      A workspace whose combined context exceeds an adapter limit still evaluates component-by-component when every component context fits its effective budget.
+      A workspace whose combined context exceeds an adapter limit still evaluates
+      component-by-component when every component context fits its effective budget.
 
-      Owned source text that would exceed the remaining budget is truncated and reports omittedCharacters without truncating required contract context.
+      Owned source text that would exceed the remaining budget is truncated and
+      reports omittedCharacters without truncating required contract context.
 
-      A single component whose required context exceeds the effective budget fails before provider invocation and prevents green.
+      A single component whose required context exceeds the effective budget fails
+      before provider invocation and prevents green.
     }
 
     EvaluatorDisagreement {
-      Two required evaluators reaching materially incompatible findings produce a compiler warning and yellow status.
+      Two required evaluators reaching materially incompatible findings produce a
+      compiler warning and yellow status.
     }
 
     CompilationTarget {
-      Compiling one component includes every matching expand even when those expands live in other files.
+      Compiling one component includes every matching expand even when those expands
+      live in other files.
     }
 
     CompilationHistory {
-      Recompiling after resolving one stable finding marks it resolved in comparison with the prior report.
+      Recompiling after resolving one stable finding marks it resolved in comparison
+      with the prior report.
     }
 
     CompilationReport {
-      Changing relevant Sigil content or the effective profile makes an exported green report stale.
+      Changing relevant Sigil content or the effective profile makes an exported
+      green report stale.
 
-      A green report handed to an implementation team still requires human approval before implementation begins.
+      A green report handed to an implementation team still requires human approval
+      before implementation begins.
     }
 
     CompilationEventProtocol {
-      A JSON Lines run emits ordered progress events followed by one completed event containing CompilationReport.
+      A JSON Lines run emits ordered progress events followed by one completed event
+      containing CompilationReport.
 
-      A cancelled run emits a cancelled terminal event when the process remains able to write it.
+      A cancelled run emits a cancelled terminal event when the process remains able
+      to write it.
     }
   }
 }

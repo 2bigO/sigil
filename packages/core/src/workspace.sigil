@@ -9,26 +9,31 @@ component SigilWorkspaceLoader {
   goal {
     Discover and load one configured Sigil workspace through the filesystem port.
 
-    Enforce configured boundaries, nested-workspace isolation, member roots, and source selection before relationship resolution.
+    Enforce configured boundaries, nested-workspace isolation, member roots, and
+    source selection before relationship resolution.
   }
 
   interface {
     WorkspaceDiscovery {
       discoverSigilWorkspace(filesystem, options) returns WorkspaceDiscoveryResult
 
-      options identifies a start path and may provide an explicit root or current directory
+      options identifies a start path and may provide an explicit root or current
+      directory
 
-      WorkspaceDiscoveryResult exposes the selected root, ConfigFile path, parsed configuration, and diagnostics
+      WorkspaceDiscoveryResult exposes the selected root, ConfigFile path, parsed
+      configuration, and diagnostics
     }
 
     WorkspaceLoading {
       loadSigilWorkspace(filesystem, options) returns SigilWorkspace
 
-      SigilWorkspace adds declared member roots, loaded partial source documents, and accumulated diagnostics
+      SigilWorkspace adds declared member roots, loaded partial source documents, and
+      accumulated diagnostics
     }
 
     GlossaryInterpretation {
-      loadSigilWorkspace reads and validates optional GlossaryFile into SigilWorkspace
+      loadSigilWorkspace reads and validates optional GlossaryFile into
+      SigilWorkspace
     }
   }
 }
@@ -36,29 +41,35 @@ component SigilWorkspaceLoader {
 expand SigilWorkspaceLoader {
   logic {
     WorkspaceDiscovery {
-      Without an explicit root, walk from the target toward filesystem root and select the nearest eligible ConfigFile.
+      Without an explicit root, walk from the target toward filesystem root and
+      select the nearest eligible ConfigFile.
 
       With an explicit root, require ConfigFile directly inside that root.
 
       Validate configuration before discovering or parsing Sigil sources.
 
-      Reject a nearer configured workspace when a configured parent does not exclude its subtree.
+      Reject a nearer configured workspace when a configured parent does not exclude
+      its subtree.
     }
 
     WorkspaceLoading {
       Derive member roots only from WorkspaceBoundary members.
 
-      Skip excluded independent nested workspaces and diagnose included nested ConfigFile instances.
+      Skip excluded independent nested workspaces and diagnose included nested
+      ConfigFile instances.
 
-      Apply SourceSelection includes and then excludes to normalized workspace-relative paths.
+      Apply SourceSelection includes and then excludes to normalized
+      workspace-relative paths.
 
       Parse selected source files in stable path order through SigilParser.
     }
 
     GlossaryInterpretation {
-      Check for GlossaryFile after selecting the workspace boundary and before resolving loaded documents.
+      Check for GlossaryFile after selecting the workspace boundary and before
+      resolving loaded documents.
 
-      When present, read GlossaryFile through SigilFileSystem and delegate interpretation to SigilGlossaryEngine.
+      When present, read GlossaryFile through SigilFileSystem and delegate
+      interpretation to SigilGlossaryEngine.
 
       Accumulate glossary diagnostics while keeping invalid definitions inactive.
     }
@@ -73,19 +84,22 @@ expand SigilWorkspaceLoader {
       SigilSemanticModel owns partial workspace results and SigilDiagnostics owns
       their accumulated diagnostics.
 
-      Configuration and source problems accumulate as diagnostics with partial workspace results when practical.
+      Configuration and source problems accumulate as diagnostics with partial
+      workspace results when practical.
 
       Required filesystem failures propagate to the caller.
     }
 
     ModuleIndexFile {
-      Workspace loading accepts ModuleIndexFile at any included path and assigns it no workspace-discovery authority.
+      Workspace loading accepts ModuleIndexFile at any included path and assigns it
+      no workspace-discovery authority.
     }
 
     GlossaryInterpretation {
       GlossaryFile loading is independent from SourceSelection globs.
 
-      Absence is valid while a filesystem failure reading an existing GlossaryFile propagates to the caller.
+      Absence is valid while a filesystem failure reading an existing GlossaryFile
+      propagates to the caller.
     }
   }
 
@@ -93,13 +107,15 @@ expand SigilWorkspaceLoader {
     WorkspaceDiscovery {
       An excluded nested workspace resolves independently.
 
-      A nested workspace still included by a configured parent returns SIGIL_NESTED_CONFIG and loads no source.
+      A nested workspace still included by a configured parent returns
+      SIGIL_NESTED_CONFIG and loads no source.
 
       An explicit root without a direct ConfigFile returns SIGIL_CONFIG_NOT_FOUND.
     }
 
     WorkspaceLoading {
-      A path excluded by SourceSelection is not loaded even when an include pattern matches.
+      A path excluded by SourceSelection is not loaded even when an include pattern
+      matches.
 
       A filesystem read failure rejects workspace loading.
     }
@@ -107,7 +123,8 @@ expand SigilWorkspaceLoader {
     GlossaryInterpretation {
       A workspace without GlossaryFile loads normally.
 
-      A malformed GlossaryFile contributes diagnostics while loaded Sigil documents remain available.
+      A malformed GlossaryFile contributes diagnostics while loaded Sigil documents
+      remain available.
     }
   }
 }
