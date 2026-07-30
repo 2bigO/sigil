@@ -148,6 +148,16 @@ export function componentAt(
   return matches.at(-1)?.[1];
 }
 
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
+export function diagnosticDisplayRange(
+  diagnostic: CompilerDiagnostic,
+): NonNullable<CompilerDiagnostic["range"]> | undefined {
+  const semanticUnitRange = diagnostic.semanticSubjects.find((subject) =>
+    subject.relation === "direct" && subject.semanticUnit
+  )?.semanticUnit?.range;
+  return semanticUnitRange ?? diagnostic.range;
+}
+
 function isCompilationReport(value: unknown): value is CompilationReport {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const report = value as Record<string, unknown>;

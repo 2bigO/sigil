@@ -605,6 +605,18 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
     assertEquals(observedArgs[observedArgs.indexOf("-C") + 1], root);
     assertEquals(observedArgs.includes("--json"), true);
     assertMatch(observedPrompt, /Inspect the workspace directly/);
+    assertMatch(
+      observedPrompt,
+      /point into the\s+smallest exact source statement/,
+    );
+    assertMatch(
+      observedPrompt,
+      /For a conflict, anchor the primary statement/,
+    );
+    assertMatch(
+      observedPrompt,
+      /compiler owns semantic identity; do not invent\s+semantic subjects/,
+    );
     assertMatch(result.commands[0].command, /rg -n/);
     assertEquals(result.usage?.inputTokens, 100);
   } finally {

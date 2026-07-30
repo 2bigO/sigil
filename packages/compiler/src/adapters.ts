@@ -202,8 +202,15 @@ ${request.capabilities.forbiddenCommands.map((item) => `- ${item}`).join("\n")}
 
 Do not edit files, use the network, request approval, invoke another compilation,
 generate code, or run implementation experiments. Cite reproducible workspace
-evidence. Use only an allowed diagnostic rule. Return the required JSON object
-with a findings array; use an empty array when no supported finding remains.`;
+evidence. For each finding, set filePath, line, and column to point into the
+smallest exact source statement that directly demonstrates it. Point at relevant
+substantive text, not a structural brace or concept or section header when such
+text exists. For a conflict, anchor the primary statement and cite every other
+location in evidence. Use null location fields only when no physical workspace
+evidence can be identified. The compiler owns semantic identity; do not invent
+semantic subjects. Use only an allowed diagnostic rule. Return the required JSON
+object with a findings array; use an empty array when no supported finding
+remains.`;
 }
 
 const FINDINGS_SCHEMA = {

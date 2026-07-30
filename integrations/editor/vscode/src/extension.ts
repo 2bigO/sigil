@@ -12,6 +12,7 @@ import {
   type CompilationProcess,
   type CompilationReport,
   componentAt,
+  diagnosticDisplayRange,
   runCompilationProcess,
 } from "./compilation.ts";
 
@@ -243,12 +244,13 @@ function projectCompilationReport(
     const uri = path.isAbsolute(item.filePath)
       ? vscode.Uri.file(item.filePath)
       : vscode.Uri.joinPath(root, item.filePath);
-    const range = item.range
+    const displayRange = diagnosticDisplayRange(item);
+    const range = displayRange
       ? new vscode.Range(
-        Math.max(0, item.range.start.line - 1),
-        Math.max(0, item.range.start.column - 1),
-        Math.max(0, item.range.end.line - 1),
-        Math.max(0, item.range.end.column - 1),
+        Math.max(0, displayRange.start.line - 1),
+        Math.max(0, displayRange.start.column - 1),
+        Math.max(0, displayRange.end.line - 1),
+        Math.max(0, displayRange.end.column - 1),
       )
       : new vscode.Range(0, 0, 0, 1);
     const severity = item.severity === "error"
