@@ -1,7 +1,10 @@
 import { type CompilationEvent, compile, MockAdapter } from "../src/mod.ts";
 import { assertEquals, assertMatch } from "@std/assert";
 
-async function workspace(source: string): Promise<string> {
+async function workspace(
+  source: string,
+  extraFiles: Readonly<Record<string, string>> = {},
+): Promise<string> {
   const root = await Deno.makeTempDir();
   await Deno.mkdir(`${root}/.sigil`);
   await Deno.writeTextFile(
@@ -14,6 +17,9 @@ async function workspace(source: string): Promise<string> {
     }),
   );
   await Deno.writeTextFile(`${root}/main.sigil`, source);
+  for (const [path, contents] of Object.entries(extraFiles)) {
+    await Deno.writeTextFile(`${root}/${path}`, contents);
+  }
   return root;
 }
 
@@ -120,6 +126,106 @@ Deno.test("critical-system adds risk evaluation without implementation stages", 
         item.id.includes("code-generation")
       ),
       false,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
+ * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationTarget logic,cases
+ * @sigil tests packages/compiler/#module.sigil::SigilCompiler::AgentAdapter logic,cases
+ */
+Deno.test("workspace evaluation batches bounded contexts in dependency order", async () => {
+  const source = `@z-dependency.sigil import { Dependency }
+
+component Consumer {
+  goal {
+    Consume the dependency.
+  }
+
+  interface {
+    ConsumerOperation {
+      run(input: Dependency)
+    }
+  }
+}
+`;
+  const dependency = `component Dependency {
+  goal {
+    Provide a dependency.
+  }
+
+  interface {
+    DependencyValue {
+      value: string
+    }
+  }
+}
+`;
+  const implementation = `// @sigil implements main.sigil::Consumer interface
+export function consume(): void {}
+${"// implementation evidence\n".repeat(45_000)}`;
+  const root = await workspace(source, {
+    "z-dependency.sigil": dependency,
+    "consumer.ts": implementation,
+  });
+  try {
+    const observed: {
+      stage: string;
+      component: string;
+      length: number;
+      sources: readonly {
+        filePath: string;
+        text: string;
+        omittedCharacters?: number;
+      }[];
+    }[] = [];
+    const report = await compile(root, { kind: "workspace" }, {
+      adapter: new MockAdapter((request) => {
+        const context = JSON.parse(request.context) as {
+          component: { name: string };
+          ownedImplementationSources: readonly {
+            filePath: string;
+            text: string;
+            omittedCharacters?: number;
+          }[];
+        };
+        observed.push({
+          stage: request.stage,
+          component: context.component.name,
+          length: request.context.length,
+          sources: context.ownedImplementationSources,
+        });
+        return [];
+      }),
+    });
+
+    assertEquals(report.status, "green");
+    assertEquals(observed.length, 6);
+    assertEquals(
+      observed.map((item) => `${item.stage}:${item.component}`),
+      [
+        "semantic-readiness:Dependency",
+        "semantic-readiness:Consumer",
+        "architecture-design:Dependency",
+        "architecture-design:Consumer",
+        "current-code-compatibility:Dependency",
+        "current-code-compatibility:Consumer",
+      ],
+    );
+    assertEquals(
+      observed.every((item) => item.length <= 900_000),
+      true,
+    );
+    const consumer = observed.find((item) =>
+      item.component === "Consumer" && item.sources.length > 0
+    );
+    assertEquals(consumer?.sources[0].filePath, "consumer.ts");
+    assertMatch(consumer?.sources[0].text ?? "", /function consume/);
+    assertEquals(
+      (consumer?.sources[0].omittedCharacters ?? 0) > 0,
+      true,
     );
   } finally {
     await Deno.remove(root, { recursive: true });

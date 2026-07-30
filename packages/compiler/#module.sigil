@@ -74,6 +74,14 @@ component SigilCompiler {
       adapter output is untrusted until it satisfies the compiler-owned protocol and evidence requirements
     }
 
+    EvaluationContext {
+      each agent request evaluates exactly one component in one evaluation stage
+
+      context contains the selected contract and expands, direct dependency contracts and decisions, affected importer contracts, relevant glossary context, owned implementation targets, and bounded owned-source evidence
+
+      the effective profile exposes its component-context budget in the profile fingerprint and CompilationReport
+    }
+
     CompilationEventProtocol {
       CompilationEvent uses a versioned JSON Lines envelope containing protocolVersion, runId, sequence, type, and payload
 
@@ -132,6 +140,16 @@ expand SigilCompiler {
       Validate structured adapter output before normalizing any finding.
 
       Reject an adapter that cannot enforce the effective capability contract.
+    }
+
+    EvaluationContext {
+      Build compact component context after target resolution from only the selected component and its relevant dependency, glossary, importer, and implementation evidence.
+
+      Invoke each enabled agentic stage separately for workspace components in dependency-aware order.
+
+      Add owned-source evidence after required contract context and truncate only source text when needed, recording the omitted character count.
+
+      Validate serialized component context and the final adapter prompt locally before provider invocation.
     }
 
     CompilationDiagnostic {
@@ -203,6 +221,24 @@ expand SigilCompiler {
       Enabled network access uses declared destination restrictions when the adapter supports destination enforcement.
 
       An adapter capability mismatch fails the required evaluation rather than broadening access.
+    }
+
+    EvaluationContext {
+      One adapter request never combines multiple selected components.
+
+      Glossary context contains only terms, resolved contexts, and occurrences relevant to the selected component and its related files.
+
+      Workspace-relative and absolute implementation paths are normalized before owned-source matching.
+
+      Built-in effective profiles expose a 900000-character component-context budget.
+
+      Codex and Claude CLI adapters reject final prompts above 1000000 characters.
+
+      Required contract, dependency, importer, glossary, and ownership context is not truncated.
+
+      Owned implementation source text may be truncated to the remaining context budget and records omittedCharacters when truncation occurs.
+
+      Context that exceeds the effective budget after optional source truncation fails locally before adapter invocation and leaves the required stage incomplete.
     }
 
     EvidenceThreshold {
@@ -301,6 +337,24 @@ expand SigilCompiler {
       Consequences: Changing providers does not change compiler semantics.
     }
 
+    EvaluationContext {
+      Decision: Evaluate one component in one stage per agent request using compact relevant context and compiler-enforced input budgets.
+
+      Scope: Governs component, file, and workspace targets across stage scheduling, context construction, owned-source inclusion, and adapter invocation.
+
+      Assumptions: Agent providers impose finite input limits and workspace-wide resolved projections contain substantial duplicated context.
+
+      Trade-offs: Workspace compilation makes more agent calls and truncated owned-source evidence may require a narrower follow-up evaluation.
+
+      Design issues addressed: Monolithic workspace prompts and full workspace glossary projections can exceed provider request limits before evaluation begins.
+
+      Discarded alternatives: Sending every selected component, the complete workspace glossary, or all owned source text in one request was rejected.
+
+      Consequences: Payload size is predictable, workspace evaluation preserves dependency order, omissions are explicit, and oversized requests fail locally with compiler evidence.
+
+      Revisit when: Provider-neutral structured context caching or reliably larger adapter limits materially change the latency and cost trade-off.
+    }
+
     EvidenceBackedDiagnostics {
       Decision: Allow only evidence-backed errors and warnings to affect compilation color.
 
@@ -379,6 +433,14 @@ expand SigilCompiler {
       A required adapter that cannot enforce the configured network policy fails its evaluation and produces red.
 
       Invalid or unsupported adapter output cannot introduce an error or warning.
+    }
+
+    EvaluationContext {
+      A workspace whose combined context exceeds an adapter limit still evaluates component-by-component when every component context fits its effective budget.
+
+      Owned source text that would exceed the remaining budget is truncated and reports omittedCharacters without truncating required contract context.
+
+      A single component whose required context exceeds the effective budget fails before provider invocation and prevents green.
     }
 
     EvaluatorDisagreement {

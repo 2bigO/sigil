@@ -24,5 +24,12 @@
       "examples/**"
     ]
   },
-  "tools": {}
+  "tools": {
+    "compile": {
+      "defaultProfile": "standard",
+      "adapter": {
+        "provider": "codex"
+      }
+    }
+  }
 }

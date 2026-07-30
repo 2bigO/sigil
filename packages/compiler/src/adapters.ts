@@ -11,6 +11,8 @@ type CommandRunner = (
   signal?: AbortSignal,
 ) => Promise<string>;
 
+const MAX_AGENT_INPUT_CHARS = 1_000_000;
+
 const defaultRunner: CommandRunner = async (command, args, input, signal) => {
   const child = new Deno.Command(command, {
     args: [...args],
@@ -56,10 +58,16 @@ abstract class ReadOnlyCliAdapter implements AgentAdapter {
     request: AgentEvaluationRequest,
   ): Promise<readonly AgentFinding[]> {
     const invocation = this.invocation();
+    const prompt = evaluationPrompt(request);
+    if (prompt.length > MAX_AGENT_INPUT_CHARS) {
+      throw new Error(
+        `Agent input is ${prompt.length} characters, exceeding the adapter safety limit of ${MAX_AGENT_INPUT_CHARS} characters.`,
+      );
+    }
     const raw = await this.runner(
       invocation.command,
       invocation.args,
-      evaluationPrompt(request),
+      prompt,
       request.signal,
     );
     return parseFindings(raw);

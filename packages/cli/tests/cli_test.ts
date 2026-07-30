@@ -1245,6 +1245,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
     sourceFingerprint: "source",
     profile: {
       name: "standard",
+      contextBudgetChars: 900_000,
       stages: [],
       fingerprint: "profile",
     },

@@ -56,6 +56,7 @@ export interface StageReport {
 
 export interface EffectiveProfile {
   readonly name: string;
+  readonly contextBudgetChars: number;
   readonly stages: readonly {
     readonly id: string;
     readonly required: boolean;

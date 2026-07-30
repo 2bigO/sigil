@@ -378,6 +378,15 @@
       ]
     },
     {
+      "term": "evaluation context",
+      "definition": "The compact component- and stage-scoped contract, dependency, glossary, importer, ownership, and bounded source evidence supplied to one evaluator request.",
+      "aliases": [
+        "evaluation contexts",
+        "component evaluation context",
+        "component evaluation contexts"
+      ]
+    },
+    {
       "term": "agent adapter",
       "definition": "A provider integration that executes bounded evaluation requests and declares enforceable capabilities without owning compiler semantics.",
       "aliases": [
