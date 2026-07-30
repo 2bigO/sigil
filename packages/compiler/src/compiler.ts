@@ -1,11 +1,8 @@
 import {
   agentDependencyContextFor,
-  componentContracts,
-  glossaryContextForFiles,
   type ImplementationSource,
   isSupportedImplementationSource,
   loadSigilWorkspace,
-  ownedImplementationTargetsFor,
   type ResolvedComponent,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
@@ -14,8 +11,20 @@ import {
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
 import { ClaudeAdapter, CodexAdapter } from "./adapters.ts";
+import {
+  COMPILATION_STAGE_IDS,
+  type EvaluationSkillPackage,
+  loadEvaluationSkills,
+} from "./evaluation-skills.ts";
+import {
+  createSemanticSubjectResolver,
+  semanticSubjectIdentity,
+  type SemanticSubjectResolver,
+} from "./semantic-subjects.ts";
+import { COMPILATION_REPORT_VERSION } from "./types.ts";
 import type {
   AgentAdapter,
+  AgentCapabilityContract,
   AgentFinding,
   CompilationColor,
   CompilationEvent,
@@ -33,57 +42,53 @@ interface StageDefinition {
   readonly required: boolean;
   readonly agentic: boolean;
   readonly dependencies: readonly string[];
-  readonly skill: string;
+  readonly skill?: EvaluationSkillPackage;
 }
 
-interface PreparedComponentContext {
-  readonly componentName: string;
-  readonly serialized: string;
-}
-
-const MAX_COMPILATION_CONTEXT_CHARS = 900_000;
-
-const STAGES: readonly StageDefinition[] = [
-  {
-    id: "deterministic-foundation",
-    required: true,
-    agentic: false,
-    dependencies: [],
-    skill: "sigil-core",
-  },
-  {
-    id: "semantic-readiness",
-    required: true,
-    agentic: true,
-    dependencies: ["deterministic-foundation"],
-    skill:
-      "Find ambiguous, contradictory, or rationale-incomplete contract statements.",
-  },
-  {
-    id: "architecture-design",
-    required: true,
-    agentic: true,
-    dependencies: ["semantic-readiness"],
-    skill:
-      "Evaluate component boundaries, dependency direction, cohesion, and design risks.",
-  },
-  {
-    id: "current-code-compatibility",
-    required: true,
-    agentic: true,
-    dependencies: ["architecture-design"],
-    skill:
-      "Evaluate whether the contract is coherent with referenced implementation ownership and repository evidence.",
-  },
-  {
-    id: "standards-risk",
-    required: true,
-    agentic: true,
-    dependencies: ["architecture-design"],
-    skill:
-      "Evaluate applicable standards, safety, security, reliability, and operational risks from supplied evidence.",
-  },
-];
+const MAX_COMPILATION_REQUEST_CHARS = 120_000;
+const DEFAULT_EXECUTION_BUDGETS = {
+  elapsedTimeMs: 180_000,
+  maxCommands: 64,
+  maxCommandOutputChars: 200_000,
+  maxInputTokens: 200_000,
+  maxOutputTokens: 200_000,
+} as const;
+const MAXIMUM_EXECUTION_BUDGETS = {
+  elapsedTimeMs: 1_800_000,
+  maxCommands: 512,
+  maxCommandOutputChars: 10_000_000,
+  maxInputTokens: 2_000_000,
+  maxOutputTokens: 2_000_000,
+} as const;
+const INSPECTION_CAPABILITIES: AgentCapabilityContract = {
+  workspaceAccess: "read-only",
+  network: false,
+  approvalEscalation: false,
+  ephemeral: true,
+  allowedCommands: [
+    "sigil version",
+    "sigil parse",
+    "sigil check",
+    "sigil fmt --check",
+    "sigil glossary",
+    "sigil graph",
+    "sigil context",
+    "sigil render",
+    "rg",
+    "sed",
+    "git status/diff/show/log/grep/ls-files",
+  ],
+  forbiddenCommands: [
+    "sigil init",
+    "sigil fmt without --check",
+    "sigil compile",
+    "sigil skill install",
+    "network clients",
+    "file mutation",
+    "code generation",
+    "implementation execution or experiments",
+  ],
+};
 
 class DenoReadOnlyFileSystem implements SigilFileSystem {
   readTextFile(path: string): Promise<string> {
@@ -112,9 +117,7 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
           entry.isSymlink ||
           [".git", ".deno", ".vscode-test", "node_modules", "build", "coverage"]
             .includes(entry.name)
-        ) {
-          continue;
-        }
+        ) continue;
         await visit(`${path}/${entry.name}`);
       }
     }
@@ -144,7 +147,11 @@ export async function compile(
       payload,
     });
   };
-  await emit("started", { workspacePath, target });
+  await emit("started", {
+    workspacePath,
+    target,
+    requestedStage: options.requestedStage,
+  });
 
   const fs = new DenoReadOnlyFileSystem();
   const workspace = await loadSigilWorkspace(fs, {
@@ -154,9 +161,13 @@ export async function compile(
   });
   const resolved = resolveSigilWorkspace(workspace);
   const configuration = parseConfiguration(workspace.config?.tools.compile);
+  const skills = await loadEvaluationSkills();
+  const definitions = stageDefinitions(skills);
   const profile = await effectiveProfile(
     options.profile ?? configuration.defaultProfile ?? "standard",
     configuration,
+    definitions,
+    options.requestedStage,
   );
   const adapter = options.adapter ?? adapterFrom(profile);
   const components = resolveTarget(resolved, target, workspace.root);
@@ -164,83 +175,108 @@ export async function compile(
     fs,
     workspace.root,
   );
-  const componentContexts = prepareComponentContexts(
+  const sourceFingerprint = await workspaceEvidenceFingerprint(
+    workspace.root,
+    workspace.files.map((file) => file.document),
+    implementationSources,
+  );
+  const semanticSubjects = createSemanticSubjectResolver(
     resolved,
-    components,
     implementationSources,
     workspace.root,
   );
-  const sourceFingerprint = await digest(JSON.stringify({
-    files: workspace.files.map((file) => file.document),
-    components: components.map((item) => item.name),
-  }));
 
-  const diagnostics: CompilerDiagnostic[] = resolved.diagnostics.map((
-    item,
-  ) => fromCoreDiagnostic(item));
+  const diagnostics: CompilerDiagnostic[] = await Promise.all(
+    resolved.diagnostics.map((item) =>
+      fromCoreDiagnostic(item, semanticSubjects)
+    ),
+  );
   const stageReports: StageReport[] = [];
   const failed = new Set<string>();
 
   for (const stage of profile.stages) {
+    const definition = definitions.find((item) => item.id === stage.id)!;
     if (!stage.enabled) {
       failed.add(stage.id);
-      stageReports.push({
-        id: stage.id,
-        required: stage.required,
-        state: "disabled",
-        evaluator: "none",
-        diagnosticCount: 0,
-      });
+      stageReports.push(stageReport(stage, "disabled", "none", 0));
       continue;
     }
     if (stage.dependencies.some((dependency) => failed.has(dependency))) {
       failed.add(stage.id);
-      stageReports.push({
-        id: stage.id,
-        required: stage.required,
-        state: "skipped-by-dependency",
-        evaluator: adapter?.id ?? "none",
-        diagnosticCount: 0,
-      });
+      stageReports.push(
+        stageReport(
+          stage,
+          "skipped-by-dependency",
+          adapter?.id ?? "none",
+          0,
+        ),
+      );
       continue;
     }
     if (options.signal?.aborted) {
       await emit("cancelled", { stage: stage.id });
       throw new DOMException("Compilation cancelled.", "AbortError");
     }
+
     const stageStartedAt = new Date().toISOString();
     await emit("stage-started", { stage: stage.id });
     const before = diagnostics.length;
+    const evaluations: NonNullable<StageReport["evaluations"]>[number][] = [];
     let state: StageReport["state"] = "completed";
     try {
-      if (stage.agentic) {
+      if (definition.agentic) {
         if (!adapter) {
           throw new Error(
             "No compiler adapter is configured in tools.compile.adapter.",
           );
         }
-        for (const prepared of componentContexts) {
-          if (prepared.serialized.length > profile.contextBudgetChars) {
+        if (!definition.skill) {
+          throw new Error(`Evaluation skill ${stage.id} is unavailable.`);
+        }
+        assertAdapterCapabilities(adapter);
+        for (const component of components) {
+          const request = {
+            stage: stage.id,
+            skill: definition.skill.guidance,
+            allowedRules: definition.skill.manifest.rules,
+            workspaceRoot: workspace.root,
+            target: evaluationTarget(resolved, component, workspace.root),
+            capabilities: INSPECTION_CAPABILITIES,
+            budgets: profile.executionBudgets,
+            signal: options.signal,
+          };
+          const requestSize = JSON.stringify(request, (_key, value) =>
+            value instanceof AbortSignal ? undefined : value).length;
+          if (requestSize > profile.contextBudgetChars) {
             throw new Error(
-              `Compilation context for component ${prepared.componentName} is ${prepared.serialized.length} characters, exceeding the local ${profile.contextBudgetChars}-character agent-input budget.`,
+              `Evaluation request for ${component.name} is ${requestSize} characters, exceeding the ${profile.contextBudgetChars}-character budget.`,
             );
           }
-          const findings = await adapter.evaluate({
-            stage: stage.id,
-            skill: STAGES.find((item) => item.id === stage.id)?.skill ?? "",
-            context: prepared.serialized,
-            signal: options.signal,
+          const result = await adapter.evaluate(request);
+          evaluations.push({
+            componentName: component.name,
+            commands: result.commands,
+            usage: result.usage,
           });
-          for (const finding of findings) {
+          for (const finding of result.findings) {
+            if (!definition.skill.manifest.rules.includes(finding.code)) {
+              throw new Error(
+                `Evaluator returned undeclared rule ${
+                  JSON.stringify(finding.code)
+                } for stage ${stage.id}.`,
+              );
+            }
             const diagnostic = await fromAgentFinding(
               stage.id,
+              definition.skill,
               adapter,
               finding,
-              prepared.componentName,
+              component.name,
+              semanticSubjects,
             );
             diagnostics.push(diagnostic);
             await emit("diagnostic", {
-              componentName: prepared.componentName,
+              componentName: component.name,
               diagnostic,
             });
           }
@@ -261,22 +297,23 @@ export async function compile(
       diagnosticCount: diagnostics.length - before,
       startedAt: stageStartedAt,
       completedAt: new Date().toISOString(),
+      ...(evaluations.length ? { evaluations } : {}),
     };
     stageReports.push(report);
     await emit("stage-completed", { stage: report });
   }
 
-  const status = colorFor(diagnostics, stageReports);
   const report: CompilationReport = {
-    reportVersion: 1,
+    reportVersion: COMPILATION_REPORT_VERSION,
     runId,
     workspaceRoot: workspace.root,
     target,
     componentNames: components.map((item) => item.name),
-    status,
+    status: colorFor(diagnostics, stageReports),
     startedAt,
     completedAt: new Date().toISOString(),
     sourceFingerprint,
+    requestedStage: options.requestedStage,
     profile,
     stages: stageReports,
     diagnostics,
@@ -291,194 +328,74 @@ export async function compile(
   return report;
 }
 
-function prepareComponentContexts(
-  resolved: ResolvedSigilWorkspace,
-  components: readonly ResolvedComponent[],
-  implementationSources: readonly ImplementationSource[],
-  workspaceRoot: string,
-): readonly PreparedComponentContext[] {
-  const contracts = new Map(
-    componentContracts(resolved).map((contract) => [contract.name, contract]),
-  );
-  return components.map((component) => {
-    const dependencyContext = agentDependencyContextFor(
-      resolved,
-      component.name,
-    );
-    const ownership = ownedImplementationTargetsFor(
-      resolved,
-      implementationSources,
-      component.name,
-    );
-    const importerContracts = affectedImporterContracts(
-      resolved,
-      component,
-      contracts,
-    );
-    const relevantFiles = [
-      component.filePath,
-      ...component.expansions.expands.map((item) => item.filePath),
-      ...(dependencyContext?.relatedFilePaths ?? []),
-      ...importerContracts.map((item) => item.filePath),
-      ...(ownership?.targets.map((item) => item.filePath) ?? []),
-    ];
-    const glossary = compactGlossaryContext(
-      glossaryContextForFiles(resolved.glossary, relevantFiles),
-    );
-    const ownedPaths = new Set(
-      ownership?.targets.map((target) =>
-        canonicalWorkspacePath(target.filePath, workspaceRoot)
-      ) ?? [],
-    );
-    const ownedSources = implementationSources
-      .filter((source) =>
-        ownedPaths.has(canonicalWorkspacePath(source.filePath, workspaceRoot))
-      )
-      .map((source) => ({
-        filePath: canonicalWorkspacePath(source.filePath, workspaceRoot),
-        text: source.text,
-      }));
-    const base = {
-      schemaVersion: 1,
-      component: contracts.get(component.name),
-      expansions: component.expansions.expands,
-      directDependencies: dependencyContext?.dependencyContracts ?? [],
-      dependencyDecisions: dependencyContext?.dependencyDecisions ?? [],
-      affectedImporters: importerContracts,
-      glossary,
-      ownedImplementation: ownership
-        ? {
-          targets: ownership.targets,
-          diagnostics: ownership.diagnostics,
-        }
-        : null,
-    };
-    return {
-      componentName: component.name,
-      serialized: serializeWithBoundedSources(base, ownedSources),
-    };
-  });
-}
-
-function affectedImporterContracts(
-  resolved: ResolvedSigilWorkspace,
-  selected: ResolvedComponent,
-  contracts: ReadonlyMap<string, ReturnType<typeof componentContracts>[number]>,
-): readonly ReturnType<typeof componentContracts>[number][] {
-  const importerFiles = new Set(
-    resolved.imports
-      .filter((item) =>
-        item.names.some((name) =>
-          name.name === selected.name &&
-          name.componentFile === selected.filePath
-        )
-      )
-      .map((item) => item.sourceFile),
-  );
-  const seen = new Set<string>();
-  return resolved.components.flatMap((component) => {
-    const contract = contracts.get(component.name);
-    const key = `${component.filePath}\0${component.name}`;
-    if (
-      !contract || !importerFiles.has(component.filePath) || seen.has(key)
-    ) {
-      return [];
+function stageDefinitions(
+  skills: ReadonlyMap<string, EvaluationSkillPackage>,
+): readonly StageDefinition[] {
+  return COMPILATION_STAGE_IDS.map((id) => {
+    if (id === "deterministic-foundation") {
+      return {
+        id,
+        required: true,
+        agentic: false,
+        dependencies: [],
+      };
     }
-    seen.add(key);
-    return [contract];
+    const skill = skills.get(id);
+    if (!skill) throw new Error(`Required evaluation skill ${id} is missing.`);
+    return {
+      id,
+      required: true,
+      agentic: true,
+      dependencies: skill.manifest.dependencies,
+      skill,
+    };
   });
 }
 
-function compactGlossaryContext(
-  glossary: ReturnType<typeof glossaryContextForFiles>,
-): Readonly<Record<string, unknown>> {
+function evaluationTarget(
+  resolved: ResolvedSigilWorkspace,
+  component: ResolvedComponent,
+  root: string,
+) {
+  const dependencyContext = agentDependencyContextFor(resolved, component.name);
+  const initialPaths = new Set([
+    component.filePath,
+    ...component.expansions.expands.map((item) => item.filePath),
+    ...(dependencyContext?.relatedFilePaths ?? []),
+  ].map((path) => canonicalWorkspacePath(path, root)));
   return {
-    glossaryPath: glossary.glossaryPath,
-    terms: glossary.terms,
-    resolvedContexts: glossary.resolvedContexts.map((context) => ({
-      filePath: context.filePath,
-      contextId: context.contextId,
-      terms: context.entries.map((term) => term.term),
-    })),
-    occurrences: glossary.occurrences.map((occurrence) => ({
-      term: occurrence.term.term,
-      matchedSpelling: occurrence.matchedSpelling,
-      filePath: occurrence.filePath,
-      ownerKind: occurrence.ownerKind,
-      ownerName: occurrence.ownerName,
-      sectionName: occurrence.sectionName,
-      range: occurrence.range,
-    })),
+    componentName: component.name,
+    sigilFile: canonicalWorkspacePath(component.filePath, root),
+    initialPaths: [...initialPaths],
   };
 }
 
-function serializeWithBoundedSources(
-  base: Readonly<Record<string, unknown>>,
-  sources: readonly { readonly filePath: string; readonly text: string }[],
-): string {
-  const included: {
-    filePath: string;
-    text: string;
-    omittedCharacters?: number;
-  }[] = [];
-  const serialize = () =>
-    JSON.stringify({ ...base, ownedImplementationSources: included });
-
-  let serialized = serialize();
-  if (serialized.length > MAX_COMPILATION_CONTEXT_CHARS) return serialized;
-
-  for (const source of sources) {
-    included.push({ ...source });
-    const complete = serialize();
-    if (complete.length <= MAX_COMPILATION_CONTEXT_CHARS) {
-      serialized = complete;
-      continue;
-    }
-    included.pop();
-    let lower = 0;
-    let upper = source.text.length;
-    let best = "";
-    while (lower <= upper) {
-      const middle = Math.floor((lower + upper) / 2);
-      included.push({
-        filePath: source.filePath,
-        text: source.text.slice(0, middle),
-        omittedCharacters: source.text.length - middle,
-      });
-      const candidate = serialize();
-      included.pop();
-      if (candidate.length <= MAX_COMPILATION_CONTEXT_CHARS) {
-        best = source.text.slice(0, middle);
-        serialized = candidate;
-        lower = middle + 1;
-      } else {
-        upper = middle - 1;
-      }
-    }
-    if (best.length > 0) {
-      included.push({
-        filePath: source.filePath,
-        text: best,
-        omittedCharacters: source.text.length - best.length,
-      });
-      serialized = serialize();
-    }
-    break;
+function assertAdapterCapabilities(adapter: AgentAdapter): void {
+  if (
+    !adapter.capabilities.readOnlyWorkspace ||
+    adapter.capabilities.network !== false ||
+    adapter.capabilities.approvalEscalation !== false ||
+    !adapter.capabilities.ephemeral
+  ) {
+    throw new Error(
+      `Adapter ${adapter.id} cannot enforce read-only, offline, approval-free, ephemeral workspace inspection.`,
+    );
   }
-  return serialized;
 }
 
-async function loadImplementationSources(
-  fs: SigilFileSystem,
-  root: string,
-): Promise<readonly ImplementationSource[]> {
-  const paths = (await fs.listFiles(root)).filter((path) =>
-    isSupportedImplementationSource(path)
-  );
-  return await Promise.all(paths.map(async (filePath) => ({
-    filePath,
-    text: await fs.readTextFile(filePath),
-  })));
+function stageReport(
+  stage: EffectiveProfile["stages"][number],
+  state: StageReport["state"],
+  evaluator: string,
+  diagnosticCount: number,
+): StageReport {
+  return {
+    id: stage.id,
+    required: stage.required,
+    state,
+    evaluator,
+    diagnosticCount,
+  };
 }
 
 function parseConfiguration(value: unknown): CompileConfiguration {
@@ -497,12 +414,42 @@ function parseConfiguration(value: unknown): CompileConfiguration {
   ) {
     throw new Error("tools.compile.adapter.provider must be codex or claude.");
   }
+  validateConfiguredBudgets(raw.budgets);
   return raw as unknown as CompileConfiguration;
+}
+
+function validateConfiguredBudgets(value: unknown): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("tools.compile.budgets must be an object.");
+  }
+  const raw = value as Record<string, unknown>;
+  const known = new Set(Object.keys(DEFAULT_EXECUTION_BUDGETS));
+  for (const [name, configured] of Object.entries(raw)) {
+    if (!known.has(name)) {
+      throw new Error(
+        `tools.compile.budgets contains unknown field ${JSON.stringify(name)}.`,
+      );
+    }
+    const maximum =
+      MAXIMUM_EXECUTION_BUDGETS[name as keyof typeof MAXIMUM_EXECUTION_BUDGETS];
+    if (
+      !Number.isSafeInteger(configured) ||
+      (configured as number) <= 0 ||
+      (configured as number) > maximum
+    ) {
+      throw new Error(
+        `tools.compile.budgets.${name} must be a positive integer no greater than ${maximum}.`,
+      );
+    }
+  }
 }
 
 async function effectiveProfile(
   name: string,
   configuration: CompileConfiguration,
+  definitions: readonly StageDefinition[],
+  requestedStage?: string,
 ): Promise<EffectiveProfile> {
   const custom = configuration.profiles?.[name];
   const base = custom?.extends ?? name;
@@ -510,10 +457,20 @@ async function effectiveProfile(
     throw new Error(`Unknown compilation profile ${JSON.stringify(name)}.`);
   }
   const included = base === "standard"
-    ? STAGES.filter((stage) => stage.id !== "standards-risk")
-    : STAGES;
+    ? definitions.filter((stage) => stage.id !== "standards-risk")
+    : definitions;
   const disabled = new Set(custom?.disabledStages ?? []);
-  const stages = included.map((stage) => ({
+  const selected = requestedStage
+    ? stageClosure(requestedStage, included)
+    : included;
+  if (requestedStage && selected.some((stage) => disabled.has(stage.id))) {
+    throw new Error(
+      `Requested stage ${
+        JSON.stringify(requestedStage)
+      } depends on a stage disabled by profile ${JSON.stringify(name)}.`,
+    );
+  }
+  const stages = selected.map((stage) => ({
     id: stage.id,
     required: stage.required,
     enabled: !disabled.has(stage.id),
@@ -522,14 +479,63 @@ async function effectiveProfile(
   }));
   const profileBase = {
     name,
-    contextBudgetChars: MAX_COMPILATION_CONTEXT_CHARS,
+    contextBudgetChars: MAX_COMPILATION_REQUEST_CHARS,
+    executionBudgets: {
+      ...DEFAULT_EXECUTION_BUDGETS,
+      ...configuration.budgets,
+    },
     stages,
     adapter: configuration.adapter,
+    skills: selected.flatMap((stage) =>
+      stage.skill
+        ? [{
+          id: stage.skill.manifest.id,
+          version: stage.skill.manifest.version,
+          capabilities: stage.skill.manifest.capabilities,
+        }]
+        : []
+    ),
   };
   return {
-    ...profileBase,
+    name: profileBase.name,
+    contextBudgetChars: profileBase.contextBudgetChars,
+    executionBudgets: profileBase.executionBudgets,
+    stages: profileBase.stages,
+    adapter: profileBase.adapter,
     fingerprint: await digest(JSON.stringify(profileBase)),
   };
+}
+
+function stageClosure(
+  requestedStage: string,
+  available: readonly StageDefinition[],
+): readonly StageDefinition[] {
+  const requested = available.find((stage) => stage.id === requestedStage);
+  if (!requested) {
+    const known = COMPILATION_STAGE_IDS.includes(
+        requestedStage as typeof COMPILATION_STAGE_IDS[number],
+      )
+      ? `Stage ${
+        JSON.stringify(requestedStage)
+      } is not enabled by this profile.`
+      : `Unknown compilation stage ${JSON.stringify(requestedStage)}.`;
+    throw new Error(known);
+  }
+  const selected = new Set<string>();
+  const visit = (stage: StageDefinition): void => {
+    for (const dependency of stage.dependencies) {
+      const definition = available.find((item) => item.id === dependency);
+      if (!definition) {
+        throw new Error(
+          `Stage ${stage.id} requires unavailable dependency ${dependency}.`,
+        );
+      }
+      visit(definition);
+    }
+    selected.add(stage.id);
+  };
+  visit(requested);
+  return available.filter((stage) => selected.has(stage.id));
 }
 
 function adapterFrom(profile: EffectiveProfile): AgentAdapter | undefined {
@@ -574,9 +580,7 @@ function dependencyOrder(
   resolved: ResolvedSigilWorkspace,
   selected: readonly ResolvedComponent[],
 ): readonly ResolvedComponent[] {
-  const selectedKeys = new Set(
-    selected.map((component) => componentKey(component)),
-  );
+  const selectedKeys = new Set(selected.map(componentKey));
   const ordered: ResolvedComponent[] = [];
   const visiting = new Set<string>();
   const visited = new Set<string>();
@@ -624,10 +628,18 @@ function canonicalWorkspacePath(path: string, root: string): string {
   return normalized.replace(/^\.\//, "");
 }
 
-function fromCoreDiagnostic(item: SigilDiagnostic): CompilerDiagnostic {
-  const fingerprint = `${item.code}:${item.filePath ?? ""}:${
-    item.range?.start.line ?? ""
-  }:${item.range?.start.column ?? ""}`;
+async function fromCoreDiagnostic(
+  item: SigilDiagnostic,
+  resolver: SemanticSubjectResolver,
+): Promise<CompilerDiagnostic> {
+  const semanticSubjects = await resolver.resolve(item.filePath, item.range);
+  const fingerprint = await diagnosticFingerprint(
+    item.code,
+    "deterministic-foundation",
+    semanticSubjects,
+    item.filePath,
+    item.range,
+  );
   return {
     code: item.code,
     fingerprint,
@@ -641,6 +653,7 @@ function fromCoreDiagnostic(item: SigilDiagnostic): CompilerDiagnostic {
     message: item.message,
     filePath: item.filePath,
     range: item.range,
+    semanticSubjects,
     evidence: item.message,
     impact: item.severity === "error"
       ? "The contract cannot complete deterministic evaluation."
@@ -653,27 +666,40 @@ function fromCoreDiagnostic(item: SigilDiagnostic): CompilerDiagnostic {
 
 async function fromAgentFinding(
   stage: string,
+  skill: EvaluationSkillPackage,
   adapter: AgentAdapter,
   finding: AgentFinding,
   componentName: string,
+  resolver: SemanticSubjectResolver,
 ): Promise<CompilerDiagnostic> {
-  const subject = `${finding.code}:${stage}:${componentName}:${
-    finding.filePath ?? ""
-  }:${finding.line ?? ""}:${finding.column ?? ""}`;
+  const range = finding.line
+    ? {
+      start: { line: finding.line, column: finding.column ?? 1 },
+      end: { line: finding.line, column: (finding.column ?? 1) + 1 },
+    }
+    : undefined;
+  const semanticSubjects = await resolver.resolve(
+    finding.filePath,
+    range,
+    componentName,
+  );
   return {
     code: finding.code,
-    fingerprint: await digest(subject),
+    fingerprint: await diagnosticFingerprint(
+      finding.code,
+      stage,
+      semanticSubjects,
+      finding.filePath,
+      range,
+      componentName,
+    ),
     severity: finding.severity,
     stage,
-    skill: stage,
+    skill: `${skill.manifest.id}@${skill.manifest.version}`,
     message: finding.message,
     filePath: finding.filePath,
-    range: finding.line
-      ? {
-        start: { line: finding.line, column: finding.column ?? 1 },
-        end: { line: finding.line, column: (finding.column ?? 1) + 1 },
-      }
-      : undefined,
+    range,
+    semanticSubjects,
     evidence: finding.evidence,
     impact: finding.impact,
     correction: finding.correction,
@@ -694,6 +720,7 @@ async function stageFailure(
     stage,
     skill: stage,
     message: error instanceof Error ? error.message : String(error),
+    semanticSubjects: [],
     evidence: "The required evaluator did not complete successfully.",
     impact: "This run cannot become green.",
     correction:
@@ -710,12 +737,60 @@ function colorFor(
   if (
     diagnostics.some((item) => item.severity === "error") ||
     stages.some((stage) =>
-      stage.required &&
-      !["completed", "disabled"].includes(stage.state)
+      stage.required && !["completed", "disabled"].includes(stage.state)
     )
   ) return "red";
   if (diagnostics.some((item) => item.severity === "warning")) return "yellow";
   return "green";
+}
+
+function workspaceEvidenceFingerprint(
+  root: string,
+  sigilDocuments: readonly unknown[],
+  implementation: readonly ImplementationSource[],
+): Promise<string> {
+  return digest(JSON.stringify({
+    sigilDocuments,
+    implementation: implementation.map((source) => ({
+      filePath: canonicalWorkspacePath(source.filePath, root),
+      text: source.text,
+    })),
+  }));
+}
+
+async function loadImplementationSources(
+  fs: SigilFileSystem,
+  root: string,
+): Promise<readonly ImplementationSource[]> {
+  return Promise.all(
+    (await fs.listFiles(root))
+      .filter(isSupportedImplementationSource)
+      .map(async (filePath) => ({
+        filePath,
+        text: await fs.readTextFile(filePath),
+      })),
+  );
+}
+
+function diagnosticFingerprint(
+  code: string,
+  stage: string,
+  semanticSubjects: readonly CompilerDiagnostic["semanticSubjects"][number][],
+  filePath?: string,
+  range?: CompilerDiagnostic["range"],
+  componentName?: string,
+): Promise<string> {
+  return digest(JSON.stringify({
+    code,
+    stage,
+    componentName,
+    semanticSubjects: semanticSubjects.map(semanticSubjectIdentity),
+    fallback: semanticSubjects.length ? undefined : {
+      filePath,
+      line: range?.start.line,
+      column: range?.start.column,
+    },
+  }));
 }
 
 async function digest(value: string): Promise<string> {

@@ -27,6 +27,10 @@
   "tools": {
     "compile": {
       "defaultProfile": "standard",
+      "budgets": {
+        "maxCommandOutputChars": 3000000,
+        "maxInputTokens": 1000000
+      },
       "adapter": {
         "provider": "codex"
       }

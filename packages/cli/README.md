@@ -73,9 +73,11 @@ Commands:
   public contracts and decision rationale plus reviewed terminology recognized
   in the selected and related Sigil files, excluding terms whose `agentContext`
   value is `false`;
-- `sigil compile [path] [--component name | --file file]` runs profile-scoped
-  deterministic and read-only agent evaluation. Use `--format jsonl` for its
-  versioned event stream;
+- `sigil compile [stage] [path] [--component name | --file file]` runs
+  profile-scoped deterministic and direct-read agent evaluation. A stage operand
+  such as `semantic-readiness` runs that stage and its dependency closure.
+  Prefix a colliding path with `./`. Use `--format jsonl` for the versioned
+  event stream;
 - `sigil render ...` returns Markdown.
 
 Configure agentic compilation under `tools.compile`:
@@ -87,14 +89,20 @@ Configure agentic compilation under `tools.compile`:
       "defaultProfile": "standard",
       "adapter": {
         "provider": "codex"
+      },
+      "budgets": {
+        "maxCommandOutputChars": 500000
       }
     }
   }
 }
 ```
 
-The compiler supports Codex and Claude read-only adapters. Compilation does not
-generate code or execute implementation experiments.
+The compiler's Codex adapter runs ephemerally at the workspace root with
+read-only filesystem access, disabled network and approval escalation, and
+structured output. A configured provider that cannot enforce the same contract
+fails closed. Compilation does not generate code or execute implementation
+experiments.
 
 Empty, unknown, incomplete, and invalid invocations report the problem together
 with help for the longest recognized command path.

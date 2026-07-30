@@ -1,9 +1,13 @@
 {
-  "id": "current-code-compatibility",
+  "id": "standards-risk",
   "version": "1.0.0",
   "inputs": ["workspace-root", "component-target"],
   "dependencies": ["architecture-design"],
   "capabilities": ["read-workspace"],
-  "rules": ["IMPLEMENTATION_DRIFT", "OWNERSHIP_GAP", "CONTRACT_COMPATIBILITY"],
+  "rules": [
+    "STANDARDS_VIOLATION",
+    "RISK_CONTROL_GAP",
+    "RISK_EVIDENCE_INCOMPLETE"
+  ],
   "output": "compiler-findings-v1"
 }

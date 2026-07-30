@@ -111,6 +111,9 @@ component SigilCli {
       sigil compile [path] [--component name | --file file] [--profile name]
       [--no-cache] [--output file] [--format jsonl]
 
+      sigil compile stage-id [path] [--component name | --file file] [--profile name]
+      [--no-cache] [--output file] [--format jsonl]
+
       compile presents human progress by default and exposes the structured compiler
       event and report protocol for automation
 
@@ -234,6 +237,9 @@ expand SigilCli {
       SigilCompiler, and projects compiler events and the final report without
       reinterpreting findings.
 
+      When the first compile operand exactly matches a known stage identifier,
+      compile requests that stage and its compiler-resolved dependency closure.
+
       compile preserves deterministic workspace diagnostics as compiler inputs rather
       than replacing or duplicating them.
     }
@@ -355,6 +361,9 @@ expand SigilCli {
       with code 3.
 
       A compilation cancelled after invocation begins exits with code 130.
+
+      An exact known stage identifier is a reserved first compile operand; a
+      colliding path uses an explicit relative or absolute path.
     }
   }
 
@@ -514,6 +523,23 @@ expand SigilCli {
       runtime and report contract.
     }
 
+    StageOperandDisambiguation {
+      Decision: Interpret an exact known stage identifier as the first compile
+      operand and require an explicit relative or absolute spelling for a colliding
+      filesystem path.
+
+      Scope: Governs compile operand parsing and help; excludes compiler stage
+      dependency resolution and status computation.
+
+      Trade-offs: A directory named after a stage requires a ./ or absolute prefix.
+
+      Design issues addressed: Direct stage invocation must coexist with the existing
+      optional path operand without silently guessing between two meanings.
+
+      Consequences: sigil compile semantic-readiness is concise and existing path
+      invocation remains available without a breaking flag change.
+    }
+
     CompilationExitStatus {
       Decision: Reserve compile exit code 0 for green, use code 1 for red or yellow,
       preserve usage and host-failure codes 2 and 3, and use code 130 for
@@ -653,6 +679,11 @@ expand SigilCli {
     CompilationFacade {
       Running sigil compile for a component streams progress and returns the
       authoritative report for that component and profile.
+
+      Running sigil compile semantic-readiness executes the compiler-selected
+      dependency closure and excludes unrelated stages.
+
+      Running sigil compile ./semantic-readiness treats the operand as a path.
 
       Cancelling compilation terminates delegated work and reports cancellation
       without changing workspace files.

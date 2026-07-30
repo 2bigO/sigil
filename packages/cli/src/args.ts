@@ -1,3 +1,5 @@
+import { COMPILATION_STAGE_IDS } from "@qoherent/sigil-compiler";
+
 export type CommandName =
   | "skill"
   | "init"
@@ -82,6 +84,7 @@ export interface ContextRequest extends GlobalOptions {
 }
 export interface CompileRequest extends GlobalOptions {
   readonly command: "compile";
+  readonly stage?: string;
   readonly component?: string;
   readonly file?: string;
   readonly path?: string;
@@ -418,8 +421,17 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     };
   }
   if (commandName === "compile") {
-    if (positional.length > 1) {
-      return usage("compile accepts at most one path.", "compile");
+    const stage = COMPILATION_STAGE_IDS.includes(
+        positional[0] as typeof COMPILATION_STAGE_IDS[number],
+      )
+      ? positional[0]
+      : undefined;
+    const paths = stage ? positional.slice(1) : positional;
+    if (paths.length > 1) {
+      return usage(
+        "compile accepts an optional stage followed by at most one path.",
+        "compile",
+      );
     }
     if (component && file) {
       return usage(
@@ -434,9 +446,10 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       kind: "ok",
       request: {
         command: "compile",
+        stage,
         component,
         file,
-        path: positional[0],
+        path: paths[0],
         profile,
         noCache,
         output,

@@ -1,9 +1,19 @@
 {
   "id": "semantic-readiness",
   "version": "1.0.0",
-  "inputs": ["component-context", "glossary"],
+  "inputs": ["workspace-root", "component-target"],
   "dependencies": ["deterministic-foundation"],
   "capabilities": ["read-workspace"],
-  "rules": ["SEMANTIC_AMBIGUITY", "SEMANTIC_CONTRADICTION", "RATIONALE_GAP"],
+  "rules": [
+    "SEMANTIC_AMBIGUITY",
+    "SEMANTIC_CONTRADICTION",
+    "MISSING_OBSERVABLE_BEHAVIOR",
+    "RATIONALE_GAP",
+    "GOAL_BOUNDARY_GAP",
+    "INTERFACE_CONTRACT_GAP",
+    "CASE_COVERAGE_GAP",
+    "CROSS_SIGIL_COHERENCE",
+    "EVIDENCE_INCOMPLETE"
+  ],
   "output": "compiler-findings-v1"
 }

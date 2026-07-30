@@ -1,7 +1,11 @@
-import type { SourceRange } from "@qoherent/sigil-core";
+import type {
+  SigilFormKind,
+  SigilSectionName,
+  SourceRange,
+} from "@qoherent/sigil-core";
 
 export const COMPILATION_PROTOCOL_VERSION = 1;
-export const COMPILATION_REPORT_VERSION = 1;
+export const COMPILATION_REPORT_VERSION = 2;
 
 export type CompilationColor = "red" | "yellow" | "green";
 export type DiagnosticSeverity =
@@ -28,6 +32,24 @@ export interface CompilationTarget {
   readonly value?: string;
 }
 
+export type DiagnosticSemanticRelation = "direct" | "governing" | "related";
+
+export interface DiagnosticSemanticUnit {
+  readonly range: SourceRange;
+  readonly fingerprint: string;
+}
+
+export interface DiagnosticSemanticSubject {
+  readonly relation: DiagnosticSemanticRelation;
+  readonly sigilPath: string;
+  readonly componentName: string;
+  readonly ownerKind: SigilFormKind;
+  readonly ownerName: string;
+  readonly sectionName: SigilSectionName;
+  readonly conceptIdentifier?: string;
+  readonly semanticUnit?: DiagnosticSemanticUnit;
+}
+
 export interface CompilerDiagnostic {
   readonly code: string;
   readonly fingerprint: string;
@@ -37,6 +59,7 @@ export interface CompilerDiagnostic {
   readonly message: string;
   readonly filePath?: string;
   readonly range?: SourceRange;
+  readonly semanticSubjects: readonly DiagnosticSemanticSubject[];
   readonly evidence: string;
   readonly impact: string;
   readonly correction: string;
@@ -52,11 +75,13 @@ export interface StageReport {
   readonly diagnosticCount: number;
   readonly startedAt?: string;
   readonly completedAt?: string;
+  readonly evaluations?: readonly AgentEvaluationTrace[];
 }
 
 export interface EffectiveProfile {
   readonly name: string;
   readonly contextBudgetChars: number;
+  readonly executionBudgets: AgentExecutionBudgets;
   readonly stages: readonly {
     readonly id: string;
     readonly required: boolean;
@@ -72,7 +97,7 @@ export interface EffectiveProfile {
 }
 
 export interface CompilationReport {
-  readonly reportVersion: 1;
+  readonly reportVersion: 2;
   readonly runId: string;
   readonly workspaceRoot: string;
   readonly target: CompilationTarget;
@@ -81,6 +106,7 @@ export interface CompilationReport {
   readonly startedAt: string;
   readonly completedAt: string;
   readonly sourceFingerprint: string;
+  readonly requestedStage?: string;
   readonly profile: EffectiveProfile;
   readonly stages: readonly StageReport[];
   readonly diagnostics: readonly CompilerDiagnostic[];
@@ -105,6 +131,7 @@ export interface CompilationEvent {
 
 export interface CompileOptions {
   readonly profile?: string;
+  readonly requestedStage?: string;
   readonly noHistory?: boolean;
   readonly output?: string;
   readonly signal?: AbortSignal;
@@ -124,11 +151,62 @@ export interface AgentFinding {
   readonly correction: string;
 }
 
+export interface AgentEvaluationTarget {
+  readonly componentName: string;
+  readonly sigilFile: string;
+  readonly initialPaths: readonly string[];
+}
+
+export interface AgentCapabilityContract {
+  readonly workspaceAccess: "read-only";
+  readonly network: false;
+  readonly approvalEscalation: false;
+  readonly ephemeral: true;
+  readonly allowedCommands: readonly string[];
+  readonly forbiddenCommands: readonly string[];
+}
+
+export interface AgentExecutionBudgets {
+  readonly elapsedTimeMs: number;
+  readonly maxCommands: number;
+  readonly maxCommandOutputChars: number;
+  readonly maxInputTokens: number;
+  readonly maxOutputTokens: number;
+}
+
 export interface AgentEvaluationRequest {
   readonly stage: string;
   readonly skill: string;
-  readonly context: string;
+  readonly allowedRules: readonly string[];
+  readonly workspaceRoot: string;
+  readonly target: AgentEvaluationTarget;
+  readonly capabilities: AgentCapabilityContract;
+  readonly budgets: AgentExecutionBudgets;
   readonly signal?: AbortSignal;
+}
+
+export interface AgentCommandTrace {
+  readonly command: string;
+  readonly status?: string;
+  readonly exitCode?: number;
+}
+
+export interface AgentUsage {
+  readonly inputTokens?: number;
+  readonly cachedInputTokens?: number;
+  readonly outputTokens?: number;
+}
+
+export interface AgentEvaluationTrace {
+  readonly componentName: string;
+  readonly commands: readonly AgentCommandTrace[];
+  readonly usage?: AgentUsage;
+}
+
+export interface AgentEvaluationResult {
+  readonly findings: readonly AgentFinding[];
+  readonly commands: readonly AgentCommandTrace[];
+  readonly usage?: AgentUsage;
 }
 
 export interface AgentAdapter {
@@ -136,14 +214,17 @@ export interface AgentAdapter {
   readonly provider: "codex" | "claude" | "mock";
   readonly model?: string;
   readonly capabilities: {
-    readonly readOnlyWorkspace: true;
+    readonly readOnlyWorkspace: boolean;
     readonly network: false;
+    readonly approvalEscalation: false;
+    readonly ephemeral: boolean;
   };
-  evaluate(request: AgentEvaluationRequest): Promise<readonly AgentFinding[]>;
+  evaluate(request: AgentEvaluationRequest): Promise<AgentEvaluationResult>;
 }
 
 export interface CompileConfiguration {
   readonly defaultProfile?: string;
+  readonly budgets?: Partial<AgentExecutionBudgets>;
   readonly adapter?: {
     readonly provider: "codex" | "claude";
     readonly model?: string;

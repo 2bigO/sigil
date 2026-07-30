@@ -1,0 +1,146 @@
+expand SigilCompiler {
+  logic {
+    EvaluationSkillPackage {
+      Discover each built-in evaluation skill from its SKILL.md and compile.json
+      package.
+
+      Validate manifest identity, version, inputs, dependencies, capabilities, rules,
+      and output contract before scheduling the skill.
+
+      Supply the complete selected SKILL.md guidance to the adapter and bind accepted
+      findings to the manifest's declared rule set.
+    }
+
+    UnifiedSemanticReadiness {
+      Preserve the existing ambiguity, contradiction, missing-observable-behavior,
+      and missing-rationale evaluation.
+
+      Also assess goal responsibility and boundary clarity, materially applicable
+      interface inputs, outputs, failures, side effects, lifecycle, ordering,
+      authorization, retry, and compatibility behavior.
+
+      Derive observable cases from material state and constraints and audit durable
+      rationale coverage for material choices across every semantic section.
+
+      Inspect the selected component, matching expands, direct dependencies,
+      dependency decisions, and affected importers before reporting alignment.
+
+      Run graph and selected context inspection when re-exposure, namespace
+      ambiguity, ownership, or a suspected cross-Sigil contradiction makes the
+      initially selected evidence insufficient.
+
+      Distinguish a suspected problem requiring more evidence from a confirmed
+      contradiction and report incomplete evidence rather than silently producing no
+      finding.
+    }
+  }
+
+  constraints {
+    EvaluationSkillPackage {
+      Hard-coded stage summaries do not replace packaged evaluation guidance.
+
+      Missing, malformed, incompatible, or capability-mismatched required skill
+      packages leave their stage incomplete.
+
+      Evaluation skills cannot grant mutation, network, approval, or implementation
+      authority.
+    }
+
+    UnifiedSemanticReadiness {
+      Semantic readiness remains provisional evidence within the evaluated scope.
+
+      Detailed cohesion, coupling, dependency-direction, and boundary classification
+      belongs to architecture-design; semantic-readiness reports only the suspected
+      issue and evidence needed when architectural analysis is required.
+
+      External standards research remains owned by standards-risk.
+
+      ReviewGate, design conversation, workflow selection, concept grouping, glossary
+      extraction, Sigil mutation, and implementation authorization remain outside
+      compiler semantic readiness.
+    }
+  }
+
+  decisions {
+    EvaluationSkillLoading {
+      Decision: Make versioned compiler skill packages the authoritative evaluator
+      guidance and rule contract instead of hard-coded stage summaries.
+
+      Scope: Governs built-in agentic compiler stages and adapter prompts; excludes
+      host workflow skills and deterministic SigilCore validation.
+
+      Trade-offs: Packaging, versioning, and manifest validation become required
+      runtime responsibilities.
+
+      Design issues addressed: Published SKILL.md and compile.json files cannot
+      govern evaluation while runtime prompts ignore them.
+
+      Consequences: Compiler behavior can be reviewed, tested, and versioned through
+      the same package that declares its capabilities and findings.
+    }
+
+    UnifiedSemanticReadiness {
+      Decision: Extend the compiler's existing readiness evaluator with the
+      host-skill semantic checks that determine contract completeness while leaving
+      workflow governance and detailed architecture evaluation in their existing
+      owners.
+
+      Scope: Governs the semantic-readiness compiler stage; excludes standards-risk,
+      architecture-design classification, ReviewGate, authoring, and mutation.
+
+      Trade-offs: The readiness package becomes more detailed and requires broader
+      evidence fixtures.
+
+      Design issues addressed: Separate host and compiler readiness checklists can
+      produce materially different assessments from equivalent evidence.
+
+      Discarded alternatives: Replacing compiler readiness with the complete host
+      workflow and keeping two independent readiness authorities were rejected.
+
+      Consequences: The compiler can be compared with current host readiness without
+      duplicating approval or authoring workflows.
+
+      Revisit when: Equivalence evaluations show that a check belongs in
+      architecture-design or standards-risk instead.
+    }
+
+    ReadinessStageBoundary {
+      Decision: Let semantic-readiness identify semantic completeness and suspected
+      cross-boundary issues while architecture-design owns detailed modularity
+      classification.
+
+      Scope: Separates semantic-readiness from architecture-design and
+      standards-risk.
+
+      Trade-offs: Some suspected readiness findings require a later architecture
+      stage for final classification.
+
+      Consequences: The stages share evidence without issuing duplicate detailed
+      findings.
+    }
+  }
+
+  cases {
+    EvaluationSkillPackage {
+      A packaged semantic-readiness skill is loaded with its declared rules before
+      the first adapter invocation.
+
+      A finding with a rule absent from compile.json cannot affect compilation color.
+
+      A missing required SKILL.md leaves semantic-readiness incomplete.
+    }
+
+    UnifiedSemanticReadiness {
+      A clear contract with no material gap produces no semantic-readiness finding.
+
+      A material choice without reconstructable rationale produces a declared
+      rationale-gap finding.
+
+      A possible transitive contradiction causes direct graph and related-context
+      inspection before it can become a confirmed error.
+
+      An architectural cohesion concern is labeled suspected and delegated to
+      architecture-design rather than duplicated as a detailed readiness finding.
+    }
+  }
+}

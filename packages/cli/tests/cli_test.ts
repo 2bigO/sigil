@@ -1234,7 +1234,7 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
  */
 Deno.test("compile preserves JSONL events and compiler status exits", async () => {
   const report: CompilationReport = {
-    reportVersion: 1,
+    reportVersion: 2,
     runId: "run-1",
     workspaceRoot: "/workspace",
     target: { kind: "workspace" },
@@ -1246,14 +1246,29 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
     profile: {
       name: "standard",
       contextBudgetChars: 900_000,
+      executionBudgets: {
+        elapsedTimeMs: 180_000,
+        maxCommands: 64,
+        maxCommandOutputChars: 200_000,
+        maxInputTokens: 200_000,
+        maxOutputTokens: 20_000,
+      },
       stages: [],
       fingerprint: "profile",
     },
     stages: [],
     diagnostics: [],
   };
-  const result = await runCli(["compile", ".", "--format", "jsonl"], {
+  let requestedStage: string | undefined;
+  const result = await runCli([
+    "compile",
+    "semantic-readiness",
+    ".",
+    "--format",
+    "jsonl",
+  ], {
     compiler: async (_workspace, _target, options) => {
+      requestedStage = options?.requestedStage;
       await options?.onEvent?.({
         protocolVersion: 1,
         runId: "run-1",
@@ -1268,6 +1283,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
   const event = JSON.parse(result.stdout.trim());
   assertEquals(event.type, "completed");
   assertEquals(event.payload.report.status, "yellow");
+  assertEquals(requestedStage, "semantic-readiness");
 });
 
 // @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,constraints,cases

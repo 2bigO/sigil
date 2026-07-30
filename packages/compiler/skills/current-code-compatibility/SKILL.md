@@ -1,5 +1,8 @@
 # Current-code compatibility
 
-Evaluate whether supplied implementation ownership and repository evidence are
-compatible with the Sigil contract. Distinguish observed drift from missing
-evidence. Do not generate code, execute commands, or edit files.
+Inspect the selected Sigil contract, implementation ownership annotations, and
+relevant repository files directly. Evaluate whether current implementation
+evidence is compatible with the contract. Distinguish observed drift from
+missing evidence. Read-only Sigil, search, text projection, and version-control
+inspection commands are allowed. Do not generate code, edit files, use the
+network, or run implementation experiments.

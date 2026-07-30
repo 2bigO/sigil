@@ -141,9 +141,10 @@ Options:
   --help              Show this help
 `,
   compile:
-    `Usage: sigil compile [path] [--component <name> | --file <file>] [options]
+    `Usage: sigil compile [stage] [path] [--component <name> | --file <file>] [options]
 
 Options:
+  stage               Run one stage and its dependency closure
   --component <name>  Compile one component
   --file <file>       Compile components represented by one file
   --profile <name>    Select a compilation profile (default: standard)
@@ -216,6 +217,7 @@ export async function runCli(
         target,
         {
           profile: parsed.request.profile,
+          requestedStage: parsed.request.stage,
           noHistory: parsed.request.noCache,
           output: parsed.request.output,
           signal: options.signal,

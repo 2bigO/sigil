@@ -10,10 +10,35 @@ export interface CompilerDiagnostic {
     readonly start: { readonly line: number; readonly column: number };
     readonly end: { readonly line: number; readonly column: number };
   };
+  readonly semanticSubjects: readonly DiagnosticSemanticSubject[];
+}
+
+export interface DiagnosticSemanticSubject {
+  readonly relation: "direct" | "governing" | "related";
+  readonly sigilPath: string;
+  readonly componentName: string;
+  readonly ownerKind: "component" | "expand";
+  readonly ownerName: string;
+  readonly sectionName:
+    | "goal"
+    | "interface"
+    | "state"
+    | "logic"
+    | "constraints"
+    | "decisions"
+    | "cases";
+  readonly conceptIdentifier?: string;
+  readonly semanticUnit?: {
+    readonly range: {
+      readonly start: { readonly line: number; readonly column: number };
+      readonly end: { readonly line: number; readonly column: number };
+    };
+    readonly fingerprint: string;
+  };
 }
 
 export interface CompilationReport {
-  readonly reportVersion: 1;
+  readonly reportVersion: 2;
   readonly status: "red" | "yellow" | "green";
   readonly componentNames: readonly string[];
   readonly diagnostics: readonly CompilerDiagnostic[];
@@ -126,7 +151,16 @@ export function componentAt(
 function isCompilationReport(value: unknown): value is CompilationReport {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const report = value as Record<string, unknown>;
-  return report.reportVersion === 1 &&
+  return report.reportVersion === 2 &&
     ["red", "yellow", "green"].includes(String(report.status)) &&
-    Array.isArray(report.componentNames) && Array.isArray(report.diagnostics);
+    Array.isArray(report.componentNames) && Array.isArray(report.diagnostics) &&
+    report.diagnostics.every(isCompilerDiagnostic);
+}
+
+function isCompilerDiagnostic(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const diagnostic = value as Record<string, unknown>;
+  return typeof diagnostic.code === "string" &&
+    typeof diagnostic.message === "string" &&
+    Array.isArray(diagnostic.semanticSubjects);
 }

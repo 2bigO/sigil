@@ -1,7 +1,7 @@
 {
   "id": "architecture-design",
   "version": "1.0.0",
-  "inputs": ["component-context", "dependency-contracts"],
+  "inputs": ["workspace-root", "component-target"],
   "dependencies": ["semantic-readiness"],
   "capabilities": ["read-workspace"],
   "rules": ["ARCHITECTURE_BOUNDARY", "DEPENDENCY_DIRECTION", "DESIGN_COHESION"],
