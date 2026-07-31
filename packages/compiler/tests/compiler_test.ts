@@ -55,7 +55,7 @@ Deno.test("compile discovers workspace config from a Sigil file path", async () 
       { kind: "workspace" },
       { adapter: new MockAdapter() },
     );
-    assertEquals(report.workspaceRoot, root);
+    assertEquals(report.workspaceRoot, root.replaceAll("\\", "/"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
