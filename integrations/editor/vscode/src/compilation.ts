@@ -4,6 +4,8 @@ import readline from "node:readline";
 export interface CompilerDiagnostic {
   readonly code: string;
   readonly severity: "error" | "warning" | "optimization" | "information";
+  readonly stage: string;
+  readonly lifecycle: "new" | "unchanged" | "resolved" | "regressed";
   readonly message: string;
   readonly filePath?: string;
   readonly range?: {
@@ -86,6 +88,7 @@ export function runCompilationProcess(
   let runId: string | undefined;
   let terminalType: string | undefined;
   let terminalMessage: string | undefined;
+  let activeStage: string | undefined;
 
   const result = new Promise<CompilationReport>((resolve, reject) => {
     child.once("error", reject);
@@ -102,8 +105,37 @@ export function runCompilationProcess(
         if (event.sequence === 1 && event.type !== "started") {
           throw new Error("Compilation event stream must begin with started.");
         }
+        if (event.sequence !== 1 && event.type === "started") {
+          throw new Error(
+            "Compilation event stream contains duplicate started.",
+          );
+        }
         if (terminalType) {
           throw new Error("Compilation event followed a terminal event.");
+        }
+        if (event.type === "stage-started") {
+          if (activeStage) {
+            throw new Error(
+              `Compilation stage ${activeStage} did not complete before another stage started.`,
+            );
+          }
+          activeStage = event.payload.stage as string;
+        } else if (event.type === "stage-completed") {
+          const stage = event.payload.stage as { readonly id: string };
+          if (!activeStage || stage.id !== activeStage) {
+            throw new Error(
+              "Compilation stage completed without its matching start event.",
+            );
+          }
+          activeStage = undefined;
+        } else if (event.type === "diagnostic" && !activeStage) {
+          throw new Error(
+            "Compilation diagnostic was emitted outside an active stage.",
+          );
+        } else if (event.type === "completed" && activeStage) {
+          throw new Error(
+            `Compilation completed before stage ${activeStage} ended.`,
+          );
         }
         onEvent(event);
         if (event.type === "completed") {
@@ -176,7 +208,8 @@ export function parseCompilationEvent(line: string): CompilationEvent {
     (event.type === "stage-started" && typeof payload.stage !== "string") ||
     (event.type === "stage-completed" &&
       (!payload.stage || typeof payload.stage !== "object" ||
-        Array.isArray(payload.stage))) ||
+        Array.isArray(payload.stage) ||
+        typeof (payload.stage as Record<string, unknown>).id !== "string")) ||
     (event.type === "diagnostic" &&
       !isCompilerDiagnostic(payload.diagnostic)) ||
     (event.type === "completed" && !isCompilationReport(payload.report)) ||
@@ -234,8 +267,12 @@ function isCompilerDiagnostic(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const diagnostic = value as Record<string, unknown>;
   return typeof diagnostic.code === "string" &&
+    typeof diagnostic.stage === "string" &&
     ["error", "warning", "optimization", "information"].includes(
       String(diagnostic.severity),
+    ) &&
+    ["new", "unchanged", "resolved", "regressed"].includes(
+      String(diagnostic.lifecycle),
     ) &&
     typeof diagnostic.message === "string" &&
     (diagnostic.filePath === undefined ||
@@ -264,6 +301,8 @@ function isSemanticSubject(value: unknown): boolean {
       "decisions",
       "cases",
     ].includes(String(subject.sectionName)) &&
+    (subject.conceptIdentifier === undefined ||
+      typeof subject.conceptIdentifier === "string") &&
     (subject.semanticUnit === undefined ||
       (!!subject.semanticUnit && typeof subject.semanticUnit === "object" &&
         !Array.isArray(subject.semanticUnit) &&

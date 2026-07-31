@@ -105,11 +105,32 @@ process.exitCode = 3;
   await assert.rejects(compilation.result, /Two evaluators are required/);
 });
 
+// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
+test("rejects invalid compiler stage lifecycle transitions", async () => {
+  const script = `
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:1,type:"started",payload:{}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage-completed",payload:{stage:{id:"semantic-readiness"}}}));
+`;
+  const compilation = runCompilationProcess(
+    process.execPath,
+    ["-e", script, "--"],
+    process.cwd(),
+    () => {},
+    () => {},
+  );
+  await assert.rejects(
+    compilation.result,
+    /completed without its matching start event/,
+  );
+});
+
 // @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
 test("projects a direct semantic unit as the diagnostic display range", () => {
   const diagnostic = {
     code: "ARCHITECTURE_BOUNDARY",
     severity: "error",
+    stage: "architecture-design",
+    lifecycle: "new",
     message: "Conflicting agent startup contract.",
     filePath: "packages/compiler/src/compiler.sigil",
     range: {
@@ -145,6 +166,8 @@ test("falls back to the physical diagnostic range without a direct unit", () => 
   const diagnostic = {
     code: "ARCHITECTURE_BOUNDARY",
     severity: "error",
+    stage: "architecture-design",
+    lifecycle: "new",
     message: "Conflicting agent startup contract.",
     filePath: "packages/compiler/src/compiler.sigil",
     range: {

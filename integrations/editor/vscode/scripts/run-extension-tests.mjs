@@ -36,5 +36,8 @@ await runTests({
     path.join(repository, "examples/slotted"),
     "--disable-extensions",
   ],
-  extensionTestsEnv: { SIGIL_REPO_ROOT: repository },
+  extensionTestsEnv: {
+    SIGIL_REPO_ROOT: repository,
+    SIGIL_TEST_NODE: process.execPath,
+  },
 });

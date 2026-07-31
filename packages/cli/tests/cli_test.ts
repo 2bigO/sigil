@@ -2034,6 +2034,31 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
   assertEquals(event.type, "completed");
   assertEquals(event.payload.report.status, "yellow");
   assertEquals(requestedStage, "semantic-readiness");
+
+  const resolvedReport: CompilationReport = {
+    ...report,
+    status: "green",
+    diagnostics: [{
+      code: "SEMANTIC_AMBIGUITY",
+      fingerprint: "finding",
+      severity: "warning",
+      stage: "semantic-readiness",
+      skill: "semantic-readiness@1",
+      message: "The ambiguity was corrected.",
+      filePath: "main.sigil",
+      semanticSubjects: [],
+      evidence: "The prior report contained the finding.",
+      impact: "No current impact remains.",
+      correction: "No further correction is required.",
+      evaluator: "default",
+      lifecycle: "resolved",
+    }],
+  };
+  const human = await runCli(["compile", "--no-cache"], {
+    compiler: () => Promise.resolve(resolvedReport),
+  });
+  assertEquals(human.exitCode, EXIT_OK);
+  assert(human.stdout.includes("resolved warning SEMANTIC_AMBIGUITY"));
 });
 
 // @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,constraints,cases

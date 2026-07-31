@@ -351,7 +351,7 @@ function formatCompilation(report: CompilationReport): string {
       } `
       : "";
     lines.push(
-      `${diagnostic.severity} ${diagnostic.code}: ${location}${diagnostic.message}`,
+      `${diagnostic.lifecycle} ${diagnostic.severity} ${diagnostic.code}: ${location}${diagnostic.message}`,
     );
   }
   return `${lines.join("\n")}\n`;

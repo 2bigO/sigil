@@ -7,6 +7,8 @@ import * as vscode from "vscode";
 export async function run(): Promise<void> {
   const repository = process.env.SIGIL_REPO_ROOT;
   assert(repository, "SIGIL_REPO_ROOT is required");
+  const testNode = process.env.SIGIL_TEST_NODE;
+  assert(testNode, "SIGIL_TEST_NODE is required");
   const source = vscode.Uri.file(
     path.join(repository, "examples/slotted/auth.sigil"),
   );
@@ -99,15 +101,43 @@ export async function run(): Promise<void> {
   try {
     const argumentsPath = path.join(fakeCompilerDirectory, "arguments.json");
     const executablePath = path.join(fakeCompilerDirectory, "sigil");
+    const compilerScriptPath = path.join(
+      fakeCompilerDirectory,
+      "compiler.cjs",
+    );
     const report = {
       reportVersion: 2,
-      status: "green",
+      status: "yellow",
       componentNames: ["Auth"],
-      diagnostics: [],
+      diagnostics: [{
+        code: "SEMANTIC_AMBIGUITY",
+        severity: "warning",
+        stage: "semantic-readiness",
+        lifecycle: "new",
+        message: "The test finding is active.",
+        filePath: "auth.sigil",
+        range: {
+          start: { line: 1, column: 1 },
+          end: { line: 1, column: 2 },
+        },
+        semanticSubjects: [],
+      }, {
+        code: "SEMANTIC_RESOLVED",
+        severity: "warning",
+        stage: "semantic-readiness",
+        lifecycle: "resolved",
+        message: "The test finding was corrected.",
+        filePath: "auth.sigil",
+        range: {
+          start: { line: 1, column: 1 },
+          end: { line: 1, column: 2 },
+        },
+        semanticSubjects: [],
+      }],
     };
     await writeFile(
-      executablePath,
-      `#!/usr/bin/env node
+      compilerScriptPath,
+      `
 const fs = require("node:fs");
 fs.writeFileSync(${
         JSON.stringify(argumentsPath)
@@ -116,6 +146,12 @@ console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:1,type
 console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type:"completed",payload:{report:${
         JSON.stringify(report)
       }}}));
+`,
+    );
+    await writeFile(
+      executablePath,
+      `#!/bin/sh
+exec "$SIGIL_TEST_NODE" ${JSON.stringify(compilerScriptPath)} "$@"
 `,
     );
     await chmod(executablePath, 0o755);
@@ -144,6 +180,42 @@ console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type
         "standard",
       ],
     );
+    assert(
+      vscode.languages.getDiagnostics(source).some((item) =>
+        item.source === "sigil compile" &&
+        item.code === "SEMANTIC_AMBIGUITY"
+      ),
+      "Expected the active compiler finding to be projected",
+    );
+    assert(
+      !vscode.languages.getDiagnostics(source).some((item) =>
+        item.source === "sigil compile" &&
+        item.code === "SEMANTIC_RESOLVED"
+      ),
+      "Resolved compiler findings must not remain active editor problems",
+    );
+
+    await rm(argumentsPath, { force: true });
+    assert(
+      await editor.edit((edit) => {
+        edit.insert(document.positionAt(document.getText().length), "\n");
+      }),
+      "Expected the document edit to succeed",
+    );
+    await eventually(() =>
+      vscode.languages.getDiagnostics(source).some((item) =>
+          item.source === "sigil compile"
+        )
+        ? []
+        : [true]
+    );
+    await vscode.commands.executeCommand("sigil.compileComponent");
+    await assert.rejects(
+      readFile(argumentsPath, "utf8"),
+      /ENOENT/,
+      "Dirty Sigil documents must not invoke the external compiler",
+    );
+    await vscode.commands.executeCommand("workbench.action.files.revert");
   } finally {
     await compileConfiguration.update(
       "executable",

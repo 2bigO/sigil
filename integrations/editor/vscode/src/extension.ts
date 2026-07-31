@@ -21,6 +21,8 @@ const COMPILE_COMPONENT_COMMAND = "sigil.compileComponent";
 const COMPILE_WORKSPACE_COMMAND = "sigil.compileWorkspace";
 let client: LanguageClient | undefined;
 let activeCompilation: CompilationProcess | undefined;
+let displayedCompilationRoot: string | undefined;
+const workspaceRevisions = new Map<string, number>();
 
 // @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
@@ -52,6 +54,8 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  displayedCompilationRoot = undefined;
+  workspaceRevisions.clear();
   const output = vscode.window.createOutputChannel("Sigil", { log: true });
   const previews = new PreviewContentProvider();
   const compilationDiagnostics = vscode.languages.createDiagnosticCollection(
@@ -110,6 +114,20 @@ export async function activate(
         vscode.window.activeTextEditor?.document.uri,
       );
     }),
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      if (
+        event.document.languageId !== "sigil" ||
+        event.document.uri.scheme !== "file" ||
+        event.contentChanges.length === 0
+      ) return;
+      const folder = vscode.workspace.getWorkspaceFolder(event.document.uri);
+      if (!folder) return;
+      const key = folder.uri.toString();
+      workspaceRevisions.set(key, (workspaceRevisions.get(key) ?? 0) + 1);
+      if (displayedCompilationRoot === key) {
+        markCompilationStale(compilationDiagnostics, compilationStatus);
+      }
+    }),
   );
 
   const serverModule = context.asAbsolutePath(path.join("dist", "server.js"));
@@ -145,6 +163,8 @@ export async function activate(
 export async function deactivate(): Promise<void> {
   activeCompilation?.cancel();
   activeCompilation = undefined;
+  displayedCompilationRoot = undefined;
+  workspaceRevisions.clear();
   const running = client;
   client = undefined;
   if (running?.isRunning()) await running.stop();
@@ -169,8 +189,20 @@ async function compileFromEditor(
     );
     return;
   }
+  const dirtyDocument = dirtySigilDocument(folder);
+  if (dirtyDocument) {
+    activeCompilation?.cancel();
+    activeCompilation = undefined;
+    void vscode.window.showWarningMessage(
+      `Save ${path.basename(dirtyDocument.uri.fsPath)} before compiling Sigil.`,
+    );
+    return;
+  }
+  const folderKey = folder.uri.toString();
+  const startingRevision = workspaceRevisions.get(folderKey) ?? 0;
   activeCompilation?.cancel();
   diagnostics.clear();
+  displayedCompilationRoot = undefined;
   const configuration = vscode.workspace.getConfiguration("sigil.compile");
   const executable = configuration.get<string>("executable", "sigil");
   const profile = configuration.get<string>("profile", "standard");
@@ -188,6 +220,10 @@ async function compileFromEditor(
     const report = await process.result;
     if (activeCompilation !== process) return;
     projectCompilationReport(report, diagnostics, status, folder.uri);
+    displayedCompilationRoot = folderKey;
+    if ((workspaceRevisions.get(folderKey) ?? 0) !== startingRevision) {
+      markCompilationStale(diagnostics, status);
+    }
     output.show(true);
   } catch (error) {
     if (activeCompilation !== process) return;
@@ -208,6 +244,29 @@ async function compileFromEditor(
     if (activeCompilation === process) activeCompilation = undefined;
   }
   void context;
+}
+
+function dirtySigilDocument(
+  folder: vscode.WorkspaceFolder,
+): vscode.TextDocument | undefined {
+  const folderKey = folder.uri.toString();
+  return vscode.workspace.textDocuments.find((document) =>
+    document.isDirty &&
+    document.languageId === "sigil" &&
+    document.uri.scheme === "file" &&
+    vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString() ===
+      folderKey
+  );
+}
+
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,cases
+function markCompilationStale(
+  diagnostics: vscode.DiagnosticCollection,
+  status: vscode.StatusBarItem,
+): void {
+  diagnostics.clear();
+  status.text = "$(warning) Sigil stale";
+  status.tooltip = "Sigil sources changed after the displayed compilation.";
 }
 
 async function selectCompilationFolder(
@@ -261,6 +320,7 @@ function projectCompilationReport(
 ): void {
   const byUri = new Map<string, vscode.Diagnostic[]>();
   for (const item of report.diagnostics) {
+    if (item.lifecycle === "resolved") continue;
     if (!item.filePath) continue;
     const uri = path.isAbsolute(item.filePath)
       ? vscode.Uri.file(item.filePath)
@@ -294,9 +354,11 @@ function projectCompilationReport(
     ? "$(warning)"
     : "$(error)";
   status.text = `${icon} Sigil ${report.status}`;
+  const activeFindingCount =
+    report.diagnostics.filter((item) => item.lifecycle !== "resolved").length;
   status.tooltip = `${
     report.componentNames.join(", ") || "Workspace"
-  }: ${report.diagnostics.length} findings`;
+  }: ${activeFindingCount} active findings`;
 }
 
 async function showComponentPreview(

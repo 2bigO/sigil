@@ -2,6 +2,7 @@ import {
   CodexAdapter,
   type CompilationEvent,
   compile,
+  FileCompilationHistoryStore,
   MockAdapter,
 } from "../src/mod.ts";
 import { assertEquals, assertMatch, assertRejects } from "@std/assert";
@@ -445,6 +446,50 @@ Deno.test("history derives unchanged, resolved, and regressed lifecycle", async 
     );
   } finally {
     await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationHistory constraints,cases
+Deno.test("corrupt compilation history is ignored", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`);
+  const historyDirectory = await Deno.makeTempDir();
+  try {
+    const key = "corrupt";
+    await Deno.writeTextFile(
+      `${historyDirectory}/${key}.json`,
+      JSON.stringify({
+        reportVersion: 2,
+        runId: "prior",
+        workspaceRoot: root,
+        target: { kind: "workspace" },
+        componentNames: ["Example"],
+        status: "yellow",
+        startedAt: "2026-01-01T00:00:00.000Z",
+        completedAt: "2026-01-01T00:00:01.000Z",
+        sourceFingerprint: "source",
+        profile: { fingerprint: "profile" },
+        stages: [],
+        diagnostics: [null],
+      }),
+    );
+    assertEquals(
+      await new FileCompilationHistoryStore(historyDirectory).read(key),
+      undefined,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+    await Deno.remove(historyDirectory, { recursive: true });
   }
 });
 
