@@ -36,6 +36,10 @@ component SigilProjections {
       contracts, direct dependency decision sections, and related source paths, or
       undefined
     }
+
+    AgentDependentContext {
+      agentDependentContextFor(resolvedWorkspace, componentName) returns direct importing-file context for the selected component, or undefined
+    }
   }
 }
 
@@ -70,6 +74,14 @@ expand SigilProjections {
       Include only decisions sections from each direct dependency's collected
       expansions.
     }
+
+    AgentDependentContext {
+      Resolve direct importing files from imported-component graph edges targeting the selected component name and file.
+
+      Preserve deterministic ordering by importing file path and imported-component edge identity.
+
+      Project public contracts declared in each importing file only as contextual contracts.
+    }
   }
 
   constraints {
@@ -96,6 +108,14 @@ expand SigilProjections {
       Transitive dependency decisions and direct dependency state, logic,
       constraints, cases, and private concepts remain excluded by default.
     }
+
+    AgentDependentContext {
+      Dependent context is derived from resolved graph data without filesystem access, parsing, or semantic inference.
+
+      A component declared in an importing file is contextual information and is not a proven dependent.
+
+      Only direct importing files contribute dependent context.
+    }
   }
 
   decisions {
@@ -112,6 +132,18 @@ expand SigilProjections {
 
       Revisit when: Typical dependency decision sets become too large or evidence
       shows that automatic rationale reduces agent accuracy.
+    }
+
+    AgentDependentContext {
+      Decision: Derive dependent context from resolved imported-component graph edges as file-level importing context.
+
+      Scope: Applies to optional agent context for selected components and excludes resolver changes, graph generation changes, source reparsing, and inferred component-level dependency claims.
+
+      Trade-offs: File-level context may include components that do not actually depend on the selected component, but avoids unsupported semantic inference and preserves deterministic structural behavior.
+
+      Consequences: Consumers must treat declared components in importing files as contextual contracts only, not proven dependents.
+
+      Revisit when: Sigil represents component-level import ownership rather than file-level import declarations.
     }
   }
 
@@ -141,6 +173,20 @@ expand SigilProjections {
       public contract.
 
       A transitive dependency contributes no decisions unless selected explicitly.
+    }
+
+    AgentDependentContext {
+      Selecting a component with importing files reports each direct importing file once.
+
+      Duplicate import edges do not duplicate an importing file.
+
+      An importing file with multiple component declarations reports each declaration as contextual contract information.
+
+      An importing file with no component declarations still reports the importing file and import-edge information.
+
+      A component with no direct importing files reports an empty dependent context.
+
+      Import cycles do not make the selected component its own dependent.
     }
   }
 }

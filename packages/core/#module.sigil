@@ -60,6 +60,9 @@ component SigilCore {
       agentDependencyContextFor(resolvedWorkspace, componentName) returns bounded
       agent context containing direct dependency contracts and rationale
 
+      agentDependentContextFor(resolvedWorkspace, componentName) returns direct
+      importing-file context derived from imported-component graph edges
+
       ownedImplementationTargetsFor(resolvedWorkspace, implementationSources,
       componentName, conceptName?, sectionName?) returns implementation targets
       linked to that Sigil contract from implementation comments

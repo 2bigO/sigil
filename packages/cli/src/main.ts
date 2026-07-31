@@ -134,6 +134,8 @@ Options:
 Options:
   --component <name>  Select a component
   --file <file>       Select a Sigil file
+  --include-dependents
+                      Include direct importing-file context for --component
   --root <path>       Use an explicit workspace root
   --format <value>    Output json, text, or markdown
   --pretty            Pretty-print JSON output
