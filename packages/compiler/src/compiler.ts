@@ -243,6 +243,8 @@ export async function compile(
               stage: stage.id,
               skill: definition.skill.guidance,
               allowedRules: definition.skill.manifest.rules,
+              implementationEvidence:
+                definition.skill.manifest.implementationEvidence,
               workspaceRoot: workspace.root,
               target: evaluationTarget(resolved, component, workspace.root),
               capabilities: INSPECTION_CAPABILITIES,

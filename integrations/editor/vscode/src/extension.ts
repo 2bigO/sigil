@@ -19,9 +19,12 @@ const PREVIEW_COMMAND = "sigil.showComponentPreview";
 const PREVIEW_SCHEME = "sigil-preview";
 const COMPILE_COMPONENT_COMMAND = "sigil.compileComponent";
 const COMPILE_WORKSPACE_COMMAND = "sigil.compileWorkspace";
+const SELECT_COMPILATION_FOCUS_COMMAND = "sigil.selectCompilationFocus";
+type CompilationFocus = "design" | "implementation";
 let client: LanguageClient | undefined;
 let activeCompilation: CompilationProcess | undefined;
 let displayedCompilationRoot: string | undefined;
+let displayedCompilationFocus: CompilationFocus | undefined;
 const workspaceRevisions = new Map<string, number>();
 
 // @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
@@ -50,11 +53,13 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
  * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::SupportedExtensionHosts interface,constraints,cases
  * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ReadOnlyEditorSupport interface,constraints
  * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,logic,constraints
+ * @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface interface,state,logic,constraints,cases
  */
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
   displayedCompilationRoot = undefined;
+  displayedCompilationFocus = undefined;
   workspaceRevisions.clear();
   const output = vscode.window.createOutputChannel("Sigil", { log: true });
   const previews = new PreviewContentProvider();
@@ -66,9 +71,9 @@ export async function activate(
     90,
   );
   compilationStatus.name = "Sigil Compilation";
-  compilationStatus.command = COMPILE_COMPONENT_COMMAND;
-  compilationStatus.text = "$(play) Sigil Compile";
-  compilationStatus.tooltip = "Compile the active Sigil component";
+  compilationStatus.command = SELECT_COMPILATION_FOCUS_COMMAND;
+  compilationStatus.text = "$(play) Sigil Compile $(chevron-down)";
+  compilationStatus.tooltip = "Select Sigil compilation focus";
   compilationStatus.show();
   context.subscriptions.push(
     output,
@@ -81,39 +86,98 @@ export async function activate(
     vscode.commands.registerCommand(PREVIEW_COMMAND, async () => {
       await showComponentPreview(previews);
     }),
-    vscode.commands.registerCommand(COMPILE_COMPONENT_COMMAND, async () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor || editor.document.languageId !== "sigil") {
-        await vscode.window.showInformationMessage(
-          "Open a Sigil document to compile its component.",
+    vscode.commands.registerCommand(
+      COMPILE_COMPONENT_COMMAND,
+      async (requestedFocus?: CompilationFocus) => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== "sigil") {
+          await vscode.window.showInformationMessage(
+            "Open a Sigil document to compile its component.",
+          );
+          return;
+        }
+        const focus = requestedFocus ?? await resolveCompilationFocus();
+        if (!focus) return;
+        const position = editor.selection.active;
+        await compileFromEditor(
+          context,
+          output,
+          compilationDiagnostics,
+          compilationStatus,
+          [
+            "--file",
+            editor.document.uri.fsPath,
+            "--position",
+            `${position.line + 1}:${position.character + 1}`,
+          ],
+          focus,
+          editor.document.uri,
         );
-        return;
-      }
-      const position = editor.selection.active;
-      await compileFromEditor(
-        context,
-        output,
-        compilationDiagnostics,
-        compilationStatus,
-        [
-          "--file",
-          editor.document.uri.fsPath,
-          "--position",
-          `${position.line + 1}:${position.character + 1}`,
-        ],
-        editor.document.uri,
-      );
-    }),
-    vscode.commands.registerCommand(COMPILE_WORKSPACE_COMMAND, async () => {
-      await compileFromEditor(
-        context,
-        output,
-        compilationDiagnostics,
-        compilationStatus,
-        [],
-        vscode.window.activeTextEditor?.document.uri,
-      );
-    }),
+      },
+    ),
+    vscode.commands.registerCommand(
+      COMPILE_WORKSPACE_COMMAND,
+      async (requestedFocus?: CompilationFocus) => {
+        const focus = requestedFocus ?? await resolveCompilationFocus();
+        if (!focus) return;
+        await compileFromEditor(
+          context,
+          output,
+          compilationDiagnostics,
+          compilationStatus,
+          [],
+          focus,
+          vscode.window.activeTextEditor?.document.uri,
+        );
+      },
+    ),
+    vscode.commands.registerCommand(
+      SELECT_COMPILATION_FOCUS_COMMAND,
+      async () => {
+        const selected = await vscode.window.showQuickPick([
+          {
+            label: "$(symbol-interface) Design readiness",
+            description: "Active component",
+            command: COMPILE_COMPONENT_COMMAND,
+            focus: "design" as const,
+          },
+          {
+            label: "$(references) Implementation alignment",
+            description: "Active component",
+            command: COMPILE_COMPONENT_COMMAND,
+            focus: "implementation" as const,
+          },
+          {
+            label: "$(project) Design readiness",
+            description: "Workspace",
+            command: COMPILE_WORKSPACE_COMMAND,
+            focus: "design" as const,
+          },
+          {
+            label: "$(project) Implementation alignment",
+            description: "Workspace",
+            command: COMPILE_WORKSPACE_COMMAND,
+            focus: "implementation" as const,
+          },
+          {
+            label: "$(gear) Configure profile…",
+            description: "Open Sigil compilation settings",
+            command: "workbench.action.openSettings",
+          },
+        ], {
+          placeHolder: "Select the Sigil compilation focus",
+        });
+        if (!selected) return;
+        if (selected.command === "workbench.action.openSettings") {
+          await vscode.commands.executeCommand(
+            selected.command,
+            "sigil.compile",
+          );
+          return;
+        }
+        await vscode.commands.executeCommand(selected.command, selected.focus);
+      },
+    ),
     vscode.workspace.onDidChangeTextDocument((event) => {
       if (
         event.document.languageId !== "sigil" ||
@@ -125,7 +189,11 @@ export async function activate(
       const key = folder.uri.toString();
       workspaceRevisions.set(key, (workspaceRevisions.get(key) ?? 0) + 1);
       if (displayedCompilationRoot === key) {
-        markCompilationStale(compilationDiagnostics, compilationStatus);
+        markCompilationStale(
+          compilationDiagnostics,
+          compilationStatus,
+          displayedCompilationFocus,
+        );
       }
     }),
   );
@@ -164,6 +232,7 @@ export async function deactivate(): Promise<void> {
   activeCompilation?.cancel();
   activeCompilation = undefined;
   displayedCompilationRoot = undefined;
+  displayedCompilationFocus = undefined;
   workspaceRevisions.clear();
   const running = client;
   client = undefined;
@@ -180,6 +249,7 @@ async function compileFromEditor(
   diagnostics: vscode.DiagnosticCollection,
   status: vscode.StatusBarItem,
   targetArgs: readonly string[],
+  focus: CompilationFocus,
   preferredUri?: vscode.Uri,
 ): Promise<void> {
   const folder = await selectCompilationFolder(preferredUri);
@@ -203,14 +273,24 @@ async function compileFromEditor(
   activeCompilation?.cancel();
   diagnostics.clear();
   displayedCompilationRoot = undefined;
+  displayedCompilationFocus = undefined;
   const configuration = vscode.workspace.getConfiguration("sigil.compile");
   const executable = configuration.get<string>("executable", "sigil");
   const profile = configuration.get<string>("profile", "standard");
-  status.text = "$(sync~spin) Sigil compiling";
-  status.tooltip = `Profile: ${profile}`;
+  const label = compilationFocusLabel(focus);
+  status.text = `$(sync~spin) Sigil ${label}…`;
+  status.tooltip = `Focus: ${label}\nProfile: ${profile}`;
   const process = runCompilationProcess(
     executable,
-    ["compile", folder.uri.fsPath, ...targetArgs, "--profile", profile],
+    [
+      "compile",
+      folder.uri.fsPath,
+      ...targetArgs,
+      "--profile",
+      profile,
+      "--focus",
+      focus,
+    ],
     folder.uri.fsPath,
     (event) => showCompilationEvent(output, event),
     (line) => output.info(line),
@@ -219,15 +299,23 @@ async function compileFromEditor(
   try {
     const report = await process.result;
     if (activeCompilation !== process) return;
-    projectCompilationReport(report, diagnostics, status, folder.uri);
+    projectCompilationReport(
+      report,
+      diagnostics,
+      status,
+      folder.uri,
+      focus,
+      profile,
+    );
     displayedCompilationRoot = folderKey;
+    displayedCompilationFocus = focus;
     if ((workspaceRevisions.get(folderKey) ?? 0) !== startingRevision) {
-      markCompilationStale(diagnostics, status);
+      markCompilationStale(diagnostics, status, focus);
     }
     output.show(true);
   } catch (error) {
     if (activeCompilation !== process) return;
-    status.text = "$(error) Sigil compile failed";
+    status.text = `$(error) Sigil ${label}: failed`;
     const message = error instanceof Error ? error.message : String(error);
     output.error(message);
     const action = await vscode.window.showErrorMessage(
@@ -244,6 +332,36 @@ async function compileFromEditor(
     if (activeCompilation === process) activeCompilation = undefined;
   }
   void context;
+}
+
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,constraints,cases
+async function resolveCompilationFocus(): Promise<
+  CompilationFocus | undefined
+> {
+  const configured = vscode.workspace.getConfiguration("sigil.compile").get<
+    "ask" | CompilationFocus
+  >("focus", "ask");
+  if (configured !== "ask") return configured;
+  const selected = await vscode.window.showQuickPick([
+    {
+      label: "Design readiness",
+      description: "Evaluate desired Sigil without implementation drift",
+      focus: "design" as const,
+    },
+    {
+      label: "Implementation alignment",
+      description: "Compare current implementation with desired Sigil",
+      focus: "implementation" as const,
+    },
+  ], {
+    placeHolder: "Select the Sigil compilation focus",
+  });
+  return selected?.focus;
+}
+
+// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,cases
+export function compilationFocusLabel(focus: CompilationFocus): string {
+  return focus === "design" ? "Design" : "Implementation";
 }
 
 function dirtySigilDocument(
@@ -263,9 +381,11 @@ function dirtySigilDocument(
 function markCompilationStale(
   diagnostics: vscode.DiagnosticCollection,
   status: vscode.StatusBarItem,
+  focus?: CompilationFocus,
 ): void {
   diagnostics.clear();
-  status.text = "$(warning) Sigil stale";
+  const label = focus ? ` ${compilationFocusLabel(focus)}` : "";
+  status.text = `$(warning) Sigil${label}: stale`;
   status.tooltip = "Sigil sources changed after the displayed compilation.";
 }
 
@@ -317,6 +437,8 @@ function projectCompilationReport(
   collection: vscode.DiagnosticCollection,
   status: vscode.StatusBarItem,
   root: vscode.Uri,
+  focus: CompilationFocus,
+  profile: string,
 ): void {
   const byUri = new Map<string, vscode.Diagnostic[]>();
   for (const item of report.diagnostics) {
@@ -353,10 +475,16 @@ function projectCompilationReport(
     : report.status === "yellow"
     ? "$(warning)"
     : "$(error)";
-  status.text = `${icon} Sigil ${report.status}`;
+  const label = compilationFocusLabel(focus);
+  const outcome = report.status === "green"
+    ? focus === "design" ? "ready" : "aligned"
+    : report.status === "yellow"
+    ? focus === "design" ? "warnings" : "drift"
+    : "blocked";
+  status.text = `${icon} Sigil ${label}: ${outcome}`;
   const activeFindingCount =
     report.diagnostics.filter((item) => item.lifecycle !== "resolved").length;
-  status.tooltip = `${
+  status.tooltip = `Focus: ${label}\nProfile: ${profile}\n${
     report.componentNames.join(", ") || "Workspace"
   }: ${activeFindingCount} active findings`;
 }

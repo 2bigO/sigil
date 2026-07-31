@@ -86,6 +86,7 @@ export interface ContextRequest extends GlobalOptions {
 export interface CompileRequest extends GlobalOptions {
   readonly command: "compile";
   readonly stage?: string;
+  readonly focus?: "design" | "implementation";
   readonly component?: string;
   readonly file?: string;
   readonly position?: {
@@ -116,7 +117,10 @@ export type ParseArgsResult = {
   readonly kind: "cli-version";
 } | UsageError;
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
+/*
+ * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ */
 export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (argv[0] === "--help") return { kind: "help", helpTopic: "root" };
   if (argv[0] === "--version") return { kind: "cli-version" };
@@ -169,6 +173,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let project = false;
   let agent: SkillAgent | "all" | undefined;
   let profile: string | undefined;
+  let focus: CompileRequest["focus"];
   let noCache = false;
   let output: string | undefined;
   let check = false;
@@ -252,6 +257,18 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         profile = value;
         break;
       }
+      case "--focus": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        if (value !== "design" && value !== "implementation") {
+          return usage(
+            "--focus must be design or implementation.",
+            commandHelpTopic,
+          );
+        }
+        focus = value;
+        break;
+      }
       case "--no-cache":
         noCache = true;
         break;
@@ -332,7 +349,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (
     commandName !== "compile" &&
-    (profile || noCache || output || format === "jsonl")
+    (profile || focus || noCache || output || format === "jsonl")
   ) {
     return usage(
       `${commandName} does not accept compile options.`,
@@ -462,6 +479,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       ? positional[0]
       : undefined;
     const paths = stage ? positional.slice(1) : positional;
+    if (stage && focus) {
+      return usage(
+        "compile accepts either a positional stage or --focus, not both.",
+        "compile",
+      );
+    }
     if (paths.length > 1) {
       return usage(
         "compile accepts an optional stage followed by at most one path.",
@@ -491,6 +514,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       request: {
         command: "compile",
         stage,
+        focus,
         component,
         file,
         position,

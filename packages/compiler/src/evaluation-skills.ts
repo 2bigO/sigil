@@ -5,6 +5,7 @@ export interface EvaluationSkillManifest {
   readonly dependencies: readonly string[];
   readonly capabilities: readonly string[];
   readonly rules: readonly string[];
+  readonly implementationEvidence: "context-only" | "compare";
   readonly output: "compiler-findings-v1";
 }
 
@@ -46,7 +47,11 @@ const EMBEDDED_SKILLS: Readonly<
   },
 };
 
-// @sigil implements packages/compiler/#module.sigil::SigilCompiler::EvaluationSkillPackage logic,constraints,cases
+/*
+ * @sigil implements packages/compiler/#module.sigil::SigilCompiler::EvaluationSkillPackage logic,constraints,cases
+ * @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
+ * @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ArchitectureModularityAndGraphHarmony logic,constraints,cases
+ */
 export async function loadEvaluationSkills(
   skillRoot?: URL,
 ): Promise<ReadonlyMap<string, EvaluationSkillPackage>> {
@@ -82,6 +87,7 @@ export async function loadEvaluationSkills(
   return packages;
 }
 
+// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
 function validateManifest(
   value: unknown,
   expectedId: string,
@@ -119,6 +125,13 @@ function validateManifest(
   if (!(item.capabilities as string[]).includes("read-workspace")) {
     throw new Error(
       `Evaluation skill ${expectedId} must declare read-workspace capability.`,
+    );
+  }
+  if (
+    !["context-only", "compare"].includes(String(item.implementationEvidence))
+  ) {
+    throw new Error(
+      `Evaluation skill ${expectedId}.implementationEvidence must be context-only or compare.`,
     );
   }
   if (item.output !== "compiler-findings-v1") {

@@ -57,11 +57,14 @@ component SigilVsCodeExtension {
     CompilationSurface {
       contributes the Sigil: Compile Component and Sigil: Compile Workspace commands
 
+      provides a clickable Sigil Compilation status item for selecting design
+      readiness or implementation alignment
+
       invokes a compatible external sigil compile process instead of bundling
       SigilCompiler
 
-      displays compilation progress, red, yellow, or green status, and source-ranged
-      findings from the authoritative CompilationReport
+      displays focus-aware compilation progress, red, yellow, or green status, and
+      source-ranged findings from the authoritative CompilationReport
 
       groups findings by component, stage, severity, and lifecycle
     }
@@ -84,7 +87,11 @@ expand SigilVsCodeExtension {
       failed, or superseded.
 
       The displayed report is current or stale relative to the active document and
-      selected profile.
+      selected profile and focus.
+
+      The configured compilation focus is ask, design, or implementation.
+
+      The displayed focus is design or implementation when a focused result exists.
     }
   }
 
@@ -119,6 +126,16 @@ expand SigilVsCodeExtension {
       sigil compile for compiler-owned component resolution.
 
       Compile Workspace invokes external sigil compile for the configured workspace.
+
+      ask presents design readiness and implementation alignment before invoking
+      compilation.
+
+      design invokes the CLI with --focus design and implementation invokes it with
+      --focus implementation.
+
+      Clicking the compilation status item always permits explicit focus selection
+      for the active component and provides workspace compilation and profile
+      configuration actions.
 
       Component compilation uses the workspace folder containing the active document.
 
@@ -183,6 +200,9 @@ expand SigilVsCodeExtension {
       Deterministic LSP diagnostics remain live independently from agentic
       compilation.
 
+      Focus selection is invocation-level editor control and does not create Git
+      metadata, implementation attestations, or persistent workflow state.
+
       The VSIX does not bundle SigilCompiler or require it for ordinary language
       support.
 
@@ -191,6 +211,11 @@ expand SigilVsCodeExtension {
 
       The extension does not reinterpret compiler findings or compute compilation
       color independently.
+
+      The extension labels status with the focus it invoked and displays only
+      findings returned by that focus's authoritative report.
+
+      Design focus does not invoke or display current-code-compatibility findings.
 
       The extension invokes JSON Lines mode, validates protocol compatibility and
       event ordering, and accepts the final CompilationReport only from a completed
@@ -303,6 +328,28 @@ expand SigilVsCodeExtension {
       Consequences: Editing remains responsive and does not incur unexpected agent
       cost or latency.
     }
+
+    UserSelectedCompilationFocus {
+      Decision: Make the clickable compilation status item and compile commands offer
+      design readiness or implementation alignment, with ask as the default
+      configured focus.
+
+      Scope: Governs VS Code focus selection, CLI invocation, and focus-aware status
+      presentation; excludes compiler stage semantics, Git integration, and workflow
+      lifecycle.
+
+      Trade-offs: ask adds one selection step while explicit default settings remain
+      available for frequent use.
+
+      Design issues addressed: One unlabeled red, yellow, or green status conflates
+      desired-contract quality with current implementation alignment.
+
+      Discarded alternatives: Inferring focus from repository drift, storing
+      implementation completion, and computing editor-owned status were rejected.
+
+      Consequences: Users control the evaluated question from the status bar while
+      compiler color and findings remain authoritative.
+    }
   }
 
   cases {
@@ -346,8 +393,17 @@ expand SigilVsCodeExtension {
     }
 
     CompilationSurface {
-      Compiling the component under the cursor shows progress and then red, yellow,
-      or green status.
+      Selecting design readiness for the component under the cursor invokes design
+      focus and labels progress and the final status as Design.
+
+      Selecting implementation alignment invokes implementation focus and labels
+      progress and the final status as Implementation.
+
+      Cancelling ask leaves compilation and displayed findings unchanged.
+
+      A configured design or implementation focus lets component and workspace
+      commands run without asking while the clickable status item still permits an
+      explicit choice.
 
       Compiling from an expand-only file evaluates the component represented by that
       expand.
@@ -361,7 +417,10 @@ expand SigilVsCodeExtension {
       Recompiling after a correction marks resolved findings through the compiler
       report comparison.
 
-      Editing after a completed run marks its displayed report stale.
+      Editing after a completed run marks its focus-labeled displayed report stale.
+
+      Design focus never displays a current-code-compatibility finding because that
+      stage is outside its requested closure.
     }
   }
 }

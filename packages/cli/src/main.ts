@@ -154,6 +154,7 @@ Options:
   --file <file>       Compile components represented by one file
   --position <value>  Select the component enclosing one-based line:column
   --profile <name>    Select a compilation profile (default: standard)
+  --focus <value>     Evaluate design readiness or implementation alignment
   --no-cache          Do not consult compilation history
   --output <file>     Export the authoritative report
   --format <value>    Output text or jsonl
@@ -190,6 +191,7 @@ export interface CliRunOptions extends CommandHandlerOptions {
  * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
  * @sigil implements packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
  */
 export async function runCli(
   argv: readonly string[],
@@ -232,7 +234,12 @@ export async function runCli(
         target,
         {
           profile: parsed.request.profile,
-          requestedStage: parsed.request.stage,
+          requestedStage: parsed.request.stage ??
+            (parsed.request.focus === "design"
+              ? "architecture-design"
+              : parsed.request.focus === "implementation"
+              ? "current-code-compatibility"
+              : undefined),
           noHistory: parsed.request.noCache,
           history: parsed.request.noCache
             ? undefined

@@ -188,6 +188,7 @@ export interface AgentEvaluationRequest {
   readonly stage: string;
   readonly skill: string;
   readonly allowedRules: readonly string[];
+  readonly implementationEvidence: "context-only" | "compare";
   readonly workspaceRoot: string;
   readonly target: AgentEvaluationTarget;
   readonly capabilities: AgentCapabilityContract;

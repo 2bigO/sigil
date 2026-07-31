@@ -133,14 +133,14 @@ component SigilCli {
     }
 
     CompilationFacade {
-      sigil compile [path] [--component name | --file file] [--profile name]
-      [--no-cache] [--output file] [--format jsonl]
+      sigil compile [path] [--component name | --file file] [--profile name] [--focus
+      design|implementation] [--no-cache] [--output file] [--format jsonl]
 
       sigil compile stage-id [path] [--component name | --file file] [--profile name]
       [--no-cache] [--output file] [--format jsonl]
 
       sigil compile [path] --file file --position line:column [--profile name]
-      [--no-cache] [--output file] [--format jsonl]
+      [--focus design|implementation] [--no-cache] [--output file] [--format jsonl]
 
       compile presents human progress by default and exposes the structured compiler
       event and report protocol for automation
@@ -295,6 +295,12 @@ expand SigilCli {
       When the first compile operand exactly matches a known stage identifier,
       compile requests that stage and its compiler-resolved dependency closure.
 
+      --focus design requests architecture-design and its compiler-resolved
+      dependency closure.
+
+      --focus implementation requests current-code-compatibility and its
+      compiler-resolved dependency closure.
+
       compile preserves deterministic workspace diagnostics as compiler inputs rather
       than replacing or duplicating them.
     }
@@ -443,6 +449,15 @@ expand SigilCli {
 
       An exact known stage identifier is a reserved first compile operand; a
       colliding path uses an explicit relative or absolute path.
+
+      --focus accepts only design or implementation and is mutually exclusive with a
+      positional stage operand.
+
+      Omitting --focus and a positional stage preserves complete selected-profile
+      compilation.
+
+      --profile continues to select evaluators, budgets, capabilities, and profile
+      configuration while --focus selects a stage closure within that profile.
 
       --position requires --file and uses the line:column form with positive
       one-based integers.
@@ -643,6 +658,27 @@ expand SigilCli {
       invocation remains available without a breaking flag change.
     }
 
+    CompilationFocusSelection {
+      Decision: Add --focus design and --focus implementation as user-facing aliases
+      for architecture-design and current-code-compatibility stage closures.
+
+      Scope: Governs CLI compilation focus selection; excludes compiler stage
+      definitions, profile configuration, editor presentation, and workflow state.
+
+      Trade-offs: The CLI owns a small stable vocabulary that maps to compiler stage
+      identifiers.
+
+      Design issues addressed: Raw stage identifiers expose implementation detail and
+      make it unclear whether compilation is judging desired design or current code
+      alignment.
+
+      Discarded alternatives: Git state, implementation attestations, automatic
+      workflow transitions, and separate duplicate compiler skills were rejected.
+
+      Consequences: Users explicitly select the question for each invocation while
+      existing no-focus compilation remains compatible.
+    }
+
     CompilationExitStatus {
       Decision: Reserve compile exit code 0 for green, use code 1 for red or yellow,
       preserve usage and host-failure codes 2 and 3, and use code 130 for
@@ -794,6 +830,18 @@ expand SigilCli {
       dependency closure and excludes unrelated stages.
 
       Running sigil compile ./semantic-readiness treats the operand as a path.
+
+      Running sigil compile with --focus design requests architecture-design and
+      excludes current-code-compatibility.
+
+      Running sigil compile with --focus implementation requests
+      current-code-compatibility and its complete dependency closure.
+
+      Combining --focus with a positional stage or supplying an unknown focus exits
+      with invalid usage.
+
+      Running sigil compile without a focus or stage retains complete
+      selected-profile behavior.
 
       Cancelling compilation terminates delegated work and reports cancellation
       without changing workspace files.

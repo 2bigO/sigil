@@ -3,6 +3,7 @@ import {
   type CompilationEvent,
   compile,
   FileCompilationHistoryStore,
+  loadEvaluationSkills,
   MockAdapter,
 } from "../src/mod.ts";
 import { assertEquals, assertMatch, assertRejects } from "@std/assert";
@@ -31,6 +32,42 @@ async function workspace(
   }
   return root;
 }
+
+// @sigil tests packages/compiler/#module.sigil::SigilCompiler::EvaluationSkillPackage interface,logic,constraints,cases
+Deno.test("evaluation skills declare implementation evidence authority and modularity rules", async () => {
+  const skills = await loadEvaluationSkills();
+  assertEquals(
+    skills.get("semantic-readiness")?.manifest.implementationEvidence,
+    "context-only",
+  );
+  assertEquals(
+    skills.get("architecture-design")?.manifest.implementationEvidence,
+    "context-only",
+  );
+  assertEquals(
+    skills.get("current-code-compatibility")?.manifest.implementationEvidence,
+    "compare",
+  );
+  assertEquals(
+    skills.get("standards-risk")?.manifest.implementationEvidence,
+    "context-only",
+  );
+  const architectureRules = skills.get("architecture-design")?.manifest.rules ??
+    [];
+  for (
+    const rule of [
+      "COMPONENT_DECOMPOSITION",
+      "OWNERSHIP_BOUNDARY",
+      "INTERFACE_BOUNDARY",
+      "COUPLING",
+      "DEPENDENCY_CYCLE",
+      "MODULE_INDEX_SCOPE",
+      "IMPORTED_NAMESPACE_REUSE",
+    ]
+  ) {
+    assertEquals(architectureRules.includes(rule), true);
+  }
+});
 
 /*
  * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationInvocation interface
@@ -958,6 +995,7 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
       stage: "semantic-readiness",
       skill: "Inspect files.",
       allowedRules: ["SEMANTIC_AMBIGUITY"],
+      implementationEvidence: "context-only",
       workspaceRoot: root,
       target: {
         componentName: "Example",
@@ -996,6 +1034,11 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
     assertMatch(
       observedPrompt,
       /compiler owns semantic identity; do not invent\s+semantic subjects/,
+    );
+    assertMatch(observedPrompt, /Implementation evidence policy: context-only/);
+    assertMatch(
+      observedPrompt,
+      /do not report a finding solely because current implementation/,
     );
     assertMatch(result.commands[0].command, /rg -n/);
     assertEquals(result.usage?.inputTokens, 100);
@@ -1043,6 +1086,7 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
           stage: "semantic-readiness",
           skill: "Inspect files.",
           allowedRules: ["SEMANTIC_AMBIGUITY"],
+          implementationEvidence: "context-only",
           workspaceRoot: root,
           target: {
             componentName: "Example",

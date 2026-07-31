@@ -333,6 +333,21 @@
       ]
     },
     {
+      "term": "compilation focus",
+      "definition": "The user-selected design or implementation question that maps a compilation invocation to architecture-design or current-code-compatibility and its dependency closure.",
+      "aliases": ["compile focus"]
+    },
+    {
+      "term": "implementation-evidence policy",
+      "definition": "An evaluation-skill manifest value declaring whether implementation is contextual constraint evidence or is compared with desired Sigil.",
+      "aliases": ["implementation evidence policy"]
+    },
+    {
+      "term": "graph harmony",
+      "definition": "Qualitative coherence of ownership, dependency direction, coupling, decomposition, module-index scope, and imported namespace reuse across an inspected Sigil graph neighborhood.",
+      "aliases": ["graph-harmony"]
+    },
+    {
       "term": "critical-system",
       "definition": "An optional built-in compilation profile requiring standards and risk evaluation plus at least two distinct available evaluator identities.",
       "aliases": ["critical-system profile"]

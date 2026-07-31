@@ -20,6 +20,16 @@ Evaluate:
 - coherence between the selected component, expands, dependencies, dependency
   decisions, and affected importers.
 
+Treat selected Sigil as the desired contract. Implementation evidence may
+clarify a repository capability or expose a possible missing decision, but do
+not report a finding solely because current implementation differs, is missing,
+or lacks ownership annotations. Report a semantic finding only when the problem
+exists independently in the Sigil contract or repository evidence demonstrates
+a genuine feasibility constraint. Compatibility behavior in this stage means
+compatibility promised by the public contract, not compatibility with current
+code. Implementation comparison belongs exclusively to
+current-code-compatibility.
+
 Use `SEMANTIC_CONTRADICTION` only after inspecting enough related evidence to
 show incompatible normative claims. Use `EVIDENCE_INCOMPLETE` when a suspected
 problem cannot be confirmed because material evidence is inaccessible or the

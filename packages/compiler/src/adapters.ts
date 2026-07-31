@@ -176,6 +176,7 @@ function assertCapabilityContract(
   }
 }
 
+// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
 function evaluationPrompt(request: AgentEvaluationRequest): string {
   return `You are the Sigil compiler evaluator for stage ${
     JSON.stringify(request.stage)
@@ -190,6 +191,17 @@ Selected component: ${request.target.componentName}
 Governing Sigil file: ${request.target.sigilFile}
 Initial navigation paths: ${request.target.initialPaths.join(", ")}
 Allowed diagnostic rules: ${request.allowedRules.join(", ")}
+Implementation evidence policy: ${request.implementationEvidence}
+${
+    request.implementationEvidence === "context-only"
+      ? `Treat selected Sigil as the desired contract. Implementation evidence may
+establish repository, platform, version, environment, or genuine feasibility
+constraints, but do not report a finding solely because current implementation
+differs, is missing, or lacks ownership annotations.`
+      : `Compare current implementation with desired Sigil. This stage may report
+implementation drift, missing implementation, ownership gaps, and current-code
+conformance findings within its allowed diagnostic rules.`
+  }
 Execution budgets: ${request.budgets.elapsedTimeMs}ms, at most ${request.budgets.maxCommands} commands, ${request.budgets.maxInputTokens} input tokens, and ${request.budgets.maxOutputTokens} output tokens.
 
 Inspect the workspace directly. Begin with targeted evidence and expand only when

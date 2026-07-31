@@ -162,13 +162,18 @@ exec "$SIGIL_TEST_NODE" ${JSON.stringify(compilerScriptPath)} "$@"
       executablePath,
       vscode.ConfigurationTarget.Global,
     );
+    await compileConfiguration.update(
+      "focus",
+      "design",
+      vscode.ConfigurationTarget.Global,
+    );
     editor.selection = new vscode.Selection(position, position);
     await vscode.commands.executeCommand("sigil.compileComponent");
     const compilerArguments = JSON.parse(
       await readFile(argumentsPath, "utf8"),
     ) as string[];
     assert.deepEqual(
-      compilerArguments.slice(0, 8),
+      compilerArguments.slice(0, 10),
       [
         "compile",
         folder.uri.fsPath,
@@ -178,6 +183,8 @@ exec "$SIGIL_TEST_NODE" ${JSON.stringify(compilerScriptPath)} "$@"
         `${position.line + 1}:${position.character + 1}`,
         "--profile",
         "standard",
+        "--focus",
+        "design",
       ],
     );
     assert(
@@ -219,6 +226,11 @@ exec "$SIGIL_TEST_NODE" ${JSON.stringify(compilerScriptPath)} "$@"
   } finally {
     await compileConfiguration.update(
       "executable",
+      undefined,
+      vscode.ConfigurationTarget.Global,
+    );
+    await compileConfiguration.update(
+      "focus",
       undefined,
       vscode.ConfigurationTarget.Global,
     );

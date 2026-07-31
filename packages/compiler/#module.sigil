@@ -120,7 +120,17 @@ component SigilCompiler {
       compile.json manifest
 
       the manifest declares pass identity, version, inputs, dependencies, required
-      capabilities, diagnostic rules, and output contract
+      capabilities, diagnostic rules, implementation-evidence policy, and output
+      contract
+
+      implementation-evidence policy is context-only or compare
+
+      context-only permits implementation evidence to establish repository, platform,
+      version, or environment constraints without treating current implementation
+      mismatch as a finding
+
+      compare authorizes the stage to assess current implementation against desired
+      Sigil
 
       compilation loads and validates the selected package rather than substituting
       hard-coded evaluator guidance

@@ -36,10 +36,26 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
     "sigil.compileWorkspace",
   );
   assert.equal(
+    manifest.contributes.commands[3].command,
+    "sigil.selectCompilationFocus",
+  );
+  assert.equal(
     manifest.contributes.configuration.properties[
       "sigil.compile.executable"
     ].default,
     "sigil",
+  );
+  assert.deepEqual(
+    manifest.contributes.configuration.properties[
+      "sigil.compile.focus"
+    ].enum,
+    ["ask", "design", "implementation"],
+  );
+  assert.equal(
+    manifest.contributes.configuration.properties[
+      "sigil.compile.focus"
+    ].default,
+    "ask",
   );
 });
 

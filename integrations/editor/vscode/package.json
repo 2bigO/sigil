@@ -40,7 +40,8 @@
     "onLanguage:sigil",
     "onCommand:sigil.showComponentPreview",
     "onCommand:sigil.compileComponent",
-    "onCommand:sigil.compileWorkspace"
+    "onCommand:sigil.compileWorkspace",
+    "onCommand:sigil.selectCompilationFocus"
   ],
   "contributes": {
     "languages": [
@@ -92,6 +93,11 @@
         "command": "sigil.compileWorkspace",
         "title": "Sigil: Compile Workspace",
         "category": "Sigil"
+      },
+      {
+        "command": "sigil.selectCompilationFocus",
+        "title": "Sigil: Select Compilation Focus",
+        "category": "Sigil"
       }
     ],
     "configuration": {
@@ -106,6 +112,16 @@
           "type": "string",
           "default": "standard",
           "description": "Compilation profile used by editor commands."
+        },
+        "sigil.compile.focus": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "design",
+            "implementation"
+          ],
+          "default": "ask",
+          "description": "Default compilation focus used by editor commands."
         }
       }
     },

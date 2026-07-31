@@ -3,7 +3,11 @@ import {
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
-import type { CompilationReport } from "@qoherent/sigil-compiler";
+import type {
+  CompilationReport,
+  CompilationTarget,
+  CompileOptions,
+} from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
@@ -2116,6 +2120,75 @@ Deno.test("compile rejects incompatible output formats", async () => {
   const result = await runCli(["compile", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_USAGE);
   assert(result.stderr.includes("--format must be text or jsonl"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+Deno.test("compile focus maps to design and implementation stage closures", async () => {
+  const stages: Array<string | undefined> = [];
+  const report: CompilationReport = {
+    reportVersion: 2,
+    runId: "run-focus",
+    workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
+    componentNames: [],
+    status: "green",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    profile: {
+      name: "standard",
+      criticalSystem: false,
+      contextBudgetChars: 1,
+      executionBudgets: {
+        elapsedTimeMs: 1,
+        maxCommands: 1,
+        maxCommandOutputChars: 1,
+        maxInputTokens: 1,
+        maxOutputTokens: 1,
+      },
+      stages: [],
+      evaluators: [],
+      fingerprint: "profile",
+    },
+    stages: [],
+    diagnostics: [],
+  };
+  const compiler = (
+    _workspace: string,
+    _target: CompilationTarget | undefined,
+    options: CompileOptions = {},
+  ) => {
+    stages.push(options.requestedStage);
+    return Promise.resolve(report);
+  };
+
+  assertEquals(
+    (await runCli(["compile", "--focus", "design"], {
+      compiler,
+    })).exitCode,
+    EXIT_OK,
+  );
+  assertEquals(
+    (await runCli(["compile", "--focus", "implementation"], {
+      compiler,
+    })).exitCode,
+    EXIT_OK,
+  );
+  assertEquals(stages[0], "architecture-design");
+  assertEquals(stages[1], "current-code-compatibility");
+
+  const combined = await runCli([
+    "compile",
+    "semantic-readiness",
+    "--focus",
+    "design",
+  ]);
+  assertEquals(combined.exitCode, EXIT_USAGE);
+  assert(combined.stderr.includes("either a positional stage or --focus"));
+
+  const unknown = await runCli(["compile", "--focus", "unknown"]);
+  assertEquals(unknown.exitCode, EXIT_USAGE);
+  assert(unknown.stderr.includes("--focus must be design or implementation"));
 });
 
 // @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade logic,cases
