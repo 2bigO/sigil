@@ -32,6 +32,35 @@ async function workspace(
   return root;
 }
 
+/*
+ * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationInvocation interface
+ * @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery logic,cases
+ */
+Deno.test("compile discovers workspace config from a Sigil file path", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`);
+  try {
+    const report = await compile(
+      `${root}/main.sigil`,
+      { kind: "workspace" },
+      { adapter: new MockAdapter() },
+    );
+    assertEquals(report.workspaceRoot, root);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationStatus logic,cases
 Deno.test("standard profile becomes green only with complete warning-free evaluation", async () => {
   const root = await workspace(`component Example {

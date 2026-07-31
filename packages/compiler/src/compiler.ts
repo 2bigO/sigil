@@ -159,7 +159,6 @@ export async function compile(
     const fs = new DenoReadOnlyFileSystem();
     const workspace = await loadSigilWorkspace(fs, {
       startPath: workspacePath,
-      explicitRoot: workspacePath,
       currentDirectory: Deno.cwd(),
     });
     const resolved = resolveSigilWorkspace(workspace);
