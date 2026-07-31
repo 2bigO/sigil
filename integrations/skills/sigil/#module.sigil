@@ -9,9 +9,9 @@ component SigilSkill {
     Provide coding-agent hosts with one reusable workflow for designing, reviewing,
     reconciling, and implementing software through approved Sigil contracts.
 
-    Keep ambiguity resolution, semantic judgment, evidence classification,
-    standards and modularity review, and human approval outside deterministic core
-    and CLI behavior.
+    Keep ambiguity resolution, evidence classification, standards review, and human
+    approval in the host workflow while consuming compiler-owned semantic and
+    architecture evaluation as provisional design evidence.
   }
 
   interface {
@@ -70,28 +70,19 @@ component SigilSkill {
       unresolved ambiguity, suspected accidental behavior, and external guidance
     }
 
-    SemanticReadinessReview {
-      distinguishes deterministic structural validation from model-assisted semantic,
-      architectural, and design review
+    DesignCompilationReview {
+      evaluates each exact unwritten Sigil candidate through SigilCli compilation
+      focus design before ReviewGate for sigil-change
 
-      assesses exact Sigil meaning, coherence, ownership, behavior, lifecycle, risk,
-      and architecture before concept grouping or glossary extraction
+      consumes deterministic-foundation, semantic-readiness, and architecture-design
+      results from the exact proposal generation
 
-      permits enrichment workflows only when no unresolved material semantic problem
-      remains
+      permits proposal review only when the complete design compilation is green
     }
 
     StandardsReview {
       assesses applicable authoritative guidance and classifies findings before
       proposing informed semantic changes
-    }
-
-    ModularityReview {
-      assesses cohesion, interface size, coupling, dependency direction, state
-      ownership, and reasons to change without assigning a numeric score
-
-      verifies that contract decomposition can guide implementation into cohesive
-      modules rather than one bulky architectural owner
     }
 
     ImplementationCoverage {
@@ -248,9 +239,9 @@ expand SigilSkill {
       guidance.
     }
 
-    SemanticReadinessReview {
-      Semantic readiness is unassessed, correction required, or appears aligned
-      within the stated scope.
+    DesignCompilationReview {
+      Design compilation is unavailable, incomplete, red, yellow, or green for one
+      exact proposal generation and reviewed scope.
     }
 
     StandardsReview {
@@ -368,26 +359,25 @@ expand SigilSkill {
       Report contradictions instead of silently choosing one source as intent.
     }
 
-    SemanticReadinessReview {
-      After deterministic workspace validation completes without error diagnostics,
-      review the exact ungrouped Sigil for semantic, architectural, and design
-      problems.
+    DesignCompilationReview {
+      After design intent and applicable external guidance are sufficiently resolved,
+      open one proposal compilation session for the selected scope.
 
-      When evidence suggests a possible material problem, investigate and classify it
-      before declaring correction required.
+      Submit each complete candidate source set as a proposal generation without
+      writing it to the selected workspace.
 
-      When a confirmed material problem is found, enter DesignConversation in
-      correction mode and do not begin concept grouping or glossary candidate
-      extraction.
+      Use red and yellow diagnostics to investigate evidence, return confirmed
+      material problems to DesignConversation, and revise the exact candidate.
 
-      Mark the selected scope as appears aligned only when no unresolved confirmed
-      material problem or materially unsafe uncertainty remains.
+      After concept grouping or any semantic change, evaluate a new complete
+      generation.
 
-      After approved concept grouping changes, rerun deterministic validation and
-      semantic-readiness review before glossary candidate extraction.
+      Submit only an exact green proposal generation and its report fingerprint to
+      ReviewGate for sigil-change.
 
-      When concept grouping exposes or introduces material ambiguity, return to
-      DesignConversation in the applicable mode.
+      After approved Sigil is written, run deterministic validation and compilation
+      focus design against the written source before glossary extraction or
+      implementation review.
     }
 
     GlossaryWorkflow {
@@ -400,10 +390,9 @@ expand SigilSkill {
       explicitly classify whether model-assisted extraction applies.
 
       Begin model-assisted glossary candidate extraction only after the post-write
-      and post-grouping SemanticReadinessReview appears aligned for the selected
-      scope.
+      and post-grouping DesignCompilationReview is green for the selected scope.
 
-      When concept grouping is unnecessary, the post-write SemanticReadinessReview
+      When concept grouping is unnecessary, the post-write DesignCompilationReview
       directly gates glossary candidate extraction.
 
       After every approved Sigil write or semantic edit, run deterministic glossary
@@ -416,8 +405,8 @@ expand SigilSkill {
       materially affects the selected scope.
 
       For an explicit vocabulary review or material ambiguity without changed Sigil,
-      extract from the selected loaded Sigil scope only after SemanticReadinessReview
-      appears aligned.
+      extract from the selected loaded Sigil scope only after DesignCompilationReview
+      is green.
 
       When semantic readiness is unassessed or correction required, report extraction
       as deferred and name the blocking review state.
@@ -481,17 +470,6 @@ expand SigilSkill {
 
       Import the components intended for directory shorthand and leave the local
       summary focused on boundary-wide architecture.
-    }
-
-    ModularityReview {
-      Review component responsibility, dependent-facing interface, imports, collected
-      expands, state ownership, dependency direction, and reasons to change.
-
-      Propose boundary changes when one component owns unrelated responsibilities or
-      multiple components compete for one responsibility.
-
-      Split a proposed owner when separate lifecycle, policy, state ownership, or
-      reasons to change demonstrate independently relied-upon responsibilities.
     }
 
     ImplementationCoverage {
@@ -558,7 +536,7 @@ expand SigilSkill {
 
     ConceptIdentifierWorkflow {
       Begin concept reuse discovery, grouping, and identifier proposals only after
-      SemanticReadinessReview appears aligned for the selected scope.
+      DesignCompilationReview is green for the selected scope.
 
       Inspect the affected section, every other section of the component, and every
       matching expand for the same semantic idea.
@@ -577,7 +555,7 @@ expand SigilSkill {
       expands, local occurrences, imported candidates, consumer evidence, and graph
       paths.
 
-      After approved grouping changes, return to SemanticReadinessReview before
+      After approved grouping changes, return to DesignCompilationReview before
       glossary candidate extraction.
     }
 
@@ -591,7 +569,7 @@ expand SigilSkill {
       Establish the smallest coherent component boundary and draft goal and interface
       before operational detail.
 
-      Run evidence, standards, modularity, implementation-coverage, and
+      Run evidence, standards, design compilation, implementation-coverage, and
       concept-identifier review as applicable.
 
       Synthesize exact Sigil, obtain ReviewGate readiness for sigil-change, write and
@@ -622,7 +600,7 @@ expand SigilSkill {
     }
 
     ReviewGate {
-      Collect applicable evidence from workspace bootstrap, semantic review,
+      Collect applicable evidence from workspace bootstrap, design compilation,
       decision-rationale coverage, glossary inspection, implementation coverage,
       deterministic validation, and delegated analysis.
 
@@ -694,20 +672,22 @@ expand SigilSkill {
       confirmation.
     }
 
-    SemanticReadinessReview {
-      Successful CLI validation does not establish semantic readiness.
+    DesignCompilationReview {
+      Compiler green is provisional design evidence and does not approve Sigil
+      mutation, glossary mutation, or implementation.
 
-      Pre-grouping semantic review inspects exact prose without requiring concept
-      identifiers to be assigned first.
+      The skill does not duplicate semantic-readiness or architecture-design judgment
+      already owned by the compiler focus closure.
 
-      Missing concept identifiers remain deferred authoring gaps until semantic
-      readiness appears aligned.
+      External-guidance applicability, design decisions, correction conversations,
+      concept-grouping approval, glossary extraction, and ReviewGate remain owned by
+      the host workflow.
 
-      Concept grouping and glossary candidate extraction cannot run while semantic
-      readiness is unassessed or correction is required.
+      An unavailable, incomplete, red, or yellow required design compilation prevents
+      ReviewGate for sigil-change from returning ready.
 
-      An appears-aligned result is provisional within the reviewed scope and is not a
-      claim of absolute correctness.
+      ReviewGate evidence identifies the exact session, generation, base fingerprint,
+      proposal fingerprint, target, profile, focus, and completed stages.
     }
 
     DesignConversation {
@@ -754,13 +734,6 @@ expand SigilSkill {
 
       Smallness is assessed by responsibility and ownership rather than an arbitrary
       line-count threshold.
-    }
-
-    ModularityReview {
-      Modularity conclusions use concrete semantic evidence rather than a score.
-
-      A high-level summary does not substitute for contracts covering independently
-      owned implementation responsibilities.
     }
 
     ImplementationCoverage {
@@ -840,8 +813,8 @@ expand SigilSkill {
 
     ConceptIdentifierWorkflow {
       Missing interface concept identifiers remain deferred until pre-grouping
-      SemanticReadinessReview appears aligned, then are repaired before final
-      semantic review.
+      DesignCompilationReview is green, then are repaired before final design
+      compilation.
 
       Consumer terminology is naming evidence but is not reusable identity unless
       accessible through valid imports.
@@ -1074,25 +1047,28 @@ expand SigilSkill {
       without treating model judgment as language validity.
     }
 
-    SemanticReadinessReview {
-      Decision: Treat CLI validation as structural only and require skill-assisted
-      semantic readiness before concept grouping or glossary candidate extraction,
-      followed by another semantic review after grouping.
+    CompilerDrivenDesignReview {
+      Decision: Use SigilCompiler focus design as the semantic-readiness and
+      modularity evaluator for exact written and unwritten Sigil candidates.
 
-      Scope: Governs Sigil skill review ordering; excludes deterministic glossary
-      inspection and core CLI validity semantics.
+      Scope: Governs SigilSkill design review before sigil-change approval and after
+      approved Sigil is written; excludes human design decisions, external-guidance
+      research, glossary extraction, and mutation authority.
 
-      Trade-offs: Two semantic reviews may be required when concept grouping changes
-      written Sigil.
+      Trade-offs: Semantic proposal work now requires an available configured
+      compiler evaluator and may require repeated agentic compilation.
 
-      Design issues addressed: Structurally valid Sigil may still contain unresolved
-      semantic, architectural, or design problems.
+      Design issues addressed: Separate host and compiler review checklists can
+      produce different readiness conclusions and cannot evaluate unwritten proposals
+      through ordinary Sigil tools.
 
-      Consequences: Correction-required Sigil blocks enrichment, approval, and
-      implementation until resolved.
+      Discarded alternatives: Retaining duplicate host semantic and modularity review
+      was rejected because the compiler design closure already owns those
+      evaluations.
 
-      Revisit when: Deterministic tooling provides reviewed semantic validation with
-      equivalent human decision authority.
+      Consequences: One compiler report evaluates deterministic validity, semantic
+      readiness, and architecture while ReviewGate remains the sole mutation
+      authority.
     }
 
     GlossaryWorkflow {
@@ -1248,13 +1224,12 @@ expand SigilSkill {
       rather than silently reconciled.
     }
 
-    SemanticReadinessReview {
-      Structurally valid Sigil with contradictory state ownership enters
-      DesignConversation in correction mode before concept grouping or glossary
-      extraction.
+    DesignCompilationReview {
+      A red or yellow proposal generation with contradictory state ownership returns
+      to DesignConversation before concept grouping or glossary extraction.
 
-      Ungrouped Sigil that appears semantically aligned proceeds to concept grouping,
-      then receives another semantic-readiness review before glossary extraction.
+      An ungrouped green proposal proceeds to concept grouping, then compiles a new
+      complete generation before glossary extraction.
     }
 
     DesignConversation {
@@ -1314,11 +1289,6 @@ expand SigilSkill {
     StandardsReview {
       Unavailable compliance-critical guidance blocks implementation while low-risk
       unverifiable guidance is reported for explicit acceptance.
-    }
-
-    ModularityReview {
-      A component with unrelated lifecycle and storage responsibilities is
-      reconsidered as multiple owners rather than marked with a low score.
     }
 
     ModuleIndexFile {

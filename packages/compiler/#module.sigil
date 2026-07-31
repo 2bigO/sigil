@@ -1,4 +1,13 @@
 @packages/core import { SigilCore }
+@packages/compiler/src/proposal-workspace.sigil import { SigilProposalWorkspace }
+@packages/compiler/src/session.sigil import { SigilCompilationSession }
+@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
+@packages/compiler/src/status.sigil import { SigilCompilationStatus }
+@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+@packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/evaluation-registry.sigil import { SigilEvaluationSkillRegistry }
+@packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
 
 component SigilCompiler {
   goal {
@@ -13,10 +22,30 @@ component SigilCompiler {
   interface {
     CompilationInvocation {
       compile(workspacePath, target, profileName, options?) streams CompilationEvent
-      and returns CompilationReport
+      and accepts an optional cancellation signal
+
+      completed evaluation returns CompilationReport and emits a completed terminal
+      event carrying the same authoritative report
+
+      cancellation rejects with COMPILER_CANCELLED, returns no CompilationReport, and
+      emits a cancelled terminal event whenever transport remains writable
+
+      host or protocol failure rejects with COMPILER_FAILED, returns no
+      CompilationReport, and emits a failed terminal event whenever transport remains
+      writable
 
       options may disable external history lookup or explicitly export the resulting
-      CompilationReport
+      CompilationReport, and may supply the cancellation signal
+    }
+
+    CompilationSession {
+      createCompilationSession(workspacePath, target, profileName, focus, options?)
+      returns SigilCompilationSession or rejects when its proposal workspace cannot
+      be created
+
+      SigilCompilationSession exposes evaluate, refresh, and close with stable
+      proposal, cancellation, caller/session, workspace-condition, busy, and
+      host-failure results
     }
 
     CompilationTarget {
@@ -33,161 +62,6 @@ component SigilCompiler {
       dependencies and importers, glossary context, and implementation evidence
     }
 
-    CompilationProfile {
-      a named profile selects an ordered dependency graph of stages, evaluators,
-      evaluation skills, capability limits, and execution budgets
-
-      standard and critical-system are built-in profiles
-
-      tools.compile.adapter remains the backward-compatible default evaluator for
-      profiles that require one evaluator
-
-      tools.compile.evaluators maps unique evaluator identities to a provider and
-      optional model configuration
-
-      a profile may select configured evaluator identities through evaluatorIds
-
-      critical-system evaluator configuration is optional until that profile is
-      selected
-
-      project profiles may configure or omit evaluation stages
-
-      a stage-scoped invocation evaluates one named stage and its complete dependency
-      closure
-
-      each run records the exact effective profile and environment fingerprint
-    }
-
-    CompilationStatus {
-      red means at least one error exists or a required evaluator did not complete
-
-      yellow means no error exists and at least one warning exists
-
-      green means every required evaluator completed with zero errors and zero
-      warnings
-
-      optimization and information messages do not change the compilation color
-    }
-
-    CompilationDiagnostic {
-      every error and warning has a stable rule code, diagnostic fingerprint,
-      originating stage and skill, primary location, evidence, impact, correction
-      guidance, and evaluator provenance
-
-      every diagnostic carries zero or more compiler-verified semantic subjects that
-      identify the governing Sigil component, owner kind, section, optional concept,
-      and optional semantic unit
-
-      each semantic subject declares whether it is direct, governing, or related
-
-      diagnostics may identify related locations and new, unchanged, resolved, or
-      regressed lifecycle state
-    }
-
-    DiagnosticSemanticSubject {
-      relation is direct, governing, or related
-
-      sigilPath identifies the governing Sigil source
-
-      componentName identifies the resolved component
-
-      ownerKind is component or expand and ownerName identifies that owner
-
-      sectionName identifies goal, interface, state, logic, constraints, decisions,
-      or cases
-
-      conceptIdentifier is present only for a grouped concept occurrence
-
-      semanticUnit optionally identifies the exact occurrence by source range and a
-      normalized-content fingerprint
-    }
-
-    CompilationReport {
-      version 2 of the JSON CompilationReport is the authoritative durable result
-
-      terminal, Markdown, CI, and editor presentations are projections of the
-      authoritative report
-
-      a report binds its status to source hashes, component graph, effective profile,
-      stage set, evaluator environment, and completed passes
-
-      a relevant source, profile, skill, adapter, or evaluator-environment change
-      makes an earlier report stale
-    }
-
-    EvaluationSkillPackage {
-      a compiler-native evaluation skill contains SKILL.md guidance and a
-      compile.json manifest
-
-      the manifest declares pass identity, version, inputs, dependencies, required
-      capabilities, diagnostic rules, implementation-evidence policy, and output
-      contract
-
-      implementation-evidence policy is context-only or compare
-
-      context-only permits implementation evidence to establish repository, platform,
-      version, or environment constraints without treating current implementation
-      mismatch as a finding
-
-      compare authorizes the stage to assess current implementation against desired
-      Sigil
-
-      compilation loads and validates the selected package rather than substituting
-      hard-coded evaluator guidance
-    }
-
-    AgentAdapter {
-      an adapter executes a bounded evaluation request through one configured
-      code-agent provider
-
-      an evaluator identity is a unique configured identifier bound to one provider
-      and optional model configuration
-
-      an adapter reports its enforceable capabilities before evaluation
-
-      adapter output is untrusted until it satisfies the compiler-owned protocol and
-      evidence requirements
-    }
-
-    EvaluationContext {
-      each agent request evaluates exactly one component in one evaluation stage
-
-      the compiler supplies the workspace root, selected target identity, evaluation
-      skill, capability contract, and structured output schema
-
-      the agent reads relevant Sigil and implementation evidence directly from the
-      selected workspace
-
-      the effective profile exposes execution, command-output, and model-usage
-      budgets in the profile fingerprint and CompilationReport
-    }
-
-    AgentWorkspaceInspection {
-      an adapter runs its agent at the selected workspace root with enforced
-      read-only filesystem access, no network access, and no approval escalation
-
-      the agent may read workspace files and run read-only Sigil, search, version
-      control inspection, and text-projection commands needed for its stage
-    }
-
-    EvaluationTrace {
-      CompilationReport records requested stages, agent command events, model usage,
-      evaluator environment, and incomplete evidence without retaining hidden
-      reasoning or complete file contents
-
-      each agentic evaluation trace identifies the configured evaluator that produced
-      it
-    }
-
-    CompilationEventProtocol {
-      CompilationEvent uses a versioned JSON Lines envelope containing
-      protocolVersion, runId, sequence, type, and payload
-
-      a completed terminal event contains the authoritative CompilationReport
-
-      failed and cancelled runs emit terminal events whenever the process remains
-      able to report them
-    }
   }
 }
 

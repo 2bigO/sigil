@@ -150,6 +150,16 @@ component SigilCli {
 
       in JSON Lines mode standard output contains only the versioned CompilationEvent
       stream and human progress or host logs use standard error
+
+      sigil compile session start [path] --focus design [--component name | --file
+      file] [--profile name]
+
+      sigil compile session evaluate session-id [--format jsonl] reads one complete
+      CompilationProposal JSON object from standard input
+
+      sigil compile session refresh session-id rebuilds the frozen base snapshot
+
+      sigil compile session close session-id releases the proposal workspace
     }
   }
 }
@@ -303,6 +313,18 @@ expand SigilCli {
 
       compile preserves deterministic workspace diagnostics as compiler inputs rather
       than replacing or duplicating them.
+    }
+
+    CompilationSessionFacade {
+      session start delegates creation and base materialization to SigilCompiler and
+      returns the opaque session identifier, base fingerprint, and expiry.
+
+      session evaluate resolves the existing session, reads exactly one proposal from
+      standard input, and projects its ordinary CompilationEvent stream.
+
+      Each accepted session refresh creates a new observable base epoch. Session
+      close is idempotent only after the session identity and compiler ownership
+      marker have been validated.
     }
   }
 
@@ -461,6 +483,19 @@ expand SigilCli {
 
       --position requires --file and uses the line:column form with positive
       one-based integers.
+    }
+
+    CompilationSessionFacade {
+      Session identifiers are opaque, unpredictable, and valid only for
+      compiler-owned proposal workspaces.
+
+      Session start binds path, target, profile, focus, and expiry for later
+      evaluations.
+
+      Session evaluate accepts proposal JSON only from standard input and does not
+      create a proposal file in the selected workspace.
+
+      Session commands preserve compiler status and host-failure exit semantics.
     }
   }
 
@@ -699,6 +734,27 @@ expand SigilCli {
       Consequences: A successful compile process has the same strict meaning as green
       compilation status.
     }
+
+    CompilationSessionFacade {
+      Decision: Expose explicit start, evaluate, refresh, and close operations for
+      compiler proposal sessions.
+
+      Scope: Governs cross-process CLI access to SigilCompiler proposal sessions.
+
+      Trade-offs: The CLI gains lifecycle commands and must validate opaque session
+      identifiers, leases, standard-input proposal JSON, and expiry.
+
+      Design issues addressed: Sigil skill conversations span multiple commands and
+      user turns, so an in-process session alone cannot reliably preserve the
+      reusable proposal workspace.
+
+      Discarded alternatives: One-shot compilation and an indefinitely running CLI
+      process were rejected because they respectively repeat workspace copying or
+      depend on host-specific process retention.
+
+      Consequences: Coding-agent hosts can iterate on unwritten proposals efficiently
+      while session ownership and cleanup remain explicit.
+    }
   }
 
   cases {
@@ -845,6 +901,18 @@ expand SigilCli {
 
       Cancelling compilation terminates delegated work and reports cancellation
       without changing workspace files.
+    }
+
+    CompilationSessionFacade {
+      Starting a design session returns one opaque identifier and one frozen base
+      fingerprint.
+
+      Evaluating two successive proposals reuses the session workspace and reports
+      distinct generations and proposal fingerprints.
+
+      Refreshing a session clears its proposal-generation history.
+
+      Closing or expiring a session prevents later evaluation through its identifier.
     }
 
     CompilationExitStatus {

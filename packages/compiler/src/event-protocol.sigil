@@ -1,0 +1,70 @@
+component SigilCompilationEventProtocol {
+  goal {
+    Own compatible streaming of long-running compiler progress and authoritative
+    terminal outcomes.
+  }
+
+  interface {
+    CompilationEventProtocol {
+      CompilationEvent is a versioned JSON Lines envelope containing protocolVersion,
+      runId, sequence, type, and payload
+
+      a completed terminal event contains the authoritative CompilationReport
+    }
+  }
+}
+
+expand SigilCompilationEventProtocol {
+  constraints {
+    CompilationEventProtocol {
+      JSON Lines mode writes only CompilationEvent envelopes to standard output.
+      Human progress and host logs use standard error.
+
+      Sequence values increase within one run and one terminal event ends the stream.
+      Failed and cancelled runs emit terminal events whenever reporting remains
+      possible.
+
+      A completed method settlement returns the same authoritative CompilationReport
+      carried by the completed terminal event. Cancellation and host or protocol
+      failure return no CompilationReport and reject with COMPILER_CANCELLED or
+      COMPILER_FAILED respectively, whether or not transport remains writable long
+      enough to emit the corresponding terminal event.
+    }
+  }
+
+  decisions {
+    CompilationEventProtocol {
+      Decision: Use a versioned JSON Lines stream with one authoritative report in
+      the completed terminal event.
+
+      Scope: Governs compiler streaming to every host surface.
+
+      Trade-offs: Consumers process an ordered stream instead of one JSON object.
+
+      Discarded alternatives: Mixed stdout and unframed JSON were rejected because
+      they cannot safely carry incremental events.
+
+      Consequences: Hosts validate compatibility, ordering, completion, failure, and
+      cancellation consistently.
+    }
+  }
+
+  cases {
+    CompilationEventProtocol {
+      A successful run emits ordered progress then one completed event containing the
+      report.
+
+      Cancelled and failed runs emit their corresponding terminal event when the
+      process can still write it.
+
+      Cancellation after work begins rejects with COMPILER_CANCELLED and emits one
+      cancelled terminal event when transport remains writable.
+
+      A host or protocol failure rejects with COMPILER_FAILED and emits one failed
+      terminal event when transport remains writable.
+
+      Loss of writable transport may prevent a terminal event but does not change the
+      method rejection identity.
+    }
+  }
+}

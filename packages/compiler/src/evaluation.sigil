@@ -1,0 +1,46 @@
+@packages/core import { SigilCore }
+@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
+@packages/compiler/src/status.sigil import { SigilCompilationStatus }
+@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+@packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/evaluation-registry.sigil import { SigilEvaluationSkillRegistry }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+
+component SigilCompilationEvaluation {
+  goal {
+    Execute one reusable profile-scoped compilation pipeline over a supplied
+    read-only workspace view and produce authoritative events, diagnostics, and a
+    CompilationReport.
+
+    Compose WorkspaceProcessing, CompilationProfile, CompilationStatus,
+    CompilationEventProtocol, AgentAdapter, EvaluationSkillPackage, and
+    CompilationReport through their owning public contracts.
+  }
+
+  interface {
+    CompilationEvaluation {
+      evaluate(workspaceAccess, target, effectiveProfile, requestedStage,
+      priorReport?, cancellationSignal?) streams CompilationEvent and returns
+      CompilationReport, rejects cancellation with COMPILER_CANCELLED, or rejects a
+      host or protocol failure with COMPILER_FAILED
+
+      WorkspaceProcessing supplies deterministic semantics, CompilationProfile
+      supplies stages and capabilities, and CompilationStatus derives color
+
+      CompilationEventProtocol governs streaming, AgentAdapter executes agentic
+      stages, and EvaluationSkillPackage supplies their guidance and rule contracts
+    }
+
+    EvaluationContext {
+      each agent request evaluates exactly one component in one evaluation stage
+
+      requests contain target identity, skill, capabilities, schema, and budgets but
+      do not serialize repository file contents
+    }
+
+    AgentWorkspaceInspection {
+      evaluators inspect the supplied view through enforced read-only agent access
+      with network and approval escalation disabled
+    }
+  }
+}

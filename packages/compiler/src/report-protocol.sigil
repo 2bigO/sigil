@@ -1,0 +1,41 @@
+component SigilCompilationReportProtocol {
+  goal {
+    Own compiler diagnostic identity, report schema, proposal-report identity,
+    trace retention, staleness, and compatible external history.
+  }
+
+  interface {
+    CompilationDiagnostic {
+      every error and warning has a stable rule code, diagnostic fingerprint,
+      originating stage and skill, primary location, evidence, impact, correction
+      guidance, evaluator provenance, and zero or more compiler-verified semantic
+      subjects
+    }
+
+    DiagnosticSemanticSubject {
+      relation is direct, governing, or related
+
+      subject identity contains governing Sigil path, component, owner, section,
+      optional concept, and optional normalized semantic-unit fingerprint
+    }
+
+    CompilationReport {
+      version 2 is the authoritative durable result and binds status to source
+      hashes, component graph, effective profile, stages, evaluator environment, and
+      completed passes
+
+      terminal, Markdown, CI, and editor views are projections of this report
+    }
+
+    CompilationProposalReport {
+      a proposal report identifies session, baseEpoch, generation, base fingerprint,
+      proposed paths, and proposal fingerprint without proposed contents or temporary
+      paths
+    }
+
+    EvaluationTrace {
+      records requested stages, command events, usage, evaluator environment, and
+      incomplete evidence without hidden reasoning or complete file contents
+    }
+  }
+}

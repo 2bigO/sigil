@@ -1,0 +1,214 @@
+@packages/compiler/src/proposal-workspace.sigil import { SigilProposalWorkspace }
+@packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+
+component SigilCompilationSession {
+  goal {
+    Own reusable proposal-compilation session identity, sequencing, serialization,
+    refresh, expiry, diagnostic lifecycle, and cleanup coordination.
+  }
+
+  interface {
+    CompilationSessionLifecycle {
+      evaluate(CompilationProposal proposal) streams CompilationEvent and returns
+      CompilationReport for the next completed proposal generation, settles
+      cancellation with COMPILER_CANCELLED, or rejects with a stable proposal,
+      caller/session, workspace-condition, busy, or host-failure code
+
+      refresh replaces the immutable proposal base epoch and clears generation
+      history or rejects with a stable busy, COMPILER_SESSION_EXPIRED, or workspace
+      failure
+
+      close releases the session and proposal workspace or rejects with a stable
+      busy, workspace-condition COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED, or
+      host-failure code
+    }
+  }
+}
+
+expand SigilCompilationSession {
+  state {
+    CompilationSessionLifecycle {
+      A compilation session is active, evaluating, refreshing, closing, closed,
+      expired, or cleanup-failed.
+    }
+  }
+
+  logic {
+    CompilationSessionLifecycle {
+      Bind the selected target, profile, focus, capability contract, and first
+      immutable base epoch at creation.
+
+      Delegate accepted proposals to SigilCompilationEvaluation through the selected
+      focus and its complete dependency closure using ProposalWorkspaceAccess.
+
+      Pass coreFilesystem only to SigilCore and pass agentRoot only through the
+      adapter's enforced read-only sandbox; never receive or forward the façade's
+      writable capability.
+
+      Record the generation allocated and returned by SigilProposalWorkspace after
+      successful materialization.
+
+      Hold each ProposalWorkspaceAccess while the current serialized operation lease
+      remains acquired. Invoke its idempotent release before releasing the session
+      lease after creation or after evaluation completes, fails, or is cancelled, and
+      never retain it for a later operation.
+
+      Serialize evaluate, refresh, and close; reject a competing operation with
+      COMPILER_SESSION_BUSY.
+
+      Compare a completed generation with its predecessor in the same base epoch
+      before replacing the latest report.
+
+      On cancellation, terminate delegated work, emit one cancelled terminal event
+      carrying COMPILER_CANCELLED and exact session, baseEpoch, generation, and
+      proposal-fingerprint identity, and return no CompilationReport.
+
+      Use SigilCompilationEventProtocol for ordered progress and terminal event
+      behavior.
+
+      On refresh, close SigilProposalWorkspace and create its replacement. Increment
+      baseEpoch and clear generation and diagnostic history only after replacement
+      creation succeeds.
+
+      If replacement creation fails after the old façade closes, retain the old
+      baseEpoch and history as inaccessible evidence, enter cleanup-failed, reject
+      evaluate and refresh with COMPILER_WORKSPACE_STATE, and permit only close to
+      release the replacement façade before the caller creates a new session.
+
+      Schedule SigilProposalWorkspace cleanup only when no operation holds the
+      session lease and react to its stable close outcome without inspecting
+      temporary-workspace internals.
+
+      Set expiresAt to twenty-four hours after successful session creation. Reset it
+      to twenty-four hours after every accepted evaluate or refresh settles,
+      including cancellation or proposal, workspace-condition, or host rejection.
+
+      At or beyond expiresAt, expire before accepting another operation. If an
+      operation acquired its lease before expiresAt, let it settle, reset expiresAt,
+      release its access and lease, and only then reconsider expiry.
+
+      Expiry closes SigilProposalWorkspace. Successful cleanup enters expired;
+      cleanup failure enters cleanup-failed and permits only close to retry.
+    }
+  }
+
+  constraints {
+    CompilationSessionLifecycle {
+      Generate sessionIdentity as a UUID version 4 using the host cryptographic
+      random source and pass its canonical lowercase representation to
+      SigilProposalWorkspace.
+
+      Cancellation preserves the materialized generation and active session, leaves
+      the latest completed report unchanged, and never records a cancelled report as
+      latest.
+
+      Evaluator failure produces a red report; invalid proposal, caller/session
+      failure, workspace condition, or host failure rejects without replacing the
+      latest completed report.
+
+      Consume ProposalWorkspaceFailure category and code without reconstructing or
+      overriding SigilProposalWorkspace failure classification.
+
+      COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED makes the session permanently unusable,
+      reports that manual recovery is required, and permits no automatic retry.
+
+      Refresh creates a new baseEpoch even when the recomputed content-derived base
+      fingerprint remains equal.
+
+      Refresh replacement failure after terminal old-workspace close never restores
+      the prior workspace or active session.
+
+      Busy, invalid-session, and read-only status requests do not reset expiresAt.
+
+      Evaluate and refresh in expired reject with COMPILER_SESSION_EXPIRED. Close in
+      expired succeeds idempotently and preserves the expired terminal state.
+
+      Cleanup failure during expiry permanently blocks evaluation and refresh in that
+      session; later close may finish cleanup but never restores the session.
+
+      Green is evidence for one exact proposal generation and never grants human
+      approval.
+    }
+  }
+
+  decisions {
+    ProposalCompilationSessions {
+      Decision: Evaluate exact proposal generations through reusable sessions backed
+      by an isolated SigilProposalWorkspace.
+
+      Scope: Governs proposal evaluation, report identity, and diagnostic lifecycle;
+      excludes CLI transport and Sigil-change approval.
+
+      Trade-offs: The session owns base-epoch identity, serialization, refresh,
+      expiry, and cleanup coordination.
+
+      Discarded alternatives: One-shot workspaces and prompt-only proposals were
+      rejected as resource-heavy or incompatible with direct tool inspection.
+
+      Consequences: Iterations reuse one copied base while reports retain exact
+      generation identity.
+    }
+
+    ProposalSessionExpiry {
+      Decision: Expire an inactive proposal session after twenty-four hours and retry
+      abandoned-session cleanup through SigilProposalWorkspace during later session
+      management.
+
+      Scope: Governs local proposal sessions; excludes active evaluations and
+      ordinary compilation history.
+
+      Assumptions: A design conversation ordinarily resumes within one day.
+
+      Trade-offs: Resumability retains confidential temporary contents and disk usage
+      longer.
+
+      Discarded alternatives: Process-lifetime and indefinite retention were rejected
+      as too short or unsafe.
+
+      Consequences: Sessions survive normal pauses without becoming permanent hidden
+      caches.
+
+      Revisit when: Usage or security policy requires a different interval.
+    }
+  }
+
+  cases {
+    CompilationSessionLifecycle {
+      Successive generations reuse one base epoch without external compilation
+      history.
+
+      Refresh increments baseEpoch and resets history; its base fingerprint changes
+      only when selected evidence changes.
+
+      Replacement creation failure after old-workspace close leaves baseEpoch and
+      history unchanged but inaccessible, enters cleanup-failed, blocks evaluate and
+      refresh, and permits only close. Successful close requires a new session.
+
+      Competing evaluate, refresh, or close rejects with COMPILER_SESSION_BUSY.
+
+      Cancellation preserves the generation. Expiry during evaluation defers cleanup.
+
+      Cancellation emits one cancelled terminal event with COMPILER_CANCELLED,
+      returns no report, and leaves the latest completed report unchanged.
+
+      An operation accepted immediately before expiresAt may finish and establishes a
+      new deadline when it settles. At exactly expiresAt, expiry wins before a new
+      operation can acquire the lease.
+
+      After successful expiry cleanup, evaluate and refresh reject with
+      COMPILER_SESSION_EXPIRED and close succeeds idempotently. Expiry cleanup
+      failure enters cleanup-failed and only close may retry.
+
+      Cleanup failure prevents later evaluation. A successful close retry completes
+      cleanup and leaves the session closed; evaluation requires a new session.
+
+      Unverifiable workspace ownership requires manual directory handling and session
+      abandonment before a new session is created.
+
+      A green proposal report still requires ReviewGate approval before repository
+      mutation.
+    }
+  }
+}
