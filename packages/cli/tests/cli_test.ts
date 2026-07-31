@@ -1146,6 +1146,7 @@ component Consumer {
  */
 Deno.test("context renders file Markdown for multiple components and normalizes paths", async () => {
   const root = await makeWorkspace("context-markdown-file");
+  const normalizedRoot = normalizePath(root);
   try {
     await Deno.writeTextFile(
       `${root}/multi.sigil`,
@@ -1184,7 +1185,7 @@ component Second {
       "markdown",
     ]);
     assertEquals(absolute.exitCode, EXIT_OK);
-    assert(absolute.stdout.includes(`Workspace root: ${root}`));
+    assert(absolute.stdout.includes(`Workspace root: ${normalizedRoot}`));
     assert(absolute.stdout.includes("## First"));
     assert(absolute.stdout.includes("## Second"));
     assert(
@@ -1203,8 +1204,10 @@ component Second {
       core: new CoreAdapter({ currentDirectory: root }),
     });
     assertEquals(relative.exitCode, EXIT_OK);
-    assert(!relative.stdout.includes(`Workspace root: ${root}`));
-    assert(!relative.stdout.includes(`Source: ${root}/multi.sigil`));
+    assert(!relative.stdout.includes(`Workspace root: ${normalizedRoot}`));
+    assert(
+      !relative.stdout.includes(`Source: ${normalizedRoot}/multi.sigil`),
+    );
     assert(relative.stdout.includes("multi.sigil"));
     assert(relative.stdout.includes("## First"));
     assert(relative.stdout.includes("## Second"));
