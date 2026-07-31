@@ -50,6 +50,12 @@ component SigilImplementationOwnership {
 
       file is a repository-relative Sigil path
 
+      file may identify either the component declaration source or a source
+      containing a matching expand for the named component
+
+      an annotation through a matching expand resolves to the parent component
+      identity
+
       implements links an artifact that implements the selected section occurrences.
 
       uses links an artifact that uses the selected section occurrences.
@@ -135,6 +141,12 @@ expand SigilImplementationOwnership {
       Resolve source annotations to their adjacent entrypoint definition.
 
       Resolve agent-facing Markdown annotations at file level.
+
+      Treat an annotation's Sigil path as governing the named component when it is
+      either the component declaration source or a matching expand source.
+
+      Do not infer ownership from an expand for a different component in the same
+      file.
 
       Ignore ambiguous or detached annotations and return diagnostics rather than
       inferring ownership.
@@ -287,6 +299,27 @@ expand SigilImplementationOwnership {
       Revisit when: Supported languages need declaration metadata or Markdown
       requires section-level targets.
     }
+
+    ExpandPathOwnershipResolution {
+      Decision: Accept either the component declaration path or a matching expand
+      path in an ownership annotation and normalize both to the parent component
+      identity.
+
+      Scope: Governs ownership annotation target resolution; excludes component-name
+      inference, imports, and unrelated expands in the same file.
+
+      Trade-offs: One component can have multiple valid annotation paths.
+
+      Design issues addressed: Implementation beside an expand should link to that
+      local rationale without losing the parent component's ownership projection.
+
+      Discarded alternatives: Requiring every annotation to name the component
+      declaration file was rejected because it breaks colocation with
+      implementation-specific expands.
+
+      Consequences: Context collects locally linked implementation under the parent
+      component while preserving exact component-name validation.
+    }
   }
 
   cases {
@@ -327,6 +360,9 @@ expand SigilImplementationOwnership {
 
       A concept annotation naming a section where the concept does not occur produces
       a diagnostic.
+
+      An annotation naming an expand-only source and its expanded component resolves
+      to the parent component's ownership projection.
     }
   }
 }

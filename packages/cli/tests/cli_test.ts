@@ -1417,6 +1417,53 @@ Deno.test("context reports every collected expansion file", async () => {
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+Deno.test("context for an expand file collects its parent component", async () => {
+  const root = await makeWorkspace("expand-context");
+  try {
+    await Deno.writeTextFile(`${root}/contract.sigil`, validSigil("Feature"));
+    await Deno.writeTextFile(
+      `${root}/details.sigil`,
+      "expand Feature {\n  logic {\n    Resolve the parent.\n  }\n}\n",
+    );
+    await Deno.writeTextFile(
+      `${root}/feature.ts`,
+      "// @sigil implements details.sigil::Feature logic\nexport function resolveFeature() {}\n",
+    );
+    const result = await runCli([
+      "context",
+      root,
+      "--file",
+      `${root}/details.sigil`,
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_OK);
+    const output = parseJson(result.stdout);
+    assertEquals(output.selectedComponents.length, 1);
+    assertEquals(output.selectedComponents[0].name, "Feature");
+    assertEquals(output.collectedExpansions.length, 1);
+    assert(
+      output.collectedExpansions[0].expands.some(
+        (expand: { filePath: string }) =>
+          expand.filePath.endsWith("/details.sigil"),
+      ),
+    );
+    assertEquals(output.ownedImplementationProjections.length, 1);
+    assertEquals(
+      output.ownedImplementationProjections[0].targets[0].symbolIdentity,
+      "resolveFeature",
+    );
+    assert(
+      !output.diagnostics.some((item: { code: string }) =>
+        item.code === "SIGIL_PARSE_STRUCTURE"
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases

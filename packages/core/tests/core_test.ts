@@ -1315,6 +1315,75 @@ expand Ownership {
   assertEquals(full.targets[1].range?.start.line, 2);
 });
 
+/*
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationAnnotation interface
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::TargetResolution constraints,cases
+ */
+Deno.test("resolves expand-path ownership to its parent component", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "ownership.sigil": `component Ownership {
+  goal {
+    Own implementation targets.
+  }
+
+  interface {
+    EntryPoint {
+      Own one entrypoint.
+    }
+  }
+}
+
+component Unrelated {
+  goal {
+    Remain unrelated to the expand path.
+  }
+
+  interface {
+    EntryPoint {
+      Own another entrypoint.
+    }
+  }
+}
+`,
+    "ownership-details.sigil": `expand Ownership {
+  logic {
+    Resolve ownership through this expand.
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    [
+      {
+        filePath: "src/ownership.ts",
+        text:
+          "// @sigil implements ownership-details.sigil::Ownership logic\nexport function resolveOwnership() {}\n",
+      },
+      {
+        filePath: "src/unrelated.ts",
+        text:
+          "// @sigil implements ownership-details.sigil::Unrelated interface\nexport function unrelated() {}\n",
+      },
+    ],
+    "Ownership",
+  );
+  assert(projection);
+  assertEquals(projection.targets.length, 1);
+  assertEquals(projection.targets[0].symbolIdentity, "resolveOwnership");
+  assertEquals(projection.targets[0].sections.join(","), "logic");
+  assertEquals(projection.diagnostics.length, 1);
+  assert(
+    projection.diagnostics[0].message.includes(
+      "unknown Sigil component Unrelated in ownership-details.sigil",
+    ),
+  );
+});
+
 // @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::SectionSelection constraints
 Deno.test("diagnoses invalid implementation relations and section selectors", async () => {
   const fs = new InMemorySigilFileSystem({

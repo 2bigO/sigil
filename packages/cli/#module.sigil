@@ -57,6 +57,10 @@ component SigilCli {
       context reports a scoped glossary projection for the selected component or file
       and its related sources
 
+      when --file selects a source containing one or more expands, context selects
+      each parent component represented by those expands together with components
+      declared directly in that source
+
       context automatically reports public contracts and durable decisions from
       direct dependencies
 
@@ -216,6 +220,10 @@ expand SigilCli {
 
       context obtains effective terminology for selected and related files from
       SigilCore.
+
+      context resolves a file selection to components declared in that source and
+      parent components represented by expands in that source, deduplicated by exact
+      component identity
 
       check reports core warnings, hints, and errors without reinterpreting them.
 
@@ -578,6 +586,27 @@ expand SigilCli {
       files containing multiple components.
     }
 
+    ExpandFileContextSelection {
+      Decision: Resolve context --file selection through both component declarations
+      and expands, mapping each matching expand to its parent component identity.
+
+      Scope: Governs component selection for CLI context by file; excludes
+      --component selection, compile location targeting, and import inference.
+
+      Trade-offs: One file can select multiple components even when it declares no
+      component directly.
+
+      Design issues addressed: Expand-only files otherwise return empty context and
+      hide the parent contract and ownership projection needed to understand them.
+
+      Discarded alternatives: Exact component-declaration file matching was rejected
+      because an expand is operational context for its parent component.
+
+      Consequences: File context reports each selected parent component once and
+      includes its contract, collected expands, dependency context, glossary context,
+      and ownership projection.
+    }
+
     CompilationFacade {
       Decision: Expose SigilCompiler through sigil compile while keeping evaluation
       ownership and status computation in the compiler package.
@@ -708,6 +737,9 @@ expand SigilCli {
       context with --include-dependents reports direct importing files and contextual
       public contracts declared in those files without proving component-level
       dependency.
+
+      context for an expand-only file reports each parent component represented by
+      the file and includes its collected expands and ownership projection.
     }
 
     SourceFormatting {

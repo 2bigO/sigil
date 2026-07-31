@@ -148,6 +148,7 @@ export async function runCommand(
 }
 
 /*
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput logic,constraints
  * @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
  */
@@ -162,7 +163,10 @@ async function contextCommand(
   const selectedComponents = resolved.components.filter((component) =>
     request.component
       ? component.name === request.component
-      : component.filePath === selectedFile
+      : component.filePath === selectedFile ||
+        component.expansions.expands.some((expansion) =>
+          expansion.filePath === selectedFile
+        )
   );
   const allContracts = core.componentContracts(resolved);
   const contracts = selectedComponents.map((component) =>
