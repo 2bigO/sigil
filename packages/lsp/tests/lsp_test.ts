@@ -30,7 +30,7 @@ Deno.test("file URI conversion preserves Sigil paths", () => {
 });
 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
-Deno.test("initializes with the approved 0.5 capabilities and lifecycle", async () => {
+Deno.test("initializes with the approved 0.6 capabilities and lifecycle", async () => {
   const server = makeServer();
   const before = await server.handle(request(1, "shutdown"));
   assertEquals(errorCode(before), -32002);

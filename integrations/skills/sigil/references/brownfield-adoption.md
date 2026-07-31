@@ -1,4 +1,7 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::BrownfieldWorkflow logic,constraints,cases -->
+<!--
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::BrownfieldWorkflow logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModuleIndexFile logic,constraints,cases
+-->
 
 # Brownfield Sigil Adoption
 
@@ -104,6 +107,17 @@ directly import components that should resolve through its directory shorthand.
 Those imports do not grant visibility; every component remains public through
 its explicit `.sigil` path.
 
+Keep the summary and its matching expand small by responsibility. Retain only
+boundary-wide goal, interface, architecture constraints, and durable design
+decisions. Extract material state, operational logic, lifecycle behavior, and
+independently changing policy into components or expands beside their
+implementation owners.
+
+Inspect the complete accessible namespace of every import before creating local
+components or concepts. Reuse semantically matching imported public identities
+and create a local identity only for a materially distinct responsibility or
+meaning.
+
 Classify confirmed boundary-wide detail for an optional matching expand:
 
 - `state`: runtime, deployment, persistence, or operational modes;
@@ -116,6 +130,12 @@ Keep secrets, volatile values, incidental dependencies, low-level configuration,
 private algorithms, and task-specific behavior outside boundary summaries.
 Present the exact summary components, expands, module-index imports, and
 locations before editing.
+
+Also show how the proposed components decompose the implementation boundary and
+which imported components form the intentional directory-import surface. A
+high-level summary alone is insufficient when separate implementation owners
+have stable contracts, state, lifecycle, policy, or independent reasons to
+change.
 
 Submit the exact boundary module indexes to
 `ReviewGate(action: sigil-change)`. When ready, write only that change set, run

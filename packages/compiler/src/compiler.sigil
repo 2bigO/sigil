@@ -1,0 +1,640 @@
+@packages/core import { SigilCore }
+
+expand SigilCompiler {
+  state {
+    CompilationRunLifecycle {
+      A compilation run is queued, running, completed, failed, cancelled, or
+      superseded.
+    }
+
+    EvaluationStageLifecycle {
+      An enabled stage is pending, running, completed, failed, skipped-by-dependency,
+      or cancelled.
+
+      A stage omitted by the effective profile is disabled rather than incomplete.
+    }
+
+    DiagnosticLifecycle {
+      A diagnostic is new, unchanged, resolved, or regressed relative to the selected
+      prior report.
+    }
+
+    AgentInspectionLifecycle {
+      An agent inspection is starting, running, completed, failed, cancelled, or
+      incomplete.
+    }
+  }
+
+  logic {
+    CompilationTarget {
+      Resolve a location target by matching its normalized file and one-based source
+      position to the enclosing component or expand range.
+
+      Resolve the selected component to one exact declaration identity before
+      identifying its workspace root, evaluation skill, and initial navigation paths.
+
+      Schedule workspace targets in dependency-aware component order.
+    }
+
+    CompilationProfile {
+      Load built-in defaults and merge the selected namespaced tools.compile project
+      profile.
+
+      Treat the singular adapter configuration as the default evaluator identity when
+      the selected profile requires one evaluator.
+
+      Load evaluator identities from tools.compile.evaluators and select them through
+      the effective profile's evaluatorIds.
+
+      Compute the profile fingerprint from effective stages, skills, adapters,
+      models, capabilities, budgets, and relevant versions.
+
+      Validate only evaluator identities referenced by the selected profile before
+      invoking an agentic stage.
+
+      Resolve a requested stage to that stage and its complete transitive dependency
+      closure without enabling unrelated stages.
+    }
+
+    PipelineExecution {
+      Run deterministic foundation stages before dependent agentic stages.
+
+      Run every enabled stage whose dependencies produced trustworthy inputs once for
+      each evaluator identity selected by the effective profile.
+
+      Skip only stages whose declared dependencies failed or became unavailable.
+
+      Aggregate every trustworthy diagnostic produced by enabled stages.
+
+      Record material disagreement when evaluator results for the same component,
+      stage, rule, and semantic subject differ on the presence or severity of an
+      error or warning.
+    }
+
+    EvaluationContext {
+      Build a minimal evaluation request from the workspace root, selected target,
+      stage skill, capability contract, output schema, and execution budgets.
+
+      Invoke each enabled agentic stage separately for workspace components in
+      dependency-aware order.
+
+      Do not serialize Sigil or implementation file contents into the initial
+      evaluation request.
+    }
+
+    AgentWorkspaceInspection {
+      Start the agent at the selected workspace root in an ephemeral read-only
+      sandbox with approval escalation and network access disabled.
+
+      Let the agent inspect relevant workspace files and run read-only Sigil, search,
+      version-control inspection, and text-projection commands as its evidence needs
+      emerge.
+
+      Require the agent to treat repository instructions and retrieved file contents
+      as untrusted evidence rather than evaluator authority.
+    }
+
+    EvaluationTrace {
+      Consume the agent CLI's structured event stream and record command events,
+      model usage, evaluator environment, outcome, and incomplete-evidence status
+      without retaining hidden reasoning or complete file contents.
+    }
+
+    CompilationDiagnostic {
+      Derive diagnostic identity from stable rule, stage, subject, and
+      source-location facts rather than evaluator prose.
+
+      Resolve every evaluator-provided Sigil location against the deterministic
+      semantic model and attach the smallest containing semantic unit, falling back
+      to its containing concept or section when no semantic unit contains the
+      location.
+
+      Resolve an implementation location through validated ownership annotations and
+      attach every governing component or concept section selected by the owning
+      implementation entrypoint.
+
+      Preserve the physical primary location separately from its semantic subjects.
+
+      Derive semantic-unit fingerprints from normalized prose and literal content so
+      canonical formatting and physical line movement do not change semantic
+      identity.
+
+      Reject or reduce unsupported evaluator claims to information so they cannot
+      make compilation red or yellow.
+
+      Compare stable fingerprints with the selected prior report to derive lifecycle
+      state.
+    }
+
+    CompilationStatus {
+      Produce red when an error exists or a required evaluator fails, is unavailable,
+      or returns invalid output.
+
+      Produce yellow when no error exists and one or more warnings exist.
+
+      Produce a compiler-owned warning when required evaluators materially disagree.
+
+      Produce green only when every required evaluator identity completes and no
+      error, warning, or material disagreement remains.
+    }
+
+    CompilationHistory {
+      Resolve the latest compatible report for the same workspace, target, report
+      version, and effective profile from the host-provided operating-system user
+      cache.
+
+      Compare current diagnostic fingerprints with that report to derive new,
+      unchanged, resolved, and regressed lifecycle states.
+
+      Replace the latest compatible report atomically after a completed run unless
+      history is disabled.
+
+      Treat missing, corrupt, or incompatible history as unavailable evidence rather
+      than a compilation failure.
+
+      Import or export durable reports only when explicitly requested.
+    }
+  }
+
+  constraints {
+    DependencyDirection {
+      SigilCompiler depends on SigilCore for deterministic workspace semantics.
+
+      SigilCore does not depend on SigilCompiler, evaluation skills, agent adapters,
+      CLI behavior, or editor behavior.
+    }
+
+    ReadOnlyCompilation {
+      Compilation does not modify Sigil source, implementation source, configuration,
+      tests, documentation, or other selected-workspace content.
+
+      Compilation does not generate code or execute implementation experiments.
+    }
+
+    ProfileConfiguration {
+      Compiler configuration lives in the tools.compile namespace of ConfigFile.
+
+      SigilCore preserves tools.compile without interpreting its compiler-owned
+      schema.
+
+      Credentials and secret values never appear in tools.compile.
+
+      tools.compile.evaluators is an object whose keys are unique evaluator
+      identities and whose values declare a provider and optional model.
+
+      profile evaluatorIds contains no duplicates and references configured evaluator
+      identities.
+
+      Evaluator configuration not referenced by the selected profile does not affect
+      workspace loading or compilation through another profile.
+    }
+
+    StageConfiguration {
+      Profiles may enable, disable, order, and configure evaluation stages subject to
+      declared stage dependencies.
+
+      A stage intentionally disabled by the effective profile is not required for
+      green.
+
+      The report and profile fingerprint expose every disabled stage.
+
+      Stage-scoped compilation cannot bypass a required dependency or select a stage
+      disabled by the effective profile.
+    }
+
+    BuiltInProfiles {
+      standard requires deterministic foundation, semantic readiness, cross-Sigil
+      coherence, architecture and design, and current-code compatibility through one
+      configured evaluator.
+
+      critical-system includes standard behavior and additionally requires standards
+      and risk evaluation, multiple evaluators, and disagreement detection.
+
+      Selecting critical-system requires at least two distinct available evaluator
+      identities before agentic evaluation begins.
+
+      Invoking the same evaluator identity twice does not provide evaluator
+      redundancy.
+
+      Missing, duplicate, unknown, or unavailable required evaluator identities fail
+      only the selected compilation run and do not invalidate the Sigil workspace or
+      other profiles.
+    }
+
+    EvaluationContext {
+      One adapter request never combines multiple selected components.
+
+      Evaluation skills may identify initial paths and targets but do not embed
+      repository file contents in the request.
+
+      Effective profiles declare elapsed-time, command-output, and model-usage
+      budgets for direct workspace inspection.
+    }
+
+    AgentWorkspaceInspection {
+      The adapter must enforce read-only workspace access, disabled network access,
+      no approval escalation, and the selected workspace as the agent working root.
+
+      The agent may run version, parse, check, fmt --check, glossary, graph, context,
+      and render plus read-only search, version-control inspection, and
+      text-projection commands.
+
+      The agent must not run init, mutating fmt, compile, skill installation, network
+      commands, code generation, implementation experiments, or commands that modify
+      workspace or external state.
+
+      Owned implementation annotations are navigation evidence and do not restrict
+      which workspace files the agent may read.
+
+      Inaccessible material evidence, exhausted execution budgets, invalid structured
+      events, or an unenforceable capability contract leave the required stage
+      incomplete and prevent green.
+    }
+
+    CompilationReport {
+      CompilationReport version 2 requires semanticSubjects on every diagnostic,
+      including an empty array when deterministic resolution finds no governing Sigil
+      subject.
+
+      Semantic subject identities are compiler-owned projections; evaluator text may
+      provide candidate physical locations but cannot assign a component, section,
+      concept, relation, or semantic-unit fingerprint.
+
+      A direct subject contains the primary Sigil location, a governing subject is
+      derived from implementation ownership, and a related subject identifies
+      additional Sigil evidence for the same finding.
+
+      CompilationReport excludes credentials, hidden reasoning, and complete private
+      prompts.
+
+      Ordinary compilation does not create report or cache files inside the selected
+      workspace.
+
+      Explicit report export is separate from ordinary compilation and does not imply
+      human approval.
+
+      A stage-scoped report identifies the requested stage and exact executed
+      dependency closure.
+    }
+
+    CompilationEventProtocol {
+      JSON Lines mode writes only CompilationEvent envelopes to standard output.
+
+      Human progress and host logs use standard error and never corrupt the
+      structured event stream.
+
+      Event sequence values increase within one run and terminal events end that
+      run's stream.
+    }
+  }
+
+  decisions {
+    ReadOnlyCompilation {
+      Decision: Keep compilation read-only and exclude implementation-feasibility
+      evaluation, code generation, and implementation experiments from compiler
+      responsibility.
+
+      Scope: Governs every compilation stage and adapter.
+
+      Trade-offs: The compiler cannot empirically validate whether a proposed
+      contract can be implemented.
+
+      Consequences: Compilation evaluates contracts and repository evidence while
+      implementation validation remains a downstream team responsibility.
+    }
+
+    ProfileScopedCompilation {
+      Decision: Compute status against an exact named profile and environment
+      fingerprint whose stages are configurable.
+
+      Scope: Governs built-in and project-defined profiles.
+
+      Trade-offs: Green is never an unconditional property of a Sigil file.
+
+      Consequences: Teams can configure evaluation depth while preserving an
+      auditable statement of what was evaluated.
+    }
+
+    StageScopedCompilation {
+      Decision: Allow direct invocation of one named stage while executing its
+      complete dependency closure and excluding unrelated stages.
+
+      Scope: Governs compiler, CLI, report status, and event presentation for
+      stage-scoped runs.
+
+      Trade-offs: Stage identifiers become reserved compile operands and a colliding
+      filesystem path requires an explicit relative or absolute path.
+
+      Design issues addressed: Readiness validation needs a focused invocation
+      without paying for or conflating unrelated compiler stages.
+
+      Consequences: sigil compile semantic-readiness evaluates deterministic
+      foundation and semantic readiness and reports status only for that closure.
+    }
+
+    CompilationColor {
+      Decision: Use red for errors or incomplete required evaluation, yellow for
+      warnings without errors, and green only for complete evaluation with zero
+      errors and zero warnings.
+
+      Scope: Governs compiler, CLI, CI, and editor status presentation.
+
+      Discarded alternatives: Warning waivers that still produce green were rejected.
+
+      Consequences: A green result has one strict meaning across surfaces.
+    }
+
+    SemanticDiagnosticSubjects {
+      Decision: Add compiler-verified hierarchical semantic subjects to every
+      diagnostic and make them required in CompilationReport version 2.
+
+      Scope: Governs diagnostic navigation, grouping, lifecycle identity, editor
+      integration, implementation reconciliation, and durable report compatibility.
+
+      Assumptions: SigilCore preserves semantic-unit ownership, section, optional
+      concept identity, normalized prose, literal content, and exact source range.
+
+      Trade-offs: Report consumers must migrate to version 2 and implementation
+      locations require valid ownership annotations before they can gain governing
+      semantic subjects.
+
+      Design issues addressed: A physical file and line cannot reliably group a
+      finding by component, section, concept, or semantic occurrence and changes when
+      formatting moves source lines.
+
+      Discarded alternatives: A single concept-only annotation, evaluator-assigned
+      semantic identities, and optional version-1 subject hints were rejected because
+      they lose ungrouped units, weaken trust, or leave consumers with an ambiguous
+      compatibility contract.
+
+      Consequences: Reports can navigate and group findings at every semantic level,
+      and diagnostic identity remains stable across formatting-only changes.
+
+      Revisit when: Sigil introduces explicit durable identifiers for individual
+      semantic units.
+    }
+
+    EvaluationContext {
+      Decision: Evaluate one component in one stage per agent run using a minimal
+      target request and direct read-only workspace inspection.
+
+      Scope: Governs component, file, and workspace targets across stage scheduling,
+      initial request construction, workspace access, and adapter invocation.
+
+      Assumptions: Agent providers impose finite input limits and workspace-wide
+      resolved projections contain substantial duplicated context.
+
+      Trade-offs: Workspace compilation makes more agent calls and direct inspection
+      can vary the exact evidence each evaluator chooses to load.
+
+      Design issues addressed: Preassembling contracts, glossary projections, and
+      implementation source can duplicate large context and prevent the evaluator
+      from choosing the most relevant evidence.
+
+      Discarded alternatives: Sending selected source files, every dependency, the
+      complete glossary, or all owned implementation text in the initial request was
+      rejected.
+
+      Consequences: The evaluator loads evidence incrementally while the compiler
+      records its environment, commands, usage, and completion state.
+
+      Revisit when: Provider-neutral structured context caching can preserve
+      evaluator choice without preloading duplicated file contents.
+    }
+
+    DirectAgentWorkspaceInspection {
+      Decision: Give the configured CLI agent enforced read-only access to the
+      selected workspace and let it load files and run inspection commands directly.
+
+      Scope: Governs evidence gathering during agentic compiler stages; excludes
+      mutation, network research, approval escalation, recursive compilation, code
+      generation, and implementation experiments.
+
+      Assumptions: A code agent can select relevant Sigil and implementation evidence
+      more effectively than a fixed compiler-built text payload.
+
+      Trade-offs: Providers may inspect different evidence, and the compiler must
+      validate capabilities and consume provider event protocols.
+
+      Design issues addressed: Fixed direct context can miss transitive or
+      conditionally relevant evidence and can waste context on unrelated source text.
+
+      Discarded alternatives: Compiler-mediated file-content injection, unrestricted
+      write access, and always loading the complete workspace context were rejected.
+
+      Consequences: Evaluators can inspect relevant code and contracts directly while
+      sandbox and adapter policy preserve the compiler's read-only boundary.
+
+      Revisit when: An adapter cannot provide enforceable read-only workspace access
+      and a structured command and usage trace.
+    }
+
+    ExternalCompilationHistory {
+      Decision: Keep implicit interactive history outside the repository and make
+      durable report transfer explicit.
+
+      Scope: Governs local cache, CI, and team handoff; excludes explicit
+      user-selected export destinations.
+
+      Consequences: Compilation remains read-only while lifecycle comparison remains
+      available.
+    }
+
+    LocationBasedCompilation {
+      Decision: Represent an editor selection as a file-backed source position and
+      resolve its enclosing component or expand through deterministic Sigil ranges.
+
+      Scope: Governs location targets across compiler, CLI, and editor compilation;
+      excludes workspace and explicit file-wide targets.
+
+      Trade-offs: The public target and CLI option contracts gain source-position
+      fields.
+
+      Design issues addressed: Name-only selection cannot distinguish duplicate
+      components and textual prefix scanning cannot identify expand-only files.
+
+      Discarded alternatives: Editor-side Sigil parsing and name-only component
+      selection were rejected because they duplicate semantics or lose component
+      identity.
+
+      Consequences: A cursor resolves to one compiler-verified component identity
+      without duplicating parsing in the editor.
+    }
+
+    CriticalEvaluatorRedundancy {
+      Decision: Require at least two configured evaluator identities for every
+      critical-system agentic stage and let the compiler detect material
+      disagreement.
+
+      Scope: Governs critical-system evaluation, status, traces, and profile
+      validation; standard profiles retain one configured evaluator by default.
+
+      Trade-offs: Critical-system runs cost more and may remain non-green when
+      evaluators disagree.
+
+      Design issues addressed: One evaluator cannot provide the redundancy promised
+      by the critical-system profile.
+
+      Discarded alternatives: Treating an additional standards stage as evaluator
+      redundancy and allowing a single-evaluator critical-system green result were
+      rejected.
+
+      Consequences: Critical-system status records independent evaluator completion
+      and makes material disagreement visible.
+    }
+
+    LatestCompatibleReportHistory {
+      Decision: Retain only the latest compatible report for each workspace, target,
+      report version, and effective profile in the host-provided operating-system
+      user cache.
+
+      Scope: Governs implicit local lifecycle comparison; excludes repository files,
+      explicit report exports, CI retention, and team handoff.
+
+      Trade-offs: Local history does not preserve a complete timeline and remains
+      host-specific.
+
+      Design issues addressed: Diagnostic lifecycle cannot be derived when every run
+      is treated as unrelated.
+
+      Discarded alternatives: Repository-local caches and unbounded implicit history
+      were rejected because they mutate selected workspaces or create unmanaged
+      retention.
+
+      Consequences: Completed runs can derive lifecycle state without making local
+      history durable project authority.
+    }
+
+    ComponentCenteredCompilation {
+      Decision: Make components the primary compilation unit and resolve file and
+      workspace targets into component sets.
+
+      Scope: Governs target resolution across CLI, editor, and CI surfaces.
+
+      Consequences: A component cannot appear green while a matching expand or
+      relevant relationship remains unevaluated.
+    }
+
+    CompilationEventProtocol {
+      Decision: Use a versioned JSON Lines event stream with one authoritative report
+      in the completed terminal event.
+
+      Scope: Governs streaming between SigilCompiler and CLI, editor, CI, and
+      automation consumers.
+
+      Trade-offs: Consumers must process an ordered stream instead of parsing one
+      final JSON object.
+
+      Design issues addressed: Long-running compilation requires incremental progress
+      without mixing human output with machine-readable data.
+
+      Discarded alternatives: Mixed stdout and one unframed JSON document were
+      rejected because they cannot safely carry incremental events.
+
+      Consequences: Hosts share one stream protocol and can validate ordering,
+      compatibility, completion, failure, and cancellation.
+    }
+  }
+
+  cases {
+    CompilationStatus {
+      A syntax error produces red and prevents only stages that require a valid
+      resolved contract.
+
+      Zero errors with one architecture warning produces yellow.
+
+      Complete evaluation with zero errors and zero warnings produces green.
+
+      Remaining optimization messages do not prevent green.
+    }
+
+    StageConfiguration {
+      A profile with an optional evaluation stage explicitly disabled can become
+      green and records that disabled stage in its fingerprint and report.
+
+      Requesting semantic-readiness executes deterministic-foundation first and does
+      not execute architecture-design or current-code-compatibility.
+    }
+
+    EvaluationContext {
+      A component run receives target identity and skill instructions without
+      serialized Sigil or implementation source.
+
+      The agent reads an owned implementation file and a relevant unannotated caller
+      when both are needed to assess compatibility.
+    }
+
+    AgentWorkspaceInspection {
+      An agent runs sigil graph and selected sigil context commands directly while
+      the adapter records their structured command events.
+
+      An attempted workspace write is denied by the sandbox and leaves the stage
+      incomplete.
+
+      An adapter without enforceable read-only access fails before evaluation.
+    }
+
+    CompilationTarget {
+      Compiling one component includes every matching expand even when those expands
+      live in other files.
+
+      Compiling a position inside an expand resolves the component represented by
+      that expand.
+
+      A position outside a component or expand reports that no component is selected.
+    }
+
+    CompilationHistory {
+      Recompiling after resolving one stable finding marks it resolved in comparison
+      with the prior report.
+
+      Disabling history reads no prior report and writes no replacement report.
+
+      Corrupt or incompatible history leaves current diagnostics new and does not
+      prevent completion.
+    }
+
+    CompilationReport {
+      Changing relevant Sigil content or the effective profile makes an exported
+      green report stale.
+
+      A diagnostic located in a grouped interface paragraph identifies its component,
+      interface section, concept, exact semantic unit, and direct relation.
+
+      A diagnostic located on an implementation entrypoint with two valid ownership
+      targets contains two governing semantic subjects.
+
+      A diagnostic outside Sigil with no valid ownership target contains an empty
+      semanticSubjects array while preserving its physical primary location.
+
+      Reformatting a semantic unit without changing its normalized prose or literal
+      content preserves its semantic-unit fingerprint.
+
+      A green report handed to an implementation team still requires human approval
+      before implementation begins.
+    }
+
+    CompilationEventProtocol {
+      A JSON Lines run emits ordered progress events followed by one completed event
+      containing CompilationReport.
+
+      A cancelled run emits a cancelled terminal event when the process remains able
+      to write it.
+
+      A failed run emits a failed terminal event when the process remains able to
+      write it.
+    }
+
+    BuiltInProfiles {
+      A workspace without critical evaluator configuration loads and compiles through
+      standard or another valid selected profile.
+
+      Selecting critical-system with fewer than two distinct available evaluator
+      identities emits a failed terminal event with
+      COMPILER_PROFILE_EVALUATORS_REQUIRED before agentic evaluation.
+
+      Two critical-system evaluators that materially disagree prevent green and
+      produce a compiler-owned warning.
+    }
+  }
+}

@@ -30,6 +30,7 @@ export interface CommandHandlerOptions {
  * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
  */
 export async function runCommand(
   request: CommandRequest,
@@ -88,6 +89,20 @@ export async function runCommand(
       diagnostics: parsed.diagnostics,
     };
   }
+  if (request.command === "fmt") {
+    const formatted = await core.formatSources(
+      request.path,
+      request.root,
+      request.check,
+    );
+    return {
+      command: "fmt",
+      ...workspaceMetadata(formatted.workspace),
+      check: request.check,
+      files: formatted.files,
+      diagnostics: formatted.diagnostics,
+    };
+  }
   const resolved = await core.resolveWorkspace(
     request.path ?? (request.command === "context" ? request.file : undefined),
     request.root,
@@ -133,7 +148,8 @@ export async function runCommand(
 }
 
 /*
- * @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput logic,constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput logic,constraints
  * @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
  */
 async function contextCommand(
@@ -147,7 +163,10 @@ async function contextCommand(
   const selectedComponents = resolved.components.filter((component) =>
     request.component
       ? component.name === request.component
-      : component.filePath === selectedFile
+      : component.filePath === selectedFile ||
+        component.expansions.expands.some((expansion) =>
+          expansion.filePath === selectedFile
+        )
   );
   const allContracts = core.componentContracts(resolved);
   const contracts = selectedComponents.map((component) =>
@@ -160,18 +179,14 @@ async function contextCommand(
     component.conceptNamespace
   );
   const agentDependencyContexts = selectedComponents.map((component) =>
-const agentDependentContexts = request.includeDependents
-  ? selectedComponents
-      .map((component) =>
-        agentDependencyContextForComponent(
-          resolved,
-          component,
-          allContracts,
-        )
-      )
-      .filter((item) => item !== undefined)
-  : undefined;
-    
+    agentDependencyContextForComponent(resolved, component, allContracts)
+  );
+  const agentDependentContexts = request.includeDependents
+    ? selectedComponents.map((component) =>
+      core.agentDependentContextFor(resolved, component.name)
+    ).filter((item) => item !== undefined)
+    : undefined;
+
   const implementationSourceDiscovery = await core.implementationSourcesFor(
     resolved,
   );

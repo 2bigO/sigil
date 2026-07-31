@@ -1,0 +1,234 @@
+@packages/core import { SigilCore }
+
+component SigilCompiler {
+  goal {
+    Give designers and architects a compiler-like improvement loop for high-level
+    Sigil contracts through profile-scoped deterministic and agentic evaluation.
+
+    Orchestrate evidence-backed evaluation without modifying the selected
+    workspace, replacing human design approval, or moving semantic judgment into
+    SigilCore.
+  }
+
+  interface {
+    CompilationInvocation {
+      compile(workspacePath, target, profileName, options?) streams CompilationEvent
+      and returns CompilationReport
+
+      options may disable external history lookup or explicitly export the resulting
+      CompilationReport
+    }
+
+    CompilationTarget {
+      a component is the primary compilation unit
+
+      a location target identifies one file-backed source position and resolves the
+      enclosing component or expand to one exact component identity
+
+      a file target resolves to every component represented by that file
+
+      a workspace target resolves to a dependency-aware collection of components
+
+      component evaluation requires inspection of matching expands, relevant
+      dependencies and importers, glossary context, and implementation evidence
+    }
+
+    CompilationProfile {
+      a named profile selects an ordered dependency graph of stages, evaluators,
+      evaluation skills, capability limits, and execution budgets
+
+      standard and critical-system are built-in profiles
+
+      tools.compile.adapter remains the backward-compatible default evaluator for
+      profiles that require one evaluator
+
+      tools.compile.evaluators maps unique evaluator identities to a provider and
+      optional model configuration
+
+      a profile may select configured evaluator identities through evaluatorIds
+
+      critical-system evaluator configuration is optional until that profile is
+      selected
+
+      project profiles may configure or omit evaluation stages
+
+      a stage-scoped invocation evaluates one named stage and its complete dependency
+      closure
+
+      each run records the exact effective profile and environment fingerprint
+    }
+
+    CompilationStatus {
+      red means at least one error exists or a required evaluator did not complete
+
+      yellow means no error exists and at least one warning exists
+
+      green means every required evaluator completed with zero errors and zero
+      warnings
+
+      optimization and information messages do not change the compilation color
+    }
+
+    CompilationDiagnostic {
+      every error and warning has a stable rule code, diagnostic fingerprint,
+      originating stage and skill, primary location, evidence, impact, correction
+      guidance, and evaluator provenance
+
+      every diagnostic carries zero or more compiler-verified semantic subjects that
+      identify the governing Sigil component, owner kind, section, optional concept,
+      and optional semantic unit
+
+      each semantic subject declares whether it is direct, governing, or related
+
+      diagnostics may identify related locations and new, unchanged, resolved, or
+      regressed lifecycle state
+    }
+
+    DiagnosticSemanticSubject {
+      relation is direct, governing, or related
+
+      sigilPath identifies the governing Sigil source
+
+      componentName identifies the resolved component
+
+      ownerKind is component or expand and ownerName identifies that owner
+
+      sectionName identifies goal, interface, state, logic, constraints, decisions,
+      or cases
+
+      conceptIdentifier is present only for a grouped concept occurrence
+
+      semanticUnit optionally identifies the exact occurrence by source range and a
+      normalized-content fingerprint
+    }
+
+    CompilationReport {
+      version 2 of the JSON CompilationReport is the authoritative durable result
+
+      terminal, Markdown, CI, and editor presentations are projections of the
+      authoritative report
+
+      a report binds its status to source hashes, component graph, effective profile,
+      stage set, evaluator environment, and completed passes
+
+      a relevant source, profile, skill, adapter, or evaluator-environment change
+      makes an earlier report stale
+    }
+
+    EvaluationSkillPackage {
+      a compiler-native evaluation skill contains SKILL.md guidance and a
+      compile.json manifest
+
+      the manifest declares pass identity, version, inputs, dependencies, required
+      capabilities, diagnostic rules, implementation-evidence policy, and output
+      contract
+
+      implementation-evidence policy is context-only or compare
+
+      context-only permits implementation evidence to establish repository, platform,
+      version, or environment constraints without treating current implementation
+      mismatch as a finding
+
+      compare authorizes the stage to assess current implementation against desired
+      Sigil
+
+      compilation loads and validates the selected package rather than substituting
+      hard-coded evaluator guidance
+    }
+
+    AgentAdapter {
+      an adapter executes a bounded evaluation request through one configured
+      code-agent provider
+
+      an evaluator identity is a unique configured identifier bound to one provider
+      and optional model configuration
+
+      an adapter reports its enforceable capabilities before evaluation
+
+      adapter output is untrusted until it satisfies the compiler-owned protocol and
+      evidence requirements
+    }
+
+    EvaluationContext {
+      each agent request evaluates exactly one component in one evaluation stage
+
+      the compiler supplies the workspace root, selected target identity, evaluation
+      skill, capability contract, and structured output schema
+
+      the agent reads relevant Sigil and implementation evidence directly from the
+      selected workspace
+
+      the effective profile exposes execution, command-output, and model-usage
+      budgets in the profile fingerprint and CompilationReport
+    }
+
+    AgentWorkspaceInspection {
+      an adapter runs its agent at the selected workspace root with enforced
+      read-only filesystem access, no network access, and no approval escalation
+
+      the agent may read workspace files and run read-only Sigil, search, version
+      control inspection, and text-projection commands needed for its stage
+    }
+
+    EvaluationTrace {
+      CompilationReport records requested stages, agent command events, model usage,
+      evaluator environment, and incomplete evidence without retaining hidden
+      reasoning or complete file contents
+
+      each agentic evaluation trace identifies the configured evaluator that produced
+      it
+    }
+
+    CompilationEventProtocol {
+      CompilationEvent uses a versioned JSON Lines envelope containing
+      protocolVersion, runId, sequence, type, and payload
+
+      a completed terminal event contains the authoritative CompilationReport
+
+      failed and cancelled runs emit terminal events whenever the process remains
+      able to report them
+    }
+  }
+}
+
+expand SigilCompiler {
+  constraints {
+    HumanAuthorityBoundary {
+      Green status is evidence that one exact source snapshot passed one exact
+      profile.
+
+      Green status does not approve the design, authorize implementation, or replace
+      an accountable human review.
+    }
+  }
+
+  decisions {
+    CompilerBoundary {
+      Decision: Place agent orchestration in a separate @qoherent/sigil-compiler
+      package and expose it through thin host façades.
+
+      Scope: Governs agentic Sigil compilation; excludes deterministic language
+      interpretation owned by SigilCore.
+
+      Trade-offs: Distribution gains another package and compatibility boundary.
+
+      Design issues addressed: Agentic evaluation must not weaken the deterministic
+      core contract.
+
+      Discarded alternatives: Making SigilCore or SigilCli directly own semantic
+      evaluation was rejected.
+
+      Consequences: CLI, editors, and future hosts share one compiler protocol
+      without duplicating orchestration.
+    }
+
+    HumanAuthorityBoundary {
+      Decision: Treat green as profile-scoped evidence rather than design approval or
+      implementation authorization.
+
+      Scope: Governs every compilation report and downstream workflow.
+
+      Consequences: Critical design handoff retains accountable human review.
+    }
+  }
+}

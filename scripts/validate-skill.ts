@@ -358,8 +358,8 @@ requireText(
 );
 
 const version = (await Deno.readTextFile(`${root}/VERSION`)).trim();
-if (version !== "0.7.0") {
-  throw new Error(`Expected skill VERSION 0.7.0, got ${version}`);
+if (version !== "0.8.0") {
+  throw new Error(`Expected skill VERSION 0.8.0, got ${version}`);
 }
 
 const compatibility = JSON.parse(
@@ -369,7 +369,7 @@ for (
   const [key, expected] of Object.entries({
     cliVersion: "^0.7.0",
     coreVersion: "^0.7.0",
-    sigilVersion: "0.5.0",
+    sigilVersion: "0.6.0",
   })
 ) {
   if (compatibility[key] !== expected) {
@@ -459,6 +459,10 @@ const requiredBrownfieldBehaviors = [
   "classify-boundary-expand-evidence",
   "propose-minimal-boundary-expands",
   "preserve-only-binding-boundary-constraints",
+  "keep-module-index-small-by-responsibility",
+  "colocate-operational-detail-with-owner",
+  "reuse-imported-public-namespace",
+  "require-modular-boundary-coverage",
   "exclude-incidental-and-task-specific-boundary-details",
   "use-reviewgate-for-boundary-sigil-change",
   "report-written-boundary-without-second-gate",
@@ -508,6 +512,21 @@ requireText(
   "collaborate with the user to define and approve that coverage",
   "brownfield missing coverage collaboration",
 );
+requireText(
+  fixture,
+  "keep it small by responsibility",
+  "brownfield thin module index",
+);
+requireText(
+  fixture,
+  "Move independently owned state, operational logic, lifecycle behavior",
+  "brownfield operational owner colocation",
+);
+requireText(
+  fixture,
+  "reuse every semantic match",
+  "brownfield imported namespace reuse",
+);
 
 const greenfieldFixture = await Deno.readTextFile(
   `${root}/evals/greenfield-fixture.md`,
@@ -525,6 +544,10 @@ const requiredGreenfieldBehaviors = [
   "provide-reasoned-recommendation",
   "allow-user-to-reject-all-choices",
   "continue-until-contract-is-clear",
+  "split-independent-architectural-owners",
+  "keep-module-index-as-namespace-assembly",
+  "reuse-imported-public-namespace",
+  "require-contract-to-code-modularity",
   "revalidate-design-evidence-during-review",
   "recheck-related-sigil-before-synthesis",
   "synthesize-conversation-into-exact-sigil",
@@ -565,6 +588,21 @@ requireText(
   greenfieldFixture,
   "collaborate with the user on\n    the affected Sigil before adding implementation",
   "greenfield missing coverage collaboration",
+);
+requireText(
+  greenfieldFixture,
+  "Split independently changing responsibilities",
+  "greenfield architectural owner split",
+);
+requireText(
+  greenfieldFixture,
+  "module index as a concise architectural summary",
+  "greenfield thin module index",
+);
+requireText(
+  greenfieldFixture,
+  "reuse every semantic match",
+  "greenfield imported namespace reuse",
 );
 
 const designConversationFixture = await Deno.readTextFile(
@@ -738,6 +776,9 @@ const requiredImplementationBehaviors = [
   "use-expand-for-owned-implementation-detail",
   "omit-trivial-mechanics",
   "report-implementation-coverage-map",
+  "map-contract-owners-to-implementation-modules",
+  "keep-index-as-namespace-assembly",
+  "reject-bulky-generated-owner",
   "propose-exact-implementation-sigil",
   "support-combined-or-dependent-sigil-change-scope",
   "report-written-sigil-without-second-gate",
@@ -786,6 +827,21 @@ requireText(
   "implementation coverage map",
 );
 requireText(
+  implementationFixture,
+  "cohesive implementation module",
+  "implementation module ownership mapping",
+);
+requireText(
+  implementationFixture,
+  "public entrypoint or index focused on namespace assembly",
+  "implementation thin namespace assembly",
+);
+requireText(
+  implementationFixture,
+  "Reject a decomposition that would generate one bulky implementation owner",
+  "implementation bulky owner rejection",
+);
+requireText(
   implementationDesign,
   "Before each repository mutation intended to implement a request, confirm that\n" +
     "the mutation remains within a completed implementation preflight.",
@@ -823,7 +879,7 @@ requireText(
 );
 requireText(
   implementationDesign,
-  "Ownership annotations are implementation comments, not Sigil semantic lines.",
+  "Ownership annotations are implementation comments, not Sigil semantic units.",
   "implementation-side ownership storage",
 );
 requireText(
@@ -873,6 +929,7 @@ const requiredConceptIdentifierBehaviors = [
   "enter-correction-only-for-confirmed-problem",
   "inspect-complete-local-collective",
   "inspect-local-and-imported-concepts",
+  "maximize-coherent-imported-identity-reuse",
   "inspect-direct-consumers",
   "bound-transitive-traversal",
   "treat-consumers-as-evidence",
@@ -910,6 +967,11 @@ requireText(
   conceptIdentifierFixture,
   "Inspect direct importers",
   "concept fixture direct consumer discovery",
+);
+requireText(
+  conceptIdentifierFixture,
+  "Reuse every semantically matching accessible imported public identity",
+  "concept fixture maximal coherent namespace reuse",
 );
 requireText(
   conceptIdentifierFixture,
@@ -1353,7 +1415,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.7.0 dispatcher, unified design conversation, proactive external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.8.0 dispatcher, unified design conversation, proactive external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

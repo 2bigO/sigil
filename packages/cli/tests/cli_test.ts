@@ -3,6 +3,11 @@ import {
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
+import type {
+  CompilationReport,
+  CompilationTarget,
+  CompileOptions,
+} from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
@@ -563,7 +568,7 @@ Deno.test("context includes direct dependency contracts and decision rationale",
       `${root}/provider.sigil`,
       `@leaf.sigil import { Leaf }
 
-${validSigil("Provider")}`,
+${validSigil("Provider").replace("run()", "run(Leaf)")}`,
     );
     await Deno.writeTextFile(
       `${root}/provider-detail.sigil`,
@@ -586,7 +591,7 @@ ${validSigil("Provider")}`,
       `${root}/consumer.sigil`,
       `@provider.sigil import { Provider }
 
-${validSigil("Consumer")}`,
+${validSigil("Consumer").replace("run()", "run(Provider)")}`,
     );
 
     const result = await runCli([
@@ -609,7 +614,7 @@ ${validSigil("Consumer")}`,
     );
     assertEquals(context.dependencyDecisions.length, 1);
     assertEquals(
-      context.dependencyDecisions[0].section.lines[0].text,
+      context.dependencyDecisions[0].section.units[0].prose,
       "Decision: Include direct rationale.",
     );
     assert(
@@ -643,7 +648,7 @@ ${validSigil("Consumer")}`,
     assert(markdown.stdout.includes("##### Goal"));
     assert(markdown.stdout.includes("- Test Provider."));
     assert(markdown.stdout.includes("##### Interface"));
-    assert(markdown.stdout.includes("- run()"));
+    assert(markdown.stdout.includes("- run(Leaf)"));
     assert(markdown.stdout.includes("##### Dependency Decisions"));
     assert(markdown.stdout.includes("provider-detail.sigil"));
     assert(markdown.stdout.includes("Decision: Include direct rationale."));
@@ -821,7 +826,7 @@ Deno.test("context renders component Markdown for contracts, expansions, diagnos
 
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
  */
 Deno.test("context Markdown prefers file identity for duplicate component names", async () => {
   const root = await makeWorkspace("context-markdown-duplicate-name");
@@ -902,7 +907,7 @@ Deno.test("context Markdown prefers file identity for duplicate component names"
 
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
  */
 Deno.test("context Markdown preserves duplicate dependency identity by import path", async () => {
   const root = await makeWorkspace("context-markdown-duplicate-dependencies");
@@ -1008,7 +1013,7 @@ component Consumer {
 
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
  */
 Deno.test("context Markdown preserves dependency identity for duplicate selected components", async () => {
   const root = await makeWorkspace("context-markdown-duplicate-selected");
@@ -1141,10 +1146,11 @@ component Consumer {
 
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
  */
 Deno.test("context renders file Markdown for multiple components and normalizes paths", async () => {
   const root = await makeWorkspace("context-markdown-file");
+  const normalizedRoot = normalizePath(root);
   try {
     await Deno.writeTextFile(
       `${root}/multi.sigil`,
@@ -1183,7 +1189,7 @@ component Second {
       "markdown",
     ]);
     assertEquals(absolute.exitCode, EXIT_OK);
-    assert(absolute.stdout.includes(`Workspace root: ${root}`));
+    assert(absolute.stdout.includes(`Workspace root: ${normalizedRoot}`));
     assert(absolute.stdout.includes("## First"));
     assert(absolute.stdout.includes("## Second"));
     assert(
@@ -1202,8 +1208,10 @@ component Second {
       core: new CoreAdapter({ currentDirectory: root }),
     });
     assertEquals(relative.exitCode, EXIT_OK);
-    assert(!relative.stdout.includes(`Workspace root: ${root}`));
-    assert(!relative.stdout.includes(`Source: ${root}/multi.sigil`));
+    assert(!relative.stdout.includes(`Workspace root: ${normalizedRoot}`));
+    assert(
+      !relative.stdout.includes(`Source: ${normalizedRoot}/multi.sigil`),
+    );
     assert(relative.stdout.includes("multi.sigil"));
     assert(relative.stdout.includes("## First"));
     assert(relative.stdout.includes("## Second"));
@@ -1229,7 +1237,7 @@ component ConsumerA {
   }
 
   interface {
-    runA()
+    runA(Provider)
   }
 }
 
@@ -1294,7 +1302,10 @@ component ConsumerB {
       "markdown",
     ]);
     assertEquals(markdown.exitCode, EXIT_OK);
-    assertEquals(parseJson(markdown.stdout).agentDependentContexts.length, 1);
+    assert(markdown.stdout.includes("### Direct Importers"));
+    assert(markdown.stdout.includes("consumer.sigil"));
+    assert(markdown.stdout.includes("###### ConsumerA"));
+    assert(markdown.stdout.includes("###### ConsumerB"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -1408,6 +1419,53 @@ Deno.test("context reports every collected expansion file", async () => {
     assert(paths.some((path: string) => path.endsWith("/one.sigil")));
     assert(paths.some((path: string) => path.endsWith("/two.sigil")));
     assertEquals(parseJson(result.stdout).glossaryContext, null);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+Deno.test("context for an expand file collects its parent component", async () => {
+  const root = await makeWorkspace("expand-context");
+  try {
+    await Deno.writeTextFile(`${root}/contract.sigil`, validSigil("Feature"));
+    await Deno.writeTextFile(
+      `${root}/details.sigil`,
+      "expand Feature {\n  logic {\n    Resolve the parent.\n  }\n}\n",
+    );
+    await Deno.writeTextFile(
+      `${root}/feature.ts`,
+      "// @sigil implements details.sigil::Feature logic\nexport function resolveFeature() {}\n",
+    );
+    const result = await runCli([
+      "context",
+      root,
+      "--file",
+      `${root}/details.sigil`,
+      "--format",
+      "json",
+    ]);
+    assertEquals(result.exitCode, EXIT_OK);
+    const output = parseJson(result.stdout);
+    assertEquals(output.selectedComponents.length, 1);
+    assertEquals(output.selectedComponents[0].name, "Feature");
+    assertEquals(output.collectedExpansions.length, 1);
+    assert(
+      output.collectedExpansions[0].expands.some(
+        (expand: { filePath: string }) =>
+          expand.filePath.endsWith("/details.sigil"),
+      ),
+    );
+    assertEquals(output.ownedImplementationProjections.length, 1);
+    assertEquals(
+      output.ownedImplementationProjections[0].targets[0].symbolIdentity,
+      "resolveFeature",
+    );
+    assert(
+      !output.diagnostics.some((item: { code: string }) =>
+        item.code === "SIGIL_PARSE_STRUCTURE"
+      ),
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -1550,7 +1608,7 @@ Deno.test("render JSON includes workspace metadata and Markdown", async () => {
 
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,constraints
  */
 Deno.test("render Markdown diagnostics keep stable text formatting", async () => {
   const root = await makeWorkspace("render-markdown-diagnostics");
@@ -1971,6 +2029,312 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
     return this.#base.listFiles(root);
   }
 }
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
+ */
+Deno.test("compile preserves JSONL events and compiler status exits", async () => {
+  const report: CompilationReport = {
+    reportVersion: 2,
+    runId: "run-1",
+    workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
+    componentNames: ["Example"],
+    status: "yellow",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    profile: {
+      name: "standard",
+      criticalSystem: false,
+      contextBudgetChars: 900_000,
+      executionBudgets: {
+        elapsedTimeMs: 180_000,
+        maxCommands: 64,
+        maxCommandOutputChars: 200_000,
+        maxInputTokens: 200_000,
+        maxOutputTokens: 20_000,
+      },
+      stages: [],
+      evaluators: [],
+      fingerprint: "profile",
+    },
+    stages: [],
+    diagnostics: [],
+  };
+  let requestedStage: string | undefined;
+  const result = await runCli([
+    "compile",
+    "semantic-readiness",
+    ".",
+    "--format",
+    "jsonl",
+  ], {
+    compiler: async (_workspace, _target, options) => {
+      requestedStage = options?.requestedStage;
+      await options?.onEvent?.({
+        protocolVersion: 1,
+        runId: "run-1",
+        sequence: 1,
+        type: "completed",
+        payload: { report },
+      });
+      return report;
+    },
+  });
+  assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+  const event = JSON.parse(result.stdout.trim());
+  assertEquals(event.type, "completed");
+  assertEquals(event.payload.report.status, "yellow");
+  assertEquals(requestedStage, "semantic-readiness");
+
+  const resolvedReport: CompilationReport = {
+    ...report,
+    status: "green",
+    diagnostics: [{
+      code: "SEMANTIC_AMBIGUITY",
+      fingerprint: "finding",
+      severity: "warning",
+      stage: "semantic-readiness",
+      skill: "semantic-readiness@1",
+      message: "The ambiguity was corrected.",
+      filePath: "main.sigil",
+      semanticSubjects: [],
+      evidence: "The prior report contained the finding.",
+      impact: "No current impact remains.",
+      correction: "No further correction is required.",
+      evaluator: "default",
+      lifecycle: "resolved",
+    }],
+  };
+  const human = await runCli(["compile", "--no-cache"], {
+    compiler: () => Promise.resolve(resolvedReport),
+  });
+  assertEquals(human.exitCode, EXIT_OK);
+  assert(human.stdout.includes("resolved warning SEMANTIC_AMBIGUITY"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,constraints,cases
+Deno.test("compile rejects incompatible output formats", async () => {
+  const result = await runCli(["compile", "--format", "json"]);
+  assertEquals(result.exitCode, EXIT_USAGE);
+  assert(result.stderr.includes("--format must be text or jsonl"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+Deno.test("compile focus maps to design and implementation stage closures", async () => {
+  const stages: Array<string | undefined> = [];
+  const report: CompilationReport = {
+    reportVersion: 2,
+    runId: "run-focus",
+    workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
+    componentNames: [],
+    status: "green",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    profile: {
+      name: "standard",
+      criticalSystem: false,
+      contextBudgetChars: 1,
+      executionBudgets: {
+        elapsedTimeMs: 1,
+        maxCommands: 1,
+        maxCommandOutputChars: 1,
+        maxInputTokens: 1,
+        maxOutputTokens: 1,
+      },
+      stages: [],
+      evaluators: [],
+      fingerprint: "profile",
+    },
+    stages: [],
+    diagnostics: [],
+  };
+  const compiler = (
+    _workspace: string,
+    _target: CompilationTarget | undefined,
+    options: CompileOptions = {},
+  ) => {
+    stages.push(options.requestedStage);
+    return Promise.resolve(report);
+  };
+
+  assertEquals(
+    (await runCli(["compile", "--focus", "design"], {
+      compiler,
+    })).exitCode,
+    EXIT_OK,
+  );
+  assertEquals(
+    (await runCli(["compile", "--focus", "implementation"], {
+      compiler,
+    })).exitCode,
+    EXIT_OK,
+  );
+  assertEquals(stages[0], "architecture-design");
+  assertEquals(stages[1], "current-code-compatibility");
+
+  const combined = await runCli([
+    "compile",
+    "semantic-readiness",
+    "--focus",
+    "design",
+  ]);
+  assertEquals(combined.exitCode, EXIT_USAGE);
+  assert(combined.stderr.includes("either a positional stage or --focus"));
+
+  const unknown = await runCli(["compile", "--focus", "unknown"]);
+  assertEquals(unknown.exitCode, EXIT_USAGE);
+  assert(unknown.stderr.includes("--focus must be design or implementation"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("compile maps file positions to exact location targets", async () => {
+  let target: unknown;
+  const result = await runCli([
+    "compile",
+    ".",
+    "--file",
+    "details.sigil",
+    "--position",
+    "12:7",
+  ], {
+    compiler: (_workspace, selected) => {
+      target = selected;
+      return Promise.reject(new Error("stop after target capture"));
+    },
+  });
+  assertEquals(result.exitCode, EXIT_RUNTIME);
+  assertEquals(
+    JSON.stringify(target),
+    JSON.stringify({
+      kind: "location",
+      value: "details.sigil",
+      line: 12,
+      column: 7,
+    }),
+  );
+
+  const invalid = await runCli([
+    "compile",
+    "--position",
+    "0:7",
+  ]);
+  assertEquals(invalid.exitCode, EXIT_USAGE);
+  assert(invalid.stderr.includes("one-based line:column"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade constraints,cases
+Deno.test("compile preserves a failed terminal event in buffered JSONL", async () => {
+  const result = await runCli(["compile", "--format", "jsonl"], {
+    compiler: async (_workspace, _target, options) => {
+      await options?.onEvent?.({
+        protocolVersion: 1,
+        runId: "run-failed",
+        sequence: 1,
+        type: "failed",
+        payload: {
+          code: "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+          message: "Two evaluators are required.",
+        },
+      });
+      throw new Error("Two evaluators are required.");
+    },
+  });
+  assertEquals(result.exitCode, EXIT_RUNTIME);
+  const event = JSON.parse(result.stdout.trim());
+  assertEquals(event.type, "failed");
+  assertEquals(
+    event.payload.code,
+    "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+  );
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceMutationBoundary constraints
+ */
+Deno.test("fmt check is read-only and fmt writes canonical Sigil", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-fmt-" });
+  try {
+    const initialized = await runCli(["init", root, "--quiet"]);
+    assertEquals(initialized.exitCode, EXIT_OK);
+    const sourcePath = `${root}/main.sigil`;
+    const source = `component Example {
+  goal {
+    This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`;
+    await Deno.writeTextFile(sourcePath, source);
+
+    const checked = await runCli(["fmt", root, "--check", "--format", "json"]);
+    assertEquals(checked.exitCode, EXIT_DIAGNOSTICS);
+    assertEquals(await Deno.readTextFile(sourcePath), source);
+    assertEquals(parseJson(checked.stdout).files[0].status, "noncanonical");
+
+    const formatted = await runCli(["fmt", root, "--format", "json"]);
+    assertEquals(formatted.exitCode, EXIT_OK);
+    assertEquals(parseJson(formatted.stdout).files[0].status, "formatted");
+    const result = await Deno.readTextFile(sourcePath);
+    assert(result !== source);
+
+    const canonical = await runCli(["fmt", root, "--check", "--quiet"]);
+    assertEquals(canonical.exitCode, EXIT_OK);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormatting constraints,cases
+Deno.test("fmt writes nothing when a selected source has an error", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-fmt-invalid-" });
+  try {
+    assertEquals((await runCli(["init", root, "--quiet"])).exitCode, EXIT_OK);
+    const validPath = `${root}/valid.sigil`;
+    const invalidPath = `${root}/invalid.sigil`;
+    const noncanonical = `component Valid {
+  goal {
+    This prose is deliberately long enough to require canonical wrapping before it can be written safely by the formatter.
+  }
+
+  interface {
+    Read {
+      read()
+    }
+  }
+}
+`;
+    await Deno.writeTextFile(validPath, noncanonical);
+    await Deno.writeTextFile(
+      invalidPath,
+      validSigil("Invalid").replace(
+        "Test Invalid.",
+        "x".repeat(80),
+      ),
+    );
+
+    const result = await runCli(["fmt", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assertEquals(await Deno.readTextFile(validPath), noncanonical);
+    assert(
+      parseJson(result.stdout).files.every(
+        (file: { status: string }) => file.status === "failed",
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
 
 class FailingListFileSystem implements SigilFileSystem {
   readonly #base = new DenoSigilFileSystem();

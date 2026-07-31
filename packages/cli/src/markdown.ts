@@ -8,7 +8,7 @@ import type {
 import type { CoreAdapter } from "./core-adapter.ts";
 import type { ContextCommandResult } from "./output-model.ts";
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+// @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
 export function renderWorkspaceMarkdown(
   resolved: Awaited<ReturnType<CoreAdapter["resolveWorkspace"]>>,
   core: CoreAdapter,
@@ -37,7 +37,7 @@ export function renderWorkspaceMarkdown(
   return `${lines.join("\n")}\n`;
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints,cases
+// @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
 export function renderContextMarkdown(result: ContextCommandResult): string {
   const lines = [
     "# Sigil Context",
@@ -93,6 +93,15 @@ export function renderContextMarkdown(result: ContextCommandResult): string {
       );
       if (dependencyContext) {
         lines.push(...formatAgentDependencyContext(dependencyContext));
+      }
+
+      const dependentContext = agentDependentContextForComponent(
+        result,
+        component,
+        index,
+      );
+      if (dependentContext) {
+        lines.push(...formatAgentDependentContext(dependentContext));
       }
 
       const ownershipProjection = ownedImplementationProjectionForComponent(
@@ -188,7 +197,7 @@ function formatCollectedExpansion(expansion: CollectedExpansion): string[] {
       lines.push(
         "",
         `#### ${section.name}`,
-        ...formatList(section.lines.map((line) => line.text)),
+        ...formatList(section.units.map((unit) => unit.prose)),
       );
     }
   }
@@ -228,8 +237,8 @@ function formatAgentDependencyContext(
         for (const { decision, index } of decisions) {
           renderedDecisionIndexes.add(index);
           lines.push(`- ${decision.filePath}`);
-          for (const line of decision.section.lines) {
-            lines.push(`  - ${line.text}`);
+          for (const unit of decision.section.units) {
+            lines.push(`  - ${unit.prose}`);
           }
         }
       }
@@ -241,10 +250,37 @@ function formatAgentDependencyContext(
       lines.push("", "#### Other Dependency Decisions");
       for (const { decision } of unassociatedDecisions) {
         lines.push(`- ${decision.componentName} (${decision.filePath})`);
-        for (const line of decision.section.lines) {
-          lines.push(`  - ${line.text}`);
+        for (const unit of decision.section.units) {
+          lines.push(`  - ${unit.prose}`);
         }
       }
+    }
+  }
+  return lines;
+}
+
+function formatAgentDependentContext(
+  context: NonNullable<
+    ContextCommandResult["agentDependentContexts"]
+  >[number],
+): string[] {
+  const lines = ["", "### Direct Importers"];
+  if (!context.importingFiles.length) {
+    lines.push("- none");
+    return lines;
+  }
+  for (const importingFile of context.importingFiles) {
+    lines.push("", `#### ${importingFile.filePath}`);
+    lines.push(
+      `- Imports: ${importingFile.importedComponent.name} (${importingFile.importedComponent.filePath})`,
+    );
+    lines.push("", "##### Contextual Contracts");
+    if (!importingFile.contextualContracts.length) {
+      lines.push("- none");
+      continue;
+    }
+    for (const contract of importingFile.contextualContracts) {
+      lines.push("", ...formatComponentContractAtLevel(contract, 6));
     }
   }
   return lines;
@@ -285,7 +321,7 @@ function uniqueDependencyDecisions(
     const key = [
       decision.componentName,
       decision.filePath,
-      ...decision.section.lines.map((line) => line.text),
+      ...decision.section.units.map((unit) => unit.prose),
     ].join("\0");
     if (seen.has(key)) return false;
     seen.add(key);
@@ -400,6 +436,27 @@ function agentDependencyContextForComponent(
     return indexed;
   }
   return result.agentDependencyContexts.find((item) =>
+    componentIdentityMatches(item.selectedComponent, component)
+  );
+}
+
+function agentDependentContextForComponent(
+  result: ContextCommandResult,
+  component: ResolvedComponent,
+  index: number,
+):
+  | NonNullable<
+    ContextCommandResult["agentDependentContexts"]
+  >[number]
+  | undefined {
+  const contexts = result.agentDependentContexts ?? [];
+  const indexed = contexts[index];
+  if (
+    indexed && componentIdentityMatches(indexed.selectedComponent, component)
+  ) {
+    return indexed;
+  }
+  return contexts.find((item) =>
     componentIdentityMatches(item.selectedComponent, component)
   );
 }

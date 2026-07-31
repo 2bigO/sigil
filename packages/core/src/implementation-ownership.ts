@@ -7,6 +7,7 @@ import type {
   ImplementationSource,
   OwnedImplementationProjection,
   OwnedImplementationTarget,
+  ResolvedComponent,
   ResolvedSigilWorkspace,
   SigilDiagnostic,
   SourceRange,
@@ -127,11 +128,13 @@ export function ownedImplementationTargetsFor(
         (sectionName !== undefined &&
           !result.target.sections.includes(sectionName))
       ) continue;
-      const componentPath = relativeToWorkspace(
-        resolved,
-        owningComponent.filePath,
-      );
-      if (result.annotation.sigilPath !== componentPath) continue;
+      if (
+        !componentMatchesSigilPath(
+          resolved,
+          owningComponent,
+          result.annotation.sigilPath,
+        )
+      ) continue;
       const key = `${result.target.relation}\0${result.target.filePath}\0${
         result.target.symbolIdentity ?? ""
       }\0${result.target.sections.join(",")}`;
@@ -281,13 +284,17 @@ function parseImplementationAnnotation(
   };
 }
 
+/*
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationAnnotation interface
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::TargetResolution constraints,cases
+ */
 function resolveAnnotationTarget(
   resolved: ResolvedSigilWorkspace,
   annotation: ParsedAnnotation,
 ): string | undefined {
   const component = resolved.components.find((item) =>
     item.name === annotation.componentName &&
-    relativeToWorkspace(resolved, item.filePath) === annotation.sigilPath
+    componentMatchesSigilPath(resolved, item, annotation.sigilPath)
   );
   if (!component) {
     return `Ownership annotation references unknown Sigil component ${annotation.componentName} in ${annotation.sigilPath}.`;
@@ -338,6 +345,17 @@ function resolveAnnotationTarget(
     return `Ownership annotation references section ${unresolvedSection} without a matching occurrence on ${target}.`;
   }
   return undefined;
+}
+
+function componentMatchesSigilPath(
+  resolved: ResolvedSigilWorkspace,
+  component: ResolvedComponent,
+  sigilPath: string,
+): boolean {
+  return [
+    component.filePath,
+    ...component.expansions.expands.map((expansion) => expansion.filePath),
+  ].some((filePath) => relativeToWorkspace(resolved, filePath) === sigilPath);
 }
 
 function commentBlocks(source: ImplementationSource): readonly CommentBlock[] {

@@ -12,6 +12,7 @@ import {
   DEFAULT_SIGIL_INCLUDES,
   diagnostic,
   discoverSigilWorkspace,
+  formatSigilDocument,
   glossaryContextForFiles,
   type GlossaryContextProjection,
   type GlossaryProjection,
@@ -44,6 +45,7 @@ export const SIGIL_CLI_VERSION = metadata.version;
 interface WritableSigilFileSystem extends SigilFileSystem {
   makeDirectory(path: string): Promise<void>;
   writeTextFile(path: string, source: string): Promise<void>;
+  replaceTextFile(path: string, source: string): Promise<void>;
 }
 
 export interface CoreAdapterOptions {
@@ -68,6 +70,15 @@ export interface InitConfigResult {
 export interface VersionInfo {
   readonly cliVersion: string;
   readonly coreVersion: string;
+}
+
+export interface FormatSourcesResult {
+  readonly workspace: SigilWorkspace;
+  readonly files: readonly {
+    readonly filePath: string;
+    readonly status: "formatted" | "unchanged" | "noncanonical" | "failed";
+  }[];
+  readonly diagnostics: readonly SigilDiagnostic[];
 }
 
 // @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
@@ -130,6 +141,85 @@ export class CoreAdapter {
     explicitRoot?: string,
   ): Promise<ResolvedSigilWorkspace> {
     return resolveSigilWorkspace(await this.loadWorkspace(path, explicitRoot));
+  }
+
+  // @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+  async formatSources(
+    path: string | undefined,
+    explicitRoot: string | undefined,
+    check: boolean,
+  ): Promise<FormatSourcesResult> {
+    const target = this.resolveTarget(path ?? this.#currentDirectory);
+    const workspace = await this.loadWorkspace(target, explicitRoot);
+    const resolved = resolveSigilWorkspace(workspace);
+    const selected = workspace.files.filter((file) =>
+      target.endsWith(".sigil")
+        ? normalizePath(file.path) === normalizePath(target)
+        : normalizePath(file.path).startsWith(
+          `${normalizePath(target).replace(/\/$/, "")}/`,
+        ) || normalizePath(target) === normalizePath(workspace.root)
+    );
+    if (selected.length === 0) {
+      throw new Error(`No Sigil source matched ${target}.`);
+    }
+    if (resolved.diagnostics.some((item) => item.severity === "error")) {
+      return {
+        workspace,
+        files: selected.map((file) => ({
+          filePath: file.path,
+          status: "failed" as const,
+        })),
+        diagnostics: resolved.diagnostics,
+      };
+    }
+
+    const prepared = await Promise.all(selected.map(async (file) => {
+      const source = await this.#fs.readTextFile(file.path);
+      const formatted = formatSigilDocument(file.document, source);
+      return { file, formatted };
+    }));
+    const diagnostics = [
+      ...resolved.diagnostics,
+      ...prepared.flatMap((item) => item.formatted.diagnostics).filter(
+        (diagnostic) => !resolved.diagnostics.includes(diagnostic),
+      ),
+    ];
+    if (
+      diagnostics.some((item) => item.severity === "error") ||
+      prepared.some((item) => item.formatted.formattedSource === undefined)
+    ) {
+      return {
+        workspace,
+        files: prepared.map(({ file }) => ({
+          filePath: file.path,
+          status: "failed" as const,
+        })),
+        diagnostics,
+      };
+    }
+    if (!check) {
+      const writable = this.#fs as Partial<WritableSigilFileSystem>;
+      if (!writable.replaceTextFile) {
+        throw new Error("Filesystem does not support replacing Sigil source.");
+      }
+      for (const item of prepared) {
+        if (!item.formatted.changed) continue;
+        await writable.replaceTextFile(
+          item.file.path,
+          item.formatted.formattedSource!,
+        );
+      }
+    }
+    return {
+      workspace,
+      files: prepared.map(({ file, formatted }) => ({
+        filePath: file.path,
+        status: formatted.changed
+          ? check ? "noncanonical" as const : "formatted" as const
+          : "unchanged" as const,
+      })),
+      diagnostics,
+    };
   }
 
   // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases

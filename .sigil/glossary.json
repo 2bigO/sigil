@@ -18,13 +18,22 @@
     },
     {
       "term": "concept identity",
-      "definition": "A reusable identity grouping collective semantic-line occurrences across a component and its matching expands; it is public when it occurs in interface.",
+      "definition": "A reusable identity grouping collective semantic-unit occurrences across a component and its matching expands; it is public when it occurs in interface.",
       "aliases": ["concept identities"]
     },
     {
-      "term": "semantic line",
-      "definition": "A non-empty line of Sigil prose expressing one distinct semantic idea.",
-      "aliases": ["semantic lines"]
+      "term": "semantic unit",
+      "definition": "A blank-line-delimited Sigil prose paragraph, including any directly attached literal block, whose physical wrapping may change without changing semantic identity.",
+      "aliases": ["semantic units"]
+    },
+    {
+      "term": "literal block",
+      "definition": "An optionally typed backtick-fenced body attached directly to introducing Sigil prose and preserved as uninterpreted content outside semantic-reference and prose-formatting rules.",
+      "aliases": [
+        "literal blocks",
+        "fenced literal block",
+        "fenced literal blocks"
+      ]
     },
     {
       "term": "collected expansion",
@@ -311,6 +320,140 @@
       "term": "section selector",
       "definition": "A section name in an implementation ownership annotation that identifies an implementation-related section occurrence on the targeted component or concept.",
       "aliases": ["section selectors"]
+    },
+    {
+      "term": "compilation profile",
+      "definition": "A named compiler configuration selecting an evaluation-stage dependency graph, evaluators, evaluation skills, capability limits, and execution budgets.",
+      "aliases": [
+        "compilation profiles",
+        "effective profile",
+        "effective profiles",
+        "project profile",
+        "project profiles"
+      ]
+    },
+    {
+      "term": "compilation focus",
+      "definition": "The user-selected design or implementation question that maps a compilation invocation to architecture-design or current-code-compatibility and its dependency closure.",
+      "aliases": ["compile focus"]
+    },
+    {
+      "term": "implementation-evidence policy",
+      "definition": "An evaluation-skill manifest value declaring whether implementation is contextual constraint evidence or is compared with desired Sigil.",
+      "aliases": ["implementation evidence policy"]
+    },
+    {
+      "term": "graph harmony",
+      "definition": "Qualitative coherence of ownership, dependency direction, coupling, decomposition, module-index scope, and imported namespace reuse across an inspected Sigil graph neighborhood.",
+      "aliases": ["graph-harmony"]
+    },
+    {
+      "term": "critical-system",
+      "definition": "An optional built-in compilation profile requiring standards and risk evaluation plus at least two distinct available evaluator identities.",
+      "aliases": ["critical-system profile"]
+    },
+    {
+      "term": "compilation status",
+      "definition": "The red, yellow, or green outcome computed for one exact source snapshot and effective compilation profile.",
+      "aliases": [
+        "compilation color",
+        "green status"
+      ]
+    },
+    {
+      "term": "compilation report",
+      "definition": "The authoritative versioned JSON result binding compilation status and diagnostics to source, profile, stage, skill, adapter, and evaluator provenance.",
+      "aliases": [
+        "compilation reports",
+        "CompilationReport",
+        "authoritative report",
+        "authoritative reports"
+      ]
+    },
+    {
+      "term": "compilation event",
+      "definition": "One ordered versioned JSON Lines envelope carrying progress or a terminal compilation outcome.",
+      "aliases": [
+        "compilation events",
+        "CompilationEvent",
+        "CompilationEvents",
+        "terminal event",
+        "terminal events"
+      ]
+    },
+    {
+      "term": "location target",
+      "definition": "A compilation target containing a file path and one-based source position that resolves the enclosing component or expand to one exact component identity.",
+      "aliases": ["location targets"]
+    },
+    {
+      "term": "compilation history",
+      "definition": "The latest compatible compilation report retained in the operating-system user cache for diagnostic lifecycle comparison without becoming project authority.",
+      "aliases": ["external history", "interactive run history"]
+    },
+    {
+      "term": "evaluation stage",
+      "definition": "A profile-selected unit of compilation work whose dependencies and lifecycle determine when it may execute.",
+      "aliases": [
+        "evaluation stages"
+      ]
+    },
+    {
+      "term": "evaluator",
+      "definition": "One profile-selected execution of evaluation work whose completion and findings contribute to compilation status.",
+      "aliases": [
+        "evaluators",
+        "required evaluator",
+        "required evaluators",
+        "configured evaluator",
+        "configured evaluators"
+      ]
+    },
+    {
+      "term": "evaluator identity",
+      "definition": "A unique configured identifier that selects one provider and optional model configuration for profile-scoped evaluation.",
+      "aliases": ["evaluator identities"]
+    },
+    {
+      "term": "evaluation skill",
+      "definition": "A compiler-native package containing SKILL.md guidance and a compile.json manifest that defines one evaluation procedure and its contract.",
+      "aliases": [
+        "evaluation skills",
+        "compiler-native evaluation skill",
+        "compiler-native evaluation skills"
+      ]
+    },
+    {
+      "term": "evaluation context",
+      "definition": "The compact component- and stage-scoped contract, dependency, glossary, importer, ownership, and bounded source evidence supplied to one evaluator request.",
+      "aliases": [
+        "evaluation contexts",
+        "component evaluation context",
+        "component evaluation contexts"
+      ]
+    },
+    {
+      "term": "agent adapter",
+      "definition": "A provider integration that executes bounded evaluation requests and declares enforceable capabilities without owning compiler semantics.",
+      "aliases": [
+        "agent adapters"
+      ]
+    },
+    {
+      "term": "profile fingerprint",
+      "definition": "A stable identity derived from the effective stages, skills, adapters, models, capabilities, budgets, and relevant versions of a compilation profile.",
+      "aliases": [
+        "profile fingerprints"
+      ]
+    },
+    {
+      "term": "diagnostic fingerprint",
+      "definition": "A diagnostic identity derived from stable rule, stage, subject, and source-location facts rather than evaluator wording.",
+      "aliases": [
+        "diagnostic fingerprints",
+        "stable diagnostic fingerprint",
+        "stable diagnostic fingerprints"
+      ]
     }
   ],
   "contexts": [
@@ -366,7 +509,7 @@
         },
         {
           "term": "concept grouping",
-          "definition": "The reviewed authoring activity that groups coherent interface semantic lines under new or reusable concept identifiers.",
+          "definition": "The reviewed authoring activity that groups coherent interface semantic units under new or reusable concept identifiers.",
           "aliases": [
             "concept-identifier grouping"
           ]

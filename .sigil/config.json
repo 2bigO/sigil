@@ -1,9 +1,10 @@
 {
-  "sigilVersion": "0.5.0",
+  "sigilVersion": "0.6.0",
   "workspace": {
     "name": "sigil",
     "members": [
       "packages/cli",
+      "packages/compiler",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",
@@ -23,5 +24,16 @@
       "examples/**"
     ]
   },
-  "tools": {}
+  "tools": {
+    "compile": {
+      "defaultProfile": "standard",
+      "budgets": {
+        "maxCommandOutputChars": 3000000,
+        "maxInputTokens": 1000000
+      },
+      "adapter": {
+        "provider": "codex"
+      }
+    }
+  }
 }

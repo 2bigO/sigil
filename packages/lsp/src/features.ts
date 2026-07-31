@@ -9,7 +9,7 @@ import type {
   ResolvedConcept,
   ResolvedSigilWorkspace,
   Section,
-  SemanticLine,
+  SemanticUnit,
   SigilDiagnostic,
   SigilDocument,
   SigilFileSystem,
@@ -501,22 +501,32 @@ function componentReferences(
     });
   }
 
-  const semanticLines = [
+  const semanticUnits = [
     ...document.components,
     ...document.expands,
   ].flatMap((declaration) =>
-    declaration.sections.flatMap((section) => section.lines)
+    declaration.sections.flatMap((section) => section.units)
   );
-  for (const line of semanticLines) {
-    const lineRange = sourceRangeToLsp(line.range);
-    for (const [name, component] of visible) {
-      if (!component) continue;
-      for (const range of identifierRanges(source, name, lineRange)) {
-        references.push({
-          component,
-          range,
-          includeExpansions: normalizePath(component.filePath) === normalized,
-        });
+  const sourceLines = source.split(/\r?\n/);
+  for (const unit of semanticUnits) {
+    for (let offset = 0; offset < unit.sourceLines.length; offset++) {
+      const sourceLine = sourceLines[unit.range.start.line - 1 + offset] ?? "";
+      const lineRange = {
+        start: { line: unit.range.start.line - 1 + offset, character: 0 },
+        end: {
+          line: unit.range.start.line - 1 + offset,
+          character: sourceLine.length,
+        },
+      };
+      for (const [name, component] of visible) {
+        if (!component) continue;
+        for (const range of identifierRanges(source, name, lineRange)) {
+          references.push({
+            component,
+            range,
+            includeExpansions: normalizePath(component.filePath) === normalized,
+          });
+        }
       }
     }
   }
@@ -801,19 +811,19 @@ async function componentMarkdown(
     `Source: \`${component.filePath}\``,
     "",
     "**Goal**",
-    ...markdownList(await markdown.semanticLines(goal?.lines ?? [])),
+    ...markdownList(await markdown.semanticUnits(goal?.units ?? [])),
     "",
     "**Interface**",
-    ...markdownList(await markdown.semanticLines(iface?.lines ?? [])),
+    ...markdownList(await markdown.semanticUnits(iface?.units ?? [])),
   ];
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
       lines.push("", `\`${expansion.filePath}\``);
       for (const section of expansion.declaration.sections) {
-        const semanticLines = await markdown.semanticLines(section.lines);
+        const semanticUnits = await markdown.semanticUnits(section.units);
         lines.push(
-          `- **${section.name}:** ${semanticLines.join(" ")}`,
+          `- **${section.name}:** ${semanticUnits.join(" ")}`,
         );
       }
     }
@@ -876,7 +886,7 @@ async function conceptMarkdown(
     `Origin: ${originLink} in \`${identity.filePath}\``,
   ];
   for (const occurrence of reference.concept.occurrences) {
-    const semanticLines = await markdown.semanticLines(occurrence.block.lines);
+    const semanticUnits = await markdown.semanticUnits(occurrence.block.units);
     const occurrenceComponent = markdown.component(
       occurrence.componentName,
       occurrence.filePath,
@@ -887,7 +897,7 @@ async function conceptMarkdown(
     lines.push(
       "",
       `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${occurrence.filePath}\``,
-      ...markdownList(semanticLines),
+      ...markdownList(semanticUnits),
     );
   }
   return lines.join("\n");
@@ -974,26 +984,44 @@ class HoverMarkdownRenderer {
     return lines;
   }
 
-  async semanticLines(lines: readonly SemanticLine[]): Promise<string[]> {
-    return await Promise.all(lines.map((line) => this.semanticLine(line)));
+  async semanticUnits(units: readonly SemanticUnit[]): Promise<string[]> {
+    return await Promise.all(units.map((unit) => this.semanticUnit(unit)));
   }
 
-  async semanticLine(line: SemanticLine): Promise<string> {
-    const lineRange = sourceRangeToLsp(line.range);
-    const references = (await this.#referencesFor(line.filePath))
-      .filter((reference) => containsRange(lineRange, reference.range))
-      .sort((left, right) => compareRanges(right.range, left.range));
-    let result = line.text;
-    for (const reference of references) {
-      const start = reference.range.start.character - lineRange.start.character;
-      const end = reference.range.end.character - lineRange.start.character;
-      if (start < 0 || end > result.length || start >= end) continue;
-      const label = result.slice(start, end);
-      result = `${result.slice(0, start)}${
-        markdownLink(label, reference.target)
-      }${result.slice(end)}`;
+  async semanticUnit(unit: SemanticUnit): Promise<string> {
+    const allReferences = await this.#referencesFor(unit.filePath);
+    const rendered: string[] = [];
+    for (let offset = 0; offset < unit.sourceLines.length; offset++) {
+      const sourceLine = unit.sourceLines[offset];
+      const content = sourceLine.trim();
+      const contentColumn = sourceLine.indexOf(content);
+      const lineNumber = unit.range.start.line - 1 + offset;
+      const lineRange = {
+        start: { line: lineNumber, character: contentColumn },
+        end: { line: lineNumber, character: contentColumn + content.length },
+      };
+      const references = allReferences
+        .filter((reference) => containsRange(lineRange, reference.range))
+        .sort((left, right) => compareRanges(right.range, left.range));
+      let result = content;
+      for (const reference of references) {
+        const start = reference.range.start.character -
+          lineRange.start.character;
+        const end = reference.range.end.character - lineRange.start.character;
+        if (start < 0 || end > result.length || start >= end) continue;
+        const label = result.slice(start, end);
+        result = `${result.slice(0, start)}${
+          markdownLink(label, reference.target)
+        }${result.slice(end)}`;
+      }
+      rendered.push(result);
     }
-    return result;
+    for (const literal of unit.literalBlocks) {
+      rendered.push(
+        `\n\`\`\`${literal.type ?? ""}\n${literal.body}\n\`\`\``,
+      );
+    }
+    return rendered.join(" ");
   }
 
   #source(filePath: string): Promise<string> {

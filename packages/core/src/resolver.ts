@@ -4,13 +4,14 @@ import type {
   ComponentDeclaration,
   ConceptIdentity,
   ExpandDeclaration,
+  ImportUse,
   ResolvedComponent,
   ResolvedConcept,
   ResolvedConceptNamespace,
   ResolvedConceptOccurrence,
   ResolvedConceptReference,
   ResolvedImport,
-  SemanticLine,
+  SemanticUnit,
   SigilDiagnostic,
   SigilResolution,
   SigilWorkspace,
@@ -35,6 +36,8 @@ interface MutableResolvedImportName {
   name: string;
   component?: ComponentDeclaration;
   componentFile?: string;
+  used: boolean;
+  uses: ImportUse[];
 }
 
 interface ComponentResolutionDraft {
@@ -133,8 +136,14 @@ export function resolveSigilRelationships(
             item.name === name
           );
           return component
-            ? { name, component, componentFile: targetFile }
-            : { name };
+            ? {
+              name,
+              component,
+              componentFile: targetFile,
+              used: false,
+              uses: [],
+            }
+            : { name, used: false, uses: [] };
         },
       );
 
@@ -148,6 +157,7 @@ export function resolveSigilRelationships(
   }
 
   resolveModuleIndexNames(resolvedImports);
+  resolveImportUses(workspace, resolvedImports, diagnostics);
 
   for (const item of resolvedImports) {
     if (!documentByPath.has(item.targetFile ?? "")) continue;
@@ -415,7 +425,7 @@ function resolveConceptReferences(
 
   for (const declaration of declarations) {
     for (const section of declaration.sections) {
-      for (const line of section.lines) {
+      for (const line of section.units) {
         const lineReferences = concepts.flatMap((concept) =>
           referenceRanges(line, concept.identifier).map((range) => ({
             conceptIdentity: concept.identity,
@@ -452,32 +462,37 @@ function unambiguousAccessibleConcepts(
 }
 
 function referenceRanges(
-  line: SemanticLine,
+  line: SemanticUnit,
   identifier: string,
 ): readonly ResolvedConceptReference["range"][] {
   const ranges: ResolvedConceptReference["range"][] = [];
-  let start = 0;
-  while (start <= line.text.length - identifier.length) {
-    const found = line.text.indexOf(identifier, start);
-    if (found < 0) break;
-    const before = line.text[found - 1];
-    const after = line.text[found + identifier.length];
-    if (
-      !isConceptIdentifierCharacter(before) &&
-      !isConceptIdentifierCharacter(after)
-    ) {
-      ranges.push({
-        start: {
-          line: line.range.start.line,
-          column: line.range.start.column + found,
-        },
-        end: {
-          line: line.range.start.line,
-          column: line.range.start.column + found + identifier.length,
-        },
-      });
+  for (let lineOffset = 0; lineOffset < line.sourceLines.length; lineOffset++) {
+    const source = line.sourceLines[lineOffset];
+    const content = source.trim();
+    const contentColumn = source.indexOf(content) + 1;
+    let start = 0;
+    while (start <= content.length - identifier.length) {
+      const found = content.indexOf(identifier, start);
+      if (found < 0) break;
+      const before = content[found - 1];
+      const after = content[found + identifier.length];
+      if (
+        !isConceptIdentifierCharacter(before) &&
+        !isConceptIdentifierCharacter(after)
+      ) {
+        ranges.push({
+          start: {
+            line: line.range.start.line + lineOffset,
+            column: contentColumn + found,
+          },
+          end: {
+            line: line.range.start.line + lineOffset,
+            column: contentColumn + found + identifier.length,
+          },
+        });
+      }
+      start = found + identifier.length;
     }
-    start = found + identifier.length;
   }
   return ranges;
 }
@@ -635,6 +650,129 @@ function resolveModuleIndexNames(imports: MutableResolvedImport[]): void {
         name.component = indexedName.component;
         name.componentFile = indexedName.componentFile;
         changed = true;
+      }
+    }
+  }
+}
+
+// @sigil implements packages/core/src/resolver.sigil::SigilResolver::ImportUse interface,logic,constraints,cases
+function resolveImportUses(
+  workspace: SigilWorkspace,
+  imports: MutableResolvedImport[],
+  diagnostics: SigilDiagnostic[],
+): void {
+  const fileByPath = new Map(
+    workspace.files.map((file) => [normalizePath(file.path), file.document]),
+  );
+  const eligibleSections = new Set([
+    "interface",
+    "state",
+    "logic",
+    "constraints",
+    "cases",
+  ]);
+
+  for (const resolvedImport of imports) {
+    const source = fileByPath.get(normalizePath(resolvedImport.sourceFile));
+    if (!source) continue;
+    for (let index = 0; index < resolvedImport.names.length; index++) {
+      const imported = resolvedImport.names[index];
+      if (!imported.component || !imported.componentFile) continue;
+      const uses: ImportUse[] = [];
+      const addUse = (use: ImportUse): void => {
+        if (
+          !uses.some((item) =>
+            item.kind === use.kind &&
+            item.filePath === use.filePath &&
+            item.range.start.line === use.range.start.line &&
+            item.range.start.column === use.range.start.column
+          )
+        ) uses.push(use);
+      };
+
+      if (isModuleFile(resolvedImport.sourceFile)) {
+        addUse({
+          kind: "module-index-surface",
+          filePath: resolvedImport.sourceFile,
+          range: resolvedImport.declaration.nameRanges[index] ??
+            resolvedImport.declaration.range,
+        });
+      }
+
+      for (const expansion of source.expands) {
+        if (expansion.name !== imported.name) continue;
+        addUse({
+          kind: "structural-expand",
+          filePath: resolvedImport.sourceFile,
+          ownerKind: "expand",
+          ownerName: expansion.name,
+          range: expansion.range,
+        });
+      }
+
+      const publicConcepts = new Set(
+        imported.component.sections
+          .filter((section) => section.name === "interface")
+          .flatMap((section) =>
+            section.concepts.map((concept) => concept.identifier)
+          ),
+      );
+      for (const declaration of [...source.components, ...source.expands]) {
+        for (
+          const section of declaration.sections.filter((item) =>
+            eligibleSections.has(item.name)
+          )
+        ) {
+          for (const unit of section.units) {
+            for (const range of referenceRanges(unit, imported.name)) {
+              addUse({
+                kind: "component-reference",
+                filePath: resolvedImport.sourceFile,
+                ownerKind: declaration.kind,
+                ownerName: declaration.name,
+                sectionName: section.name,
+                range,
+              });
+            }
+            for (const concept of publicConcepts) {
+              for (const range of referenceRanges(unit, concept)) {
+                addUse({
+                  kind: "public-concept-reference",
+                  filePath: resolvedImport.sourceFile,
+                  ownerKind: declaration.kind,
+                  ownerName: declaration.name,
+                  sectionName: section.name,
+                  range,
+                });
+              }
+            }
+          }
+          for (const block of section.concepts) {
+            if (!publicConcepts.has(block.identifier)) continue;
+            addUse({
+              kind: "public-concept-reference",
+              filePath: resolvedImport.sourceFile,
+              ownerKind: declaration.kind,
+              ownerName: declaration.name,
+              sectionName: section.name,
+              range: block.range,
+            });
+          }
+        }
+      }
+
+      imported.uses = uses;
+      imported.used = uses.length > 0;
+      if (!imported.used) {
+        diagnostics.push(diagnostic(
+          "SIGIL_UNUSED_IMPORT",
+          `Imported component ${imported.name} has no qualifying use in ${resolvedImport.sourceFile}.`,
+          {
+            filePath: resolvedImport.sourceFile,
+            range: resolvedImport.declaration.nameRanges[index] ??
+              resolvedImport.declaration.range,
+          },
+        ));
       }
     }
   }

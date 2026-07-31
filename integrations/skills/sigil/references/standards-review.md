@@ -1,4 +1,7 @@
-<!-- @sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases -->
+<!--
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::StandardsReview interface,state,logic,constraints,cases
+@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModularityReview interface,logic,constraints
+-->
 
 # Standards-Aware Semantic Review
 
@@ -107,7 +110,7 @@ coverage keeps semantic readiness from appearing aligned and blocks proposal
 approval.
 
 After approved Sigil is written, repeat the audit against the exact resulting
-semantic lines. Successful CLI validation never substitutes for this audit.
+semantic units. Successful CLI validation never substitutes for this audit.
 
 ### Goal Clarity
 
@@ -213,6 +216,13 @@ Assess modularity qualitatively:
   accidental cycles or bidirectional ownership.
 - **Reasons to change:** unrelated product or technical changes do not routinely
   force one component to change.
+- **Contract-to-code structure:** the component and expand decomposition is
+  specific enough to guide implementation into cohesive owning modules.
+- **Module indexes:** each `ModuleIndexFile` remains a concise architectural
+  summary and intentional namespace-assembly surface rather than an owner of
+  unrelated operational behavior or mutable state.
+- **Imported namespace reuse:** semantically matching imported public identities
+  are reused before local synonyms or duplicate contracts are proposed.
 
 Apply these heuristics at implementation boundaries as well as product and
 service boundaries. An internal API, programming abstraction, state machine, or
@@ -223,6 +233,10 @@ and implementation coverage map before coding.
 Warn about god components, duplicated ownership, chatty or oversized
 interfaces, cyclic dependencies, shared mutable state, and implementation-shaped
 contracts. Do not assign arbitrary scores or thresholds.
+
+Treat a high-level summary that hides independently owned implementation
+responsibilities as partial architectural coverage even when its prose is
+internally coherent.
 
 ## 3. Evidence Consumption And Provenance
 
@@ -338,7 +352,7 @@ ReviewGate ready.
 Before editing, present:
 
 - the finding and why it applies;
-- the exact proposed semantic line or lines;
+- the exact proposed semantic unit or lines;
 - the target file, component, and section;
 - the source record in the review summary;
 - whether the suggestion is blocking or optional.
@@ -432,7 +446,7 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 
 ### Proposed Sigil Edits
 
-Show exact semantic lines and their target sections without editing first.
+Show exact semantic units and their target sections without editing first.
 Include required decision blocks and the decision-rationale coverage map.
 
 ### ReviewGate Request

@@ -54,7 +54,7 @@ project, or the platform; qualify it when ambiguity is possible.
 
 The versioned contract governing `.sigil` syntax, structure, sections, imports,
 workspace interpretation, and meaning. The current supported version is
-`0.5.0`.
+`0.6.0`.
 
 ### Sigil source
 
@@ -67,7 +67,7 @@ A file whose name ends in `.sigil` and whose contents are Sigil source.
 ### Sigil document
 
 The parsed model of one Sigil source file, including imports, components,
-expands, sections, semantic lines, source ranges, and diagnostics.
+expands, sections, semantic units, source ranges, and diagnostics.
 
 ### Top-level form
 
@@ -232,21 +232,22 @@ Text that the structural parser preserves without assigning additional grammar
 inside the section. It may contain prose, Markdown, signatures, pseudocode,
 tables, or brace-safe ASCII layouts.
 
-### Semantic line
+### Semantic unit
 
-One non-empty line inside a section body, preserved as a distinct semantic unit
-with its owner, section, file, source range, and optional concept identifier.
+One blank-line-delimited prose paragraph inside a section body, preserved with
+its owner, section, file, source range, original physical lines, optional
+concept identifier, and directly attached literal blocks.
 
 ### Concept identifier
 
 A concise, reusable name for one semantic concept or a related group of
-semantic lines. It matches `[A-Za-z][A-Za-z0-9_-]*`; PascalCase without hyphens
+semantic units. It matches `[A-Za-z][A-Za-z0-9_-]*`; PascalCase without hyphens
 or underscores is the preferred style.
 
 ### Concept block
 
 A flat, nonempty block headed by a concept identifier inside a section. Its
-header groups its semantic lines but is not itself a semantic line.
+header groups its semantic units but is not itself a semantic unit.
 
 ### Concept namespace
 
@@ -693,11 +694,11 @@ practical to the implementation it owns or explains.
 ### Placement-only change
 
 Moving or splitting approved Sigil without adding, removing, or changing its
-semantic lines, plus the import-path updates required by that relocation.
+semantic units, plus the import-path updates required by that relocation.
 
 ### Semantic change
 
-Any addition, removal, or modification of a semantic line or public component
+Any addition, removal, or modification of a semantic unit or public component
 contract. A semantic change requires review even when structural checks pass.
 
 ### Drift
@@ -1060,7 +1061,7 @@ was not established by the source or governing evidence.
 
 ### Anchor
 
-A reviewed relationship connecting a Sigil semantic line to implementation
+A reviewed relationship connecting a Sigil semantic unit to implementation
 evidence without changing the line's meaning or proving behavioral compliance.
 
 ### Anchor index
@@ -1081,12 +1082,12 @@ inspection or model-assisted proposal.
 
 ### Anchor proposal
 
-An attributed suggestion that one semantic line has a particular relationship
+An attributed suggestion that one semantic unit has a particular relationship
 to one candidate source target. A proposal is not an accepted anchor.
 
 ### Locator
 
-A versioned set of identifying and recovery data for a Sigil semantic line or
+A versioned set of identifying and recovery data for a Sigil semantic unit or
 source target, including paths, names, ranges, hashes, and contextual signals.
 
 ### Fingerprint

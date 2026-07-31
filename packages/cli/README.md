@@ -71,19 +71,56 @@ Commands:
 - `sigil graph [path]` returns component and import graph data;
 - `sigil context ...` returns agent context JSON with direct dependencies'
   public contracts and decision rationale plus reviewed terminology recognized
-  in the selected and related Sigil files, excluding terms whose
-  `agentContext` value is `false`;
+  in the selected and related Sigil files, excluding terms whose `agentContext`
+  value is `false`;
+- `sigil compile [stage] [path] [--component name | --file file
+  [--position line:column]]` runs
+  profile-scoped deterministic and direct-read agent evaluation. A stage operand
+  such as `semantic-readiness` runs that stage and its dependency closure.
+  Prefix a colliding path with `./`. Use `--format jsonl` for the versioned
+  event stream;
 - `sigil render ...` returns Markdown.
+
+Configure agentic compilation under `tools.compile`:
+
+```json
+{
+  "tools": {
+    "compile": {
+      "defaultProfile": "standard",
+      "adapter": {
+        "provider": "codex"
+      },
+      "budgets": {
+        "maxCommandOutputChars": 500000
+      }
+    }
+  }
+}
+```
+
+The compiler's Codex adapter runs ephemerally at the workspace root with
+read-only filesystem access, disabled network and approval escalation, and
+structured output. A configured provider that cannot enforce the same contract
+fails closed. Compilation does not generate code or execute implementation
+experiments.
+
+Unless `--no-cache` is set, completed compilation reports are atomically stored
+under the operating system's user cache directory and used to derive diagnostic
+lifecycle. The cache is never written inside the workspace. JSONL compilation
+emits one terminal `completed`, `failed`, or `cancelled` event; profile
+configuration failures return exit code `3`.
 
 Empty, unknown, incomplete, and invalid invocations report the problem together
 with help for the longest recognized command path.
 
-The CLI returns exit code `0` for success or warnings, `1` for error
-diagnostics, `2` for usage errors, and `3` for host/runtime failures. Use JSON
-output for automation; human text and Markdown are convenience projections.
-Context output includes resolved concept namespaces, bounded
-`agentDependencyContexts`, and a scoped `glossaryContext`; Markdown render
-output preserves concept grouping.
+The deterministic commands return exit code `0` for success or warnings, `1` for
+error diagnostics, `2` for usage errors, and `3` for host/runtime failures.
+Compilation returns `0` only for green, `1` for red or yellow, and `130` when
+cancelled. Use JSON or JSON Lines output for automation; human text and Markdown
+are convenience projections. Context output includes resolved concept
+namespaces, bounded `agentDependencyContexts`, and a scoped `glossaryContext`;
+Markdown render output preserves concept grouping.
 
 Versioned binary distributions place assets at `<version>/integrations/skills`
 beside `<version>/bin/sigil`. This keeps each binary paired with the language

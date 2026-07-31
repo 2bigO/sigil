@@ -8,7 +8,7 @@ import type {
   GlossaryScope,
   GlossaryTerm,
   ResolvedGlossaryContext,
-  SemanticLine,
+  SemanticUnit,
   SigilDiagnostic,
   SigilDocument,
   SigilWorkspace,
@@ -156,9 +156,9 @@ export function glossaryOccurrencesForDocument(
     right.spelling.length - left.spelling.length ||
     left.spelling.localeCompare(right.spelling)
   );
-  const lines = [...document.components, ...document.expands]
+  const units = [...document.components, ...document.expands]
     .flatMap((declaration) =>
-      declaration.sections.flatMap((section) => section.lines)
+      declaration.sections.flatMap((section) => section.units)
     )
     .sort((left, right) =>
       left.range.start.line - right.range.start.line ||
@@ -166,15 +166,8 @@ export function glossaryOccurrencesForDocument(
     );
 
   const occurrences: GlossaryOccurrence[] = [];
-  let inFence = false;
-  for (const line of lines) {
-    const trimmed = line.text.trimStart();
-    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    occurrences.push(...matchLine(line, spellings));
+  for (const unit of units) {
+    occurrences.push(...matchUnit(unit, spellings));
   }
   return occurrences;
 }
@@ -490,14 +483,39 @@ function mergeEffectiveTerms(
   ];
 }
 
-function matchLine(
-  line: SemanticLine,
+function matchUnit(
+  unit: SemanticUnit,
   spellings: readonly { spelling: string; term: GlossaryTerm }[],
 ): GlossaryOccurrence[] {
-  const excluded = excludedColumns(line.text);
-  const lower = line.text.toLowerCase();
   const occurrences: GlossaryOccurrence[] = [];
-  for (let index = 0; index < line.text.length;) {
+  for (let offset = 0; offset < unit.sourceLines.length; offset++) {
+    const source = unit.sourceLines[offset];
+    const text = source.trim();
+    const column = source.indexOf(text) + 1;
+    occurrences.push(
+      ...matchUnitLine(
+        unit,
+        text,
+        unit.range.start.line + offset,
+        column,
+        spellings,
+      ),
+    );
+  }
+  return occurrences;
+}
+
+function matchUnitLine(
+  unit: SemanticUnit,
+  text: string,
+  lineNumber: number,
+  column: number,
+  spellings: readonly { spelling: string; term: GlossaryTerm }[],
+): GlossaryOccurrence[] {
+  const excluded = excludedColumns(text);
+  const lower = text.toLowerCase();
+  const occurrences: GlossaryOccurrence[] = [];
+  for (let index = 0; index < text.length;) {
     if (excluded[index]) {
       index++;
       continue;
@@ -507,32 +525,32 @@ function matchLine(
       if (!lower.startsWith(candidate, index)) return false;
       const end = index + spelling.length;
       if (excluded.slice(index, end).some(Boolean)) return false;
-      return isBoundary(line.text[index - 1]) &&
-        isBoundary(line.text[end]);
+      return isBoundary(text[index - 1]) &&
+        isBoundary(text[end]);
     });
     if (!match) {
       index++;
       continue;
     }
-    const matchedSpelling = line.text.slice(
+    const matchedSpelling = text.slice(
       index,
       index + match.spelling.length,
     );
     occurrences.push({
       term: match.term,
       matchedSpelling,
-      filePath: line.filePath,
-      ownerKind: line.ownerKind,
-      ownerName: line.ownerName,
-      sectionName: line.sectionName,
+      filePath: unit.filePath,
+      ownerKind: unit.ownerKind,
+      ownerName: unit.ownerName,
+      sectionName: unit.sectionName,
       range: {
         start: {
-          line: line.range.start.line,
-          column: line.range.start.column + index,
+          line: lineNumber,
+          column: column + index,
         },
         end: {
-          line: line.range.start.line,
-          column: line.range.start.column + index + matchedSpelling.length,
+          line: lineNumber,
+          column: column + index + matchedSpelling.length,
         },
       },
     });
