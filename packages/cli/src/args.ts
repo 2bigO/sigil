@@ -88,6 +88,10 @@ export interface CompileRequest extends GlobalOptions {
   readonly stage?: string;
   readonly component?: string;
   readonly file?: string;
+  readonly position?: {
+    readonly line: number;
+    readonly column: number;
+  };
   readonly path?: string;
   readonly profile?: string;
   readonly noCache: boolean;
@@ -157,6 +161,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let quiet = false;
   let component: string | undefined;
   let file: string | undefined;
+  let position: CompileRequest["position"];
   let includeDependents = false;
   let name: string | undefined;
   const include: string[] = [];
@@ -228,6 +233,19 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         file = value;
         break;
       }
+      case "--position": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const match = /^([1-9]\d*):([1-9]\d*)$/.exec(value);
+        if (!match) {
+          return usage(
+            "--position must be a one-based line:column pair.",
+            commandHelpTopic,
+          );
+        }
+        position = { line: Number(match[1]), column: Number(match[2]) };
+        break;
+      }
       case "--profile": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -281,16 +299,22 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (
     commandName !== "context" && commandName !== "compile" &&
-    (component || file)
+    (component || file || position)
   ) {
     return usage(
-      `${commandName} does not accept --component or --file.`,
+      `${commandName} does not accept --component, --file, or --position.`,
       commandHelpTopic,
     );
   }
   if (commandName !== "context" && includeDependents) {
     return usage(
       `${commandName} does not accept --include-dependents.`,
+      commandHelpTopic,
+    );
+  }
+  if (commandName !== "compile" && position) {
+    return usage(
+      `${commandName} does not accept --position.`,
       commandHelpTopic,
     );
   }
@@ -450,6 +474,15 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         "compile",
       );
     }
+    if (position && !file) {
+      return usage("compile accepts --position only with --file.", "compile");
+    }
+    if (position && component) {
+      return usage(
+        "compile does not accept --position with --component.",
+        "compile",
+      );
+    }
     if (format && format !== "jsonl" && format !== "text") {
       return usage("--format must be text or jsonl for compile.", "compile");
     }
@@ -460,6 +493,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         stage,
         component,
         file,
+        position,
         path: paths[0],
         profile,
         noCache,

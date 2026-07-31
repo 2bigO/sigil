@@ -1993,6 +1993,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
     sourceFingerprint: "source",
     profile: {
       name: "standard",
+      criticalSystem: false,
       contextBudgetChars: 900_000,
       executionBudgets: {
         elapsedTimeMs: 180_000,
@@ -2002,6 +2003,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
         maxOutputTokens: 20_000,
       },
       stages: [],
+      evaluators: [],
       fingerprint: "profile",
     },
     stages: [],
@@ -2039,6 +2041,68 @@ Deno.test("compile rejects incompatible output formats", async () => {
   const result = await runCli(["compile", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_USAGE);
   assert(result.stderr.includes("--format must be text or jsonl"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("compile maps file positions to exact location targets", async () => {
+  let target: unknown;
+  const result = await runCli([
+    "compile",
+    ".",
+    "--file",
+    "details.sigil",
+    "--position",
+    "12:7",
+  ], {
+    compiler: (_workspace, selected) => {
+      target = selected;
+      return Promise.reject(new Error("stop after target capture"));
+    },
+  });
+  assertEquals(result.exitCode, EXIT_RUNTIME);
+  assertEquals(
+    JSON.stringify(target),
+    JSON.stringify({
+      kind: "location",
+      value: "details.sigil",
+      line: 12,
+      column: 7,
+    }),
+  );
+
+  const invalid = await runCli([
+    "compile",
+    "--position",
+    "0:7",
+  ]);
+  assertEquals(invalid.exitCode, EXIT_USAGE);
+  assert(invalid.stderr.includes("one-based line:column"));
+});
+
+// @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade constraints,cases
+Deno.test("compile preserves a failed terminal event in buffered JSONL", async () => {
+  const result = await runCli(["compile", "--format", "jsonl"], {
+    compiler: async (_workspace, _target, options) => {
+      await options?.onEvent?.({
+        protocolVersion: 1,
+        runId: "run-failed",
+        sequence: 1,
+        type: "failed",
+        payload: {
+          code: "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+          message: "Two evaluators are required.",
+        },
+      });
+      throw new Error("Two evaluators are required.");
+    },
+  });
+  assertEquals(result.exitCode, EXIT_RUNTIME);
+  const event = JSON.parse(result.stdout.trim());
+  assertEquals(event.type, "failed");
+  assertEquals(
+    event.payload.code,
+    "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+  );
 });
 
 /*

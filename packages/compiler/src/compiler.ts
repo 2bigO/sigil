@@ -11,6 +11,7 @@ import {
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
 import { ClaudeAdapter, CodexAdapter } from "./adapters.ts";
+import { applyDiagnosticLifecycle, compilationHistoryKey } from "./history.ts";
 import {
   COMPILATION_STAGE_IDS,
   type EvaluationSkillPackage,
@@ -34,6 +35,7 @@ import type {
   CompileOptions,
   CompilerDiagnostic,
   EffectiveProfile,
+  EvaluatorConfiguration,
   StageReport,
 } from "./types.ts";
 
@@ -153,179 +155,235 @@ export async function compile(
     requestedStage: options.requestedStage,
   });
 
-  const fs = new DenoReadOnlyFileSystem();
-  const workspace = await loadSigilWorkspace(fs, {
-    startPath: workspacePath,
-    explicitRoot: workspacePath,
-    currentDirectory: Deno.cwd(),
-  });
-  const resolved = resolveSigilWorkspace(workspace);
-  const configuration = parseConfiguration(workspace.config?.tools.compile);
-  const skills = await loadEvaluationSkills();
-  const definitions = stageDefinitions(skills);
-  const profile = await effectiveProfile(
-    options.profile ?? configuration.defaultProfile ?? "standard",
-    configuration,
-    definitions,
-    options.requestedStage,
-  );
-  const adapter = options.adapter ?? adapterFrom(profile);
-  const components = resolveTarget(resolved, target, workspace.root);
-  const implementationSources = await loadImplementationSources(
-    fs,
-    workspace.root,
-  );
-  const sourceFingerprint = await workspaceEvidenceFingerprint(
-    workspace.root,
-    workspace.files.map((file) => file.document),
-    implementationSources,
-  );
-  const semanticSubjects = createSemanticSubjectResolver(
-    resolved,
-    implementationSources,
-    workspace.root,
-  );
+  try {
+    const fs = new DenoReadOnlyFileSystem();
+    const workspace = await loadSigilWorkspace(fs, {
+      startPath: workspacePath,
+      explicitRoot: workspacePath,
+      currentDirectory: Deno.cwd(),
+    });
+    const resolved = resolveSigilWorkspace(workspace);
+    const configuration = parseConfiguration(workspace.config?.tools.compile);
+    const skills = await loadEvaluationSkills();
+    const definitions = stageDefinitions(skills);
+    const profile = await effectiveProfile(
+      options.profile ?? configuration.defaultProfile ?? "standard",
+      configuration,
+      definitions,
+      options.requestedStage,
+    );
+    const adapters = adaptersFrom(profile, options);
+    assertProfileEvaluators(profile, adapters);
+    const components = resolveTarget(resolved, target, workspace.root);
+    const implementationSources = await loadImplementationSources(
+      fs,
+      workspace.root,
+    );
+    const sourceFingerprint = await workspaceEvidenceFingerprint(
+      workspace.root,
+      workspace.files.map((file) => file.document),
+      implementationSources,
+    );
+    const semanticSubjects = createSemanticSubjectResolver(
+      resolved,
+      implementationSources,
+      workspace.root,
+    );
 
-  const diagnostics: CompilerDiagnostic[] = await Promise.all(
-    resolved.diagnostics.map((item) =>
-      fromCoreDiagnostic(item, semanticSubjects)
-    ),
-  );
-  const stageReports: StageReport[] = [];
-  const failed = new Set<string>();
+    let diagnostics: CompilerDiagnostic[] = await Promise.all(
+      resolved.diagnostics.map((item) =>
+        fromCoreDiagnostic(item, semanticSubjects)
+      ),
+    );
+    const stageReports: StageReport[] = [];
+    const failed = new Set<string>();
+    const evaluatorLabel = adapters.map((item) => item.id).join(",") ||
+      "unavailable";
 
-  for (const stage of profile.stages) {
-    const definition = definitions.find((item) => item.id === stage.id)!;
-    if (!stage.enabled) {
-      failed.add(stage.id);
-      stageReports.push(stageReport(stage, "disabled", "none", 0));
-      continue;
-    }
-    if (stage.dependencies.some((dependency) => failed.has(dependency))) {
-      failed.add(stage.id);
-      stageReports.push(
-        stageReport(
-          stage,
-          "skipped-by-dependency",
-          adapter?.id ?? "none",
-          0,
-        ),
-      );
-      continue;
-    }
-    if (options.signal?.aborted) {
-      await emit("cancelled", { stage: stage.id });
-      throw new DOMException("Compilation cancelled.", "AbortError");
-    }
+    for (const stage of profile.stages) {
+      const definition = definitions.find((item) => item.id === stage.id)!;
+      if (!stage.enabled) {
+        failed.add(stage.id);
+        stageReports.push(stageReport(stage, "disabled", "none", 0));
+        continue;
+      }
+      if (stage.dependencies.some((dependency) => failed.has(dependency))) {
+        failed.add(stage.id);
+        stageReports.push(
+          stageReport(
+            stage,
+            "skipped-by-dependency",
+            evaluatorLabel,
+            0,
+          ),
+        );
+        continue;
+      }
+      if (options.signal?.aborted) {
+        throw new DOMException("Compilation cancelled.", "AbortError");
+      }
 
-    const stageStartedAt = new Date().toISOString();
-    await emit("stage-started", { stage: stage.id });
-    const before = diagnostics.length;
-    const evaluations: NonNullable<StageReport["evaluations"]>[number][] = [];
-    let state: StageReport["state"] = "completed";
-    try {
-      if (definition.agentic) {
-        if (!adapter) {
-          throw new Error(
-            "No compiler adapter is configured in tools.compile.adapter.",
-          );
-        }
-        if (!definition.skill) {
-          throw new Error(`Evaluation skill ${stage.id} is unavailable.`);
-        }
-        assertAdapterCapabilities(adapter);
-        for (const component of components) {
-          const request = {
-            stage: stage.id,
-            skill: definition.skill.guidance,
-            allowedRules: definition.skill.manifest.rules,
-            workspaceRoot: workspace.root,
-            target: evaluationTarget(resolved, component, workspace.root),
-            capabilities: INSPECTION_CAPABILITIES,
-            budgets: profile.executionBudgets,
-            signal: options.signal,
-          };
-          const requestSize = JSON.stringify(request, (_key, value) =>
-            value instanceof AbortSignal ? undefined : value).length;
-          if (requestSize > profile.contextBudgetChars) {
+      const stageStartedAt = new Date().toISOString();
+      await emit("stage-started", { stage: stage.id });
+      const before = diagnostics.length;
+      const evaluations: NonNullable<StageReport["evaluations"]>[number][] = [];
+      let state: StageReport["state"] = "completed";
+      try {
+        if (definition.agentic) {
+          if (!adapters.length) {
             throw new Error(
-              `Evaluation request for ${component.name} is ${requestSize} characters, exceeding the ${profile.contextBudgetChars}-character budget.`,
+              "No compiler evaluator is configured for the selected profile.",
             );
           }
-          const result = await adapter.evaluate(request);
-          evaluations.push({
-            componentName: component.name,
-            commands: result.commands,
-            usage: result.usage,
-          });
-          for (const finding of result.findings) {
-            if (!definition.skill.manifest.rules.includes(finding.code)) {
+          if (!definition.skill) {
+            throw new Error(`Evaluation skill ${stage.id} is unavailable.`);
+          }
+          for (const adapter of adapters) assertAdapterCapabilities(adapter);
+          for (const component of components) {
+            const request = {
+              stage: stage.id,
+              skill: definition.skill.guidance,
+              allowedRules: definition.skill.manifest.rules,
+              workspaceRoot: workspace.root,
+              target: evaluationTarget(resolved, component, workspace.root),
+              capabilities: INSPECTION_CAPABILITIES,
+              budgets: profile.executionBudgets,
+              signal: options.signal,
+            };
+            const requestSize = JSON.stringify(request, (_key, value) =>
+              value instanceof AbortSignal ? undefined : value).length;
+            if (requestSize > profile.contextBudgetChars) {
               throw new Error(
-                `Evaluator returned undeclared rule ${
-                  JSON.stringify(finding.code)
-                } for stage ${stage.id}.`,
+                `Evaluation request for ${component.name} is ${requestSize} characters, exceeding the ${profile.contextBudgetChars}-character budget.`,
               );
             }
-            const diagnostic = await fromAgentFinding(
-              stage.id,
-              definition.skill,
-              adapter,
-              finding,
-              component.name,
-              semanticSubjects,
-            );
-            diagnostics.push(diagnostic);
-            await emit("diagnostic", {
-              componentName: component.name,
-              diagnostic,
-            });
+            const componentDiagnostics: CompilerDiagnostic[][] = [];
+            for (const adapter of adapters) {
+              const result = await adapter.evaluate(request);
+              evaluations.push({
+                evaluatorId: adapter.id,
+                componentName: component.name,
+                commands: result.commands,
+                usage: result.usage,
+              });
+              const evaluatorDiagnostics: CompilerDiagnostic[] = [];
+              for (const finding of result.findings) {
+                if (!definition.skill.manifest.rules.includes(finding.code)) {
+                  throw new Error(
+                    `Evaluator returned undeclared rule ${
+                      JSON.stringify(finding.code)
+                    } for stage ${stage.id}.`,
+                  );
+                }
+                const diagnostic = await fromAgentFinding(
+                  stage.id,
+                  definition.skill,
+                  adapter,
+                  finding,
+                  component.name,
+                  semanticSubjects,
+                );
+                evaluatorDiagnostics.push(diagnostic);
+                diagnostics.push(diagnostic);
+                await emit("diagnostic", {
+                  componentName: component.name,
+                  diagnostic,
+                });
+              }
+              componentDiagnostics.push(evaluatorDiagnostics);
+            }
+            for (
+              const diagnostic of await disagreementDiagnostics(
+                stage.id,
+                component.name,
+                adapters,
+                componentDiagnostics,
+              )
+            ) {
+              diagnostics.push(diagnostic);
+              await emit("diagnostic", {
+                componentName: component.name,
+                diagnostic,
+              });
+            }
           }
         }
+      } catch (error) {
+        if (profile.criticalSystem && definition.agentic) {
+          throw profileEvaluatorError(
+            `A required critical-system evaluator is unavailable or incomplete: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+        state = "failed";
+        failed.add(stage.id);
+        const diagnostic = await stageFailure(stage.id, adapters[0], error);
+        diagnostics.push(diagnostic);
+        await emit("diagnostic", { diagnostic });
       }
-    } catch (error) {
-      state = "failed";
-      failed.add(stage.id);
-      const diagnostic = await stageFailure(stage.id, adapter, error);
-      diagnostics.push(diagnostic);
-      await emit("diagnostic", { diagnostic });
+      const report: StageReport = {
+        id: stage.id,
+        required: stage.required,
+        state,
+        evaluator: stage.agentic ? evaluatorLabel : "sigil-core",
+        diagnosticCount: diagnostics.length - before,
+        startedAt: stageStartedAt,
+        completedAt: new Date().toISOString(),
+        ...(evaluations.length ? { evaluations } : {}),
+      };
+      stageReports.push(report);
+      await emit("stage-completed", { stage: report });
     }
-    const report: StageReport = {
-      id: stage.id,
-      required: stage.required,
-      state,
-      evaluator: stage.agentic ? adapter?.id ?? "unavailable" : "sigil-core",
-      diagnosticCount: diagnostics.length - before,
-      startedAt: stageStartedAt,
-      completedAt: new Date().toISOString(),
-      ...(evaluations.length ? { evaluations } : {}),
-    };
-    stageReports.push(report);
-    await emit("stage-completed", { stage: report });
-  }
 
-  const report: CompilationReport = {
-    reportVersion: COMPILATION_REPORT_VERSION,
-    runId,
-    workspaceRoot: workspace.root,
-    target,
-    componentNames: components.map((item) => item.name),
-    status: colorFor(diagnostics, stageReports),
-    startedAt,
-    completedAt: new Date().toISOString(),
-    sourceFingerprint,
-    requestedStage: options.requestedStage,
-    profile,
-    stages: stageReports,
-    diagnostics,
-  };
-  if (options.output) {
-    await Deno.writeTextFile(
-      options.output,
-      `${JSON.stringify(report, null, 2)}\n`,
-    );
+    const historyKey = options.history && !options.noHistory
+      ? await compilationHistoryKey(workspace.root, target, profile)
+      : undefined;
+    const previous = historyKey
+      ? await options.history!.read(historyKey).catch(() => undefined)
+      : undefined;
+    diagnostics = [...applyDiagnosticLifecycle(diagnostics, previous)];
+    const report: CompilationReport = {
+      reportVersion: COMPILATION_REPORT_VERSION,
+      runId,
+      workspaceRoot: workspace.root,
+      target,
+      componentNames: components.map((item) => item.name),
+      status: colorFor(diagnostics, stageReports),
+      startedAt,
+      completedAt: new Date().toISOString(),
+      sourceFingerprint,
+      requestedStage: options.requestedStage,
+      profile,
+      stages: stageReports,
+      diagnostics,
+    };
+    if (options.output) {
+      await Deno.writeTextFile(
+        options.output,
+        `${JSON.stringify(report, null, 2)}\n`,
+      );
+    }
+    if (historyKey) {
+      await options.history!.write(historyKey, report).catch(() => {});
+    }
+    await emit("completed", { report });
+    return report;
+  } catch (error) {
+    const type = error instanceof DOMException && error.name === "AbortError"
+      ? "cancelled"
+      : "failed";
+    const code = compilerErrorCode(error);
+    try {
+      await emit(type, {
+        code,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } catch {
+      // The event consumer failed, so no further terminal delivery is possible.
+    }
+    throw error;
   }
-  await emit("completed", { report });
-  return report;
 }
 
 function stageDefinitions(
@@ -404,16 +462,6 @@ function parseConfiguration(value: unknown): CompileConfiguration {
     throw new Error("tools.compile must be an object.");
   }
   const raw = value as Record<string, unknown>;
-  const adapter = raw.adapter;
-  if (
-    adapter !== undefined &&
-    (!adapter || typeof adapter !== "object" || Array.isArray(adapter) ||
-      !["codex", "claude"].includes(
-        String((adapter as Record<string, unknown>).provider),
-      ))
-  ) {
-    throw new Error("tools.compile.adapter.provider must be codex or claude.");
-  }
   validateConfiguredBudgets(raw.budgets);
   return raw as unknown as CompileConfiguration;
 }
@@ -477,8 +525,10 @@ async function effectiveProfile(
     agentic: stage.agentic,
     dependencies: stage.dependencies,
   }));
+  const evaluators = selectedEvaluators(name, base, custom, configuration);
   const profileBase = {
     name,
+    criticalSystem: base === "critical-system",
     contextBudgetChars: MAX_COMPILATION_REQUEST_CHARS,
     executionBudgets: {
       ...DEFAULT_EXECUTION_BUDGETS,
@@ -486,6 +536,7 @@ async function effectiveProfile(
     },
     stages,
     adapter: configuration.adapter,
+    evaluators,
     skills: selected.flatMap((stage) =>
       stage.skill
         ? [{
@@ -498,12 +549,80 @@ async function effectiveProfile(
   };
   return {
     name: profileBase.name,
+    criticalSystem: profileBase.criticalSystem,
     contextBudgetChars: profileBase.contextBudgetChars,
     executionBudgets: profileBase.executionBudgets,
     stages: profileBase.stages,
     adapter: profileBase.adapter,
+    evaluators: profileBase.evaluators,
     fingerprint: await digest(JSON.stringify(profileBase)),
   };
+}
+
+function selectedEvaluators(
+  name: string,
+  base: "standard" | "critical-system",
+  custom: CompileConfiguration["profiles"] extends
+    | Readonly<
+      Record<string, infer T>
+    >
+    | undefined ? T | undefined
+    : never,
+  configuration: CompileConfiguration,
+): readonly EvaluatorConfiguration[] {
+  const configuredIds = custom?.evaluatorIds as unknown;
+  if (
+    configuredIds !== undefined &&
+    (!Array.isArray(configuredIds) ||
+      configuredIds.some((id) => typeof id !== "string" || !id))
+  ) {
+    throw evaluatorConfigurationError(
+      base,
+      `Profile ${
+        JSON.stringify(name)
+      } evaluatorIds must contain non-empty strings.`,
+    );
+  }
+  const ids = (configuredIds as readonly string[] | undefined) ??
+    (base === "standard" && configuration.adapter ? ["default"] : []);
+  if (new Set(ids).size !== ids.length) {
+    throw evaluatorConfigurationError(
+      base,
+      `Profile ${JSON.stringify(name)} selects duplicate evaluator identities.`,
+    );
+  }
+  return ids.map((id) => {
+    const raw = id === "default"
+      ? configuration.adapter
+      : configuration.evaluators?.[id];
+    if (!raw || typeof raw !== "object") {
+      throw evaluatorConfigurationError(
+        base,
+        `Profile ${JSON.stringify(name)} references unavailable evaluator ${
+          JSON.stringify(id)
+        }.`,
+      );
+    }
+    const provider = (raw as Record<string, unknown>).provider;
+    const model = (raw as Record<string, unknown>).model;
+    if (!["codex", "claude"].includes(String(provider))) {
+      throw evaluatorConfigurationError(
+        base,
+        `Evaluator ${JSON.stringify(id)} must use provider codex or claude.`,
+      );
+    }
+    if (model !== undefined && typeof model !== "string") {
+      throw evaluatorConfigurationError(
+        base,
+        `Evaluator ${JSON.stringify(id)} model must be a string.`,
+      );
+    }
+    return {
+      id,
+      provider: provider as "codex" | "claude",
+      ...(model ? { model } : {}),
+    };
+  });
 }
 
 function stageClosure(
@@ -538,14 +657,86 @@ function stageClosure(
   return available.filter((stage) => selected.has(stage.id));
 }
 
-function adapterFrom(profile: EffectiveProfile): AgentAdapter | undefined {
-  if (profile.adapter?.provider === "codex") {
-    return new CodexAdapter(profile.adapter.model);
+function adaptersFrom(
+  profile: EffectiveProfile,
+  options: CompileOptions,
+): readonly AgentAdapter[] {
+  if (options.adapters) {
+    return profile.evaluators.map((configuration) => {
+      const adapter = options.adapters!.find((item) =>
+        item.id === configuration.id
+      );
+      if (!adapter) {
+        const message = `Selected evaluator ${
+          JSON.stringify(configuration.id)
+        } is unavailable.`;
+        throw profile.criticalSystem
+          ? profileEvaluatorError(message)
+          : new Error(message);
+      }
+      return adapter;
+    });
   }
-  if (profile.adapter?.provider === "claude") {
-    return new ClaudeAdapter(profile.adapter.model);
+  if (options.adapter) {
+    if (profile.name === "critical-system") {
+      return [options.adapter];
+    }
+    return [options.adapter];
   }
-  return undefined;
+  return profile.evaluators.map((configuration) =>
+    configuration.provider === "codex"
+      ? new CodexAdapter(
+        configuration.model,
+        undefined,
+        configuration.id,
+      )
+      : new ClaudeAdapter(configuration.model, configuration.id)
+  );
+}
+
+function assertProfileEvaluators(
+  profile: EffectiveProfile,
+  adapters: readonly AgentAdapter[],
+): void {
+  if (!profile.criticalSystem) return;
+  const identities = new Set(adapters.map((item) => item.id));
+  if (adapters.length < 2 || identities.size < 2) {
+    throw profileEvaluatorError(
+      "The critical-system profile requires at least two distinct available evaluator identities.",
+    );
+  }
+  for (const adapter of adapters) {
+    try {
+      assertAdapterCapabilities(adapter);
+    } catch (error) {
+      throw profileEvaluatorError(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+}
+
+function profileEvaluatorError(message: string): Error {
+  return Object.assign(new Error(message), {
+    code: "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+  });
+}
+
+function evaluatorConfigurationError(
+  base: "standard" | "critical-system",
+  message: string,
+): Error {
+  return base === "critical-system"
+    ? profileEvaluatorError(message)
+    : new Error(message);
+}
+
+function compilerErrorCode(error: unknown): string {
+  if (
+    error && typeof error === "object" && "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+  ) return (error as { code: string }).code;
+  return "COMPILER_FAILED";
 }
 
 function resolveTarget(
@@ -557,23 +748,67 @@ function resolveTarget(
     ? resolved.components
     : selectExplicitTarget(resolved.components, target, root);
   if (!selected.length) {
-    throw new Error(`No component matched ${target.kind} ${target.value}.`);
+    throw new Error(
+      `No component matched ${target.kind}${
+        target.kind === "workspace" ? "" : ` ${target.value}`
+      }.`,
+    );
   }
   return dependencyOrder(resolved, selected);
 }
 
 function selectExplicitTarget(
   components: readonly ResolvedComponent[],
-  target: CompilationTarget,
+  target: Exclude<CompilationTarget, { readonly kind: "workspace" }>,
   root: string,
 ): readonly ResolvedComponent[] {
-  if (!target.value) throw new Error(`${target.kind} target requires a value.`);
-  return target.kind === "component"
-    ? components.filter((item) => item.name === target.value)
-    : components.filter((item) =>
-      canonicalWorkspacePath(item.filePath, root) ===
-        canonicalWorkspacePath(target.value!, root)
+  if (target.kind === "component") {
+    return components.filter((item) => item.name === target.value);
+  }
+  const file = canonicalWorkspacePath(target.value, root);
+  if (target.kind === "file") {
+    return components.filter((item) =>
+      canonicalWorkspacePath(item.filePath, root) === file ||
+      item.expansions.expands.some((expansion) =>
+        canonicalWorkspacePath(expansion.filePath, root) === file
+      )
     );
+  }
+  if (
+    !Number.isSafeInteger(target.line) || target.line < 1 ||
+    !Number.isSafeInteger(target.column) || target.column < 1
+  ) {
+    throw new Error(
+      "Location target line and column must be positive integers.",
+    );
+  }
+  const location = { line: target.line, column: target.column };
+  return components.filter((item) =>
+    (canonicalWorkspacePath(item.filePath, root) === file &&
+      rangeContains(item.declaration.range, location)) ||
+    item.expansions.expands.some((expansion) =>
+      canonicalWorkspacePath(expansion.filePath, root) === file &&
+      rangeContains(expansion.declaration.range, location)
+    )
+  );
+}
+
+function rangeContains(
+  range: {
+    start: { line: number; column: number };
+    end: {
+      line: number;
+      column: number;
+    };
+  },
+  location: { line: number; column: number },
+): boolean {
+  const afterStart = location.line > range.start.line ||
+    (location.line === range.start.line &&
+      location.column >= range.start.column);
+  const beforeEnd = location.line < range.end.line ||
+    (location.line === range.end.line && location.column <= range.end.column);
+  return afterStart && beforeEnd;
 }
 
 function dependencyOrder(
@@ -703,9 +938,76 @@ async function fromAgentFinding(
     evidence: finding.evidence,
     impact: finding.impact,
     correction: finding.correction,
-    evaluator: `${adapter.provider}${adapter.model ? `:${adapter.model}` : ""}`,
+    evaluator: adapter.id,
     lifecycle: "new",
   };
+}
+
+async function disagreementDiagnostics(
+  stage: string,
+  componentName: string,
+  adapters: readonly AgentAdapter[],
+  results: readonly (readonly CompilerDiagnostic[])[],
+): Promise<readonly CompilerDiagnostic[]> {
+  if (new Set(adapters.map((item) => item.id)).size < 2) return [];
+  const bySubject = new Map<
+    string,
+    { sample: CompilerDiagnostic; severities: Map<string, string> }
+  >();
+  for (let index = 0; index < adapters.length; index++) {
+    for (
+      const diagnostic of results[index].filter((item) =>
+        item.severity === "error" || item.severity === "warning"
+      )
+    ) {
+      const key = JSON.stringify({
+        code: diagnostic.code,
+        subjects: diagnostic.semanticSubjects.map(semanticSubjectIdentity),
+        fallback: diagnostic.semanticSubjects.length ? undefined : {
+          filePath: diagnostic.filePath,
+          line: diagnostic.range?.start.line,
+          column: diagnostic.range?.start.column,
+        },
+      });
+      const entry = bySubject.get(key) ?? {
+        sample: diagnostic,
+        severities: new Map<string, string>(),
+      };
+      entry.severities.set(adapters[index].id, diagnostic.severity);
+      bySubject.set(key, entry);
+    }
+  }
+  const findings: CompilerDiagnostic[] = [];
+  for (const [key, entry] of bySubject) {
+    const signatures = adapters.map((adapter) =>
+      entry.severities.get(adapter.id) ?? "absent"
+    );
+    if (new Set(signatures).size < 2) continue;
+    findings.push({
+      code: "COMPILER_EVALUATOR_DISAGREEMENT",
+      fingerprint: await digest(
+        `COMPILER_EVALUATOR_DISAGREEMENT:${stage}:${componentName}:${key}`,
+      ),
+      severity: "warning",
+      stage,
+      skill: "compiler-reconciliation",
+      message:
+        `Evaluators disagree on ${entry.sample.code} for ${componentName}.`,
+      filePath: entry.sample.filePath,
+      range: entry.sample.range,
+      semanticSubjects: entry.sample.semanticSubjects,
+      evidence: adapters.map((adapter, index) =>
+        `${adapter.id}: ${signatures[index]}`
+      ).join("; "),
+      impact:
+        "The critical-system evaluation does not provide independent agreement.",
+      correction:
+        "Review the cited semantic subject and reconcile evaluator evidence.",
+      evaluator: adapters.map((item) => item.id).join(","),
+      lifecycle: "new",
+    });
+  }
+  return findings;
 }
 
 async function stageFailure(
@@ -735,12 +1037,18 @@ function colorFor(
   stages: readonly StageReport[],
 ): CompilationColor {
   if (
-    diagnostics.some((item) => item.severity === "error") ||
+    diagnostics.some((item) =>
+      item.lifecycle !== "resolved" && item.severity === "error"
+    ) ||
     stages.some((stage) =>
       stage.required && !["completed", "disabled"].includes(stage.state)
     )
   ) return "red";
-  if (diagnostics.some((item) => item.severity === "warning")) return "yellow";
+  if (
+    diagnostics.some((item) =>
+      item.lifecycle !== "resolved" && item.severity === "warning"
+    )
+  ) return "yellow";
   return "green";
 }
 

@@ -109,6 +109,271 @@ Deno.test("warnings produce yellow and errors produce red", async () => {
 
 // @sigil tests packages/compiler/#module.sigil::SigilCompiler::StageConfiguration constraints,cases
 Deno.test("critical-system adds risk evaluation without implementation stages", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {},
+    {
+      evaluators: {
+        first: { provider: "codex" },
+        second: { provider: "codex" },
+      },
+      profiles: {
+        "critical-system": { evaluatorIds: ["first", "second"] },
+      },
+    },
+  );
+  try {
+    const report = await compile(root, { kind: "workspace" }, {
+      profile: "critical-system",
+      adapters: [
+        new MockAdapter([], "first"),
+        new MockAdapter([], "second"),
+      ],
+    });
+    assertEquals(
+      report.stages.find((item) => item.id === "standards-risk")?.state,
+      "completed",
+    );
+    assertEquals(
+      report.stages.some((item) =>
+        item.id.includes("implementation") ||
+        item.id.includes("code-generation")
+      ),
+      false,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::StageConfiguration constraints,cases
+Deno.test("critical-system configuration is optional until the profile is selected", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {},
+    {
+      evaluators: {
+        unused: { provider: "unsupported" },
+      },
+    },
+  );
+  try {
+    const standard = await compile(root, { kind: "workspace" }, {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter(),
+    });
+    assertEquals(standard.status, "green");
+
+    const events: CompilationEvent[] = [];
+    await assertRejects(
+      () =>
+        compile(root, { kind: "workspace" }, {
+          profile: "critical-system",
+          adapter: new MockAdapter(),
+          onEvent: (event) => {
+            events.push(event);
+          },
+        }),
+      Error,
+      "requires at least two distinct",
+    );
+    assertEquals(events.at(-1)?.type, "failed");
+    assertEquals(
+      events.at(-1)?.payload.code,
+      "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+    );
+    assertEquals(
+      events.filter((event) =>
+        ["completed", "failed", "cancelled"].includes(event.type)
+      ).length,
+      1,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationStatus constraints,cases
+Deno.test("critical-system evaluator failure ends the run with the profile error", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {},
+    {
+      evaluators: {
+        first: { provider: "codex" },
+        second: { provider: "codex" },
+      },
+      profiles: {
+        "critical-system": { evaluatorIds: ["first", "second"] },
+      },
+    },
+  );
+  try {
+    const events: CompilationEvent[] = [];
+    await assertRejects(
+      () =>
+        compile(root, { kind: "workspace" }, {
+          profile: "critical-system",
+          requestedStage: "semantic-readiness",
+          adapters: [
+            new MockAdapter(() => {
+              throw new Error("evaluator executable is unavailable");
+            }, "first"),
+            new MockAdapter([], "second"),
+          ],
+          onEvent: (event) => {
+            events.push(event);
+          },
+        }),
+      Error,
+      "required critical-system evaluator",
+    );
+    assertEquals(events.at(-1)?.type, "failed");
+    assertEquals(
+      events.at(-1)?.payload.code,
+      "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationTarget logic,cases
+Deno.test("location targets select enclosing components through expand files", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {
+      "details.sigil": `expand Example {
+  logic {
+    The selected expansion belongs to Example.
+  }
+}
+`,
+    },
+  );
+  try {
+    const report = await compile(root, {
+      kind: "location",
+      value: "details.sigil",
+      line: 3,
+      column: 8,
+    }, {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter(),
+    });
+    assertEquals(report.componentNames, ["Example"]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationStatus logic,cases
+Deno.test("independent evaluator disagreement is explicit", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {},
+    {
+      evaluators: {
+        first: { provider: "codex" },
+        second: { provider: "codex" },
+      },
+      profiles: {
+        critical: {
+          extends: "critical-system",
+          evaluatorIds: ["first", "second"],
+        },
+      },
+    },
+  );
+  try {
+    const finding = {
+      code: "SEMANTIC_AMBIGUITY",
+      severity: "warning" as const,
+      message: "The goal is ambiguous.",
+      filePath: "main.sigil",
+      line: 3,
+      column: 5,
+      evidence: "The goal lacks a measurable result.",
+      impact: "Implementations may diverge.",
+      correction: "State the expected result.",
+    };
+    const report = await compile(root, { kind: "workspace" }, {
+      profile: "critical",
+      requestedStage: "semantic-readiness",
+      adapters: [
+        new MockAdapter([finding], "first"),
+        new MockAdapter([], "second"),
+      ],
+    });
+    assertEquals(
+      report.diagnostics.some((item) =>
+        item.code === "COMPILER_EVALUATOR_DISAGREEMENT"
+      ),
+      true,
+    );
+    assertEquals(report.status, "yellow");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationHistory logic,cases
+Deno.test("history derives unchanged, resolved, and regressed lifecycle", async () => {
   const root = await workspace(`component Example {
   goal {
     Explain the example.
@@ -121,21 +386,62 @@ Deno.test("critical-system adds risk evaluation without implementation stages", 
   }
 }
 `);
+  const reports = new Map<string, Awaited<ReturnType<typeof compile>>>();
+  const history = {
+    read: (key: string) => Promise.resolve(reports.get(key)),
+    write: (key: string, report: Awaited<ReturnType<typeof compile>>) => {
+      reports.set(key, report);
+      return Promise.resolve();
+    },
+  };
+  const finding = {
+    code: "SEMANTIC_AMBIGUITY",
+    severity: "warning" as const,
+    message: "The goal is ambiguous.",
+    evidence: "The goal lacks a result.",
+    impact: "Implementations may diverge.",
+    correction: "State the result.",
+  };
   try {
-    const report = await compile(root, { kind: "workspace" }, {
-      profile: "critical-system",
-      adapter: new MockAdapter(),
+    const first = await compile(root, { kind: "workspace" }, {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter([finding]),
+      history,
     });
     assertEquals(
-      report.stages.find((item) => item.id === "standards-risk")?.state,
-      "completed",
+      first.diagnostics.find((item) => item.code === finding.code)?.lifecycle,
+      "new",
     );
+    const unchanged = await compile(root, { kind: "workspace" }, {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter([finding]),
+      history,
+    });
     assertEquals(
-      report.stages.some((item) =>
-        item.id.includes("implementation") ||
-        item.id.includes("code-generation")
-      ),
-      false,
+      unchanged.diagnostics.find((item) => item.code === finding.code)
+        ?.lifecycle,
+      "unchanged",
+    );
+    const resolved = await compile(root, { kind: "workspace" }, {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter(),
+      history,
+    });
+    assertEquals(
+      resolved.diagnostics.find((item) => item.code === finding.code)
+        ?.lifecycle,
+      "resolved",
+    );
+    assertEquals(resolved.status, "green");
+    const regressed = await compile(root, { kind: "workspace" }, {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter([finding]),
+      history,
+    });
+    assertEquals(
+      regressed.diagnostics.find((item) => item.code === finding.code)
+        ?.lifecycle,
+      "regressed",
     );
   } finally {
     await Deno.remove(root, { recursive: true });

@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import * as vscode from "vscode";
 
@@ -86,6 +88,70 @@ export async function run(): Promise<void> {
     sectionDefinitions.length > 0,
     "A component reference inside a section should provide a definition",
   );
+
+  const fakeCompilerDirectory = await mkdtemp(
+    path.join(os.tmpdir(), "sigil-vscode-compiler-"),
+  );
+  const compileConfiguration = vscode.workspace.getConfiguration(
+    "sigil.compile",
+    source,
+  );
+  try {
+    const argumentsPath = path.join(fakeCompilerDirectory, "arguments.json");
+    const executablePath = path.join(fakeCompilerDirectory, "sigil");
+    const report = {
+      reportVersion: 2,
+      status: "green",
+      componentNames: ["Auth"],
+      diagnostics: [],
+    };
+    await writeFile(
+      executablePath,
+      `#!/usr/bin/env node
+const fs = require("node:fs");
+fs.writeFileSync(${
+        JSON.stringify(argumentsPath)
+      }, JSON.stringify(process.argv.slice(2)));
+console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:1,type:"started",payload:{}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type:"completed",payload:{report:${
+        JSON.stringify(report)
+      }}}));
+`,
+    );
+    await chmod(executablePath, 0o755);
+    const folder = vscode.workspace.getWorkspaceFolder(source);
+    assert(folder, "The active Sigil document should belong to a workspace");
+    await compileConfiguration.update(
+      "executable",
+      executablePath,
+      vscode.ConfigurationTarget.Global,
+    );
+    editor.selection = new vscode.Selection(position, position);
+    await vscode.commands.executeCommand("sigil.compileComponent");
+    const compilerArguments = JSON.parse(
+      await readFile(argumentsPath, "utf8"),
+    ) as string[];
+    assert.deepEqual(
+      compilerArguments.slice(0, 8),
+      [
+        "compile",
+        folder.uri.fsPath,
+        "--file",
+        source.fsPath,
+        "--position",
+        `${position.line + 1}:${position.character + 1}`,
+        "--profile",
+        "standard",
+      ],
+    );
+  } finally {
+    await compileConfiguration.update(
+      "executable",
+      undefined,
+      vscode.ConfigurationTarget.Global,
+    );
+    await rm(fakeCompilerDirectory, { recursive: true, force: true });
+  }
 
   await vscode.commands.executeCommand("sigil.showComponentPreview");
   await eventually(() => {

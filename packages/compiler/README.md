@@ -29,10 +29,47 @@ Run a complete profile or one stage plus its dependency closure:
 sigil compile .
 sigil compile semantic-readiness .
 sigil compile architecture-design . --component SigilCompiler
+sigil compile . --file packages/compiler/src/compiler.sigil --position 40:3
 ```
 
 An exact stage identifier in the first operand position selects a stage. Prefix
 a colliding path with `./` to treat it as a path.
+
+File targets include components declared in the file and expansions collected
+from it. Adding a one-based `--position line:column` selects only the component
+or expansion enclosing that exact location.
+
+The legacy `tools.compile.adapter` remains the standard profile's default
+evaluator. Independent evaluator groups are optional:
+
+```json
+{
+  "tools": {
+    "compile": {
+      "evaluators": {
+        "primary": { "provider": "codex" },
+        "reviewer": { "provider": "codex", "model": "another-model" }
+      },
+      "profiles": {
+        "critical-system": {
+          "evaluatorIds": ["primary", "reviewer"]
+        }
+      }
+    }
+  }
+}
+```
+
+Critical-system configuration is not required to load or compile a workspace
+with another profile. Selecting a critical-system profile requires at least two
+distinct, available evaluator identities; otherwise the run ends with
+`COMPILER_PROFILE_EVALUATORS_REQUIRED`. Material differences in error or warning
+findings produce `COMPILER_EVALUATOR_DISAGREEMENT`.
+
+Completed runs may use a host-provided history store to classify diagnostic
+lifecycle as new, unchanged, resolved, or regressed. History is compatible only
+for the same workspace, target, report version, and effective profile. Corrupt
+or incompatible entries are ignored.
 
 Execution budgets have safe built-in defaults and may be increased or reduced
 for a workspace under `tools.compile.budgets`:

@@ -2,8 +2,10 @@
 import { type HelpTopic, parseArgs } from "./args.ts";
 import {
   type CompilationEvent,
+  type CompilationHistoryStore,
   type CompilationReport,
   compile,
+  FileCompilationHistoryStore,
 } from "@qoherent/sigil-compiler";
 import { type CommandHandlerOptions, runCommand } from "./commands.ts";
 import {
@@ -14,6 +16,7 @@ import {
 } from "./exit.ts";
 import { formatResult } from "./formatters.ts";
 import metadata from "../deno.json" with { type: "json" };
+import { compilationCacheDirectory } from "./fs-adapter.ts";
 
 const HELP: Readonly<Record<HelpTopic, string>> = {
   root: `Usage: sigil <command> [options]
@@ -143,12 +146,13 @@ Options:
   --help              Show this help
 `,
   compile:
-    `Usage: sigil compile [stage] [path] [--component <name> | --file <file>] [options]
+    `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>]] [options]
 
 Options:
   stage               Run one stage and its dependency closure
   --component <name>  Compile one component
   --file <file>       Compile components represented by one file
+  --position <value>  Select the component enclosing one-based line:column
   --profile <name>    Select a compilation profile (default: standard)
   --no-cache          Do not consult compilation history
   --output <file>     Export the authoritative report
@@ -176,6 +180,7 @@ export interface CliRunResult {
 
 export interface CliRunOptions extends CommandHandlerOptions {
   readonly compiler?: typeof compile;
+  readonly compilationHistory?: CompilationHistoryStore;
   readonly onCompilationEvent?: (line: string) => void | Promise<void>;
   readonly onCompilationProgress?: (line: string) => void | Promise<void>;
   readonly signal?: AbortSignal;
@@ -191,6 +196,7 @@ export async function runCli(
   options: CliRunOptions = {},
 ): Promise<CliRunResult> {
   const parsed = parseArgs(argv);
+  let compilationEvents: CompilationEvent[] | undefined;
   if (parsed.kind === "help") {
     return { exitCode: 0, stdout: HELP[parsed.helpTopic], stderr: "" };
   }
@@ -208,9 +214,16 @@ export async function runCli(
   try {
     if (parsed.request.command === "compile") {
       const events: CompilationEvent[] = [];
+      compilationEvents = events;
       const compileWorkspace = options.compiler ?? compile;
       const target = parsed.request.component
         ? { kind: "component" as const, value: parsed.request.component }
+        : parsed.request.file && parsed.request.position
+        ? {
+          kind: "location" as const,
+          value: parsed.request.file,
+          ...parsed.request.position,
+        }
         : parsed.request.file
         ? { kind: "file" as const, value: parsed.request.file }
         : { kind: "workspace" as const };
@@ -221,6 +234,12 @@ export async function runCli(
           profile: parsed.request.profile,
           requestedStage: parsed.request.stage,
           noHistory: parsed.request.noCache,
+          history: parsed.request.noCache
+            ? undefined
+            : options.compilationHistory ??
+              (options.compiler ? undefined : new FileCompilationHistoryStore(
+                compilationCacheDirectory(),
+              )),
           output: parsed.request.output,
           signal: options.signal,
           onEvent: async (event) => {
@@ -264,16 +283,23 @@ export async function runCli(
       stderr: "",
     };
   } catch (error) {
+    const bufferedJsonl = parsed.kind === "ok" &&
+        parsed.request.command === "compile" &&
+        parsed.request.format === "jsonl" &&
+        !options.onCompilationEvent && compilationEvents
+      ? compilationEvents.map((event) => JSON.stringify(event)).join("\n") +
+        (compilationEvents.length ? "\n" : "")
+      : "";
     if (error instanceof DOMException && error.name === "AbortError") {
       return {
         exitCode: EXIT_CANCELLED,
-        stdout: "",
+        stdout: bufferedJsonl,
         stderr: "Compilation cancelled.\n",
       };
     }
     return {
       exitCode: EXIT_RUNTIME,
-      stdout: "",
+      stdout: bufferedJsonl,
       stderr: `${error instanceof Error ? error.message : String(error)}\n`,
     };
   }

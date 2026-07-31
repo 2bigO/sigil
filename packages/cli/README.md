@@ -73,7 +73,8 @@ Commands:
   public contracts and decision rationale plus reviewed terminology recognized
   in the selected and related Sigil files, excluding terms whose `agentContext`
   value is `false`;
-- `sigil compile [stage] [path] [--component name | --file file]` runs
+- `sigil compile [stage] [path] [--component name | --file file
+  [--position line:column]]` runs
   profile-scoped deterministic and direct-read agent evaluation. A stage operand
   such as `semantic-readiness` runs that stage and its dependency closure.
   Prefix a colliding path with `./`. Use `--format jsonl` for the versioned
@@ -103,6 +104,12 @@ read-only filesystem access, disabled network and approval escalation, and
 structured output. A configured provider that cannot enforce the same contract
 fails closed. Compilation does not generate code or execute implementation
 experiments.
+
+Unless `--no-cache` is set, completed compilation reports are atomically stored
+under the operating system's user cache directory and used to derive diagnostic
+lifecycle. The cache is never written inside the workspace. JSONL compilation
+emits one terminal `completed`, `failed`, or `cancelled` event; profile
+configuration failures return exit code `3`.
 
 Empty, unknown, incomplete, and invalid invocations report the problem together
 with help for the longest recognized command path.

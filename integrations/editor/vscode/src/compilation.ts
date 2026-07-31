@@ -52,6 +52,17 @@ export interface CompilationEvent {
   readonly payload: Record<string, unknown>;
 }
 
+const EVENT_TYPES = new Set([
+  "started",
+  "stage-started",
+  "stage-completed",
+  "diagnostic",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+const TERMINAL_EVENT_TYPES = new Set(["completed", "failed", "cancelled"]);
+
 export interface CompilationProcess {
   readonly result: Promise<CompilationReport>;
   cancel(): void;
@@ -72,6 +83,9 @@ export function runCompilationProcess(
   });
   let expectedSequence = 1;
   let completed: CompilationReport | undefined;
+  let runId: string | undefined;
+  let terminalType: string | undefined;
+  let terminalMessage: string | undefined;
 
   const result = new Promise<CompilationReport>((resolve, reject) => {
     child.once("error", reject);
@@ -81,6 +95,16 @@ export function runCompilationProcess(
         if (event.sequence !== expectedSequence++) {
           throw new Error("Compilation event sequence is invalid.");
         }
+        if (!runId) runId = event.runId;
+        if (event.runId !== runId) {
+          throw new Error("Compilation event run identity changed.");
+        }
+        if (event.sequence === 1 && event.type !== "started") {
+          throw new Error("Compilation event stream must begin with started.");
+        }
+        if (terminalType) {
+          throw new Error("Compilation event followed a terminal event.");
+        }
         onEvent(event);
         if (event.type === "completed") {
           const report = event.payload.report;
@@ -88,6 +112,12 @@ export function runCompilationProcess(
             throw new Error("Completed event has no valid CompilationReport.");
           }
           completed = report;
+        }
+        if (TERMINAL_EVENT_TYPES.has(event.type)) {
+          terminalType = event.type;
+          terminalMessage = typeof event.payload.message === "string"
+            ? event.payload.message
+            : undefined;
         }
       } catch (error) {
         child.kill();
@@ -98,6 +128,13 @@ export function runCompilationProcess(
     child.once("close", (code, signal) => {
       if (completed) {
         resolve(completed);
+      } else if (terminalType) {
+        reject(
+          new Error(
+            terminalMessage ??
+              `Sigil compilation ended with terminal event ${terminalType}.`,
+          ),
+        );
       } else {
         reject(
           new Error(
@@ -126,11 +163,28 @@ export function parseCompilationEvent(line: string): CompilationEvent {
   const event = value as Record<string, unknown>;
   if (
     event.protocolVersion !== 1 || typeof event.runId !== "string" ||
-    typeof event.sequence !== "number" || typeof event.type !== "string" ||
+    !event.runId || !Number.isSafeInteger(event.sequence) ||
+    (event.sequence as number) < 1 ||
+    typeof event.type !== "string" || !EVENT_TYPES.has(event.type) ||
     !event.payload || typeof event.payload !== "object" ||
     Array.isArray(event.payload)
   ) {
     throw new Error("Incompatible or malformed compilation event.");
+  }
+  const payload = event.payload as Record<string, unknown>;
+  if (
+    (event.type === "stage-started" && typeof payload.stage !== "string") ||
+    (event.type === "stage-completed" &&
+      (!payload.stage || typeof payload.stage !== "object" ||
+        Array.isArray(payload.stage))) ||
+    (event.type === "diagnostic" &&
+      !isCompilerDiagnostic(payload.diagnostic)) ||
+    (event.type === "completed" && !isCompilationReport(payload.report)) ||
+    (["failed", "cancelled"].includes(event.type as string) &&
+      (typeof payload.code !== "string" ||
+        typeof payload.message !== "string"))
+  ) {
+    throw new Error("Compilation event payload is malformed.");
   }
   return event as unknown as CompilationEvent;
 }
@@ -139,13 +193,21 @@ export function componentAt(
   source: string,
   zeroBasedLine: number,
 ): string | undefined {
-  const prefix = source.split(/\r?\n/).slice(0, zeroBasedLine + 1).join("\n");
-  const matches = [
-    ...prefix.matchAll(
-      /^\s*component\s+([A-Za-z][A-Za-z0-9_]*)\s*\{/gm,
-    ),
-  ];
-  return matches.at(-1)?.[1];
+  const lines = source.split(/\r?\n/);
+  let depth = 0;
+  let owner: { name: string; depth: number } | undefined;
+  for (let index = 0; index <= zeroBasedLine && index < lines.length; index++) {
+    const line = lines[index].replace(/\/\/.*$/, "");
+    const declaration =
+      /^\s*(?:component|expand)\s+([A-Za-z][A-Za-z0-9_]*)\s*\{/.exec(
+        line,
+      );
+    if (declaration) owner = { name: declaration[1], depth };
+    depth += [...line].filter((character) => character === "{").length;
+    depth -= [...line].filter((character) => character === "}").length;
+    if (owner && depth <= owner.depth) owner = undefined;
+  }
+  return owner?.name;
 }
 
 // @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
@@ -164,6 +226,7 @@ function isCompilationReport(value: unknown): value is CompilationReport {
   return report.reportVersion === 2 &&
     ["red", "yellow", "green"].includes(String(report.status)) &&
     Array.isArray(report.componentNames) && Array.isArray(report.diagnostics) &&
+    report.componentNames.every((item) => typeof item === "string") &&
     report.diagnostics.every(isCompilerDiagnostic);
 }
 
@@ -171,6 +234,55 @@ function isCompilerDiagnostic(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const diagnostic = value as Record<string, unknown>;
   return typeof diagnostic.code === "string" &&
+    ["error", "warning", "optimization", "information"].includes(
+      String(diagnostic.severity),
+    ) &&
     typeof diagnostic.message === "string" &&
-    Array.isArray(diagnostic.semanticSubjects);
+    (diagnostic.filePath === undefined ||
+      typeof diagnostic.filePath === "string") &&
+    (diagnostic.range === undefined || isRange(diagnostic.range)) &&
+    Array.isArray(diagnostic.semanticSubjects) &&
+    diagnostic.semanticSubjects.every(isSemanticSubject);
+}
+
+function isSemanticSubject(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const subject = value as Record<string, unknown>;
+  return ["direct", "governing", "related"].includes(
+    String(subject.relation),
+  ) &&
+    typeof subject.sigilPath === "string" &&
+    typeof subject.componentName === "string" &&
+    ["component", "expand"].includes(String(subject.ownerKind)) &&
+    typeof subject.ownerName === "string" &&
+    [
+      "goal",
+      "interface",
+      "state",
+      "logic",
+      "constraints",
+      "decisions",
+      "cases",
+    ].includes(String(subject.sectionName)) &&
+    (subject.semanticUnit === undefined ||
+      (!!subject.semanticUnit && typeof subject.semanticUnit === "object" &&
+        !Array.isArray(subject.semanticUnit) &&
+        isRange((subject.semanticUnit as Record<string, unknown>).range) &&
+        typeof (subject.semanticUnit as Record<string, unknown>).fingerprint ===
+          "string"));
+}
+
+function isRange(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const range = value as Record<string, unknown>;
+  return isPosition(range.start) && isPosition(range.end);
+}
+
+function isPosition(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const position = value as Record<string, unknown>;
+  return Number.isSafeInteger(position.line) &&
+    (position.line as number) >= 1 &&
+    Number.isSafeInteger(position.column) &&
+    (position.column as number) >= 1;
 }

@@ -115,10 +115,15 @@ expand SigilVsCodeExtension {
     }
 
     CompilationSurface {
-      Compile Component resolves the component at the active Sigil cursor and invokes
-      external sigil compile for that component.
+      Compile Component passes the active Sigil file and cursor position to external
+      sigil compile for compiler-owned component resolution.
 
       Compile Workspace invokes external sigil compile for the configured workspace.
+
+      Component compilation uses the workspace folder containing the active document.
+
+      Workspace compilation requests a folder selection when a multi-root window has
+      more than one eligible file-backed workspace folder.
 
       The extension consumes structured compiler events and projects final findings
       into a dedicated diagnostic collection and compilation view.
@@ -190,6 +195,9 @@ expand SigilVsCodeExtension {
       The extension invokes JSON Lines mode, validates protocol compatibility and
       event ordering, and accepts the final CompilationReport only from a completed
       terminal event.
+
+      Every accepted event belongs to the started run, follows a valid lifecycle
+      transition, and precedes at most one terminal event.
     }
   }
 
@@ -263,6 +271,26 @@ expand SigilVsCodeExtension {
       the same runtime.
     }
 
+    LocationBasedCompilation {
+      Decision: Pass the active file and cursor position to the external compiler and
+      let deterministic Sigil semantics resolve the selected component.
+
+      Scope: Governs VS Code Compile Component targeting and multi-root folder
+      selection; excludes workspace-wide compilation targets.
+
+      Trade-offs: Compile Component requires a compatible CLI that supports location
+      targets.
+
+      Design issues addressed: Textual prefix scanning cannot resolve expand-only
+      files, duplicate component names, or cursor containment reliably.
+
+      Discarded alternatives: Duplicating the Sigil parser in the extension and
+      sending only a component name were rejected.
+
+      Consequences: Editor compilation uses one component identity resolved by the
+      compiler while the extension remains a thin host facade.
+    }
+
     ExplicitAgenticCompilation {
       Decision: Keep deterministic diagnostics live while running agentic compilation
       only through explicit user commands.
@@ -320,6 +348,12 @@ expand SigilVsCodeExtension {
     CompilationSurface {
       Compiling the component under the cursor shows progress and then red, yellow,
       or green status.
+
+      Compiling from an expand-only file evaluates the component represented by that
+      expand.
+
+      Compiling a document in the second folder of a multi-root window uses that
+      document's workspace folder.
 
       A missing or incompatible sigil executable leaves ordinary language features
       active and presents setup guidance.

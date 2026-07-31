@@ -135,6 +135,9 @@ component SigilCli {
       sigil compile stage-id [path] [--component name | --file file] [--profile name]
       [--no-cache] [--output file] [--format jsonl]
 
+      sigil compile [path] --file file --position line:column [--profile name]
+      [--no-cache] [--output file] [--format jsonl]
+
       compile presents human progress by default and exposes the structured compiler
       event and report protocol for automation
 
@@ -277,6 +280,9 @@ expand SigilCli {
       compile resolves CLI operands and options, delegates evaluation to
       SigilCompiler, and projects compiler events and the final report without
       reinterpreting findings.
+
+      --file with --position selects the component or expand enclosing that one-based
+      source position.
 
       When the first compile operand exactly matches a known stage identifier,
       compile requests that stage and its compiler-resolved dependency closure.
@@ -422,10 +428,16 @@ expand SigilCli {
       A compiler or host failure that cannot produce a valid compilation result exits
       with code 3.
 
+      COMPILER_PROFILE_EVALUATORS_REQUIRED from a selected critical-system run is
+      emitted through a failed terminal event and exits with code 3.
+
       A compilation cancelled after invocation begins exits with code 130.
 
       An exact known stage identifier is a reserved first compile operand; a
       colliding path uses an explicit relative or absolute path.
+
+      --position requires --file and uses the line:column form with positive
+      one-based integers.
     }
   }
 

@@ -39,7 +39,6 @@ const defaultRunner: CommandRunner = async (command, args, input, signal) => {
 };
 
 export class CodexAdapter implements AgentAdapter {
-  readonly id = "codex";
   readonly provider = "codex" as const;
   readonly capabilities = {
     readOnlyWorkspace: true,
@@ -51,6 +50,7 @@ export class CodexAdapter implements AgentAdapter {
   constructor(
     readonly model?: string,
     private readonly runner: CommandRunner = defaultRunner,
+    readonly id = "codex",
   ) {}
 
   // @sigil implements packages/compiler/#module.sigil::SigilCompiler::AgentAdapter interface,logic,cases
@@ -106,7 +106,6 @@ export class CodexAdapter implements AgentAdapter {
 }
 
 export class ClaudeAdapter implements AgentAdapter {
-  readonly id = "claude";
   readonly provider = "claude" as const;
   readonly capabilities = {
     readOnlyWorkspace: false,
@@ -115,7 +114,7 @@ export class ClaudeAdapter implements AgentAdapter {
     ephemeral: false,
   } as const;
 
-  constructor(readonly model?: string) {}
+  constructor(readonly model?: string, readonly id = "claude") {}
 
   evaluate(_request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {
     return Promise.reject(
@@ -127,7 +126,6 @@ export class ClaudeAdapter implements AgentAdapter {
 }
 
 export class MockAdapter implements AgentAdapter {
-  readonly id = "mock";
   readonly provider = "mock" as const;
   readonly capabilities = {
     readOnlyWorkspace: true,
@@ -143,6 +141,7 @@ export class MockAdapter implements AgentAdapter {
       | ((
         request: AgentEvaluationRequest,
       ) => readonly AgentFinding[] | AgentEvaluationResult) = [],
+    readonly id = "mock",
   ) {}
 
   evaluate(request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {

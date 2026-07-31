@@ -333,6 +333,11 @@
       ]
     },
     {
+      "term": "critical-system",
+      "definition": "An optional built-in compilation profile requiring standards and risk evaluation plus at least two distinct available evaluator identities.",
+      "aliases": ["critical-system profile"]
+    },
+    {
       "term": "compilation status",
       "definition": "The red, yellow, or green outcome computed for one exact source snapshot and effective compilation profile.",
       "aliases": [
@@ -356,8 +361,20 @@
       "aliases": [
         "compilation events",
         "CompilationEvent",
-        "CompilationEvents"
+        "CompilationEvents",
+        "terminal event",
+        "terminal events"
       ]
+    },
+    {
+      "term": "location target",
+      "definition": "A compilation target containing a file path and one-based source position that resolves the enclosing component or expand to one exact component identity.",
+      "aliases": ["location targets"]
+    },
+    {
+      "term": "compilation history",
+      "definition": "The latest compatible compilation report retained in the operating-system user cache for diagnostic lifecycle comparison without becoming project authority.",
+      "aliases": ["external history", "interactive run history"]
     },
     {
       "term": "evaluation stage",
@@ -376,6 +393,11 @@
         "configured evaluator",
         "configured evaluators"
       ]
+    },
+    {
+      "term": "evaluator identity",
+      "definition": "A unique configured identifier that selects one provider and optional model configuration for profile-scoped evaluation.",
+      "aliases": ["evaluator identities"]
     },
     {
       "term": "evaluation skill",

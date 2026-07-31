@@ -11,7 +11,6 @@ import {
   type CompilationEvent,
   type CompilationProcess,
   type CompilationReport,
-  componentAt,
   diagnosticDisplayRange,
   runCompilationProcess,
 } from "./compilation.ts";
@@ -86,22 +85,19 @@ export async function activate(
         );
         return;
       }
-      const component = componentAt(
-        editor.document.getText(),
-        editor.selection.active.line,
-      );
-      if (!component) {
-        await vscode.window.showInformationMessage(
-          "Place the cursor inside a Sigil component to compile it.",
-        );
-        return;
-      }
+      const position = editor.selection.active;
       await compileFromEditor(
         context,
         output,
         compilationDiagnostics,
         compilationStatus,
-        ["--component", component],
+        [
+          "--file",
+          editor.document.uri.fsPath,
+          "--position",
+          `${position.line + 1}:${position.character + 1}`,
+        ],
+        editor.document.uri,
       );
     }),
     vscode.commands.registerCommand(COMPILE_WORKSPACE_COMMAND, async () => {
@@ -111,6 +107,7 @@ export async function activate(
         compilationDiagnostics,
         compilationStatus,
         [],
+        vscode.window.activeTextEditor?.document.uri,
       );
     }),
   );
@@ -163,9 +160,10 @@ async function compileFromEditor(
   diagnostics: vscode.DiagnosticCollection,
   status: vscode.StatusBarItem,
   targetArgs: readonly string[],
+  preferredUri?: vscode.Uri,
 ): Promise<void> {
-  const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder || folder.uri.scheme !== "file") {
+  const folder = await selectCompilationFolder(preferredUri);
+  if (!folder) {
     await vscode.window.showInformationMessage(
       "Sigil compilation requires a file-backed workspace.",
     );
@@ -210,6 +208,29 @@ async function compileFromEditor(
     if (activeCompilation === process) activeCompilation = undefined;
   }
   void context;
+}
+
+async function selectCompilationFolder(
+  preferredUri?: vscode.Uri,
+): Promise<vscode.WorkspaceFolder | undefined> {
+  if (preferredUri?.scheme === "file") {
+    const enclosing = vscode.workspace.getWorkspaceFolder(preferredUri);
+    if (enclosing?.uri.scheme === "file") return enclosing;
+  }
+  const folders = (vscode.workspace.workspaceFolders ?? []).filter((folder) =>
+    folder.uri.scheme === "file"
+  );
+  if (folders.length === 1) return folders[0];
+  if (folders.length < 2) return undefined;
+  const selected = await vscode.window.showQuickPick(
+    folders.map((folder) => ({
+      label: folder.name,
+      description: folder.uri.fsPath,
+      folder,
+    })),
+    { placeHolder: "Select the workspace folder to compile" },
+  );
+  return selected?.folder;
 }
 
 function showCompilationEvent(

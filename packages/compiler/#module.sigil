@@ -22,6 +22,9 @@ component SigilCompiler {
     CompilationTarget {
       a component is the primary compilation unit
 
+      a location target identifies one file-backed source position and resolves the
+      enclosing component or expand to one exact component identity
+
       a file target resolves to every component represented by that file
 
       a workspace target resolves to a dependency-aware collection of components
@@ -35,6 +38,17 @@ component SigilCompiler {
       evaluation skills, capability limits, and execution budgets
 
       standard and critical-system are built-in profiles
+
+      tools.compile.adapter remains the backward-compatible default evaluator for
+      profiles that require one evaluator
+
+      tools.compile.evaluators maps unique evaluator identities to a provider and
+      optional model configuration
+
+      a profile may select configured evaluator identities through evaluatorIds
+
+      critical-system evaluator configuration is optional until that profile is
+      selected
 
       project profiles may configure or omit evaluation stages
 
@@ -116,6 +130,9 @@ component SigilCompiler {
       an adapter executes a bounded evaluation request through one configured
       code-agent provider
 
+      an evaluator identity is a unique configured identifier bound to one provider
+      and optional model configuration
+
       an adapter reports its enforceable capabilities before evaluation
 
       adapter output is untrusted until it satisfies the compiler-owned protocol and
@@ -147,6 +164,9 @@ component SigilCompiler {
       CompilationReport records requested stages, agent command events, model usage,
       evaluator environment, and incomplete evidence without retaining hidden
       reasoning or complete file contents
+
+      each agentic evaluation trace identifies the configured evaluator that produced
+      it
     }
 
     CompilationEventProtocol {

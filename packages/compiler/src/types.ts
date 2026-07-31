@@ -27,10 +27,16 @@ export type StageState =
   | "disabled"
   | "cancelled";
 
-export interface CompilationTarget {
-  readonly kind: "workspace" | "file" | "component";
-  readonly value?: string;
-}
+export type CompilationTarget =
+  | { readonly kind: "workspace" }
+  | { readonly kind: "file"; readonly value: string }
+  | { readonly kind: "component"; readonly value: string }
+  | {
+    readonly kind: "location";
+    readonly value: string;
+    readonly line: number;
+    readonly column: number;
+  };
 
 export type DiagnosticSemanticRelation = "direct" | "governing" | "related";
 
@@ -80,6 +86,7 @@ export interface StageReport {
 
 export interface EffectiveProfile {
   readonly name: string;
+  readonly criticalSystem: boolean;
   readonly contextBudgetChars: number;
   readonly executionBudgets: AgentExecutionBudgets;
   readonly stages: readonly {
@@ -93,6 +100,7 @@ export interface EffectiveProfile {
     readonly provider: "codex" | "claude" | "mock";
     readonly model?: string;
   };
+  readonly evaluators: readonly EvaluatorConfiguration[];
   readonly fingerprint: string;
 }
 
@@ -136,6 +144,8 @@ export interface CompileOptions {
   readonly output?: string;
   readonly signal?: AbortSignal;
   readonly adapter?: AgentAdapter;
+  readonly adapters?: readonly AgentAdapter[];
+  readonly history?: CompilationHistoryStore;
   readonly onEvent?: (event: CompilationEvent) => void | Promise<void>;
 }
 
@@ -198,6 +208,7 @@ export interface AgentUsage {
 }
 
 export interface AgentEvaluationTrace {
+  readonly evaluatorId: string;
   readonly componentName: string;
   readonly commands: readonly AgentCommandTrace[];
   readonly usage?: AgentUsage;
@@ -229,10 +240,28 @@ export interface CompileConfiguration {
     readonly provider: "codex" | "claude";
     readonly model?: string;
   };
+  readonly evaluators?: Readonly<
+    Record<string, {
+      readonly provider?: unknown;
+      readonly model?: unknown;
+    }>
+  >;
   readonly profiles?: Readonly<
     Record<string, {
       readonly extends?: "standard" | "critical-system";
       readonly disabledStages?: readonly string[];
+      readonly evaluatorIds?: readonly string[];
     }>
   >;
+}
+
+export interface EvaluatorConfiguration {
+  readonly id: string;
+  readonly provider: "codex" | "claude" | "mock";
+  readonly model?: string;
+}
+
+export interface CompilationHistoryStore {
+  read(key: string): Promise<CompilationReport | undefined>;
+  write(key: string, report: CompilationReport): Promise<void>;
 }
