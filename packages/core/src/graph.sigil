@@ -19,6 +19,11 @@ component SigilGraphBuilder {
       SigilGraph exposes component nodes, file dependency edges, imported-component
       edges, and component-expansion edges
     }
+
+    StronglyConnectedGroups {
+      stronglyConnectedComponentGroups(graph) returns immutable ordered arrays of
+      existing component-node identities, including singleton groups
+    }
   }
 }
 
@@ -34,6 +39,20 @@ expand SigilGraphBuilder {
       Create component-expansion edges for every collected expand.
 
       Preserve deterministic workspace and declaration ordering.
+    }
+
+    StronglyConnectedGroups {
+      Apply Tarjan's strongly connected component algorithm to component nodes and
+      imported-component edges.
+
+      Visit component nodes in SigilGraph component-node order and each node's
+      outgoing imported-component edges in SigilGraph edge order. Compare identity
+      through exact component-node identity rather than component name alone.
+
+      Order members within each maximal group by component-node order. After all
+      groups are complete, order groups by the component-node order of their first
+      member. Include an acyclic node as one singleton group and represent a
+      self-import as a singleton group whose node has an explicit self edge.
     }
   }
 
@@ -53,6 +72,37 @@ expand SigilGraphBuilder {
       Graph edges represent resolved structural relationships and do not claim
       behavioral compliance.
     }
+
+    StronglyConnectedGroups {
+      SCC derivation is deterministic, read-only, and adds no graph edges or
+      diagnostics.
+
+      Every component node occurs in exactly one maximal group. Group results expose
+      only identities already owned by SigilGraph and introduce no second graph-data
+      model.
+    }
+  }
+
+  decisions {
+    DeterministicSCCProjection {
+      Decision: Derive maximal imported-component strongly connected groups with
+      ordered Tarjan traversal and return existing component-node identities.
+
+      Scope: Governs structural cycle projection; excludes cycle diagnostics,
+      retrieval relevance, and presentation.
+
+      Trade-offs: Traversal order is compatibility-significant even though maximal
+      SCC membership is mathematically order-independent.
+
+      Design issues addressed: Retrieval and compiler scheduling need one shared
+      cycle owner instead of independently implementing graph traversal.
+
+      Discarded alternatives: Consumer-owned DFS, discovery-order Tarjan traversal,
+      and a second SCC node model were rejected as duplicative or unstable.
+
+      Consequences: Core consumers share identical maximal groups and retain graph
+      node identity without introducing new edges or diagnostics.
+    }
   }
 
   cases {
@@ -66,6 +116,15 @@ expand SigilGraphBuilder {
       An unresolved imported name produces no imported-component edge.
 
       Two matching expands produce two component-expansion edges.
+    }
+
+    StronglyConnectedGroups {
+      A three-node cycle returns one group ordered by component-node order.
+
+      Two independent acyclic nodes return two singleton groups ordered by their
+      first member.
+
+      A self-import remains a singleton group distinguishable by its graph self edge.
     }
   }
 }

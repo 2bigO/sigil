@@ -164,7 +164,7 @@ function ownershipBindings(
   const all = ownedImplementationTargetsFor(
     resolved,
     implementationSources,
-    component.name,
+    { componentName: component.name, declarationPath: component.filePath },
   )?.targets ?? [];
   const conceptsByTarget = new Map<string, ResolvedConcept[]>();
   for (
@@ -175,7 +175,7 @@ function ownershipBindings(
     const targets = ownedImplementationTargetsFor(
       resolved,
       implementationSources,
-      component.name,
+      { componentName: component.name, declarationPath: component.filePath },
       concept.identifier,
     )?.targets ?? [];
     for (const target of targets) {

@@ -73,6 +73,10 @@ Commands:
   public contracts and decision rationale plus reviewed terminology recognized
   in the selected and related Sigil files, excluding terms whose `agentContext`
   value is `false`;
+- `sigil retrieve [path] (--component name | --file file) --purpose
+  semantic|architecture|implementation` returns a deterministic selected graph,
+  exact evidence, inclusion reasons, exclusion frontier, aggregated context, and
+  a content fingerprint; add `--format markdown` for a readable context pack;
 - `sigil compile [stage] [path] [--component name | --file file
   [--position line:column]]` runs
   profile-scoped deterministic and direct-read agent evaluation. A stage operand

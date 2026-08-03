@@ -2,6 +2,7 @@
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 @packages/core/src/formatter.sigil import { SigilFormatter }
 @packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }
+@packages/core/src/context-retrieval.sigil import { SigilContextRetrieval }
 
 component SigilCore {
   goal {
@@ -64,7 +65,7 @@ component SigilCore {
       importing-file context derived from imported-component graph edges
 
       ownedImplementationTargetsFor(resolvedWorkspace, implementationSources,
-      componentName, conceptName?, sectionName?) returns implementation targets
+      componentIdentity, conceptName?, sectionName?) returns implementation targets
       linked to that Sigil contract from implementation comments
       (SigilImplementationOwnership)
 

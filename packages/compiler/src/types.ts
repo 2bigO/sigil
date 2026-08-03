@@ -1,4 +1,5 @@
 import type {
+  PurposeRetrievalResult,
   SigilFormKind,
   SigilSectionName,
   SourceRange,
@@ -264,6 +265,7 @@ export interface AgentEvaluationTarget {
   readonly componentName: string;
   readonly sigilFile: string;
   readonly initialPaths: readonly string[];
+  readonly retrieval?: PurposeRetrievalResult;
 }
 
 export interface AgentCapabilityContract {

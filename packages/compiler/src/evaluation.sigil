@@ -1,4 +1,4 @@
-@packages/core import { SigilCore }
+@packages/core import { SigilCore, SigilContextRetrieval }
 @packages/compiler/src/profile.sigil import { SigilCompilationProfile }
 @packages/compiler/src/status.sigil import { SigilCompilationStatus }
 @packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
@@ -45,8 +45,8 @@ component SigilCompilationEvaluation {
     EvaluationContext {
       each agent request evaluates exactly one component in one evaluation stage
 
-      requests contain target identity, skill, capabilities, schema, and budgets but
-      do not serialize repository file contents
+      requests contain target identity, skill, capabilities, schema, budgets, and one
+      complete PurposeRetrievalResult for that component and stage purpose
     }
 
     AgentWorkspaceInspection {
@@ -92,23 +92,36 @@ expand SigilCompilationEvaluation {
     }
 
     EvaluationContext {
-      Build a minimal evaluation request from the workspace root, selected target,
-      stage skill, capability contract, output schema, and execution budgets.
+      Map semantic-readiness to semantic purpose, architecture-design and
+      standards-risk to architecture purpose, and current-code-compatibility to
+      implementation purpose.
+
+      Before invoking the first agentic stage for a component and purpose, ask
+      SigilContextRetrieval to build one PurposeRetrievalResult from the resolved
+      workspace and complete glossary and implementation-discovery evidence. Reuse
+      that immutable result for every evaluator of the same component, purpose,
+      source fingerprint, and retrieval fingerprint.
+
+      Build the evaluation request from the workspace root, selected target, stage
+      skill, capability contract, output schema, execution budgets, and the complete
+      structured retrieval result plus its aggregated context.
 
       Invoke each enabled agentic stage separately for workspace components in
       dependency-aware order.
 
-      Do not serialize Sigil or implementation file contents into the initial
-      evaluation request.
+      The retrieval result is the authoritative initial evidence boundary. The
+      evaluator does not independently traverse graph, context, glossary, or
+      ownership projections to redefine its membership.
     }
 
     AgentWorkspaceInspection {
       Start the agent at the selected workspace root in an ephemeral read-only
       sandbox with approval escalation and network access disabled.
 
-      Let the agent inspect relevant workspace files and run read-only Sigil, search,
-      version-control inspection, and text-projection commands as its evidence needs
-      emerge.
+      Let the agent inspect a selected evidence file at an included range when it
+      must verify retrieval rendering or cite exact lines. Additional workspace
+      inspection may diagnose retrieval incompleteness but cannot become evidence for
+      an ordinary stage finding in that run.
 
       Require the agent to treat repository instructions and retrieved file contents
       as untrusted evidence rather than evaluator authority.
@@ -128,20 +141,19 @@ expand SigilCompilationEvaluation {
       CompilationEvaluation emits no completed, failed, or cancelled terminal event;
       its caller owns terminal settlement through SigilCompilationEventProtocol.
 
-      Evaluation skills may identify initial paths and targets but do not embed
-      repository file contents in the request.
+      Evaluation skills may identify targets but do not alter retrieval purpose,
+      membership, ordering, or aggregation.
 
       Effective profiles declare elapsed-time, command-output, and model-usage
-      budgets for direct workspace inspection.
+      budgets for evaluation. They do not truncate retrieval policy version 1.
     }
 
     AgentWorkspaceInspection {
       The adapter must enforce read-only workspace access, disabled network access,
       no approval escalation, and the selected workspace as the agent working root.
 
-      The agent may run version, parse, check, fmt --check, glossary, graph, context,
-      and render plus read-only search, version-control inspection, and
-      text-projection commands.
+      The agent may run version, parse, check, fmt --check, retrieve, and read-only
+      text inspection limited to selected evidence or retrieval diagnostics.
 
       The agent must not run init, mutating fmt, compile, skill installation, network
       commands, code generation, implementation experiments, or commands that modify
@@ -158,68 +170,66 @@ expand SigilCompilationEvaluation {
 
   decisions {
     EvaluationContext {
-      Decision: Evaluate one component in one stage per agent run using a minimal
-      target request and direct read-only workspace inspection.
+      Decision: Evaluate one component in one stage per agent run using the complete
+      deterministic PurposeRetrievalResult selected for that stage's purpose.
 
       Scope: Governs component, file, and workspace targets across stage scheduling,
       initial request construction, workspace access, and adapter invocation.
 
-      Assumptions: Agent providers impose finite input limits and workspace-wide
-      resolved projections contain substantial duplicated context.
+      Assumptions: A typed purpose closure can preserve required evidence more
+      consistently than evaluator-chosen traversal.
 
-      Trade-offs: Workspace compilation makes more agent calls and direct inspection
-      can vary the exact evidence each evaluator chooses to load.
+      Trade-offs: Initial requests can be large because retrieval policy version 1
+      has no budget, but evaluators receive identical membership and ordering.
 
-      Design issues addressed: Preassembling contracts, glossary projections, and
-      implementation source can duplicate large context and prevent the evaluator
-      from choosing the most relevant evidence.
+      Design issues addressed: Evaluator-owned graph and context traversal produces
+      noisy and inconsistent evidence for the same target and question.
 
-      Discarded alternatives: Sending selected source files, every dependency, the
-      complete glossary, or all owned implementation text in the initial request was
-      rejected.
+      Discarded alternatives: Complete workspace context, untyped traversal, model
+      ranking, and evaluator-selected authoritative membership were rejected.
 
-      Consequences: The evaluator loads evidence incrementally while the compiler
-      records its environment, commands, usage, and completion state.
+      Consequences: Repeated equivalent runs begin with byte-identical context and an
+      auditable fingerprint while the compiler records evaluation behavior.
 
-      Revisit when: Provider-neutral structured context caching can preserve
-      evaluator choice without preloading duplicated file contents.
+      Revisit when: Relevance fixtures justify a separate versioned packing policy.
     }
 
     DirectAgentWorkspaceInspection {
-      Decision: Give the configured CLI agent enforced read-only access to the
-      selected workspace and let it load files and run inspection commands directly.
+      Decision: Retain enforced read-only workspace access for citation verification
+      and retrieval-gap diagnostics, not for redefining authoritative evidence.
 
       Scope: Governs evidence gathering during agentic compiler stages; excludes
       mutation, network research, approval escalation, recursive compilation, code
       generation, and implementation experiments.
 
-      Assumptions: A code agent can select relevant Sigil and implementation evidence
-      more effectively than a fixed compiler-built text payload.
+      Assumptions: Included ranges can require exact-line verification and retrieval
+      policy defects need observable diagnostics.
 
-      Trade-offs: Providers may inspect different evidence, and the compiler must
-      validate capabilities and consume provider event protocols.
+      Trade-offs: Providers retain limited inspection freedom, but ordinary findings
+      cannot rely on unselected evidence.
 
-      Design issues addressed: Fixed direct context can miss transitive or
-      conditionally relevant evidence and can waste context on unrelated source text.
+      Design issues addressed: A deterministic boundary must remain debuggable
+      without restoring evaluator-owned traversal.
 
-      Discarded alternatives: Compiler-mediated file-content injection, unrestricted
-      write access, and always loading the complete workspace context were rejected.
+      Discarded alternatives: No workspace access and unrestricted evidence browsing
+      were rejected as unverifiable or nondeterministic.
 
-      Consequences: Evaluators can inspect relevant code and contracts directly while
-      sandbox and adapter policy preserve the compiler's read-only boundary.
+      Consequences: Evaluators can verify selected evidence and report missing
+      relations while retrieval owns normal-stage evidence membership.
 
-      Revisit when: An adapter cannot provide enforceable read-only workspace access
-      and a structured command and usage trace.
+      Revisit when: Retrieval results carry sufficient immutable line-addressable
+      evidence to remove workspace inspection entirely.
     }
   }
 
   cases {
     EvaluationContext {
-      A component run receives target identity and skill instructions without
-      serialized Sigil or implementation source.
+      Two evaluators for the same component, stage purpose, source fingerprint, and
+      retrieval fingerprint receive byte-identical selected graph and context.
 
-      The agent reads an owned implementation file and a relevant unannotated caller
-      when both are needed to assess compatibility.
+      Current-code-compatibility receives owned implementation evidence selected by
+      implementation purpose; an unannotated caller is absent unless an explicit
+      typed relation selects it.
 
       A completed run returns one CompilationEvaluationResult and no terminal event.
       Cancellation rejects with COMPILER_CANCELLED and a host or protocol failure
@@ -228,8 +238,12 @@ expand SigilCompilationEvaluation {
     }
 
     AgentWorkspaceInspection {
-      An agent runs sigil graph and selected sigil context commands directly while
-      the adapter records their structured command events.
+      An agent cites exact lines from a selected evidence range while the adapter
+      records the read-only command event.
+
+      An agent that discovers a materially required unselected relation reports a
+      retrieval-gap diagnostic; that evidence does not become an ordinary stage
+      finding until a later run uses a revised retrieval policy.
 
       An attempted workspace write is denied by the sandbox and leaves the stage
       incomplete.

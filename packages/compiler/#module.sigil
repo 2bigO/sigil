@@ -1,4 +1,4 @@
-@packages/core import { SigilCore }
+@packages/core import { SigilCore, SigilContextRetrieval }
 @packages/compiler/src/proposal-workspace.sigil import { SigilProposalWorkspace }
 @packages/compiler/src/session.sigil import { SigilCompilationSession }
 @packages/compiler/src/session-store.sigil import { SigilCompilationSessionStore }
@@ -112,6 +112,10 @@ component SigilCompiler {
 
       component evaluation requires inspection of matching expands, relevant
       dependencies and importers, glossary context, and implementation evidence
+
+      SigilContextRetrieval selects that evidence once per exact component and
+      purpose before evaluator invocation; evaluators consume the selected graph and
+      aggregated context without independently determining authoritative membership
     }
   }
 }

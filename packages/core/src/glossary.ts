@@ -181,6 +181,7 @@ export function glossaryProjectionForWorkspace(
   );
   if (!workspace.glossary) {
     return {
+      workspaceSnapshotIdentity: workspace.workspaceSnapshotIdentity,
       glossaryPath: workspace.glossaryPath,
       terms: [],
       contexts: [],
@@ -205,6 +206,7 @@ export function glossaryProjectionForWorkspace(
     }
   }
   return {
+    workspaceSnapshotIdentity: workspace.workspaceSnapshotIdentity,
     glossaryPath: workspace.glossary.filePath,
     schemaVersion: workspace.glossary.schemaVersion,
     terms: workspace.glossary.terms,

@@ -1,5 +1,5 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
-@packages/core import { SigilCore }
+@packages/core import { SigilCore, SigilContextRetrieval }
 @packages/compiler import { SigilCompiler, SigilCompilationSessionFactory }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 
@@ -67,6 +67,17 @@ component SigilCli {
       context with --include-dependents reports direct importing files for the
       selected component and contextual public contracts declared in those files
       without proving component-level dependency
+    }
+
+    PurposeContextRetrieval {
+      sigil retrieve [path] (--component name | --file file) --purpose
+      semantic|architecture|implementation
+
+      retrieve supports --format json and --format markdown; JSON is the default
+
+      retrieve returns the complete PurposeRetrievalResult produced by
+      SigilContextRetrieval without changing membership, ordering, explanations,
+      diagnostics, context, or fingerprint
     }
 
     MarkdownOutput {
@@ -242,6 +253,27 @@ expand SigilCli {
 
       A configuration error prevents source loading and parse JSON reports document:
       null with diagnostics.
+    }
+
+    PurposeContextRetrieval {
+      retrieve resolves the workspace and exact target through SigilCore and loads
+      the complete workspace GlossaryProjection. SigilContextRetrieval derives its
+      scoped GlossaryContextProjection after selecting Sigil evidence paths. The CLI
+      enumerates supported implementation sources once only for implementation
+      purpose and otherwise supplies null implementation evidence.
+
+      retrieve passes those complete inputs and the requested purpose to
+      SigilContextRetrieval and performs no independent graph traversal, evidence
+      ranking, membership filtering, or context aggregation.
+
+      Legacy context remains a compatibility projection with its existing result
+      shape. It does not claim the schema, policy version, fingerprint, or
+      authoritative membership of a PurposeRetrievalResult.
+
+      JSON serializes the structured result. Markdown deterministically renders its
+      AggregatedRetrievalContext with stable headings and provenance labels and
+      reports the semantic fingerprint and diagnostics without changing membership,
+      evidence ordering, or fingerprint input.
     }
 
     SourceFormatting {

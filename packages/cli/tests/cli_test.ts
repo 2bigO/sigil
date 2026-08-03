@@ -555,7 +555,9 @@ Deno.test("context includes direct dependency contracts and decision rationale",
     );
     await Deno.writeTextFile(
       `${root}/leaf-detail.sigil`,
-      `expand Leaf {
+      `@leaf.sigil import { Leaf }
+
+expand Leaf {
   decisions {
     LeafChoice {
       Decision: Exclude transitive rationale.
@@ -572,7 +574,9 @@ ${validSigil("Provider").replace("run()", "run(Leaf)")}`,
     );
     await Deno.writeTextFile(
       `${root}/provider-detail.sigil`,
-      `expand Provider {
+      `@provider.sigil import { Provider }
+
+expand Provider {
   logic {
     ProviderLogic {
       Keep private mechanics hidden.
@@ -700,7 +704,9 @@ Deno.test("context renders component Markdown for contracts, expansions, diagnos
     );
     await Deno.writeTextFile(
       `${root}/one.sigil`,
-      `expand Feature {
+      `@feature.sigil import { Feature }
+
+expand Feature {
   logic {
     FeatureApi {
       One expansion.
@@ -711,7 +717,9 @@ Deno.test("context renders component Markdown for contracts, expansions, diagnos
     );
     await Deno.writeTextFile(
       `${root}/two.sigil`,
-      `expand Feature {
+      `@feature.sigil import { Feature }
+
+expand Feature {
   cases {
     FeatureApi {
       Second expansion.
@@ -863,7 +871,9 @@ Deno.test("context Markdown prefers file identity for duplicate component names"
     );
     await Deno.writeTextFile(
       `${root}/first-detail.sigil`,
-      `expand Duplicate {
+      `@first.sigil import { Duplicate }
+
+expand Duplicate {
   logic {
     FirstApi {
       first expansion.
@@ -874,7 +884,9 @@ Deno.test("context Markdown prefers file identity for duplicate component names"
     );
     await Deno.writeTextFile(
       `${root}/second-detail.sigil`,
-      `expand Duplicate {
+      `@second.sigil import { Duplicate }
+
+expand Duplicate {
   logic {
     SecondApi {
       second expansion.
@@ -931,7 +943,9 @@ Deno.test("context Markdown preserves duplicate dependency identity by import pa
     );
     await Deno.writeTextFile(
       `${root}/first/provider-detail.sigil`,
-      `expand Provider {
+      `@first/provider.sigil import { Provider }
+
+expand Provider {
   decisions {
     FirstProviderChoice {
       Decision: Use the first provider.
@@ -957,7 +971,9 @@ Deno.test("context Markdown preserves duplicate dependency identity by import pa
     );
     await Deno.writeTextFile(
       `${root}/second/provider-detail.sigil`,
-      `expand Provider {
+      `@second/provider.sigil import { Provider }
+
+expand Provider {
   decisions {
     SecondProviderChoice {
       Decision: Use the second provider.
@@ -1037,7 +1053,9 @@ Deno.test("context Markdown preserves dependency identity for duplicate selected
     );
     await Deno.writeTextFile(
       `${root}/first/provider-detail.sigil`,
-      `expand FirstProvider {
+      `@first/provider.sigil import { FirstProvider }
+
+expand FirstProvider {
   decisions {
     FirstDependencyChoice {
       Decision: Use the first dependency.
@@ -1063,7 +1081,9 @@ Deno.test("context Markdown preserves dependency identity for duplicate selected
     );
     await Deno.writeTextFile(
       `${root}/second/provider-detail.sigil`,
-      `expand SecondProvider {
+      `@second/provider.sigil import { SecondProvider }
+
+expand SecondProvider {
   decisions {
     SecondDependencyChoice {
       Decision: Use the second dependency.
@@ -1334,6 +1354,44 @@ Deno.test("context dependent flag requires component selection", async () => {
   }
 });
 
+// @sigil tests packages/cli/#module.sigil::SigilCli::PurposeRetrieval interface,logic,constraints,cases
+Deno.test("retrieve returns one deterministic purpose result", async () => {
+  const root = await makeWorkspace("retrieve-purpose");
+  try {
+    await Deno.writeTextFile(`${root}/feature.sigil`, validSigil("Feature"));
+    const argv = [
+      "retrieve",
+      root,
+      "--component",
+      "Feature",
+      "--purpose",
+      "architecture",
+      "--format",
+      "json",
+    ];
+    const first = await runCli(argv);
+    const second = await runCli(argv);
+    assertEquals(first.exitCode, EXIT_OK);
+    const result = parseJson(first.stdout);
+    assertEquals(result.command, "retrieve");
+    assertEquals(result.schema, "sigil-purpose-retrieval/v1");
+    assertEquals(result.purpose, "architecture");
+    assert(
+      result.graph.nodes.some((node: { kind: string }) =>
+        node.kind === "component-declaration"
+      ),
+    );
+    assert(result.context.sections.length > 0);
+    assertEquals(result.fingerprint, parseJson(second.stdout).fingerprint);
+
+    const invalid = await runCli(["retrieve", root, "--component", "Feature"]);
+    assertEquals(invalid.exitCode, EXIT_USAGE);
+    assert(invalid.stderr.includes("requires --purpose"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
 Deno.test("check rejects an imports-only module index in an internal directory", async () => {
   const root = await makeWorkspace("internal-module-index");
@@ -1400,11 +1458,11 @@ Deno.test("context reports every collected expansion file", async () => {
     await Deno.writeTextFile(`${root}/contract.sigil`, validSigil("Feature"));
     await Deno.writeTextFile(
       `${root}/one.sigil`,
-      "expand Feature {\n  logic {\n    One.\n  }\n}\n",
+      "@contract.sigil import { Feature }\n\nexpand Feature {\n  logic {\n    One.\n  }\n}\n",
     );
     await Deno.writeTextFile(
       `${root}/two.sigil`,
-      "expand Feature {\n  cases {\n    Two.\n  }\n}\n",
+      "@contract.sigil import { Feature }\n\nexpand Feature {\n  cases {\n    Two.\n  }\n}\n",
     );
     const result = await runCli([
       "context",
@@ -1431,7 +1489,7 @@ Deno.test("context for an expand file collects its parent component", async () =
     await Deno.writeTextFile(`${root}/contract.sigil`, validSigil("Feature"));
     await Deno.writeTextFile(
       `${root}/details.sigil`,
-      "expand Feature {\n  logic {\n    Resolve the parent.\n  }\n}\n",
+      "@contract.sigil import { Feature }\n\nexpand Feature {\n  logic {\n    Resolve the parent.\n  }\n}\n",
     );
     await Deno.writeTextFile(
       `${root}/feature.ts`,
@@ -1535,7 +1593,9 @@ Deno.test("context includes only glossary terms from related Sigil files", async
     );
     await Deno.writeTextFile(
       `${root}/expand.sigil`,
-      `expand Feature {
+      `@contract.sigil import { Feature }
+
+expand Feature {
   cases {
     Reservation {
       A temporary reservation remains temporary.

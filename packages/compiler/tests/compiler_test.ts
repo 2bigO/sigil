@@ -360,7 +360,9 @@ Deno.test("location targets select enclosing components through expand files", a
 }
 `,
     {
-      "details.sigil": `expand Example {
+      "details.sigil": `@main.sigil import { Example }
+
+expand Example {
   logic {
     The selected expansion belongs to Example.
   }
@@ -372,7 +374,7 @@ Deno.test("location targets select enclosing components through expand files", a
     const report = await compile(root, {
       kind: "location",
       filePath: "details.sigil",
-      line: 3,
+      line: 5,
       column: 8,
     }, {
       requestedStage: "semantic-readiness",

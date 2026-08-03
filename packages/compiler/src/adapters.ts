@@ -190,6 +190,8 @@ Workspace root: ${request.workspaceRoot}
 Selected component: ${request.target.componentName}
 Governing Sigil file: ${request.target.sigilFile}
 Initial navigation paths: ${request.target.initialPaths.join(", ")}
+Authoritative selected retrieval context:
+${JSON.stringify(request.target.retrieval ?? { unavailable: true })}
 Allowed diagnostic rules: ${request.allowedRules.join(", ")}
 Implementation evidence policy: ${request.implementationEvidence}
 ${
@@ -204,8 +206,10 @@ conformance findings within its allowed diagnostic rules.`
   }
 Execution budgets: ${request.budgets.elapsedTimeMs}ms, at most ${request.budgets.maxCommands} commands, ${request.budgets.maxInputTokens} input tokens, and ${request.budgets.maxOutputTokens} output tokens.
 
-Inspect the workspace directly. Begin with targeted evidence and expand only when
-needed. You may run only these read-only command families:
+Treat the selected retrieval graph and aggregated context as authoritative scope.
+Inspect the workspace directly only through selected evidence paths to verify citations or diagnose an explicit
+retrieval gap; do not independently traverse the repository graph. You may run only
+these read-only command families:
 ${request.capabilities.allowedCommands.map((item) => `- ${item}`).join("\n")}
 
 Never run these command families:

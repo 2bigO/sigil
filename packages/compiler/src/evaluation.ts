@@ -1,26 +1,24 @@
-import {
-  agentDependencyContextFor,
-  type ResolvedComponent,
-  type ResolvedSigilWorkspace,
+import type {
+  PurposeRetrievalResult,
+  ResolvedComponent,
 } from "@qoherent/sigil-core";
 import type { AgentEvaluationTarget } from "./types.ts";
 
 // @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::EvaluationContext logic,constraints,cases
 export function compilationEvaluationTarget(
-  resolved: ResolvedSigilWorkspace,
   component: ResolvedComponent,
   root: string,
+  retrieval: PurposeRetrievalResult,
 ): AgentEvaluationTarget {
-  const dependencyContext = agentDependencyContextFor(resolved, component.name);
   const initialPaths = new Set([
     component.filePath,
-    ...component.expansions.expands.map((item) => item.filePath),
-    ...(dependencyContext?.relatedFilePaths ?? []),
+    ...retrieval.evidence.flatMap((item) => item.path ? [item.path] : []),
   ].map((path) => canonicalWorkspacePath(path, root)));
   return {
     componentName: component.name,
     sigilFile: canonicalWorkspacePath(component.filePath, root),
     initialPaths: [...initialPaths],
+    retrieval,
   };
 }
 

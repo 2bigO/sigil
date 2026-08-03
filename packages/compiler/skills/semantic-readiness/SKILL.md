@@ -1,11 +1,11 @@
 # Semantic readiness
 
 Determine whether the selected component is semantically ready for architecture
-evaluation and implementation planning. Read its governing Sigil, matching
-expands, direct dependency contracts and decisions, affected importers, relevant
-glossary entries, and implementation evidence when a claim depends on current
-code. Use `sigil check`, `sigil graph`, and a targeted `sigil context` when they
-make relationships or possible contradictions reproducible.
+evaluation and implementation planning. Treat the supplied semantic-purpose
+retrieval result as authoritative, including its selected contracts, expansions,
+direct relations, glossary evidence, reasons, and exclusions. Inspect selected
+evidence paths only to verify a citation or report an explicit retrieval gap; do
+not independently traverse the workspace graph.
 
 Evaluate:
 

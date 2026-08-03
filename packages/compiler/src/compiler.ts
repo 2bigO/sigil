@@ -1,10 +1,12 @@
 import {
+  type ImplementationEvidenceInput,
   type ImplementationSource,
   isSupportedImplementationSource,
   loadSigilWorkspace,
   type ResolvedComponent,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
+  retrievePurposeContext,
   type SigilDiagnostic,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
@@ -243,6 +245,35 @@ export async function compile(
           }
           for (const adapter of adapters) assertAdapterCapabilities(adapter);
           for (const component of components) {
+            const retrievalPurpose =
+              definition.skill.manifest.implementationEvidence === "compare"
+                ? "implementation"
+                : stage.id === "semantic-readiness"
+                ? "semantic"
+                : "architecture";
+            const implementationEvidence: ImplementationEvidenceInput = {
+              workspaceSnapshotIdentity:
+                resolved.workspace.workspaceSnapshotIdentity,
+              discoveryState: "complete",
+              sources: implementationSources,
+              diagnostics: [],
+            };
+            const retrieval = await retrievePurposeContext(
+              resolved,
+              {
+                kind: "component",
+                componentName: component.name,
+                path: canonicalWorkspacePath(
+                  component.filePath,
+                  workspace.root,
+                ),
+              },
+              retrievalPurpose,
+              resolved.glossary,
+              retrievalPurpose === "implementation"
+                ? implementationEvidence
+                : null,
+            );
             const request = {
               stage: stage.id,
               skill: definition.skill.guidance,
@@ -251,9 +282,9 @@ export async function compile(
                 definition.skill.manifest.implementationEvidence,
               workspaceRoot: workspace.root,
               target: compilationEvaluationTarget(
-                resolved,
                 component,
                 workspace.root,
+                retrieval,
               ),
               capabilities: INSPECTION_CAPABILITIES,
               budgets: profile.executionBudgets,

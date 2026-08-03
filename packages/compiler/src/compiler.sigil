@@ -1,4 +1,4 @@
-@packages/core import { SigilCore }
+@packages/core import { SigilCore, SigilContextRetrieval }
 @packages/compiler/#module.sigil import { SigilCompiler }
 
 expand SigilCompiler {
@@ -75,6 +75,11 @@ expand SigilCompiler {
       to SigilCompilationEvaluation. Never construct a writable selected-workspace
       capability.
 
+      Supply SigilCompilationEvaluation with the resolved workspace and complete
+      glossary and implementation-discovery evidence required by
+      SigilContextRetrieval. Do not assemble graph or context evidence in
+      SigilCompiler.
+
       Delegate diagnostic identity, lifecycle comparison, trace schema, and
       authoritative report construction to SigilCompilationReportProtocol
       constructReport using the internal CompilationEvaluationResult and optional
@@ -99,6 +104,9 @@ expand SigilCompiler {
   constraints {
     DependencyDirection {
       SigilCompiler depends on SigilCore for deterministic workspace semantics.
+
+      SigilCompilationEvaluation depends on SigilContextRetrieval for authoritative
+      purpose evidence; SigilCompiler does not duplicate retrieval policy.
 
       SigilCore does not depend on SigilCompiler, evaluation skills, agent adapters,
       CLI behavior, or editor behavior.

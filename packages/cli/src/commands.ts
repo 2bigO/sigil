@@ -139,12 +139,54 @@ export async function runCommand(
   if (request.command === "context") {
     return await contextCommand(request, core, resolved);
   }
+  if (request.command === "retrieve") {
+    const implementationEvidence = request.purpose === "implementation"
+      ? await core.implementationEvidenceFor(resolved)
+      : null;
+    const target = request.component !== undefined
+      ? {
+        kind: "component" as const,
+        componentName: request.component,
+        path: resolved.components.find((item) =>
+            item.name === request.component
+          )?.filePath
+          ? workspaceRelative(
+            resolved.workspace.root,
+            resolved.components.find((item) =>
+              item.name === request.component
+            )!.filePath,
+          )
+          : request.path ?? ".",
+      }
+      : {
+        kind: "file" as const,
+        path: workspaceRelative(
+          resolved.workspace.root,
+          core.resolveTarget(request.file!),
+        ),
+      };
+    const result = await core.retrievePurposeContext(
+      resolved,
+      target,
+      request.purpose,
+      implementationEvidence,
+    );
+    return { command: "retrieve", ...result };
+  }
   return {
     command: "render",
     ...workspaceMetadata(resolved.workspace),
     markdown: renderWorkspaceMarkdown(resolved, core),
     diagnostics: resolved.diagnostics,
   };
+}
+
+function workspaceRelative(root: string, path: string): string {
+  const normalizedRoot = root.replaceAll("\\", "/").replace(/\/+$/, "");
+  const normalized = path.replaceAll("\\", "/");
+  return normalized.startsWith(`${normalizedRoot}/`)
+    ? normalized.slice(normalizedRoot.length + 1)
+    : normalized.replace(/^\.\//, "");
 }
 
 /*
@@ -194,7 +236,7 @@ async function contextCommand(
     core.ownedImplementationTargetsFor(
       resolved,
       implementationSourceDiscovery.sources,
-      component.name,
+      { componentName: component.name, declarationPath: component.filePath },
     )
   ).filter((item): item is OwnedImplementationProjection =>
     item !== undefined &&

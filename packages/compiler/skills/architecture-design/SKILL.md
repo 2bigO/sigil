@@ -1,11 +1,10 @@
 # Architecture and design
 
-Treat selected Sigil as the desired architecture. Inspect the selected component,
-matching expands, direct dependencies, direct importers, relevant module indexes,
-accessible imported public identities, and relevant workspace evidence directly.
-Use targeted `sigil graph` and `sigil context` queries. Traverse farther only to
-confirm a dependency cycle, re-exposed concept, namespace ambiguity, ownership
-chain, transitive coupling, or boundary-summary disagreement.
+Treat the supplied purpose retrieval result as the authoritative architecture
+scope. Evaluate its selected component, expansions, dependencies, importers,
+module indexes, cycle groups, public concept origins, reasons, and exclusions.
+Inspect selected evidence paths only to verify a citation or report an explicit
+retrieval gap; do not independently traverse the workspace graph.
 
 Evaluate:
 

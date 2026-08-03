@@ -10,6 +10,7 @@ export type CommandName =
   | "glossary"
   | "graph"
   | "context"
+  | "retrieve"
   | "compile"
   | "render";
 export type HelpTopic =
@@ -43,6 +44,7 @@ export type CommandRequest =
   | GlossaryRequest
   | GraphRequest
   | ContextRequest
+  | RetrieveRequest
   | CompileRequest
   | CompileSessionRequest
   | RenderRequest;
@@ -91,6 +93,13 @@ export interface ContextRequest extends GlobalOptions {
   readonly component?: string;
   readonly file?: string;
   readonly includeDependents: boolean;
+  readonly path?: string;
+}
+export interface RetrieveRequest extends GlobalOptions {
+  readonly command: "retrieve";
+  readonly component?: string;
+  readonly file?: string;
+  readonly purpose: "semantic" | "architecture" | "implementation";
   readonly path?: string;
 }
 export interface CompileRequest extends GlobalOptions {
@@ -150,7 +159,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(
       commandName
         ? `Unknown command "${commandName}".`
-        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, compile, or render.",
+        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, retrieve, compile, or render.",
       "root",
     );
   }
@@ -204,6 +213,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let noCache = false;
   let output: string | undefined;
   let check = false;
+  let purpose: RetrieveRequest["purpose"] | undefined;
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -311,6 +321,21 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--include-dependents":
         includeDependents = true;
         break;
+      case "--purpose": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        if (
+          value !== "semantic" && value !== "architecture" &&
+          value !== "implementation"
+        ) {
+          return usage(
+            "--purpose must be semantic, architecture, or implementation.",
+            commandHelpTopic,
+          );
+        }
+        purpose = value;
+        break;
+      }
       case "--name": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -342,7 +367,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(`${commandName} does not accept --check.`, commandHelpTopic);
   }
   if (
-    commandName !== "context" && commandName !== "compile" &&
+    commandName !== "context" && commandName !== "retrieve" &&
+    commandName !== "compile" &&
     (component || file || position)
   ) {
     return usage(
@@ -355,6 +381,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       `${commandName} does not accept --include-dependents.`,
       commandHelpTopic,
     );
+  }
+  if (commandName !== "retrieve" && purpose) {
+    return usage(`${commandName} does not accept --purpose.`, commandHelpTopic);
   }
   if (commandName !== "compile" && position) {
     return usage(
@@ -497,6 +526,40 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         | GlossaryRequest
         | GraphRequest
         | RenderRequest,
+    };
+  }
+  if (commandName === "retrieve") {
+    if (positional.length > 1) {
+      return usage("retrieve accepts at most one workspace path.", "retrieve");
+    }
+    if (!purpose) {
+      return usage(
+        "retrieve requires --purpose semantic, architecture, or implementation.",
+        "retrieve",
+      );
+    }
+    if (!!component === !!file) {
+      return usage(
+        "retrieve requires exactly one of --component or --file.",
+        "retrieve",
+      );
+    }
+    if (format && !["json", "markdown"].includes(format)) {
+      return usage(
+        "--format must be json or markdown for retrieve.",
+        "retrieve",
+      );
+    }
+    return {
+      kind: "ok",
+      request: {
+        command: "retrieve",
+        component,
+        file,
+        purpose,
+        path: positional[0],
+        ...base,
+      },
     };
   }
   if (commandName === "compile") {
@@ -670,6 +733,7 @@ function isCommand(value: string | undefined): value is CommandName {
     value === "check" || value === "fmt" || value === "glossary" ||
     value === "graph" ||
     value === "context" ||
+    value === "retrieve" ||
     value === "compile" ||
     value === "render";
 }

@@ -8,6 +8,7 @@ import type {
   GlossaryOccurrence,
   GlossaryTerm,
   OwnedImplementationProjection,
+  PurposeRetrievalResult,
   ResolvedComponent,
   ResolvedConceptNamespace,
   ResolvedGlossaryContext,
@@ -28,6 +29,7 @@ export type CommandResult =
   | GlossaryCommandResult
   | GraphCommandResult
   | ContextCommandResult
+  | RetrieveCommandResult
   | RenderCommandResult;
 export interface DiagnosticCounts {
   readonly error: number;
@@ -125,6 +127,9 @@ export interface ContextCommandResult extends WorkspaceMetadata {
   readonly glossaryContext: GlossaryContextProjection | null;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
+export type RetrieveCommandResult = PurposeRetrievalResult & {
+  readonly command: "retrieve";
+};
 export interface RenderCommandResult extends WorkspaceMetadata {
   readonly command: "render";
   readonly markdown: string;

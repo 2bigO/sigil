@@ -18,9 +18,11 @@ import {
   parseSigilDocument,
   parseSigilGlossary,
   resolveSigilWorkspace,
+  retrievePurposeContext,
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
+  stronglyConnectedComponentGroups,
   supportedImplementationSourceGlobPatterns,
 } from "../src/mod.ts";
 import { buildSigilGraph } from "../src/graph.ts";
@@ -822,6 +824,7 @@ Deno.test("returns partial models and stable diagnostics for malformed Sigil", (
   });
   const resolved = resolveSigilWorkspace({
     root: ".",
+    workspaceSnapshotIdentity: "sha256:test-fixture",
     configPath: ".sigil/config.json",
     config: parseSigilConfig(configSource()).config,
     memberRoots: [],
@@ -2339,6 +2342,92 @@ function assertNoErrors(
     errors.length === 0,
     `Expected no errors, got ${errors.map((item) => item.code).join(", ")}`,
   );
+}
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+Deno.test("purpose retrieval is deterministic and stops at direct dependencies", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "leaf.sigil": validComponent("Leaf", "leaf()"),
+    "provider.sigil": `@leaf.sigil import { Leaf }\n\n${
+      validComponent("Provider", "provide(Leaf)")
+    }`,
+    "consumer.sigil": `@provider.sigil import { Provider }\n\n${
+      validComponent("Consumer", "consume(Provider)")
+    }`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "consumer.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const request = {
+    kind: "component" as const,
+    componentName: "Consumer",
+    path: "consumer.sigil",
+  };
+  const first = await retrievePurposeContext(
+    resolved,
+    request,
+    "semantic",
+    resolved.glossary,
+  );
+  const second = await retrievePurposeContext(
+    resolved,
+    request,
+    "semantic",
+    resolved.glossary,
+  );
+  assertEquals(first.fingerprint, second.fingerprint);
+  assertEquals(JSON.stringify(first), JSON.stringify(second));
+  assert(first.graph.nodes.some((node) => node.componentName === "Provider"));
+  assert(!first.graph.nodes.some((node) => node.componentName === "Leaf"));
+  assert(first.evidence.some((unit) => unit.kind === "dependency-contract"));
+  assert(first.inclusionReasons.length > 0);
+  assert(first.fingerprint.startsWith("sha256:"));
+});
+
+// @sigil tests packages/core/src/graph.sigil::SigilGraphBuilder::StronglyConnectedComponents logic,constraints,cases
+Deno.test("component SCC groups are stable and exact", () => {
+  const groups = stronglyConnectedComponentGroups({
+    componentNodes: [
+      { name: "B", filePath: "b.sigil" },
+      { name: "A", filePath: "a.sigil" },
+    ],
+    fileEdges: [],
+    componentExpansionEdges: [],
+    importedComponentEdges: [
+      {
+        sourceFile: "a.sigil",
+        targetFile: "b.sigil",
+        componentName: "B",
+        importPath: "b.sigil",
+        sourceComponents: [{ componentName: "A", declarationPath: "a.sigil" }],
+        originRange: {
+          start: { line: 1, column: 1 },
+          end: { line: 1, column: 10 },
+        },
+      },
+      {
+        sourceFile: "b.sigil",
+        targetFile: "a.sigil",
+        componentName: "A",
+        importPath: "a.sigil",
+        sourceComponents: [{ componentName: "B", declarationPath: "b.sigil" }],
+        originRange: {
+          start: { line: 1, column: 1 },
+          end: { line: 1, column: 10 },
+        },
+      },
+    ],
+  });
+  assertEquals(groups.length, 1);
+  assertEquals(groups[0].map((item) => item.componentName).join(","), "A,B");
+});
+
+function validComponent(name: string, operation: string): string {
+  return `component ${name} {\n  goal {\n    Describe ${name}.\n  }\n\n  interface {\n    ${name}Api {\n      ${operation}\n    }\n  }\n}\n`;
 }
 
 const rootModule =

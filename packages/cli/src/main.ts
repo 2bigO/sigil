@@ -38,6 +38,7 @@ Commands:
   glossary          Inspect reviewed glossary terms and occurrences
   graph             Report the component and import graph
   context           Return context for a component or file
+  retrieve          Select deterministic purpose-specific context
   compile           Evaluate Sigil until red, yellow, or green
   render            Render workspace documentation
 
@@ -148,6 +149,19 @@ Options:
                       Include direct importing-file context for --component
   --root <path>       Use an explicit workspace root
   --format <value>    Output json, text, or markdown
+  --pretty            Pretty-print JSON output
+  --quiet             Suppress command output
+  --help              Show this help
+`,
+  retrieve:
+    `Usage: sigil retrieve [path] (--component <name> | --file <file>) --purpose <purpose> [options]
+
+Options:
+  --component <name>  Select one exact component
+  --file <file>       Select one Sigil file
+  --purpose <value>   semantic, architecture, or implementation
+  --root <path>       Use an explicit workspace root
+  --format <value>    Output json or markdown
   --pretty            Pretty-print JSON output
   --quiet             Suppress command output
   --help              Show this help

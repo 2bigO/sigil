@@ -18,6 +18,18 @@ export function formatResult(
   if (result.command === "context" && request.format === "markdown") {
     return renderContextMarkdown(result);
   }
+  if (result.command === "retrieve" && request.format === "markdown") {
+    const lines = [
+      `# ${result.purpose} retrieval`,
+      "",
+      `Fingerprint: ${result.fingerprint}`,
+      "",
+    ];
+    for (const section of result.context.sections) {
+      lines.push(`## ${section.kind}`, "", section.text, "");
+    }
+    return `${lines.join("\n")}\n`;
+  }
   if (
     result.command === "version" &&
     (request.format === undefined || request.format === "text")
@@ -77,7 +89,10 @@ function normalizeResultPaths(
 
 function controllingPath(request: CommandRequest): string | undefined {
   if (request.command === "parse") return request.file;
-  if (request.command === "context" || request.command === "compile") {
+  if (
+    request.command === "context" || request.command === "retrieve" ||
+    request.command === "compile"
+  ) {
     return request.path ?? request.file;
   }
   return "path" in request ? request.path : undefined;

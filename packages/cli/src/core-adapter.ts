@@ -7,6 +7,7 @@ import {
   collectedExpansionFor,
   componentContracts,
   type ComponentContractView,
+  type ComponentIdentity,
   conceptNamespaceFor,
   DEFAULT_SIGIL_EXCLUDES,
   DEFAULT_SIGIL_INCLUDES,
@@ -16,6 +17,7 @@ import {
   glossaryContextForFiles,
   type GlossaryContextProjection,
   type GlossaryProjection,
+  type ImplementationEvidenceInput,
   type ImplementationSection,
   type ImplementationSource,
   isSupportedImplementationSource,
@@ -23,9 +25,13 @@ import {
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
   parseSigilDocument,
+  type PurposeRetrievalResult,
+  type PurposeRetrievalTarget,
   type ResolvedConceptNamespace,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
+  type RetrievalPurpose,
+  retrievePurposeContext,
   SIGIL_CONFIG_PATH,
   SIGIL_CORE_VERSION,
   SIGIL_GLOSSARY_PATH,
@@ -296,7 +302,7 @@ export class CoreAdapter {
   ownedImplementationTargetsFor(
     resolved: ResolvedSigilWorkspace,
     implementationSources: readonly ImplementationSource[],
-    componentName: string,
+    componentName: ComponentIdentity | string,
     conceptName?: string,
     sectionName?: ImplementationSection,
   ): OwnedImplementationProjection | undefined {
@@ -345,6 +351,32 @@ export class CoreAdapter {
       }
     }
     return { sources, diagnostics: [] };
+  }
+  async implementationEvidenceFor(
+    resolved: ResolvedSigilWorkspace,
+  ): Promise<ImplementationEvidenceInput> {
+    const discovery = await this.implementationSourcesFor(resolved);
+    return {
+      workspaceSnapshotIdentity: resolved.workspace.workspaceSnapshotIdentity,
+      discoveryState: discovery.diagnostics.length ? "unavailable" : "complete",
+      sources: discovery.sources,
+      diagnostics: discovery.diagnostics,
+    };
+  }
+  // @sigil implements packages/cli/#module.sigil::SigilCli::PurposeRetrieval interface,logic,constraints,cases
+  retrievePurposeContext(
+    resolved: ResolvedSigilWorkspace,
+    target: PurposeRetrievalTarget,
+    purpose: RetrievalPurpose,
+    implementationEvidence: ImplementationEvidenceInput | null,
+  ): Promise<PurposeRetrievalResult> {
+    return retrievePurposeContext(
+      resolved,
+      target,
+      purpose,
+      resolved.glossary,
+      implementationEvidence,
+    );
   }
   // @sigil uses packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
   collectedExpansionFor(
