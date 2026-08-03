@@ -36,9 +36,9 @@ export interface SemanticSubjectResolver {
 }
 
 /*
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::DiagnosticSemanticSubject interface
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::CompilationDiagnostic logic,constraints
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::CompilationReport cases
+ * @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::DiagnosticSemanticSubject interface
+ * @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
+ * @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases
  */
 export function createSemanticSubjectResolver(
   resolved: ResolvedSigilWorkspace,

@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GreenfieldWorkflow logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModularityReview interface,logic,constraints
+@sigil implements integrations/skills/sigil/workspace-bootstrap.sigil::SigilWorkspaceBootstrap::GreenfieldWorkflow logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ConceptIdentifierWorkflow interface,logic,constraints
 -->
 
 # Greenfield Sigil Design

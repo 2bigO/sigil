@@ -46,6 +46,23 @@
     "preserve-invalid-existing-config",
     "stop-on-bootstrap-failure"
   ],
+  "designCompilationReviewFixture": "design-compilation-review-fixture.md",
+  "designCompilationReviewRequiredBehaviors": [
+    "resolve-nearest-importing-module-index",
+    "traverse-graph-context",
+    "start-os-temp-design-session",
+    "forbid-daemon-and-bearer-authority",
+    "submit-complete-proposal-generation",
+    "consume-compiler-owned-design-evidence",
+    "return-material-problems-to-conversation",
+    "require-explicit-yellow-dispositions",
+    "bind-evidence-to-exact-generation",
+    "use-reviewgate-for-sigil-change",
+    "invalidate-changed-evidence",
+    "compile-written-sigil",
+    "gate-glossary-and-implementation",
+    "close-session-and-report-failures"
+  ],
   "greenfieldFixture": "greenfield-fixture.md",
   "greenfieldRequiredBehaviors": [
     "start-with-design-conversation",

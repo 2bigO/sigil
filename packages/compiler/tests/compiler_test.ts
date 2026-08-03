@@ -1,10 +1,16 @@
 import {
   CodexAdapter,
   type CompilationEvent,
+  type CompilationHistoryStore,
+  type CompilationReport,
   compile,
+  CompilerFailure,
   FileCompilationHistoryStore,
   loadEvaluationSkills,
   MockAdapter,
+  SigilCompilationSession,
+  SigilCompilationSessionFactory,
+  SigilProposalWorkspace,
 } from "../src/mod.ts";
 import { assertEquals, assertMatch, assertRejects } from "@std/assert";
 
@@ -33,7 +39,7 @@ async function workspace(
   return root;
 }
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::EvaluationSkillPackage interface,logic,constraints,cases
+// @sigil tests packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage interface,logic,constraints,cases
 Deno.test("evaluation skills declare implementation evidence authority and modularity rules", async () => {
   const skills = await loadEvaluationSkills();
   assertEquals(
@@ -98,7 +104,7 @@ Deno.test("compile discovers workspace config from a Sigil file path", async () 
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationStatus logic,cases
+// @sigil tests packages/compiler/src/status.sigil::SigilCompilationStatus::CompilationStatus logic,cases
 Deno.test("standard profile becomes green only with complete warning-free evaluation", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -135,7 +141,7 @@ Deno.test("standard profile becomes green only with complete warning-free evalua
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationStatus logic,cases
+// @sigil tests packages/compiler/src/status.sigil::SigilCompilationStatus::CompilationStatus logic,cases
 Deno.test("warnings produce yellow and errors produce red", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -174,7 +180,7 @@ Deno.test("warnings produce yellow and errors produce red", async () => {
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::StageConfiguration constraints,cases
+// @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases
 Deno.test("critical-system adds risk evaluation without implementation stages", async () => {
   const root = await workspace(
     `component Example {
@@ -224,7 +230,7 @@ Deno.test("critical-system adds risk evaluation without implementation stages", 
   }
 });
 
-// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::StageConfiguration constraints,cases
+// @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases
 Deno.test("critical-system configuration is optional until the profile is selected", async () => {
   const root = await workspace(
     `component Example {
@@ -282,7 +288,7 @@ Deno.test("critical-system configuration is optional until the profile is select
   }
 });
 
-// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationStatus constraints,cases
+// @sigil tests packages/compiler/src/status.sigil::SigilCompilationStatus::CompilationStatus cases
 Deno.test("critical-system evaluator failure ends the run with the profile error", async () => {
   const root = await workspace(
     `component Example {
@@ -365,7 +371,7 @@ Deno.test("location targets select enclosing components through expand files", a
   try {
     const report = await compile(root, {
       kind: "location",
-      value: "details.sigil",
+      filePath: "details.sigil",
       line: 3,
       column: 8,
     }, {
@@ -378,7 +384,7 @@ Deno.test("location targets select enclosing components through expand files", a
   }
 });
 
-// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationStatus logic,cases
+// @sigil tests packages/compiler/src/status.sigil::SigilCompilationStatus::CompilationStatus logic,cases
 Deno.test("independent evaluator disagreement is explicit", async () => {
   const root = await workspace(
     `component Example {
@@ -439,7 +445,7 @@ Deno.test("independent evaluator disagreement is explicit", async () => {
   }
 });
 
-// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationHistory logic,cases
+// @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore logic,cases
 Deno.test("history derives unchanged, resolved, and regressed lifecycle", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -515,7 +521,7 @@ Deno.test("history derives unchanged, resolved, and regressed lifecycle", async 
   }
 });
 
-// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationHistory constraints,cases
+// @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore constraints,cases
 Deno.test("corrupt compilation history is ignored", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -561,7 +567,7 @@ Deno.test("corrupt compilation history is ignored", async () => {
 
 /*
  * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationTarget logic,cases
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::AgentAdapter logic,cases
+ * @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter logic,cases
  */
 Deno.test("workspace evaluation sends minimal direct-read targets in dependency order", async () => {
   const source = `@z-dependency.sigil import { Dependency }
@@ -659,8 +665,8 @@ ${"// SECRET_SOURCE_MARKER_72D9\n".repeat(45_000)}`;
 });
 
 /*
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationProfile interface,logic
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::StageConfiguration constraints,cases
+ * @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile interface,logic
+ * @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases
  */
 Deno.test("stage selection runs the exact dependency closure", async () => {
   const root = await workspace(`component Example {
@@ -685,9 +691,9 @@ Deno.test("stage selection runs the exact dependency closure", async () => {
 });
 
 /*
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::DiagnosticSemanticSubject interface
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationDiagnostic logic,constraints
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationReport cases
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::DiagnosticSemanticSubject interface
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases
  */
 Deno.test("diagnostics resolve direct units with concept and section fallbacks", async () => {
   const root = await workspace(
@@ -744,9 +750,9 @@ Deno.test("diagnostics resolve direct units with concept and section fallbacks",
 });
 
 /*
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::DiagnosticSemanticSubject interface
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationDiagnostic logic
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationReport cases
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::DiagnosticSemanticSubject interface
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases
  */
 Deno.test("implementation findings resolve every governing ownership target", async () => {
   const root = await workspace(
@@ -804,8 +810,8 @@ export function read(): void {}
 });
 
 /*
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationDiagnostic logic
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationReport cases
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
+ * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases
  */
 Deno.test("semantic-unit fingerprints survive formatting-only wrapping", async () => {
   const compact = await workspace(`component Example {
@@ -854,7 +860,7 @@ Deno.test("semantic-unit fingerprints survive formatting-only wrapping", async (
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationProfile interface,logic
+// @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile interface,logic
 Deno.test("workspace configuration overrides compiler execution budgets", async () => {
   const root = await workspace(
     `component Example {
@@ -888,7 +894,7 @@ Deno.test("workspace configuration overrides compiler execution budgets", async 
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::ProfileConfiguration constraints
+// @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::ProfileConfiguration constraints
 Deno.test("invalid compiler execution budgets fail before evaluation", async () => {
   const root = await workspace(
     `component Example {
@@ -917,7 +923,7 @@ Deno.test("invalid compiler execution budgets fail before evaluation", async () 
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::EvaluationSkillPackage constraints,cases
+// @sigil tests packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage constraints,cases
 Deno.test("undeclared evaluator rules fail the stage without affecting color directly", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -953,7 +959,7 @@ Deno.test("undeclared evaluator rules fail the stage without affecting color dir
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::AgentAdapter interface,logic,cases
+// @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
 Deno.test("Codex adapter enforces direct-read invocation and records structured trace", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -1047,7 +1053,7 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
   }
 });
 
-// @sigil tests packages/compiler/#module.sigil::SigilCompiler::AgentAdapter interface,logic,cases
+// @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
 Deno.test("Codex adapter rejects an actually invoked nested compilation", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -1113,6 +1119,218 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
       "violated the read-only inspection contract",
     );
   } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/proposal-workspace.sigil::SigilProposalWorkspace interface,logic,cases
+Deno.test("proposal workspace atomically replaces complete source override sets", async () => {
+  const root = await workspace(`component Example {
+  goal { Explain the example. }
+  interface { Run { run() } }
+}
+`);
+  const identity = crypto.randomUUID();
+  const created = await SigilProposalWorkspace.create(root, identity);
+  try {
+    const first = await created.workspace.apply({
+      sources: {
+        "main.sigil": `component Example {
+  goal { Explain the changed example. }
+  interface { Run { run() } }
+}
+`,
+      },
+    });
+    assertEquals(first.generation, 1);
+    assertMatch(first.proposalFingerprint, /^[0-9a-f]{64}$/);
+    await assertRejects(
+      () => created.workspace.apply({ sources: { "../escape.sigil": "" } }),
+      Error,
+      "Invalid proposal",
+    );
+    assertEquals(created.workspace.persistedState().generation, 1);
+  } finally {
+    await created.workspace.close();
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
+ * @sigil tests packages/compiler/src/session-factory.sigil::SigilCompilationSessionFactory interface,logic,cases
+ * @sigil tests packages/compiler/src/session.sigil::SigilCompilationSession interface,state,logic,constraints,cases
+ */
+Deno.test("durable compilation sessions refresh and close without a daemon", async () => {
+  const root = await workspace(`component Example {
+  goal { Explain the example. }
+  interface { Run { run() } }
+}
+`);
+  const created = await new SigilCompilationSessionFactory().create(
+    root,
+    { kind: "workspace" },
+    "standard",
+    "design",
+  );
+  try {
+    assertMatch(created.result.sessionIdentity, /^[0-9a-f-]{36}$/);
+    assertEquals(created.result.baseEpoch, 1);
+    const refreshed = await created.session.refresh();
+    assertEquals(refreshed.baseEpoch, 2);
+    assertMatch(refreshed.baseFingerprint, /^[0-9a-f]{64}$/);
+    const events: CompilationEvent[] = [];
+    const session = new SigilCompilationSession(
+      created.result.sessionIdentity,
+      undefined,
+      async (
+        workspacePath,
+        target = { kind: "workspace" },
+        options = {},
+      ) => {
+        assertMatch(
+          await Deno.readTextFile(`${workspacePath}/main.sigil`),
+          /changed example/,
+        );
+        return {
+          reportVersion: 2,
+          runId: "proposal-run",
+          workspaceRoot: workspacePath,
+          target,
+          componentNames: ["Example"],
+          status: "green",
+          startedAt: "2026-01-01T00:00:00.000Z",
+          completedAt: "2026-01-01T00:00:01.000Z",
+          sourceFingerprint: "proposal-source",
+          focus: options.focus,
+          profile: {
+            name: "standard",
+            criticalSystem: false,
+            contextBudgetChars: 1,
+            executionBudgets: {
+              elapsedTimeMs: 1,
+              maxCommands: 1,
+              maxCommandOutputChars: 1,
+              maxInputTokens: 1,
+              maxOutputTokens: 1,
+            },
+            stages: [],
+            evaluators: [],
+            fingerprint: "profile",
+          },
+          stages: [],
+          diagnostics: [],
+        };
+      },
+    );
+    const report = await session.evaluate({
+      sources: {
+        "main.sigil": `component Example {
+  goal { Explain the changed example. }
+  interface { Run { run() } }
+}
+`,
+      },
+    }, {
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    assertEquals(report.workspaceRoot, root.replaceAll("\\", "/"));
+    assertEquals(report.session?.baseEpoch, 2);
+    assertEquals(report.session?.generation, 1);
+    assertEquals(events.at(-1)?.type, "completed");
+  } finally {
+    await created.session.close();
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
+ * @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryWarning interface
+ * @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore logic,constraints,cases
+ */
+Deno.test("history replacement follows completed settlement and warns without failing", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    Run {
+      run()
+    }
+  }
+}
+`);
+  const order: string[] = [];
+  const history: CompilationHistoryStore = {
+    read() {
+      order.push("read");
+      return Promise.resolve(undefined);
+    },
+    write(_key: string, _report: CompilationReport) {
+      order.push("write");
+      return Promise.reject(new Error("history unavailable"));
+    },
+  };
+  try {
+    const report = await compile(root, { kind: "workspace" }, {
+      requestedStage: "deterministic-foundation",
+      history,
+      onEvent: (event) => {
+        if (event.type === "completed") order.push("completed");
+      },
+      hostWarningSink: (warning) => {
+        order.push(warning.code);
+      },
+    });
+    assertEquals(report.status, "green");
+    assertEquals(order, [
+      "read",
+      "completed",
+      "write",
+      "COMPILER_HISTORY_WRITE_FAILED",
+    ]);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/report-export.sigil::SigilCompilationReportExporter::CompilationReportExport interface,logic,constraints,cases
+Deno.test("report export is atomic and remains outside the selected workspace", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    Run {
+      run()
+    }
+  }
+}
+`);
+  const destination = await Deno.makeTempFile();
+  try {
+    const report = await compile(root, { kind: "workspace" }, {
+      requestedStage: "deterministic-foundation",
+      reportExport: destination,
+    });
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(destination)).runId,
+      report.runId,
+    );
+    await assertRejects(
+      () =>
+        compile(root, { kind: "workspace" }, {
+          requestedStage: "deterministic-foundation",
+          reportExport: `${root}/report.json`,
+        }),
+      CompilerFailure,
+      "outside the selected workspace",
+    );
+  } finally {
+    await Deno.remove(destination).catch(() => {});
     await Deno.remove(root, { recursive: true });
   }
 });

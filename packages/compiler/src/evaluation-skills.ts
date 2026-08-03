@@ -48,9 +48,9 @@ const EMBEDDED_SKILLS: Readonly<
 };
 
 /*
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::EvaluationSkillPackage logic,constraints,cases
- * @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
- * @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ArchitectureModularityAndGraphHarmony logic,constraints,cases
+ * @sigil implements packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage interface,logic,constraints,cases
+ * @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ImplementationEvidencePolicy logic,constraints
+ * @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ArchitectureModularityAndGraphHarmony logic,constraints,cases
  */
 export async function loadEvaluationSkills(
   skillRoot?: URL,
@@ -87,7 +87,7 @@ export async function loadEvaluationSkills(
   return packages;
 }
 
-// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
+// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ImplementationEvidencePolicy logic,constraints
 function validateManifest(
   value: unknown,
   expectedId: string,

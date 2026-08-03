@@ -12,7 +12,16 @@ export type CommandName =
   | "context"
   | "compile"
   | "render";
-export type HelpTopic = "root" | CommandName | "skill-list" | "skill-install";
+export type HelpTopic =
+  | CommandName
+  | "root"
+  | "skill-list"
+  | "skill-install"
+  | "compile-session"
+  | "compile-session-start"
+  | "compile-session-evaluate"
+  | "compile-session-refresh"
+  | "compile-session-close";
 export type OutputFormat = "json" | "jsonl" | "text" | "markdown";
 export type SkillAgent = "codex" | "claude" | "opencode" | "pi";
 
@@ -35,6 +44,7 @@ export type CommandRequest =
   | GraphRequest
   | ContextRequest
   | CompileRequest
+  | CompileSessionRequest
   | RenderRequest;
 export interface SkillListRequest extends GlobalOptions {
   readonly command: "skill-list";
@@ -98,6 +108,16 @@ export interface CompileRequest extends GlobalOptions {
   readonly noCache: boolean;
   readonly output?: string;
 }
+export interface CompileSessionRequest extends GlobalOptions {
+  readonly command: "compile-session";
+  readonly action: "start" | "evaluate" | "refresh" | "close";
+  readonly sessionIdentity?: string;
+  readonly focus?: "design" | "implementation";
+  readonly component?: string;
+  readonly file?: string;
+  readonly path?: string;
+  readonly profile?: string;
+}
 export interface RenderRequest extends GlobalOptions {
   readonly command: "render";
   readonly path?: string;
@@ -155,7 +175,14 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       );
     }
   } else if (rest.includes("--help")) {
-    return { kind: "help", helpTopic: commandName };
+    return {
+      kind: "help",
+      helpTopic: commandName === "compile" && rest[0] === "session"
+        ? rest[1] && ["start", "evaluate", "refresh", "close"].includes(rest[1])
+          ? `compile-session-${rest[1]}` as HelpTopic
+          : "compile-session"
+        : commandName,
+    };
   }
 
   const positional: string[] = [];
@@ -473,6 +500,86 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     };
   }
   if (commandName === "compile") {
+    if (positional[0] === "session") {
+      const action = positional[1];
+      if (
+        !action || !["start", "evaluate", "refresh", "close"].includes(action)
+      ) {
+        return usage(
+          "compile session requires start, evaluate, refresh, or close.",
+          "compile-session",
+        );
+      }
+      const operand = positional[2];
+      if (positional.length > 3) {
+        return usage(
+          `compile session ${action} accepts exactly one operand.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      if (action === "start") {
+        if (!focus) {
+          return usage(
+            "compile session start requires --focus design or implementation.",
+            "compile-session-start",
+          );
+        }
+        if (component && file) {
+          return usage(
+            "compile session start accepts only one of --component or --file.",
+            "compile-session-start",
+          );
+        }
+        if (position || noCache || output || format === "jsonl") {
+          return usage(
+            "compile session start does not accept --position, --no-cache, --output, or jsonl.",
+            "compile-session-start",
+          );
+        }
+        return {
+          kind: "ok",
+          request: {
+            command: "compile-session",
+            action,
+            path: operand,
+            focus,
+            component,
+            file,
+            profile,
+            ...base,
+          },
+        };
+      }
+      if (!operand) {
+        return usage(
+          `compile session ${action} requires a session identifier.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      if (
+        component || file || position || profile || focus || noCache || output
+      ) {
+        return usage(
+          `compile session ${action} does not accept compilation selection options.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      if (action !== "evaluate" && format === "jsonl") {
+        return usage(
+          `compile session ${action} does not accept jsonl.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      return {
+        kind: "ok",
+        request: {
+          command: "compile-session",
+          action: action as "evaluate" | "refresh" | "close",
+          sessionIdentity: operand,
+          ...base,
+        },
+      };
+    }
     const stage = COMPILATION_STAGE_IDS.includes(
         positional[0] as typeof COMPILATION_STAGE_IDS[number],
       )

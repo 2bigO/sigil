@@ -1,9 +1,9 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::SemanticUnitDiscipline interface,constraints
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::DecisionRationaleWorkflow interface,logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImportSemantics interface,logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModuleIndexFile interface,logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModularityReview interface,logic,constraints
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDiscipline interface,constraints
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::DecisionRationaleWorkflow interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemantics interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ModuleIndexFile interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ConceptIdentifierWorkflow interface,logic,constraints
 -->
 
 # Sigil Authoring Conventions

@@ -2123,8 +2123,8 @@ Deno.test("compile rejects incompatible output formats", async () => {
 });
 
 // @sigil tests packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
-Deno.test("compile focus maps to design and implementation stage closures", async () => {
-  const stages: Array<string | undefined> = [];
+Deno.test("compile delegates design and implementation focus to the compiler", async () => {
+  const focuses: Array<string | undefined> = [];
   const report: CompilationReport = {
     reportVersion: 2,
     runId: "run-focus",
@@ -2158,7 +2158,7 @@ Deno.test("compile focus maps to design and implementation stage closures", asyn
     _target: CompilationTarget | undefined,
     options: CompileOptions = {},
   ) => {
-    stages.push(options.requestedStage);
+    focuses.push(options.focus);
     return Promise.resolve(report);
   };
 
@@ -2174,8 +2174,8 @@ Deno.test("compile focus maps to design and implementation stage closures", asyn
     })).exitCode,
     EXIT_OK,
   );
-  assertEquals(stages[0], "architecture-design");
-  assertEquals(stages[1], "current-code-compatibility");
+  assertEquals(focuses[0], "design");
+  assertEquals(focuses[1], "implementation");
 
   const combined = await runCli([
     "compile",
@@ -2212,7 +2212,7 @@ Deno.test("compile maps file positions to exact location targets", async () => {
     JSON.stringify(target),
     JSON.stringify({
       kind: "location",
-      value: "details.sigil",
+      filePath: "details.sigil",
       line: 12,
       column: 7,
     }),
@@ -2251,6 +2251,70 @@ Deno.test("compile preserves a failed terminal event in buffered JSONL", async (
     event.payload.code,
     "COMPILER_PROFILE_EVALUATORS_REQUIRED",
   );
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
+ * @sigil tests packages/compiler/src/session-store.sigil::SigilCompilationSessionStore::CompilationSessionStorage interface,logic,constraints,cases
+ */
+Deno.test("compile session commands persist across independent CLI calls", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-cli-session-" });
+  await Deno.mkdir(`${root}/.sigil`);
+  await Deno.writeTextFile(
+    `${root}/.sigil/config.json`,
+    JSON.stringify({
+      sigilVersion: "0.6.0",
+      workspace: { name: "session", members: [] },
+      files: { include: ["**/*.sigil"], exclude: [] },
+      tools: {},
+    }),
+  );
+  await Deno.writeTextFile(
+    `${root}/main.sigil`,
+    `component Example {
+  goal { Explain the example. }
+  interface { Run { run() } }
+}
+`,
+  );
+  let sessionIdentity: string | undefined;
+  try {
+    const started = await runCli([
+      "compile",
+      "session",
+      "start",
+      root,
+      "--focus",
+      "design",
+    ]);
+    assertEquals(started.exitCode, EXIT_OK);
+    const startResult = parseJson(started.stdout);
+    sessionIdentity = startResult.sessionIdentity;
+    assertEquals(startResult.baseEpoch, 1);
+
+    const refreshed = await runCli([
+      "compile",
+      "session",
+      "refresh",
+      sessionIdentity!,
+    ]);
+    assertEquals(refreshed.exitCode, EXIT_OK);
+    assertEquals(parseJson(refreshed.stdout).baseEpoch, 2);
+
+    const closed = await runCli([
+      "compile",
+      "session",
+      "close",
+      sessionIdentity!,
+    ]);
+    assertEquals(closed.exitCode, EXIT_OK);
+    sessionIdentity = undefined;
+  } finally {
+    if (sessionIdentity) {
+      await runCli(["compile", "session", "close", sessionIdentity]);
+    }
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 /*

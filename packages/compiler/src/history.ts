@@ -6,7 +6,7 @@ import type {
   EffectiveProfile,
 } from "./types.ts";
 
-// @sigil implements packages/compiler/src/compiler.sigil::SigilCompiler::CompilationHistory interface,logic,constraints,cases
+// @sigil implements packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore interface,logic,constraints,cases
 export class FileCompilationHistoryStore implements CompilationHistoryStore {
   constructor(private readonly directory: string) {}
 
@@ -22,14 +22,24 @@ export class FileCompilationHistoryStore implements CompilationHistoryStore {
   }
 
   async write(key: string, report: CompilationReport): Promise<void> {
-    await Deno.mkdir(this.directory, { recursive: true });
+    await Deno.mkdir(this.directory, { recursive: true, mode: 0o700 });
+    await Deno.chmod(this.directory, 0o700).catch(() => {});
     const temporary = await Deno.makeTempFile({
       dir: this.directory,
       prefix: `${key}.`,
       suffix: ".tmp",
     });
     try {
-      await Deno.writeTextFile(temporary, `${JSON.stringify(report)}\n`);
+      await Deno.chmod(temporary, 0o600).catch(() => {});
+      const file = await Deno.open(temporary, { write: true, truncate: true });
+      try {
+        await file.write(
+          new TextEncoder().encode(`${JSON.stringify(report)}\n`),
+        );
+        await file.sync();
+      } finally {
+        file.close();
+      }
       await Deno.rename(temporary, `${this.directory}/${key}.json`);
     } catch (error) {
       await Deno.remove(temporary).catch(() => {});
@@ -112,9 +122,14 @@ function isCompilationTarget(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const target = value as Record<string, unknown>;
   if (target.kind === "workspace") return true;
+  if (target.kind === "component") {
+    return typeof target.name === "string" &&
+      (target.declarationPath === undefined ||
+        typeof target.declarationPath === "string");
+  }
   if (
-    !["file", "component", "location"].includes(String(target.kind)) ||
-    typeof target.value !== "string"
+    !["file", "location"].includes(String(target.kind)) ||
+    typeof target.filePath !== "string"
   ) return false;
   return target.kind !== "location" ||
     (isPositiveInteger(target.line) && isPositiveInteger(target.column));

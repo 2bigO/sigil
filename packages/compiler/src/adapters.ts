@@ -53,7 +53,7 @@ export class CodexAdapter implements AgentAdapter {
     readonly id = "codex",
   ) {}
 
-  // @sigil implements packages/compiler/#module.sigil::SigilCompiler::AgentAdapter interface,logic,cases
+  // @sigil implements packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
   async evaluate(
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {
@@ -176,7 +176,7 @@ function assertCapabilityContract(
   }
 }
 
-// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
+// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ImplementationEvidencePolicy logic,constraints
 function evaluationPrompt(request: AgentEvaluationRequest): string {
   return `You are the Sigil compiler evaluator for stage ${
     JSON.stringify(request.stage)

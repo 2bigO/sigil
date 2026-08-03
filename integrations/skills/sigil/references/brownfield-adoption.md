@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::BrownfieldWorkflow logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModuleIndexFile logic,constraints,cases
+@sigil implements integrations/skills/sigil/workspace-bootstrap.sigil::SigilWorkspaceBootstrap::BrownfieldWorkflow logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ModuleIndexFile logic,constraints,cases
 -->
 
 # Brownfield Sigil Adoption
