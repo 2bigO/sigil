@@ -58,6 +58,9 @@ component SigilLanguage {
     ImportSemantics {
       import is the sole declaration of dependency on another Sigil component
 
+      an expand declared in another source depends on its matching component through
+      an explicit named import
+
       a named import exposes the imported component's public goal, interface, and
       public concept identities
 
@@ -204,6 +207,18 @@ expand SigilLanguage {
 
       Directory imports resolve through ModuleIndexFile.
 
+      An expand declared in the same source as its component matches locally without
+      an import.
+
+      An expand declared in another source matches its component only through a
+      resolved named import in the expand's source.
+
+      A cross-file expand without that import produces SIGIL_EXPAND_WITHOUT_COMPONENT
+      and contributes no collected expansion or concept-namespace content.
+
+      A structural import used by an expand does not project the component back into
+      its own concept namespace as an imported dependency.
+
       Imported names must resolve to components exposed by the selected source or
       directory-import surface.
 
@@ -337,6 +352,25 @@ expand SigilLanguage {
 
       Consequences: Check reports one stable error per unused imported name and
       dependency graphs no longer accept accidental resolved imports silently.
+    }
+
+    ExplicitCrossFileExpansion {
+      Decision: Require every cross-file expand to import its matching component
+      explicitly.
+
+      Scope: Governs expansion matching, collection, concept namespaces, and
+      structural import use; excludes expands colocated with their component.
+
+      Trade-offs: Expansion files require explicit dependency declarations, while
+      resolution no longer depends on workspace-global name matching.
+
+      Discarded alternatives: Globally matching expands by component name was
+      rejected because it hides dependency ownership and permits accidental expansion
+      attachment.
+
+      Consequences: Unimported cross-file expands produce
+      SIGIL_EXPAND_WITHOUT_COMPONENT, imported expands count as structural use, and
+      unrelated imported names remain subject to SIGIL_UNUSED_IMPORT.
     }
 
     SemanticParagraphs {
@@ -489,6 +523,15 @@ expand SigilLanguage {
     ImportSemantics {
       Importing Name makes Name's public contract available without exposing its
       collected expansions.
+
+      A cross-file expand without an import produces SIGIL_EXPAND_WITHOUT_COMPONENT.
+
+      Importing the component attaches the cross-file expand and records
+      structural-expand use.
+
+      A second unused name in the same import still produces SIGIL_UNUSED_IMPORT.
+
+      A structural self-import does not duplicate the component's public concepts.
 
       A missing source, component, or directory-import name produces a stable
       diagnostic and partial resolution when practical.

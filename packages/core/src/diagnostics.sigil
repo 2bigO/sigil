@@ -48,6 +48,9 @@ expand SigilDiagnostics {
       SIGIL_UNUSED_IMPORT is an error for one resolved imported name without
       qualifying local use.
 
+      SIGIL_EXPAND_WITHOUT_COMPONENT is an error when an expand is neither colocated
+      with its component nor connected to it through a resolved named import.
+
       SIGIL_DETACHED_LITERAL_BLOCK is an error when a blank line separates
       introducing prose from an opening fence.
 
@@ -120,6 +123,9 @@ expand SigilDiagnostics {
 
       One unused name in a multi-name resolved import produces one
       SIGIL_UNUSED_IMPORT at that imported name.
+
+      An unimported cross-file expand produces SIGIL_EXPAND_WITHOUT_COMPONENT at the
+      expand declaration.
 
       Apparent imports, components, concepts, or braces inside a LiteralBlock produce
       no structural or reference diagnostic.

@@ -97,18 +97,6 @@ export function resolveSigilRelationships(
     }
   }
 
-  for (const [name, expands] of expandsByName) {
-    if (!componentsByName.has(name)) {
-      for (const expand of expands) {
-        diagnostics.push(diagnostic(
-          "SIGIL_EXPAND_WITHOUT_COMPONENT",
-          `expand ${name} has no matching component.`,
-          { filePath: expand.filePath, range: expand.declaration.range },
-        ));
-      }
-    }
-  }
-
   const resolvedImports: MutableResolvedImport[] = [];
 
   for (const file of workspace.files) {
@@ -159,6 +147,22 @@ export function resolveSigilRelationships(
   resolveModuleIndexNames(resolvedImports);
   resolveImportUses(workspace, resolvedImports, diagnostics);
 
+  for (const [name, expands] of expandsByName) {
+    const components = componentsByName.get(name) ?? [];
+    for (const expand of expands) {
+      if (
+        components.some((component) =>
+          expandTargetsComponent(expand, component, resolvedImports)
+        )
+      ) continue;
+      diagnostics.push(diagnostic(
+        "SIGIL_EXPAND_WITHOUT_COMPONENT",
+        `expand ${name} must declare its matching component locally or import it.`,
+        { filePath: expand.filePath, range: expand.declaration.range },
+      ));
+    }
+  }
+
   for (const item of resolvedImports) {
     if (!documentByPath.has(item.targetFile ?? "")) continue;
     for (const name of item.names) {
@@ -176,7 +180,9 @@ export function resolveSigilRelationships(
   const componentDrafts: ComponentResolutionDraft[] = [];
   for (const [name, components] of componentsByName) {
     for (const component of components) {
-      const expands = expandsByName.get(name) ?? [];
+      const expands = (expandsByName.get(name) ?? []).filter((expand) =>
+        expandTargetsComponent(expand, component, resolvedImports)
+      );
       const expansion: CollectedExpansion = {
         componentName: name,
         expands: expands.map((item) => ({
@@ -205,6 +211,25 @@ export function resolveSigilRelationships(
     components: resolvedComponents,
     diagnostics,
   };
+}
+
+function expandTargetsComponent(
+  expand: IndexedExpand,
+  component: IndexedComponent,
+  imports: readonly ResolvedImport[],
+): boolean {
+  if (
+    normalizePath(expand.filePath) === normalizePath(component.filePath) &&
+    expand.declaration.name === component.declaration.name
+  ) return true;
+
+  return imports.some((item) =>
+    normalizePath(item.sourceFile) === normalizePath(expand.filePath) &&
+    item.names.some((name) =>
+      name.name === expand.declaration.name &&
+      name.component === component.declaration
+    )
+  );
 }
 
 function resolveConceptNamespaces(
@@ -350,6 +375,7 @@ function importedPublicConcepts(
     if (!contextFiles.has(normalizePath(item.sourceFile))) continue;
     for (const name of item.names) {
       if (!name.component) continue;
+      if (name.component === state.component.declaration) continue;
       const importedState = stateByDeclaration.get(name.component);
       if (importedState) {
         concepts.push(...importedState.namespace.publicConcepts);

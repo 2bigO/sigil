@@ -26,7 +26,7 @@ component SigilResolver {
 
     CollectiveExpansions {
       each resolved component identifies its declaration source and every matching
-      expand block
+      expand block colocated with it or connected through a resolved named import
     }
 
     ConceptResolution {
@@ -44,6 +44,9 @@ expand SigilResolver {
       Diagnose duplicate components and expands without matching components.
 
       Resolve explicit source imports and directory imports.
+
+      Diagnose every expand without a local or explicitly imported matching component
+      and exclude it from collective expansions.
 
       Detect cycles between resolved import files.
 
@@ -74,7 +77,8 @@ expand SigilResolver {
     }
 
     CollectiveExpansions {
-      Collect every matching expand for each resolved component without override or
+      Collect only expands colocated with their component or connected to that exact
+      component by a resolved import in the expand source, without override or
       shadowing.
     }
 
@@ -119,6 +123,10 @@ expand SigilResolver {
 
       Unresolved or ambiguous imported names do not additionally produce
       SIGIL_UNUSED_IMPORT.
+
+      A cross-file expand without a resolved import of its component produces
+      SIGIL_EXPAND_WITHOUT_COMPONENT and contributes no collected expansion or
+      concept-namespace content.
     }
 
     ComponentContract {
@@ -128,6 +136,9 @@ expand SigilResolver {
 
     ConceptResolution {
       Provider projections never collect consumer-contributed contextual occurrences.
+
+      A structural self-import does not project the component's public concepts into
+      its own namespace as an imported dependency.
 
       Resolution provides no dotted qualification, aliases, or shadowing.
 
@@ -172,6 +183,13 @@ expand SigilResolver {
 
       A resolved direct ModuleIndexFile import uses its name through the directory
       surface.
+
+      A cross-file expand without an import produces SIGIL_EXPAND_WITHOUT_COMPONENT.
+
+      Importing the component attaches the cross-file expand and records
+      structural-expand use.
+
+      A second unused name in the same import still produces SIGIL_UNUSED_IMPORT.
     }
 
     DirectoryImportSurface {
@@ -183,6 +201,8 @@ expand SigilResolver {
 
     CollectiveExpansions {
       Multiple matching expands are all retained.
+
+      A structural self-import does not duplicate the component's public concepts.
     }
 
     ConceptResolution {

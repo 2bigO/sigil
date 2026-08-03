@@ -912,23 +912,51 @@ Deno.test("does not add unnamed component dependencies to a module index", async
   );
 });
 
-// @sigil tests packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
-Deno.test("collects expansion file paths and exposes projections", async () => {
-  const fs = new InMemorySigilFileSystem({
+/*
+ * @sigil tests packages/core/src/resolver.sigil::SigilResolver::ImportUse interface,logic,constraints,cases
+ * @sigil tests packages/core/src/resolver.sigil::SigilResolver::CollectiveExpansions interface,logic,cases
+ * @sigil tests packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
+ */
+Deno.test("requires cross-file expands to import their component", async () => {
+  const unimportedFs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
     "contract.sigil": rootModule,
     "detail-a.sigil": "expand Sigil {\n  logic {\n    A.\n  }\n}\n",
+  });
+  let resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(unimportedFs, { startPath: "." }),
+  );
+  assertHasCode(resolved.diagnostics, "SIGIL_EXPAND_WITHOUT_COMPONENT");
+  assertEquals(collectedExpansionFor(resolved, "Sigil")?.expands.length, 0);
+
+  const importedFs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "contract.sigil": `${rootModule}\n${
+      rootModule.replaceAll("Sigil", "Other")
+    }`,
+    "detail-a.sigil":
+      "@contract.sigil import { Sigil, Other }\n\nexpand Sigil {\n  logic {\n    A.\n  }\n}\n",
     "detail-b.sigil": "expand Sigil {\n  cases {\n    B.\n  }\n}\n",
   });
-  const resolved = resolveSigilWorkspace(
-    await loadSigilWorkspace(fs, { startPath: "." }),
+  resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(importedFs, { startPath: "." }),
   );
+  assertHasCode(resolved.diagnostics, "SIGIL_EXPAND_WITHOUT_COMPONENT");
   const expansion = collectedExpansionFor(resolved, "Sigil");
   assert(expansion);
-  assertEquals(expansion.expands.length, 2);
+  assertEquals(expansion.expands.length, 1);
   assertEquals(
     expansion.expands.map((item) => item.filePath).sort().join(","),
-    "detail-a.sigil,detail-b.sigil",
+    "detail-a.sigil",
+  );
+  const importedName = resolved.imports[0].names[0];
+  assert(importedName.used);
+  assert(importedName.uses.some((use) => use.kind === "structural-expand"));
+  assertEquals(resolved.imports[0].names[1].used, false);
+  assertEquals(
+    resolved.diagnostics.filter((item) => item.code === "SIGIL_UNUSED_IMPORT")
+      .length,
+    1,
   );
   assert(
     componentContracts(resolved).some((contract) => contract.name === "Sigil"),
@@ -951,7 +979,9 @@ Deno.test("projects direct dependency contracts and decisions for agents", async
   }
 }
 `,
-    "leaf-detail.sigil": `expand Leaf {
+    "leaf-detail.sigil": `@leaf.sigil import { Leaf }
+
+expand Leaf {
   decisions {
     LeafChoice {
       Decision: Keep this transitive rationale private by default.
@@ -973,7 +1003,9 @@ component Provider {
   }
 }
 `,
-    "provider-detail.sigil": `expand Provider {
+    "provider-detail.sigil": `@provider.sigil import { Provider }
+
+expand Provider {
   state {
     PrivateState {
       Hidden state.
@@ -1346,7 +1378,9 @@ component Unrelated {
   }
 }
 `,
-    "ownership-details.sigil": `expand Ownership {
+    "ownership-details.sigil": `@ownership.sigil import { Ownership }
+
+expand Ownership {
   logic {
     Resolve ownership through this expand.
   }
