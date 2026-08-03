@@ -196,6 +196,14 @@ references remain applicable across all three semantic workflows.
      leave files unchanged until `sigil-change` is ready.
 
 6. Apply only a proposal for which ReviewGate is ready.
+   - Treat the compiler session as a temporary evidence workspace, never as the
+     destination of the change.
+   - Present the target workspace root, target paths, and complete
+     resulting source for every changed file in the exact ReviewGate proposal.
+   - Do not materialize or otherwise mutate the target workspace while
+     ReviewGate is blocked or review-required.
+   - Only after ReviewGate is ready for that exact scope and source set,
+     materialize only the approved proposal in the target workspace.
    - Change only the exact approved Sigil and imports.
    - Run `sigil check`; use `graph` or `context` when relationships changed.
    - Run `sigil fmt <selected-path> --check`. Apply `sigil fmt` only when

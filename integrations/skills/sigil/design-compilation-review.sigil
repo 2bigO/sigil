@@ -38,7 +38,8 @@ DesignCompilationReview {
       open one proposal compilation session for the selected scope.
 
       Submit each complete candidate source set as a proposal generation without
-      writing it to the selected workspace.
+      writing it to the selected workspace. The compiler session is an owner- private
+      proposal workspace for evidence only, not the mutation target.
 
       Use red and yellow diagnostics to investigate evidence and return confirmed
       material problems to DesignConversation. Revise red candidates and yellow
@@ -51,9 +52,11 @@ DesignCompilationReview {
       every finding the human explicitly accepted as nonblocking, together with its
       report fingerprint and finding dispositions to ReviewGate for sigil-change.
 
-      After approved Sigil is written, run deterministic validation and compilation
-      focus design against the written source before glossary extraction or
-      implementation review.
+      After ReviewGate approves the exact target-workspace scope and complete source
+      change set, materialize only that approved proposal in the target workspace.
+      Materialization is forbidden while ReviewGate is blocked or review-required.
+      Then run deterministic validation and compilation focus design against the
+      written source before glossary extraction or implementation review.
     }
   }
 
@@ -73,8 +76,10 @@ DesignCompilationReview {
       ReviewGate for sigil-change from returning ready. Yellow also prevents ready
       until the human explicitly reviews every finding and accepts it as nonblocking.
 
-      ReviewGate evidence identifies the exact session, generation, base fingerprint,
-      proposal fingerprint, target, profile, focus, and completed stages.
+      ReviewGate evidence identifies the target workspace root, target paths,
+      complete resulting source, exact session, generation, base fingerprint,
+      proposal fingerprint, target, profile, focus, and completed stages. Session
+      evidence never grants permission to mutate the target workspace.
     }
   }
 

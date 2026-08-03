@@ -13,6 +13,10 @@ ReviewGate {
 
       keeps approval bound to the exact action, scope, and change set
 
+      binds Sigil approval to the target workspace root, target paths, and complete
+      resulting source, even when compiler evidence came from a temporary proposal
+      session
+
       treats delegated proposals, validation, readiness reviews, coverage, and
       diagnostics as evidence rather than approval
 
@@ -99,6 +103,13 @@ ReviewGate {
 
       A ready result remains valid only for its approved action, scope, and change
       set.
+
+      A compiler proposal session is evidence-only and never authorizes or replaces
+      materialization of the approved change in the target workspace.
+
+      Materialization in the target workspace is a mutation controlled by
+      ReviewGate(action: sigil-change) and may occur only after ready for the exact
+      target root, paths, and complete source change set.
 
       The host workflow classifies evidence materiality from the exact before-and-
       after evidence supplied to ReviewGate. Uncertain classification invalidates

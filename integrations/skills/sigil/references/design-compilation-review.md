@@ -16,7 +16,9 @@ a file or location target when the declaration identity is not yet stable.
 
 ## Evaluate Unwritten Candidates
 
-Start one owner-private, OS-temporary proposal session. No daemon is involved:
+Start one owner-private, OS-temporary proposal session. This is a compiler
+      proposal workspace for evidence only, not the target workspace or
+the destination of an approved change. No daemon is involved:
 
 ```bash
 sigil compile session start <workspace-root> --focus design --component <name>
@@ -58,13 +60,20 @@ host-generated status. The host still owns external-guidance applicability,
 finding disposition, design decisions, concept grouping, glossary extraction,
 and ReviewGate.
 
-Evidence submitted to `ReviewGate(action: sigil-change)` identifies the exact
-session, generation, base epoch, base and proposal fingerprints, target,
-profile, focus, completed stages, report status, and every yellow disposition.
+Evidence submitted to `ReviewGate(action: sigil-change)` identifies the selected
+target workspace root and target paths, complete resulting source for every
+changed file, exact session, generation, base epoch, base and proposal
+fingerprints, target, profile, focus, completed stages, report status, and every
+yellow disposition. The session candidate is evidence used to prepare that
+exact real-workspace proposal; it is not the proposal destination.
 
-## Validate Written Sigil
+## Apply To The Target Workspace And Validate Written Sigil
 
-After an approved proposal is written, rerun deterministic validation and
+After ReviewGate returns `ready` for that exact target-workspace scope and
+source change set, materialize only the approved source into the target
+workspace. Materialization is a repository mutation and is forbidden while the
+gate is `blocked` or `review-required`; do not use the temporary compiler
+session as a substitute for this write. Then rerun deterministic validation and
 compile the written source:
 
 ```bash

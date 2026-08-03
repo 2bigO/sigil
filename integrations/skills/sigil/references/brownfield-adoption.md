@@ -324,20 +324,21 @@ decision-rationale coverage map before requesting ReviewGate readiness.
 After `ReviewGate(action: sigil-change)` returns ready for the exact task-Sigil
 scope and change set:
 
-1. create or update only approved Sigil files;
-2. colocate components and implementation-specific expands as proposed;
-3. update only approved imports;
-4. run `sigil check`;
-5. use `sigil graph` or `sigil context` when relationships changed;
-6. reread the files and repeat semantic, coherence, and modularity review;
-7. repeat the decision-rationale coverage audit against the written semantic
+1. materialize the approved complete source into the target workspace;
+2. create or update only approved Sigil files;
+3. colocate components and implementation-specific expands as proposed;
+4. update only approved imports;
+5. run `sigil check`;
+6. use `sigil graph` or `sigil context` when relationships changed;
+7. reread the files and repeat semantic, coherence, and modularity review;
+8. repeat the decision-rationale coverage audit against the written semantic
    lines and return to proposal review when coverage is missing;
-8. if concept grouping is still required, use ReviewGate with `sigil-change`,
+9. if concept grouping is still required, use ReviewGate with `sigil-change`,
    then rerun deterministic and semantic review;
-9. perform glossary candidate extraction only after the final semantic review
+10. perform glossary candidate extraction only after the final semantic review
    appears aligned;
-10. report the validated written task Sigil without creating another approval
-    gate.
+11. report the validated written task Sigil without creating another approval
+   gate.
 
 Do not modify implementation in the same pass. When implementation is
 requested, submit the validated written task Sigil and exact implementation
