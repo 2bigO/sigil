@@ -8,7 +8,8 @@ component SigilCompilationProfile {
     CompilationProfile {
       resolve(name, toolsCompile, requestedStage?) returns ordered stages,
       evaluators, skills, capabilities, budgets, and an effective-profile fingerprint
-      or rejects with a stable profile failure
+      or rejects an unknown profile or stage with COMPILER_INVALID_INVOCATION and an
+      unavailable required evaluator with a stable profile failure
 
       standard and critical-system are built in; project profiles may configure or
       omit stages subject to dependency rules

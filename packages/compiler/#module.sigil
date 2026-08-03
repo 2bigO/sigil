@@ -1,6 +1,7 @@
 @packages/core import { SigilCore }
 @packages/compiler/src/proposal-workspace.sigil import { SigilProposalWorkspace }
 @packages/compiler/src/session.sigil import { SigilCompilationSession }
+@packages/compiler/src/session-store.sigil import { SigilCompilationSessionStore }
 @packages/compiler/src/profile.sigil import { SigilCompilationProfile }
 @packages/compiler/src/status.sigil import { SigilCompilationStatus }
 @packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
@@ -8,6 +9,9 @@
 @packages/compiler/src/evaluation-registry.sigil import { SigilEvaluationSkillRegistry }
 @packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/history-store.sigil import { SigilCompilationHistoryStore }
+@packages/compiler/src/report-export.sigil import { SigilCompilationReportExporter }
+@packages/compiler/src/session-factory.sigil import { SigilCompilationSessionFactory }
 
 component SigilCompiler {
   goal {
@@ -21,11 +25,15 @@ component SigilCompiler {
 
   interface {
     CompilationInvocation {
-      compile(workspacePath, target, profileName, options?) streams CompilationEvent
-      and accepts an optional cancellation signal
+      compile(workspacePath, target, profileName, CompilationOptions?) streams
+      CompilationEvent
 
       completed evaluation returns CompilationReport and emits a completed terminal
       event carrying the same authoritative report
+
+      completed, cancelled, and failed settlement requires its terminal event write;
+      terminal transport failure supersedes the pending outcome with COMPILER_FAILED
+      and returns no CompilationReport
 
       cancellation rejects with COMPILER_CANCELLED, returns no CompilationReport, and
       emits a cancelled terminal event whenever transport remains writable
@@ -34,18 +42,29 @@ component SigilCompiler {
       CompilationReport, and emits a failed terminal event whenever transport remains
       writable
 
-      options may disable external history lookup or explicitly export the resulting
-      CompilationReport, and may supply the cancellation signal
+      an unknown target, profile, stage, or focus rejects with
+      COMPILER_INVALID_INVOCATION, returns no CompilationReport, and emits a failed
+      terminal event whenever transport remains writable
+
+      unavailable required evaluators reject with
+      COMPILER_PROFILE_EVALUATORS_REQUIRED, return no CompilationReport, and emit a
+      failed terminal event whenever transport remains writable
     }
 
-    CompilationSession {
-      createCompilationSession(workspacePath, target, profileName, focus, options?)
-      returns SigilCompilationSession or rejects when its proposal workspace cannot
-      be created
+    CompilationOptions {
+      requestedStage optionally selects one exact stage and its dependency closure;
+      focus optionally maps design to architecture-design or implementation to
+      current-code-compatibility and its dependency closure
 
-      SigilCompilationSession exposes evaluate, refresh, and close with stable
-      proposal, cancellation, caller/session, workspace-condition, busy, and
-      host-failure results
+      requestedStage and focus are mutually exclusive; omitting both executes the
+      complete selected profile; an unknown or conflicting selection rejects with
+      COMPILER_INVALID_INVOCATION
+
+      disableHistory defaults to false and, when true, disables both
+      CompilationHistoryStore lookup and replacement
+
+      cancellationSignal is optional; reportExport optionally requests
+      CompilationReportExport
     }
 
     CompilationTarget {
@@ -54,6 +73,13 @@ component SigilCompiler {
       a location target identifies one file-backed source position and resolves the
       enclosing component or expand to one exact component identity
 
+      source positions use one-based physical lines and one-based UTF-16 code-unit
+      columns, with LF and CRLF each delimiting one physical line
+
+      component and expand ranges are start-inclusive and end-exclusive; their
+      opening and closing delimiter characters are inside the selectable range, while
+      the position immediately after the closing delimiter is outside
+
       a file target resolves to every component represented by that file
 
       a workspace target resolves to a dependency-aware collection of components
@@ -61,7 +87,6 @@ component SigilCompiler {
       component evaluation requires inspection of matching expands, relevant
       dependencies and importers, glossary context, and implementation evidence
     }
-
   }
 }
 
@@ -104,5 +129,19 @@ expand SigilCompiler {
 
       Consequences: Critical design handoff retains accountable human review.
     }
+
+    InvalidCompilationInvocation {
+      Decision: Reject an unknown target, profile, stage, or focus through one stable
+      COMPILER_INVALID_INVOCATION caller error.
+
+      Scope: Governs compiler invocation validation; excludes evaluator availability,
+      cancellation, and host or protocol failure.
+
+      Trade-offs: One code covers several caller-correctable input categories.
+
+      Consequences: Hosts receive one predictable no-report failure contract without
+      multiplying public error identities.
+    }
+
   }
 }

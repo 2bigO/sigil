@@ -402,6 +402,13 @@ component SigilProposalWorkspace {
       or rejects with ProposalWorkspaceFailure whose code is
       COMPILER_WORKSPACE_STATE, COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED, or
       COMPILER_WORKSPACE_HOST_FAILURE
+
+      restore(filesystem, sessionIdentity, ProposalWorkspacePersistedState) verifies
+      the existing ownership marker and materialized state and returns one restored
+      SigilProposalWorkspace façade, one ProposalWorkspaceAccess, base fingerprint,
+      selected-path manifest, and optional active generation and proposal fingerprint
+      or rejects with COMPILER_INVALID_SESSION_IDENTITY, COMPILER_WORKSPACE_STATE,
+      COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED, or COMPILER_WORKSPACE_HOST_FAILURE
     }
 
     ProposalWorkspaceFailure {
@@ -432,6 +439,15 @@ component SigilProposalWorkspace {
       after release, coreFilesystem and agentRoot reject with
       COMPILER_WORKSPACE_STATE without reading the materialized workspace
     }
+
+    ProposalWorkspacePersistedState {
+      version 1 contains session identity, base fingerprint, selected-path manifest
+      identity, source-eligibility identity, materialization identity, lifecycle
+      state, optional active generation, and its optional proposal fingerprint
+
+      contains no proposed source contents, credentials, temporary path, or writable
+      filesystem capability
+    }
   }
 }
 
@@ -454,6 +470,12 @@ expand SigilProposalWorkspace {
 
       Enter terminal manual-recovery-required when an existing root has a missing or
       corrupt ownership marker.
+
+      On restore, validate ProposalWorkspacePersistedState version 1, persisted base
+      identity, selected-path manifest, source eligibility, generation, proposal
+      fingerprint, and active materialization before returning the restored façade
+      and ProposalWorkspaceAccess. Never recopy the base, migrate an unsupported
+      version, or infer missing persisted state.
 
       In active state, delegate proposal work to SigilProposalGeneration and return
       ProposalWorkspaceAccess for the resulting active generation.
@@ -748,6 +770,27 @@ expand SigilProposalWorkspace {
       façade.
     }
 
+    PersistentProposalWorkspaceRestoration {
+      Decision: Reconstruct an active proposal-workspace façade from verified
+      non-content session metadata and its existing private materialization.
+
+      Scope: Governs cross-process session restoration; excludes creating a new base,
+      repairing inconsistent state, or authorizing filesystem access.
+
+      Trade-offs: Persisted lifecycle metadata becomes compatibility-sensitive.
+
+      Design issues addressed: Cross-process callers require one exact restoration
+      result and a deterministic compatibility boundary.
+
+      Discarded alternatives: Recopying the selected workspace and storing proposed
+      source contents in the session record were rejected because they change the
+      frozen base or duplicate confidential material.
+
+      Consequences: Independent CLI processes inspect the same base epoch and active
+      generation while malformed, unsupported, or inconsistent version-1 state fails
+      closed with COMPILER_WORKSPACE_STATE and remains preserved for recovery.
+    }
+
     EphemeralProposalWorkspace {
       Decision: Reuse one private operating-system temporary workspace across an
       explicit compilation session and update only affected proposal paths.
@@ -818,6 +861,17 @@ expand SigilProposalWorkspace {
 
       Close before create and repeated close both succeed and leave the façade
       closed.
+
+      Restoring verified version-1 active state returns one façade, one revocable
+      read-only access, base fingerprint, selected manifest, and matching optional
+      generation identity without copying source content.
+
+      Restoring mismatched persisted identity or generation metadata rejects with
+      COMPILER_WORKSPACE_STATE and exposes no access.
+
+      Restoring a malformed or unsupported persisted-state version rejects with
+      COMPILER_WORKSPACE_STATE, performs no migration, and preserves the
+      materialization for verified cleanup.
     }
   }
 }

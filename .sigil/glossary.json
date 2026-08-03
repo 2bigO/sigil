@@ -425,7 +425,7 @@
     },
     {
       "term": "evaluation context",
-      "definition": "The compact component- and stage-scoped contract, dependency, glossary, importer, ownership, and bounded source evidence supplied to one evaluator request.",
+      "definition": "The metadata and directly inspected evidence available to one component- and stage-scoped evaluator run. The initial request carries target identity, skill, capabilities, schema, and budgets; contract, dependency, glossary, importer, ownership, and source evidence is retrieved afterward through enforced read-only workspace inspection rather than serialized into the initial request.",
       "aliases": [
         "evaluation contexts",
         "component evaluation context",
