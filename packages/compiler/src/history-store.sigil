@@ -10,15 +10,31 @@ component SigilCompilationHistoryStore {
   interface {
     CompilationHistoryStore {
       loadLatest(workspaceIdentity, targetIdentity, reportVersion,
-      profileFingerprint) returns the latest compatible CompilationReport from the
-      operating-system user cache or returns no prior evidence when history is
-      disabled, missing, corrupt, or incompatible
+      profileFingerprint) returns CompilationHistoryLookupResult
 
       replaceLatest(CompilationReport) atomically replaces the matching cached report
-      unless history is disabled
+      and returns no warning, or preserves prior history and returns one
+      CompilationHistoryWarning when replacement fails; history disabled performs no
+      replacement and returns no warning
 
-      replacement failure preserves prior history, reports a non-authoritative host
-      warning, and does not change successful compilation settlement
+      neither operation emits CompilationEvent or changes compilation settlement
+    }
+
+    CompilationHistoryLookupResult {
+      contains the latest compatible prior CompilationReport when available and
+      otherwise no prior evidence
+
+      contains one CompilationHistoryWarning only when cache read or runtime failure
+      made history unavailable; disabled, missing, corrupt, or incompatible history
+      contains no warning
+    }
+
+    CompilationHistoryWarning {
+      is a non-authoritative host record containing operation read or replace and
+      reason cache-host-failure
+
+      contains no CompilationDiagnostic, never enters CompilationEvent output, and
+      cannot change CompilationReport status or invocation settlement
     }
   }
 }
@@ -36,12 +52,14 @@ expand SigilCompilationHistoryStore {
       requests replacement and history is enabled. Do not determine when compilation
       cancellation, export, or terminal settlement permits that request.
 
-      On write, sync, or atomic-replacement failure, preserve the preceding cache,
-      report a host warning outside CompilationEvent output, and let compilation
-      continue toward completed settlement.
+      On write, sync, or atomic-replacement failure, preserve the preceding cache and
+      return one CompilationHistoryWarning to the caller.
 
-      Treat missing, corrupt, or incompatible history as unavailable evidence rather
-      than a compilation failure.
+      On cache read or runtime failure, return CompilationHistoryLookupResult with no
+      prior evidence and one CompilationHistoryWarning.
+
+      Treat missing, corrupt, incompatible, or host-unreadable history as unavailable
+      evidence rather than a compilation failure.
     }
   }
 
@@ -54,6 +72,10 @@ expand SigilCompilationHistoryStore {
 
       Retain only complete CompilationReport values and never treat cached history as
       human approval or durable project authority.
+
+      Warning delivery belongs to the compiler host boundary. The history store only
+      returns structured warnings and never selects stderr, logging, callback, or
+      presentation behavior.
     }
   }
 
@@ -88,8 +110,8 @@ expand SigilCompilationHistoryStore {
       retention.
 
       Consequences: Completed runs can derive lifecycle state without making local
-      history durable project authority. Cache-write failure remains an observable
-      host warning rather than an authoritative compilation failure.
+      history durable project authority. Cache-read and cache-write failure remain
+      observable host warnings rather than authoritative compilation failures.
     }
 
     DefaultCompilationHistory {
@@ -128,8 +150,12 @@ expand SigilCompilationHistoryStore {
       Corrupt or incompatible history supplies no prior evidence and does not prevent
       completion.
 
+      Cache read or runtime failure reports a non-authoritative host warning,
+      supplies no prior evidence, and does not prevent completion.
+
       Replacement failure preserves the prior cache and reports a host warning
-      without changing its caller's authoritative outcome.
+      through CompilationHistoryWarning without changing its caller's authoritative
+      outcome.
     }
   }
 }

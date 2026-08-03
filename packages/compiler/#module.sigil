@@ -65,10 +65,32 @@ component SigilCompiler {
 
       cancellationSignal is optional; reportExport optionally requests
       CompilationReportExport
+
+      hostWarningSink is an optional callback receiving each non-authoritative
+      CompilationHistoryWarning; when omitted, compilation preserves settlement but
+      does not externally deliver those warnings
     }
 
     CompilationTarget {
-      a component is the primary compilation unit
+      CompilationTarget is a tagged union of component, file, location, and workspace
+
+      a component target contains kind component, an exact case-sensitive component
+      name, and an optional normalized workspace-relative declarationPath
+
+      a file target contains kind file and one normalized workspace-relative loaded
+      Sigil filePath
+
+      a location target contains kind location, one normalized workspace-relative
+      loaded Sigil filePath, and a source position
+
+      a workspace target contains kind workspace and no additional selector
+
+      name-only component selection must resolve exactly one loaded declaration;
+      declarationPath, filePath, and location targets must remain inside the selected
+      workspace and resolve through its loaded source selection
+
+      missing, ambiguous, excluded, outside-workspace, or identity-mismatched targets
+      reject with COMPILER_INVALID_INVOCATION before evaluation
 
       a location target identifies one file-backed source position and resolves the
       enclosing component or expand to one exact component identity
@@ -80,9 +102,13 @@ component SigilCompiler {
       opening and closing delimiter characters are inside the selectable range, while
       the position immediately after the closing delimiter is outside
 
-      a file target resolves to every component represented by that file
+      a file target resolves to every component declared by that file plus every
+      parent component represented by an expand in that file, deduplicated by exact
+      component identity
 
-      a workspace target resolves to a dependency-aware collection of components
+      a workspace target resolves to every component declaration loaded by the
+      selected configured workspace and schedules that complete set through its
+      dependency graph
 
       component evaluation requires inspection of matching expands, relevant
       dependencies and importers, glossary context, and implementation evidence

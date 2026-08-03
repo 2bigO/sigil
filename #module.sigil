@@ -42,7 +42,7 @@ component Sigil {
       keeps command-line and language-server operations from modifying .sigil source
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       provides a host-neutral agent workflow for design clarification, semantic
       review, explicit approval, and Sigil-guided implementation
     }
@@ -70,7 +70,7 @@ expand Sigil {
       and diagnostic facts shared by toolchain surfaces.
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       The host skill applies semantic judgment, conducts design and review
       conversations, and uses ReviewGate for scoped approval of Sigil changes and
       implementation.
@@ -113,7 +113,7 @@ expand Sigil {
       modifying .sigil source.
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       Host-assisted semantic judgment remains outside deterministic core packages.
 
       The review workflow remains host-neutral and requires explicit human approval
@@ -160,7 +160,7 @@ expand Sigil {
       derived from the same core contracts.
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       A material semantic change remains unedited until the exact Sigil proposal
       receives explicit human approval.
     }

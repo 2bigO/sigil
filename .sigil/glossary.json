@@ -433,6 +433,36 @@
       ]
     },
     {
+      "term": "owner-private session",
+      "definition": "A compiler session whose filesystem access is restricted to the creating operating-system user; its identifier alone grants no authority.",
+      "aliases": [
+        "owner-private sessions"
+      ]
+    },
+    {
+      "term": "base epoch",
+      "definition": "The immutable selected-workspace snapshot identity against which proposal generations are evaluated; refresh commits a new epoch and clears generation and report history.",
+      "aliases": [
+        "base epochs",
+        "baseEpoch"
+      ]
+    },
+    {
+      "term": "manual-recovery-required",
+      "definition": "A terminal state entered when cleanup authority cannot be verified; automatic mutation and deletion remain disabled while read-only status may identify required operator recovery.",
+      "aliases": [
+        "manual recovery required"
+      ]
+    },
+    {
+      "term": "success linearization point",
+      "definition": "The instant after which cancellation no longer changes a one-shot compilation outcome.",
+      "aliases": [
+        "success linearization points",
+        "compilation success linearization point"
+      ]
+    },
+    {
       "term": "agent adapter",
       "definition": "A provider integration that executes bounded evaluation requests and declares enforceable capabilities without owning compiler semantics.",
       "aliases": [
@@ -492,7 +522,7 @@
       "terms": [
         {
           "term": "semantic readiness",
-          "definition": "A provisional skill-assessed state indicating that no unresolved material semantic, architectural, or design problem remains within the reviewed Sigil scope.",
+          "definition": "A provisional compiler-stage assessment of semantic contract coherence and completeness within the exact evaluated scope. It is distinct from architecture-design, remains evidence rather than approval, and is consumed by the host workflow.",
           "aliases": [
             "semantic-readiness",
             "semantic readiness review",
