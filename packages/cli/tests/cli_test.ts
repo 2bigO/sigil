@@ -149,7 +149,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   ]);
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
-  assertEquals(json.cliVersion, "0.7.0");
+  assertEquals(json.cliVersion, "0.7.1");
   assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
@@ -1809,7 +1809,7 @@ Deno.test("usage errors include help for the longest recognized command path", a
 Deno.test("version flag reports CLI information", async () => {
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
-  assertEquals(version.stdout, "0.7.0\n");
+  assertEquals(version.stdout, "0.7.1\n");
   assertEquals(version.stderr, "");
 });
 
@@ -1999,7 +1999,7 @@ Deno.test("executable subprocess returns version JSON", async () => {
   assertEquals(output.code, EXIT_OK);
   assertEquals(
     JSON.parse(new TextDecoder().decode(output.stdout)).cliVersion,
-    "0.7.0",
+    "0.7.1",
   );
 });
 

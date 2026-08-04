@@ -1,6 +1,6 @@
 # sigil-core
 
-Current package version: **0.7.0**. Import with:
+Current package version: **0.7.1**. Import with:
 
 ```ts
 import { parseSigilDocument } from "jsr:@qoherent/sigil-core@0.7";

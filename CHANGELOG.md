@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.7.1 - 2026-08-04
+
+- Advance the core, compiler, CLI, LSP, VS Code extension, and coding-agent
+  skill artifacts to 0.7.1 over the Sigil Language and configuration contract
+  0.6.0.
+- Add implementation-ownership discovery with exact component and concept
+  targets, source ranges, cross-language entrypoint resolution, resilient
+  diagnostics, CLI projections, LSP hover/navigation, and watched-file
+  invalidation.
+- Add the compiler workflow with design and implementation focus, semantic
+  readiness and architecture evaluations, structured reports, lifecycle
+  statuses, persisted sessions and history, and proposal workspaces with
+  ReviewGate-aware materialization.
+- Add Markdown and JSON context assembly for direct dependencies, importing
+  files, implementation ownership, bounded sources, and stable diagnostics.
+- Add `sigil retrieve` for deterministic purpose-specific graph selection and
+  aggregated compilation context, including stable evidence identifiers,
+  fingerprints, dependency boundaries, and strongly connected component groups.
+- Add compiler-facing retrieval envelopes so evaluators consume one selected
+  context instead of independently traversing the workspace graph.
+- Extend graph and resolver diagnostics for cross-file expands, component
+  imports, duplicate identities, unreadable implementation sources, and
+  platform-independent path handling.
+- Complete the Sigil 0.6 semantic-unit and formatter tooling integration,
+  including reviewed glossary projections, concept identity reuse, Markdown
+  rendering, and deterministic formatting checks.
+- Add VS Code compilation commands and the validated JSONL bridge over the
+  external compatible Sigil CLI.
+
 ## Unreleased
 
 - Advance the Sigil Language and configuration contract to 0.6.0.
