@@ -14,8 +14,6 @@ export type CommandRunner = (
   signal?: AbortSignal,
 ) => Promise<string>;
 
-const MAX_AGENT_INPUT_CHARS = 120_000;
-
 const defaultRunner: CommandRunner = async (command, args, input, signal) => {
   const child = new Deno.Command(command, {
     args: [...args],
@@ -59,9 +57,9 @@ export class CodexAdapter implements AgentAdapter {
   ): Promise<AgentEvaluationResult> {
     assertCapabilityContract(this, request);
     const prompt = evaluationPrompt(request);
-    if (prompt.length > MAX_AGENT_INPUT_CHARS) {
+    if (prompt.length > request.maxInputChars) {
       throw new Error(
-        `Agent request is ${prompt.length} characters, exceeding the ${MAX_AGENT_INPUT_CHARS}-character safety limit.`,
+        `Agent request is ${prompt.length} characters, exceeding the ${request.maxInputChars}-character safety limit.`,
       );
     }
 

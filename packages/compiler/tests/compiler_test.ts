@@ -873,7 +873,12 @@ Deno.test("workspace configuration overrides compiler execution budgets", async 
 `,
     {},
     {
-      budgets: { maxCommandOutputChars: 500_000 },
+      budgets: { maxCommandOutputChars: 3_000_000 },
+      limits: {
+        maxCompilationRequestChars: 1_500_000,
+        maxAgentInputChars: 1_250_000,
+        sessionTtlMs: 172_800_000,
+      },
     },
   );
   try {
@@ -885,12 +890,15 @@ Deno.test("workspace configuration overrides compiler execution budgets", async 
         return [];
       }),
     });
-    assertEquals(observedBudget, 500_000);
+    assertEquals(observedBudget, 3_000_000);
     assertEquals(
       report.profile.executionBudgets.maxCommandOutputChars,
-      500_000,
+      3_000_000,
     );
-    assertEquals(report.profile.executionBudgets.maxCommands, 64);
+    assertEquals(report.profile.executionBudgets.maxCommands, 512);
+    assertEquals(report.profile.contextBudgetChars, 1_500_000);
+    assertEquals(report.profile.agentInputBudgetChars, 1_250_000);
+    assertEquals(report.profile.limits.sessionTtlMs, 172_800_000);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -907,7 +915,7 @@ Deno.test("invalid compiler execution budgets fail before evaluation", async () 
 `,
     {},
     {
-      budgets: { maxCommandOutputChars: 10_000_001 },
+      budgets: { maxCommandOutputChars: 0 },
     },
   );
   try {
@@ -918,7 +926,7 @@ Deno.test("invalid compiler execution budgets fail before evaluation", async () 
           adapter: new MockAdapter(),
         }),
       Error,
-      "must be a positive integer no greater than 10000000",
+      "must be a positive safe integer",
     );
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -1018,6 +1026,7 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
         allowedCommands: ["sigil check"],
         forbiddenCommands: ["sigil compile"],
       },
+      maxInputChars: 1_000_000,
       budgets: {
         elapsedTimeMs: 30_000,
         maxCommands: 10,
@@ -1109,6 +1118,7 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
             allowedCommands: ["rg", "sigil check"],
             forbiddenCommands: ["sigil compile"],
           },
+          maxInputChars: 1_000_000,
           budgets: {
             elapsedTimeMs: 30_000,
             maxCommands: 10,
@@ -1208,6 +1218,12 @@ Deno.test("durable compilation sessions refresh and close without a daemon", asy
             name: "standard",
             criticalSystem: false,
             contextBudgetChars: 1,
+            agentInputBudgetChars: 1,
+            limits: {
+              maxCompilationRequestChars: 1,
+              maxAgentInputChars: 1,
+              sessionTtlMs: 1,
+            },
             executionBudgets: {
               elapsedTimeMs: 1,
               maxCommands: 1,

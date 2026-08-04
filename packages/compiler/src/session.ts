@@ -15,7 +15,7 @@ import type {
   CompilationSessionRefreshResult,
 } from "./types.ts";
 
-const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_SESSION_TTL_MS = 86_400_000;
 
 export interface SessionEvaluationOptions {
   readonly cancellationSignal?: AbortSignal;
@@ -29,6 +29,7 @@ export class SigilCompilationSession {
     private readonly store: FileCompilationSessionStore =
       new FileCompilationSessionStore(),
     private readonly compiler: typeof compile = compile,
+    private readonly sessionTtlMs = DEFAULT_SESSION_TTL_MS,
   ) {}
 
   async evaluate(
@@ -72,7 +73,7 @@ export class SigilCompilationSession {
       const record: CompilationSessionRecord = {
         ...opened.record,
         lifecycle: "active",
-        expiresAt: nextExpiry(),
+        expiresAt: nextExpiry(this.sessionTtlMs),
         generation: generation.generation,
         proposalFingerprint: generation.proposalFingerprint,
         proposalWorkspace: workspace.persistedState(),
@@ -122,7 +123,7 @@ export class SigilCompilationSession {
       const record: CompilationSessionRecord = {
         ...opened.record,
         lifecycle: "active",
-        expiresAt: nextExpiry(),
+        expiresAt: nextExpiry(this.sessionTtlMs),
         baseEpoch: opened.record.baseEpoch + 1,
         baseFingerprint: replacement.baseFingerprint,
         proposalWorkspace: replacement.workspace.persistedState(),
@@ -183,8 +184,8 @@ function assertUsable(record: CompilationSessionRecord): void {
   }
 }
 
-function nextExpiry(): string {
-  return new Date(Date.now() + SESSION_TTL_MS).toISOString();
+function nextExpiry(ttlMs: number): string {
+  return new Date(Date.now() + ttlMs).toISOString();
 }
 
 class SessionHistoryStore implements CompilationHistoryStore {

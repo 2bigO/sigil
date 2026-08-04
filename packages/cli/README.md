@@ -96,7 +96,16 @@ Configure agentic compilation under `tools.compile`:
         "provider": "codex"
       },
       "budgets": {
-        "maxCommandOutputChars": 500000
+        "elapsedTimeMs": 1800000,
+        "maxCommands": 512,
+        "maxCommandOutputChars": 3000000,
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 1000000
+      },
+      "limits": {
+        "maxCompilationRequestChars": 1000000,
+        "maxAgentInputChars": 1000000,
+        "sessionTtlMs": 86400000
       }
     }
   }

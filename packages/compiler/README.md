@@ -71,8 +71,8 @@ lifecycle as new, unchanged, resolved, or regressed. History is compatible only
 for the same workspace, target, report version, and effective profile. Corrupt
 or incompatible entries are ignored.
 
-Execution budgets have safe built-in defaults and may be increased or reduced
-for a workspace under `tools.compile.budgets`:
+Execution budgets, validation ceilings, request limits, and proposal-session
+retention are configurable under `tools.compile`:
 
 ```json
 {
@@ -84,11 +84,18 @@ for a workspace under `tools.compile.budgets`:
         "maxCommandOutputChars": 500000,
         "maxInputTokens": 200000,
         "maxOutputTokens": 200000
+      },
+      "limits": {
+        "maxCompilationRequestChars": 1000000,
+        "maxAgentInputChars": 1000000,
+        "sessionTtlMs": 86400000
       }
     }
   }
 }
 ```
 
-Every value must be a positive integer. The compiler validates hard safety
-ceilings before starting an evaluator.
+Every value must be a positive safe integer. `budgets` selects effective
+execution values and `limits` controls request size and proposal-session
+retention. Omitted fields retain the
+backward-compatible defaults.

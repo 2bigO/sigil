@@ -2109,6 +2109,12 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
       name: "standard",
       criticalSystem: false,
       contextBudgetChars: 900_000,
+      agentInputBudgetChars: 900_000,
+      limits: {
+        maxCompilationRequestChars: 900_000,
+        maxAgentInputChars: 900_000,
+        sessionTtlMs: 86_400_000,
+      },
       executionBudgets: {
         elapsedTimeMs: 180_000,
         maxCommands: 64,
@@ -2199,6 +2205,12 @@ Deno.test("compile delegates design and implementation focus to the compiler", a
       name: "standard",
       criticalSystem: false,
       contextBudgetChars: 1,
+      agentInputBudgetChars: 1,
+      limits: {
+        maxCompilationRequestChars: 1,
+        maxAgentInputChars: 1,
+        sessionTtlMs: 1,
+      },
       executionBudgets: {
         elapsedTimeMs: 1,
         maxCommands: 1,

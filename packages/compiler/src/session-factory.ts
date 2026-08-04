@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
-import { compile } from "./compiler.ts";
+import {
+  compile,
+  loadCompilationConfiguration,
+  resolveCompilationSettings,
+} from "./compiler.ts";
 import { SigilProposalWorkspace } from "./proposal-workspace.ts";
 import { FileCompilationSessionStore } from "./session-store.ts";
 import { SigilCompilationSession } from "./session.ts";
@@ -30,6 +34,8 @@ export class SigilCompilationSessionFactory {
     focus: CompilationFocus,
   ): Promise<CompilationSessionCreation> {
     validateInvocation(target, profileName, focus);
+    const configuration = await loadCompilationConfiguration(workspacePath);
+    const settings = resolveCompilationSettings(configuration);
     await compile(workspacePath, target, {
       profile: profileName,
       requestedStage: "deterministic-foundation",
@@ -40,7 +46,9 @@ export class SigilCompilationSessionFactory {
       resolve(workspacePath),
       identity,
     );
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + settings.limits.sessionTtlMs,
+    ).toISOString();
     const record: CompilationSessionRecord = {
       version: 1,
       sessionIdentity: identity,
@@ -62,7 +70,12 @@ export class SigilCompilationSessionFactory {
       throw error;
     }
     return {
-      session: new SigilCompilationSession(identity, this.store),
+      session: new SigilCompilationSession(
+        identity,
+        this.store,
+        compile,
+        settings.limits.sessionTtlMs,
+      ),
       result: {
         sessionIdentity: identity,
         baseEpoch: 1,

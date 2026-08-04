@@ -30,7 +30,7 @@ component SigilCore {
       or diagnostics
     }
 
-    GlossaryInterpretation {
+    GlossaryParsing {
       parseSigilGlossary(source, filePath?) returns validated authoritative glossary
       data or diagnostics
     }
@@ -74,11 +74,7 @@ component SigilCore {
     }
 
     GlossaryInspection {
-      glossaryProjectionForWorkspace(workspace) returns resolved contexts, entries,
-      occurrences, and diagnostics
-
-      glossaryContextForFiles(projection, filePaths) returns the authoritative
-      glossary subset relevant to selected source files
+      asd
     }
 
     CoreData {

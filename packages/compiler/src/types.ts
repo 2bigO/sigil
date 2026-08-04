@@ -111,6 +111,8 @@ export interface EffectiveProfile {
   readonly name: string;
   readonly criticalSystem: boolean;
   readonly contextBudgetChars: number;
+  readonly agentInputBudgetChars: number;
+  readonly limits: CompilationLimits;
   readonly executionBudgets: AgentExecutionBudgets;
   readonly stages: readonly {
     readonly id: string;
@@ -294,6 +296,7 @@ export interface AgentEvaluationRequest {
   readonly target: AgentEvaluationTarget;
   readonly capabilities: AgentCapabilityContract;
   readonly budgets: AgentExecutionBudgets;
+  readonly maxInputChars: number;
   readonly signal?: AbortSignal;
 }
 
@@ -338,6 +341,7 @@ export interface AgentAdapter {
 export interface CompileConfiguration {
   readonly defaultProfile?: string;
   readonly budgets?: Partial<AgentExecutionBudgets>;
+  readonly limits?: Partial<CompilationLimits>;
   readonly adapter?: {
     readonly provider: "codex" | "claude";
     readonly model?: string;
@@ -355,6 +359,12 @@ export interface CompileConfiguration {
       readonly evaluatorIds?: readonly string[];
     }>
   >;
+}
+
+export interface CompilationLimits {
+  readonly maxCompilationRequestChars: number;
+  readonly maxAgentInputChars: number;
+  readonly sessionTtlMs: number;
 }
 
 export interface EvaluatorConfiguration {

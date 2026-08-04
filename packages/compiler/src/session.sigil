@@ -168,9 +168,10 @@ expand SigilCompilationSession {
       Ownership-unverified requires manual recovery; other cleanup failure preserves
       evidence without permitting reuse.
 
-      Set expiresAt to twenty-four hours after successful session creation. Reset it
-      to twenty-four hours after every accepted evaluate or refresh settles,
-      including cancellation or proposal, workspace-condition, or host rejection.
+      Set expiresAt to the configured session TTL after successful session creation.
+      Reset it to the configured session TTL after every accepted evaluate or refresh
+      settles, including cancellation or proposal, workspace-condition, or host
+      rejection.
 
       At or beyond expiresAt, expire before accepting another operation. If an
       operation acquired its lease before expiresAt, let it settle, reset expiresAt,
@@ -247,14 +248,15 @@ expand SigilCompilationSession {
     }
 
     ProposalSessionExpiry {
-      Decision: Expire an inactive proposal session after twenty-four hours and retry
-      abandoned-session cleanup through SigilProposalWorkspace during later session
-      management.
+      Decision: Expire an inactive proposal session after the configured session TTL
+      and retry abandoned-session cleanup through SigilProposalWorkspace during later
+      session management.
 
       Scope: Governs local proposal sessions; excludes active evaluations and
       ordinary compilation history.
 
-      Assumptions: A design conversation ordinarily resumes within one day.
+      Assumptions: The workspace chooses a retention interval appropriate for its
+      design-conversation duration and temporary-content exposure.
 
       Trade-offs: Resumability retains confidential temporary contents and disk usage
       longer.

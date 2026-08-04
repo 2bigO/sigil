@@ -35,7 +35,9 @@ import {
 import type {
   AgentAdapter,
   AgentCapabilityContract,
+  AgentExecutionBudgets,
   AgentFinding,
+  CompilationLimits,
   CompilationReport,
   CompilationTarget,
   CompileConfiguration,
@@ -54,21 +56,18 @@ interface StageDefinition {
   readonly skill?: EvaluationSkillPackage;
 }
 
-const MAX_COMPILATION_REQUEST_CHARS = 120_000;
 const DEFAULT_EXECUTION_BUDGETS = {
-  elapsedTimeMs: 180_000,
-  maxCommands: 64,
-  maxCommandOutputChars: 200_000,
-  maxInputTokens: 200_000,
-  maxOutputTokens: 200_000,
-} as const;
-const MAXIMUM_EXECUTION_BUDGETS = {
   elapsedTimeMs: 1_800_000,
   maxCommands: 512,
-  maxCommandOutputChars: 10_000_000,
-  maxInputTokens: 2_000_000,
-  maxOutputTokens: 2_000_000,
+  maxCommandOutputChars: 3_000_000,
+  maxInputTokens: 1_000_000,
+  maxOutputTokens: 1_000_000,
 } as const;
+const DEFAULT_LIMITS: CompilationLimits = {
+  maxCompilationRequestChars: 1_000_000,
+  maxAgentInputChars: 1_000_000,
+  sessionTtlMs: 86_400_000,
+};
 const INSPECTION_CAPABILITIES: AgentCapabilityContract = {
   workspaceAccess: "read-only",
   network: false,
@@ -133,6 +132,15 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
     await visit(root);
     return files.sort();
   }
+}
+
+export async function loadCompilationConfiguration(
+  startPath: string,
+): Promise<CompileConfiguration> {
+  const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
+    startPath,
+  });
+  return parseConfiguration(workspace.config?.tools.compile);
 }
 
 // @sigil implements packages/compiler/#module.sigil::SigilCompiler interface,logic,constraints,cases
@@ -288,6 +296,7 @@ export async function compile(
               ),
               capabilities: INSPECTION_CAPABILITIES,
               budgets: profile.executionBudgets,
+              maxInputChars: profile.agentInputBudgetChars,
               signal: cancellationSignal,
             };
             const requestSize = JSON.stringify(request, (_key, value) =>
@@ -516,8 +525,28 @@ function parseConfiguration(value: unknown): CompileConfiguration {
     throw new Error("tools.compile must be an object.");
   }
   const raw = value as Record<string, unknown>;
-  validateConfiguredBudgets(raw.budgets);
+  if (raw.budgets !== undefined) validateConfiguredBudgets(raw.budgets);
+  if (raw.limits !== undefined) validateConfiguredLimits(raw.limits);
   return raw as unknown as CompileConfiguration;
+}
+
+function validateConfiguredLimits(value: unknown): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("tools.compile.limits must be an object.");
+  }
+  const known = new Set(Object.keys(DEFAULT_LIMITS));
+  for (const [name, configured] of Object.entries(value)) {
+    if (!known.has(name)) {
+      throw new Error(
+        `tools.compile.limits contains unknown field ${JSON.stringify(name)}.`,
+      );
+    }
+    if (!Number.isSafeInteger(configured) || (configured as number) <= 0) {
+      throw new Error(
+        `tools.compile.limits.${name} must be a positive safe integer.`,
+      );
+    }
+  }
 }
 
 function validateConfiguredBudgets(value: unknown): void {
@@ -533,18 +562,28 @@ function validateConfiguredBudgets(value: unknown): void {
         `tools.compile.budgets contains unknown field ${JSON.stringify(name)}.`,
       );
     }
-    const maximum =
-      MAXIMUM_EXECUTION_BUDGETS[name as keyof typeof MAXIMUM_EXECUTION_BUDGETS];
     if (
       !Number.isSafeInteger(configured) ||
-      (configured as number) <= 0 ||
-      (configured as number) > maximum
+      (configured as number) <= 0
     ) {
       throw new Error(
-        `tools.compile.budgets.${name} must be a positive integer no greater than ${maximum}.`,
+        `tools.compile.budgets.${name} must be a positive safe integer.`,
       );
     }
   }
+}
+
+export function resolveCompilationSettings(
+  configuration: CompileConfiguration,
+): {
+  readonly budgets: AgentExecutionBudgets;
+  readonly limits: CompilationLimits;
+} {
+  const budgets = { ...DEFAULT_EXECUTION_BUDGETS, ...configuration.budgets };
+  validateConfiguredBudgets(budgets);
+  const limits = { ...DEFAULT_LIMITS, ...configuration.limits };
+  validateConfiguredLimits(limits);
+  return { budgets, limits };
 }
 
 async function effectiveProfile(
@@ -580,14 +619,14 @@ async function effectiveProfile(
     dependencies: stage.dependencies,
   }));
   const evaluators = selectedEvaluators(name, base, custom, configuration);
+  const settings = resolveCompilationSettings(configuration);
   const profileBase = {
     name,
     criticalSystem: base === "critical-system",
-    contextBudgetChars: MAX_COMPILATION_REQUEST_CHARS,
-    executionBudgets: {
-      ...DEFAULT_EXECUTION_BUDGETS,
-      ...configuration.budgets,
-    },
+    contextBudgetChars: settings.limits.maxCompilationRequestChars,
+    agentInputBudgetChars: settings.limits.maxAgentInputChars,
+    limits: settings.limits,
+    executionBudgets: settings.budgets,
     stages,
     adapter: configuration.adapter,
     evaluators,
@@ -605,6 +644,8 @@ async function effectiveProfile(
     name: profileBase.name,
     criticalSystem: profileBase.criticalSystem,
     contextBudgetChars: profileBase.contextBudgetChars,
+    agentInputBudgetChars: profileBase.agentInputBudgetChars,
+    limits: profileBase.limits,
     executionBudgets: profileBase.executionBudgets,
     stages: profileBase.stages,
     adapter: profileBase.adapter,
