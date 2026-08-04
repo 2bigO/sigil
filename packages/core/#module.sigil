@@ -74,7 +74,8 @@ component SigilCore {
     }
 
     GlossaryInspection {
-      asd
+      parseSigilGlossary(source, filePath?) returns validated authoritative glossary
+      data or diagnostics
     }
 
     CoreData {
