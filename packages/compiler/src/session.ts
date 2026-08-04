@@ -29,7 +29,7 @@ export class SigilCompilationSession {
     private readonly store: FileCompilationSessionStore =
       new FileCompilationSessionStore(),
     private readonly compiler: typeof compile = compile,
-    private readonly sessionTtlMs = DEFAULT_SESSION_TTL_MS,
+    private readonly sessionTtlMs: number = DEFAULT_SESSION_TTL_MS,
   ) {}
 
   async evaluate(

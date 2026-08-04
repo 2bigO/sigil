@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import * as vscode from "vscode";
@@ -98,13 +98,11 @@ export async function run(): Promise<void> {
     "sigil.compile",
     source,
   );
+  const folder = vscode.workspace.getWorkspaceFolder(source);
+  assert(folder, "The active Sigil document should belong to a workspace");
+  const compilerScriptPath = path.join(folder.uri.fsPath, "compile");
   try {
     const argumentsPath = path.join(fakeCompilerDirectory, "arguments.json");
-    const executablePath = path.join(fakeCompilerDirectory, "sigil");
-    const compilerScriptPath = path.join(
-      fakeCompilerDirectory,
-      "compiler.cjs",
-    );
     const report = {
       reportVersion: 2,
       status: "yellow",
@@ -141,25 +139,16 @@ export async function run(): Promise<void> {
 const fs = require("node:fs");
 fs.writeFileSync(${
         JSON.stringify(argumentsPath)
-      }, JSON.stringify(process.argv.slice(2)));
+      }, JSON.stringify([require("node:path").basename(process.argv[1]), ...process.argv.slice(2)]));
 console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:1,type:"started",payload:{}}));
 console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type:"completed",payload:{report:${
         JSON.stringify(report)
       }}}));
 `,
     );
-    await writeFile(
-      executablePath,
-      `#!/bin/sh
-exec "$SIGIL_TEST_NODE" ${JSON.stringify(compilerScriptPath)} "$@"
-`,
-    );
-    await chmod(executablePath, 0o755);
-    const folder = vscode.workspace.getWorkspaceFolder(source);
-    assert(folder, "The active Sigil document should belong to a workspace");
     await compileConfiguration.update(
       "executable",
-      executablePath,
+      testNode,
       vscode.ConfigurationTarget.Global,
     );
     await compileConfiguration.update(
@@ -234,6 +223,7 @@ exec "$SIGIL_TEST_NODE" ${JSON.stringify(compilerScriptPath)} "$@"
       undefined,
       vscode.ConfigurationTarget.Global,
     );
+    await rm(compilerScriptPath, { force: true });
     await rm(fakeCompilerDirectory, { recursive: true, force: true });
   }
 
