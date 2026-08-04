@@ -99,7 +99,7 @@ expand SigilDiagnostics {
 
       An unsupported configured language version produces SIGIL_UNSUPPORTED_VERSION.
 
-      An imports-only #module.sigil produces SIGIL_MODULE_WITHOUT_COMPONENT.
+      An imports-only _module.sigil produces SIGIL_MODULE_WITHOUT_COMPONENT.
 
       A contiguous ungrouped interface region produces warning
       SIGIL_MISSING_CONCEPT_IDENTIFIER.

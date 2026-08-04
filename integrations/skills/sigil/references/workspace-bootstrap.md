@@ -205,7 +205,7 @@ CLI exit codes:
 
 ### Existing Sigil, No Config
 
-The repository contains `architecture/api.sigil` and `#module.sigil` but no
+The repository contains `architecture/api.sigil` and `_module.sigil` but no
 governing `.sigil/config.json`. Inventory both paths and report the repository
 as unconfigured without mutation. If the user requests initialization, obtain
 `ReviewGate(action: workspace-initialization)` readiness for the exact root and

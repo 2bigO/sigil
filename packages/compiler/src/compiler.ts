@@ -143,7 +143,7 @@ export async function loadCompilationConfiguration(
   return parseConfiguration(workspace.config?.tools.compile);
 }
 
-// @sigil implements packages/compiler/#module.sigil::SigilCompiler interface,logic,constraints,cases
+// @sigil implements packages/compiler/_module.sigil::SigilCompiler interface,logic,constraints,cases
 export async function compile(
   workspacePath: string,
   target: CompilationTarget = { kind: "workspace" },

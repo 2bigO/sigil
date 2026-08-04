@@ -1,5 +1,5 @@
 @packages/core import { SigilCore, SigilContextRetrieval }
-@packages/compiler/#module.sigil import { SigilCompiler }
+@packages/compiler/_module.sigil import { SigilCompiler }
 
 expand SigilCompiler {
   logic {

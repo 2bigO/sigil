@@ -44,8 +44,8 @@ It must:
 - resolve `@path import { Name }` declarations from the workspace root;
 - read additional project roots exclusively from `workspace.members` in
   `.sigil/config.json`;
-- allow `#module.sigil` in any included directory and resolve its local and
-  directly imported names through directory imports;
+- allow `_module.sigil` in any included directory and resolve its local and
+  independently resolved imported names through converged directory imports;
 - preserve explicit-file import access to every public component regardless of
   module-index membership;
 - identify public components and matching expansions;
@@ -214,14 +214,19 @@ skipped by parents.
 
 Import paths begin with `@` and resolve from the workspace root.
 
-A directory import resolves to `#module.sigil` in the target directory. The
+A directory import resolves to `_module.sigil` in the target directory. The
 directory-import surface contains components declared locally in that index and
-components named by its successfully resolved direct imports. Workspace members
-do not grant or restrict module-index locations. A nested directory with its own
-`.sigil/config.json` is an excluded independent workspace rather than a member
-project.
+components named by its independently resolved imports. Chained and cyclic
+surfaces converge by declaration identity; repeated identities deduplicate and
+names with distinct identities remain absent. Diagnostics on one import or the
+local-component requirement do not discard unaffected names. Workspace members
+do not grant or restrict module-index locations. A nested directory with its
+own `.sigil/config.json` is an excluded independent workspace rather than a
+member project.
 
 A file import resolves to the exact `.sigil` file.
+The legacy `#module.sigil` basename is an ordinary source and has no
+directory-index behavior.
 
 Imported names must resolve to matching public `component Name` declarations.
 Components omitted from a module index remain importable through explicit file
@@ -229,7 +234,7 @@ paths.
 
 Every resolved imported name must have qualifying local use in `interface`,
 `state`, `logic`, `constraints`, or `cases`, through a matching local `expand`,
-or through direct `#module.sigil` surface exposure. Documentary mentions in
+or through direct `_module.sigil` surface exposure. Documentary mentions in
 `goal`, `decisions`, literal blocks, comments, and annotations do not count.
 
 ## 9. Acceptance Scenarios
@@ -242,7 +247,7 @@ Version 0.7 is acceptable when tests demonstrate that `sigil-core` can:
 - discover the repository `.sigil/config.json` from nested targets that remain
   in the root workspace;
 - discover Promise and Slotted through their independent example configs;
-- treat `examples/slotted/#module.sigil` as the Slotted workspace summary;
+- treat `examples/slotted/_module.sigil` as the Slotted workspace summary;
 - diagnose imports-only module indexes with `SIGIL_MODULE_WITHOUT_COMPONENT`;
 - preserve original declaration paths through module indexes for graphs and
   editors;

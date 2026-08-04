@@ -179,9 +179,9 @@ export function glossaryOccurrencesForDocument(
 }
 
 /*
- * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspectionFacade interface
+ * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspectionFacade interface
  * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
- * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspection logic,cases
+ * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspection logic,cases
  */
 export function glossaryProjectionForWorkspace(
   workspace: SigilWorkspace,
@@ -228,9 +228,9 @@ export function glossaryProjectionForWorkspace(
 }
 
 /*
- * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspectionFacade interface
+ * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspectionFacade interface
  * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
- * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspection logic,cases
+ * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspection logic,cases
  */
 export function glossaryContextForFiles(
   projection: GlossaryProjection,

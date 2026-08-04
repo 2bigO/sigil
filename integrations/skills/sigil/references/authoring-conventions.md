@@ -135,7 +135,7 @@ provide import, concept, glossary, or ownership evidence.
 
 Every resolved imported name needs a qualifying exact-case use in `interface`,
 `state`, `logic`, `constraints`, or `cases`, or a structural use through a
-matching local `expand` or `#module.sigil` surface. `goal`, `decisions`, and
+matching local `expand` or `_module.sigil` surface. `goal`, `decisions`, and
 literal blocks are documentary for import-use purposes.
 
 Use `sigil fmt <selected-path> --check` after approved edits. Apply `sigil fmt`
@@ -226,7 +226,7 @@ multiple implementations depend on it. Put implementation-specific expands
 beside the code they explain. Split files that describe owners in different
 directories without duplicating a public component declaration.
 
-Do not move a configured-boundary `#module.sigil`; its ordinary summary remains
+Do not move a configured-boundary `_module.sigil`; its ordinary summary remains
 at the workspace root or declared-member boundary. Internal module indexes may
 move with their owning directories.
 

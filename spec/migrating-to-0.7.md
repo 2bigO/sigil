@@ -3,6 +3,17 @@
 Sigil 0.7 tightens parsing and relationship resolution. Update
 `.sigil/config.json` from `0.6.0` to `0.7.0` only after reviewing these changes.
 
+## Module index filename
+
+Rename every reserved directory index from `#module.sigil` to `_module.sigil`
+and update direct source imports, ownership annotations, documentation links,
+and tooling configuration that names those files. `_module.sigil` is the sole
+reserved directory-index basename in 0.7.
+
+The legacy `#module.sigil` basename has no compatibility behavior. It remains
+an ordinary `.sigil` source and can be imported only by an explicit file path;
+a directory import never selects it.
+
 ## Imported concept identity
 
 An imported public concept now retains its provider identity only when an

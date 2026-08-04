@@ -1,7 +1,7 @@
 # Brownfield fixture
 
 The target repository contains implementation code but no `.sigil/config.json`
-or `#module.sigil`. The user asks a coding agent to add Sigil and then change one
+or `_module.sigil`. The user asks a coding agent to add Sigil and then change one
 existing component.
 
 Root documentation, manifests, executable configuration, and entrypoints suggest
@@ -30,7 +30,7 @@ Expected skill behavior:
    `state`, `logic`, `constraints`, `decisions`, and `cases`. Exclude secrets, incidental
    dependencies, low-level configuration, and task-specific details.
 8. Propose an exact meaningful ordinary summary component in the workspace-root
-   `#module.sigil`; keep it small by responsibility and include direct imports
+   `_module.sigil`; keep it small by responsibility and include direct imports
    only when they assemble intentional directory-import shorthand.
 9. Move independently owned state, operational logic, lifecycle behavior, and
    policy into components or expands beside their owners.

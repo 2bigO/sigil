@@ -209,7 +209,7 @@ expand SigilContextRetrieval {
       fabricated ImportUse.
 
       containing-module-index connects a selected component file to the nearest
-      loaded #module.sigil at or above its directory inside the same declared member;
+      loaded _module.sigil at or above its directory inside the same declared member;
       a component declared by that module index connects to the file itself.
 
       cycle-member consumes SigilGraphBuilder

@@ -70,7 +70,7 @@ export interface CompilationProcess {
   cancel(): void;
 }
 
-// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface interface,logic,constraints,cases
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface interface,logic,constraints,cases
 export function runCompilationProcess(
   executable: string,
   args: readonly string[],
@@ -243,7 +243,7 @@ export function componentAt(
   return owner?.name;
 }
 
-// @sigil implements integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
 export function diagnosticDisplayRange(
   diagnostic: CompilerDiagnostic,
 ): NonNullable<CompilerDiagnostic["range"]> | undefined {

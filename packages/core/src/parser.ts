@@ -394,7 +394,7 @@ export function parseSigilDocument(
   if (isModuleFile(filePath) && components.length === 0) {
     diagnostics.push(diagnostic(
       "SIGIL_MODULE_WITHOUT_COMPONENT",
-      "#module.sigil must declare at least one component.",
+      "_module.sigil must declare at least one component.",
       { filePath },
     ));
   }

@@ -29,7 +29,7 @@ import { buildSigilGraph } from "../src/graph.ts";
 import { resolveSigilRelationships } from "../src/resolver.ts";
 
 /*
- * @sigil tests packages/core/#module.sigil::SigilCore::PackageVersionOwnership constraints
+ * @sigil tests packages/core/_module.sigil::SigilCore::PackageVersionOwnership constraints
  * @sigil tests packages/core/src/model.sigil::SigilSemanticModel::SupportedLanguageVersion interface,constraints
  */
 Deno.test("separates the core artifact and language contract versions", () => {
@@ -299,7 +299,7 @@ Deno.test("shares supported implementation-source watcher patterns", () => {
   }
 });
 
-// @sigil tests packages/core/#module.sigil::SigilCore::DeterministicCore constraints,cases
+// @sigil tests packages/core/_module.sigil::SigilCore::DeterministicCore constraints,cases
 Deno.test("normalizes and walks POSIX and Windows paths", () => {
   assertEquals(normalizePath("/work/./sigil/../project"), "/work/project");
   assertEquals(
@@ -373,7 +373,7 @@ Deno.test("uses one-based UTF-16 source columns across CRLF input", () => {
 // @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexContents interface,constraints,cases
 Deno.test("requires every module index to declare a local component", () => {
   const parsed = parseSigilDocument(
-    "internal/#module.sigil",
+    "internal/_module.sigil",
     "@internal/contract.sigil import { Internal }\n",
     { sigilVersion: SIGIL_VERSION },
   );
@@ -382,11 +382,22 @@ Deno.test("requires every module index to declare a local component", () => {
   assertHasCode(parsed.diagnostics, "SIGIL_MODULE_WITHOUT_COMPONENT");
 
   const valid = parseSigilDocument(
-    "internal/#module.sigil",
+    "internal/_module.sigil",
     `@internal/contract.sigil import { Internal }\n\n${rootModule}`,
     { sigilVersion: SIGIL_VERSION },
   );
   assertNoErrors(valid.diagnostics);
+
+  const legacy = parseSigilDocument(
+    "internal/#module.sigil",
+    "@internal/contract.sigil import { Internal }\n",
+    { sigilVersion: SIGIL_VERSION },
+  );
+  assert(
+    !legacy.diagnostics.some((diagnostic) =>
+      diagnostic.code === "SIGIL_MODULE_WITHOUT_COMPONENT"
+    ),
+  );
 });
 
 /*
@@ -842,7 +853,7 @@ Deno.test("nested config below selected root is diagnosed and its subtree skippe
       "member/.sigil/config.json": configSource({
         workspace: { name: "member" },
       }),
-      "member/#module.sigil": rootModule,
+      "member/_module.sigil": rootModule,
     }),
     { startPath: ".", explicitRoot: "." },
   );
@@ -898,8 +909,8 @@ Deno.test("returns partial models and stable diagnostics for malformed Sigil", (
 Deno.test("resolves directory indexes independently of workspace members", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
-    "#module.sigil": rootModule,
-    "internal/#module.sigil":
+    "_module.sigil": rootModule,
+    "internal/_module.sigil":
       `@internal/contract.sigil import { Internal }\n\n${
         rootModule.replaceAll("Sigil", "InternalModule")
       }`,
@@ -909,7 +920,7 @@ Deno.test("resolves directory indexes independently of workspace members", async
       "@internal import { Internal }\n\ncomponent Consumer {\n  goal {\n    Consume.\n  }\n\n  interface {\n    run(Internal)\n  }\n}\n",
     "explicit-consumer.sigil":
       "@internal/private.sigil import { Private }\n\ncomponent ExplicitConsumer {\n  goal {\n    Consume a public component by file.\n  }\n\n  interface {\n    run(Private)\n  }\n}\n",
-    "facade/#module.sigil": `@internal import { Internal }\n\n${
+    "facade/_module.sigil": `@internal import { Internal }\n\n${
       rootModule.replaceAll("Sigil", "FacadeModule")
     }`,
     "facade-consumer.sigil":
@@ -942,7 +953,59 @@ Deno.test("resolves directory indexes independently of workspace members", async
   );
   assert(
     resolved.graph.fileEdges.some((edge) =>
-      edge.from === "consumer.sigil" && edge.to === "internal/#module.sigil"
+      edge.from === "consumer.sigil" && edge.to === "internal/_module.sigil"
+    ),
+  );
+});
+
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexFile interface,constraints,decisions,cases
+Deno.test("treats the legacy hash-prefixed module filename as an ordinary source", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "legacy/#module.sigil": rootModule.replaceAll("Sigil", "Legacy"),
+    "directory-consumer.sigil":
+      "@legacy import { Legacy }\n\ncomponent DirectoryConsumer {\n  goal {\n    Verify the legacy filename is not a directory index.\n  }\n\n  interface {\n    run(Legacy)\n  }\n}\n",
+    "explicit-consumer.sigil":
+      "@legacy/#module.sigil import { Legacy }\n\ncomponent ExplicitConsumer {\n  goal {\n    Import an ordinary legacy-named source explicitly.\n  }\n\n  interface {\n    run(Legacy)\n  }\n}\n",
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+
+  assertHasCode(resolved.diagnostics, "SIGIL_UNRESOLVED_IMPORT_PATH");
+  assert(
+    resolved.graph.importedComponentEdges.some((edge) =>
+      edge.sourceFile === "explicit-consumer.sigil" &&
+      edge.targetFile === "legacy/#module.sigil" &&
+      edge.componentName === "Legacy"
+    ),
+  );
+  assert(
+    !resolved.graph.importedComponentEdges.some((edge) =>
+      edge.sourceFile === "directory-consumer.sigil" &&
+      edge.componentName === "Legacy"
+    ),
+  );
+});
+
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexFile interface,cases
+Deno.test("does not resolve a module index excluded by source selection", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource({
+      files: { include: ["**/*.sigil"], exclude: ["auth/_module.sigil"] },
+    }),
+    "auth/_module.sigil": rootModule.replaceAll("Sigil", "Session"),
+    "consumer.sigil":
+      "@auth import { Session }\n\ncomponent Consumer {\n  goal {\n    Verify excluded indexes remain unavailable.\n  }\n\n  interface {\n    run(Session)\n  }\n}\n",
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+
+  assertHasCode(resolved.diagnostics, "SIGIL_UNRESOLVED_IMPORT_PATH");
+  assert(
+    !resolved.graph.importedComponentEdges.some((edge) =>
+      edge.sourceFile === "consumer.sigil" && edge.componentName === "Session"
     ),
   );
 });
@@ -951,7 +1014,7 @@ Deno.test("resolves directory indexes independently of workspace members", async
 Deno.test("does not add unnamed component dependencies to a module index", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
-    "internal/#module.sigil":
+    "internal/_module.sigil":
       `@internal/contract.sigil import { Internal }\n\n${
         rootModule.replaceAll("Sigil", "InternalModule")
       }`,
@@ -2503,11 +2566,11 @@ function workspaceFs(): InMemorySigilFileSystem {
     ".sigil/config.json": configSource({
       files: { include: ["**/*.sigil"], exclude: ["examples/**"] },
     }),
-    "#module.sigil": rootModule,
+    "_module.sigil": rootModule,
     "examples/slotted/.sigil/config.json": configSource({
       workspace: { name: "slotted" },
     }),
-    "examples/slotted/#module.sigil": slottedModule,
+    "examples/slotted/_module.sigil": slottedModule,
     "examples/slotted/auth.sigil": authSigil,
     "examples/slotted/user-profile.sigil": userProfileSigil,
   });

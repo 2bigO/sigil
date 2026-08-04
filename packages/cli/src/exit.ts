@@ -6,7 +6,7 @@ export const EXIT_USAGE = 2;
 export const EXIT_RUNTIME = 3;
 export const EXIT_CANCELLED = 130;
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
+// @sigil implements packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
 export function exitCodeForDiagnostics(
   diagnostics: readonly SigilDiagnostic[],
 ): number {

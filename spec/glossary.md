@@ -98,9 +98,8 @@ imports.
 
 ### Directory import
 
-An import path without a `.sigil` filename. It may target only the workspace
-root or a declared workspace member and resolves to that project root's
-`#module.sigil`.
+An import path without a `.sigil` filename. It resolves to the selected
+`_module.sigil` in the target workspace directory.
 
 ### Imported name
 
@@ -386,17 +385,20 @@ The project located at the workspace root.
 The directory containing one project: either the workspace root or a declared
 member root.
 
-### `#module.sigil`
+### `_module.sigil`
 
 The explicit directory-import index. It may appear in any included directory
 and must declare at least one local component. It makes its local components and
-directly imported component names resolvable through directory-import shorthand
-without changing component visibility.
+independently resolved imported component names available through
+directory-import shorthand without changing component visibility. The legacy
+`#module.sigil` basename is an ordinary source requiring an explicit file
+import.
 
 ### Directory-import surface
 
-The component names resolvable through a directory's `#module.sigil`: its local
-component declarations and successfully resolved names in its direct imports.
+The converged component names exposed through a directory's `_module.sigil`
+from local declarations and independently resolved imports after names with
+multiple declaration identities are excluded.
 
 ### Descriptive Sigil filename
 
@@ -1148,7 +1150,7 @@ An anchor whose target can no longer be located.
 | `SIGIL_UNKNOWN_SECTION` | A form contains a section name not allowed for that form. |
 | `SIGIL_MISSING_GOAL` | A component lacks its required `goal` section. |
 | `SIGIL_MISSING_INTERFACE` | A component lacks its required `interface` section. |
-| `SIGIL_MODULE_WITHOUT_COMPONENT` | A `#module.sigil` declares no local component. |
+| `SIGIL_MODULE_WITHOUT_COMPONENT` | A `_module.sigil` declares no local component. |
 | `SIGIL_UNRESOLVED_IMPORT_PATH` | An import path does not resolve to a loaded Sigil source. |
 | `SIGIL_UNRESOLVED_IMPORTED_COMPONENT` | An imported name is not declared as a component in the target source. |
 | `SIGIL_EXPAND_WITHOUT_COMPONENT` | An expand has no matching component declaration in the workspace. |
@@ -1180,7 +1182,7 @@ An anchor whose target can no longer be located.
 | --- | --- |
 | `.sigil/config.json` | Mandatory workspace configuration and workspace-boundary authority. |
 | `.sigil/glossary.json` | Optional reviewed workspace and bounded-context terminology authority. |
-| `#module.sigil` | Explicit directory-import index allowed in any included directory. |
+| `_module.sigil` | Explicit directory-import index allowed in any included directory. |
 | `.sigil/anchors.json` | Proposed committed sidecar for accepted anchors. |
 | `.sigil/runs/` | Proposed directory for immutable receipt review runs. |
 | `.sigil/latest.json` | Proposed pointer to the latest completed receipt run. |

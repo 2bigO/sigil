@@ -35,12 +35,15 @@ It can describe programming abstractions, user-facing modules, infrastructure bo
 
 Sigil source files use the `.sigil` extension.
 
-The directory-index filename is `#module.sigil`.
-It may appear in any included directory and defines the component names that
-resolve through directory-import shorthand for that directory.
+The directory-index filename is `_module.sigil`.
+It may appear in any directory where the file itself is selected by the
+workspace configuration and defines the component names that resolve through
+directory-import shorthand for that directory.
 It does not grant or restrict component visibility.
-Every `#module.sigil` must declare at least one local component; an imports-only
+Every `_module.sigil` must declare at least one local component; an imports-only
 index is invalid.
+The legacy `#module.sigil` filename is an ordinary Sigil source and is selected
+only by an explicit file import.
 
 A strict JSON `.sigil/config.json` is required at the workspace root.
 It selects the Sigil version and defines workspace file discovery. The config
@@ -63,26 +66,30 @@ export or re-export form.
 
 At configured workspace boundaries, the Brownfield workflow maintains ordinary
 project-summary components in the workspace-root and declared-member
-`#module.sigil` files. Those summaries use normal component and expand semantics;
+`_module.sigil` files. Those summaries use normal component and expand semantics;
 they have no special parser or resolver status. Internal directories may use
-`#module.sigil` as an index without a project summary, but the index still
+`_module.sigil` as an index without a project summary, but the index still
 declares at least one local component.
 
 ### Module indexes
 
-A directory import resolves to `#module.sigil` in the target directory. Its
+A directory import resolves to `_module.sigil` in the target directory. Its
 directory-import surface consists of:
 
-- components declared directly in that `#module.sigil`;
+- components declared directly in that `_module.sigil`;
 - component names successfully resolved by direct imports in that file.
 
-An imports-only `#module.sigil` produces
-`SIGIL_MODULE_WITHOUT_COMPONENT` while retaining its partial parsed document.
+An imports-only `_module.sigil` produces
+`SIGIL_MODULE_WITHOUT_COMPONENT` while retaining independently resolved names
+in its partial directory-import surface.
 
 Other files beneath the directory, unnamed dependencies of indexed components,
 and components imported only by those indexed files are not added implicitly.
 They remain public through explicit file imports. Explicit chains of module
-indexes may make the same component resolvable through several directory paths.
+indexes converge to a least fixed point, including through cycles. Contributions
+of the same declaration identity deduplicate. A name contributed by distinct
+declarations is absent from the exposed surface while unaffected names remain
+available.
 
 ### Workspace and project vocabulary
 
@@ -173,9 +180,9 @@ The `@` prefix resolves from the Sigil workspace root.
 
 Tools discover the workspace by walking upward from the current file or command target and selecting the nearest ancestor `.sigil/config.json` whose root is excluded by every higher configured workspace.
 An explicit root must contain `.sigil/config.json` directly.
-Missing configs and configs nested inside included paths are errors. Configs inside excluded subtrees define independent workspaces, and tools do not fall back to `#module.sigil` discovery.
+Missing configs and configs nested inside included paths are errors. Configs inside excluded subtrees define independent workspaces, and tools do not fall back to `_module.sigil` discovery.
 
-A directory import resolves to `#module.sigil` in the target directory.
+A directory import resolves to `_module.sigil` in the target directory.
 
 ```sigil
 @packages/cli import { SigilCli }
@@ -184,11 +191,11 @@ A directory import resolves to `#module.sigil` in the target directory.
 Given this file layout:
 
 ```text
-packages/cli/#module.sigil
+packages/cli/_module.sigil
 packages/cli/deno.json
 ```
 
-`@packages/cli import { SigilCli }` resolves through its `#module.sigil`.
+`@packages/cli import { SigilCli }` resolves through its `_module.sigil`.
 The directory does not need to be declared in `workspace.members`; the target
 module index only needs to be included in the selected workspace.
 
@@ -221,7 +228,7 @@ Import paths are normalized lexically from the workspace root. Backslashes becom
 slashes, repeated slashes and `.` segments collapse, and an internal `..` removes
 one preceding segment. A leading or excess `..` is outside-workspace traversal and
 remains unresolved. A normalized path ending in `.sigil` selects that exact file;
-other paths select the directory's `#module.sigil`.
+other paths select the directory's `_module.sigil`.
 
 Component names are unique across the workspace. When the same exact name is
 declared more than once, every declaration is retained and diagnosed, but that
@@ -603,10 +610,13 @@ A valid Sigil source file may contain one or more top-level forms.
 
 An `import` must specify a path and one or more names.
 
-An import path without a `.sigil` filename resolves to `#module.sigil` inside
-the target directory.
+An import path without a `.sigil` filename resolves to `_module.sigil` inside
+the target directory when that file is selected by workspace configuration.
 
 An import path with a `.sigil` filename resolves to that exact file.
+
+The legacy `#module.sigil` basename has no directory-index behavior and may be
+selected only through such an explicit file import.
 
 Import paths resolve from the Sigil workspace root.
 
@@ -623,14 +633,14 @@ source that declares it. The following count independently for each name:
 - an exact-case reference to one of the imported component's public concepts in
   those sections;
 - a local `expand` of the imported component;
-- direct exposure by a `#module.sigil` directory surface.
+- direct exposure by a `_module.sigil` directory surface.
 
 Mentions in `goal`, `decisions`, literal bodies, comments, annotations, other
 source files, differently cased words, or identifier substrings do not count.
 Each resolved unused name produces `SIGIL_UNUSED_IMPORT`. Unresolved or
 ambiguous names do not also produce that diagnostic.
 
-A `#module.sigil` must declare at least one local component.
+A `_module.sigil` must declare at least one local component.
 
 A `component` must contain `goal` and `interface`.
 
@@ -831,7 +841,7 @@ constraints {
 Larger examples live in:
 
 - `examples/promise/promise.sigil`
-- `examples/slotted/#module.sigil`
+- `examples/slotted/_module.sigil`
 - `examples/slotted/auth.sigil`
 - `examples/slotted/user-profile.sigil`
 

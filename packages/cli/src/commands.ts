@@ -25,16 +25,16 @@ export interface CommandHandlerOptions {
 }
 
 /**
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalogCommand interface
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallationCommand interface
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation logic,constraints,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspectionCommand interface
- * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormattingCommand interface
- * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillCatalogCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillCatalog logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallationCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallation logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspectionCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspection logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SourceFormattingCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SourceFormatting logic,constraints,cases
  */
 export async function runCommand(
   request: CommandRequest,
@@ -194,9 +194,9 @@ function workspaceRelative(root: string, path: string): string {
 }
 
 /*
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput logic,constraints
- * @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::MarkdownOutput logic,constraints
+ * @sigil implements packages/cli/_module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
  */
 async function contextCommand(
   request: ContextRequest,

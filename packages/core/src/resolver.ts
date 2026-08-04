@@ -863,7 +863,7 @@ function resolveImportUses(
 function resolveImportPath(root: string, importPath: string): string {
   const target = importPath.endsWith(".sigil")
     ? importPath
-    : joinPath(importPath, "#module.sigil");
+    : joinPath(importPath, "_module.sigil");
   return normalizePath(joinPath(root, target));
 }
 

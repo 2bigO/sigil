@@ -220,10 +220,10 @@ export interface CliRunOptions extends CommandHandlerOptions {
 }
 
 /**
- * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
- * @sigil implements packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CliInvocation interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
+ * @sigil implements packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
  */
 export async function runCli(
   argv: readonly string[],

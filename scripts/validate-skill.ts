@@ -1,7 +1,7 @@
 const root = "integrations/skills/sigil";
 const required = [
   "SKILL.md",
-  "#module.sigil",
+  "_module.sigil",
   "VERSION",
   "compatibility.json",
   "agents/openai.yaml",

@@ -2,7 +2,7 @@ import { sha256Canonical } from "./canonical.ts";
 import { diagnostic } from "./diagnostics.ts";
 import { stronglyConnectedComponentGroups } from "./graph.ts";
 import { ownedImplementationTargetsFor } from "./implementation-ownership.ts";
-import { basename, dirname, normalizePath, relativePath } from "./path.ts";
+import { dirname, normalizePath, relativePath } from "./path.ts";
 import type {
   EvidenceKind,
   EvidenceUnit,
@@ -1094,7 +1094,7 @@ function containingModuleComponent(
 ): ResolvedComponent | undefined {
   let directory = dirname(component.filePath);
   while (true) {
-    const modulePath = `${directory}/#module.sigil`;
+    const modulePath = `${directory}/_module.sigil`;
     const found = resolved.components.find((candidate) =>
       candidate.filePath === modulePath
     );

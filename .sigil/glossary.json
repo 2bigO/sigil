@@ -83,15 +83,15 @@
     },
     {
       "term": "ModuleIndexFile",
-      "definition": "An included #module.sigil file that defines intentional directory-import shorthand without controlling workspace membership or component visibility.",
+      "definition": "An included Sigil source whose language-reserved basename defines intentional directory-import shorthand without controlling workspace membership or component visibility.",
       "aliases": [
         "module index file",
-        "#module.sigil"
+        "_module.sigil"
       ]
     },
     {
       "term": "directory-import surface",
-      "definition": "The local components and successfully resolved directly imported names exposed by a ModuleIndexFile.",
+      "definition": "The converged component names exposed by a ModuleIndexFile from local declarations and independently resolved imports after names with multiple declaration identities are excluded.",
       "aliases": [
         "directory import surface"
       ]
@@ -614,7 +614,7 @@
       "include": [
         "spec/language.sigil",
         "packages/core/**/*.sigil",
-        "packages/cli/#module.sigil"
+        "packages/cli/_module.sigil"
       ],
       "exclude": [],
       "terms": [

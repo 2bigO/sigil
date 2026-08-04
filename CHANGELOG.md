@@ -31,6 +31,10 @@
 
 ## Unreleased
 
+- Rename the sole reserved directory-import index from `#module.sigil` to
+  `_module.sigil` for portable filenames and shell-safe unquoted paths; treat
+  the legacy filename as an ordinary explicitly importable Sigil source and
+  retain the Sigil Language contract at 0.7.0.
 - Advance the Sigil Language and configuration contract to 0.7.0 with
   matching-expand-only imported concept identity reuse, non-binding duplicate
   component names, deterministic import normalization and cycle diagnostics,

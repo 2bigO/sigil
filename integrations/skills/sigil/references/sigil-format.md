@@ -38,10 +38,14 @@ starting point, then read source files before editing them.
 
 Sigil source files use `.sigil`.
 
-The directory-index filename is `#module.sigil`. It may appear in any included
+The directory-index filename is `_module.sigil`. It may appear in any included
 directory and must declare at least one local component. Its local components
-and successfully resolved direct import names form that directory's import
-surface. An imports-only index produces `SIGIL_MODULE_WITHOUT_COMPONENT`.
+and independently resolved imported names form that directory's converged import
+surface. Repeated declaration identities deduplicate; conflicting identities
+leave the name unresolved without removing unaffected names. An imports-only
+index produces `SIGIL_MODULE_WITHOUT_COMPONENT` without discarding independently
+resolved names. The legacy `#module.sigil` basename is an ordinary source and
+requires an explicit file import.
 
 A strict JSON `.sigil/config.json` is mandatory at the workspace root. It selects
 Sigil version, provides `workspace.name`, declares
@@ -51,26 +55,26 @@ invalid.
 
 Sigil files should live as near as practical to the code they describe.
 Configured workspace boundaries use ordinary summary components in the
-workspace-root and declared-member `#module.sigil` files. Internal contracts
+workspace-root and declared-member `_module.sigil` files. Internal contracts
 use descriptive `.sigil` filenames, while internal directories may add a module
 index when they need import shorthand. If the main `component` must live
 elsewhere, a nearby `expand Name` may live beside the code it explains.
 
 When implementation establishes a clear owner directory, relocate a temporary
 Sigil file beside that implementation and update affected imports. Keep the
-configured-boundary `#module.sigil` in place. Internal module indexes may move
+configured-boundary `_module.sigil` in place. Internal module indexes may move
 with their owning directories. If a shared component contract cannot move,
 colocate its implementation-specific `expand Name` instead.
 
 ### Module indexes and boundary summaries
 
 Every component is public and may be imported through its explicit `.sigil`
-source path whether or not a module index names it. `#module.sigil` controls
+source path whether or not a module index names it. `_module.sigil` controls
 only which names resolve through a directory import. Sigil has no export or
 re-export form.
 
 For Brownfield adoption, each configured workspace boundary receives an
-ordinary summary component in its `#module.sigil`. Its `goal` and `interface`
+ordinary summary component in its `_module.sigil`. Its `goal` and `interface`
 describe that boundary, and a matching expand uses the general section meanings.
 This summary has no special parser or resolver status.
 
@@ -141,7 +145,7 @@ expand Name {
 ```
 
 `@packages/member import { ComponentName }` imports from that directory's
-`#module.sigil`, regardless of whether the directory is a declared member.
+`_module.sigil`, regardless of whether the directory is a declared member.
 `@sub/folder/auth.sigil import { Auth }` imports from `sub/folder/auth.sigil`.
 
 Importing `Name` makes the component's public `goal`, `interface`, and public
@@ -251,7 +255,7 @@ Import syntax:
 @path import { Name, OtherName }
 ```
 
-A path without a `.sigil` filename resolves to `#module.sigil` in the target
+A path without a `.sigil` filename resolves to `_module.sigil` in the target
 directory. A name resolves from that index's local components or successfully
 resolved direct imports. Components omitted from the index remain public through
 their explicit `.sigil` filenames. The `@` prefix resolves from the workspace
@@ -269,7 +273,7 @@ an imported-component dependency in `interface`.
 Every resolved imported name must have a qualifying exact-case use in its
 declaring source. Component names and imported public concepts count in
 `interface`, `state`, `logic`, `constraints`, or `cases`. A matching local
-`expand` and a direct `#module.sigil` surface import also count. Mentions in
+`expand` and a direct `_module.sigil` surface import also count. Mentions in
 `goal`, `decisions`, literal blocks, comments, annotations, other files,
 differently cased words, or identifier substrings do not count. An unused
 resolved name is a syntax error reported as `SIGIL_UNUSED_IMPORT`.
@@ -403,8 +407,8 @@ import-use, glossary, and ownership scanning.
 When reviewing Sigil, check:
 
 - Does every component explain why it exists?
-- Does every `#module.sigil` declare at least one local component?
-- Does each `#module.sigil` remain a concise architectural summary and
+- Does every `_module.sigil` declare at least one local component?
+- Does each `_module.sigil` remain a concise architectural summary and
   intentional namespace-assembly surface?
 - Are material state, operational logic, lifecycle behavior, and independently
   changing policy colocated with narrower owners?

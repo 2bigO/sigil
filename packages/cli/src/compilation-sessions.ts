@@ -14,7 +14,7 @@ export interface CompilationSessionHost {
   readonly signal?: AbortSignal;
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
+// @sigil implements packages/cli/_module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
 export async function startCompilationSession(
   workspacePath: string,
   target: CompilationTarget,

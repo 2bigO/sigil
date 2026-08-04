@@ -1051,13 +1051,14 @@ component SigilModuleIndex {
 
   interface {
     ModuleIndexFile {
-      filename: #module.sigil
+      filename: _module.sigil
 
-      location: any included directory in a Sigil workspace
+      location: any workspace directory where _module.sigil itself is selected and
+      loaded by ConfigFile source selection
     }
 
     DirectoryImportSurface {
-      a directory import @path resolves through @path/#module.sigil
+      a directory import @path resolves through @path/_module.sigil
 
       includes components declared directly in ModuleIndexFile
 
@@ -1118,29 +1119,78 @@ expand SigilModuleIndex {
 
       An explicit chain of module-index imports may make a component resolvable
       through multiple directory indexes.
+
+      Repeated surface contributions for the same component declaration identity
+      deduplicate. Distinct declarations cannot share an exact component name because
+      duplicated names remain unresolved; local and imported contributions have no
+      precedence.
+
+      An unresolved direct-import path contributes no names. A direct import with one
+      or more unresolved names still contributes every independently resolved name
+      from that declaration. Neither failure invalidates local names or names from
+      other independently resolved direct imports.
+
+      Resolve chained and cyclic surfaces to the least fixed point. For each name,
+      monotonically accumulate the set of distinct declaration identities contributed
+      across all reached indexes. Seed those sets with locally declared components
+      and independently resolved direct-file imports, then visit module-index imports
+      in source and declaration order until no identity set grows. After convergence,
+      expose a name only when its set contains exactly one identity; expose no name
+      for an empty or multiple-identity set. A cycle never synthesizes an unseeded
+      name.
     }
 
     ModuleIndexContents {
       Every ModuleIndexFile contains at least one local component declaration.
+
+      SIGIL_MODULE_WITHOUT_COMPONENT does not invalidate independently resolved
+      imported names in the partial directory-import surface.
     }
   }
 
   decisions {
+    ModuleIndexFile {
+      Decision: Reserve _module.sigil as the sole ModuleIndexFile basename and do not
+      interpret the legacy hash-prefixed module filename as a directory index.
+
+      Scope: Governs directory-index filename recognition and directory-import target
+      selection; excludes ordinary explicit .sigil file imports.
+
+      Trade-offs: Existing workspaces must rename every module index and update
+      direct source references before adopting this language version.
+
+      Design issues addressed: _module.sigil uses only the POSIX portable filename
+      character set and remains a literal shell word without quoting or escaping.
+
+      Discarded alternatives: Retaining the hash-prefixed filename with mandatory
+      shell quoting and accepting both basenames indefinitely were rejected.
+
+      Consequences: Directory imports resolve only through _module.sigil; the legacy
+      filename is interpreted as an ordinary Sigil source.
+
+      Revisit when: A future module-discovery mechanism replaces reserved index
+      filenames.
+    }
+
     DirectoryImportSurface {
       Decision: Use ModuleIndexFile as an explicit directory-import shorthand that
-      requires a local component and never controls component visibility.
+      requires a local component, never controls component visibility, and retains
+      the partial surface available after independently recoverable diagnostics.
 
       Scope: Governs directory-import resolution for included directories; excludes
       workspace discovery and export visibility.
 
       Trade-offs: Index authors maintain an intentional surface and cannot use
-      imports-only indexes.
+      imports-only indexes. A diagnostically invalid index may still expose names
+      whose declarations resolved independently.
 
-      Discarded alternatives: Root-only indexes, implicit subtree exports, and
-      module-index-controlled visibility were rejected.
+      Discarded alternatives: Root-only indexes, implicit subtree exports,
+      module-index-controlled visibility, and all-or-nothing invalidation after one
+      import or missing-local-component diagnostic were rejected.
 
       Consequences: Components omitted from an index remain accessible only through
-      explicit source imports.
+      explicit source imports. Callers may use unaffected names while diagnostics
+      continue to report every unresolved path, name, or required local component.
 
       Revisit when: Directory imports require explicit export or visibility
       semantics.
@@ -1149,10 +1199,10 @@ expand SigilModuleIndex {
 
   cases {
     DirectoryImportSurface {
-      @auth import { Session } resolves when auth/#module.sigil declares Session or
+      @auth import { Session } resolves when auth/_module.sigil declares Session or
       directly imports Session from another Sigil source.
 
-      @auth import { Session } is unresolved when auth/#module.sigil does not name
+      @auth import { Session } is unresolved when auth/_module.sigil does not name
       Session, while @auth/session.sigil import { Session } remains valid.
 
       @auth import { Store } is unresolved when Store is only a dependency of an
@@ -1160,13 +1210,42 @@ expand SigilModuleIndex {
 
       A directory without ModuleIndexFile produces SIGIL_UNRESOLVED_IMPORT_PATH.
 
-      A cyclic dependency involving ModuleIndexFile produces SIGIL_IMPORT_CYCLE,
-      retains its resolved import edges and names, and does not prevent resolution of
-      declarations outside the cycle.
+      Two mutually importing ModuleIndexFiles propagate locally declared and
+      direct-file-imported names around the cycle until the least fixed point. A name
+      with no such seed remains unresolved. The cycle produces SIGIL_IMPORT_CYCLE and
+      does not prevent declarations outside the cycle from resolving.
+
+      Repeated direct imports that expose the same component declaration contribute
+      that declaration once to the directory-import surface.
+
+      Distinct declarations with the same exact component name remain unresolved and
+      produce SIGIL_DUPLICATE_COMPONENT; that name is absent from the surface while
+      unaffected names remain available.
+
+      If an index first contributes one Session identity and a cyclic index later
+      contributes a distinct Session identity, convergence retains both identities,
+      removes Session from the exposed surfaces, and produces
+      SIGIL_DUPLICATE_COMPONENT.
+
+      If one name in a multi-name direct import is unresolved, every independently
+      resolved name from that declaration remains available through the partial
+      surface and the unresolved-name diagnostic remains on ModuleIndexFile.
+
+      An unresolved direct-import path contributes no names, while local components
+      and names from other resolved direct imports remain available.
+
+      A directory importer that requests a name absent from that partial surface
+      receives SIGIL_UNRESOLVED_IMPORTED_COMPONENT.
+
+      When auth/_module.sigil exists but ConfigFile source selection excludes it,
+      @auth import { Session } produces SIGIL_UNRESOLVED_IMPORT_PATH.
     }
 
     ModuleIndexContents {
-      An imports-only ModuleIndexFile produces SIGIL_MODULE_WITHOUT_COMPONENT.
+      An imports-only ModuleIndexFile produces SIGIL_MODULE_WITHOUT_COMPONENT while
+      an independently resolved imported name remains available through the partial
+      surface. A directory importer requesting any other name receives
+      SIGIL_UNRESOLVED_IMPORTED_COMPONENT.
     }
   }
 }

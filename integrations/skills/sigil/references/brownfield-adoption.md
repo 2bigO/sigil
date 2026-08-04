@@ -49,10 +49,10 @@ unsupported.
 Before focusing on the requested implementation task, inspect the workspace
 root and every path declared by `workspace.members`. Each configured boundary
 must have a meaningful, approved ordinary summary component in its
-`#module.sigil`. The component and any matching expand use normal Sigil forms
+`_module.sigil`. The component and any matching expand use normal Sigil forms
 and receive no special parser or resolver status.
 
-An internal `#module.sigil` outside a configured boundary is only a directory
+An internal `_module.sigil` outside a configured boundary is only a directory
 index and requires no project summary, but it still declares at least one local
 component. Do not infer additional summary boundaries from package manifests or
 arbitrary directory structure.
@@ -102,7 +102,7 @@ goal and interface as a separate decision.
 ### Propose Boundary Module Indexes
 
 After goal and interface confirmation, propose an ordinary summary component in
-each configured boundary's `#module.sigil`. A boundary module index may also
+each configured boundary's `_module.sigil`. A boundary module index may also
 directly import components that should resolve through its directory shorthand.
 Those imports do not grant visibility; every component remains public through
 its explicit `.sigil` path.

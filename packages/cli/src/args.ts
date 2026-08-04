@@ -147,8 +147,8 @@ export type ParseArgsResult = {
 } | UsageError;
 
 /*
- * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CliInvocation interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
  */
 export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (argv[0] === "--help") return { kind: "help", helpTopic: "root" };

@@ -22,7 +22,7 @@ ownership, dependency, coupling, decomposition, interface, namespace, or
 change-locality consequence. Do not assign numeric modularity scores or report
 subjective style preferences.
 
-Treat each `#module.sigil` as a concise architectural summary and intentional
+Treat each `_module.sigil` as a concise architectural summary and intentional
 namespace-assembly surface. It contains one local boundary summary and imports
 the cohesive components intended for shorthand. Its matching expand retains
 only architecture constraints and durable decisions that genuinely govern the

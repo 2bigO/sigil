@@ -76,7 +76,7 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
 });
 
 /*
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationInvocation interface
+ * @sigil tests packages/compiler/_module.sigil::SigilCompiler::CompilationInvocation interface
  * @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery logic,cases
  */
 Deno.test("compile discovers workspace config from a Sigil file path", async () => {
@@ -568,7 +568,7 @@ Deno.test("corrupt compilation history is ignored", async () => {
 });
 
 /*
- * @sigil tests packages/compiler/#module.sigil::SigilCompiler::CompilationTarget logic,cases
+ * @sigil tests packages/compiler/_module.sigil::SigilCompiler::CompilationTarget logic,cases
  * @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter logic,cases
  */
 Deno.test("workspace evaluation sends minimal direct-read targets in dependency order", async () => {

@@ -3,8 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 /*
- * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
- * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
+ * @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
+ * @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
  */
 test("manifest contributes the Sigil language, grammar, and preview command", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
@@ -60,8 +60,8 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
 });
 
 /*
- * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ExtensionPackage interface,constraints,cases
- * @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::ArtifactVersionOwnership constraints
+ * @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ExtensionPackage interface,constraints,cases
+ * @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ArtifactVersionOwnership constraints
  */
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
@@ -74,7 +74,7 @@ test("package command derives the VSIX filename from the manifest version", asyn
   );
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
 test("TextMate grammar colors syntax without treating capitalized prose as names", async () => {
   const grammar = JSON.parse(
     await readFile("syntaxes/sigil.tmLanguage.json", "utf8"),
@@ -100,7 +100,7 @@ test("TextMate grammar colors syntax without treating capitalized prose as names
   assert.equal(JSON.stringify(grammar).includes("comment"), false);
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
 test("manifest maps concept and glossary semantic tokens to a visible TextMate scope", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   assert.deepEqual(
@@ -115,7 +115,7 @@ test("manifest maps concept and glossary semantic tokens to a visible TextMate s
   );
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::EditorLanguageSupport logic,constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport logic,constraints,cases
 test("delegates ownership-source watching to server registration", async () => {
   const source = await readFile("src/extension.ts", "utf8");
   assert.equal(source.includes("createFileSystemWatcher"), false);
