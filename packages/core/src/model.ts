@@ -56,7 +56,7 @@ export type SigilDiagnosticCode =
   | "SIGIL_RETRIEVAL_IDENTITY_COLLISION"
   | "SIGIL_RETRIEVAL_EVIDENCE_SNAPSHOT_MISMATCH";
 
-export const SIGIL_VERSION = "0.6.0";
+export const SIGIL_VERSION = "0.7.0";
 export const SIGIL_CORE_VERSION = metadata.version;
 export const SIGIL_CONFIG_PATH = ".sigil/config.json" as const;
 export const SIGIL_GLOSSARY_PATH = ".sigil/glossary.json" as const;

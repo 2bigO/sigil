@@ -2,7 +2,7 @@
 
 **Status:** Accepted for 0.7.1 **Last updated:** 2026-08-04
 
-This document defines the 0.6 product requirements for `sigil-core`.
+This document defines the 0.7 product requirements for `sigil-core`.
 Architecture style, module boundaries, and dependency rules live in
 [architecture.md](architecture.md).
 

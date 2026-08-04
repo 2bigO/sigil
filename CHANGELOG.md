@@ -4,7 +4,7 @@
 
 - Advance the core, compiler, CLI, LSP, VS Code extension, and coding-agent
   skill artifacts to 0.7.1 over the Sigil Language and configuration contract
-  0.6.0.
+  0.7.0.
 - Add implementation-ownership discovery with exact component and concept
   targets, source ranges, cross-language entrypoint resolution, resilient
   diagnostics, CLI projections, LSP hover/navigation, and watched-file
@@ -31,7 +31,10 @@
 
 ## Unreleased
 
-- Advance the Sigil Language and configuration contract to 0.6.0.
+- Advance the Sigil Language and configuration contract to 0.7.0 with
+  matching-expand-only imported concept identity reuse, non-binding duplicate
+  component names, deterministic import normalization and cycle diagnostics,
+  normative recovery ranges, and UTF-16 source locations.
 - Make blank-line-delimited prose paragraphs the semantic unit so physical
   wrapping does not change semantic identity.
 - Reject each resolved imported name without a qualifying use; documentary

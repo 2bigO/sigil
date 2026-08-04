@@ -25,12 +25,16 @@ export interface CommandHandlerOptions {
 }
 
 /**
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation interface,logic,constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalogCommand interface
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallationCommand interface
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation logic,constraints,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
  * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspectionCommand interface
+ * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection logic,cases
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormattingCommand interface
+ * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting logic,constraints,cases
  */
 export async function runCommand(
   request: CommandRequest,

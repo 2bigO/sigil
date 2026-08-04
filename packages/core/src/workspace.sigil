@@ -36,7 +36,10 @@ component SigilWorkspaceLoader {
       workspaceSnapshotIdentity
     }
 
-    GlossaryInterpretation {
+    GlossaryInterpretationLoading {
+      GlossaryInterpretationLoading adapts GlossaryInterpretation into the workspace
+      loading surface.
+
       loadSigilWorkspace reads and validates optional GlossaryFile into
       SigilWorkspace
     }

@@ -1,8 +1,11 @@
 <!--
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDiscipline interface,constraints
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDisciplineGuidance interface
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDiscipline constraints
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::DecisionRationaleWorkflow interface,logic,constraints,cases
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemantics interface,logic,constraints,cases
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ModuleIndexFile interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemanticsGuidance interface
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemantics logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ModuleIndexFileGuidance interface
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ModuleIndexFile logic,constraints,cases
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ConceptIdentifierWorkflow interface,logic,constraints
 -->
 

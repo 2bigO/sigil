@@ -30,7 +30,7 @@ irm https://github.com/qoherent/sigil/releases/latest/download/install.ps1 | iex
 Alternatively, install the published JSR package when Deno is available:
 
 ```bash
-deno install --global --allow-read --allow-write --allow-env=HOME,USERPROFILE --name sigil jsr:@qoherent/sigil@0.6
+deno install --global --allow-read --allow-write --allow-env=HOME,USERPROFILE --name sigil jsr:@qoherent/sigil@0.7
 ```
 
 Local development install:

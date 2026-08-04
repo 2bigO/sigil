@@ -149,7 +149,10 @@ export class CoreAdapter {
     return resolveSigilWorkspace(await this.loadWorkspace(path, explicitRoot));
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+  /*
+   * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormattingCommand interface
+   * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting logic,constraints,cases
+   */
   async formatSources(
     path: string | undefined,
     explicitRoot: string | undefined,
@@ -405,7 +408,10 @@ export class CoreAdapter {
   ): ResolvedConceptNamespace | undefined {
     return conceptNamespaceFor(resolved, componentName);
   }
-  // @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+  /*
+   * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspectionCommand interface
+   * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection logic,cases
+   */
   glossaryContextForFiles(
     projection: GlossaryProjection,
     filePaths: readonly string[],

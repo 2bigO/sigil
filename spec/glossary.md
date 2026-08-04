@@ -54,7 +54,7 @@ project, or the platform; qualify it when ambiguity is possible.
 
 The versioned contract governing `.sigil` syntax, structure, sections, imports,
 workspace interpretation, and meaning. The current supported version is
-`0.6.0`.
+`0.7.0`.
 
 ### Sigil source
 

@@ -104,7 +104,10 @@ export function parseSigilGlossary(
   };
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolutionEngine interface
+ * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::ContextResolution logic,constraints,cases
+ */
 export function resolveGlossaryForFile(
   glossary: WorkspaceGlossary,
   filePath: string,
@@ -144,7 +147,10 @@ export function resolveGlossaryForFile(
   };
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognitionEngine interface
+ * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::TermRecognition logic,constraints,cases
+ */
 export function glossaryOccurrencesForDocument(
   context: ResolvedGlossaryContext,
   document: SigilDocument,
@@ -172,7 +178,11 @@ export function glossaryOccurrencesForDocument(
   return occurrences;
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspectionFacade interface
+ * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
+ * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspection logic,cases
+ */
 export function glossaryProjectionForWorkspace(
   workspace: SigilWorkspace,
 ): GlossaryProjection {
@@ -217,7 +227,11 @@ export function glossaryProjectionForWorkspace(
   };
 }
 
-// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspectionFacade interface
+ * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
+ * @sigil implements packages/core/#module.sigil::SigilCore::GlossaryInspection logic,cases
+ */
 export function glossaryContextForFiles(
   projection: GlossaryProjection,
   filePaths: readonly string[],

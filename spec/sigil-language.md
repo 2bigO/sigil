@@ -1,8 +1,8 @@
 # Sigil Language Specification
 
-**Sigil version:** 0.6.0
+**Sigil version:** 0.7.0
 **Status:** Accepted
-**Released:** 2026-07-30
+**Released:** 2026-08-04
 
 Sigil is a lightweight, rationale-oriented modeling language for software systems.
 It records what a system part is, why it exists, how it interacts with its surroundings, and which decisions should guide implementation.
@@ -217,6 +217,24 @@ An imported name must resolve to a `component Name` in the explicit source or
 the directory index's local declarations and direct imports.
 An import that resolves only to `expand Name` without `component Name` is unresolved.
 
+Import paths are normalized lexically from the workspace root. Backslashes become
+slashes, repeated slashes and `.` segments collapse, and an internal `..` removes
+one preceding segment. A leading or excess `..` is outside-workspace traversal and
+remains unresolved. A normalized path ending in `.sigil` selects that exact file;
+other paths select the directory's `#module.sigil`.
+
+Component names are unique across the workspace. When the same exact name is
+declared more than once, every declaration is retained and diagnosed, but that
+name binds no import, matching expand, or concept context. Each imported name in
+an import list is resolved and checked for use independently, including repeated
+entries.
+
+Missing paths are diagnosed in source and import-declaration order before missing
+names. Import cycles are then discovered depth first in source-discovery and
+import-edge order. Every edge returning to an active source produces one
+`SIGIL_IMPORT_CYCLE` diagnostic over the closing import declaration while resolved
+edges, names, and declarations outside the cycle remain available.
+
 ## 5. Components
 
 A `component` is the reusable public description of a system part.
@@ -358,7 +376,8 @@ component BookingCalendarView {
 
 ### `state`
 
-`state` describes meaningful configurations that persist or change during execution.
+`state` describes meaningful runtime or domain data, configurations, modes, and
+conditions that exist or change during execution.
 
 It is not storage layout.
 Database schema belongs in `state` only when the schema itself carries domain meaning.
@@ -490,10 +509,13 @@ collected expansion details.
 
 Imported public concepts enter the consumer's namespace as bare identifiers.
 Sigil deliberately provides no dotted notation, aliases, or local shadowing.
-Reusing an imported identifier keeps the concept's originating identity while
-the new semantic units remain contextual to the consumer. Reusing it in the
-consumer's `interface` re-exposes that same identity to downstream importers.
-Consumer occurrences never flow backward into the provider.
+Reusing an imported identifier keeps the concept's originating identity only
+when the identifier is reused in a matching `expand`. Reusing it in that
+expand's `interface` re-exposes the same identity to downstream importers. A
+same-named concept declared directly on the importing `component` remains a
+distinct local identity and is therefore ambiguous with the imported identity;
+Sigil provides neither qualification nor shadowing. Consumer occurrences never
+flow backward into the provider.
 
 Known identifiers used as whole words inside semantic content resolve as
 concept references for highlighting and navigation. Unknown words remain
@@ -633,7 +655,8 @@ Implementation-hiding rules and forbidden internal access belong in
 
 Architecture, stack, ownership, and dependency decisions belong in `constraints`.
 
-Runtime configurations, lifecycle states, and meaningful domain modes belong in `state`.
+Meaningful runtime or domain data, configurations, lifecycle states, modes, and
+conditions belong in `state`.
 
 Behavior, transitions, algorithms, transformations, and decision paths belong
 in `logic`.

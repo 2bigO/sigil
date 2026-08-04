@@ -30,7 +30,7 @@ Deno.test("file URI conversion preserves Sigil paths", () => {
 });
 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases
-Deno.test("initializes with the approved 0.6 capabilities and lifecycle", async () => {
+Deno.test("initializes with the approved 0.7 capabilities and lifecycle", async () => {
   const server = makeServer();
   const before = await server.handle(request(1, "shutdown"));
   assertEquals(errorCode(before), -32002);
@@ -155,6 +155,70 @@ Deno.test("publishes and clears diagnostics from open document overlays", async 
     textDocument: { uri: contractUri },
   }));
   assertEquals(diagnosticsFor(closed, contractUri).length, 0);
+});
+
+// @sigil tests packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+Deno.test("publishes concept ambiguity for module indexes and ordinary files", async () => {
+  const modulePath = `${root}/#module.sigil`;
+  const workspacePath = `${root}/workspace.sigil`;
+  const providerPath = `${root}/glossary.sigil`;
+  const consumer = (name: string) =>
+    `@glossary.sigil import { SigilGlossaryEngine }
+
+component ${name} {
+  goal {
+    Present glossary inspection.
+  }
+
+  interface {
+    GlossaryInspection {
+      A local facade for SigilGlossaryEngine GlossaryInspection.
+    }
+  }
+}
+`;
+  const moduleSource = consumer("SigilCore");
+  const server = new SigilLanguageServer({
+    currentDirectory: root,
+    fs: new InMemorySigilFileSystem({
+      [`${root}/.sigil/config.json`]: JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "lsp-concept-ambiguity", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+      [providerPath]: `component SigilGlossaryEngine {
+  goal {
+    Inspect glossary data.
+  }
+
+  interface {
+    GlossaryInspection {
+      Inspect reviewed glossary terms.
+    }
+  }
+}
+`,
+      [modulePath]: moduleSource,
+      [workspacePath]: consumer("SigilWorkspace"),
+    }),
+  });
+  await initialize(server);
+  const published = await server.handle(notification("textDocument/didOpen", {
+    textDocument: {
+      uri: pathToFileUri(modulePath),
+      version: 1,
+      text: moduleSource,
+    },
+  }));
+  for (const path of [modulePath, workspacePath]) {
+    const diagnostics = diagnosticsFor(published, pathToFileUri(path));
+    assert(
+      diagnostics.some((item) =>
+        item.code === "SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER"
+      ),
+    );
+  }
 });
 
 // @sigil tests packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
@@ -578,11 +642,7 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
       "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `/workspace/consumer.sigil`",
     ),
   );
-  assert(
-    markdown.includes(
-      "run() uses [Execution](file:///workspace/contract.sigil#L7,5).",
-    ),
-  );
+  assert(markdown.includes("Re-expose "));
   assert(!markdown.includes("Running succeeds."));
   assert(!markdown.includes("Consumer retries are private."));
 
@@ -592,7 +652,7 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
       "textDocument/hover",
       {
         textDocument: { uri: consumerUri },
-        position: { line: 8, character: 6 },
+        position: { line: 19, character: 6 },
       },
     )),
   ) as Record<string, unknown>;
@@ -605,15 +665,9 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
     ),
   );
   assert(declarationMarkdown.includes("run()"));
-  assert(
-    declarationMarkdown.includes(
-      "run() uses [Execution](file:///workspace/contract.sigil#L7,5).",
-    ),
-  );
+  assert(declarationMarkdown.includes("Re-expose "));
   assert(!declarationMarkdown.includes("Running succeeds."));
   assert(!declarationMarkdown.includes("Consumer retries are private."));
-  assert(declarationMarkdown.includes("ExecutionCache remain prose."));
-  assert(!declarationMarkdown.includes("[ExecutionCache]"));
 
   const componentHover = responseResult(
     await server.handle(request(
@@ -1180,10 +1234,19 @@ component Consumer {
   }
 
   interface {
-    Execution {
+    ConsumerSurface {
       run() uses Execution.
 
       execution and ExecutionCache remain prose.
+    }
+  }
+
+}
+
+expand Consumer {
+  interface {
+    Execution {
+      Re-expose Execution to Consumer dependents.
     }
   }
 

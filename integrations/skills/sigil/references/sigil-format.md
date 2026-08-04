@@ -28,7 +28,7 @@ deno run --allow-read packages/cli/src/main.ts check . --format json --pretty
 ```
 
 Run `sigil version . --format json --pretty` before `check`. This reference
-describes Sigil version `0.6.0`; do not apply it to an
+describes Sigil version `0.7.0`; do not apply it to an
 unsupported workspace version.
 
 Use CLI diagnostics as stable coded findings. Use CLI context output as a

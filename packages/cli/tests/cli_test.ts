@@ -225,7 +225,72 @@ Deno.test("check reports missing interface concepts as warning-only", async () =
   }
 });
 
-// @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+// @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+Deno.test("check reports imported concept ambiguity in module indexes and ordinary files", async () => {
+  const root = await makeWorkspace("concept-ambiguity");
+  try {
+    await Deno.writeTextFile(
+      `${root}/glossary.sigil`,
+      `component SigilGlossaryEngine {
+  goal {
+    Inspect glossary data.
+  }
+
+  interface {
+    GlossaryInspection {
+      Inspect reviewed glossary terms.
+    }
+  }
+}
+`,
+    );
+    const consumer = (name: string) =>
+      `@glossary.sigil import { SigilGlossaryEngine }
+
+component ${name} {
+  goal {
+    Present glossary inspection.
+  }
+
+  interface {
+    GlossaryInspection {
+      A local facade for SigilGlossaryEngine GlossaryInspection.
+    }
+  }
+}
+`;
+    await Deno.writeTextFile(`${root}/#module.sigil`, consumer("SigilCore"));
+    await Deno.writeTextFile(
+      `${root}/workspace.sigil`,
+      consumer("SigilWorkspace"),
+    );
+
+    const result = await runCli(["check", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const ambiguities = parseJson(result.stdout).diagnostics.filter(
+      (item: { code: string }) =>
+        item.code === "SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER",
+    );
+    assertEquals(ambiguities.length, 2);
+    assert(
+      ambiguities.some((item: { filePath: string }) =>
+        item.filePath.endsWith("/#module.sigil")
+      ),
+    );
+    assert(
+      ambiguities.some((item: { filePath: string }) =>
+        item.filePath.endsWith("/workspace.sigil")
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
+ * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspectionCommand interface
+ * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection logic,cases
+ */
 Deno.test("glossary reports reviewed terms, contexts, and occurrences", async () => {
   const root = await makeWorkspace("glossary");
   try {
@@ -301,7 +366,7 @@ Deno.test("glossary reports reviewed terms, contexts, and occurrences", async ()
 });
 
 /*
- * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection logic,cases
  * @sigil tests packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
  */
 Deno.test("glossary is absent without error and invalid data exits 1", async () => {
@@ -836,7 +901,7 @@ expand Feature {
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
  */
-Deno.test("context Markdown prefers file identity for duplicate component names", async () => {
+Deno.test("context Markdown does not attach expands to duplicate component names", async () => {
   const root = await makeWorkspace("context-markdown-duplicate-name");
   try {
     await Deno.writeTextFile(
@@ -910,7 +975,8 @@ expand Duplicate {
     assert(result.stdout.includes("#### SecondApi"));
     assert(!result.stdout.includes("- First duplicate."));
     assert(!result.stdout.includes("#### FirstApi"));
-    assert(result.stdout.includes("second expansion."));
+    assert(!result.stdout.includes("second expansion."));
+    assert(result.stdout.includes("SIGIL_EXPAND_WITHOUT_COMPONENT"));
     assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -921,7 +987,7 @@ expand Duplicate {
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
  */
-Deno.test("context Markdown preserves duplicate dependency identity by import path", async () => {
+Deno.test("context Markdown leaves duplicate dependency names unresolved", async () => {
   const root = await makeWorkspace("context-markdown-duplicate-dependencies");
   try {
     await Deno.mkdir(`${root}/first`);
@@ -1012,16 +1078,17 @@ component Consumer {
     assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
     assert(result.stdout.includes("first/provider.sigil"));
     assert(result.stdout.includes("second/provider.sigil"));
-    assert(result.stdout.includes("#### Other Dependency Decisions"));
+    assert(!result.stdout.includes("#### Other Dependency Decisions"));
     assertEquals(
       countOccurrences(result.stdout, "Decision: Use the first provider."),
-      1,
+      0,
     );
     assertEquals(
       countOccurrences(result.stdout, "Decision: Use the second provider."),
-      1,
+      0,
     );
     assert(result.stdout.includes("SIGIL_DUPLICATE_COMPONENT"));
+    assert(result.stdout.includes("SIGIL_UNRESOLVED_IMPORTED_COMPONENT"));
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -1531,7 +1598,7 @@ Deno.test("context for an expand file collects its parent component", async () =
 
 /*
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::GlossaryInspection logic,cases
  */
 Deno.test("context includes only glossary terms from related Sigil files", async () => {
   const root = await makeWorkspace("glossary-context");
@@ -1814,7 +1881,8 @@ Deno.test("version flag reports CLI information", async () => {
 });
 
 /*
- * @sigil tests packages/cli/#module.sigil::SigilCli::SkillInstallation interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SkillInstallation logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SkillInstallationCommand interface
  * @sigil tests packages/cli/src/installer.sigil::SkillInstaller::SkillInstallation interface,state,logic,constraints,cases
  */
 Deno.test("skill install defaults global and supports project agent targets", async () => {
@@ -2335,7 +2403,7 @@ Deno.test("compile session commands persist across independent CLI calls", async
   await Deno.writeTextFile(
     `${root}/.sigil/config.json`,
     JSON.stringify({
-      sigilVersion: "0.6.0",
+      sigilVersion: "0.7.0",
       workspace: { name: "session", members: [] },
       files: { include: ["**/*.sigil"], exclude: [] },
       tools: {},
@@ -2390,7 +2458,8 @@ Deno.test("compile session commands persist across independent CLI calls", async
 });
 
 /*
- * @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormatting logic,constraints,cases
+ * @sigil tests packages/cli/#module.sigil::SigilCli::SourceFormattingCommand interface
  * @sigil tests packages/cli/#module.sigil::SigilCli::WorkspaceMutationBoundary constraints
  */
 Deno.test("fmt check is read-only and fmt writes canonical Sigil", async () => {

@@ -16,21 +16,31 @@ component Sigil {
   }
 
   interface {
-    ComponentContract {
+    ComponentContractOverview {
+      ComponentContractOverview adapts ComponentContract for the root boundary.
+
       lets humans and coding agents share durable public contracts and operational
       rationale for coherent software parts
     }
 
-    WorkspaceBoundary {
+    WorkspaceBoundarySelection {
+      WorkspaceBoundarySelection adapts WorkspaceBoundary for root tool selection.
+
       lets tools select a configured workspace and discover its included Sigil
       sources consistently
     }
 
-    DirectoryImportSurface {
+    DirectoryImportSurfaceExposure {
+      DirectoryImportSurfaceExposure re-exposes DirectoryImportSurface through the
+      root boundary.
+
       lets authors use intentional directory-import shorthand
     }
 
-    ComponentVisibility {
+    ComponentVisibilityGuarantee {
+      ComponentVisibilityGuarantee adapts ComponentVisibility into a root-level
+      visibility promise.
+
       keeps every component importable through its explicit Sigil source path
       regardless of directory-import shorthand
     }
@@ -42,7 +52,10 @@ component Sigil {
       keeps command-line and language-server operations from modifying .sigil source
     }
 
-    SkillWorkflow {
+    SkillWorkflowIntegration {
+      SkillWorkflowIntegration integrates SkillWorkflow into the host-neutral root
+      workflow.
+
       provides a host-neutral agent workflow for design clarification, semantic
       review, explicit approval, and Sigil-guided implementation
     }

@@ -29,11 +29,15 @@ component SigilCli {
       sigil --version
     }
 
-    SkillCatalog {
+    SkillCatalogCommand {
+      SkillCatalogCommand adapts SkillCatalog into a CLI command surface.
+
       sigil skill list
     }
 
-    SkillInstallation {
+    SkillInstallationCommand {
+      SkillInstallationCommand adapts SkillInstallation into a CLI command surface.
+
       sigil skill install [--project] [--agent codex|claude|opencode|pi|all]
     }
 
@@ -94,7 +98,9 @@ component SigilCli {
       and diagnostics as deterministic Markdown.
     }
 
-    SourceFormatting {
+    SourceFormattingCommand {
+      SourceFormattingCommand adapts SourceFormatting into a CLI command surface.
+
       sigil fmt [path]
 
       sigil fmt [path] --check
@@ -117,7 +123,10 @@ component SigilCli {
       selected component with a warning diagnostic.
     }
 
-    GlossaryInspection {
+    GlossaryInspectionCommand {
+      GlossaryInspectionCommand adapts GlossaryInspectionFacade into a CLI command
+      surface.
+
       sigil glossary [path]
 
       reports authoritative entries, resolved contexts, source occurrences, and

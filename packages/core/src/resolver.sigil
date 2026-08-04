@@ -91,10 +91,13 @@ expand SigilResolver {
 
       Add imported public concepts as bare accessible identities.
 
-      Preserve provider identity while retaining importer lines only in importer
-      context.
+      Preserve provider identity only for an exact imported public-concept block in a
+      matching expand while retaining importer lines only in importer context.
 
-      Re-expose an imported identity when reused in interface.
+      Keep a same-named concept declared on the importing component as a distinct
+      local identity.
+
+      Re-expose an imported identity when reused in a matching expand interface.
 
       Scan semantic-unit prose against unambiguous accessible concepts and record
       each exact-case whole-word match in ResolvedConceptNamespace.references.
@@ -136,6 +139,9 @@ expand SigilResolver {
 
     ConceptResolution {
       Provider projections never collect consumer-contributed contextual occurrences.
+
+      Component-declared concept blocks do not adopt imported identities; same-named
+      local and imported identities remain accessible and ambiguous.
 
       A structural self-import does not project the component's public concepts into
       its own namespace as an imported dependency.
@@ -208,8 +214,11 @@ expand SigilResolver {
     ConceptResolution {
       Imported public concepts are available as bare identities.
 
-      Contextual reuse preserves provider identity without adding importer content
-      upstream.
+      Matching-expand reuse preserves provider identity without adding importer
+      content upstream.
+
+      A same-named component-declared concept remains a distinct local identity and
+      produces an ambiguity diagnostic.
 
       A whole-word local or imported identifier produces a contextual reference with
       its originating ConceptIdentity.

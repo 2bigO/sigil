@@ -59,7 +59,7 @@ Repository-local command shape:
 deno run --allow-read packages/cli/src/main.ts check . --format json --pretty
 ```
 
-This skill requires CLI and core `^0.7.0` and Sigil `0.6.0`. Do not reinterpret
+This skill requires CLI and core `^0.7.0` and Sigil `0.7.0`. Do not reinterpret
 a workspace using an older project-root-only convention.
 
 Before workspace interpretation, read `compatibility.json` as an exact object

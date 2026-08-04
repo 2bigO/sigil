@@ -10,7 +10,9 @@ component SigilAuthoringWorkflow {
   }
 
   interface {
-ImportSemantics {
+ImportSemanticsGuidance {
+      ImportSemanticsGuidance adapts ImportSemantics into authoring guidance.
+
       inspects the complete accessible imported public namespace before creating a
       local component or concept with overlapping meaning
 
@@ -18,7 +20,9 @@ ImportSemantics {
       dependency contracts retain provider identity and vocabulary
     }
 
-ModuleIndexFile {
+ModuleIndexFileGuidance {
+      ModuleIndexFileGuidance adapts ModuleIndexFile into authoring guidance.
+
       keeps one small local summary component and assembles an intentional
       directory-import surface from cohesive imported components
 
@@ -38,7 +42,10 @@ ConceptIdentifierWorkflow {
       uses one proposal-only concept-identifier subagent when subagents are available
     }
 
-SemanticUnitDiscipline {
+SemanticUnitDisciplineGuidance {
+      SemanticUnitDisciplineGuidance adapts SemanticUnitDiscipline into authoring
+      guidance.
+
       preserves one distinct idea per blank-line-delimited semantic unit and allows
       physical prose wrapping without changing semantic identity
 

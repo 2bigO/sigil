@@ -1,13 +1,13 @@
 # Sigil pre-release status
 
 Sigil platform artifacts and Sigil skill 0.7.1 are work-in-progress
-pre-production releases over Sigil Language 0.6.0. They do not claim production
+pre-production releases over Sigil Language 0.7.0. They do not claim production
 readiness or a stable 1.0 contract.
 
 Included contracts:
 
-- Sigil Language 0.6.0;
-- `.sigil/config.json` schema 0.6.0;
+- Sigil Language 0.7.0;
+- `.sigil/config.json` schema 0.7.0;
 - `@qoherent/sigil-core` 0.7.1;
 - `@qoherent/sigil` 0.7.1;
 - standalone host-neutral Sigil skill 0.7.1 with reviewed glossary workflows,

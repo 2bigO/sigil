@@ -19,17 +19,26 @@ component SigilGlossaryEngine {
       or accumulated diagnostics
     }
 
-    GlossaryModel {
-      exports immutable glossary entries, contexts, occurrences, projections, and
-      parse results
+    GlossaryModelProjection {
+      GlossaryModelProjection adapts GlossaryModel from SigilSemanticModel into
+      immutable engine exports.
+
+      exports immutable SigilSemanticModel glossary entries, contexts, occurrences,
+      projections, and parse results
     }
 
-    ContextResolution {
+    ContextResolutionEngine {
+      ContextResolutionEngine adapts ContextResolution into deterministic engine
+      behavior.
+
       resolveGlossaryForFile(glossary, filePath) returns the effective entries,
       matched context, and diagnostics
     }
 
-    TermRecognition {
+    TermRecognitionEngine {
+      TermRecognitionEngine adapts TermRecognition into deterministic engine
+      behavior.
+
       glossaryOccurrencesForDocument(glossary, document) returns ordered
       source-ranged occurrences
     }

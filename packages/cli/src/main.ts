@@ -1,4 +1,4 @@
-/** Command-line interface for versioned Sigil 0.6 workspaces. @module */
+/** Command-line interface for versioned Sigil 0.7 workspaces. @module */
 import { type HelpTopic, parseArgs } from "./args.ts";
 import {
   type CompilationEvent,
