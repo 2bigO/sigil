@@ -8,7 +8,7 @@ import {
   runCompilationProcess,
 } from "../../src/compilation.ts";
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
 test("validates compiler protocol envelopes", () => {
   const event = parseCompilationEvent(JSON.stringify({
     protocolVersion: 1,
@@ -47,7 +47,7 @@ test("validates compiler protocol envelopes", () => {
   );
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
 test("resolves the nearest component declaration at the cursor", () => {
   const source = `component One {
   goal {
@@ -69,7 +69,7 @@ component Two {
   );
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
 test("accepts exactly one completed terminal event with a valid report", async () => {
   const script = `
 const report = {reportVersion:2,status:"green",componentNames:["One"],diagnostics:[]};
@@ -88,7 +88,7 @@ console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"compl
   assert.deepEqual(events, ["started", "completed"]);
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
 test("surfaces compiler failed terminal events instead of a generic close", async () => {
   const script = `
 console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:1,type:"started",payload:{}}));
@@ -105,7 +105,7 @@ process.exitCode = 3;
   await assert.rejects(compilation.result, /Two evaluators are required/);
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
 test("rejects invalid compiler stage lifecycle transitions", async () => {
   const script = `
 console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:1,type:"started",payload:{}}));
@@ -124,7 +124,7 @@ console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage
   );
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
 test("projects a direct semantic unit as the diagnostic display range", () => {
   const diagnostic = {
     code: "ARCHITECTURE_BOUNDARY",
@@ -161,7 +161,7 @@ test("projects a direct semantic unit as the diagnostic display range", () => {
   });
 });
 
-// @sigil tests integrations/editor/vscode/#module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints
 test("falls back to the physical diagnostic range without a direct unit", () => {
   const diagnostic = {
     code: "ARCHITECTURE_BOUNDARY",

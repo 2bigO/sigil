@@ -1,6 +1,6 @@
 # sigil-cli
 
-Current package version: **0.7.0**.
+Current package version: **0.7.1**.
 
 Command-line interface for agents, CI, scripts, and platform debugging.
 
@@ -30,7 +30,7 @@ irm https://github.com/qoherent/sigil/releases/latest/download/install.ps1 | iex
 Alternatively, install the published JSR package when Deno is available:
 
 ```bash
-deno install --global --allow-read --allow-write --allow-env=HOME,USERPROFILE --name sigil jsr:@qoherent/sigil@0.6
+deno install --global --allow-read --allow-write --allow-env=HOME,USERPROFILE --name sigil jsr:@qoherent/sigil@0.7
 ```
 
 Local development install:
@@ -73,6 +73,10 @@ Commands:
   public contracts and decision rationale plus reviewed terminology recognized
   in the selected and related Sigil files, excluding terms whose `agentContext`
   value is `false`;
+- `sigil retrieve [path] (--component name | --file file) --purpose
+  semantic|architecture|implementation` returns a deterministic selected graph,
+  exact evidence, inclusion reasons, exclusion frontier, aggregated context, and
+  a content fingerprint; add `--format markdown` for a readable context pack;
 - `sigil compile [stage] [path] [--component name | --file file
   [--position line:column]]` runs
   profile-scoped deterministic and direct-read agent evaluation. A stage operand
@@ -92,7 +96,16 @@ Configure agentic compilation under `tools.compile`:
         "provider": "codex"
       },
       "budgets": {
-        "maxCommandOutputChars": 500000
+        "elapsedTimeMs": 1800000,
+        "maxCommands": 512,
+        "maxCommandOutputChars": 3000000,
+        "maxInputTokens": 1000000,
+        "maxOutputTokens": 1000000
+      },
+      "limits": {
+        "maxCompilationRequestChars": 1000000,
+        "maxAgentInputChars": 1000000,
+        "sessionTtlMs": 86400000
       }
     }
   }

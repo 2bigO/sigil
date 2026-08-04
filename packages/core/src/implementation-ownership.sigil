@@ -8,10 +8,49 @@ component SigilImplementationOwnership {
   }
 
   interface {
+    ImplementationEvidenceInput {
+      contains exactly workspaceSnapshotIdentity, discoveryState, sources, and
+      diagnostics
+
+      workspaceSnapshotIdentity is copied from the ResolvedSigilWorkspace for which
+      the host performed implementation-source discovery
+
+      discoveryState is exactly complete or unavailable
+
+      sources is an immutable ordered collection of ImplementationSourceRecord values
+
+      diagnostics is an immutable ordered collection of SigilDiagnostic values owned
+      by SigilSemanticModel
+
+      ImplementationSourceRecord contains exactly path and sourceText; path is one
+      normalized workspace-relative path accepted by isSupportedImplementationSource,
+      and sourceText is the exact decoded text the host read from that path
+
+      complete means every successfully discovered supported source is present,
+      including the valid zero-source case; records are ordered by normalized path
+      and duplicate normalized paths are rejected
+
+      unavailable requires an empty source collection and at least one discovery
+      diagnostic
+
+      discovery diagnostics are ordered by severity, path with absent first, range
+      with absent first, code, then message
+    }
+
     OwnedImplementationLookup {
       ownedImplementationTargetsFor(resolvedWorkspace, implementationSources,
-      componentName, conceptName?, sectionName?) returns an owned-implementation
+      componentIdentity, conceptName?, sectionName?) returns an owned-implementation
       projection or undefined
+
+      componentIdentity contains the exact case-sensitive componentName and
+      normalized workspace-relative declarationPath of one resolved component
+
+      returns undefined only when componentIdentity identifies no exact resolved
+      component or conceptName is supplied and identifies no concept in that
+      component
+
+      returns a projection with an empty targets collection when the component and
+      optional concept resolve but no annotation matches the optional section scope
 
       The query scans implementation comments that link entrypoint definitions or
       agent-facing Markdown back to the selected Sigil component and optional concept
@@ -28,6 +67,10 @@ component SigilImplementationOwnership {
 
       each target preserves the artifact kind, file path, selected sections, and
       optional symbol identity when available
+
+      targetRange is the exact adjacent code entrypoint-definition range or the
+      complete agent-facing Markdown document range; annotationRange is the exact
+      ownership-comment range used as provenance
     }
 
     ImplementationSourceSupport {
@@ -80,10 +123,25 @@ expand SigilImplementationOwnership {
 
       derive symbol-level targets from annotated language entrypoint definitions and
       use file-level targets for Markdown
+
+      preserve exact targetRange and annotationRange values in every normalized
+      target
+
+      return undefined before scanning when the component or supplied concept does
+      not resolve; otherwise return one projection after scanning even when it has no
+      targets
     }
   }
 
   constraints {
+    ImplementationEvidenceInput {
+      Ownership lookup preserves supplied source text exactly and performs no
+      filesystem discovery or reads.
+
+      Complete and unavailable describe source-enumeration availability, not whether
+      any ownership annotation exists.
+    }
+
     AnnotationStorage {
       Ownership annotations exist only in implementation comments and never in Sigil
       source.
@@ -151,9 +209,50 @@ expand SigilImplementationOwnership {
       Ignore ambiguous or detached annotations and return diagnostics rather than
       inferring ownership.
     }
+
+    LookupAbsenceSemantics {
+      An unresolved exact component identity or supplied concept returns undefined.
+
+      Name-only fallback is forbidden; duplicate component names remain
+      distinguishable by declarationPath.
+
+      A resolved lookup with zero matching targets returns an empty projection and
+      preserves its owning component, optional concept, optional section scope, and
+      diagnostics.
+    }
   }
 
   decisions {
+    SnapshotBoundImplementationEvidence {
+      Decision: Accept implementation evidence only through one immutable envelope
+      carrying the governing workspace snapshot identity, discovery state, ordered
+      source records, and ordered diagnostics.
+
+      Scope: Governs host-to-core implementation evidence supplied to ownership and
+      purpose retrieval; excludes filesystem discovery policy and retrieval result
+      membership.
+
+      Assumptions: The host copies workspaceSnapshotIdentity from the resolved
+      workspace before enumerating implementation sources for that request.
+
+      Trade-offs: Hosts must preserve an explicit envelope and distinguish complete
+      zero-source discovery from unavailable discovery, while core lookup remains
+      filesystem-free and reproducible.
+
+      Design issues addressed: A bare source array cannot distinguish valid absence
+      from failed discovery or prove association with the selected Sigil snapshot.
+
+      Discarded alternatives: Implicit host state, filesystem reads during lookup,
+      nullable source arrays, and unbound discovery diagnostics were rejected as
+      ambiguous or nondeterministic.
+
+      Consequences: Retrieval can reject cross-snapshot evidence before scanning and
+      can preserve complete versus unavailable discovery semantics.
+
+      Revisit when: Core owns an atomic workspace-and-implementation snapshot
+      boundary.
+    }
+
     AnnotationStorage {
       Decision: Store ownership links in implementation comments that point back to
       governing Sigil components and concepts.
@@ -320,9 +419,37 @@ expand SigilImplementationOwnership {
       Consequences: Context collects locally linked implementation under the parent
       component while preserving exact component-name validation.
     }
+
+    LookupAbsenceSemantics {
+      Decision: Require exact component name and declaration-path identity, reserve
+      undefined for an unresolved exact component or supplied concept, and return an
+      empty projection for every resolved lookup with zero matching targets.
+
+      Scope: Governs OwnedImplementationLookup result presence; excludes annotation
+      diagnostics, source discovery, and host failure.
+
+      Trade-offs: Callers must inspect targets and diagnostics separately, but can
+      distinguish an invalid contract scope from valid absence of implementation
+      ownership evidence.
+
+      Discarded alternatives: Returning undefined for zero matches and returning an
+      empty projection for unknown contract identities were rejected because both
+      erase a material lookup distinction.
+
+      Consequences: Retrieval and host consumers can treat empty ownership evidence
+      as complete while handling unresolved identities explicitly.
+    }
   }
 
   cases {
+    ImplementationEvidenceInput {
+      Complete discovery with zero records is valid evidence and differs from
+      unavailable discovery with zero records and at least one diagnostic.
+
+      Two records that normalize to the same workspace-relative path are rejected
+      before ownership scanning.
+    }
+
     ImplementationSourceSupport {
       A supported source path is accepted by the predicate and matched by a shared
       watcher pattern.
@@ -347,6 +474,14 @@ expand SigilImplementationOwnership {
       A concept annotation can use the interface occurrence of that concept.
 
       JSON content is ignored.
+
+      An unknown exact component identity or supplied concept returns undefined.
+
+      Two components with the same name but different declaration paths are queried
+      independently and never share ownership targets through name-only fallback.
+
+      A resolved exact component with no matching annotation returns an empty
+      projection.
     }
 
     TargetResolution {

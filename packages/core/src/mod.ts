@@ -11,3 +11,5 @@ export * from "./workspace.ts";
 export * from "./pipeline.ts";
 export * from "./projections.ts";
 export * from "./path.ts";
+export * from "./graph.ts";
+export * from "./context-retrieval.ts";

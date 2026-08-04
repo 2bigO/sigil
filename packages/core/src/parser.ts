@@ -63,7 +63,8 @@ interface ParagraphDraft {
 }
 
 /*
- * @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
+ * @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocumentParsing interface
+ * @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
  * @sigil implements packages/core/src/parser.sigil::SigilParser::LiteralBlock logic,constraints,cases
  * @sigil implements packages/core/src/parser.sigil::SigilParser::SemanticUnit constraints,cases
  */
@@ -84,7 +85,7 @@ export function parseSigilDocument(
       `Unsupported sigilVersion ${
         JSON.stringify(options.sigilVersion)
       }; supported version is ${SIGIL_VERSION}.`,
-      { filePath },
+      { filePath, range: singlePointRange(1) },
     );
     const document: SigilDocument = {
       filePath,
@@ -393,7 +394,7 @@ export function parseSigilDocument(
   if (isModuleFile(filePath) && components.length === 0) {
     diagnostics.push(diagnostic(
       "SIGIL_MODULE_WITHOUT_COMPONENT",
-      "#module.sigil must declare at least one component.",
+      "_module.sigil must declare at least one component.",
       { filePath },
     ));
   }

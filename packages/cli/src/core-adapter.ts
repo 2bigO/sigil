@@ -7,6 +7,7 @@ import {
   collectedExpansionFor,
   componentContracts,
   type ComponentContractView,
+  type ComponentIdentity,
   conceptNamespaceFor,
   DEFAULT_SIGIL_EXCLUDES,
   DEFAULT_SIGIL_INCLUDES,
@@ -16,6 +17,7 @@ import {
   glossaryContextForFiles,
   type GlossaryContextProjection,
   type GlossaryProjection,
+  type ImplementationEvidenceInput,
   type ImplementationSection,
   type ImplementationSource,
   isSupportedImplementationSource,
@@ -23,9 +25,13 @@ import {
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
   parseSigilDocument,
+  type PurposeRetrievalResult,
+  type PurposeRetrievalTarget,
   type ResolvedConceptNamespace,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
+  type RetrievalPurpose,
+  retrievePurposeContext,
   SIGIL_CONFIG_PATH,
   SIGIL_CORE_VERSION,
   SIGIL_GLOSSARY_PATH,
@@ -81,7 +87,7 @@ export interface FormatSourcesResult {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+// @sigil implements packages/cli/_module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
 interface ImplementationSourceDiscoveryResult {
   readonly sources: readonly ImplementationSource[];
   readonly diagnostics: readonly SigilDiagnostic[];
@@ -98,7 +104,7 @@ export class CoreAdapter {
     );
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   async parseFile(
     path: string,
     explicitRoot?: string,
@@ -123,7 +129,7 @@ export class CoreAdapter {
     };
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   async loadWorkspace(
     path?: string,
     explicitRoot?: string,
@@ -135,7 +141,7 @@ export class CoreAdapter {
     });
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   async resolveWorkspace(
     path?: string,
     explicitRoot?: string,
@@ -143,7 +149,10 @@ export class CoreAdapter {
     return resolveSigilWorkspace(await this.loadWorkspace(path, explicitRoot));
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+  /*
+   * @sigil implements packages/cli/_module.sigil::SigilCli::SourceFormattingCommand interface
+   * @sigil implements packages/cli/_module.sigil::SigilCli::SourceFormatting logic,constraints,cases
+   */
   async formatSources(
     path: string | undefined,
     explicitRoot: string | undefined,
@@ -222,7 +231,7 @@ export class CoreAdapter {
     };
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
   async initConfig(
     path: string | undefined,
     name: string | undefined,
@@ -279,7 +288,7 @@ export class CoreAdapter {
     return { root, configPath, glossaryPath, config, diagnostics: [] };
   }
 
-  // @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   versions(): VersionInfo {
     return {
       cliVersion: SIGIL_CLI_VERSION,
@@ -296,7 +305,7 @@ export class CoreAdapter {
   ownedImplementationTargetsFor(
     resolved: ResolvedSigilWorkspace,
     implementationSources: readonly ImplementationSource[],
-    componentName: string,
+    componentName: ComponentIdentity | string,
     conceptName?: string,
     sectionName?: ImplementationSection,
   ): OwnedImplementationProjection | undefined {
@@ -308,7 +317,7 @@ export class CoreAdapter {
       sectionName,
     );
   }
-  // @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
   async implementationSourcesFor(
     resolved: ResolvedSigilWorkspace,
   ): Promise<ImplementationSourceDiscoveryResult> {
@@ -346,6 +355,32 @@ export class CoreAdapter {
     }
     return { sources, diagnostics: [] };
   }
+  async implementationEvidenceFor(
+    resolved: ResolvedSigilWorkspace,
+  ): Promise<ImplementationEvidenceInput> {
+    const discovery = await this.implementationSourcesFor(resolved);
+    return {
+      workspaceSnapshotIdentity: resolved.workspace.workspaceSnapshotIdentity,
+      discoveryState: discovery.diagnostics.length ? "unavailable" : "complete",
+      sources: discovery.sources,
+      diagnostics: discovery.diagnostics,
+    };
+  }
+  // @sigil implements packages/cli/_module.sigil::SigilCli::PurposeRetrieval interface,logic,constraints,cases
+  retrievePurposeContext(
+    resolved: ResolvedSigilWorkspace,
+    target: PurposeRetrievalTarget,
+    purpose: RetrievalPurpose,
+    implementationEvidence: ImplementationEvidenceInput | null,
+  ): Promise<PurposeRetrievalResult> {
+    return retrievePurposeContext(
+      resolved,
+      target,
+      purpose,
+      resolved.glossary,
+      implementationEvidence,
+    );
+  }
   // @sigil uses packages/core/src/projections.sigil::SigilProjections::ExpansionProjection interface,logic,cases
   collectedExpansionFor(
     resolved: ResolvedSigilWorkspace,
@@ -373,7 +408,10 @@ export class CoreAdapter {
   ): ResolvedConceptNamespace | undefined {
     return conceptNamespaceFor(resolved, componentName);
   }
-  // @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
+  /*
+   * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspectionCommand interface
+   * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspection logic,cases
+   */
   glossaryContextForFiles(
     projection: GlossaryProjection,
     filePaths: readonly string[],

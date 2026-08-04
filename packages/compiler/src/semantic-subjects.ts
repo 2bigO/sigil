@@ -36,9 +36,9 @@ export interface SemanticSubjectResolver {
 }
 
 /*
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::DiagnosticSemanticSubject interface
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::CompilationDiagnostic logic,constraints
- * @sigil implements packages/compiler/#module.sigil::SigilCompiler::CompilationReport cases
+ * @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::DiagnosticSemanticSubject interface
+ * @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
+ * @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases
  */
 export function createSemanticSubjectResolver(
   resolved: ResolvedSigilWorkspace,
@@ -164,7 +164,7 @@ function ownershipBindings(
   const all = ownedImplementationTargetsFor(
     resolved,
     implementationSources,
-    component.name,
+    { componentName: component.name, declarationPath: component.filePath },
   )?.targets ?? [];
   const conceptsByTarget = new Map<string, ResolvedConcept[]>();
   for (
@@ -175,7 +175,7 @@ function ownershipBindings(
     const targets = ownedImplementationTargetsFor(
       resolved,
       implementationSources,
-      component.name,
+      { componentName: component.name, declarationPath: component.filePath },
       concept.identifier,
     )?.targets ?? [];
     for (const target of targets) {

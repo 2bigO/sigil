@@ -63,7 +63,7 @@ interface SemanticReference {
   readonly tokenType: number;
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
+// @sigil implements packages/lsp/_module.sigil::SigilLsp::OwnershipSourceIndex state,logic,constraints
 export class OwnershipSourceIndex {
   readonly #sources: Promise<readonly ImplementationSource[]>;
 
@@ -79,7 +79,7 @@ export class OwnershipSourceIndex {
   }
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+// @sigil implements packages/lsp/_module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
 export class OwnershipHoverCache {
   readonly #resolved: ResolvedSigilWorkspace;
   readonly #sourceIndex: OwnershipSourceIndex;
@@ -133,7 +133,7 @@ export function sourceRangeToLsp(range?: SourceRange): Range {
   };
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::DiagnosticPublishing interface
+// @sigil implements packages/lsp/_module.sigil::SigilLsp::DiagnosticPublishing interface
 export function diagnosticsByUri(
   diagnostics: readonly SigilDiagnostic[],
 ): ReadonlyMap<string, PublishDiagnosticsParams["diagnostics"]> {
@@ -158,7 +158,7 @@ export function diagnosticsByUri(
   return grouped;
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+// @sigil implements packages/lsp/_module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 export function documentSymbols(
   document: SigilDocument,
   source: string,
@@ -195,7 +195,7 @@ export function documentSymbols(
   ];
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+// @sigil implements packages/lsp/_module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 export async function definitionAt(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
@@ -260,9 +260,9 @@ export async function definitionAt(
 }
 
 /*
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
- * @sigil implements packages/lsp/#module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
+ * @sigil implements packages/lsp/_module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+ * @sigil implements packages/lsp/_module.sigil::SigilLsp::ConceptLanguageFeatures interface,logic,constraints,cases
+ * @sigil implements packages/lsp/_module.sigil::SigilLsp::OwnershipHoverCache state,logic,constraints,cases
  */
 export async function hoverAt(
   resolved: ResolvedSigilWorkspace,
@@ -339,7 +339,7 @@ export async function hoverAt(
   };
 }
 
-// @sigil implements packages/lsp/#module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
+// @sigil implements packages/lsp/_module.sigil::SigilLsp::GlossaryLanguageFeatures interface,logic,constraints,cases
 export function semanticTokens(
   resolved: ResolvedSigilWorkspace,
   filePath: string,
@@ -963,7 +963,7 @@ class HoverMarkdownRenderer {
       : `\`${concept.identifier}\``;
   }
 
-  // @sigil implements packages/lsp/#module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+  // @sigil implements packages/lsp/_module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
   async ownedImplementationLines(
     component: ResolvedComponent,
     conceptName?: string,

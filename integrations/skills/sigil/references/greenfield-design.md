@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::GreenfieldWorkflow logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ModularityReview interface,logic,constraints
+@sigil implements integrations/skills/sigil/workspace-bootstrap.sigil::SigilWorkspaceBootstrap::GreenfieldWorkflow logic,constraints,cases
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ConceptIdentifierWorkflow interface,logic,constraints
 -->
 
 # Greenfield Sigil Design
@@ -162,26 +162,28 @@ choices, and any uncertainty that blocks implementation.
 
 ### ReviewGate Request
 
-Submit `action: sigil-change`, the exact scope, synthesized semantic change set,
-and evidence. Ask the user to approve, reject, or revise it. Conversation is
-evidence and does not make ReviewGate ready.
+Submit `action: sigil-change`, the target workspace root, every target
+path, the complete resulting source for each changed file, the exact scope,
+synthesized semantic change set, and evidence. Ask the user to approve, reject,
+or revise it. Conversation is evidence and does not make ReviewGate ready.
 
 ## 5. Apply An Approved Proposal
 
 After `ReviewGate(action: sigil-change)` returns ready:
 
-1. create or update only the approved Sigil files;
-2. run `sigil check` on the workspace;
-3. use `sigil graph` or `sigil context` when relationships changed;
-4. reread the written files and repeat semantic, coherence, and modularity
+1. materialize the approved complete source into the target workspace;
+2. create or update only the approved Sigil files;
+3. run `sigil check` on the workspace;
+4. use `sigil graph` or `sigil context` when relationships changed;
+5. reread the written files and repeat semantic, coherence, and modularity
    review;
-5. repeat the decision-rationale coverage audit against the written semantic
+6. repeat the decision-rationale coverage audit against the written semantic
    lines and return to proposal review when coverage is missing;
-6. if concept grouping is still required, propose and apply it only through
+7. if concept grouping is still required, propose and apply it only through
    ReviewGate with `sigil-change`, then rerun deterministic and semantic review;
-7. perform glossary candidate extraction only after the final semantic review
+8. perform glossary candidate extraction only after the final semantic review
    appears aligned;
-8. report changed files, captured decisions, open questions, and validation
+9. report changed files, captured decisions, open questions, and validation
    results without creating another approval gate.
 
 Do not write implementation code in the same pass. When implementation is

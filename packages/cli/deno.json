@@ -1,6 +1,6 @@
 {
   "name": "@qoherent/sigil",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "exports": "./src/main.ts",
   "publish": {
     "include": [

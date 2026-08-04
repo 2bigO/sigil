@@ -1,4 +1,7 @@
-expand SigilCompiler {
+@packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+
+expand SigilAgentAdapter {
   logic {
     AgentAdapter {
       Supply each adapter the minimal target request, evaluation skill, output
@@ -23,10 +26,8 @@ expand SigilCompiler {
       selected workspace as working root, no approval escalation, and ephemeral agent
       state.
 
-      Network access is disabled unless the effective profile explicitly enables it.
-
-      Enabled network access uses declared destination restrictions when the adapter
-      supports destination enforcement.
+      Network access is disabled for every compiler evaluation. Profiles cannot
+      broaden this capability.
 
       An adapter capability mismatch fails the required evaluation rather than
       broadening access.

@@ -19,28 +19,37 @@ component SigilGlossaryEngine {
       or accumulated diagnostics
     }
 
-    GlossaryModel {
-      exports immutable glossary entries, contexts, occurrences, projections, and
-      parse results
+    GlossaryModelProjection {
+      GlossaryModelProjection adapts GlossaryModel from SigilSemanticModel into
+      immutable engine exports.
+
+      exports immutable SigilSemanticModel glossary entries, contexts, occurrences,
+      projections, and parse results
     }
 
-    ContextResolution {
+    ContextResolutionEngine {
+      ContextResolutionEngine adapts ContextResolution into deterministic engine
+      behavior.
+
       resolveGlossaryForFile(glossary, filePath) returns the effective entries,
       matched context, and diagnostics
     }
 
-    TermRecognition {
+    TermRecognitionEngine {
+      TermRecognitionEngine adapts TermRecognition into deterministic engine
+      behavior.
+
       glossaryOccurrencesForDocument(glossary, document) returns ordered
       source-ranged occurrences
     }
 
     GlossaryInspection {
       glossaryProjectionForWorkspace(workspace) returns contexts, entries,
-      occurrences, and diagnostics
+      occurrences, diagnostics, and the exact workspace.workspaceSnapshotIdentity
 
       glossaryContextForFiles(projection, filePaths) returns the glossary path,
       agent-visible effective entries, resolved contexts, and occurrences relevant to
-      normalized selected files
+      normalized selected files plus scoped diagnostics
     }
   }
 }
@@ -75,8 +84,15 @@ expand SigilGlossaryEngine {
       Aggregate resolved contexts, effective entries, occurrences, and glossary
       diagnostics without changing source data.
 
+      Copy workspaceSnapshotIdentity from the supplied SigilWorkspace into every
+      GlossaryProjection without recomputing it.
+
       Filter a workspace projection by normalized selected source paths while
       preserving deterministic source and declaration order.
+
+      Preserve source-less diagnostics, diagnostics attached to a selected source
+      path, and GlossaryFile diagnostics whose range overlaps the declaration range
+      of an effective selected term. Exclude every other diagnostic.
 
       Exclude entries whose agentContext is false together with their occurrences
       from agent-facing scoped context.

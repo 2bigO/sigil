@@ -1,8 +1,8 @@
 # Implementation Coverage And Component Selection
 
 <!--
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationOwnershipWorkflow interface,logic,constraints,cases
-@sigil implements integrations/skills/sigil/#module.sigil::SigilSkill::ImplementationCoverage interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationCoverage interface,logic,constraints,cases
 -->
 
 Use this procedure before every implementation mutation. It prevents artifact

@@ -2,6 +2,7 @@
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 @packages/core/src/formatter.sigil import { SigilFormatter }
 @packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }
+@packages/core/src/context-retrieval.sigil import { SigilContextRetrieval }
 
 component SigilCore {
   goal {
@@ -29,7 +30,7 @@ component SigilCore {
       or diagnostics
     }
 
-    GlossaryInterpretation {
+    GlossaryParsing {
       parseSigilGlossary(source, filePath?) returns validated authoritative glossary
       data or diagnostics
     }
@@ -64,7 +65,7 @@ component SigilCore {
       importing-file context derived from imported-component graph edges
 
       ownedImplementationTargetsFor(resolvedWorkspace, implementationSources,
-      componentName, conceptName?, sectionName?) returns implementation targets
+      componentIdentity, conceptName?, sectionName?) returns implementation targets
       linked to that Sigil contract from implementation comments
       (SigilImplementationOwnership)
 
@@ -72,12 +73,16 @@ component SigilCore {
       expose the shared ownership-source policy (SigilImplementationOwnership)
     }
 
-    GlossaryInspection {
-      glossaryProjectionForWorkspace(workspace) returns resolved contexts, entries,
-      occurrences, and diagnostics
+    GlossaryInspectionFacade {
+      GlossaryInspectionFacade adapts GlossaryInspection into the SigilCore public
+      projection facade.
 
-      glossaryContextForFiles(projection, filePaths) returns the authoritative
-      glossary subset relevant to selected source files
+      glossaryProjectionForWorkspace(workspace) returns contexts, entries,
+      occurrences, diagnostics, and workspace snapshot identity
+
+      glossaryContextForFiles(projection, filePaths) returns the glossary path,
+      agent-visible entries, resolved contexts, relevant occurrences, and scoped
+      diagnostics
     }
 
     CoreData {

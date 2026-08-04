@@ -1,4 +1,6 @@
-expand SigilCompiler {
+@packages/compiler/src/evaluation-registry.sigil import { SigilEvaluationSkillRegistry }
+
+expand SigilEvaluationSkillRegistry {
   logic {
     EvaluationSkillPackage {
       Discover each built-in evaluation skill from its SKILL.md and compile.json

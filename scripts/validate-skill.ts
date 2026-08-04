@@ -1,13 +1,14 @@
 const root = "integrations/skills/sigil";
 const required = [
   "SKILL.md",
-  "#module.sigil",
+  "_module.sigil",
   "VERSION",
   "compatibility.json",
   "agents/openai.yaml",
   "references/sigil-format.md",
   "references/external-guidance-evidence.md",
   "references/standards-review.md",
+  "references/design-compilation-review.md",
   "references/implementation-design.md",
   "references/design-conversation.md",
   "references/greenfield-design.md",
@@ -18,6 +19,7 @@ const required = [
   "evals/design-conversation-fixture.md",
   "evals/external-guidance-evidence-fixture.md",
   "evals/workspace-bootstrap-fixture.md",
+  "evals/design-compilation-review-fixture.md",
   "evals/brownfield-fixture.md",
   "evals/greenfield-fixture.md",
   "evals/implementation-coverage-fixture.md",
@@ -30,7 +32,9 @@ const required = [
 for (const path of required) await requireFile(`${root}/${path}`);
 
 const skill = await Deno.readTextFile(`${root}/SKILL.md`);
-const skillContract = await Deno.readTextFile(`${root}/#module.sigil`);
+const implementationWorkflowContract = await Deno.readTextFile(
+  `${root}/implementation-workflow.sigil`,
+);
 const openAiAdapter = await Deno.readTextFile(`${root}/agents/openai.yaml`);
 const workspaceBootstrap = await Deno.readTextFile(
   `${root}/references/workspace-bootstrap.md`,
@@ -40,6 +44,9 @@ const authoringConventions = await Deno.readTextFile(
 );
 const standardsReview = await Deno.readTextFile(
   `${root}/references/standards-review.md`,
+);
+const designCompilationReview = await Deno.readTextFile(
+  `${root}/references/design-compilation-review.md`,
 );
 const externalGuidanceEvidence = await Deno.readTextFile(
   `${root}/references/external-guidance-evidence.md`,
@@ -84,7 +91,7 @@ requireText(
   "outcome and approval separation",
 );
 requireText(
-  skillContract,
+  implementationWorkflowContract,
   "ImplementationGovernance",
   "implementation governance contract",
 );
@@ -97,6 +104,26 @@ requireText(
   skill,
   "references/external-guidance-evidence.md",
   "external guidance evidence routing",
+);
+requireText(
+  skill,
+  "references/design-compilation-review.md",
+  "compiler-driven design review routing",
+);
+requireText(
+  designCompilationReview,
+  "sigil compile session start <workspace-root> --focus design",
+  "proposal compilation session start",
+);
+requireText(
+  designCompilationReview,
+  "human explicitly reviews every finding",
+  "reviewed-yellow disposition",
+);
+requireText(
+  designCompilationReview,
+  "Do not duplicate the\ncompiler's semantic-readiness or architecture-design judgment",
+  "compiler evidence authority boundary",
 );
 requireText(
   skill,
@@ -134,6 +161,16 @@ requireText(
   workspaceBootstrap,
   "Missing config is not itself a compatibility failure.",
   "missing config compatibility guard",
+);
+requireText(
+  workspaceBootstrap,
+  "read `compatibility.json` as an exact object",
+  "exact compatibility metadata schema",
+);
+requireText(
+  workspaceBootstrap,
+  "For a\nnonzero major, accept versions below the next major; for `^0.m.p`",
+  "stable caret compatibility policy",
 );
 requireText(
   workspaceBootstrap,
@@ -199,8 +236,10 @@ requireText(
 );
 requireText(
   standardsReview,
-  "do not begin concept\nreuse discovery, concept grouping, identifier proposals, or model-assisted\nglossary candidate extraction",
-  "semantic readiness enrichment blocker",
+  "Do not independently assign a duplicate host readiness status or modularity\n" +
+    "score. Do not begin concept reuse discovery, concept grouping, identifier\n" +
+    "proposals, or model-assisted glossary candidate extraction until design",
+  "compiler design evidence enrichment blocker",
 );
 requireText(
   designConversationReference,
@@ -369,7 +408,7 @@ for (
   const [key, expected] of Object.entries({
     cliVersion: "^0.7.0",
     coreVersion: "^0.7.0",
-    sigilVersion: "0.6.0",
+    sigilVersion: "0.7.0",
   })
 ) {
   if (compatibility[key] !== expected) {
@@ -385,6 +424,52 @@ const expected = JSON.parse(
 );
 const workspaceBootstrapFixture = await Deno.readTextFile(
   `${root}/evals/workspace-bootstrap-fixture.md`,
+);
+const designCompilationReviewFixture = await Deno.readTextFile(
+  `${root}/evals/design-compilation-review-fixture.md`,
+);
+const requiredDesignCompilationReviewBehaviors = [
+  "resolve-nearest-importing-module-index",
+  "traverse-graph-context",
+  "start-os-temp-design-session",
+  "forbid-daemon-and-bearer-authority",
+  "submit-complete-proposal-generation",
+  "consume-compiler-owned-design-evidence",
+  "return-material-problems-to-conversation",
+  "require-explicit-yellow-dispositions",
+  "bind-evidence-to-exact-generation",
+  "use-reviewgate-for-sigil-change",
+  "invalidate-changed-evidence",
+  "compile-written-sigil",
+  "gate-glossary-and-implementation",
+  "close-session-and-report-failures",
+];
+if (!Array.isArray(expected.designCompilationReviewRequiredBehaviors)) {
+  throw new Error(
+    "Design compilation fixture must declare required behaviors.",
+  );
+}
+for (const behavior of requiredDesignCompilationReviewBehaviors) {
+  if (!expected.designCompilationReviewRequiredBehaviors.includes(behavior)) {
+    throw new Error(
+      `Design compilation fixture is missing behavior ${behavior}.`,
+    );
+  }
+}
+requireText(
+  designCompilationReviewFixture,
+  "nearest configured module index that imports the selected file",
+  "nearest importing module-index selection",
+);
+requireText(
+  designCompilationReviewFixture,
+  "human reviews every finding",
+  "explicit reviewed-yellow disposition",
+);
+requireText(
+  designCompilationReviewFixture,
+  "compile the\n    written Sigil with focus `design`",
+  "post-write design compilation",
 );
 const requiredWorkspaceBootstrapBehaviors = [
   "resolve-selected-repository-root",
@@ -1415,7 +1500,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.8.0 dispatcher, unified design conversation, proactive external guidance evidence, implementation governance, decision-rationale coverage, semantic readiness, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.8.0 dispatcher, unified design conversation, proactive external guidance evidence, compiler-driven design review, implementation governance, decision-rationale coverage, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

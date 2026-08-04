@@ -1,8 +1,8 @@
 # sigil-cli Requirements
 
-**Status:** Accepted for 0.7.0 **Last updated:** 2026-07-28
+**Status:** Accepted for 0.7.1 **Last updated:** 2026-08-04
 
-This document defines the 0.6 product requirements for `sigil-cli`.
+This document defines the 0.7 product requirements for `sigil-cli`.
 
 `sigil-cli` is the command-line interface over `sigil-core`. It exists for
 agents, CI, scripts, debugging, and review/documentation workflows. It is not

@@ -112,7 +112,7 @@ The Sigil platform architecture is drafted in
 Rejected historical architecture exploration for generated Receipts, evidence,
 and anchors is recorded in
 [ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md),
-but those capabilities are outside the active v0.6 workspace.
+but those capabilities are outside the active v0.7 workspace.
 
 ## Language Shape
 
@@ -188,8 +188,8 @@ Open design questions are tracked in
 ## Repository Layout
 
 The root [.sigil/config.json](./.sigil/config.json) defines this repository as a
-Sigil 0.6.0 workspace and excludes the independent example projects. The root
-[#module.sigil](./%23module.sigil) is its directory-import index and contains
+Sigil 0.7.0 workspace and excludes the independent example projects. The root
+[_module.sigil](./_module.sigil) is its directory-import index and contains
 the ordinary high-level project summary for this configured boundary.
 
 - `spec/` contains language, workflow, platform architecture, and open-question
@@ -210,7 +210,7 @@ states, and transition logic.
 Its [.sigil/config.json](examples/promise/.sigil/config.json) makes it an
 independent workspace named `promise`.
 
-`Slotted` in [examples/slotted/#module.sigil](examples/slotted/%23module.sigil)
+`Slotted` in [examples/slotted/_module.sigil](examples/slotted/_module.sigil)
 is an example room booking product used to test Sigil against product and module
 modeling.
 
@@ -283,9 +283,9 @@ specification remains [spec/sigil-language.md](spec/sigil-language.md).
 ## Current Status
 
 The core, CLI, LSP, VS Code extension, and Sigil skill are pre-production
-artifacts at 0.7.0, over Sigil Language and configuration contract 0.6.0. See
+artifacts at 0.7.1, over Sigil Language and configuration contract 0.7.0. See
 [PRE_RELEASE.md](PRE_RELEASE.md), [configuration](spec/sigil-config.md), and the
-[0.6 language migration guide](spec/migrating-to-0.6.md). Reviewed project
+[0.7 language migration guide](spec/migrating-to-0.7.md). Reviewed project
 vocabulary is described in the
 [workspace glossary guide](spec/sigil-glossary.md).
 
@@ -331,4 +331,4 @@ active or deferred Sigil components.
 records the rejected proposal for deterministic shared packages, attributed
 host-assisted interpretation, a `sigil-indexer`, and generated review records
 without adding inline Sigil syntax. Its indexer and anchor contracts are not
-part of the active v0.6 workspace.
+part of the active v0.7 workspace.

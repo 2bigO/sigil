@@ -1,17 +1,27 @@
 import {
-  agentDependencyContextFor,
+  type ImplementationEvidenceInput,
   type ImplementationSource,
   isSupportedImplementationSource,
   loadSigilWorkspace,
   type ResolvedComponent,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
+  retrievePurposeContext,
   type SigilDiagnostic,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
 import { ClaudeAdapter, CodexAdapter } from "./adapters.ts";
-import { applyDiagnosticLifecycle, compilationHistoryKey } from "./history.ts";
+import { compilationEvaluationTarget } from "./evaluation.ts";
+import { createCompilationEventStream } from "./event-protocol.ts";
+import { compilationHistoryKey } from "./history.ts";
+import { exportCompilationReport } from "./report-export.ts";
+import { constructCompilationReport } from "./report-protocol.ts";
+import { stageForCompilationFocus } from "./profile.ts";
+import {
+  CompilerFailure,
+  compilerFailureCode as stableCompilerFailureCode,
+} from "./status.ts";
 import {
   COMPILATION_STAGE_IDS,
   type EvaluationSkillPackage,
@@ -22,13 +32,12 @@ import {
   semanticSubjectIdentity,
   type SemanticSubjectResolver,
 } from "./semantic-subjects.ts";
-import { COMPILATION_REPORT_VERSION } from "./types.ts";
 import type {
   AgentAdapter,
   AgentCapabilityContract,
+  AgentExecutionBudgets,
   AgentFinding,
-  CompilationColor,
-  CompilationEvent,
+  CompilationLimits,
   CompilationReport,
   CompilationTarget,
   CompileConfiguration,
@@ -47,21 +56,18 @@ interface StageDefinition {
   readonly skill?: EvaluationSkillPackage;
 }
 
-const MAX_COMPILATION_REQUEST_CHARS = 120_000;
 const DEFAULT_EXECUTION_BUDGETS = {
-  elapsedTimeMs: 180_000,
-  maxCommands: 64,
-  maxCommandOutputChars: 200_000,
-  maxInputTokens: 200_000,
-  maxOutputTokens: 200_000,
-} as const;
-const MAXIMUM_EXECUTION_BUDGETS = {
   elapsedTimeMs: 1_800_000,
   maxCommands: 512,
-  maxCommandOutputChars: 10_000_000,
-  maxInputTokens: 2_000_000,
-  maxOutputTokens: 2_000_000,
+  maxCommandOutputChars: 3_000_000,
+  maxInputTokens: 1_000_000,
+  maxOutputTokens: 1_000_000,
 } as const;
+const DEFAULT_LIMITS: CompilationLimits = {
+  maxCompilationRequestChars: 1_000_000,
+  maxAgentInputChars: 1_000_000,
+  sessionTtlMs: 86_400_000,
+};
 const INSPECTION_CAPABILITIES: AgentCapabilityContract = {
   workspaceAccess: "read-only",
   network: false,
@@ -128,34 +134,42 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
   }
 }
 
-// @sigil implements packages/compiler/#module.sigil::SigilCompiler interface,logic,constraints,cases
+export async function loadCompilationConfiguration(
+  startPath: string,
+): Promise<CompileConfiguration> {
+  const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
+    startPath,
+  });
+  return parseConfiguration(workspace.config?.tools.compile);
+}
+
+// @sigil implements packages/compiler/_module.sigil::SigilCompiler interface,logic,constraints,cases
 export async function compile(
   workspacePath: string,
   target: CompilationTarget = { kind: "workspace" },
   options: CompileOptions = {},
 ): Promise<CompilationReport> {
+  const requestedStage = options.requestedStage ??
+    stageForCompilationFocus(options.focus);
+  const cancellationSignal = options.cancellationSignal ?? options.signal;
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
-  let sequence = 0;
-  const emit = async (
-    type: CompilationEvent["type"],
-    payload: Readonly<Record<string, unknown>>,
-  ) => {
-    await options.onEvent?.({
-      protocolVersion: 1,
-      runId,
-      sequence: ++sequence,
-      type,
-      payload,
-    });
-  };
+  const eventStream = createCompilationEventStream(runId, options.onEvent);
+  const emit = eventStream.emit;
   await emit("started", {
     workspacePath,
     target,
-    requestedStage: options.requestedStage,
+    requestedStage,
+    focus: options.focus,
   });
 
   try {
+    if (options.requestedStage && options.focus) {
+      throw new CompilerFailure(
+        "COMPILER_INVALID_INVOCATION",
+        "requestedStage and focus are mutually exclusive.",
+      );
+    }
     const fs = new DenoReadOnlyFileSystem();
     const workspace = await loadSigilWorkspace(fs, {
       startPath: workspacePath,
@@ -169,7 +183,7 @@ export async function compile(
       options.profile ?? configuration.defaultProfile ?? "standard",
       configuration,
       definitions,
-      options.requestedStage,
+      requestedStage,
     );
     const adapters = adaptersFrom(profile, options);
     assertProfileEvaluators(profile, adapters);
@@ -189,7 +203,7 @@ export async function compile(
       workspace.root,
     );
 
-    let diagnostics: CompilerDiagnostic[] = await Promise.all(
+    const diagnostics: CompilerDiagnostic[] = await Promise.all(
       resolved.diagnostics.map((item) =>
         fromCoreDiagnostic(item, semanticSubjects)
       ),
@@ -218,7 +232,7 @@ export async function compile(
         );
         continue;
       }
-      if (options.signal?.aborted) {
+      if (cancellationSignal?.aborted) {
         throw new DOMException("Compilation cancelled.", "AbortError");
       }
 
@@ -239,6 +253,35 @@ export async function compile(
           }
           for (const adapter of adapters) assertAdapterCapabilities(adapter);
           for (const component of components) {
+            const retrievalPurpose =
+              definition.skill.manifest.implementationEvidence === "compare"
+                ? "implementation"
+                : stage.id === "semantic-readiness"
+                ? "semantic"
+                : "architecture";
+            const implementationEvidence: ImplementationEvidenceInput = {
+              workspaceSnapshotIdentity:
+                resolved.workspace.workspaceSnapshotIdentity,
+              discoveryState: "complete",
+              sources: implementationSources,
+              diagnostics: [],
+            };
+            const retrieval = await retrievePurposeContext(
+              resolved,
+              {
+                kind: "component",
+                componentName: component.name,
+                path: canonicalWorkspacePath(
+                  component.filePath,
+                  workspace.root,
+                ),
+              },
+              retrievalPurpose,
+              resolved.glossary,
+              retrievalPurpose === "implementation"
+                ? implementationEvidence
+                : null,
+            );
             const request = {
               stage: stage.id,
               skill: definition.skill.guidance,
@@ -246,10 +289,15 @@ export async function compile(
               implementationEvidence:
                 definition.skill.manifest.implementationEvidence,
               workspaceRoot: workspace.root,
-              target: evaluationTarget(resolved, component, workspace.root),
+              target: compilationEvaluationTarget(
+                component,
+                workspace.root,
+                retrieval,
+              ),
               capabilities: INSPECTION_CAPABILITIES,
               budgets: profile.executionBudgets,
-              signal: options.signal,
+              maxInputChars: profile.agentInputBudgetChars,
+              signal: cancellationSignal,
             };
             const requestSize = JSON.stringify(request, (_key, value) =>
               value instanceof AbortSignal ? undefined : value).length;
@@ -337,44 +385,65 @@ export async function compile(
       await emit("stage-completed", { stage: report });
     }
 
-    const historyKey = options.history && !options.noHistory
+    const historyDisabled = options.disableHistory ?? options.noHistory ??
+      false;
+    const historyKey = options.history && !historyDisabled
       ? await compilationHistoryKey(workspace.root, target, profile)
       : undefined;
-    const previous = historyKey
-      ? await options.history!.read(historyKey).catch(() => undefined)
-      : undefined;
-    diagnostics = [...applyDiagnosticLifecycle(diagnostics, previous)];
-    const report: CompilationReport = {
-      reportVersion: COMPILATION_REPORT_VERSION,
+    let previous: CompilationReport | undefined;
+    if (historyKey) {
+      try {
+        previous = await options.history!.read(historyKey);
+      } catch (error) {
+        await deliverHistoryWarning(options, {
+          code: "COMPILER_HISTORY_READ_FAILED",
+          operation: "read",
+          historyKey,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    const report = constructCompilationReport({
       runId,
       workspaceRoot: workspace.root,
       target,
       componentNames: components.map((item) => item.name),
-      status: colorFor(diagnostics, stageReports),
       startedAt,
       completedAt: new Date().toISOString(),
       sourceFingerprint,
-      requestedStage: options.requestedStage,
+      requestedStage,
+      focus: options.focus,
       profile,
       stages: stageReports,
       diagnostics,
-    };
-    if (options.output) {
-      await Deno.writeTextFile(
-        options.output,
-        `${JSON.stringify(report, null, 2)}\n`,
-      );
+      previous,
+    });
+    const exportDestination = options.reportExport ?? options.output;
+    if (cancellationSignal?.aborted) {
+      throw new DOMException("Compilation cancelled.", "AbortError");
     }
-    if (historyKey) {
-      await options.history!.write(historyKey, report).catch(() => {});
+    if (exportDestination) {
+      await exportCompilationReport(report, exportDestination, workspace.root);
     }
     await emit("completed", { report });
+    if (historyKey) {
+      try {
+        await options.history!.write(historyKey, report);
+      } catch (error) {
+        await deliverHistoryWarning(options, {
+          code: "COMPILER_HISTORY_WRITE_FAILED",
+          operation: "write",
+          historyKey,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
     return report;
   } catch (error) {
     const type = error instanceof DOMException && error.name === "AbortError"
       ? "cancelled"
       : "failed";
-    const code = compilerErrorCode(error);
+    const code = stableCompilerFailureCode(error);
     try {
       await emit(type, {
         code,
@@ -384,6 +453,17 @@ export async function compile(
       // The event consumer failed, so no further terminal delivery is possible.
     }
     throw error;
+  }
+}
+
+async function deliverHistoryWarning(
+  options: CompileOptions,
+  warning: Parameters<NonNullable<CompileOptions["hostWarningSink"]>>[0],
+): Promise<void> {
+  try {
+    await options.hostWarningSink?.(warning);
+  } catch {
+    // History warnings and their optional delivery remain non-authoritative.
   }
 }
 
@@ -409,24 +489,6 @@ function stageDefinitions(
       skill,
     };
   });
-}
-
-function evaluationTarget(
-  resolved: ResolvedSigilWorkspace,
-  component: ResolvedComponent,
-  root: string,
-) {
-  const dependencyContext = agentDependencyContextFor(resolved, component.name);
-  const initialPaths = new Set([
-    component.filePath,
-    ...component.expansions.expands.map((item) => item.filePath),
-    ...(dependencyContext?.relatedFilePaths ?? []),
-  ].map((path) => canonicalWorkspacePath(path, root)));
-  return {
-    componentName: component.name,
-    sigilFile: canonicalWorkspacePath(component.filePath, root),
-    initialPaths: [...initialPaths],
-  };
 }
 
 function assertAdapterCapabilities(adapter: AgentAdapter): void {
@@ -463,8 +525,28 @@ function parseConfiguration(value: unknown): CompileConfiguration {
     throw new Error("tools.compile must be an object.");
   }
   const raw = value as Record<string, unknown>;
-  validateConfiguredBudgets(raw.budgets);
+  if (raw.budgets !== undefined) validateConfiguredBudgets(raw.budgets);
+  if (raw.limits !== undefined) validateConfiguredLimits(raw.limits);
   return raw as unknown as CompileConfiguration;
+}
+
+function validateConfiguredLimits(value: unknown): void {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("tools.compile.limits must be an object.");
+  }
+  const known = new Set(Object.keys(DEFAULT_LIMITS));
+  for (const [name, configured] of Object.entries(value)) {
+    if (!known.has(name)) {
+      throw new Error(
+        `tools.compile.limits contains unknown field ${JSON.stringify(name)}.`,
+      );
+    }
+    if (!Number.isSafeInteger(configured) || (configured as number) <= 0) {
+      throw new Error(
+        `tools.compile.limits.${name} must be a positive safe integer.`,
+      );
+    }
+  }
 }
 
 function validateConfiguredBudgets(value: unknown): void {
@@ -480,18 +562,28 @@ function validateConfiguredBudgets(value: unknown): void {
         `tools.compile.budgets contains unknown field ${JSON.stringify(name)}.`,
       );
     }
-    const maximum =
-      MAXIMUM_EXECUTION_BUDGETS[name as keyof typeof MAXIMUM_EXECUTION_BUDGETS];
     if (
       !Number.isSafeInteger(configured) ||
-      (configured as number) <= 0 ||
-      (configured as number) > maximum
+      (configured as number) <= 0
     ) {
       throw new Error(
-        `tools.compile.budgets.${name} must be a positive integer no greater than ${maximum}.`,
+        `tools.compile.budgets.${name} must be a positive safe integer.`,
       );
     }
   }
+}
+
+export function resolveCompilationSettings(
+  configuration: CompileConfiguration,
+): {
+  readonly budgets: AgentExecutionBudgets;
+  readonly limits: CompilationLimits;
+} {
+  const budgets = { ...DEFAULT_EXECUTION_BUDGETS, ...configuration.budgets };
+  validateConfiguredBudgets(budgets);
+  const limits = { ...DEFAULT_LIMITS, ...configuration.limits };
+  validateConfiguredLimits(limits);
+  return { budgets, limits };
 }
 
 async function effectiveProfile(
@@ -527,14 +619,14 @@ async function effectiveProfile(
     dependencies: stage.dependencies,
   }));
   const evaluators = selectedEvaluators(name, base, custom, configuration);
+  const settings = resolveCompilationSettings(configuration);
   const profileBase = {
     name,
     criticalSystem: base === "critical-system",
-    contextBudgetChars: MAX_COMPILATION_REQUEST_CHARS,
-    executionBudgets: {
-      ...DEFAULT_EXECUTION_BUDGETS,
-      ...configuration.budgets,
-    },
+    contextBudgetChars: settings.limits.maxCompilationRequestChars,
+    agentInputBudgetChars: settings.limits.maxAgentInputChars,
+    limits: settings.limits,
+    executionBudgets: settings.budgets,
     stages,
     adapter: configuration.adapter,
     evaluators,
@@ -552,6 +644,8 @@ async function effectiveProfile(
     name: profileBase.name,
     criticalSystem: profileBase.criticalSystem,
     contextBudgetChars: profileBase.contextBudgetChars,
+    agentInputBudgetChars: profileBase.agentInputBudgetChars,
+    limits: profileBase.limits,
     executionBudgets: profileBase.executionBudgets,
     stages: profileBase.stages,
     adapter: profileBase.adapter,
@@ -732,14 +826,6 @@ function evaluatorConfigurationError(
     : new Error(message);
 }
 
-function compilerErrorCode(error: unknown): string {
-  if (
-    error && typeof error === "object" && "code" in error &&
-    typeof (error as { code?: unknown }).code === "string"
-  ) return (error as { code: string }).code;
-  return "COMPILER_FAILED";
-}
-
 function resolveTarget(
   resolved: ResolvedSigilWorkspace,
   target: CompilationTarget,
@@ -748,10 +834,25 @@ function resolveTarget(
   const selected = target.kind === "workspace"
     ? resolved.components
     : selectExplicitTarget(resolved.components, target, root);
+  if (
+    target.kind === "component" && !target.declarationPath &&
+    selected.length > 1
+  ) {
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
+      `Component target ${JSON.stringify(target.name)} is ambiguous.`,
+    );
+  }
   if (!selected.length) {
-    throw new Error(
+    const selector = target.kind === "component"
+      ? target.name
+      : target.kind === "workspace"
+      ? ""
+      : target.filePath;
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
       `No component matched ${target.kind}${
-        target.kind === "workspace" ? "" : ` ${target.value}`
+        target.kind === "workspace" ? "" : ` ${selector}`
       }.`,
     );
   }
@@ -764,9 +865,14 @@ function selectExplicitTarget(
   root: string,
 ): readonly ResolvedComponent[] {
   if (target.kind === "component") {
-    return components.filter((item) => item.name === target.value);
+    assertNormalizedTargetPath(target.declarationPath);
+    return components.filter((item) =>
+      item.name === target.name && (!target.declarationPath ||
+        canonicalWorkspacePath(item.filePath, root) === target.declarationPath)
+    );
   }
-  const file = canonicalWorkspacePath(target.value, root);
+  assertNormalizedTargetPath(target.filePath);
+  const file = canonicalWorkspacePath(target.filePath, root);
   if (target.kind === "file") {
     return components.filter((item) =>
       canonicalWorkspacePath(item.filePath, root) === file ||
@@ -779,7 +885,8 @@ function selectExplicitTarget(
     !Number.isSafeInteger(target.line) || target.line < 1 ||
     !Number.isSafeInteger(target.column) || target.column < 1
   ) {
-    throw new Error(
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
       "Location target line and column must be positive integers.",
     );
   }
@@ -792,6 +899,22 @@ function selectExplicitTarget(
       rangeContains(expansion.declaration.range, location)
     )
   );
+}
+
+function assertNormalizedTargetPath(path: string | undefined): void {
+  if (path === undefined) return;
+  if (
+    !path || path.startsWith("/") || path.startsWith("\\") ||
+    path.includes("\\") || path.split("/").some((part) => part === "..") ||
+    path.startsWith("./") || path.includes("//")
+  ) {
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
+      `Compilation target path is not normalized and workspace-relative: ${
+        JSON.stringify(path)
+      }.`,
+    );
+  }
 }
 
 function rangeContains(
@@ -808,7 +931,7 @@ function rangeContains(
     (location.line === range.start.line &&
       location.column >= range.start.column);
   const beforeEnd = location.line < range.end.line ||
-    (location.line === range.end.line && location.column <= range.end.column);
+    (location.line === range.end.line && location.column < range.end.column);
   return afterStart && beforeEnd;
 }
 
@@ -1031,26 +1154,6 @@ async function stageFailure(
     evaluator: adapter?.id ?? "unavailable",
     lifecycle: "new",
   };
-}
-
-function colorFor(
-  diagnostics: readonly CompilerDiagnostic[],
-  stages: readonly StageReport[],
-): CompilationColor {
-  if (
-    diagnostics.some((item) =>
-      item.lifecycle !== "resolved" && item.severity === "error"
-    ) ||
-    stages.some((stage) =>
-      stage.required && !["completed", "disabled"].includes(stage.state)
-    )
-  ) return "red";
-  if (
-    diagnostics.some((item) =>
-      item.lifecycle !== "resolved" && item.severity === "warning"
-    )
-  ) return "yellow";
-  return "green";
 }
 
 function workspaceEvidenceFingerprint(

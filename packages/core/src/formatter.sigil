@@ -16,7 +16,11 @@ component SigilFormatter {
     Formatting {
       formatSigilDocument(sourceDocument, source) returns FormatResult
 
-      FormatResult contains formatted source, changed status, and diagnostics
+      FormatResult contains optional formatted source, changed status, and
+      diagnostics
+
+      formatted source is present only when formatting succeeds; changed is false
+      when formatted source is absent
     }
   }
 }
@@ -60,8 +64,9 @@ expand SigilFormatter {
 
       Formatting does not normalize structural indentation.
 
-      An indivisible token longer than 79 content characters remains unchanged and
-      produces SIGIL_UNFORMATTABLE_LINE.
+      An indivisible token longer than 79 content characters remains retained in the
+      parsed source, produces SIGIL_UNFORMATTABLE_LINE, returns no formatted source,
+      and returns changed false.
 
       Formatting preserves the input source's final-newline presence.
     }
@@ -121,6 +126,9 @@ expand SigilFormatter {
       result.
 
       A source with any error diagnostic returns no writable formatted result.
+
+      An unformattable indivisible token returns no formatted source, changed false,
+      and SIGIL_UNFORMATTABLE_LINE.
     }
   }
 }

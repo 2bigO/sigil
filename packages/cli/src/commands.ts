@@ -25,12 +25,16 @@ export interface CommandHandlerOptions {
 }
 
 /**
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillCatalog interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::SkillInstallation interface,logic,constraints,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::GlossaryInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::SourceFormatting interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillCatalogCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillCatalog logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallationCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallation logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspectionCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspection logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SourceFormattingCommand interface
+ * @sigil implements packages/cli/_module.sigil::SigilCli::SourceFormatting logic,constraints,cases
  */
 export async function runCommand(
   request: CommandRequest,
@@ -139,6 +143,40 @@ export async function runCommand(
   if (request.command === "context") {
     return await contextCommand(request, core, resolved);
   }
+  if (request.command === "retrieve") {
+    const implementationEvidence = request.purpose === "implementation"
+      ? await core.implementationEvidenceFor(resolved)
+      : null;
+    const target = request.component !== undefined
+      ? {
+        kind: "component" as const,
+        componentName: request.component,
+        path: resolved.components.find((item) =>
+            item.name === request.component
+          )?.filePath
+          ? workspaceRelative(
+            resolved.workspace.root,
+            resolved.components.find((item) =>
+              item.name === request.component
+            )!.filePath,
+          )
+          : request.path ?? ".",
+      }
+      : {
+        kind: "file" as const,
+        path: workspaceRelative(
+          resolved.workspace.root,
+          core.resolveTarget(request.file!),
+        ),
+      };
+    const result = await core.retrievePurposeContext(
+      resolved,
+      target,
+      request.purpose,
+      implementationEvidence,
+    );
+    return { command: "retrieve", ...result };
+  }
   return {
     command: "render",
     ...workspaceMetadata(resolved.workspace),
@@ -147,10 +185,18 @@ export async function runCommand(
   };
 }
 
+function workspaceRelative(root: string, path: string): string {
+  const normalizedRoot = root.replaceAll("\\", "/").replace(/\/+$/, "");
+  const normalized = path.replaceAll("\\", "/");
+  return normalized.startsWith(`${normalizedRoot}/`)
+    ? normalized.slice(normalizedRoot.length + 1)
+    : normalized.replace(/^\.\//, "");
+}
+
 /*
- * @sigil implements packages/cli/#module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput logic,constraints
- * @sigil implements packages/cli/#module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::MarkdownOutput logic,constraints
+ * @sigil implements packages/cli/_module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
  */
 async function contextCommand(
   request: ContextRequest,
@@ -194,7 +240,7 @@ async function contextCommand(
     core.ownedImplementationTargetsFor(
       resolved,
       implementationSourceDiscovery.sources,
-      component.name,
+      { componentName: component.name, declarationPath: component.filePath },
     )
   ).filter((item): item is OwnedImplementationProjection =>
     item !== undefined &&

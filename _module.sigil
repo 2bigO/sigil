@@ -16,21 +16,31 @@ component Sigil {
   }
 
   interface {
-    ComponentContract {
+    ComponentContractOverview {
+      ComponentContractOverview adapts ComponentContract for the root boundary.
+
       lets humans and coding agents share durable public contracts and operational
       rationale for coherent software parts
     }
 
-    WorkspaceBoundary {
+    WorkspaceBoundarySelection {
+      WorkspaceBoundarySelection adapts WorkspaceBoundary for root tool selection.
+
       lets tools select a configured workspace and discover its included Sigil
       sources consistently
     }
 
-    DirectoryImportSurface {
+    DirectoryImportSurfaceExposure {
+      DirectoryImportSurfaceExposure re-exposes DirectoryImportSurface through the
+      root boundary.
+
       lets authors use intentional directory-import shorthand
     }
 
-    ComponentVisibility {
+    ComponentVisibilityGuarantee {
+      ComponentVisibilityGuarantee adapts ComponentVisibility into a root-level
+      visibility promise.
+
       keeps every component importable through its explicit Sigil source path
       regardless of directory-import shorthand
     }
@@ -42,7 +52,10 @@ component Sigil {
       keeps command-line and language-server operations from modifying .sigil source
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflowIntegration {
+      SkillWorkflowIntegration integrates SkillWorkflow into the host-neutral root
+      workflow.
+
       provides a host-neutral agent workflow for design clarification, semantic
       review, explicit approval, and Sigil-guided implementation
     }
@@ -70,7 +83,7 @@ expand Sigil {
       and diagnostic facts shared by toolchain surfaces.
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       The host skill applies semantic judgment, conducts design and review
       conversations, and uses ReviewGate for scoped approval of Sigil changes and
       implementation.
@@ -113,7 +126,7 @@ expand Sigil {
       modifying .sigil source.
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       Host-assisted semantic judgment remains outside deterministic core packages.
 
       The review workflow remains host-neutral and requires explicit human approval
@@ -160,7 +173,7 @@ expand Sigil {
       derived from the same core contracts.
     }
 
-    HumanReviewWorkflow {
+    SkillWorkflow {
       A material semantic change remains unedited until the exact Sigil proposal
       receives explicit human approval.
     }

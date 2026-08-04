@@ -1,4 +1,4 @@
-/** Command-line interface for versioned Sigil 0.6 workspaces. @module */
+/** Command-line interface for versioned Sigil 0.7 workspaces. @module */
 import { type HelpTopic, parseArgs } from "./args.ts";
 import {
   type CompilationEvent,
@@ -6,7 +6,14 @@ import {
   type CompilationReport,
   compile,
   FileCompilationHistoryStore,
+  type SigilCompilationSessionFactory,
 } from "@qoherent/sigil-compiler";
+import {
+  closeCompilationSession,
+  evaluateCompilationSession,
+  refreshCompilationSession,
+  startCompilationSession,
+} from "./compilation-sessions.ts";
 import { type CommandHandlerOptions, runCommand } from "./commands.ts";
 import {
   EXIT_CANCELLED,
@@ -31,6 +38,7 @@ Commands:
   glossary          Inspect reviewed glossary terms and occurrences
   graph             Report the component and import graph
   context           Return context for a component or file
+  retrieve          Select deterministic purpose-specific context
   compile           Evaluate Sigil until red, yellow, or green
   render            Render workspace documentation
 
@@ -145,6 +153,19 @@ Options:
   --quiet             Suppress command output
   --help              Show this help
 `,
+  retrieve:
+    `Usage: sigil retrieve [path] (--component <name> | --file <file>) --purpose <purpose> [options]
+
+Options:
+  --component <name>  Select one exact component
+  --file <file>       Select one Sigil file
+  --purpose <value>   semantic, architecture, or implementation
+  --root <path>       Use an explicit workspace root
+  --format <value>    Output json or markdown
+  --pretty            Pretty-print JSON output
+  --quiet             Suppress command output
+  --help              Show this help
+`,
   compile:
     `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>]] [options]
 
@@ -162,6 +183,15 @@ Options:
   --quiet             Suppress human output
   --help              Show this help
 `,
+  "compile-session":
+    `Usage: sigil compile session <start|evaluate|refresh|close> [options]\n`,
+  "compile-session-start":
+    `Usage: sigil compile session start [path] --focus design|implementation [--component <name> | --file <file>] [--profile <name>]\n`,
+  "compile-session-evaluate":
+    `Usage: sigil compile session evaluate <session-id> [--format jsonl]\n\nReads one CompilationProposal JSON object from standard input.\n`,
+  "compile-session-refresh":
+    `Usage: sigil compile session refresh <session-id>\n`,
+  "compile-session-close": `Usage: sigil compile session close <session-id>\n`,
   render: `Usage: sigil render [path] [options]
 
 Options:
@@ -185,13 +215,15 @@ export interface CliRunOptions extends CommandHandlerOptions {
   readonly onCompilationEvent?: (line: string) => void | Promise<void>;
   readonly onCompilationProgress?: (line: string) => void | Promise<void>;
   readonly signal?: AbortSignal;
+  readonly sessionFactory?: SigilCompilationSessionFactory;
+  readonly readStdin?: () => Promise<string>;
 }
 
 /**
- * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::StructuredOutput interface,constraints
- * @sigil implements packages/cli/#module.sigil::SigilCli::ExitStatus constraints,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CliInvocation interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
+ * @sigil implements packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
  */
 export async function runCli(
   argv: readonly string[],
@@ -214,32 +246,99 @@ export async function runCli(
   }
 
   try {
+    if (parsed.request.command === "compile-session") {
+      const request = parsed.request;
+      if (request.action === "start") {
+        const target = request.component
+          ? { kind: "component" as const, name: request.component }
+          : request.file
+          ? { kind: "file" as const, filePath: request.file }
+          : { kind: "workspace" as const };
+        const result = await startCompilationSession(
+          request.root ?? request.path ?? Deno.cwd(),
+          target,
+          request.profile ?? "standard",
+          request.focus!,
+          { factory: options.sessionFactory },
+        );
+        return {
+          exitCode: 0,
+          stdout: request.quiet ? "" : `${JSON.stringify(result)}\n`,
+          stderr: "",
+        };
+      }
+      if (request.action === "evaluate") {
+        const events: CompilationEvent[] = [];
+        const report = await evaluateCompilationSession(
+          request.sessionIdentity!,
+          {
+            readStdin: options.readStdin,
+            signal: options.signal,
+            onEvent: async (event) => {
+              events.push(event);
+              if (request.format === "jsonl" && options.onCompilationEvent) {
+                await options.onCompilationEvent(`${JSON.stringify(event)}\n`);
+              }
+            },
+          },
+        );
+        const stdout = request.quiet
+          ? ""
+          : request.format === "jsonl"
+          ? options.onCompilationEvent
+            ? ""
+            : `${events.map((event) => JSON.stringify(event)).join("\n")}\n`
+          : formatCompilation(report);
+        return {
+          exitCode: report.status === "green" ? 0 : 1,
+          stdout,
+          stderr: "",
+        };
+      }
+      if (request.action === "refresh") {
+        const result = await refreshCompilationSession(
+          request.sessionIdentity!,
+        );
+        return {
+          exitCode: 0,
+          stdout: request.quiet ? "" : `${JSON.stringify(result)}\n`,
+          stderr: "",
+        };
+      }
+      await closeCompilationSession(request.sessionIdentity!);
+      return {
+        exitCode: 0,
+        stdout: request.quiet ? "" : `${
+          JSON.stringify({
+            sessionIdentity: request.sessionIdentity,
+            closed: true,
+          })
+        }\n`,
+        stderr: "",
+      };
+    }
     if (parsed.request.command === "compile") {
       const events: CompilationEvent[] = [];
       compilationEvents = events;
       const compileWorkspace = options.compiler ?? compile;
       const target = parsed.request.component
-        ? { kind: "component" as const, value: parsed.request.component }
+        ? { kind: "component" as const, name: parsed.request.component }
         : parsed.request.file && parsed.request.position
         ? {
           kind: "location" as const,
-          value: parsed.request.file,
+          filePath: parsed.request.file,
           ...parsed.request.position,
         }
         : parsed.request.file
-        ? { kind: "file" as const, value: parsed.request.file }
+        ? { kind: "file" as const, filePath: parsed.request.file }
         : { kind: "workspace" as const };
       const report = await compileWorkspace(
         parsed.request.root ?? parsed.request.path ?? Deno.cwd(),
         target,
         {
           profile: parsed.request.profile,
-          requestedStage: parsed.request.stage ??
-            (parsed.request.focus === "design"
-              ? "architecture-design"
-              : parsed.request.focus === "implementation"
-              ? "current-code-compatibility"
-              : undefined),
+          requestedStage: parsed.request.stage,
+          focus: parsed.request.focus,
           noHistory: parsed.request.noCache,
           history: parsed.request.noCache
             ? undefined

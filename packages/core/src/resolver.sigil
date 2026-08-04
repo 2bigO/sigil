@@ -26,7 +26,7 @@ component SigilResolver {
 
     CollectiveExpansions {
       each resolved component identifies its declaration source and every matching
-      expand block
+      expand block colocated with it or connected through a resolved named import
     }
 
     ConceptResolution {
@@ -44,6 +44,9 @@ expand SigilResolver {
       Diagnose duplicate components and expands without matching components.
 
       Resolve explicit source imports and directory imports.
+
+      Diagnose every expand without a local or explicitly imported matching component
+      and exclude it from collective expansions.
 
       Detect cycles between resolved import files.
 
@@ -74,7 +77,8 @@ expand SigilResolver {
     }
 
     CollectiveExpansions {
-      Collect every matching expand for each resolved component without override or
+      Collect only expands colocated with their component or connected to that exact
+      component by a resolved import in the expand source, without override or
       shadowing.
     }
 
@@ -87,10 +91,13 @@ expand SigilResolver {
 
       Add imported public concepts as bare accessible identities.
 
-      Preserve provider identity while retaining importer lines only in importer
-      context.
+      Preserve provider identity only for an exact imported public-concept block in a
+      matching expand while retaining importer lines only in importer context.
 
-      Re-expose an imported identity when reused in interface.
+      Keep a same-named concept declared on the importing component as a distinct
+      local identity.
+
+      Re-expose an imported identity when reused in a matching expand interface.
 
       Scan semantic-unit prose against unambiguous accessible concepts and record
       each exact-case whole-word match in ResolvedConceptNamespace.references.
@@ -119,6 +126,10 @@ expand SigilResolver {
 
       Unresolved or ambiguous imported names do not additionally produce
       SIGIL_UNUSED_IMPORT.
+
+      A cross-file expand without a resolved import of its component produces
+      SIGIL_EXPAND_WITHOUT_COMPONENT and contributes no collected expansion or
+      concept-namespace content.
     }
 
     ComponentContract {
@@ -128,6 +139,12 @@ expand SigilResolver {
 
     ConceptResolution {
       Provider projections never collect consumer-contributed contextual occurrences.
+
+      Component-declared concept blocks do not adopt imported identities; same-named
+      local and imported identities remain accessible and ambiguous.
+
+      A structural self-import does not project the component's public concepts into
+      its own namespace as an imported dependency.
 
       Resolution provides no dotted qualification, aliases, or shadowing.
 
@@ -172,6 +189,13 @@ expand SigilResolver {
 
       A resolved direct ModuleIndexFile import uses its name through the directory
       surface.
+
+      A cross-file expand without an import produces SIGIL_EXPAND_WITHOUT_COMPONENT.
+
+      Importing the component attaches the cross-file expand and records
+      structural-expand use.
+
+      A second unused name in the same import still produces SIGIL_UNUSED_IMPORT.
     }
 
     DirectoryImportSurface {
@@ -183,13 +207,18 @@ expand SigilResolver {
 
     CollectiveExpansions {
       Multiple matching expands are all retained.
+
+      A structural self-import does not duplicate the component's public concepts.
     }
 
     ConceptResolution {
       Imported public concepts are available as bare identities.
 
-      Contextual reuse preserves provider identity without adding importer content
-      upstream.
+      Matching-expand reuse preserves provider identity without adding importer
+      content upstream.
+
+      A same-named component-declared concept remains a distinct local identity and
+      produces an ambiguity diagnostic.
 
       A whole-word local or imported identifier produces a contextual reference with
       its originating ConceptIdentity.

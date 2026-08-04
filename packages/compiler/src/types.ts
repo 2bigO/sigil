@@ -1,4 +1,5 @@
 import type {
+  PurposeRetrievalResult,
   SigilFormKind,
   SigilSectionName,
   SourceRange,
@@ -29,14 +30,36 @@ export type StageState =
 
 export type CompilationTarget =
   | { readonly kind: "workspace" }
-  | { readonly kind: "file"; readonly value: string }
-  | { readonly kind: "component"; readonly value: string }
+  | { readonly kind: "file"; readonly filePath: string }
+  | {
+    readonly kind: "component";
+    readonly name: string;
+    readonly declarationPath?: string;
+  }
   | {
     readonly kind: "location";
-    readonly value: string;
+    readonly filePath: string;
     readonly line: number;
     readonly column: number;
   };
+
+export type CompilationFocus = "design" | "implementation";
+
+export type CompilerFailureCode =
+  | "COMPILER_INVALID_INVOCATION"
+  | "COMPILER_PROFILE_EVALUATORS_REQUIRED"
+  | "COMPILER_CANCELLED"
+  | "COMPILER_FAILED"
+  | "COMPILER_INVALID_PROPOSAL"
+  | "COMPILER_GENERATION_EXHAUSTED"
+  | "COMPILER_INVALID_SESSION_IDENTITY"
+  | "COMPILER_SESSION_BUSY"
+  | "COMPILER_SESSION_EXPIRED"
+  | "COMPILER_UNSAFE_SNAPSHOT_PATH"
+  | "COMPILER_SNAPSHOT_CHANGED"
+  | "COMPILER_WORKSPACE_STATE"
+  | "COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED"
+  | "COMPILER_WORKSPACE_HOST_FAILURE";
 
 export type DiagnosticSemanticRelation = "direct" | "governing" | "related";
 
@@ -88,6 +111,8 @@ export interface EffectiveProfile {
   readonly name: string;
   readonly criticalSystem: boolean;
   readonly contextBudgetChars: number;
+  readonly agentInputBudgetChars: number;
+  readonly limits: CompilationLimits;
   readonly executionBudgets: AgentExecutionBudgets;
   readonly stages: readonly {
     readonly id: string;
@@ -115,6 +140,14 @@ export interface CompilationReport {
   readonly completedAt: string;
   readonly sourceFingerprint: string;
   readonly requestedStage?: string;
+  readonly focus?: CompilationFocus;
+  readonly session?: {
+    readonly sessionIdentity: string;
+    readonly baseEpoch: number;
+    readonly generation: number;
+    readonly baseFingerprint: string;
+    readonly proposalFingerprint: string;
+  };
   readonly profile: EffectiveProfile;
   readonly stages: readonly StageReport[];
   readonly diagnostics: readonly CompilerDiagnostic[];
@@ -140,13 +173,82 @@ export interface CompilationEvent {
 export interface CompileOptions {
   readonly profile?: string;
   readonly requestedStage?: string;
+  readonly focus?: CompilationFocus;
+  readonly disableHistory?: boolean;
   readonly noHistory?: boolean;
+  readonly reportExport?: string;
   readonly output?: string;
+  readonly cancellationSignal?: AbortSignal;
   readonly signal?: AbortSignal;
   readonly adapter?: AgentAdapter;
   readonly adapters?: readonly AgentAdapter[];
   readonly history?: CompilationHistoryStore;
+  readonly hostWarningSink?: (
+    warning: CompilationHistoryWarning,
+  ) => void | Promise<void>;
   readonly onEvent?: (event: CompilationEvent) => void | Promise<void>;
+}
+
+export interface CompilationHistoryWarning {
+  readonly code:
+    | "COMPILER_HISTORY_READ_FAILED"
+    | "COMPILER_HISTORY_WRITE_FAILED";
+  readonly operation: "read" | "write";
+  readonly message: string;
+  readonly historyKey: string;
+}
+
+export interface CompilationProposal {
+  readonly sources: Readonly<Record<string, string>>;
+}
+
+export type CompilationSessionLifecycleState =
+  | "active"
+  | "evaluating"
+  | "refreshing"
+  | "closing"
+  | "closed"
+  | "expired"
+  | "cleanup-failed"
+  | "manual-recovery-required";
+
+export interface ProposalWorkspacePersistedState {
+  readonly version: 1;
+  readonly sessionIdentity: string;
+  readonly directoryName: string;
+  readonly baseFingerprint: string;
+  readonly selectedPaths: readonly string[];
+  readonly generation?: number;
+  readonly proposalFingerprint?: string;
+}
+
+export interface CompilationSessionRecord {
+  readonly version: 1;
+  readonly sessionIdentity: string;
+  readonly workspacePath: string;
+  readonly target: CompilationTarget;
+  readonly profileName: string;
+  readonly focus: CompilationFocus;
+  readonly lifecycle: CompilationSessionLifecycleState;
+  readonly expiresAt: string;
+  readonly baseEpoch: number;
+  readonly generation?: number;
+  readonly baseFingerprint: string;
+  readonly proposalFingerprint?: string;
+  readonly proposalWorkspace: ProposalWorkspacePersistedState;
+  readonly latestReport?: CompilationReport;
+}
+
+export interface CompilationSessionStartResult {
+  readonly sessionIdentity: string;
+  readonly baseEpoch: number;
+  readonly baseFingerprint: string;
+  readonly expiresAt: string;
+}
+
+export interface CompilationSessionRefreshResult {
+  readonly baseEpoch: number;
+  readonly baseFingerprint: string;
 }
 
 export interface AgentFinding {
@@ -165,6 +267,7 @@ export interface AgentEvaluationTarget {
   readonly componentName: string;
   readonly sigilFile: string;
   readonly initialPaths: readonly string[];
+  readonly retrieval?: PurposeRetrievalResult;
 }
 
 export interface AgentCapabilityContract {
@@ -193,6 +296,7 @@ export interface AgentEvaluationRequest {
   readonly target: AgentEvaluationTarget;
   readonly capabilities: AgentCapabilityContract;
   readonly budgets: AgentExecutionBudgets;
+  readonly maxInputChars: number;
   readonly signal?: AbortSignal;
 }
 
@@ -237,6 +341,7 @@ export interface AgentAdapter {
 export interface CompileConfiguration {
   readonly defaultProfile?: string;
   readonly budgets?: Partial<AgentExecutionBudgets>;
+  readonly limits?: Partial<CompilationLimits>;
   readonly adapter?: {
     readonly provider: "codex" | "claude";
     readonly model?: string;
@@ -254,6 +359,12 @@ export interface CompileConfiguration {
       readonly evaluatorIds?: readonly string[];
     }>
   >;
+}
+
+export interface CompilationLimits {
+  readonly maxCompilationRequestChars: number;
+  readonly maxAgentInputChars: number;
+  readonly sessionTtlMs: number;
 }
 
 export interface EvaluatorConfiguration {

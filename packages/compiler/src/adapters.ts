@@ -14,8 +14,6 @@ export type CommandRunner = (
   signal?: AbortSignal,
 ) => Promise<string>;
 
-const MAX_AGENT_INPUT_CHARS = 120_000;
-
 const defaultRunner: CommandRunner = async (command, args, input, signal) => {
   const child = new Deno.Command(command, {
     args: [...args],
@@ -53,15 +51,15 @@ export class CodexAdapter implements AgentAdapter {
     readonly id = "codex",
   ) {}
 
-  // @sigil implements packages/compiler/#module.sigil::SigilCompiler::AgentAdapter interface,logic,cases
+  // @sigil implements packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
   async evaluate(
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {
     assertCapabilityContract(this, request);
     const prompt = evaluationPrompt(request);
-    if (prompt.length > MAX_AGENT_INPUT_CHARS) {
+    if (prompt.length > request.maxInputChars) {
       throw new Error(
-        `Agent request is ${prompt.length} characters, exceeding the ${MAX_AGENT_INPUT_CHARS}-character safety limit.`,
+        `Agent request is ${prompt.length} characters, exceeding the ${request.maxInputChars}-character safety limit.`,
       );
     }
 
@@ -176,7 +174,7 @@ function assertCapabilityContract(
   }
 }
 
-// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilCompiler::ImplementationEvidencePolicy logic,constraints
+// @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ImplementationEvidencePolicy logic,constraints
 function evaluationPrompt(request: AgentEvaluationRequest): string {
   return `You are the Sigil compiler evaluator for stage ${
     JSON.stringify(request.stage)
@@ -190,6 +188,8 @@ Workspace root: ${request.workspaceRoot}
 Selected component: ${request.target.componentName}
 Governing Sigil file: ${request.target.sigilFile}
 Initial navigation paths: ${request.target.initialPaths.join(", ")}
+Authoritative selected retrieval context:
+${JSON.stringify(request.target.retrieval ?? { unavailable: true })}
 Allowed diagnostic rules: ${request.allowedRules.join(", ")}
 Implementation evidence policy: ${request.implementationEvidence}
 ${
@@ -204,8 +204,10 @@ conformance findings within its allowed diagnostic rules.`
   }
 Execution budgets: ${request.budgets.elapsedTimeMs}ms, at most ${request.budgets.maxCommands} commands, ${request.budgets.maxInputTokens} input tokens, and ${request.budgets.maxOutputTokens} output tokens.
 
-Inspect the workspace directly. Begin with targeted evidence and expand only when
-needed. You may run only these read-only command families:
+Treat the selected retrieval graph and aggregated context as authoritative scope.
+Inspect the workspace directly only through selected evidence paths to verify citations or diagnose an explicit
+retrieval gap; do not independently traverse the repository graph. You may run only
+these read-only command families:
 ${request.capabilities.allowedCommands.map((item) => `- ${item}`).join("\n")}
 
 Never run these command families:

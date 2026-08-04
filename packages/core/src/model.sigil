@@ -36,10 +36,11 @@ component SigilSemanticModel {
       file, semantic-unit owner, and exact range
 
       GlossaryProjection contains resolved contexts, entries, ordered occurrences,
-      and diagnostics
+      diagnostics, and the workspace snapshot identity from which it was derived
 
       GlossaryContextProjection contains the glossary path, effective terms, resolved
-      bounded contexts, and occurrences relevant to selected source files
+      bounded contexts, occurrences, and diagnostics relevant to selected source
+      files
 
       GlossaryParseResult contains validated authoritative data when available and
       accumulated diagnostics
@@ -80,7 +81,7 @@ component SigilSemanticModel {
 
     WorkspaceModel {
       SigilWorkspace contains the selected root, configuration, member roots, loaded
-      source documents, and diagnostics
+      source documents, diagnostics, and workspaceSnapshotIdentity
 
       WorkspaceLoadOptions identifies a start path and may select an explicit root or
       current directory
@@ -120,8 +121,50 @@ component SigilSemanticModel {
       edges, and component-expansion edges
     }
 
+    RetrievalModel {
+      PurposeRetrievalResult contains schema identity, policy version,
+      RetrievalTargetIdentity, purpose, SelectedRetrievalGraph, ordered EvidenceUnit,
+      InclusionReason, and ExcludedRelation values, AggregatedRetrievalContext,
+      diagnostics, and fingerprint
+
+      RetrievalTargetIdentity contains target kind component or file, optional exact
+      requested component-name Unicode scalar sequence for component kind, pathStatus
+      accepted or rejected, and path. The component name is never trimmed, case
+      folded, or Unicode-normalized. An accepted path is the normalized
+      workspace-relative path. A rejected path is the exact requested Unicode-scalar
+      string, including empty or NUL-containing values, and is serialized with RFC
+      8785 escaping in fingerprint input without being treated as a workspace path.
+
+      SelectedRetrievalGraph contains ordered RetrievalNode and RetrievalEdge values
+
+      RetrievalNode contains stable identity, kind, optional component name,
+      normalized workspace-relative path, and optional source range
+
+      RetrievalEdge contains stable identity, RetrievalRelation, endpoint identities,
+      and normalized originating evidence
+
+      EvidenceUnit contains stable identity, EvidenceKind, optional normalized path,
+      optional component, section, and concept identity, optional source range,
+      semantic or implementation text, and selecting inclusion-reason identities
+
+      Every non-diagnostic EvidenceUnit requires path and source range. Diagnostic
+      evidence preserves its SigilDiagnostic optional path and range; an absent path
+      also requires an absent range.
+
+      InclusionReason contains stable identity, policy rule, exact seed identity,
+      selected identity, and ordered RetrievalEdge path from that seed
+
+      ExcludedRelation contains stable identity, frontier edge and endpoint
+      identities, and exact excluding policy rule
+
+      AggregatedRetrievalContext contains ordered ContextSection values; each section
+      contains its EvidenceKind, semantic or selected implementation text, evidence
+      identity, and ordered inclusion-reason identities without presentation markup
+    }
+
     ResolvedWorkspaceModel {
-      ResolvedSigilWorkspace combines SigilResolution with SigilGraph
+      ResolvedSigilWorkspace combines SigilResolution with SigilGraph and preserves
+      its source SigilWorkspace workspaceSnapshotIdentity
     }
   }
 }

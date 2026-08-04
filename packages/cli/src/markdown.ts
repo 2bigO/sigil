@@ -8,7 +8,7 @@ import type {
 import type { CoreAdapter } from "./core-adapter.ts";
 import type { ContextCommandResult } from "./output-model.ts";
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
+// @sigil implements packages/cli/_module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
 export function renderWorkspaceMarkdown(
   resolved: Awaited<ReturnType<CoreAdapter["resolveWorkspace"]>>,
   core: CoreAdapter,
@@ -37,7 +37,7 @@ export function renderWorkspaceMarkdown(
   return `${lines.join("\n")}\n`;
 }
 
-// @sigil implements packages/cli/#module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
+// @sigil implements packages/cli/_module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
 export function renderContextMarkdown(result: ContextCommandResult): string {
   const lines = [
     "# Sigil Context",

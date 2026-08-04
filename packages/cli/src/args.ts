@@ -10,9 +10,19 @@ export type CommandName =
   | "glossary"
   | "graph"
   | "context"
+  | "retrieve"
   | "compile"
   | "render";
-export type HelpTopic = "root" | CommandName | "skill-list" | "skill-install";
+export type HelpTopic =
+  | CommandName
+  | "root"
+  | "skill-list"
+  | "skill-install"
+  | "compile-session"
+  | "compile-session-start"
+  | "compile-session-evaluate"
+  | "compile-session-refresh"
+  | "compile-session-close";
 export type OutputFormat = "json" | "jsonl" | "text" | "markdown";
 export type SkillAgent = "codex" | "claude" | "opencode" | "pi";
 
@@ -34,7 +44,9 @@ export type CommandRequest =
   | GlossaryRequest
   | GraphRequest
   | ContextRequest
+  | RetrieveRequest
   | CompileRequest
+  | CompileSessionRequest
   | RenderRequest;
 export interface SkillListRequest extends GlobalOptions {
   readonly command: "skill-list";
@@ -83,6 +95,13 @@ export interface ContextRequest extends GlobalOptions {
   readonly includeDependents: boolean;
   readonly path?: string;
 }
+export interface RetrieveRequest extends GlobalOptions {
+  readonly command: "retrieve";
+  readonly component?: string;
+  readonly file?: string;
+  readonly purpose: "semantic" | "architecture" | "implementation";
+  readonly path?: string;
+}
 export interface CompileRequest extends GlobalOptions {
   readonly command: "compile";
   readonly stage?: string;
@@ -97,6 +116,16 @@ export interface CompileRequest extends GlobalOptions {
   readonly profile?: string;
   readonly noCache: boolean;
   readonly output?: string;
+}
+export interface CompileSessionRequest extends GlobalOptions {
+  readonly command: "compile-session";
+  readonly action: "start" | "evaluate" | "refresh" | "close";
+  readonly sessionIdentity?: string;
+  readonly focus?: "design" | "implementation";
+  readonly component?: string;
+  readonly file?: string;
+  readonly path?: string;
+  readonly profile?: string;
 }
 export interface RenderRequest extends GlobalOptions {
   readonly command: "render";
@@ -118,8 +147,8 @@ export type ParseArgsResult = {
 } | UsageError;
 
 /*
- * @sigil implements packages/cli/#module.sigil::SigilCli::CliInvocation interface,logic,cases
- * @sigil implements packages/cli/#module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CliInvocation interface,logic,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
  */
 export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (argv[0] === "--help") return { kind: "help", helpTopic: "root" };
@@ -130,7 +159,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(
       commandName
         ? `Unknown command "${commandName}".`
-        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, compile, or render.",
+        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, retrieve, compile, or render.",
       "root",
     );
   }
@@ -155,7 +184,14 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       );
     }
   } else if (rest.includes("--help")) {
-    return { kind: "help", helpTopic: commandName };
+    return {
+      kind: "help",
+      helpTopic: commandName === "compile" && rest[0] === "session"
+        ? rest[1] && ["start", "evaluate", "refresh", "close"].includes(rest[1])
+          ? `compile-session-${rest[1]}` as HelpTopic
+          : "compile-session"
+        : commandName,
+    };
   }
 
   const positional: string[] = [];
@@ -177,6 +213,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let noCache = false;
   let output: string | undefined;
   let check = false;
+  let purpose: RetrieveRequest["purpose"] | undefined;
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -284,6 +321,21 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--include-dependents":
         includeDependents = true;
         break;
+      case "--purpose": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        if (
+          value !== "semantic" && value !== "architecture" &&
+          value !== "implementation"
+        ) {
+          return usage(
+            "--purpose must be semantic, architecture, or implementation.",
+            commandHelpTopic,
+          );
+        }
+        purpose = value;
+        break;
+      }
       case "--name": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -315,7 +367,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(`${commandName} does not accept --check.`, commandHelpTopic);
   }
   if (
-    commandName !== "context" && commandName !== "compile" &&
+    commandName !== "context" && commandName !== "retrieve" &&
+    commandName !== "compile" &&
     (component || file || position)
   ) {
     return usage(
@@ -328,6 +381,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       `${commandName} does not accept --include-dependents.`,
       commandHelpTopic,
     );
+  }
+  if (commandName !== "retrieve" && purpose) {
+    return usage(`${commandName} does not accept --purpose.`, commandHelpTopic);
   }
   if (commandName !== "compile" && position) {
     return usage(
@@ -472,7 +528,121 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         | RenderRequest,
     };
   }
+  if (commandName === "retrieve") {
+    if (positional.length > 1) {
+      return usage("retrieve accepts at most one workspace path.", "retrieve");
+    }
+    if (!purpose) {
+      return usage(
+        "retrieve requires --purpose semantic, architecture, or implementation.",
+        "retrieve",
+      );
+    }
+    if (!!component === !!file) {
+      return usage(
+        "retrieve requires exactly one of --component or --file.",
+        "retrieve",
+      );
+    }
+    if (format && !["json", "markdown"].includes(format)) {
+      return usage(
+        "--format must be json or markdown for retrieve.",
+        "retrieve",
+      );
+    }
+    return {
+      kind: "ok",
+      request: {
+        command: "retrieve",
+        component,
+        file,
+        purpose,
+        path: positional[0],
+        ...base,
+      },
+    };
+  }
   if (commandName === "compile") {
+    if (positional[0] === "session") {
+      const action = positional[1];
+      if (
+        !action || !["start", "evaluate", "refresh", "close"].includes(action)
+      ) {
+        return usage(
+          "compile session requires start, evaluate, refresh, or close.",
+          "compile-session",
+        );
+      }
+      const operand = positional[2];
+      if (positional.length > 3) {
+        return usage(
+          `compile session ${action} accepts exactly one operand.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      if (action === "start") {
+        if (!focus) {
+          return usage(
+            "compile session start requires --focus design or implementation.",
+            "compile-session-start",
+          );
+        }
+        if (component && file) {
+          return usage(
+            "compile session start accepts only one of --component or --file.",
+            "compile-session-start",
+          );
+        }
+        if (position || noCache || output || format === "jsonl") {
+          return usage(
+            "compile session start does not accept --position, --no-cache, --output, or jsonl.",
+            "compile-session-start",
+          );
+        }
+        return {
+          kind: "ok",
+          request: {
+            command: "compile-session",
+            action,
+            path: operand,
+            focus,
+            component,
+            file,
+            profile,
+            ...base,
+          },
+        };
+      }
+      if (!operand) {
+        return usage(
+          `compile session ${action} requires a session identifier.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      if (
+        component || file || position || profile || focus || noCache || output
+      ) {
+        return usage(
+          `compile session ${action} does not accept compilation selection options.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      if (action !== "evaluate" && format === "jsonl") {
+        return usage(
+          `compile session ${action} does not accept jsonl.`,
+          `compile-session-${action}` as HelpTopic,
+        );
+      }
+      return {
+        kind: "ok",
+        request: {
+          command: "compile-session",
+          action: action as "evaluate" | "refresh" | "close",
+          sessionIdentity: operand,
+          ...base,
+        },
+      };
+    }
     const stage = COMPILATION_STAGE_IDS.includes(
         positional[0] as typeof COMPILATION_STAGE_IDS[number],
       )
@@ -563,6 +733,7 @@ function isCommand(value: string | undefined): value is CommandName {
     value === "check" || value === "fmt" || value === "glossary" ||
     value === "graph" ||
     value === "context" ||
+    value === "retrieve" ||
     value === "compile" ||
     value === "render";
 }

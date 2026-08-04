@@ -15,7 +15,10 @@ for (const key of Object.keys(process.env)) {
   }
 }
 
-let vscodeExecutablePath = await downloadAndUnzipVSCode("stable");
+let vscodeExecutablePath = await downloadAndUnzipVSCode({
+  version: "stable",
+  timeout: 120_000,
+});
 if (
   process.platform === "darwin" &&
   !existsSync(vscodeExecutablePath) &&

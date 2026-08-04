@@ -1,6 +1,7 @@
 import { diagnostic } from "./diagnostics.ts";
 import { normalizePath } from "./path.ts";
 import type {
+  ComponentIdentity,
   ImplementationArtifactKind,
   ImplementationRelation,
   ImplementationSection,
@@ -84,16 +85,21 @@ interface EntrypointMatch {
   readonly offset: number;
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,logic,constraints,cases
 export function ownedImplementationTargetsFor(
   resolved: ResolvedSigilWorkspace,
   implementationSources: readonly ImplementationSource[],
-  componentName: string,
+  componentIdentity: ComponentIdentity | string,
   conceptName?: string,
   sectionName?: ImplementationSection,
 ): OwnedImplementationProjection | undefined {
+  const componentName = typeof componentIdentity === "string"
+    ? componentIdentity
+    : componentIdentity.componentName;
   const owningComponent = resolved.components.find((component) =>
-    component.name === componentName
+    component.name === componentName &&
+    (typeof componentIdentity === "string" ||
+      component.filePath === componentIdentity.declarationPath)
   );
   if (!owningComponent) return undefined;
 
@@ -253,6 +259,12 @@ function implementationAnnotations(
           sections: annotation.sectionNames as readonly ImplementationSection[],
           symbolIdentity: entrypoint?.identity,
           range: entrypoint?.range,
+          targetRange: entrypoint?.range,
+          annotationRange: rangeForOffsets(
+            source.text,
+            comment.start,
+            comment.end,
+          ),
         },
       });
     }
