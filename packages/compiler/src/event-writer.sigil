@@ -1,0 +1,179 @@
+@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+
+component SigilCompilationEventWriter {
+  goal {
+    Own deterministic production and delivery settlement for one compiler event run
+    under SigilCompilationEventProtocol without owning host transport selection or
+    operation settlement.
+  }
+
+  interface {
+    CompilationEventWriterProtocol {
+      openWriter(writableSink, ExpectedCompilationRun) validates the expectation,
+      generates a cryptographically random canonical lowercase UUID version 4 runId,
+      and atomically attempts sequence-1 started. It returns ready with exactly that
+      runId and one stateful writer only after full delivery; zero-byte failure
+      returns stream-unavailable and partial delivery returns stream-incompatible,
+      with no writer or started run.
+
+      Invalid ExpectedCompilationRun returns protocol-invalid before runId generation
+      or sink access and returns no writer.
+
+      The writer exposes stageStarted(stageIdentity),
+      diagnostic(CompilationDiagnostic, componentName?),
+      stageCompleted(CompilationStageReport), completed(CompilationReport),
+      failed(rejectionCode, message), and cancelled(message). It validates semantic
+      values and constructs every schema field, JSON encoding, and frame.
+
+      WritableEnvelopeSink writes one complete envelope per asynchronous call and
+      truthfully settles with exactly delivered-all, rejected-zero-compatible,
+      rejected-zero-unavailable, or rejected-partial. A generic throw, rejection, or
+      undeclared result is conservatively stream-incompatible.
+
+      The host sink owns zero-byte classification. rejected-zero-compatible means it
+      observed that no byte escaped and the same binding remains able to accept one
+      later terminal envelope. rejected-zero-unavailable means it observed that no
+      byte escaped but the binding cannot accept a later call. If either fact cannot
+      be established, the sink must not claim a zero-byte result; a generic or
+      uncertain failure is treated as stream-incompatible.
+
+      The protocol imposes no writer-side deadline. A sink call that never settles
+      leaves its writer call and every accepted call behind it pending, commits no
+      sequence, and changes no writer state. A host requiring bounded settlement
+      supplies a sink that observes its deadline or cancellation, determines bytes
+      delivered, and settles with the corresponding declared sink result.
+
+      Calls serialize in synchronous call-acceptance order. The first accepted
+      terminal closes acceptance immediately; any concurrently or subsequently
+      submitted call returns protocol-invalid without writing after earlier accepted
+      calls settle.
+
+      Validate every call before consulting suppression. Invalid input or state
+      returns protocol-invalid without writing and permanently closes the writer.
+      Valid nonterminal calls return delivered, suppressed, stream-unavailable,
+      stream-incompatible, or protocol-exhausted. Valid terminal calls return
+      delivered, terminal-unavailable, stream-incompatible, or protocol-exhausted.
+
+      If an accepted queued call reaches the head after an earlier call closed the
+      writer, it performs no validation or write and uses the retained cause:
+      protocol-invalid after invalid input, protocol-exhausted after exhaustion,
+      stream-incompatible after partial delivery or undeclared sink failure, and
+      stream-unavailable for a nonterminal or terminal-unavailable for a terminal
+      after zero-byte unavailability. Every queued call uses the same retained cause.
+
+      completed requires report runId, ordered stage identities, operation, and
+      conditional session identity to equal the bound expectation. One-shot reports
+      have no session. Any mismatch is protocol-invalid.
+    }
+  }
+}
+
+expand SigilCompilationEventWriter {
+  constraints {
+    CompilationEventWriterProtocol {
+      Delegate envelope vocabulary and cross-direction ordering invariants to
+      SigilCompilationEventProtocol.
+
+      Sequence is committed only after full atomic delivery. Suppressed progress
+      consumes no sequence. Requiring 4294967296 returns protocol-exhausted without
+      writing and permanently closes the writer.
+
+      A zero-byte compatible nonterminal failure returns suppressed and suppresses
+      every later valid nonterminal after validation; exactly one terminal may still
+      be attempted with the next delivered sequence. A zero-byte unavailable
+      nonterminal failure returns stream-unavailable and closes the writer.
+
+      Terminal zero-byte compatible or unavailable failure returns
+      terminal-unavailable. Any partial envelope or generic sink failure returns
+      stream-incompatible, closes the logical writer, marks the sink unusable for
+      protocol writes, and forbids recovery on another stream. The host exclusively
+      owns physical cleanup.
+
+      A completed terminal requires every delivered stage-completed report to equal
+      its terminal-report stage entry. Every delivered diagnostic must equal exactly
+      one terminal-report currentDiagnostics entry by complete equality and
+      fingerprint, and each stage diagnosticCount equals the report count for that
+      stage. The report may include additional progress suppressed diagnostics.
+
+      For completed reconciliation, an expected stage omitted before a later
+      delivered interval must be disabled or skipped-by-dependency. An entirely
+      suppressed suffix may be completed, failed, disabled, or skipped-by-dependency.
+      Pending, running, or cancelled is invalid. An observably open stage must end as
+      completed or failed. Failed and cancelled terminals require only the already
+      validated, fingerprint-unique progress prefix because they carry no report.
+
+      Own event production and delivery outcomes, but leave compilation, evaluation,
+      session, persistence, cancellation policy, and method settlement to callers.
+    }
+  }
+
+  decisions {
+    CompilationEventWriterProtocol {
+      Decision: Use one single-attempt stateful writer with atomic progress
+      suppression, irreversible partial-delivery failure, and explicit queued-call
+      closure propagation.
+
+      Trade-offs: A compatible lost progress event suppresses the remaining progress
+      suffix; a partial write prevents recovery and terminal delivery.
+
+      Consequences: Concurrent callers observe deterministic settlements and valid
+      results never fail merely because retained command output is large.
+
+      Discarded alternatives: Automatic retry was rejected because uncertain delivery
+      could duplicate a sequence. Rebinding the same run was rejected because it
+      breaks one-stream identity and ordering. Starting a new run remains a host
+      choice only when the owning operation permits a distinct invocation; it is
+      never recovery for the failed run. Rejecting only an invalid call and
+      continuing was rejected because queued calls were accepted against state the
+      caller has violated, so hosts could diverge on stage order, terminal
+      eligibility, and report reconciliation. Permanent logical closure preserves one
+      deterministic failure boundary without writing recovery bytes.
+
+      Revisit when: A transport-neutral transactional framing mechanism exists.
+    }
+
+    ProtocolOwnedRunIdentity {
+      Decision: Generate runId inside openWriter as a cryptographically random
+      canonical lowercase UUID version 4.
+
+      Scope: Governs decentralized event-run correlation; excludes session, proposal,
+      report, adapter, and deterministic-replay identities.
+
+      Trade-offs: Callers cannot choose runId and replay receives a fresh identity.
+
+      Discarded alternatives: Caller strings were rejected because uniqueness and
+      canonical form vary by host. A global sequence was rejected because it needs a
+      shared allocator. Noncryptographic randomness was rejected because independent
+      hostile or faulty hosts could make collisions materially easier.
+
+      Consequences: Every successful writer exposes a portable collision-resistant
+      identity whose exact representation is stable across hosts.
+
+      Revisit when: A host-neutral identity standard provides equivalent independent
+      generation and collision resistance.
+    }
+  }
+
+  cases {
+    CompilationEventWriterProtocol {
+      If sequence 3 progress is atomically suppressed after 1 and 2 deliver, later
+      progress is validated then suppressed and the terminal uses sequence 3.
+
+      A terminal queued behind protocol-invalid, exhaustion, incompatibility, or
+      zero-byte unavailability performs no write and respectively returns
+      protocol-invalid, protocol-exhausted, stream-incompatible, or
+      terminal-unavailable. Queued nonterminals use stream-unavailable for the last
+      case.
+
+      Two overlapping diagnostics write in acceptance order. A call submitted after
+      terminal acceptance returns protocol-invalid without writing.
+
+      Started zero-byte failure returns stream-unavailable; partial started returns
+      stream-incompatible. No automatic retry occurs.
+
+      A failed or cancelled terminal may follow structurally valid unique diagnostic
+      progress without report reconciliation. A completed terminal reconciles all
+      delivered progress against its report.
+    }
+  }
+}

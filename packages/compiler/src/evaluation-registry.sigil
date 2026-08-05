@@ -1,21 +1,79 @@
-@packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
 
 component SigilEvaluationSkillRegistry {
   goal {
     Discover and validate versioned compiler-native evaluation skill packages and
     their rule, evidence, dependency, capability, and output contracts.
 
-    Express required provider capabilities using the AgentAdapter contract.
+    Express required provider capabilities using AgentCapabilityContract.
   }
 
   interface {
     EvaluationSkillPackage {
-      load(stageIdentity, version) returns validated SKILL.md guidance and
-      compile.json policy or leaves a required stage incomplete
+      load(stageIdentity, version) returns exactly one EvaluationSkillLoadResult:
+      ready with validated EvaluationGuidance, unavailable with reason
+      missing-package or missing-version, invalid with reason malformed-guidance,
+      malformed-policy, identity-mismatch, incompatible-version, invalid-inputs,
+      invalid-dependencies, invalid-capabilities, capability-mismatch, invalid-rules,
+      unsupported-policy, or invalid-output-contract, or host-failure with one stable
+      non-empty failure code and message
+
+      ready alone permits adapter invocation. unavailable or invalid invokes no
+      adapter and produces one incomplete evaluator outcome with the exact load
+      reason, marks the selected stage failed, and remains visible in its report
+      trace. A failed required stage prevents green; a failed optional stage does not
+      prevent green but remains failed and cannot supply dependency evidence
+
+      host-failure rejects the owning compilation operation with COMPILER_FAILED,
+      produces no CompilationReport, and follows its operation owner's failed-event
+      settlement rather than becoming an evaluator outcome
 
       implementation-evidence policy is context-only or compare
 
-      required capabilities use the AgentAdapter capability vocabulary
+      required capabilities use the AgentCapabilityContract vocabulary
+    }
+  }
+}
+
+expand SigilEvaluationSkillRegistry {
+  constraints {
+    EvaluationSkillPackage {
+      stageIdentity and version are non-empty exact identities. Invalid caller input
+      returns invalid with reason invalid-inputs before package access.
+
+      malformed-policy is reserved for a present compile.json whose syntax, shape, or
+      required policy fields cannot be decoded before field-specific validation.
+
+      EvaluationGuidance contains the validated skill identity, exact version,
+      instructions, allowed rules, implementation-evidence policy, and output
+      contract identity consumed by AgentEvaluationRequest.
+
+      Loading is single-attempt for one stage and version. unavailable and invalid
+      results are deterministic package outcomes; inaccessible storage, I/O failure,
+      or an undeclared loader failure is host-failure.
+    }
+  }
+
+  cases {
+    EvaluationSkillPackage {
+      A missing requested version returns unavailable missing-version and leaves a
+      required stage failed and incomplete without invoking an adapter.
+
+      A package with valid guidance but an unknown implementation-evidence policy
+      returns invalid unsupported-policy.
+
+      A malformed dependency declaration returns invalid invalid-dependencies; an
+      undeclared diagnostic rule returns invalid invalid-rules; a mismatched output
+      schema returns invalid invalid-output-contract. Every unequal or undeclared
+      capability dimension under AgentCapabilityContract exact matching returns
+      invalid capability-mismatch, regardless of whether either value appears more
+      permissive.
+
+      An optional stage with unavailable guidance is failed and visible but does not
+      by itself prevent green; any dependent stage skips for unavailable evidence.
+
+      A storage read failure returns host-failure and the owning operation returns no
+      report.
     }
   }
 }

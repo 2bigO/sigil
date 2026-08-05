@@ -1,0 +1,116 @@
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+
+component SigilAgentExecutionPolicy {
+  goal {
+    Own provider-neutral execution budgets, operational limits, cancellation input,
+    and deterministic token and cost budget outcomes for one agent evaluation.
+  }
+
+  interface {
+    AgentExecutionBudgets {
+      contains elapsed time and optional token and cost limits
+
+      elapsed time is compiler-host enforced; token and cost limits use the selected
+      AdapterObservabilityDeclaration enforcement modes
+    }
+
+    AgentOperationalLimits {
+      contains initial request transport size, provider framing size, final-result
+      size, and retained nonessential command-output size limits
+
+      exceeding retained command-output size truncates or discards that content;
+      transport, framing, or final-result overflow fails only the affected request or
+      evaluation
+    }
+
+    AgentCancellation {
+      contains the one optional cancellation signal for an evaluation request
+
+      a signal already cancelled prevents provider invocation; after invocation it
+      participates in the adapter's serialized terminal-transition ordering
+    }
+
+    AgentBudgetOutcome {
+      token and cost outcomes are independently not-configured, within-limit,
+      exceeded, or indeterminate
+
+      no configured limit produces not-configured
+
+      a successful preflight- or live-enforced run produces within-limit even when
+      terminal telemetry is partial or unavailable; preventive exhaustion terminates
+      without a successful result
+
+      for post-settlement-only or unavailable enforcement, final telemetry is
+      compared with its matching limit to produce within-limit or exceeded, while
+      partial or unavailable telemetry produces indeterminate
+
+      either exceeded outcome makes the caller's evaluation incomplete; indeterminate
+      alone does not fail evaluation and is never represented as within-limit
+    }
+  }
+}
+
+expand SigilAgentExecutionPolicy {
+  decisions {
+    OneCancellationSource {
+      Decision: Put one optional cancellation signal inside the evaluation request
+      execution policy and expose no duplicate adapter invocation signal.
+
+      Scope: Governs pre-invocation cancellation and races during one provider run.
+
+      Trade-offs: Callers must compose all cancellation sources before constructing
+      the request.
+
+      Design issues addressed: Two independently supplied signals create undefined
+      identity and precedence.
+
+      Consequences: The request is the sole cancellation authority consumed by the
+      adapter.
+    }
+
+    OperationalRatherThanEvidenceLimits {
+      Decision: Treat initial request size and retained command-output size as host
+      operational limits rather than bounds on all evidence or automatic reasons to
+      reject an intact final result.
+
+      Scope: Governs request transport and provider-output retention.
+
+      Trade-offs: Agents may inspect more workspace content after invocation, and
+      verbose command details may be truncated.
+
+      Design issues addressed: Direct workspace reads are not represented by initial
+      prompt size, and buffering all output before checking a limit does not protect
+      host resources.
+
+      Consequences: Stream processing preserves valid final results while bounding
+      retained nonessential content.
+    }
+
+    EvidenceAwareBudgetOutcomes {
+      Decision: Derive separate token and cost outcomes from configured limits,
+      declared enforcement modes, and actually available terminal telemetry.
+
+      Scope: Governs result budget classification; excludes provider billing
+      authority.
+
+      Trade-offs: Nonpreventive limits may remain indeterminate or detect excess only
+      after cost is incurred.
+
+      Consequences: Unknown telemetry is never represented as zero, within-limit, or
+      preventive enforcement.
+    }
+  }
+
+  cases {
+    AgentBudgetOutcome {
+      A successful live-enforced token-limited run without terminal token usage is
+      token within-limit because the selected adapter declared live enforcement.
+
+      A configured post-settlement-only token limit with partial token usage produces
+      token indeterminate.
+
+      Final token usage above its configured limit produces token exceeded and makes
+      the evaluation incomplete regardless of the cost outcome.
+    }
+  }
+}

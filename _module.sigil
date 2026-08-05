@@ -61,8 +61,11 @@ component Sigil {
     }
 
     AgenticCompilation {
-      provides profile-scoped, read-only, evidence-backed compilation through shared
-      compiler, CLI, CI, and editor surfaces
+      provides profile-scoped, evidence-backed compilation through shared compiler,
+      CLI, CI, and editor surfaces while keeping compiler-owned processing read-only
+
+      treats externally supplied CLI adapters and providers as user-selected,
+      self-declared integrations whose workspace behavior the compiler cannot verify
 
       distinguishes compilation status from human design approval and implementation
       authorization

@@ -1,5 +1,10 @@
 import { compile } from "./compiler.ts";
-import { createCompilationEventStream } from "./event-protocol.ts";
+import {
+  type CompilationEventWriter,
+  openCompilationEventWriter,
+  type WritableEnvelopeSink,
+  type WriterResult,
+} from "./event-writer.ts";
 import { SigilProposalWorkspace } from "./proposal-workspace.ts";
 import {
   type CompilationSessionLease,
@@ -19,6 +24,8 @@ const DEFAULT_SESSION_TTL_MS = 86_400_000;
 
 export interface SessionEvaluationOptions {
   readonly cancellationSignal?: AbortSignal;
+  readonly eventSink?: WritableEnvelopeSink;
+  /** Backward-compatible decoded-event callback façade. */
   readonly onEvent?: (event: CompilationEvent) => void | Promise<void>;
 }
 
@@ -36,14 +43,27 @@ export class SigilCompilationSession {
     proposal: CompilationProposal,
     options: SessionEvaluationOptions = {},
   ): Promise<CompilationReport> {
-    const runId = crypto.randomUUID();
-    const events = createCompilationEventStream(runId, options.onEvent);
-    await events.emit("started", { sessionIdentity: this.sessionIdentity });
     let lease: CompilationSessionLease | undefined;
+    let eventWriter: CompilationEventWriter | undefined;
     try {
       const opened = await this.store.open(this.sessionIdentity);
       lease = opened.lease;
       assertUsable(opened.record);
+      const openedWriter = await openCompilationEventWriter(
+        options.eventSink ?? callbackEventSink(options.onEvent),
+        {
+          operation: "session-evaluation",
+          sessionIdentity: this.sessionIdentity,
+          stageIdentities: sessionStageIdentities(opened.record.focus),
+        },
+      );
+      if (openedWriter.kind === "failure") {
+        throw new CompilerFailure(
+          "COMPILER_FAILED",
+          `Session event stream could not be established: ${openedWriter.result}.`,
+        );
+      }
+      eventWriter = openedWriter.writer;
       const workspace = await SigilProposalWorkspace.restore(
         opened.record.proposalWorkspace,
       );
@@ -57,10 +77,12 @@ export class SigilCompilationSession {
           focus: opened.record.focus,
           cancellationSignal: options.cancellationSignal,
           history,
+          onEvent: (event) => forwardProgress(eventWriter!, event),
         },
       );
       const authoritative: CompilationReport = {
         ...report,
+        runId: eventWriter.runId,
         workspaceRoot: opened.record.workspacePath.replaceAll("\\", "/"),
         session: {
           sessionIdentity: this.sessionIdentity,
@@ -82,26 +104,23 @@ export class SigilCompilationSession {
       await this.store.commit(lease, record);
       await lease.release();
       lease = undefined;
-      await events.emit("completed", { report: authoritative });
+      requireTerminalDelivery(await eventWriter.completed(authoritative));
       return authoritative;
     } catch (error) {
       await lease?.release().catch(() => {});
       const code = compilerFailureCode(error);
-      try {
-        await events.emit(
-          code === "COMPILER_CANCELLED" ? "cancelled" : "failed",
-          {
-            code,
-            sessionIdentity: this.sessionIdentity,
-            message: error instanceof Error ? error.message : String(error),
-          },
-        );
-      } catch {
-        throw new CompilerFailure(
-          "COMPILER_FAILED",
-          "Required terminal session event could not be written.",
-          { cause: error },
-        );
+      if (eventWriter) {
+        const message = error instanceof Error ? error.message : String(error);
+        const delivery = code === "COMPILER_CANCELLED"
+          ? await eventWriter.cancelled(message)
+          : await eventWriter.failed(code, message);
+        if (delivery !== "delivered") {
+          throw new CompilerFailure(
+            "COMPILER_FAILED",
+            "Required terminal session event could not be written.",
+            { cause: error },
+          );
+        }
       }
       throw error;
     }
@@ -165,6 +184,71 @@ export class SigilCompilationSession {
       throw error;
     }
   }
+}
+
+function sessionStageIdentities(
+  focus: CompilationSessionRecord["focus"],
+): readonly string[] {
+  return focus === "design"
+    ? [
+      "deterministic-foundation",
+      "semantic-readiness",
+      "architecture-design",
+    ]
+    : [
+      "deterministic-foundation",
+      "semantic-readiness",
+      "architecture-design",
+      "current-code-compatibility",
+    ];
+}
+
+async function forwardProgress(
+  writer: CompilationEventWriter,
+  event: CompilationEvent,
+): Promise<void> {
+  let result: WriterResult | undefined;
+  if (event.type === "stage-started") {
+    result = await writer.stageStarted(String(event.payload.stage));
+  } else if (event.type === "diagnostic") {
+    result = await writer.diagnostic(
+      event.payload.diagnostic as import("./types.ts").CompilerDiagnostic,
+      event.payload.componentName as string | undefined,
+    );
+  } else if (event.type === "stage-completed") {
+    result = await writer.stageCompleted(
+      event.payload.report as import("./types.ts").StageReport,
+    );
+  }
+  if (result && result !== "delivered" && result !== "suppressed") {
+    throw new CompilerFailure(
+      "COMPILER_FAILED",
+      `Session progress event delivery failed: ${result}.`,
+    );
+  }
+}
+
+function requireTerminalDelivery(result: WriterResult): void {
+  if (result !== "delivered") {
+    throw new CompilerFailure(
+      "COMPILER_FAILED",
+      `Required terminal session event was not delivered: ${result}.`,
+    );
+  }
+}
+
+function callbackEventSink(
+  callback: SessionEvaluationOptions["onEvent"],
+): WritableEnvelopeSink {
+  return async (bytes) => {
+    if (!callback) return "delivered-all";
+    try {
+      await callback(JSON.parse(new TextDecoder().decode(bytes)));
+      return "delivered-all";
+    } catch {
+      return "rejected-zero-unavailable";
+    }
+  };
 }
 
 function assertUsable(record: CompilationSessionRecord): void {

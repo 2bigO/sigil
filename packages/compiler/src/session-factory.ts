@@ -1,9 +1,6 @@
 import { resolve } from "node:path";
-import {
-  compile,
-  loadCompilationConfiguration,
-  resolveCompilationSettings,
-} from "./compiler.ts";
+import { compile, loadCompilationConfiguration } from "./compiler.ts";
+import { resolveCompilationSettings } from "./profile.ts";
 import { SigilProposalWorkspace } from "./proposal-workspace.ts";
 import { FileCompilationSessionStore } from "./session-store.ts";
 import { SigilCompilationSession } from "./session.ts";

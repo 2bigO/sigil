@@ -1,7 +1,7 @@
 @packages/compiler/src/proposal-workspace.sigil import { SigilProposalWorkspace }
 @packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
-@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+@packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
 @packages/compiler/src/session-store.sigil import { SigilCompilationSessionStore }
 
 component SigilCompilationSession {
@@ -14,9 +14,14 @@ component SigilCompilationSession {
     CompilationSessionLifecycle {
       evaluate(CompilationProposal proposal, SessionEvaluationOptions?) streams
       CompilationEvent and returns CompilationReport for the next completed proposal
-      generation, rejects cancellation with COMPILER_CANCELLED, or rejects with a
-      stable proposal, caller/session, workspace-condition, busy, or host-failure
-      code
+      generation only after its completed terminal returns delivered; rejects
+      cancellation with COMPILER_CANCELLED, or rejects with a stable proposal,
+      caller/session, workspace-condition, busy, or host-failure code
+
+      terminal-unavailable, stream-incompatible, protocol-exhausted, or
+      protocol-invalid while settling any terminal rejects with COMPILER_FAILED and
+      returns no CompilationReport; a failed or cancelled terminal that is delivered
+      preserves the operation's already selected stable rejection code
 
       refresh replaces the immutable proposal base epoch, clears generation history,
       and returns CompilationSessionRefreshResult or rejects with a stable busy,
@@ -30,6 +35,9 @@ component SigilCompilationSession {
     SessionEvaluationOptions {
       cancellationSignal is an optional caller-owned signal observed without giving
       the caller a session lease or proposal-workspace capability
+
+      eventSink is an optional caller-owned WritableEnvelopeSink used only for this
+      evaluate operation; omission binds an internal always-delivered discard sink
     }
 
     CompilationSessionRefreshResult {
@@ -60,6 +68,11 @@ expand SigilCompilationSession {
       establishment failure rejects with COMPILER_FAILED and performs no session
       access.
 
+      Bind SessionEvaluationOptions eventSink or the internal discard sink to one
+      per-evaluation CompilationEventWriter. Never share that writer or sink binding
+      with another session operation, and pass the writer to
+      SigilCompilationEvaluation for nonterminal progress.
+
       After opening the verified record and SessionLease, invoke
       SigilProposalWorkspace restore while the lease remains held. Own the returned
       façade and restored ProposalWorkspaceAccess, release that access before apply,
@@ -68,8 +81,10 @@ expand SigilCompilationSession {
 
       Delegate accepted proposals to SigilCompilationEvaluation through the selected
       focus and its complete dependency closure using ProposalWorkspaceAccess. Treat
-      its CompilationEvaluationResult and nonterminal progress as internal inputs;
-      SigilCompilationEvaluation never settles the session operation.
+      its CompilationEvaluationResult as an internal input and re-envelope its
+      nonterminal stage and diagnostic progress into the session evaluation's one
+      CompilationEvent run. SigilCompilationEvaluation never starts another host
+      stream or settles the session operation.
 
       Pass coreFilesystem only to SigilCore and pass agentRoot only through the
       adapter's enforced read-only sandbox; never receive or forward the façade's
@@ -103,14 +118,14 @@ expand SigilCompilationSession {
       with COMPILER_CANCELLED. Once commit begins, ignore later cancellation and let
       commit plus terminal settlement determine the outcome.
 
-      Use SigilCompilationEventProtocol for ordered progress and terminal event
+      Use SigilCompilationEventWriter for ordered progress and terminal event
       framing. Proposal, caller/session, workspace-condition, busy, and dependency
       host failures reject with their exact stable code and use that code in a failed
-      terminal event when transport is writable. Event protocol, transport, or
-      compiler-orchestration failure rejects with COMPILER_FAILED. Because evaluate
-      establishes its stream first, later session or workspace rejection always
-      attempts its required failed terminal event; terminal-write failure supersedes
-      it with COMPILER_FAILED.
+      terminal event when a compatible writer remains open. Event protocol,
+      transport, or compiler-orchestration failure rejects with COMPILER_FAILED.
+      Because evaluate establishes its stream first, later session or workspace
+      rejection always attempts its required failed terminal event; terminal-write
+      failure supersedes it with COMPILER_FAILED.
 
       On refresh, close SigilProposalWorkspace and create its replacement. Increment
       baseEpoch and clear generation and diagnostic history only after replacement

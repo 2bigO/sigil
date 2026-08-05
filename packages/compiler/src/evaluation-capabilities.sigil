@@ -1,0 +1,105 @@
+component SigilAgentCapabilityContract {
+  goal {
+    Own the versioned provider-neutral capability and observability declarations
+    shared by compiler profiles, evaluation skills, and CLI adapters.
+
+    Make deterministic compatibility matching possible without claiming that
+    self-reported adapter behavior is independently verified.
+  }
+
+  interface {
+    AgentCapabilityContract {
+      schemaVersion is 1 and its closed capability dimensions are workspaceAccess of
+      none, read-only, or read-write; agentToolNetwork and approvalEscalation
+      booleans; and statePersistence of ephemeral or persistent
+
+      compiler evaluation requests read-only, false, false, and ephemeral
+      respectively
+
+      an adapter declaration matches only when schemaVersion is 1, all four
+      dimensions are present, and every value exactly equals its requested value
+
+      an omitted dimension, unknown value, unknown schema version, or undeclared
+      capability dimension rejects matching; implementation identity, version,
+      provider metadata, and observability metadata do not participate in capability
+      equality
+
+      declarations are self-reported compatibility metadata rather than verified
+      safety guarantees
+    }
+
+    AdapterObservabilityDeclaration {
+      progress is none or streaming; usage and cost are independently unavailable,
+      partial, or final; tokenBudgetEnforcement and costBudgetEnforcement are each
+      unavailable, preflight, live, or post-settlement-only
+
+      only preflight and live budget enforcement are preventive; omitted or unknown
+      observability values resolve to unavailable
+    }
+  }
+}
+
+expand SigilAgentCapabilityContract {
+  decisions {
+    ClosedVersionedCapabilityVocabulary {
+      Decision: Use one versioned closed capability schema with exact matching for
+      workspace access, agent tool network access, approval escalation, and state
+      persistence.
+
+      Scope: Governs capability requests and self-declarations for every supported
+      adapter.
+
+      Trade-offs: Capability extensions require a schema-version and compiler
+      contract change.
+
+      Design issues addressed: Unversioned open-ended declarations let plugins
+      interpret omitted, unknown, or extra dimensions inconsistently.
+
+      Consequences: Equivalent declarations produce the same match result without
+      treating unrelated adapter metadata as a capability.
+    }
+
+    SelfDeclaredAdapterCapabilities {
+      Decision: Treat adapter capability and observability declarations as
+      self-reported compatibility metadata, with explicit adapter selection accepting
+      the documented implementation risk.
+
+      Scope: Governs compiler-owned and plugin-supplied adapter declarations.
+
+      Trade-offs: Matching declarations do not guarantee filesystem, network,
+      command, persistence, or data-handling restrictions.
+
+      Discarded alternatives: Inferring enforcement from provider events and
+      certifying plugin behavior were rejected as unreliable.
+
+      Consequences: Trust limitations remain documentation-only and do not enter
+      logs, events, reports, diagnostics, status, or evaluator prompts.
+    }
+
+    IndependentObservabilityCapabilities {
+      Decision: Model progress, usage, cost, and token or cost budget enforcement as
+      independent declared observability capabilities.
+
+      Scope: Governs all supported CLI adapters.
+
+      Trade-offs: Some evaluations cannot report progress or conclusive usage, cost,
+      or budget outcomes.
+
+      Consequences: Terminal-only providers remain usable without invented events or
+      telemetry.
+    }
+  }
+
+  cases {
+    AgentCapabilityContract {
+      A complete schema version 1 declaration exactly matching all four requested
+      values satisfies compatibility without proving enforcement.
+
+      An omitted capability dimension or unknown schema version mismatches before
+      provider invocation.
+
+      An implementation version and progress declaration do not affect capability
+      equality.
+    }
+  }
+}

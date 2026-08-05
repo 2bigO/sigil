@@ -1,4 +1,5 @@
 import type {
+  AdapterImplementationBinding,
   AgentAdapter,
   AgentCommandTrace,
   AgentEvaluationRequest,
@@ -6,6 +7,14 @@ import type {
   AgentFinding,
   AgentUsage,
 } from "./types.ts";
+import { capabilitiesMatch } from "./evaluation-capabilities.ts";
+import { truncateRetainedOutput } from "./evaluation-execution.ts";
+import {
+  validateAgentEvaluationRequest,
+  validateAgentEvaluationResult,
+} from "./evaluation-request.ts";
+
+const BUILTIN_VERSION = "0.7.1";
 
 export type CommandRunner = (
   command: string,
@@ -38,11 +47,21 @@ const defaultRunner: CommandRunner = async (command, args, input, signal) => {
 
 export class CodexAdapter implements AgentAdapter {
   readonly provider = "codex" as const;
+  readonly implementationId = "builtin.codex-cli";
+  readonly implementationVersion = BUILTIN_VERSION;
   readonly capabilities = {
-    readOnlyWorkspace: true,
-    network: false,
+    schemaVersion: 1,
+    workspaceAccess: "read-only",
+    agentToolNetwork: false,
     approvalEscalation: false,
-    ephemeral: true,
+    statePersistence: "ephemeral",
+  } as const;
+  readonly observability = {
+    progress: "streaming",
+    usage: "final",
+    cost: "unavailable",
+    tokenBudgetEnforcement: "post-settlement-only",
+    costBudgetEnforcement: "unavailable",
   } as const;
 
   constructor(
@@ -56,10 +75,11 @@ export class CodexAdapter implements AgentAdapter {
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {
     assertCapabilityContract(this, request);
+    validateAgentEvaluationRequest(request);
     const prompt = evaluationPrompt(request);
-    if (prompt.length > request.maxInputChars) {
+    if (prompt.length > request.limits.maxInitialRequestChars) {
       throw new Error(
-        `Agent request is ${prompt.length} characters, exceeding the ${request.maxInputChars}-character safety limit.`,
+        `Agent request is ${prompt.length} characters, exceeding the ${request.limits.maxInitialRequestChars}-character transport limit.`,
       );
     }
 
@@ -93,43 +113,82 @@ export class CodexAdapter implements AgentAdapter {
       const raw = await this.runner("codex", args, prompt, signal);
       const result = parseCodexEvents(
         raw,
-        request.budgets.maxCommandOutputChars,
+        request.limits.maxRetainedCommandOutputChars,
       );
       validateExecutionBudgets(result, request);
-      return result;
+      return validateAgentEvaluationResult(request, result);
     } finally {
       await Deno.remove(schemaPath).catch(() => {});
     }
   }
 }
 
-export class ClaudeAdapter implements AgentAdapter {
-  readonly provider = "claude" as const;
+class UnavailableCliAdapter implements AgentAdapter {
+  readonly implementationVersion = BUILTIN_VERSION;
   readonly capabilities = {
-    readOnlyWorkspace: false,
-    network: false,
+    schemaVersion: 1,
+    workspaceAccess: "read-write",
+    agentToolNetwork: false,
     approvalEscalation: false,
-    ephemeral: false,
+    statePersistence: "persistent",
+  } as const;
+  readonly observability = {
+    progress: "none",
+    usage: "unavailable",
+    cost: "unavailable",
+    tokenBudgetEnforcement: "unavailable",
+    costBudgetEnforcement: "unavailable",
   } as const;
 
-  constructor(readonly model?: string, readonly id = "claude") {}
+  constructor(
+    readonly provider: "claude" | "opencode" | "pi",
+    readonly implementationId: string,
+    readonly model?: string,
+    readonly id: string = provider,
+  ) {}
 
   evaluate(_request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {
     return Promise.reject(
       new Error(
-        "The installed Claude CLI capability mapping cannot prove read-only workspace access and ephemeral state; evaluation was not started.",
+        `The installed ${this.provider} CLI adapter does not declare the requested read-only ephemeral capability contract; evaluation was not started.`,
       ),
     );
   }
 }
 
+export class ClaudeAdapter extends UnavailableCliAdapter {
+  constructor(model?: string, id = "claude") {
+    super("claude", "builtin.claude-cli", model, id);
+  }
+}
+
+export class OpenCodeAdapter extends UnavailableCliAdapter {
+  constructor(model?: string, id = "opencode") {
+    super("opencode", "builtin.opencode-cli", model, id);
+  }
+}
+
+export class PiAdapter extends UnavailableCliAdapter {
+  constructor(model?: string, id = "pi") {
+    super("pi", "builtin.pi-cli", model, id);
+  }
+}
+
 export class MockAdapter implements AgentAdapter {
-  readonly provider = "mock" as const;
+  readonly provider = "codex" as const;
   readonly capabilities = {
-    readOnlyWorkspace: true,
-    network: false,
+    schemaVersion: 1,
+    workspaceAccess: "read-only",
+    agentToolNetwork: false,
     approvalEscalation: false,
-    ephemeral: true,
+    statePersistence: "ephemeral",
+  } as const;
+  readonly observability = {
+    progress: "none",
+    usage: "unavailable",
+    cost: "unavailable",
+    tokenBudgetEnforcement: "unavailable",
+    costBudgetEnforcement: "unavailable",
   } as const;
 
   constructor(
@@ -140,6 +199,8 @@ export class MockAdapter implements AgentAdapter {
         request: AgentEvaluationRequest,
       ) => readonly AgentFinding[] | AgentEvaluationResult) = [],
     readonly id = "mock",
+    readonly implementationId = `test.mock.${id}`,
+    readonly implementationVersion = "1.0.0",
   ) {}
 
   evaluate(request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {
@@ -154,22 +215,33 @@ export class MockAdapter implements AgentAdapter {
   }
 }
 
+// @sigil implements packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,constraints,cases
+export function resolveAdapterRegistration(
+  registrations: readonly AgentAdapter[],
+  binding: AdapterImplementationBinding,
+): AgentAdapter {
+  const matches = registrations.filter((adapter) =>
+    adapter.provider === binding.provider &&
+    adapter.implementationId === binding.implementationId &&
+    adapter.implementationVersion === binding.implementationVersion
+  );
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected exactly one adapter registration for ${binding.provider}/${binding.implementationId}@${binding.implementationVersion}; found ${matches.length}.`,
+    );
+  }
+  return matches[0];
+}
+
 function assertCapabilityContract(
   adapter: AgentAdapter,
   request: AgentEvaluationRequest,
 ): void {
   if (
-    request.capabilities.workspaceAccess !== "read-only" ||
-    !adapter.capabilities.readOnlyWorkspace ||
-    request.capabilities.network !== false ||
-    adapter.capabilities.network !== false ||
-    request.capabilities.approvalEscalation !== false ||
-    adapter.capabilities.approvalEscalation !== false ||
-    !request.capabilities.ephemeral ||
-    !adapter.capabilities.ephemeral
+    !capabilitiesMatch(request.capabilities, adapter.capabilities)
   ) {
     throw new Error(
-      `Adapter ${adapter.id} cannot enforce the requested direct-read capability contract.`,
+      `Adapter ${adapter.id} declares capabilities that do not match the requested contract.`,
     );
   }
 }
@@ -208,10 +280,10 @@ Treat the selected retrieval graph and aggregated context as authoritative scope
 Inspect the workspace directly only through selected evidence paths to verify citations or diagnose an explicit
 retrieval gap; do not independently traverse the repository graph. You may run only
 these read-only command families:
-${request.capabilities.allowedCommands.map((item) => `- ${item}`).join("\n")}
+${request.commandPolicy.allowedCommands.map((item) => `- ${item}`).join("\n")}
 
 Never run these command families:
-${request.capabilities.forbiddenCommands.map((item) => `- ${item}`).join("\n")}
+${request.commandPolicy.forbiddenCommands.map((item) => `- ${item}`).join("\n")}
 
 Do not edit files, use the network, request approval, invoke another compilation,
 generate code, or run implementation experiments. Cite reproducible workspace
@@ -286,14 +358,12 @@ function parseCodexEvents(
       if (item?.type === "agent_message" && typeof item.text === "string") {
         finalText = item.text;
       } else if (item?.type === "command_execution") {
-        const output = typeof item.aggregated_output === "string"
-          ? item.aggregated_output
-          : "";
-        if (output.length > maxCommandOutputChars) {
-          throw new Error(
-            `Agent command output exceeded the ${maxCommandOutputChars}-character budget.`,
-          );
-        }
+        const output = truncateRetainedOutput(
+          typeof item.aggregated_output === "string"
+            ? item.aggregated_output
+            : "",
+          maxCommandOutputChars,
+        );
         commands.push({
           command: typeof item.command === "string" ? item.command : "unknown",
           status: typeof item.status === "string" ? item.status : undefined,
@@ -322,6 +392,8 @@ function parseCodexEvents(
     findings: parseFindingsObject(finalText),
     commands,
     usage,
+    usageAvailability: usage ? "final" : "unavailable",
+    costAvailability: "unavailable",
   };
 }
 
@@ -334,14 +406,21 @@ function validateExecutionBudgets(
       `Agent executed ${result.commands.length} commands, exceeding the ${request.budgets.maxCommands}-command budget.`,
     );
   }
-  const inputTokens = result.usage?.inputTokens ?? 0;
-  if (inputTokens > request.budgets.maxInputTokens) {
+  const inputTokens = result.usage?.inputTokens;
+  if (
+    request.budgets.maxInputTokens !== undefined && inputTokens !== undefined &&
+    inputTokens > request.budgets.maxInputTokens
+  ) {
     throw new Error(
       `Agent input usage was ${inputTokens} tokens, exceeding the ${request.budgets.maxInputTokens}-token budget.`,
     );
   }
-  const outputTokens = result.usage?.outputTokens ?? 0;
-  if (outputTokens > request.budgets.maxOutputTokens) {
+  const outputTokens = result.usage?.outputTokens;
+  if (
+    request.budgets.maxOutputTokens !== undefined &&
+    outputTokens !== undefined &&
+    outputTokens > request.budgets.maxOutputTokens
+  ) {
     throw new Error(
       `Agent output usage was ${outputTokens} tokens, exceeding the ${request.budgets.maxOutputTokens}-token budget.`,
     );

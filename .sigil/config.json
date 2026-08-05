@@ -31,16 +31,18 @@
         "elapsedTimeMs": 1800000,
         "maxCommands": 512,
         "maxCommandOutputChars": 3000000,
-        "maxInputTokens": 1000000,
-        "maxOutputTokens": 1000000
+        "maxInputTokens": 2000000,
+        "maxOutputTokens": 2000000
       },
       "limits": {
-        "maxCompilationRequestChars": 1000000,
-        "maxAgentInputChars": 1000000,
+        "maxCompilationRequestChars": 2000000,
+        "maxAgentInputChars": 2000000,
         "sessionTtlMs": 86400000
       },
       "adapter": {
-        "provider": "codex"
+        "provider": "codex",
+        "implementationId": "builtin.codex-cli",
+        "implementationVersion": "0.7.1"
       }
     }
   }

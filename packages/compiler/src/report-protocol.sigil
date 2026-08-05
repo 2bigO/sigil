@@ -24,11 +24,31 @@ component SigilCompilationReportProtocol {
       hashes, component graph, effective profile, stages, evaluator environment, and
       completed passes
 
+      runId is the non-empty invocation identity that constructed this report;
+      optional session contains sessionIdentity, baseEpoch, generation, base
+      fingerprint, and proposal fingerprint and is present exactly for a proposal
+      session evaluation
+
+      stages is the ordered CompilationStageReport collection in resolved selected-
+      profile order and contains each selected stage exactly once; its ordered stage
+      identity projection is the sequence of each entry's id without reordering or
+      deduplication
+
       currentDiagnostics contains current CompilationDiagnostic values whose
       lifecycle is new, unchanged, or regressed; resolvedDiagnostics contains
       retained ResolvedCompilationDiagnostic values
 
       terminal, Markdown, CI, and editor views are projections of this report
+    }
+
+    CompilationStageReport {
+      contains exactly id, one non-empty stage identity; required, one boolean;
+      state, exactly pending, running, completed, failed, skipped-by-dependency,
+      disabled, or cancelled; evaluator, one non-empty evaluator identity; and
+      diagnosticCount, one nonnegative integer
+
+      optionally contains startedAt and completedAt as RFC 3339 timestamps and
+      evaluations as the ordered EvaluationTrace values produced for that stage
     }
 
     ResolvedCompilationDiagnostic {
@@ -56,6 +76,18 @@ component SigilCompilationReportProtocol {
 
       invalid or inconsistent internal construction input rejects with
       COMPILER_FAILED and returns no partial report
+    }
+
+    ReportWireValidation {
+      decodeCompilationReport(rawJsonObject),
+      decodeCompilationStageReport(rawJsonObject), and
+      decodeCompilationDiagnostic(rawJsonObject) strictly validate their owned
+      versioned schemas, reject duplicate member names at every nested owned depth,
+      and return the corresponding immutable value or invalid
+
+      equalCompilationReport, equalCompilationStageReport, and
+      equalCompilationDiagnostic compare complete decoded values under the owned
+      schema; diagnosticFingerprint returns the owned stable diagnostic identity
     }
   }
 }

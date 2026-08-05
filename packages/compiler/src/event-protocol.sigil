@@ -1,21 +1,57 @@
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+
 component SigilCompilationEventProtocol {
   goal {
-    Own compatible streaming of long-running compiler progress and authoritative
-    terminal outcomes.
+    Own the closed version-1 compiler event schema and the invariants shared by its
+    independently owned writer and reader protocols.
   }
 
   interface {
     CompilationEventProtocol {
-      CompilationEvent is a versioned JSON Lines envelope containing protocolVersion,
-      runId, sequence, type, and payload
+      CompilationEvent is one UTF-8 JSON Lines envelope containing exactly
+      protocolVersion, runId, sequence, type, and payload. One optional CR byte 0D
+      may precede the LF byte 0A delimiter.
 
-      protocolVersion 1 is the supported event envelope version
+      protocolVersion is exactly 1; runId is one non-empty opaque invocation
+      identity; sequence is a JSON integer from 1 through 4294967295 inclusive; type
+      is exactly started, stage-started, stage-completed, diagnostic, completed,
+      failed, or cancelled.
 
-      successful settlement requires a completed terminal event containing the
-      authoritative CompilationReport
+      ExpectedCompilationRun contains operation, exactly one-shot-compilation or
+      session-evaluation, one or more ordered unique non-empty stage identities, and
+      one non-empty sessionIdentity exactly when operation is session-evaluation.
 
-      a failed terminal event contains the stable rejection code selected by the
-      invoking compiler operation
+      started payload contains exactly operation and sessionIdentity only when
+      operation is session-evaluation. stage-started payload contains exactly stage,
+      one non-empty stage identity.
+
+      stage-completed payload contains exactly report, one imported
+      CompilationStageReport whose id identifies its stage and whose state is
+      completed or failed. diagnostic payload contains exactly diagnostic, one
+      imported CompilationDiagnostic, and optional componentName, one non-empty
+      caller-controlled display identity that is not inferred from semantic subjects.
+
+      completed payload contains exactly report, the authoritative imported
+      CompilationReport. failed payload contains exactly code, one non-empty opaque
+      stable rejection code other than COMPILER_CANCELLED, and message, one string.
+      cancelled payload contains exactly code COMPILER_CANCELLED and message, one
+      string. New opaque failed codes do not extend protocol vocabulary.
+
+      Every version-1 envelope and event-owned payload is structurally closed except
+      for the opaque failed code. Reject duplicate member names before field
+      interpretation. Delegate imported report, stage-report, and diagnostic strict
+      decoding, nested duplicate detection, structural validation, equality, and
+      diagnostic identity to SigilCompilationReportProtocol ReportWireValidation.
+
+      One stream carries one nonmultiplexed run with invariant runId, consecutive
+      delivered sequence beginning at 1, serial nonoverlapping stage intervals, and
+      at most one terminal. Delivered stage identities are an order-preserving
+      subsequence of ExpectedCompilationRun.
+
+      SigilCompilationEventWriter owns producer establishment, call ordering,
+      suppression, and sink delivery. SigilCompilationEventReader independently owns
+      byte decoding, cancellation, source lifetime, stream validation, and terminal
+      reconciliation. Consumers import only the direction they use plus this schema.
     }
   }
 }
@@ -23,87 +59,58 @@ component SigilCompilationEventProtocol {
 expand SigilCompilationEventProtocol {
   constraints {
     CompilationEventProtocol {
-      JSON Lines mode writes only CompilationEvent envelopes to standard output.
-      Human progress and host logs use standard error.
+      Unknown types, missing or extra fields, wrong types, invalid type-payload
+      pairing, unsupported versions, changed runId, nonconsecutive or out-of-range
+      sequence, invalid stage ordering, duplicate diagnostic fingerprints, or an
+      event after terminal are protocol-invalid.
 
-      Sequence values increase within one run and one terminal event ends the stream.
-      Failed and cancelled runs emit terminal events only when a compatible event
-      stream is writable at the moment the terminal envelope is written.
+      Stage intervals contain stage-started, zero or more diagnostics whose
+      originating stage equals the open stage, and stage-completed whose report id
+      equals that stage. A terminal may end any valid progress prefix, including one
+      with an observably open stage, because later progress can be suppressed.
 
-      A completed method settlement returns the same authoritative CompilationReport
-      carried by the completed terminal event. Cancellation returns no
-      CompilationReport and rejects with COMPILER_CANCELLED. Other operation failures
-      return no report and preserve the invoking component's stable rejection code in
-      the failed event and method settlement.
+      Protocol version 1 imposes no normative chunk, frame, envelope, report, or
+      accumulated-byte limit. Host capacity failure is a transport availability or
+      compatibility outcome, never structural protocol-invalidity.
 
-      Own event encoding, framing, ordering, and compatibility, but do not reclassify
-      proposal, session, workspace, evaluator, persistence, or transport-loss
-      outcomes selected by invoking components. Invalid encoding, framing, ordering,
-      or protocol compatibility rejects with COMPILER_FAILED.
-
-      Loss while writing a nonterminal progress event may suppress later progress
-      while work continues toward settlement. A terminal event remains mandatory.
-
-      An unavailable stream or failure while writing a completed, cancelled, or
-      failed terminal event supersedes the pending outcome with COMPILER_FAILED and
-      returns no CompilationReport. Do not attempt another terminal write through the
-      failed transport.
-
-      An unsupported event protocol version is a protocol failure, returns no
-      CompilationReport, and rejects with COMPILER_FAILED. A failed terminal event is
-      emitted only when a compatible writable transport remains available.
+      Extending an envelope, payload, vocabulary, sequence range, multiplexing rule,
+      or ordering rule requires a new protocol version.
     }
   }
 
   decisions {
     CompilationEventProtocol {
-      Decision: Use a versioned JSON Lines stream with one authoritative report in
-      the completed terminal event.
+      Decision: Use a closed versioned JSON Lines schema with one authoritative
+      report in the completed terminal and separate writer and reader owners.
 
-      Scope: Governs compiler streaming to every host surface.
+      Scope: Governs shared wire vocabulary and cross-direction invariants; excludes
+      transport selection and invoking-operation settlement.
 
-      Trade-offs: Consumers process an ordered stream instead of one JSON object.
+      Trade-offs: Hosts cannot ignore additive fields, multiplex runs, overlap stage
+      intervals, or interpret one stream differently by transport.
 
-      Discarded alternatives: Mixed stdout and unframed JSON were rejected because
-      they cannot safely carry incremental events.
+      Discarded alternatives: Mixed stdout, unframed JSON, permissive extension, and
+      one component owning producer and consumer lifecycles were rejected because
+      they create ambiguous interoperability or coupled implementation ownership.
 
-      Consequences: Hosts validate compatibility, ordering, completion, failure, and
-      cancellation consistently; component-owned failure identity is preserved when
-      its terminal event is written, while terminal transport failure supersedes it.
+      Consequences: Hosts share one exact schema while writer and reader concerns can
+      evolve and be imported independently.
 
-      Revisit when: A protocol revision requires a compatibility window or negotiated
-      transition beyond version 1.
+      Revisit when: A negotiated later version needs extensions or multiplexing.
     }
   }
 
   cases {
     CompilationEventProtocol {
-      A successful run emits ordered progress then one completed event containing the
-      report.
+      A one-shot started payload omits sessionIdentity; a session started payload
+      includes the expected sessionIdentity.
 
-      Cancelled and failed runs emit their corresponding terminal event when the
-      process can still write it.
+      A changed runId, sequence 4294967296, duplicate envelope or nested report
+      member, extra payload field, unknown stage, backward stage, duplicate stage, or
+      diagnostic outside its open stage is protocol-invalid.
 
-      Cancellation after work begins rejects with COMPILER_CANCELLED and emits one
-      cancelled terminal event when transport remains writable.
-
-      A proposal, session, workspace, evaluator, or persistence failure rejects with
-      its invoking component's stable code and emits one failed event carrying that
-      code when transport remains writable.
-
-      An encoding, framing, ordering, or protocol compatibility failure rejects with
-      COMPILER_FAILED and emits one failed terminal event only when a distinct
-      compatible stream remains writable.
-
-      Failure before a writable event stream exists cannot settle through its
-      required terminal event and therefore rejects with COMPILER_FAILED.
-
-      Loss while writing progress may omit progress. If the terminal event cannot be
-      written, the method rejects with COMPILER_FAILED and returns no report rather
-      than exposing completion, cancellation, or the preceding failure identity.
-
-      A consumer receiving an unsupported protocol version rejects the run with
-      COMPILER_FAILED before interpreting its payload.
+      A caller may omit diagnostic componentName or supply any non-empty display
+      identity without changing diagnostic ownership.
     }
   }
 }

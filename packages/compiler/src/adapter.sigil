@@ -1,26 +1,57 @@
 @packages/compiler/src/profile.sigil import { SigilCompilationProfile }
+@packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
 
 component SigilAgentAdapter {
   goal {
-    Map one provider-neutral bounded evaluation request to an enforceable
-    code-agent execution without changing compiler semantics.
+    Map one provider-neutral evaluation request to Codex, Claude, OpenCode, or Pi
+    without changing compiler semantics or overstating adapter trust.
 
-    Enforce the capability contract from CompilationProfile and emit only evidence
-    accepted as CompilationDiagnostic input.
+    Accept compiler-owned or externally supplied adapter implementations, normalize
+    only observed provider evidence, and require one validated final result.
   }
 
   interface {
     AgentAdapter {
-      execute(request, evaluatorIdentity, capabilityContract) streams validated
-      provider events or rejects when required capabilities cannot be enforced
+      execute(request, ResolvedEvaluator) may emit provider observations and settles
+      with exactly one AgentEvaluationResult or rejects before invocation for
+      provider unavailability, binding mismatch, capability mismatch, prior request
+      cancellation, or preflight budget exhaustion, or after invocation for
+      elapsed-time expiry, live budget exhaustion, request cancellation, process
+      failure, or final-result protocol failure
+
+      ResolvedEvaluator contains one unique configured non-empty evaluatorIdentity,
+      provider exactly codex, claude, opencode, or pi, optional model binding, and
+      adapterBinding. CompilationProfile resolves this value; AgentAdapter never
+      infers provider or model from evaluatorIdentity
+
+      adapterBinding identifies one implementation and exact implementation version;
+      one matching registration is required and zero or multiple matches reject
 
       capabilityContract is resolved by CompilationProfile and accepted findings are
       candidates for CompilationDiagnostic normalization
 
-      an evaluator identity is one configured provider and optional model binding
+      request, capabilityContract, observability, budgets, cancellation, result, and
+      provider-neutral framing use AgentEvaluationRequest
 
-      adapter output remains untrusted until protocol and evidence validation succeed
+      capability declarations describe claimed behavior but do not prove filesystem,
+      network, command, persistence, or data-handling safety
+
+      adapter output remains untrusted until final-result protocol, schema, rule, and
+      evidence validation succeed
+    }
+
+    AdapterFailure {
+      kind is unavailable, binding-mismatch, capability-mismatch, cancelled,
+      elapsed-time, preventive-budget, process, or final-result-protocol
+
+      unavailable, binding-mismatch, and capability-mismatch map to required
+      evaluator unavailability before stage execution; cancelled maps to caller
+      cancellation; elapsed-time, preventive-budget, process, and
+      final-result-protocol map to an incomplete evaluator outcome
+
+      provider result protocol failure is an evaluator failure and does not become a
+      compiler event-transport or host-protocol failure
     }
   }
 }

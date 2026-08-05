@@ -8,6 +8,19 @@ import type {
 export const COMPILATION_PROTOCOL_VERSION = 1;
 export const COMPILATION_REPORT_VERSION = 2;
 
+export type AgentProvider = "codex" | "claude" | "opencode" | "pi";
+export type TelemetryAvailability = "unavailable" | "partial" | "final";
+export type BudgetEnforcement =
+  | "unavailable"
+  | "preflight"
+  | "live"
+  | "post-settlement-only";
+export type BudgetOutcome =
+  | "not-configured"
+  | "within-limit"
+  | "exceeded"
+  | "indeterminate";
+
 export type CompilationColor = "red" | "yellow" | "green";
 export type DiagnosticSeverity =
   | "error"
@@ -122,8 +135,10 @@ export interface EffectiveProfile {
     readonly dependencies: readonly string[];
   }[];
   readonly adapter?: {
-    readonly provider: "codex" | "claude" | "mock";
+    readonly provider: AgentProvider;
     readonly model?: string;
+    readonly implementationId: string;
+    readonly implementationVersion: string;
   };
   readonly evaluators: readonly EvaluatorConfiguration[];
   readonly fingerprint: string;
@@ -271,20 +286,45 @@ export interface AgentEvaluationTarget {
 }
 
 export interface AgentCapabilityContract {
-  readonly workspaceAccess: "read-only";
-  readonly network: false;
+  readonly schemaVersion: 1;
+  readonly workspaceAccess: "none" | "read-only" | "read-write";
+  readonly agentToolNetwork: boolean;
   readonly approvalEscalation: false;
-  readonly ephemeral: true;
+  readonly statePersistence: "ephemeral" | "persistent";
+}
+
+export interface AgentCommandPolicy {
   readonly allowedCommands: readonly string[];
   readonly forbiddenCommands: readonly string[];
+}
+
+export interface AdapterObservabilityDeclaration {
+  readonly progress: "none" | "streaming";
+  readonly usage: TelemetryAvailability;
+  readonly cost: TelemetryAvailability;
+  readonly tokenBudgetEnforcement: BudgetEnforcement;
+  readonly costBudgetEnforcement: BudgetEnforcement;
 }
 
 export interface AgentExecutionBudgets {
   readonly elapsedTimeMs: number;
   readonly maxCommands: number;
   readonly maxCommandOutputChars: number;
-  readonly maxInputTokens: number;
-  readonly maxOutputTokens: number;
+  readonly maxInputTokens?: number;
+  readonly maxOutputTokens?: number;
+  readonly maxCost?: number;
+}
+
+export interface AgentOperationalLimits {
+  readonly maxInitialRequestChars: number;
+  readonly maxProviderFrameChars: number;
+  readonly maxFinalResultChars: number;
+  readonly maxRetainedCommandOutputChars: number;
+}
+
+export interface AgentBudgetOutcome {
+  readonly token: BudgetOutcome;
+  readonly cost: BudgetOutcome;
 }
 
 export interface AgentEvaluationRequest {
@@ -295,8 +335,10 @@ export interface AgentEvaluationRequest {
   readonly workspaceRoot: string;
   readonly target: AgentEvaluationTarget;
   readonly capabilities: AgentCapabilityContract;
+  readonly commandPolicy: AgentCommandPolicy;
+  readonly observability: AdapterObservabilityDeclaration;
   readonly budgets: AgentExecutionBudgets;
-  readonly maxInputChars: number;
+  readonly limits: AgentOperationalLimits;
   readonly signal?: AbortSignal;
 }
 
@@ -312,29 +354,46 @@ export interface AgentUsage {
   readonly outputTokens?: number;
 }
 
+export interface AgentCost {
+  readonly amount?: number;
+  readonly currency?: string;
+}
+
 export interface AgentEvaluationTrace {
   readonly evaluatorId: string;
   readonly componentName: string;
   readonly commands: readonly AgentCommandTrace[];
   readonly usage?: AgentUsage;
+  readonly usageAvailability?: TelemetryAvailability;
+  readonly cost?: AgentCost;
+  readonly costAvailability?: TelemetryAvailability;
+  readonly budgetOutcome?: AgentBudgetOutcome;
 }
 
 export interface AgentEvaluationResult {
   readonly findings: readonly AgentFinding[];
   readonly commands: readonly AgentCommandTrace[];
   readonly usage?: AgentUsage;
+  readonly usageAvailability?: TelemetryAvailability;
+  readonly cost?: AgentCost;
+  readonly costAvailability?: TelemetryAvailability;
+  readonly budgetOutcome?: AgentBudgetOutcome;
+}
+
+export interface AdapterImplementationBinding {
+  readonly provider: AgentProvider;
+  readonly implementationId: string;
+  readonly implementationVersion: string;
 }
 
 export interface AgentAdapter {
   readonly id: string;
-  readonly provider: "codex" | "claude" | "mock";
+  readonly provider: AgentProvider;
+  readonly implementationId: string;
+  readonly implementationVersion: string;
   readonly model?: string;
-  readonly capabilities: {
-    readonly readOnlyWorkspace: boolean;
-    readonly network: false;
-    readonly approvalEscalation: false;
-    readonly ephemeral: boolean;
-  };
+  readonly capabilities: AgentCapabilityContract;
+  readonly observability: AdapterObservabilityDeclaration;
   evaluate(request: AgentEvaluationRequest): Promise<AgentEvaluationResult>;
 }
 
@@ -343,13 +402,17 @@ export interface CompileConfiguration {
   readonly budgets?: Partial<AgentExecutionBudgets>;
   readonly limits?: Partial<CompilationLimits>;
   readonly adapter?: {
-    readonly provider: "codex" | "claude";
+    readonly provider: AgentProvider;
     readonly model?: string;
+    readonly implementationId?: string;
+    readonly implementationVersion?: string;
   };
   readonly evaluators?: Readonly<
     Record<string, {
       readonly provider?: unknown;
       readonly model?: unknown;
+      readonly implementationId?: unknown;
+      readonly implementationVersion?: unknown;
     }>
   >;
   readonly profiles?: Readonly<
@@ -369,8 +432,10 @@ export interface CompilationLimits {
 
 export interface EvaluatorConfiguration {
   readonly id: string;
-  readonly provider: "codex" | "claude" | "mock";
+  readonly provider: AgentProvider;
   readonly model?: string;
+  readonly implementationId: string;
+  readonly implementationVersion: string;
 }
 
 export interface CompilationHistoryStore {

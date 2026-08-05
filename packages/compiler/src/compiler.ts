@@ -11,13 +11,39 @@ import {
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
-import { ClaudeAdapter, CodexAdapter } from "./adapters.ts";
-import { compilationEvaluationTarget } from "./evaluation.ts";
-import { createCompilationEventStream } from "./event-protocol.ts";
-import { compilationHistoryKey } from "./history.ts";
+import {
+  ClaudeAdapter,
+  CodexAdapter,
+  OpenCodeAdapter,
+  PiAdapter,
+  resolveAdapterRegistration,
+} from "./adapters.ts";
+import {
+  capabilitiesMatch,
+  REQUIRED_EVALUATION_CAPABILITIES,
+} from "./evaluation-capabilities.ts";
+import {
+  buildAgentEvaluationRequest,
+  compilationEvaluationTarget,
+} from "./evaluation.ts";
+import {
+  canonicalWorkspacePath,
+  resolveCompilationTarget,
+} from "./compilation-target.ts";
+import {
+  type CompilationEventWriter,
+  openCompilationEventWriter,
+  type WritableEnvelopeSink,
+  type WriterResult,
+} from "./event-writer.ts";
+import { applyDiagnosticLifecycle, compilationHistoryKey } from "./history.ts";
 import { exportCompilationReport } from "./report-export.ts";
 import { constructCompilationReport } from "./report-protocol.ts";
-import { stageForCompilationFocus } from "./profile.ts";
+import {
+  parseCompilationConfiguration,
+  resolveCompilationSettings,
+  stageForCompilationFocus,
+} from "./profile.ts";
 import {
   CompilerFailure,
   compilerFailureCode as stableCompilerFailureCode,
@@ -27,6 +53,7 @@ import {
   type EvaluationSkillPackage,
   loadEvaluationSkills,
 } from "./evaluation-skills.ts";
+import { validateAgentEvaluationResult } from "./evaluation-request.ts";
 import {
   createSemanticSubjectResolver,
   semanticSubjectIdentity,
@@ -35,9 +62,7 @@ import {
 import type {
   AgentAdapter,
   AgentCapabilityContract,
-  AgentExecutionBudgets,
   AgentFinding,
-  CompilationLimits,
   CompilationReport,
   CompilationTarget,
   CompileConfiguration,
@@ -56,23 +81,9 @@ interface StageDefinition {
   readonly skill?: EvaluationSkillPackage;
 }
 
-const DEFAULT_EXECUTION_BUDGETS = {
-  elapsedTimeMs: 1_800_000,
-  maxCommands: 512,
-  maxCommandOutputChars: 3_000_000,
-  maxInputTokens: 1_000_000,
-  maxOutputTokens: 1_000_000,
-} as const;
-const DEFAULT_LIMITS: CompilationLimits = {
-  maxCompilationRequestChars: 1_000_000,
-  maxAgentInputChars: 1_000_000,
-  sessionTtlMs: 86_400_000,
-};
-const INSPECTION_CAPABILITIES: AgentCapabilityContract = {
-  workspaceAccess: "read-only",
-  network: false,
-  approvalEscalation: false,
-  ephemeral: true,
+const INSPECTION_CAPABILITIES: AgentCapabilityContract =
+  REQUIRED_EVALUATION_CAPABILITIES;
+const INSPECTION_COMMAND_POLICY = {
   allowedCommands: [
     "sigil version",
     "sigil parse",
@@ -140,7 +151,7 @@ export async function loadCompilationConfiguration(
   const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
     startPath,
   });
-  return parseConfiguration(workspace.config?.tools.compile);
+  return parseCompilationConfiguration(workspace.config?.tools.compile);
 }
 
 // @sigil implements packages/compiler/_module.sigil::SigilCompiler interface,logic,constraints,cases
@@ -152,16 +163,8 @@ export async function compile(
   const requestedStage = options.requestedStage ??
     stageForCompilationFocus(options.focus);
   const cancellationSignal = options.cancellationSignal ?? options.signal;
-  const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
-  const eventStream = createCompilationEventStream(runId, options.onEvent);
-  const emit = eventStream.emit;
-  await emit("started", {
-    workspacePath,
-    target,
-    requestedStage,
-    focus: options.focus,
-  });
+  let eventWriter: CompilationEventWriter | undefined;
 
   try {
     if (options.requestedStage && options.focus) {
@@ -176,18 +179,40 @@ export async function compile(
       currentDirectory: Deno.cwd(),
     });
     const resolved = resolveSigilWorkspace(workspace);
-    const configuration = parseConfiguration(workspace.config?.tools.compile);
+    const configuration = parseCompilationConfiguration(
+      workspace.config?.tools.compile,
+    );
     const skills = await loadEvaluationSkills();
     const definitions = stageDefinitions(skills);
-    const profile = await effectiveProfile(
+    let profile = await effectiveProfile(
       options.profile ?? configuration.defaultProfile ?? "standard",
       configuration,
       definitions,
       requestedStage,
     );
+    profile = await bindSuppliedAdapter(profile, options.adapter);
+    const openedWriter = await openCompilationEventWriter(
+      callbackEventSink(options.onEvent),
+      {
+        operation: "one-shot-compilation",
+        stageIdentities: profile.stages.map((stage) => stage.id),
+      },
+    );
+    if (openedWriter.kind === "failure") {
+      throw new CompilerFailure(
+        "COMPILER_FAILED",
+        `Compilation event stream could not be established: ${openedWriter.result}.`,
+      );
+    }
+    eventWriter = openedWriter.writer;
+    const runId = openedWriter.runId;
     const adapters = adaptersFrom(profile, options);
     assertProfileEvaluators(profile, adapters);
-    const components = resolveTarget(resolved, target, workspace.root);
+    const components = resolveCompilationTarget(
+      resolved,
+      target,
+      workspace.root,
+    );
     const implementationSources = await loadImplementationSources(
       fs,
       workspace.root,
@@ -203,11 +228,30 @@ export async function compile(
       workspace.root,
     );
 
-    const diagnostics: CompilerDiagnostic[] = await Promise.all(
+    const coreDiagnostics: CompilerDiagnostic[] = await Promise.all(
       resolved.diagnostics.map((item) =>
         fromCoreDiagnostic(item, semanticSubjects)
       ),
     );
+    const historyDisabled = options.disableHistory ?? options.noHistory ??
+      false;
+    const historyKey = options.history && !historyDisabled
+      ? await compilationHistoryKey(workspace.root, target, profile)
+      : undefined;
+    let previous: CompilationReport | undefined;
+    if (historyKey) {
+      try {
+        previous = await options.history!.read(historyKey);
+      } catch (error) {
+        await deliverHistoryWarning(options, {
+          code: "COMPILER_HISTORY_READ_FAILED",
+          operation: "read",
+          historyKey,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    const diagnostics: CompilerDiagnostic[] = [];
     const stageReports: StageReport[] = [];
     const failed = new Set<string>();
     const evaluatorLabel = adapters.map((item) => item.id).join(",") ||
@@ -237,12 +281,24 @@ export async function compile(
       }
 
       const stageStartedAt = new Date().toISOString();
-      await emit("stage-started", { stage: stage.id });
+      await requireEventDelivery(
+        await eventWriter.stageStarted(stage.id),
+        true,
+      );
       const before = diagnostics.length;
       const evaluations: NonNullable<StageReport["evaluations"]>[number][] = [];
       let state: StageReport["state"] = "completed";
       try {
-        if (definition.agentic) {
+        if (!definition.agentic) {
+          for (const rawDiagnostic of coreDiagnostics) {
+            const diagnostic = currentLifecycle(rawDiagnostic, previous);
+            diagnostics.push(diagnostic);
+            await requireEventDelivery(
+              await eventWriter.diagnostic(diagnostic),
+              true,
+            );
+          }
+        } else {
           if (!adapters.length) {
             throw new Error(
               "No compiler evaluator is configured for the selected profile.",
@@ -282,7 +338,7 @@ export async function compile(
                 ? implementationEvidence
                 : null,
             );
-            const request = {
+            const request = buildAgentEvaluationRequest({
               stage: stage.id,
               skill: definition.skill.guidance,
               allowedRules: definition.skill.manifest.rules,
@@ -295,10 +351,19 @@ export async function compile(
                 retrieval,
               ),
               capabilities: INSPECTION_CAPABILITIES,
+              commandPolicy: INSPECTION_COMMAND_POLICY,
+              observability: adapters[0].observability,
               budgets: profile.executionBudgets,
-              maxInputChars: profile.agentInputBudgetChars,
+              limits: {
+                maxInitialRequestChars: profile.agentInputBudgetChars,
+                maxProviderFrameChars:
+                  profile.limits.maxCompilationRequestChars,
+                maxFinalResultChars: profile.limits.maxCompilationRequestChars,
+                maxRetainedCommandOutputChars:
+                  profile.executionBudgets.maxCommandOutputChars,
+              },
               signal: cancellationSignal,
-            };
+            });
             const requestSize = JSON.stringify(request, (_key, value) =>
               value instanceof AbortSignal ? undefined : value).length;
             if (requestSize > profile.contextBudgetChars) {
@@ -308,12 +373,33 @@ export async function compile(
             }
             const componentDiagnostics: CompilerDiagnostic[][] = [];
             for (const adapter of adapters) {
-              const result = await adapter.evaluate(request);
+              const adapterRequest = buildAgentEvaluationRequest({
+                ...request,
+                observability: adapter.observability,
+              });
+              const result = validateAgentEvaluationResult(
+                adapterRequest,
+                await adapter.evaluate(adapterRequest),
+              );
+              if (
+                result.budgetOutcome?.token === "exceeded" ||
+                result.budgetOutcome?.cost === "exceeded"
+              ) {
+                throw new Error(
+                  `Evaluator ${adapter.id} exceeded a post-settlement execution budget.`,
+                );
+              }
               evaluations.push({
                 evaluatorId: adapter.id,
                 componentName: component.name,
                 commands: result.commands,
                 usage: result.usage,
+                usageAvailability: result.usageAvailability ??
+                  (result.usage ? "final" : "unavailable"),
+                cost: result.cost,
+                costAvailability: result.costAvailability ??
+                  (result.cost ? "final" : "unavailable"),
+                budgetOutcome: result.budgetOutcome,
               });
               const evaluatorDiagnostics: CompilerDiagnostic[] = [];
               for (const finding of result.findings) {
@@ -324,36 +410,40 @@ export async function compile(
                     } for stage ${stage.id}.`,
                   );
                 }
-                const diagnostic = await fromAgentFinding(
-                  stage.id,
-                  definition.skill,
-                  adapter,
-                  finding,
-                  component.name,
-                  semanticSubjects,
+                const diagnostic = currentLifecycle(
+                  await fromAgentFinding(
+                    stage.id,
+                    definition.skill,
+                    adapter,
+                    finding,
+                    component.name,
+                    semanticSubjects,
+                  ),
+                  previous,
                 );
                 evaluatorDiagnostics.push(diagnostic);
                 diagnostics.push(diagnostic);
-                await emit("diagnostic", {
-                  componentName: component.name,
-                  diagnostic,
-                });
+                await requireEventDelivery(
+                  await eventWriter.diagnostic(diagnostic, component.name),
+                  true,
+                );
               }
               componentDiagnostics.push(evaluatorDiagnostics);
             }
             for (
-              const diagnostic of await disagreementDiagnostics(
+              const rawDiagnostic of await disagreementDiagnostics(
                 stage.id,
                 component.name,
                 adapters,
                 componentDiagnostics,
               )
             ) {
+              const diagnostic = currentLifecycle(rawDiagnostic, previous);
               diagnostics.push(diagnostic);
-              await emit("diagnostic", {
-                componentName: component.name,
-                diagnostic,
-              });
+              await requireEventDelivery(
+                await eventWriter.diagnostic(diagnostic, component.name),
+                true,
+              );
             }
           }
         }
@@ -367,9 +457,15 @@ export async function compile(
         }
         state = "failed";
         failed.add(stage.id);
-        const diagnostic = await stageFailure(stage.id, adapters[0], error);
+        const diagnostic = currentLifecycle(
+          await stageFailure(stage.id, adapters[0], error),
+          previous,
+        );
         diagnostics.push(diagnostic);
-        await emit("diagnostic", { diagnostic });
+        await requireEventDelivery(
+          await eventWriter.diagnostic(diagnostic),
+          true,
+        );
       }
       const report: StageReport = {
         id: stage.id,
@@ -382,27 +478,12 @@ export async function compile(
         ...(evaluations.length ? { evaluations } : {}),
       };
       stageReports.push(report);
-      await emit("stage-completed", { stage: report });
+      await requireEventDelivery(
+        await eventWriter.stageCompleted(report),
+        true,
+      );
     }
 
-    const historyDisabled = options.disableHistory ?? options.noHistory ??
-      false;
-    const historyKey = options.history && !historyDisabled
-      ? await compilationHistoryKey(workspace.root, target, profile)
-      : undefined;
-    let previous: CompilationReport | undefined;
-    if (historyKey) {
-      try {
-        previous = await options.history!.read(historyKey);
-      } catch (error) {
-        await deliverHistoryWarning(options, {
-          code: "COMPILER_HISTORY_READ_FAILED",
-          operation: "read",
-          historyKey,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
     const report = constructCompilationReport({
       runId,
       workspaceRoot: workspace.root,
@@ -425,7 +506,7 @@ export async function compile(
     if (exportDestination) {
       await exportCompilationReport(report, exportDestination, workspace.root);
     }
-    await emit("completed", { report });
+    await requireEventDelivery(await eventWriter.completed(report));
     if (historyKey) {
       try {
         await options.history!.write(historyKey, report);
@@ -440,20 +521,87 @@ export async function compile(
     }
     return report;
   } catch (error) {
-    const type = error instanceof DOMException && error.name === "AbortError"
-      ? "cancelled"
-      : "failed";
     const code = stableCompilerFailureCode(error);
-    try {
-      await emit(type, {
-        code,
-        message: error instanceof Error ? error.message : String(error),
-      });
-    } catch {
-      // The event consumer failed, so no further terminal delivery is possible.
+    if (eventWriter) {
+      const message = error instanceof Error ? error.message : String(error);
+      const delivery = code === "COMPILER_CANCELLED"
+        ? await eventWriter.cancelled(message)
+        : await eventWriter.failed(code, message);
+      if (delivery !== "delivered") {
+        throw new CompilerFailure(
+          "COMPILER_FAILED",
+          `Required terminal compilation event was not delivered: ${delivery}.`,
+          { cause: error },
+        );
+      }
     }
     throw error;
   }
+}
+
+async function bindSuppliedAdapter(
+  profile: EffectiveProfile,
+  adapter: AgentAdapter | undefined,
+): Promise<EffectiveProfile> {
+  if (!adapter) return profile;
+  const evaluator: EvaluatorConfiguration = {
+    id: adapter.id,
+    provider: adapter.provider,
+    ...(adapter.model ? { model: adapter.model } : {}),
+    implementationId: adapter.implementationId,
+    implementationVersion: adapter.implementationVersion,
+  };
+  if (profile.evaluators.length) {
+    const selected = profile.evaluators[0];
+    if (
+      selected.provider !== evaluator.provider ||
+      selected.implementationId !== evaluator.implementationId ||
+      selected.implementationVersion !== evaluator.implementationVersion
+    ) {
+      throw new CompilerFailure(
+        "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+        "The supplied adapter does not match the profile's exact implementation binding.",
+      );
+    }
+  }
+  const evaluators = profile.evaluators.length
+    ? profile.evaluators
+    : [evaluator];
+  const adapterBinding = {
+    provider: evaluator.provider,
+    ...(evaluator.model ? { model: evaluator.model } : {}),
+    implementationId: evaluator.implementationId,
+    implementationVersion: evaluator.implementationVersion,
+  };
+  const fingerprint = await digest(JSON.stringify({
+    ...profile,
+    fingerprint: undefined,
+    adapter: adapterBinding,
+    evaluators,
+  }));
+  return { ...profile, adapter: adapterBinding, evaluators, fingerprint };
+}
+
+function callbackEventSink(
+  callback: CompileOptions["onEvent"],
+): WritableEnvelopeSink {
+  return async (bytes) => {
+    if (!callback) return "delivered-all";
+    try {
+      await callback(JSON.parse(new TextDecoder().decode(bytes)));
+      return "delivered-all";
+    } catch {
+      return "rejected-zero-unavailable";
+    }
+  };
+}
+
+function requireEventDelivery(result: WriterResult, progress = false): void {
+  if (result === "delivered" || (progress && result === "suppressed")) return;
+  throw new CompilerFailure(
+    "COMPILER_FAILED",
+    `Compilation event delivery failed: ${result}.`,
+  );
 }
 
 async function deliverHistoryWarning(
@@ -492,14 +640,9 @@ function stageDefinitions(
 }
 
 function assertAdapterCapabilities(adapter: AgentAdapter): void {
-  if (
-    !adapter.capabilities.readOnlyWorkspace ||
-    adapter.capabilities.network !== false ||
-    adapter.capabilities.approvalEscalation !== false ||
-    !adapter.capabilities.ephemeral
-  ) {
+  if (!capabilitiesMatch(INSPECTION_CAPABILITIES, adapter.capabilities)) {
     throw new Error(
-      `Adapter ${adapter.id} cannot enforce read-only, offline, approval-free, ephemeral workspace inspection.`,
+      `Adapter ${adapter.id} declares capabilities that do not match read-only, offline, approval-free, ephemeral inspection.`,
     );
   }
 }
@@ -519,71 +662,11 @@ function stageReport(
   };
 }
 
-function parseConfiguration(value: unknown): CompileConfiguration {
-  if (value === undefined) return {};
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("tools.compile must be an object.");
-  }
-  const raw = value as Record<string, unknown>;
-  if (raw.budgets !== undefined) validateConfiguredBudgets(raw.budgets);
-  if (raw.limits !== undefined) validateConfiguredLimits(raw.limits);
-  return raw as unknown as CompileConfiguration;
-}
-
-function validateConfiguredLimits(value: unknown): void {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("tools.compile.limits must be an object.");
-  }
-  const known = new Set(Object.keys(DEFAULT_LIMITS));
-  for (const [name, configured] of Object.entries(value)) {
-    if (!known.has(name)) {
-      throw new Error(
-        `tools.compile.limits contains unknown field ${JSON.stringify(name)}.`,
-      );
-    }
-    if (!Number.isSafeInteger(configured) || (configured as number) <= 0) {
-      throw new Error(
-        `tools.compile.limits.${name} must be a positive safe integer.`,
-      );
-    }
-  }
-}
-
-function validateConfiguredBudgets(value: unknown): void {
-  if (value === undefined) return;
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("tools.compile.budgets must be an object.");
-  }
-  const raw = value as Record<string, unknown>;
-  const known = new Set(Object.keys(DEFAULT_EXECUTION_BUDGETS));
-  for (const [name, configured] of Object.entries(raw)) {
-    if (!known.has(name)) {
-      throw new Error(
-        `tools.compile.budgets contains unknown field ${JSON.stringify(name)}.`,
-      );
-    }
-    if (
-      !Number.isSafeInteger(configured) ||
-      (configured as number) <= 0
-    ) {
-      throw new Error(
-        `tools.compile.budgets.${name} must be a positive safe integer.`,
-      );
-    }
-  }
-}
-
-export function resolveCompilationSettings(
-  configuration: CompileConfiguration,
-): {
-  readonly budgets: AgentExecutionBudgets;
-  readonly limits: CompilationLimits;
-} {
-  const budgets = { ...DEFAULT_EXECUTION_BUDGETS, ...configuration.budgets };
-  validateConfiguredBudgets(budgets);
-  const limits = { ...DEFAULT_LIMITS, ...configuration.limits };
-  validateConfiguredLimits(limits);
-  return { budgets, limits };
+function currentLifecycle(
+  diagnostic: CompilerDiagnostic,
+  previous: CompilationReport | undefined,
+): CompilerDiagnostic {
+  return applyDiagnosticLifecycle([diagnostic], previous)[0];
 }
 
 async function effectiveProfile(
@@ -628,7 +711,9 @@ async function effectiveProfile(
     limits: settings.limits,
     executionBudgets: settings.budgets,
     stages,
-    adapter: configuration.adapter,
+    adapter: configuration.adapter
+      ? normalizeEvaluator("default", configuration.adapter)
+      : undefined,
     evaluators,
     skills: selected.flatMap((stage) =>
       stage.skill
@@ -700,10 +785,16 @@ function selectedEvaluators(
     }
     const provider = (raw as Record<string, unknown>).provider;
     const model = (raw as Record<string, unknown>).model;
-    if (!["codex", "claude"].includes(String(provider))) {
+    const implementationId = (raw as Record<string, unknown>)
+      .implementationId;
+    const implementationVersion = (raw as Record<string, unknown>)
+      .implementationVersion;
+    if (!["codex", "claude", "opencode", "pi"].includes(String(provider))) {
       throw evaluatorConfigurationError(
         base,
-        `Evaluator ${JSON.stringify(id)} must use provider codex or claude.`,
+        `Evaluator ${
+          JSON.stringify(id)
+        } must use provider codex, claude, opencode, or pi.`,
       );
     }
     if (model !== undefined && typeof model !== "string") {
@@ -712,12 +803,47 @@ function selectedEvaluators(
         `Evaluator ${JSON.stringify(id)} model must be a string.`,
       );
     }
-    return {
+    if (
+      implementationId !== undefined &&
+      (typeof implementationId !== "string" || !implementationId)
+    ) {
+      throw evaluatorConfigurationError(
+        base,
+        `Evaluator ${
+          JSON.stringify(id)
+        } implementationId must be a non-empty string.`,
+      );
+    }
+    if (
+      implementationVersion !== undefined &&
+      (typeof implementationVersion !== "string" || !implementationVersion)
+    ) {
+      throw evaluatorConfigurationError(
+        base,
+        `Evaluator ${
+          JSON.stringify(id)
+        } implementationVersion must be a non-empty exact version.`,
+      );
+    }
+    return normalizeEvaluator(
       id,
-      provider: provider as "codex" | "claude",
-      ...(model ? { model } : {}),
-    };
+      raw as NonNullable<CompileConfiguration["adapter"]>,
+    );
   });
+}
+
+function normalizeEvaluator(
+  id: string,
+  raw: NonNullable<CompileConfiguration["adapter"]>,
+): EvaluatorConfiguration {
+  const provider = raw.provider;
+  return {
+    id,
+    provider,
+    ...(raw.model ? { model: raw.model } : {}),
+    implementationId: raw.implementationId ?? `builtin.${provider}-cli`,
+    implementationVersion: raw.implementationVersion ?? metadata.version,
+  };
 }
 
 function stageClosure(
@@ -758,18 +884,14 @@ function adaptersFrom(
 ): readonly AgentAdapter[] {
   if (options.adapters) {
     return profile.evaluators.map((configuration) => {
-      const adapter = options.adapters!.find((item) =>
-        item.id === configuration.id
-      );
-      if (!adapter) {
-        const message = `Selected evaluator ${
-          JSON.stringify(configuration.id)
-        } is unavailable.`;
+      try {
+        return resolveAdapterRegistration(options.adapters!, configuration);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         throw profile.criticalSystem
           ? profileEvaluatorError(message)
           : new Error(message);
       }
-      return adapter;
     });
   }
   if (options.adapter) {
@@ -778,21 +900,43 @@ function adaptersFrom(
     }
     return [options.adapter];
   }
-  return profile.evaluators.map((configuration) =>
-    configuration.provider === "codex"
-      ? new CodexAdapter(
-        configuration.model,
-        undefined,
-        configuration.id,
-      )
-      : new ClaudeAdapter(configuration.model, configuration.id)
-  );
+  const builtins: readonly AgentAdapter[] = [
+    new CodexAdapter(),
+    new ClaudeAdapter(),
+    new OpenCodeAdapter(),
+    new PiAdapter(),
+  ];
+  return profile.evaluators.map((configuration) => {
+    const implementation = resolveAdapterRegistration(builtins, configuration);
+    return configuration.model === implementation.model
+      ? implementation
+      : configuration.provider === "codex"
+      ? new CodexAdapter(configuration.model)
+      : implementation;
+  });
 }
 
 function assertProfileEvaluators(
   profile: EffectiveProfile,
   adapters: readonly AgentAdapter[],
 ): void {
+  if (
+    adapters.length !== profile.evaluators.length ||
+    profile.evaluators.some((binding, index) => {
+      const adapter = adapters[index];
+      return !adapter || adapter.provider !== binding.provider ||
+        adapter.implementationId !== binding.implementationId ||
+        adapter.implementationVersion !== binding.implementationVersion;
+    })
+  ) {
+    throw profile.criticalSystem
+      ? profileEvaluatorError(
+        "The selected adapters do not exactly satisfy the effective profile bindings.",
+      )
+      : new Error(
+        "The selected adapters do not exactly satisfy the effective profile bindings.",
+      );
+  }
   if (!profile.criticalSystem) return;
   const identities = new Set(adapters.map((item) => item.id));
   if (adapters.length < 2 || identities.size < 2) {
@@ -824,167 +968,6 @@ function evaluatorConfigurationError(
   return base === "critical-system"
     ? profileEvaluatorError(message)
     : new Error(message);
-}
-
-function resolveTarget(
-  resolved: ResolvedSigilWorkspace,
-  target: CompilationTarget,
-  root: string,
-): readonly ResolvedComponent[] {
-  const selected = target.kind === "workspace"
-    ? resolved.components
-    : selectExplicitTarget(resolved.components, target, root);
-  if (
-    target.kind === "component" && !target.declarationPath &&
-    selected.length > 1
-  ) {
-    throw new CompilerFailure(
-      "COMPILER_INVALID_INVOCATION",
-      `Component target ${JSON.stringify(target.name)} is ambiguous.`,
-    );
-  }
-  if (!selected.length) {
-    const selector = target.kind === "component"
-      ? target.name
-      : target.kind === "workspace"
-      ? ""
-      : target.filePath;
-    throw new CompilerFailure(
-      "COMPILER_INVALID_INVOCATION",
-      `No component matched ${target.kind}${
-        target.kind === "workspace" ? "" : ` ${selector}`
-      }.`,
-    );
-  }
-  return dependencyOrder(resolved, selected);
-}
-
-function selectExplicitTarget(
-  components: readonly ResolvedComponent[],
-  target: Exclude<CompilationTarget, { readonly kind: "workspace" }>,
-  root: string,
-): readonly ResolvedComponent[] {
-  if (target.kind === "component") {
-    assertNormalizedTargetPath(target.declarationPath);
-    return components.filter((item) =>
-      item.name === target.name && (!target.declarationPath ||
-        canonicalWorkspacePath(item.filePath, root) === target.declarationPath)
-    );
-  }
-  assertNormalizedTargetPath(target.filePath);
-  const file = canonicalWorkspacePath(target.filePath, root);
-  if (target.kind === "file") {
-    return components.filter((item) =>
-      canonicalWorkspacePath(item.filePath, root) === file ||
-      item.expansions.expands.some((expansion) =>
-        canonicalWorkspacePath(expansion.filePath, root) === file
-      )
-    );
-  }
-  if (
-    !Number.isSafeInteger(target.line) || target.line < 1 ||
-    !Number.isSafeInteger(target.column) || target.column < 1
-  ) {
-    throw new CompilerFailure(
-      "COMPILER_INVALID_INVOCATION",
-      "Location target line and column must be positive integers.",
-    );
-  }
-  const location = { line: target.line, column: target.column };
-  return components.filter((item) =>
-    (canonicalWorkspacePath(item.filePath, root) === file &&
-      rangeContains(item.declaration.range, location)) ||
-    item.expansions.expands.some((expansion) =>
-      canonicalWorkspacePath(expansion.filePath, root) === file &&
-      rangeContains(expansion.declaration.range, location)
-    )
-  );
-}
-
-function assertNormalizedTargetPath(path: string | undefined): void {
-  if (path === undefined) return;
-  if (
-    !path || path.startsWith("/") || path.startsWith("\\") ||
-    path.includes("\\") || path.split("/").some((part) => part === "..") ||
-    path.startsWith("./") || path.includes("//")
-  ) {
-    throw new CompilerFailure(
-      "COMPILER_INVALID_INVOCATION",
-      `Compilation target path is not normalized and workspace-relative: ${
-        JSON.stringify(path)
-      }.`,
-    );
-  }
-}
-
-function rangeContains(
-  range: {
-    start: { line: number; column: number };
-    end: {
-      line: number;
-      column: number;
-    };
-  },
-  location: { line: number; column: number },
-): boolean {
-  const afterStart = location.line > range.start.line ||
-    (location.line === range.start.line &&
-      location.column >= range.start.column);
-  const beforeEnd = location.line < range.end.line ||
-    (location.line === range.end.line && location.column < range.end.column);
-  return afterStart && beforeEnd;
-}
-
-function dependencyOrder(
-  resolved: ResolvedSigilWorkspace,
-  selected: readonly ResolvedComponent[],
-): readonly ResolvedComponent[] {
-  const selectedKeys = new Set(selected.map(componentKey));
-  const ordered: ResolvedComponent[] = [];
-  const visiting = new Set<string>();
-  const visited = new Set<string>();
-  const visit = (component: ResolvedComponent): void => {
-    const key = componentKey(component);
-    if (visited.has(key) || visiting.has(key)) return;
-    visiting.add(key);
-    for (
-      const imported of resolved.imports.filter((item) =>
-        item.sourceFile === component.filePath
-      )
-    ) {
-      for (const name of imported.names) {
-        const dependency = resolved.components.find((candidate) =>
-          candidate.name === name.name &&
-          candidate.filePath === name.componentFile
-        );
-        if (dependency && selectedKeys.has(componentKey(dependency))) {
-          visit(dependency);
-        }
-      }
-    }
-    visiting.delete(key);
-    visited.add(key);
-    ordered.push(component);
-  };
-  for (const component of selected) visit(component);
-  return ordered;
-}
-
-function componentKey(component: ResolvedComponent): string {
-  return `${component.filePath}\0${component.name}`;
-}
-
-function canonicalWorkspacePath(path: string, root: string): string {
-  const normalized = path.replaceAll("\\", "/").replace(/\/+/g, "/");
-  const normalizedRoot = root.replaceAll("\\", "/").replace(/\/+$/, "");
-  if (
-    normalizedRoot !== "." &&
-    (normalized === normalizedRoot ||
-      normalized.startsWith(`${normalizedRoot}/`))
-  ) {
-    return normalized.slice(normalizedRoot.length).replace(/^\//, "") || ".";
-  }
-  return normalized.replace(/^\.\//, "");
 }
 
 async function fromCoreDiagnostic(

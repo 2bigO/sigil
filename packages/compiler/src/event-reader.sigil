@@ -1,0 +1,192 @@
+@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+
+component SigilCompilationEventReader {
+  goal {
+    Own bounded consumption and validation of one SigilCompilationEventProtocol
+    byte stream without owning producer delivery or host transport cleanup.
+  }
+
+  interface {
+    CompilationEventReaderProtocol {
+      validateStream(readableSource, ExpectedCompilationRun, cancellationSignal)
+      validates the expectation, consumes exactly one run, learns runId from started,
+      and returns its validated completed, failed, or cancelled terminal,
+      protocol-invalid, or source-unavailable. A successful terminal returns only
+      after source end; every failure stops immediately without another read.
+
+      ReadableEnvelopeSource asynchronously returns one non-empty raw byte chunk,
+      end-of-source, or source-failed per read. The reader owns strict UTF-8 decoding
+      and LF or CRLF framing across arbitrary chunk boundaries. Each non-empty frame
+      contains exactly one JSON object and no trailing non-whitespace bytes.
+
+      cancellationSignal is required and aborts a pending read. Validate the expected
+      run first, then register cancellation before source access. An already-aborted
+      signal returns source-unavailable without reading. For a pending read, the
+      first cancellation or source settlement observed wins; once a source result is
+      accepted, later cancellation does not replace processing of that chunk. Fully
+      process the accepted result first. If it produces a terminal failure or
+      terminal plus end-of-source, return that result; otherwise cancellation
+      observed before the next read returns source-unavailable and no next read
+      begins, including when a terminal is awaiting source closure.
+
+      Before every return path, remove or permanently render inert the reader's
+      cancellation registration and discard reader-owned framing state so a later
+      signal cannot invoke settled validation work.
+
+      Invalid ExpectedCompilationRun returns protocol-invalid before cancellation
+      inspection, registration, or source access; cancellation state is irrelevant on
+      that path.
+
+      A generic source throw, rejection, empty chunk, undeclared result,
+      source-failed, host capacity exhaustion, or end before a complete terminal
+      frame returns source-unavailable and performs no further read. Invalid UTF-8,
+      blank or malformed complete frames, or schema violations return
+      protocol-invalid.
+
+      On end-of-source, first finalize strict UTF-8 decoding. Invalid or incomplete
+      UTF-8 returns protocol-invalid; otherwise an unterminated frame, missing
+      started, or missing terminal returns source-unavailable.
+
+      After a terminal frame, continue until end-of-source. Any additional non-empty
+      byte, frame, or event is protocol-invalid. Cancellation before end or failure
+      to close is source-unavailable. The host owns deadline policy and physical
+      cleanup.
+
+      started occurs exactly once as sequence 1 before every progress or terminal
+      event. Its operation and conditional sessionIdentity equal the corresponding
+      ExpectedCompilationRun fields; expected stages are validated through progress
+      order and completed-report reconciliation. Missing, duplicate, or late started
+      is protocol-invalid except that end-of-source with no frame is
+      source-unavailable. For completed, report runId, ordered stages, operation, and
+      conditional session identity equal the stream expectation.
+    }
+  }
+}
+
+expand SigilCompilationEventReader {
+  constraints {
+    CompilationEventReaderProtocol {
+      Delegate envelope vocabulary and cross-direction ordering invariants to
+      SigilCompilationEventProtocol.
+
+      Reject duplicate event-owned JSON members before interpretation and delegate
+      imported object decoding and comparison to SigilCompilationReportProtocol
+      ReportWireValidation.
+
+      For completed, every delivered stage report and diagnostic reconciles exactly
+      with the terminal report, including diagnostic fingerprints and per-stage
+      counts. A delivered stage-completed requires all report diagnostics for that
+      stage to have been delivered and equal, because later progress proves no
+      suppression occurred there.
+
+      For each gap before a later delivered stage, every omitted report stage is
+      disabled or skipped-by-dependency. If no stage interval was delivered, every
+      report stage may be completed, failed, disabled, or skipped-by-dependency. If
+      the last delivered stage is completed, every later report stage may have those
+      four states. If the last delivered stage remains observably open, its report
+      state is completed or failed, its delivered diagnostics are an equal unique
+      subset of that stage's report diagnostics, and every later report stage may
+      have the four terminal states. Pending, running, or cancelled is invalid in a
+      completed report.
+
+      Failed and cancelled reconcile no report and retain structural, ordering,
+      stage-origin, and fingerprint-uniqueness validation for their delivered
+      progress prefix.
+
+      End-of-source after one validated terminal returns that terminal. The reader
+      never reclassifies proposal, evaluator, workspace, persistence, or operation
+      failures and never selects host cleanup behavior.
+    }
+  }
+
+  decisions {
+    CompilationEventReaderProtocol {
+      Decision: Read through bounded end-of-source after terminal and let required
+      cancellation cap source lifetime.
+
+      Trade-offs: Validation waits for host closure and retains framing state.
+
+      Discarded alternatives: Returning immediately or checking only buffered bytes
+      was rejected because later chunks could contain corruption or another run.
+
+      Consequences: Consumers agree on the exact accepted byte stream; timeout or
+      closure failure is source-unavailable rather than a validated terminal.
+
+      Revisit when: Transports provide an authenticated host-neutral run boundary.
+    }
+
+    CancellationPrecedence {
+      Decision: Validate caller expectation before observing cancellation, register
+      cancellation before source access, and preserve the first observed pending-read
+      settlement.
+
+      Scope: Governs input validation, listener lifetime, and cancellation races in
+      validateStream; excludes the host's deadline and physical source cleanup.
+
+      Trade-offs: Invalid caller input is reported even when already cancelled, and
+      cancellation cannot erase a source result already accepted for processing.
+
+      Discarded alternatives: Cancellation-first validation was rejected because it
+      hides invalid contract input. Allowing later cancellation to replace an
+      accepted chunk was rejected because scheduling could change classification of
+      identical bytes.
+
+      Consequences: Registration exists only during validation and every race has one
+      deterministic winner.
+
+      Revisit when: The host cancellation abstraction supplies atomic structured
+      concurrency with equivalent precedence guarantees.
+    }
+
+    CompletedProgressReconciliation {
+      Decision: Reconcile every delivered progress value exactly with the completed
+      report and infer only one suppressible progress suffix.
+
+      Scope: Governs completed-terminal validation after structurally valid serial
+      progress; excludes failed and cancelled terminals, which carry no report.
+
+      Trade-offs: Readers perform detailed comparison and reject additive or changed
+      delivered evidence, while undelivered progress remains representable after one
+      atomic suppression point.
+
+      Discarded alternatives: Treating progress as unauthenticated display data was
+      rejected because it could contradict the authoritative report. Requiring every
+      report item to have an event was rejected because compatible progress loss must
+      not fail a valid terminal result. Arbitrary omitted intervals were rejected
+      because the writer suppresses a suffix, not independent events.
+
+      Consequences: Delivered completed stages are exact; gaps before later progress
+      are only disabled or dependency-skipped; the final open interval and all later
+      stages follow the explicit suffix rules.
+
+      Revisit when: A later protocol version marks each omitted range explicitly.
+    }
+  }
+
+  cases {
+    CompilationEventReaderProtocol {
+      UTF-8 JSON split across chunks forms one frame at LF. LF and CRLF work; blank
+      frames, invalid UTF-8, two JSON values, and EOF before terminal delimiter fail.
+
+      EOF ending an incomplete UTF-8 code unit is protocol-invalid. EOF with valid
+      UTF-8 but an unterminated frame or no terminal is source-unavailable. Progress,
+      terminal, or a second started outside the required sequence-1 started position
+      is protocol-invalid.
+
+      Terminal followed by end returns terminal. Any trailing byte in the same or a
+      later chunk is protocol-invalid. Cancellation while awaiting closure is
+      source-unavailable.
+
+      A completed report with another runId, different stages, wrong session, changed
+      delivered diagnostic, or mismatched delivered stage report is protocol-invalid.
+      Failed or cancelled after valid diagnostic progress is accepted without report
+      reconciliation.
+
+      Cancellation observed before a pending source settlement wins; an observed
+      chunk or end is processed normally despite later cancellation. After a
+      nonsettling chunk is processed, observed cancellation prevents the next read
+      and returns source-unavailable; a terminal awaiting closure follows this rule.
+    }
+  }
+}

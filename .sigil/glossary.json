@@ -534,9 +534,11 @@
     },
     {
       "term": "agent adapter",
-      "definition": "A provider integration that executes bounded evaluation requests and declares enforceable capabilities without owning compiler semantics.",
+      "definition": "An integration for Codex, Claude, OpenCode, or Pi that executes provider-neutral evaluation requests through an exactly bound implementation and self-declares capabilities and observability without owning compiler semantics or proving provider safety.",
       "aliases": [
-        "agent adapters"
+        "agent adapters",
+        "CLI adapter",
+        "CLI adapters"
       ]
     },
     {
