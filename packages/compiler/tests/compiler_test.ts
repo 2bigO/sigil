@@ -1421,6 +1421,16 @@ Deno.test("durable compilation sessions refresh and close without a daemon", asy
               state: "completed",
               evaluator: "mock",
               diagnosticCount: 0,
+              evaluations: [{
+                evaluatorId: "mock",
+                componentName: "Example",
+                commands: [],
+                usage: undefined,
+                usageAvailability: "unavailable",
+                cost: undefined,
+                costAvailability: "unavailable",
+                budgetOutcome: undefined,
+              }],
             },
             {
               id: "architecture-design",

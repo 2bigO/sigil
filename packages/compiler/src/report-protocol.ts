@@ -54,6 +54,7 @@ export function validateCompilationReportWire(
     validSession(value.session);
 }
 
+// @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface
 export function equalReportWireValue(left: unknown, right: unknown): boolean {
   if (left === right) return true;
   if (Array.isArray(left) && Array.isArray(right)) {
@@ -61,8 +62,10 @@ export function equalReportWireValue(left: unknown, right: unknown): boolean {
       left.every((item, index) => equalReportWireValue(item, right[index]));
   }
   if (!record(left) || !record(right)) return false;
-  const leftKeys = Object.keys(left).sort();
-  const rightKeys = Object.keys(right).sort();
+  const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined)
+    .sort();
+  const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined)
+    .sort();
   return leftKeys.length === rightKeys.length &&
     leftKeys.every((key, index) =>
       key === rightKeys[index] && equalReportWireValue(left[key], right[key])
