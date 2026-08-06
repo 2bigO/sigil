@@ -65,7 +65,9 @@ Commands:
   labels; it never overwrites either file;
 - `sigil version [path]` reports tool and configured contract versions;
 - `sigil parse <path>` returns parsed JSON;
-- `sigil check [path]` returns diagnostics;
+- `sigil check [path]` returns diagnostics; add `--format text --show-locations`
+  to append each diagnostic's file path, line, and column to the text output
+  (default text output and JSON are unchanged without the flag);
 - `sigil glossary [path]` reports reviewed entries, resolved contexts, and
   source occurrences;
 - `sigil graph [path]` returns component and import graph data;
