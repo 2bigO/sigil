@@ -14,6 +14,40 @@ export interface EvaluationSkillPackage {
   readonly guidance: string;
 }
 
+export type EvaluationSkillLoadReason =
+  | "missing-package"
+  | "missing-version"
+  | "malformed-guidance"
+  | "malformed-policy"
+  | "identity-mismatch"
+  | "incompatible-version"
+  | "invalid-inputs"
+  | "invalid-dependencies"
+  | "invalid-capabilities"
+  | "capability-mismatch"
+  | "invalid-rules"
+  | "unsupported-policy"
+  | "invalid-output-contract";
+
+export type EvaluationSkillLoadResult =
+  | { readonly kind: "ready"; readonly value: EvaluationSkillPackage }
+  | {
+    readonly kind: "unavailable";
+    readonly reason: "missing-package" | "missing-version";
+  }
+  | {
+    readonly kind: "invalid";
+    readonly reason: Exclude<
+      EvaluationSkillLoadReason,
+      "missing-package" | "missing-version"
+    >;
+  }
+  | {
+    readonly kind: "host-failure";
+    readonly code: string;
+    readonly message: string;
+  };
+
 export const AGENTIC_STAGE_IDS = [
   "semantic-readiness",
   "architecture-design",
@@ -85,6 +119,56 @@ export async function loadEvaluationSkills(
     packages.set(id, { manifest, guidance });
   }
   return packages;
+}
+
+// @sigil implements packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage interface,constraints,cases
+export async function loadEvaluationSkill(
+  stageIdentity: string,
+  version: string,
+  skillRoot?: URL,
+): Promise<EvaluationSkillLoadResult> {
+  if (!stageIdentity || !version) {
+    return { kind: "invalid", reason: "invalid-inputs" };
+  }
+  if (
+    !AGENTIC_STAGE_IDS.includes(
+      stageIdentity as typeof AGENTIC_STAGE_IDS[number],
+    )
+  ) {
+    return { kind: "unavailable", reason: "missing-package" };
+  }
+  try {
+    const skills = await loadEvaluationSkills(skillRoot);
+    const value = skills.get(stageIdentity);
+    if (!value) return { kind: "unavailable", reason: "missing-package" };
+    if (value.manifest.version !== version) {
+      return { kind: "unavailable", reason: "missing-version" };
+    }
+    return { kind: "ready", value };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof SyntaxError) {
+      return { kind: "invalid", reason: "malformed-policy" };
+    }
+    if (/could not be loaded/.test(message)) {
+      return { kind: "host-failure", code: "COMPILER_FAILED", message };
+    }
+    return { kind: "invalid", reason: classifyValidationFailure(message) };
+  }
+}
+
+function classifyValidationFailure(
+  message: string,
+): Exclude<EvaluationSkillLoadReason, "missing-package" | "missing-version"> {
+  if (/empty SKILL/.test(message)) return "malformed-guidance";
+  if (/declares id/.test(message)) return "identity-mismatch";
+  if (/dependencies/.test(message)) return "invalid-dependencies";
+  if (/capabilit/.test(message)) return "invalid-capabilities";
+  if (/rules/.test(message)) return "invalid-rules";
+  if (/implementationEvidence/.test(message)) return "unsupported-policy";
+  if (/unsupported output/.test(message)) return "invalid-output-contract";
+  if (/version/.test(message)) return "incompatible-version";
+  return "malformed-policy";
 }
 
 // @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ImplementationEvidencePolicy logic,constraints

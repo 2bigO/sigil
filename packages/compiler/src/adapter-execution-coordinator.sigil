@@ -1,0 +1,218 @@
+@packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
+
+component SigilAgentAdapterExecutionCoordinator {
+  goal {
+    Coordinate provider-neutral execution settlement, resource observation,
+    terminal arbitration, and cleanup verification without owning provider
+    invocation details.
+  }
+
+  interface {
+    AdapterExecutionHooks {
+      preflight(serializedInput, AgentOperationalLimits) returns success or
+      operational-limit without starting provider execution
+
+      invoke(registerDeclaration, reportObservation, submitTerminalCondition) is
+      supplied by the adapter implementation that owns provider-specific mechanics;
+      the coordinator atomically linearizes its final cancellation observation with
+      calling it at most once and observes its submissions
+
+      cleanup(winningCondition, providerCleanupMs, reportObservation) performs
+      implementation-specific cleanup attempts and reports their outcomes
+
+      every owned resource and result input is registered before first use or state
+      observation
+    }
+
+    AdapterExecutionDeclaration {
+      identity is stable and unique within one evaluation; ownership means the
+      implementation created the resource or accepted cleanup responsibility
+
+      resource lifecycle state is active, terminal, or released; result-input
+      lifecycle state is open, closed, or cancelled; latest known state is initially
+      absent
+
+      observation status is observed, failed, incomplete, or impossible and is
+      recorded separately from latest known lifecycle state
+
+      an observed state updates latest known state monotonically; terminal, released,
+      closed, and cancelled never regress
+
+      failed, incomplete, or impossible observation records evidence without
+      overwriting latest known state; final terminal or released proof remains valid,
+      while absent or nonterminal latest state cannot verify cleanup
+    }
+
+    AdapterTerminalArbiter {
+      submit(condition) atomically appends one eligible terminal condition with a
+      monotonic evaluation-local sequence
+
+      the first submission while idle schedules one deferred drain; at drain start,
+      one atomic snapshot takes every submitted condition and immediately closes the
+      batch; later submissions belong to the next batch
+
+      within one batch, kind precedence is cancellation, elapsed-time,
+      preventive-budget, operational-limit, execution, final-result-protocol, then
+      newly eligible valid result; the lowest sequence wins within one kind
+
+      a second valid-result submission becomes final-result-protocol at the second
+      submission's sequence; an already settled valid result is immutable
+    }
+
+    CoordinatorResult {
+      contains exactly one provider-produced evaluation result envelope after
+      execution and declared result-input settlement
+    }
+
+    CoordinatorFailure {
+      kind is cancelled, elapsed-time, preventive-budget, operational-limit,
+      execution, final-result-protocol, or cleanup
+
+      cleanup contains complete recovery evidence and the initiating terminal kind
+    }
+
+    AgentAdapterExecutionCoordinator {
+      execute(AdapterExecutionHooks, SigilAgentExecutionPolicy) returns one
+      CoordinatorResult or one CoordinatorFailure
+
+      a non-result winner invokes cleanup; cleanup is verified only when every
+      declared resource has latest known terminal or released state and every result
+      input has latest known closed or cancelled state before the cleanup deadline
+
+      cleanup recovery evidence contains all declarations and latest states,
+      observation failures, ordered attempts, deadline outcome, initiating terminal
+      kind, and operator recovery action
+    }
+  }
+}
+
+expand SigilAgentAdapterExecutionCoordinator {
+  logic {
+    AgentAdapterExecutionCoordinator {
+      Run hook preflight before invocation. After invocation, accept only registered
+      state observations and eligible terminal submissions. If the shared monotonic
+      elapsed deadline expires after invocation, submit one elapsed-time terminal
+      condition.
+
+      At the invocation transition, atomically observe cancellation and start the
+      provider. Cancellation observed before the transition returns cancelled without
+      invocation; cancellation observed after it becomes an eligible terminal
+      submission.
+
+      At each deferred drain, atomically snapshot submitted conditions and apply kind
+      precedence, then lowest evaluation-local sequence. A condition submitted during
+      or after the snapshot enters the next batch.
+
+      A valid result is eligible only after execution and all result inputs settle
+      and its envelope validates. Operational-limit is eligible when provider framing
+      crosses maxProviderFrameChars. Final-result-protocol is eligible only after
+      execution and result-input settlement without one valid envelope.
+
+      A non-result winner starts cleanup. Earlier failed attempts do not prevent
+      verification when final latest known states satisfy the contract before the
+      deadline.
+
+      Deadline expiry with an absent, active, open, or otherwise nonterminal latest
+      state, or inability to obtain required proof, returns cleanup. A later
+      observation failure does not erase prior immutable terminal proof but remains
+      in recovery evidence.
+    }
+  }
+
+  constraints {
+    CoordinatorBoundary {
+      Own provider-neutral declaration, batching, precedence, verification, and
+      outcome policy. Adapter implementations own invocation and cleanup mechanisms
+      and supply only hooks and observations.
+
+      Never accept an undeclared resource or result-input observation. Never accept a
+      late result after a non-result winner or a result settled in an earlier batch.
+    }
+  }
+
+  decisions {
+    CancellationInvocationLinearization {
+      Decision: Atomically linearize provider invocation with a final cancellation
+      observation after adapter and hook preflight checks.
+
+      Scope: Governs cancellation arriving after the initial adapter cancellation
+      check and around provider invocation.
+
+      Trade-offs: The invocation transition requires one serialized host operation.
+
+      Design issues addressed: An ungoverned preflight-to-invocation gap permits the
+      same cancellation race to either start or avoid provider side effects.
+
+      Consequences: Cancellation before the transition invokes no provider, while
+      cancellation after it participates in coordinator arbitration and cleanup.
+    }
+
+    DeterministicTerminalArbitration {
+      Decision: Use deferred atomic snapshots, fixed kind precedence, and lowest
+      evaluation-local sequence within one kind.
+
+      Scope: Governs post-invocation terminal settlement before cleanup.
+
+      Trade-offs: A stop or failure in the same snapshot rejects a newly eligible
+      result, while a result settled in an earlier snapshot remains final.
+
+      Design issues addressed: Cancellation reflects caller intent; hard time and
+      budget bounds precede provider defects; framing limits precede execution and
+      terminal protocol interpretation.
+
+      Discarded alternatives: Provider arrival order, result-first snapshots,
+      aggregation, and implementation iteration order were rejected.
+
+      Consequences: Equivalent submitted conditions produce one stable outcome.
+    }
+
+    CleanupFailureSupersession {
+      Decision: Return cleanup instead of the initiating failure when cleanup cannot
+      be verified, while retaining the initiating kind and recovery evidence.
+
+      Scope: Governs cleanup after a non-result winner.
+
+      Trade-offs: Callers inspect evidence to recover the initiating failure.
+
+      Design issues addressed: Preserving only the initiating kind would hide a
+      potentially live or unobserved provider resource.
+
+      Discarded alternatives: Optional cleanup detail and treating deadline expiry as
+      successful cleanup were rejected.
+
+      Consequences: Failed, timed-out, indeterminate, or incompletely observed
+      cleanup is compatibility-visible.
+    }
+  }
+
+  cases {
+    AgentAdapterExecutionCoordinator {
+      A signal submitted before an atomic snapshot participates in that batch; one
+      submitted during or after the snapshot enters the next batch.
+
+      Same-kind failures choose the lowest sequence. A second valid-result submission
+      becomes final-result-protocol and returns no result.
+
+      A newly eligible result sharing a batch with cancellation returns cancelled;
+      without cancellation but with elapsed-time it returns elapsed-time; without
+      either but with framing overflow it returns operational-limit.
+
+      Elapsed-time expiry submitted before the snapshot defeats a newly eligible
+      result in that snapshot; a valid result settled in an earlier snapshot remains
+      immutable when the timer submission arrives later.
+
+      Cancellation arriving immediately before the atomic invocation transition
+      starts no provider; the same signal arriving immediately after the transition
+      enters the next eligible arbitration batch and triggers bounded cleanup when it
+      wins.
+
+      A result settled in an earlier batch ignores later terminal submissions.
+
+      An observation failure after terminal proof preserves that proof and records
+      the failure; absent or nonterminal proof at the deadline returns cleanup.
+
+      Verified cleanup preserves the initiating failure. Unverified cleanup returns
+      cleanup with complete caller recovery evidence.
+    }
+  }
+}

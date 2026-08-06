@@ -1,26 +1,61 @@
-@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
-@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+@packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
+@packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 
 component SigilAgentAdapter {
   goal {
-    Map one provider-neutral bounded evaluation request to an enforceable
-    code-agent execution without changing compiler semantics.
+    Map one provider-neutral evaluation request to one already selected Codex,
+    Claude, OpenCode, or Pi implementation without owning adapter registration.
 
-    Enforce the capability contract from CompilationProfile and emit only evidence
-    accepted as CompilationDiagnostic input.
+    Translate provider framing, result locations, telemetry, and command
+    observations into AgentEvaluationResult without accepting or rewriting
+    candidate finding evidence, and require one validated final result without
+    overstating trust.
   }
 
   interface {
     AgentAdapter {
-      execute(request, evaluatorIdentity, capabilityContract) streams validated
-      provider events or rejects when required capabilities cannot be enforced
+      declares provider, stable implementation identifier, exact implementation
+      version, model binding, AgentCapabilityContract, and observability
 
-      capabilityContract is resolved by CompilationProfile and accepted findings are
-      candidates for CompilationDiagnostic normalization
+      model binding is selection metadata and may be absent for the provider default;
+      evaluate receives an already selected adapter
 
-      an evaluator identity is one configured provider and optional model binding
+      evaluate(SigilAgentEvaluationRequest) settles with exactly one
+      AgentEvaluationResult or rejects with one typed AdapterFailure
 
-      adapter output remains untrusted until protocol and evidence validation succeed
+      request observability must equal this adapter's canonical resolved declaration,
+      where omitted or unknown progress resolves to none and omitted or unknown
+      usage, cost, token-budget enforcement, and cost-budget enforcement resolve to
+      unavailable; inequality is binding-mismatch
+
+      request capability compatibility is owned by SigilAgentCapabilityContract;
+      incompatibility is capability-mismatch
+
+      a valid result, including an exceeded post-settlement budget outcome, is
+      returned with findings and telemetry intact
+
+      SigilAgentExecutionPolicy governs provider-neutral budgets and cancellation
+
+      capability declarations describe claimed behavior but do not prove filesystem,
+      network, command, persistence, or data-handling safety
+
+      adapter output remains untrusted until SigilAgentEvaluationRequest validates
+      the result envelope; returned findings remain untrusted candidates
+    }
+
+    AdapterFailure {
+      contains a machine-readable stable kind and a human-readable, non-parseable
+      message whose exact text is not a compatibility surface
+
+      kind is binding-mismatch, capability-mismatch, cancelled, elapsed-time,
+      preventive-budget, operational-limit, execution, cleanup, or
+      final-result-protocol
+
+      cleanup additionally contains the caller-visible transport-neutral recovery
+      evidence owned by CoordinatorFailure unchanged; every remaining kind contains
+      no execution-mechanism-specific fields
     }
   }
 }

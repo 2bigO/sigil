@@ -2,7 +2,8 @@ import type {
   PurposeRetrievalResult,
   ResolvedComponent,
 } from "@qoherent/sigil-core";
-import type { AgentEvaluationTarget } from "./types.ts";
+import { validateAgentEvaluationRequest } from "./evaluation-request.ts";
+import type { AgentEvaluationRequest, AgentEvaluationTarget } from "./types.ts";
 
 // @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::EvaluationContext logic,constraints,cases
 export function compilationEvaluationTarget(
@@ -20,6 +21,20 @@ export function compilationEvaluationTarget(
     initialPaths: [...initialPaths],
     retrieval,
   };
+}
+
+// @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::EvaluationContext interface,logic,constraints,cases
+export function buildAgentEvaluationRequest(
+  request: AgentEvaluationRequest,
+): AgentEvaluationRequest {
+  validateAgentEvaluationRequest(request);
+  return Object.freeze({
+    ...request,
+    target: Object.freeze({
+      ...request.target,
+      initialPaths: Object.freeze([...request.target.initialPaths]),
+    }),
+  });
 }
 
 function canonicalWorkspacePath(path: string, root: string): string {

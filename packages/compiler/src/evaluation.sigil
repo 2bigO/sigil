@@ -1,36 +1,42 @@
 @packages/core import { SigilCore, SigilContextRetrieval }
 @packages/compiler/src/profile.sigil import { SigilCompilationProfile }
 @packages/compiler/src/status.sigil import { SigilCompilationStatus }
-@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
+@packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
 @packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
 @packages/compiler/src/evaluation-registry.sigil import { SigilEvaluationSkillRegistry }
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
 
 component SigilCompilationEvaluation {
   goal {
     Execute one reusable profile-scoped compilation pipeline over a supplied
-    read-only workspace view and return one internal evaluation result plus
-    nonterminal progress.
+    workspace API that is read-only to compiler-owned deterministic processing, and
+    return one internal evaluation result plus nonterminal progress.
+
+    Adapter and provider processes receive a workspace path and may exceed that API
+    boundary; their declared restrictions are externally trusted rather than an
+    end-to-end compiler guarantee.
 
     Compose WorkspaceProcessing, CompilationProfile, CompilationStatus,
-    CompilationEventProtocol, AgentAdapter, EvaluationSkillPackage, and report
-    trace schemas through their owning public contracts without owning terminal
-    settlement.
+    CompilationEventWriterProtocol, AgentAdapter, EvaluationSkillPackage, and
+    report trace schemas through their owning public contracts without owning
+    terminal settlement.
   }
 
   interface {
     CompilationEvaluation {
       evaluate(workspaceAccess, target, effectiveProfile, requestedStage,
-      cancellationSignal?) streams only nonterminal CompilationEvent progress and
-      returns CompilationEvaluationResult, rejects cancellation with
-      COMPILER_CANCELLED, or rejects a host or protocol failure with COMPILER_FAILED
+      CompilationEventWriter, cancellationSignal?) emits only nonterminal progress
+      through that already-bound writer and returns CompilationEvaluationResult,
+      rejects cancellation with COMPILER_CANCELLED, or rejects a host or protocol
+      failure with COMPILER_FAILED
 
       WorkspaceProcessing supplies deterministic semantics, CompilationProfile
       supplies stages and capabilities, and CompilationStatus derives color
 
-      CompilationEventProtocol governs nonterminal progress framing, AgentAdapter
-      executes agentic stages, and EvaluationSkillPackage supplies their guidance and
-      rule contracts
+      CompilationEventWriterProtocol governs nonterminal progress framing,
+      AgentAdapter executes agentic stages, and EvaluationSkillPackage supplies their
+      guidance and rule contracts
     }
 
     CompilationEvaluationResult {
@@ -46,12 +52,13 @@ component SigilCompilationEvaluation {
       each agent request evaluates exactly one component in one evaluation stage
 
       requests contain target identity, skill, capabilities, schema, budgets, and one
-      complete PurposeRetrievalResult for that component and stage purpose
+      complete PurposeRetrievalResult for that component and stage purpose through
+      AgentEvaluationRequest
     }
 
     AgentWorkspaceInspection {
-      evaluators inspect the supplied view through enforced read-only agent access
-      with network and approval escalation disabled
+      evaluators inspect the supplied view through the selected adapter under its
+      declared access, network, approval, and persistence behavior
     }
   }
 }
@@ -115,8 +122,12 @@ expand SigilCompilationEvaluation {
     }
 
     AgentWorkspaceInspection {
-      Start the agent at the selected workspace root in an ephemeral read-only
-      sandbox with approval escalation and network access disabled.
+      Request the selected adapter to start the agent at the workspace root with
+      read-only access, approval escalation disabled, agent tool network access
+      disabled, and state persistence resolved from that selected adapter.
+
+      Treat these restrictions as requested behavior and adapter declarations, not as
+      compiler-verified guarantees.
 
       Let the agent inspect a selected evidence file at an included range when it
       must verify retrieval rendering or cite exact lines. Additional workspace
@@ -128,9 +139,14 @@ expand SigilCompilationEvaluation {
     }
 
     EvaluationTrace {
-      Consume the agent CLI's structured event stream and record command events,
-      model usage, evaluator environment, outcome, and incomplete-evidence status
-      without retaining hidden reasoning or complete file contents.
+      Consume structured provider observations when available and record observed
+      command metadata, model usage, evaluator environment, outcome, and
+      incomplete-evidence status without retaining hidden reasoning, complete file
+      contents, or bulky command output.
+
+      Accept a terminal-only provider when its required final result is complete and
+      valid. Preserve unavailable and partial telemetry without inventing zero or
+      final values.
     }
   }
 
@@ -139,18 +155,24 @@ expand SigilCompilationEvaluation {
       One adapter request never combines multiple selected components.
 
       CompilationEvaluation emits no completed, failed, or cancelled terminal event;
-      its caller owns terminal settlement through SigilCompilationEventProtocol.
+      its caller owns terminal settlement through SigilCompilationEventWriter.
 
       Evaluation skills may identify targets but do not alter retrieval purpose,
       membership, ordering, or aggregation.
 
-      Effective profiles declare elapsed-time, command-output, and model-usage
-      budgets for evaluation. They do not truncate retrieval policy version 1.
+      Effective profiles declare elapsed-time and model-usage budgets plus initial
+      request and output-retention limits. They do not truncate retrieval policy
+      version 1 or bound later workspace reads by initial request size.
     }
 
     AgentWorkspaceInspection {
-      The adapter must enforce read-only workspace access, disabled network access,
-      no approval escalation, and the selected workspace as the agent working root.
+      The evaluation request requires read-only workspace access, disabled agent tool
+      network access, no approval escalation, the selected workspace as working root,
+      and state persistence equal to the selected adapter declaration.
+
+      An adapter declares whether it satisfies requested capabilities. The compiler
+      rejects a declared mismatch but does not verify the implementation, provider
+      CLI, or plugin's enforcement.
 
       The agent may run version, parse, check, fmt --check, retrieve, and read-only
       text inspection limited to selected evidence or retrieval diagnostics.
@@ -162,9 +184,21 @@ expand SigilCompilationEvaluation {
       Owned implementation annotations are navigation evidence and do not restrict
       which workspace files the agent may read.
 
-      Inaccessible material evidence, exhausted execution budgets, invalid structured
-      events, or an unenforceable capability contract leave the required stage
+      Inaccessible material evidence, elapsed-time exhaustion, a declared capability
+      mismatch, or an invalid or missing final result leave the required stage
       incomplete and prevent green.
+
+      Adapter cancellation rejects CompilationEvaluation with COMPILER_CANCELLED.
+      Binding mismatch or capability mismatch is required evaluator unavailability
+      before the stage. Elapsed-time, preventive-budget, operational-limit, provider
+      process, process-cleanup, and final-result-protocol failures become incomplete
+      evaluator outcomes. A valid exceeded post-settlement budget outcome also makes
+      that evaluator outcome incomplete while preserving findings and telemetry. Only
+      Compiler host or CompilationEventWriterProtocol failures reject with
+      COMPILER_FAILED.
+
+      Missing progress events, unavailable usage or cost, and truncated nonessential
+      command output do not fail an otherwise valid evaluation.
     }
   }
 
@@ -195,27 +229,31 @@ expand SigilCompilationEvaluation {
     }
 
     DirectAgentWorkspaceInspection {
-      Decision: Retain enforced read-only workspace access for citation verification
-      and retrieval-gap diagnostics, not for redefining authoritative evidence.
+      Decision: Request read-only workspace access for citation verification and
+      retrieval-gap diagnostics, while treating adapter enforcement as externally
+      trusted rather than compiler-guaranteed.
 
       Scope: Governs evidence gathering during agentic compiler stages; excludes
       mutation, network research, approval escalation, recursive compilation, code
       generation, and implementation experiments.
 
-      Assumptions: Included ranges can require exact-line verification and retrieval
-      policy defects need observable diagnostics.
+      Assumptions: Included ranges can require exact-line verification, retrieval
+      policy defects need observable diagnostics, and users accept the documented
+      risk of their selected adapter implementation.
 
-      Trade-offs: Providers retain limited inspection freedom, but ordinary findings
-      cannot rely on unselected evidence.
+      Trade-offs: Providers retain limited inspection freedom and the compiler cannot
+      guarantee adapter restrictions, but ordinary findings cannot rely on unselected
+      evidence.
 
       Design issues addressed: A deterministic boundary must remain debuggable
       without restoring evaluator-owned traversal.
 
-      Discarded alternatives: No workspace access and unrestricted evidence browsing
-      were rejected as unverifiable or nondeterministic.
+      Discarded alternatives: No workspace access, unrestricted authoritative
+      browsing, and inferring safety from provider events were rejected.
 
       Consequences: Evaluators can verify selected evidence and report missing
-      relations while retrieval owns normal-stage evidence membership.
+      relations while retrieval owns normal-stage evidence membership; adapter trust
+      limitations remain documentation-only.
 
       Revisit when: Retrieval results carry sufficient immutable line-addressable
       evidence to remove workspace inspection entirely.
@@ -238,17 +276,18 @@ expand SigilCompilationEvaluation {
     }
 
     AgentWorkspaceInspection {
-      An agent cites exact lines from a selected evidence range while the adapter
-      records the read-only command event.
+      An agent cites exact lines from a selected evidence range whether or not its
+      adapter exposes the underlying read observation.
 
       An agent that discovers a materially required unselected relation reports a
       retrieval-gap diagnostic; that evidence does not become an ordinary stage
       finding until a later run uses a revised retrieval policy.
 
-      An attempted workspace write is denied by the sandbox and leaves the stage
-      incomplete.
+      An adapter declaring incompatible workspace access fails before evaluation.
 
-      An adapter without enforceable read-only access fails before evaluation.
+      An adapter declaring compatible access may run without a generic warning; its
+      restrictions remain externally trusted and documented rather than verified by
+      compiler events.
     }
   }
 }

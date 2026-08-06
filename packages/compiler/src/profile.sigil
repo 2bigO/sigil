@@ -1,7 +1,11 @@
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+@packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
+
 component SigilCompilationProfile {
   goal {
     Own built-in and project compiler profiles, evaluator selection, stage
-    dependency closure, budgets, and reproducible effective-profile identity.
+    dependency closure, operational limits, and reproducible effective-profile
+    identity for Codex, Claude, OpenCode, and Pi evaluation.
   }
 
   interface {
@@ -14,7 +18,14 @@ component SigilCompilationProfile {
 
       standard and critical-system are built in; project profiles may configure or
       omit stages subject to dependency rules
+
+      evaluator providers are exactly codex, claude, opencode, or pi; their adapter
+      implementations may be supplied by the compiler host or plugins
+
+      each evaluator binds one stable adapter implementation identifier and exact
+      implementation version
     }
+
   }
 }
 
@@ -30,11 +41,21 @@ expand SigilCompilationProfile {
       Treat the singular adapter as the backward-compatible default evaluator and
       select configured evaluator identities through evaluatorIds.
 
+      Validate selected provider identities against codex, claude, opencode, and pi.
+      Resolve each selected evaluator's implementation identifier and exact version,
+      and include both in effective-profile identity. Resolve registration
+      availability only for selected evaluators.
+
+      Resolve AgentCapabilityContract and AdapterObservabilityDeclaration through
+      SigilAgentCapabilityContract. Resolve AgentExecutionBudgets and
+      AgentOperationalLimits through SigilAgentExecutionPolicy.
+
       Validate only selected evaluator identities. Resolve requestedStage to its
       complete transitive dependency closure without enabling unrelated stages.
 
       Fingerprint effective stages, skills, adapters, models, capabilities, execution
-      budgets, resource limits, disabled stages, and relevant versions.
+      budgets, resource limits, adapter observability declarations, disabled stages,
+      and relevant versions.
     }
   }
 
@@ -46,8 +67,19 @@ expand SigilCompilationProfile {
       sizes and proposal-session retention. Every configured value is a positive safe
       integer.
 
+      An initial agent-request size limit is an operational transport bound. It does
+      not bound evidence that an adapter later reads from the workspace.
+
+      A command-output limit bounds retained nonessential trace content. Exceeding it
+      alone does not fail evaluation when the final result remains intact and valid.
+
       Evaluator identities are unique; evaluatorIds contains no duplicates and
       references configured evaluators.
+
+      Every selected evaluator uses provider codex, claude, opencode, or pi.
+
+      Every selected evaluator declares one nonempty adapter implementation
+      identifier and exact version.
 
       Unselected evaluator configuration does not affect workspace loading or another
       profile.
@@ -92,6 +124,40 @@ expand SigilCompilationProfile {
       Consequences: Configuration changes alter the effective-profile fingerprint and
       can change acceptance of large requests, evaluator execution, and session
       retention.
+    }
+
+    ClosedCliProviderSelection {
+      Decision: Restrict evaluator provider identity to Codex, Claude, OpenCode, or
+      Pi while allowing selected implementations to be supplied by the host or
+      plugins.
+
+      Scope: Governs tools.compile evaluator configuration and effective-profile
+      identity; excludes adapter implementation trust and provider protocol mapping.
+
+      Trade-offs: Third-party implementations can satisfy required integrations, but
+      arbitrary provider identities require a future compiler contract change.
+
+      Consequences: Profile fingerprints identify one of four stable provider names
+      together with the explicitly selected implementation identity and version.
+    }
+
+    ExplicitAdapterImplementationSelection {
+      Decision: Require each evaluator configuration to select one stable adapter
+      implementation identifier and exact version.
+
+      Scope: Governs evaluator configuration and effective-profile identity; excludes
+      host or plugin registration matching owned by the adapter execution boundary.
+
+      Trade-offs: Adapter upgrades require an intentional profile change.
+
+      Design issues addressed: A provider name alone cannot identify which host or
+      plugin implementation the user accepted.
+
+      Discarded alternatives: Discovery order and implicit host or plugin precedence
+      were rejected as nonreproducible.
+
+      Consequences: Equivalent effective profiles bind the same adapter
+      implementation identity and version.
     }
 
     ProfileScopedCompilation {

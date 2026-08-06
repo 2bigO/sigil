@@ -1,121 +1,230 @@
 @packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
-@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+@packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 
 expand SigilAgentAdapter {
   logic {
     AgentAdapter {
-      Supply each adapter the minimal target request, evaluation skill, output
-      schema, workspace root, and capabilities declared for its evaluation run.
+      Supply the target request, evaluation guidance, output contract, workspace
+      root, and requested capabilities to the selected adapter implementation.
 
-      Start the provider agent with enforced direct read-only workspace inspection
-      and consume its structured event stream.
+      At adapter-execution entry, capture the monotonic elapsed-time origin. Before
+      invocation, check already-requested cancellation, canonical observability
+      binding equality, capability compatibility, implementation input preflight,
+      elapsed-time exhaustion, and preventive budget exhaustion in that order; return
+      only the first failure and invoke no provider.
 
-      Validate structured adapter output before normalizing any finding.
+      Delegate the final cancellation observation and invocation transition to
+      SigilAgentAdapterExecutionCoordinator.
 
-      Reject an adapter that cannot enforce the effective capability contract.
+      As part of capability compatibility, translate required restrictions into the
+      selected adapter's documented provider configuration. If translation cannot be
+      constructed, reject capability-mismatch; construction remains unverified.
+
+      Implementation input preflight only serializes and bounds the validated
+      provider-neutral request and restriction configuration. Serialization failure
+      or maxInitialRequestChars overflow rejects operational-limit without invoking
+      the provider.
+
+      Invoke the provider once through the selected adapter's implementation-owned
+      execution mechanism. Consume its declared result inputs according to that
+      implementation's ordering and settlement rules.
+
+      Supply provider-specific invocation, result-input, resource-observation, and
+      cleanup hooks to SigilAgentAdapterExecutionCoordinator. Map CoordinatorResult
+      or CoordinatorFailure to AgentEvaluationResult or AdapterFailure without
+      reinterpreting arbitration or cleanup policy.
+
+      Incrementally parse provider framing, bound retained nonessential command
+      content, and locate exactly one terminal result.
+
+      Translate provider-specific framing, result locations, telemetry, and command
+      observations into AgentEvaluationResult. Do not accept or rewrite candidate
+      finding rules or evidence. Validate the envelope through
+      SigilAgentEvaluationRequest and return findings as untrusted candidates.
+
+      Preflight preventive-budget exhaustion starts no provider execution. Live
+      preventive exhaustion requests an implementation-owned terminal transition and
+      cleanup. Return valid post-settlement results intact.
     }
   }
 
   constraints {
     CapabilityPolicy {
-      Every profile declares readable repository scope, executable tool categories,
-      network policy, execution budgets, sensitive exclusions, and applicable
-      research requirements.
+      Require the compatibility result owned by SigilAgentCapabilityContract before
+      invocation; a mismatch fails without duplicating its equality algorithm.
 
-      Direct workspace inspection requires enforced read-only filesystem access, the
-      selected workspace as working root, no approval escalation, and ephemeral agent
-      state.
+      Provider, implementation identity, exact version, model, and observability do
+      not participate in capability equality.
 
-      Network access is disabled for every compiler evaluation. Profiles cannot
-      broaden this capability.
-
-      An adapter capability mismatch fails the required evaluation rather than
-      broadening access.
+      Capability declarations are self-reported compatibility metadata. Explicit
+      adapter selection accepts documented implementation risk without adding a
+      generic runtime warning to compiler evidence.
     }
 
-    EvidenceThreshold {
-      An error identifies a violated rule or contradictory contract and provides
-      reproducible deterministic or repository evidence.
+    ProviderMapping {
+      Codex, Claude, OpenCode, and Pi are the complete provider identity set.
+      Provider-specific commands, events, result locations, and telemetry remain
+      private adapter details.
 
-      A warning cites concrete evidence and states the remaining ambiguity or
-      material risk.
-
-      An optimization explains its expected benefit and accepted trade-off.
-
-      Hidden reasoning is never required or retained as diagnostic evidence.
-    }
-
-    CompilationDiagnostic {
-      Evaluation skills may propose findings but cannot redefine compiler severities,
-      diagnostic identity, lifecycle, or compilation color.
-
-      A finding whose rule code is not declared by its evaluation skill is rejected.
-
-      Required evaluator disagreement produces a warning until the conflict is
-      resolved.
-
-      Green permits no warning waiver.
+      Initial request overflow rejects as operational-limit before invocation.
+      Provider framing overflow rejects as operational-limit and triggers
+      implementation-owned bounded cleanup. Final-result size overflow rejects as
+      final-result-protocol after execution and declared result-input settlement.
+      Candidate findings remain untrusted until compiler rule and evidence
+      normalization.
     }
   }
 
   decisions {
     ProviderNeutralEvaluation {
-      Decision: Let the compiler own the evaluation protocol, diagnostic schema, and
-      native skill-package contract while adapters map enforced direct workspace
-      inspection and structured events to provider capabilities.
+      Decision: Keep provider implementations behind one public evaluation request
+      and result contract. AgentAdapter owns provider mapping and the public
+      result/failure surface, and delegates provider-neutral coordination policy to
+      SigilAgentAdapterExecutionCoordinator.
 
-      Scope: Governs every agent and evaluation skill integration.
+      Scope: Governs provider-specific adapter mapping; excludes exact registration,
+      coordinator policy, resource declarations, and cleanup actions.
 
-      Trade-offs: Provider-specific sandbox, working-directory, event-stream, and
-      usage controls require explicit adapter mapping.
+      Trade-offs: Each provider retains version-sensitive protocol mapping.
 
-      Consequences: Changing providers does not change compiler semantics.
+      Consequences: Changing provider integration does not change compiler diagnostic
+      semantics or registry behavior.
     }
 
-    EvidenceBackedDiagnostics {
-      Decision: Allow only evidence-backed errors and warnings to affect compilation
-      color.
+    ClosedProviderIdentitySet {
+      Decision: Recognize exactly Codex, Claude, OpenCode, and Pi provider identities
+      while permitting compiler hosts to register their implementations.
 
-      Scope: Governs deterministic, model-assisted, repository, and experimental
-      findings.
+      Scope: Governs registry and evaluator provider identity; excludes additional
+      providers without a compiler contract change.
 
-      Trade-offs: Some plausible concerns remain informational until sufficient
-      evidence exists.
+      Trade-offs: The semantic namespace stays predictable while adding a provider
+      requires an intentional contract update.
 
-      Consequences: Unsupported model claims cannot block progress toward green.
+      Consequences: Separate packages may add implementations without silently
+      extending provider identity.
     }
 
-    StableDiagnosticLifecycle {
-      Decision: Derive stable diagnostic fingerprints from rule, stage, subject, and
-      location facts and compare them across runs.
+    DeterministicPreflightFailurePrecedence {
+      Decision: Capture the monotonic elapsed-time origin at adapter-execution entry,
+      then check cancellation, observability binding, capability compatibility
+      including restriction-configuration construction, implementation input
+      preflight, elapsed-time exhaustion, and preventive budget exhaustion in that
+      order.
 
-      Scope: Governs report comparison and editor progress feedback.
+      Scope: Governs simultaneous pre-invocation failures only.
 
-      Trade-offs: Rules must define stable semantic subjects independently from
-      message wording.
+      Trade-offs: One stable failure hides later preflight defects until corrected.
 
-      Consequences: Users can distinguish new, unchanged, resolved, and regressed
-      findings.
+      Design issues addressed: Independent checks otherwise expose implementation
+      order and produce nondeterministic caller behavior.
+
+      Discarded alternatives: Aggregation was rejected because cancellation should
+      stop inspection and identity must precede behavior, transport, time, and
+      budget.
+
+      Consequences: Equivalent invalid requests return the same failure.
+    }
+
+    TerminalResultOnlyAdapterProgress {
+      Decision: Define progress none as absence of a live adapter observation
+      channel. Permit optional provider progress observations only inside validated
+      terminal result metadata in this compiler version.
+
+      Scope: Governs provider progress; excludes compiler-owned stage lifecycle
+      events emitted through CompilationEventWriter.
+
+      Trade-offs: Provider progress is unavailable while evaluation runs, avoiding a
+      second public envelope and backpressure protocol.
+
+      Consequences: Every bundled adapter declares progress none; terminal progress,
+      command, and usage metadata may still appear in the validated terminal result
+      and never alter canonical observability binding.
+
+      Revisit when: A provider-neutral live observation envelope is designed.
+    }
+
+    CompleteProviderResultInputValidation {
+      Decision: Validate terminal-result framing and size only after provider
+      execution settles and all implementation-declared result inputs complete.
+
+      Scope: Governs successful-result eligibility and final-result-protocol failure;
+      excludes earlier cancellation, limits, and execution failures.
+
+      Trade-offs: A known oversized terminal candidate may continue until bounded
+      implementation settlement, preserving duplicate and trailing-framing detection.
+
+      Discarded alternatives: Accepting or rejecting a terminal candidate before
+      declared result-input completion was rejected because later framing can
+      invalidate it.
+
+      Consequences: Final-result overflow returns no partial result and rejects only
+      after provider and declared result-input settlement.
+    }
+
+    ExternalAdapterTrustBoundary {
+      Decision: Treat adapter capabilities as self-declared and make explicit adapter
+      selection acceptance of documented execution risk.
+
+      Scope: Governs compiler-owned and externally supplied adapters.
+
+      Consequences: Matching metadata is not a verified safety guarantee and generic
+      risk warnings do not contaminate compiler evidence.
+    }
+
+    SingleAttemptExecution {
+      Decision: Invoke one provider execution once per adapter evaluation and leave
+      retry to a new caller evaluation.
+
+      Scope: Governs invocation, execution, protocol, and result failures.
+
+      Consequences: Each evaluation has one execution attempt and unambiguous budget
+      accounting.
     }
   }
 
   cases {
     AgentAdapter {
-      A required adapter that cannot enforce the configured network policy fails its
-      evaluation and produces red.
+      An incompatible capability declaration, or inability to construct its
+      documented provider restriction configuration, fails before invocation.
 
-      A required adapter that cannot enforce direct read-only workspace access fails
-      before invoking its evaluator.
+      When every preflight condition fails, cancellation wins. Removing each earlier
+      condition returns binding-mismatch, capability-mismatch, operational-limit,
+      elapsed-time, then preventive-budget in order, and no case invokes the
+      provider.
 
-      Invalid or unsupported adapter output cannot introduce an error or warning.
+      Input serialization failure and maxInitialRequestChars overflow both reject
+      operational-limit before provider invocation.
 
-      An undeclared diagnostic code is rejected before it can affect compilation
-      color.
-    }
+      Unequal request and selected-adapter observability rejects as binding-mismatch
+      before provider invocation and starts no execution.
 
-    EvaluatorDisagreement {
-      Two required evaluators reaching materially incompatible findings produce a
-      compiler warning and yellow status.
+      A terminal-only adapter returns one valid final result without live provider
+      progress.
+
+      Retained nonessential command content crossing its bound is truncated or
+      discarded and does not reject an otherwise valid result.
+
+      Duplicate, missing, malformed, or trailing terminal framing rejects as
+      final-result-protocol and returns no result.
+
+      For Codex, schema-valid agent messages inside one open turn are nonterminal
+      checkpoints; the latest checkpoint becomes the turn's candidate only when
+      turn.completed arrives. A second completed turn candidate or any framing after
+      the completed terminal boundary rejects as final-result-protocol.
+
+      An oversized final result waits for provider and declared result-input
+      settlement, then rejects as final-result-protocol without returning a partial
+      result.
+
+      Live preventive-budget exhaustion participates in coordinator arbitration.
+      Verified cleanup returns preventive-budget; unverified cleanup returns cleanup
+      with recovery evidence; a result settled in an earlier batch remains final.
+
+      Provider-specific hooks produce one coordinator-settled valid result or typed
+      AdapterFailure without adapter-local arbitration.
     }
   }
 }

@@ -1,52 +1,71 @@
 @packages/core import { SigilCore, SigilContextRetrieval }
-@packages/compiler/_module.sigil import { SigilCompiler }
+@packages/compiler/src/compilation-target.sigil import { SigilCompilationTarget }
+@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
+@packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
+@packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/history-store.sigil import { SigilCompilationHistoryStore }
+@packages/compiler/src/report-export.sigil import { SigilCompilationReportExporter }
 
-expand SigilCompiler {
-  logic {
-    CompilationTarget {
-      Ask SigilCore to normalize and validate every target path against the selected
-      configured workspace and its loaded source selection.
+component SigilOneShotCompilation {
+  goal {
+    Own one-shot compilation invocation, option validation, workspace acquisition,
+    target and profile resolution, evaluation dispatch, report construction,
+    export, terminal settlement, and optional history coordination.
+  }
 
-      Resolve a component target by exact case-sensitive name and optional
-      declarationPath. Name-only selection requires exactly one loaded declaration; a
-      supplied declarationPath must identify that exact declaration.
+  interface {
+    OneShotCompilation {
+      compile(workspacePath, CompilationTarget, profileName, CompilationOptions?)
+      streams CompilationEvent and returns CompilationReport only after successful
+      completed-event settlement
 
-      Ask the SigilCore semantic model to resolve a location target's one-based
-      physical line plus UTF-16 code-unit column through its start-inclusive,
-      end-exclusive component and expand ranges. Do not independently parse source,
-      calculate coordinates, or reconstruct declaration ranges in SigilCompiler.
+      cancellation rejects with COMPILER_CANCELLED; an unknown or conflicting target,
+      profile, stage, or focus rejects with COMPILER_INVALID_INVOCATION; unavailable
+      required evaluators reject with COMPILER_PROFILE_EVALUATORS_REQUIRED; host or
+      protocol failure rejects with COMPILER_FAILED
 
-      When no component or expand encloses the requested position, reject with
-      COMPILER_INVALID_INVOCATION, return no CompilationReport, and emit a failed
-      terminal event when transport remains writable.
+      every rejection returns no CompilationReport and emits its corresponding
+      terminal event whenever a compatible CompilationEventWriter remains open
 
-      Resolve the selected component to one exact declaration identity before
-      identifying its workspace root, evaluation skill, and initial navigation paths.
-
-      Resolve a file target to every component declaration in that file and to the
-      parent component identity of every expand in that file. Deduplicate the result
-      by exact declaration identity.
-
-      Resolve a workspace target to every component declaration loaded through the
-      selected configured workspace's source selection. Expands add evidence for
-      their parent component but do not add another scheduled component identity.
-
-      Condense the resolved component dependency graph into strongly connected groups
-      and topologically order those groups. Break ties among independent groups and
-      members by normalized workspace-relative Sigil path, declaration start offset,
-      then exact component name.
-
-      Preserve SIGIL_IMPORT_CYCLE from deterministic resolution for every cyclic
-      group, make the report red, and skip agentic evaluation for that affected group
-      and its unavailable dependents. Continue independent acyclic groups in their
-      deterministic order.
+      failure writing any required terminal event supersedes the pending outcome with
+      COMPILER_FAILED and returns no CompilationReport
     }
 
+    CompilationOptions {
+      requestedStage optionally selects one exact stage and its dependency closure;
+      focus optionally maps design to architecture-design or implementation to
+      current-code-compatibility and its dependency closure
+
+      requestedStage and focus are mutually exclusive; omitting both executes the
+      complete selected profile; an unknown or conflicting selection rejects with
+      COMPILER_INVALID_INVOCATION
+
+      disableHistory defaults to false and, when true, disables both
+      CompilationHistoryStore lookup and replacement
+
+      cancellationSignal is optional; reportExport optionally requests
+      CompilationReportExport
+
+      eventSink is an optional caller-owned WritableEnvelopeSink used only for this
+      invocation; omission binds an internal always-delivered discard sink so method
+      settlement still uses the same event protocol without exposing progress
+
+      hostWarningSink is an optional callback receiving each non-authoritative
+      CompilationHistoryWarning; when omitted or when the callback throws or rejects,
+      compilation settlement remains unchanged
+    }
+  }
+}
+
+expand SigilOneShotCompilation {
+  logic {
     CompilationInvocation {
       Unless history is disabled, ask SigilCompilationHistoryStore for its
       CompilationHistoryLookupResult and supply optional prior evidence to
       SigilCompilationReportProtocol without treating it as authority. Forward its
-      optional CompilationHistoryWarning to hostWarningSink when configured.
+      optional CompilationHistoryWarning to hostWarningSink when configured; ignore
+      callback failure because warning delivery is non-authoritative.
 
       Observe cancellation through evaluation and report construction. Immediately
       before requested export begins, or immediately before completed-event
@@ -65,56 +84,68 @@ expand SigilCompiler {
     }
 
     OneShotCompilation {
-      Validate CompilationOptions and resolve CompilationTarget before acquiring
-      workspace evidence. Delegate profile, requested-stage, focus mapping,
-      dependency closure, evaluator availability, budgets, and capabilities to
-      SigilCompilationProfile.
+      Validate CompilationOptions, then acquire the selected configured workspace
+      through SigilCore read-only semantics before asking SigilCompilationTarget to
+      resolve the target against that exact loaded workspace.
 
-      Acquire the selected workspace through SigilCore read-only semantics and
-      dispatch the resolved target, stages, capabilities, and optional prior report
-      to SigilCompilationEvaluation. Never construct a writable selected-workspace
-      capability.
+      Bind eventSink or the internal discard sink to one per-invocation
+      CompilationEventWriter and pass that writer to SigilCompilationEvaluation.
+      Never share a writer or sink binding across invocations.
+
+      Delegate profile, requested-stage, focus mapping, dependency closure, evaluator
+      availability, budgets, and capabilities to SigilCompilationProfile.
+
+      Dispatch the resolved workspace, target, stages, capabilities, and optional
+      prior report to SigilCompilationEvaluation. Never construct a writable selected
+      workspace capability.
 
       Supply SigilCompilationEvaluation with the resolved workspace and complete
       glossary and implementation-discovery evidence required by
-      SigilContextRetrieval. Do not assemble graph or context evidence in
-      SigilCompiler.
+      SigilContextRetrieval. Do not assemble graph or context evidence here.
 
       Delegate diagnostic identity, lifecycle comparison, trace schema, and
-      authoritative report construction to SigilCompilationReportProtocol
-      constructReport using the internal CompilationEvaluationResult and optional
-      prior evidence.
+      authoritative report construction to SigilCompilationReportProtocol using the
+      internal CompilationEvaluationResult and optional prior evidence.
 
       After report construction, cross the CompilationInvocation cancellation
       boundary and delegate requested export to SigilCompilationReportExporter.
 
-      Delegate the required completed terminal event to
-      SigilCompilationEventProtocol. Terminal transport failure rejects with
-      COMPILER_FAILED, returns no report, and performs no history replacement.
+      Delegate the required completed terminal event to SigilCompilationEventWriter.
+      Terminal transport failure rejects with COMPILER_FAILED, returns no report, and
+      performs no history replacement.
 
       After completed is delivered and before returning, when history is enabled, ask
       SigilCompilationHistoryStore to replace history. Forward a returned
-      CompilationHistoryWarning to hostWarningSink when configured. Replacement
-      failure does not change the already completed settlement or returned report.
-      When history is disabled, perform neither history operation. Preserve other
-      dependency-owned failure codes without reconstructing dependency policy.
+      CompilationHistoryWarning to hostWarningSink when configured. Replacement or
+      warning-callback failure does not change the already completed settlement or
+      returned report. When history is disabled, perform neither history operation.
+      Preserve other dependency-owned failure codes without reconstructing dependency
+      policy.
     }
   }
 
   constraints {
     DependencyDirection {
-      SigilCompiler depends on SigilCore for deterministic workspace semantics.
+      SigilOneShotCompilation depends on SigilCore for deterministic workspace
+      semantics and on SigilCompilationTarget for target resolution.
 
       SigilCompilationEvaluation depends on SigilContextRetrieval for authoritative
-      purpose evidence; SigilCompiler does not duplicate retrieval policy.
+      purpose evidence; one-shot orchestration does not duplicate retrieval policy.
 
-      SigilCore does not depend on SigilCompiler, evaluation skills, agent adapters,
-      CLI behavior, or editor behavior.
+      SigilCore does not depend on compiler evaluation, skills, adapters, CLI
+      behavior, or editor behavior.
     }
 
     ReadOnlyCompilation {
-      Compilation does not modify Sigil source, implementation source, configuration,
-      tests, documentation, or other selected-workspace content.
+      Compiler-owned workspace acquisition, retrieval, evaluation orchestration,
+      report construction, and proposal coordination do not modify Sigil source,
+      implementation source, configuration, tests, documentation, or other
+      selected-workspace content.
+
+      An externally supplied CLI adapter or provider is user-selected and
+      self-declared. The compiler requests its declared restrictions but cannot
+      verify or guarantee that its process, tools, plugins, or provider preserve the
+      read-only boundary.
 
       Compilation does not generate code, execute implementation experiments, or
       claim general proof of implementation feasibility. Context-only stages may cite
@@ -123,83 +154,57 @@ expand SigilCompiler {
   }
 
   decisions {
-    ReadOnlyCompilation {
-      Decision: Keep compilation read-only, exclude general feasibility proof, code
-      generation, and implementation experiments, and permit repository-demonstrated
-      feasibility constraints as design evidence.
+    InvalidCompilationInvocation {
+      Decision: Reject an unknown or conflicting target, profile, stage, or focus
+      through one stable COMPILER_INVALID_INVOCATION caller error.
 
-      Scope: Governs every compilation stage and adapter.
+      Scope: Governs one-shot invocation validation; excludes evaluator availability,
+      cancellation, and host or protocol failure.
+
+      Trade-offs: One code covers several caller-correctable input categories.
+
+      Consequences: Hosts receive one predictable no-report failure contract without
+      multiplying public error identities.
+    }
+
+    ReadOnlyCompilation {
+      Decision: Keep compiler-owned compilation processing read-only, exclude general
+      feasibility proof, code generation, and implementation experiments, and permit
+      repository-demonstrated feasibility constraints as design evidence while
+      treating external adapter restrictions as unverified declarations.
+
+      Scope: Governs compiler-owned behavior at every compilation stage and the
+      restrictions requested from adapters; it does not guarantee external adapter or
+      provider behavior.
 
       Trade-offs: The compiler cannot empirically validate whether a proposed
       contract can be implemented, but may report a concrete constraint already
       demonstrated by accessible repository evidence.
 
       Consequences: Compilation evaluates contracts and repository evidence while
-      implementation validation remains a downstream team responsibility; context-
-      only evidence never becomes a general feasibility attestation.
+      implementation validation remains a downstream team responsibility;
+      context-only evidence never becomes a general feasibility attestation, and a
+      user accepts external adapter risk by selecting its exact binding.
     }
 
-    LocationBasedCompilation {
-      Decision: Represent an editor selection as a file-backed source position and
-      delegate resolution of its enclosing component or expand to SigilCore's
-      deterministic semantic model and source ranges.
+    WorkspaceBeforeTargetResolution {
+      Decision: Acquire and deterministically load the selected configured workspace
+      before resolving any component, file, location, or workspace target.
 
-      Scope: Governs location targets across compiler, CLI, and editor compilation;
-      excludes workspace and explicit file-wide targets.
+      Scope: Governs one-shot invocation preparation.
 
-      Trade-offs: The public target and CLI option contracts gain source-position
-      fields.
+      Trade-offs: Invalid target selectors are rejected only after workspace loading
+      succeeds.
 
-      Design issues addressed: Name-only selection cannot distinguish duplicate
-      components and textual prefix scanning cannot identify expand-only files.
+      Design issues addressed: Target containment, declaration identity, and source
+      position cannot be resolved before the configured workspace and loaded source
+      selection exist.
 
-      Discarded alternatives: Editor-side Sigil parsing and name-only component
-      selection were rejected because they duplicate semantics or lose component
-      identity.
+      Discarded alternatives: Resolving targets directly from the raw workspace path
+      was rejected as contradictory and duplicative of SigilCore semantics.
 
-      Consequences: A cursor resolves to one core-derived component identity without
-      duplicating parsing in the editor or source-position resolution in the
-      compiler.
-    }
-
-    ComponentCenteredCompilation {
-      Decision: Make components the primary compilation unit and resolve file and
-      workspace targets into component sets.
-
-      Scope: Governs component, file, and workspace target membership across CLI,
-      editor, and CI surfaces; excludes dependency scheduling order.
-
-      Trade-offs: File targets may select parent components whose declarations live
-      elsewhere, and workspace targets evaluate every loaded component declaration.
-
-      Design issues addressed: Declaration-only file selection hides expand-owned
-      evidence, while an undefined workspace collection makes compile-workspace
-      results dependent on host interpretation.
-
-      Consequences: A component cannot appear green while a matching expand or
-      relevant relationship remains unevaluated; every host resolves the same file
-      and workspace membership.
-    }
-
-    DeterministicWorkspaceScheduling {
-      Decision: Schedule strongly connected dependency groups topologically and use
-      normalized path, declaration offset, and exact name as deterministic tie-
-      breakers.
-
-      Scope: Governs workspace-target component scheduling; excludes stage dependency
-      order and evaluator-internal inspection order.
-
-      Trade-offs: Cyclic groups cannot receive agentic evaluation even when
-      independent acyclic groups can continue.
-
-      Design issues addressed: Dependency order alone does not order unrelated
-      components and cannot topologically order a cycle.
-
-      Discarded alternatives: Discovery order and aborting the entire workspace on
-      one cycle were rejected as unstable or unnecessarily broad.
-
-      Consequences: Repeated workspace runs schedule identical evidence identically,
-      while SIGIL_IMPORT_CYCLE remains an explicit red deterministic finding.
+      Consequences: Every target is resolved against one exact loaded workspace
+      snapshot.
     }
 
     CompilationCancellationBoundary {
@@ -218,32 +223,30 @@ expand SigilCompiler {
       Discarded alternatives: Allowing cancellation throughout atomic replacement was
       rejected because destination state and method settlement could diverge.
 
-      Consequences: Pre-linearization cancellation performs no export; post-
-      linearization cancellation leaves export and completion deterministic.
+      Consequences: Pre-linearization cancellation performs no export;
+      post-linearization cancellation leaves export and completion deterministic.
     }
 
     OneShotCompilationOrchestration {
-      Decision: Coordinate one-shot compilation through a single ordered
-      orchestration concept while delegating each semantic and storage policy to its
-      owning component.
+      Decision: Coordinate one-shot compilation through a single ordered component
+      while delegating semantic, target, protocol, report, export, and storage policy
+      to their owners.
 
-      Scope: Governs invocation validation, profile and stage resolution, read-only
-      workspace access, evaluation dispatch, report construction, optional history
-      and export, and terminal settlement; excludes dependency-internal policy and
-      reusable compilation sessions.
+      Scope: Governs invocation validation, workspace access, evaluation dispatch,
+      report construction, optional history and export, and terminal settlement;
+      excludes reusable compilation sessions.
 
-      Trade-offs: The compiler owns an explicit sequence across several cohesive
+      Trade-offs: One component owns an explicit sequence across several cohesive
       collaborators.
 
-      Design issues addressed: Hosts need one authoritative owner for preparing and
-      settling a one-shot compilation without moving dependency policies into the
-      module index.
+      Design issues addressed: Hosts need one authoritative invocation owner without
+      moving operational policy into the compiler module index.
 
       Discarded alternatives: CLI-owned orchestration and implicit coordination
-      spread across report, evaluation, and storage components were rejected.
+      spread across dependencies were rejected.
 
-      Consequences: Every host invokes the same sequence while component-specific
-      policy remains independently changeable.
+      Consequences: Every host invokes the same sequence while dependency policy
+      remains independently changeable.
     }
 
     PostTerminalHistoryReplacement {
@@ -264,47 +267,11 @@ expand SigilCompiler {
       adds another fallible state transition.
 
       Consequences: Completed delivery is the success linearization for history;
-      history-write failure remains a warning and does not change the returned
-      report.
+      history-write and warning-callback failure do not change the returned report.
     }
   }
 
   cases {
-    CompilationTarget {
-      Compiling one component includes every matching expand even when those expands
-      live in other files.
-
-      Compiling a position inside an expand resolves the component represented by
-      that expand.
-
-      A position on the first character of a component or expand range and a position
-      on its closing delimiter select it. The position immediately after the closing
-      delimiter does not.
-
-      LF and CRLF each advance one physical line. A column counts one-based UTF-16
-      code units and a position on a line-ending sequence selects no delimiter text.
-
-      A position outside every component and expand rejects with
-      COMPILER_INVALID_INVOCATION, returns no report, and emits a failed terminal
-      event when transport remains writable.
-
-      Independent components use normalized path, declaration offset, and exact name
-      order. A cyclic dependency group produces SIGIL_IMPORT_CYCLE, is skipped for
-      agentic evaluation, and makes the report red while independent acyclic groups
-      continue.
-
-      A file containing one component declaration and an expand for another component
-      selects both exact identities once. An expand-only file selects its parent
-      component once.
-
-      A workspace target selects every component declaration loaded by configured
-      source selection and excludes documents omitted by that selection.
-
-      A name-only component target matching two declarations, a declarationPath that
-      names a different declaration, and any excluded or outside-workspace path
-      reject with COMPILER_INVALID_INVOCATION before evaluation.
-    }
-
     CompilationInvocation {
       Cancellation during evaluation or report construction returns
       COMPILER_CANCELLED and performs no export.
@@ -312,6 +279,9 @@ expand SigilCompiler {
       Cancellation after export begins does not alter settlement. Successful export
       completes; failed export rejects with COMPILER_FAILED; neither returns
       COMPILER_CANCELLED.
+
+      A hostWarningSink callback that throws or rejects does not change compilation
+      status, terminal events, returned report, or another warning delivery.
     }
 
     OneShotCompilation {
@@ -323,14 +293,17 @@ expand SigilCompiler {
       Supplying both requestedStage and focus rejects with
       COMPILER_INVALID_INVOCATION before workspace access or evaluation.
 
+      A syntactically valid target is resolved only after the configured workspace is
+      loaded; target resolution uses that workspace's selected sources.
+
       Unavailable required evaluators reject with
       COMPILER_PROFILE_EVALUATORS_REQUIRED, return no report, and emit a failed event
       when transport remains writable.
 
       disableHistory performs no history read or replacement. Successful one-shot
       evaluation returns an internal result, constructs one authoritative report,
-      performs requested export, emits the same report in completed, attempts non-
-      authoritative history replacement, and returns it.
+      performs requested export, emits the same report in completed, attempts
+      non-authoritative history replacement, and returns it.
 
       Cancellation before linearization, evaluation rejection, report-construction
       rejection, or export rejection performs no history replacement. History-write

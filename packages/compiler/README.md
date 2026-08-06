@@ -1,3 +1,5 @@
+<!-- @sigil uses packages/compiler/_module.sigil::SigilCompiler::Compiler interface -->
+
 # @qoherent/sigil-compiler
 
 Agentic, profile-scoped evaluation for Sigil workspaces.
@@ -6,11 +8,11 @@ This package owns compilation reports, event streaming, evaluation profiles, and
 code-agent adapters. It never modifies the selected workspace. Evaluation skills
 are loaded from their packaged `SKILL.md` and `compile.json` files.
 
-Agentic stages pass the workspace root and selected target to the agent, which
-inspects Sigil and implementation files directly inside an ephemeral, offline,
-read-only sandbox. Repository contents are not serialized into the initial
-prompt. The report retains structured command and usage traces, not hidden
-reasoning or complete file contents.
+Agentic stages pass the workspace root, selected target, and complete initial
+retrieval result to a selected CLI adapter. The initial request is only a
+transport boundary: an adapter may read additional workspace files. The report
+retains available structured observations without inventing missing progress,
+usage, cost, or budget telemetry.
 
 CompilationReport version 2 attaches a required `semanticSubjects` array to
 every diagnostic. Compiler-verified subjects identify the governing Sigil
@@ -18,10 +20,19 @@ component, component or expand owner, section, optional concept, and optional
 normalized semantic-unit fingerprint. Physical source locations remain available
 for editors and evidence display.
 
-Codex currently provides the enforceable direct-read capability mapping. Claude
-configuration fails closed until its installed CLI can prove equivalent
-read-only workspace and ephemeral-state controls. Compilation does not generate
-code or execute implementation experiments.
+The recognized providers are exactly Codex, Claude, OpenCode, and Pi. Adapters
+may be compiler-owned or supplied by plugins and are selected by provider,
+stable implementation identifier, exact implementation version, and optional
+model. OpenCode is supplied by the separate
+`@qoherent/sigil-compiler-adapter-opencode` package; the compiler does not
+depend on that provider package.
+
+Adapter capability and observability declarations are self-reported metadata,
+not verified guarantees. Selecting or supplying an adapter accepts the risk that
+its implementation, plugins, tools, or provider CLI may not preserve requested
+filesystem, network, approval, persistence, or data-handling restrictions. The
+compiler intentionally places this warning only in documentation; it does not
+inject it into logs, events, reports, diagnostics, status, or evaluator prompts.
 
 Run a complete profile or one stage plus its dependency closure:
 
@@ -47,8 +58,17 @@ evaluator. Independent evaluator groups are optional:
   "tools": {
     "compile": {
       "evaluators": {
-        "primary": { "provider": "codex" },
-        "reviewer": { "provider": "codex", "model": "another-model" }
+        "primary": {
+          "provider": "codex",
+          "implementationId": "builtin.codex-cli",
+          "implementationVersion": "0.7.1"
+        },
+        "reviewer": {
+          "provider": "opencode",
+          "implementationId": "my-plugin.opencode-cli",
+          "implementationVersion": "2.4.0",
+          "model": "another-model"
+        }
       },
       "profiles": {
         "critical-system": {
@@ -97,5 +117,6 @@ retention are configurable under `tools.compile`:
 
 Every value must be a positive safe integer. `budgets` selects effective
 execution values and `limits` controls request size and proposal-session
-retention. Omitted fields retain the
+retention. `limits.providerCleanupMs` bounds each graceful and forced provider
+cleanup phase and defaults to 5000 milliseconds. Omitted fields retain the
 backward-compatible defaults.

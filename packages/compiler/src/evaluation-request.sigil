@@ -1,0 +1,133 @@
+@packages/core import { SigilContextRetrieval }
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+@packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+
+component SigilAgentEvaluationRequest {
+  goal {
+    Compose one provider-neutral evaluation request and terminal-result envelope
+    from context retrieval, capability, observability, and execution policy
+    contracts.
+
+    Bind all evidence and control inputs once so CLI adapters consume one
+    authoritative request without provider-specific semantics.
+  }
+
+  interface {
+    AgentEvaluationRequest {
+      contains one target identity, stage identity and purpose, provider-neutral
+      EvaluationGuidance, output schema, workspace root and snapshot identity,
+      complete PurposeRetrievalResult, resolved AgentCapabilityContract,
+      AdapterObservabilityDeclaration, AgentExecutionBudgets, AgentOperationalLimits,
+      and AgentCancellation
+
+      EvaluationGuidance contains validated skill identity, version, instructions,
+      allowed rules, implementation-evidence policy, and output-contract identity;
+      the request contract owns this neutral envelope while the skill registry
+      supplies its validated value
+
+      PurposeRetrievalResult target and purpose exactly match the request target and
+      stage purpose, and its workspace snapshot identity exactly matches the request
+      workspace snapshot
+
+      PurposeRetrievalResult contains no error diagnostic and is complete for the
+      requested purpose; a binding mismatch, retrieval error, or incomplete purpose
+      result prevents provider invocation and produces an incomplete-evidence
+      evaluator outcome
+
+      initial request size is a transport bound and does not limit later workspace
+      reads by the selected adapter
+    }
+
+    AgentEvaluationResult {
+      contains structurally validated candidate findings, optional observed command
+      metadata and terminal progress metadata, independently unavailable, partial, or
+      final usage and cost telemetry, and AgentBudgetOutcome
+
+      structurally invalid result content invalidates the complete result; candidate
+      rule and evidence acceptance remains owned by CompilationDiagnostic
+
+      the compiler rederives AgentBudgetOutcome from the request budgets, resolved
+      observability enforcement modes, and returned telemetry; a supplied outcome
+      differing from that deterministic derivation invalidates the result as a
+      final-result-protocol failure
+    }
+  }
+}
+
+expand SigilAgentEvaluationRequest {
+  constraints {
+    ProviderNeutralFraming {
+      One valid AgentEvaluationResult contains exactly one terminal result object.
+      Missing, duplicate, conflicting, or structurally malformed terminal content
+      invalidates the result envelope.
+
+      Terminal progress metadata, command traces, usage, and cost are optional
+      observations and never substitute for the terminal result. Terminal progress
+      metadata is not a live observation channel and does not change a progress none
+      declaration.
+    }
+  }
+
+  decisions {
+    SharedEvaluationRequestEnvelope {
+      Decision: Make one request envelope authoritative for target, purpose,
+      retrieval, guidance, capabilities, observability, budgets, limits, and
+      cancellation while delegating their independent policies to imported owners.
+
+      Scope: Governs compiler-to-adapter evaluation data; excludes provider-specific
+      invocation and event mapping.
+
+      Trade-offs: Envelope changes coordinate consumers, while capability and
+      execution policies can evolve in narrower components.
+
+      Design issues addressed: Duplicate invocation inputs and direct skill-registry
+      dependencies create ambiguity and dependency cycles.
+
+      Discarded alternatives: Duplicating cancellation or capability inputs at the
+      adapter boundary and making the request component own every policy were
+      rejected.
+
+      Consequences: Profiles and skills construct validated values, orchestration
+      binds them once, and adapters execute one authoritative request.
+    }
+
+    SnapshotBoundRetrieval {
+      Decision: Require exact target, purpose, and workspace-snapshot agreement
+      between AgentEvaluationRequest and PurposeRetrievalResult.
+
+      Scope: Governs evidence binding before provider invocation.
+
+      Trade-offs: A reusable retrieval result is rejected after any relevant request
+      or snapshot identity changes.
+
+      Consequences: An adapter cannot evaluate one target using structurally valid
+      retrieval evidence selected for another target, purpose, or snapshot.
+    }
+
+  }
+
+  cases {
+    AgentEvaluationRequest {
+      A retrieval result for another component, purpose, or workspace snapshot fails
+      before provider invocation.
+
+      A matching retrieval result containing an error diagnostic or incomplete for
+      the requested purpose prevents provider invocation and yields incomplete
+      evidence.
+    }
+
+    AgentEvaluationResult {
+      A terminal-only provider returns one valid final result and no progress
+      observations.
+
+      A provider with progress none may include progress observed by the provider in
+      its one terminal result but emits no live progress observation.
+
+      Two terminal candidates in the complete provider stream invalidate both.
+
+      Truncated nonessential command output with one intact terminal result can
+      complete successfully.
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import type {
+  AdapterImplementationBinding,
   AgentAdapter,
   AgentCommandTrace,
   AgentEvaluationRequest,
@@ -6,43 +7,79 @@ import type {
   AgentFinding,
   AgentUsage,
 } from "./types.ts";
+import {
+  capabilitiesMatch,
+  normalizeObservability,
+} from "./evaluation-capabilities.ts";
+import { truncateRetainedOutput } from "./evaluation-execution.ts";
+import {
+  AdapterFailure,
+  coordinateAdapterExecution,
+} from "./adapter-execution-coordinator.ts";
+import { runAdapterSubprocess } from "./adapter-subprocess.ts";
+import {
+  validateAgentEvaluationRequest,
+  validateAgentEvaluationResult,
+} from "./evaluation-request.ts";
+
+const BUILTIN_VERSION = "0.7.1";
 
 export type CommandRunner = (
   command: string,
   args: readonly string[],
   input: string,
+  onStdoutChunk: (chunk: string) => void,
   signal?: AbortSignal,
-) => Promise<string>;
+  execution?: {
+    readonly cwd: string;
+    readonly providerCleanupMs: number;
+    readonly implementationIdentity: string;
+  },
+) => Promise<void>;
 
-const defaultRunner: CommandRunner = async (command, args, input, signal) => {
-  const child = new Deno.Command(command, {
-    args: [...args],
-    stdin: "piped",
-    stdout: "piped",
-    stderr: "piped",
-    signal,
-  }).spawn();
-  const writer = child.stdin.getWriter();
-  await writer.write(new TextEncoder().encode(input));
-  await writer.close();
-  const result = await child.output();
-  if (!result.success) {
-    throw new Error(
-      `${command} exited with ${result.code}: ${
-        new TextDecoder().decode(result.stderr).trim()
-      }`,
+const defaultRunner: CommandRunner = async (
+  command,
+  args,
+  input,
+  onStdoutChunk,
+  signal,
+  execution,
+) => {
+  if (!signal || !execution) {
+    throw new AdapterFailure(
+      "execution",
+      "Codex subprocess execution context is unavailable.",
     );
   }
-  return new TextDecoder().decode(result.stdout);
+  await runAdapterSubprocess({
+    implementationIdentity: execution.implementationIdentity,
+    command,
+    args,
+    cwd: execution.cwd,
+    input,
+    signal,
+    providerCleanupMs: execution.providerCleanupMs,
+    onStdoutChunk,
+  });
 };
 
 export class CodexAdapter implements AgentAdapter {
   readonly provider = "codex" as const;
+  readonly implementationId = "builtin.codex-cli";
+  readonly implementationVersion = BUILTIN_VERSION;
   readonly capabilities = {
-    readOnlyWorkspace: true,
-    network: false,
+    schemaVersion: 1,
+    workspaceAccess: "read-only",
+    agentToolNetwork: false,
     approvalEscalation: false,
-    ephemeral: true,
+    statePersistence: "ephemeral",
+  } as const;
+  readonly observability = {
+    progress: "none",
+    usage: "final",
+    cost: "unavailable",
+    tokenBudgetEnforcement: "post-settlement-only",
+    costBudgetEnforcement: "unavailable",
   } as const;
 
   constructor(
@@ -55,81 +92,179 @@ export class CodexAdapter implements AgentAdapter {
   async evaluate(
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {
-    assertCapabilityContract(this, request);
-    const prompt = evaluationPrompt(request);
-    if (prompt.length > request.maxInputChars) {
-      throw new Error(
-        `Agent request is ${prompt.length} characters, exceeding the ${request.maxInputChars}-character safety limit.`,
+    const elapsedOrigin = performance.now();
+    if (request.signal?.aborted) {
+      throw new AdapterFailure(
+        "cancelled",
+        "Evaluation was cancelled before invocation.",
+      );
+    }
+    if (
+      JSON.stringify(normalizeObservability(request.observability)) !==
+        JSON.stringify(normalizeObservability(this.observability))
+    ) {
+      throw new AdapterFailure(
+        "binding-mismatch",
+        "Codex request observability does not match the selected adapter.",
+      );
+    }
+    try {
+      assertCapabilityContract(this, request);
+    } catch (error) {
+      throw new AdapterFailure(
+        "capability-mismatch",
+        "Codex capabilities do not match the requested contract.",
+        undefined,
+        { cause: error },
+      );
+    }
+    let prompt: string;
+    try {
+      validateAgentEvaluationRequest(request);
+      prompt = evaluationPrompt(request);
+    } catch (error) {
+      throw new AdapterFailure(
+        "operational-limit",
+        "Codex request preflight failed.",
+        undefined,
+        { cause: error },
+      );
+    }
+    if (prompt.length > request.limits.maxInitialRequestChars) {
+      throw new AdapterFailure(
+        "operational-limit",
+        `Agent request is ${prompt.length} characters, exceeding the ${request.limits.maxInitialRequestChars}-character transport limit.`,
       );
     }
 
-    const schemaPath = await Deno.makeTempFile({ suffix: ".json" });
-    try {
-      await Deno.writeTextFile(schemaPath, JSON.stringify(FINDINGS_SCHEMA));
-      const args = [
-        "exec",
-        "--ephemeral",
-        "--ignore-rules",
-        "--ignore-user-config",
-        "--sandbox",
-        "read-only",
-        "--skip-git-repo-check",
-        "-C",
-        request.workspaceRoot,
-        "--json",
-        "--output-schema",
-        schemaPath,
-        "-c",
-        'approval_policy="never"',
-        "-c",
-        'web_search="disabled"',
-        ...(this.model ? ["--model", this.model] : []),
-        "-",
-      ];
-      const timeout = AbortSignal.timeout(request.budgets.elapsedTimeMs);
-      const signal = request.signal
-        ? AbortSignal.any([request.signal, timeout])
-        : timeout;
-      const raw = await this.runner("codex", args, prompt, signal);
-      const result = parseCodexEvents(
-        raw,
-        request.budgets.maxCommandOutputChars,
-      );
-      validateExecutionBudgets(result, request);
-      return result;
-    } finally {
-      await Deno.remove(schemaPath).catch(() => {});
-    }
+    const schema = JSON.stringify(FINDINGS_SCHEMA);
+    const parser = new CodexEventParser(
+      request.limits.maxRetainedCommandOutputChars,
+      request.limits.maxProviderFrameChars,
+      request.limits.maxFinalResultChars,
+    );
+    return await coordinateAdapterExecution({
+      elapsedOrigin,
+      elapsedTimeMs: request.budgets.elapsedTimeMs,
+      implementationIdentity:
+        `${this.implementationId}@${this.implementationVersion}`,
+      signal: request.signal,
+      invoke: async (signal, resources) => {
+        const schemaPath = await Deno.makeTempFile({ suffix: ".json" });
+        resources.register(`file:${schemaPath}`);
+        try {
+          await Deno.writeTextFile(schemaPath, schema);
+          const args = [
+            "exec",
+            "--ephemeral",
+            "--ignore-rules",
+            "--ignore-user-config",
+            "--sandbox",
+            "read-only",
+            "--skip-git-repo-check",
+            "-C",
+            request.workspaceRoot,
+            "--json",
+            "--output-schema",
+            schemaPath,
+            "-c",
+            'approval_policy="never"',
+            "-c",
+            'web_search="disabled"',
+            ...(this.model ? ["--model", this.model] : []),
+            "-",
+          ];
+          await this.runner(
+            "codex",
+            args,
+            prompt,
+            (chunk) => parser.write(chunk),
+            signal,
+            {
+              cwd: request.workspaceRoot,
+              providerCleanupMs: request.limits.providerCleanupMs,
+              implementationIdentity:
+                `${this.implementationId}@${this.implementationVersion}`,
+            },
+          );
+          const result = parser.finish();
+          validateExecutionBudgets(result, request);
+          return validateAgentEvaluationResult(request, result);
+        } finally {
+          resources.cleanupAttempt(`remove:${schemaPath}`);
+          try {
+            await Deno.remove(schemaPath);
+            resources.released(`file:${schemaPath}`);
+          } catch (error) {
+            resources.observationFailure(String(error));
+          }
+        }
+      },
+    });
   }
 }
 
-export class ClaudeAdapter implements AgentAdapter {
-  readonly provider = "claude" as const;
+class UnavailableCliAdapter implements AgentAdapter {
+  readonly implementationVersion = BUILTIN_VERSION;
   readonly capabilities = {
-    readOnlyWorkspace: false,
-    network: false,
+    schemaVersion: 1,
+    workspaceAccess: "read-write",
+    agentToolNetwork: false,
     approvalEscalation: false,
-    ephemeral: false,
+    statePersistence: "persistent",
+  } as const;
+  readonly observability = {
+    progress: "none",
+    usage: "unavailable",
+    cost: "unavailable",
+    tokenBudgetEnforcement: "unavailable",
+    costBudgetEnforcement: "unavailable",
   } as const;
 
-  constructor(readonly model?: string, readonly id = "claude") {}
+  constructor(
+    readonly provider: "claude" | "opencode" | "pi",
+    readonly implementationId: string,
+    readonly model?: string,
+    readonly id: string = provider,
+  ) {}
 
   evaluate(_request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {
     return Promise.reject(
-      new Error(
-        "The installed Claude CLI capability mapping cannot prove read-only workspace access and ephemeral state; evaluation was not started.",
+      new AdapterFailure(
+        "capability-mismatch",
+        `The installed ${this.provider} CLI adapter does not declare the requested read-only ephemeral capability contract; evaluation was not started.`,
       ),
     );
   }
 }
 
+export class ClaudeAdapter extends UnavailableCliAdapter {
+  constructor(model?: string, id = "claude") {
+    super("claude", "builtin.claude-cli", model, id);
+  }
+}
+
+export class PiAdapter extends UnavailableCliAdapter {
+  constructor(model?: string, id = "pi") {
+    super("pi", "builtin.pi-cli", model, id);
+  }
+}
+
 export class MockAdapter implements AgentAdapter {
-  readonly provider = "mock" as const;
+  readonly provider = "codex" as const;
   readonly capabilities = {
-    readOnlyWorkspace: true,
-    network: false,
+    schemaVersion: 1,
+    workspaceAccess: "read-only",
+    agentToolNetwork: false,
     approvalEscalation: false,
-    ephemeral: true,
+    statePersistence: "ephemeral",
+  } as const;
+  readonly observability = {
+    progress: "none",
+    usage: "unavailable",
+    cost: "unavailable",
+    tokenBudgetEnforcement: "unavailable",
+    costBudgetEnforcement: "unavailable",
   } as const;
 
   constructor(
@@ -140,6 +275,8 @@ export class MockAdapter implements AgentAdapter {
         request: AgentEvaluationRequest,
       ) => readonly AgentFinding[] | AgentEvaluationResult) = [],
     readonly id = "mock",
+    readonly implementationId = `test.mock.${id}`,
+    readonly implementationVersion = "1.0.0",
   ) {}
 
   evaluate(request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {
@@ -154,28 +291,44 @@ export class MockAdapter implements AgentAdapter {
   }
 }
 
-function assertCapabilityContract(
+// @sigil implements packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,constraints,cases
+export function resolveAdapterRegistration(
+  registrations: readonly AgentAdapter[],
+  binding: AdapterImplementationBinding,
+): AgentAdapter {
+  const matches = registrations.filter((adapter) =>
+    adapter.provider === binding.provider &&
+    adapter.implementationId === binding.implementationId &&
+    adapter.implementationVersion === binding.implementationVersion &&
+    adapter.model === binding.model
+  );
+  if (matches.length !== 1) {
+    throw new Error(
+      `Expected exactly one adapter registration for ${binding.provider}/${binding.implementationId}@${binding.implementationVersion} with model ${
+        binding.model === undefined
+          ? "<provider-default>"
+          : JSON.stringify(binding.model)
+      }; found ${matches.length}.`,
+    );
+  }
+  return matches[0];
+}
+
+export function assertCapabilityContract(
   adapter: AgentAdapter,
   request: AgentEvaluationRequest,
 ): void {
   if (
-    request.capabilities.workspaceAccess !== "read-only" ||
-    !adapter.capabilities.readOnlyWorkspace ||
-    request.capabilities.network !== false ||
-    adapter.capabilities.network !== false ||
-    request.capabilities.approvalEscalation !== false ||
-    adapter.capabilities.approvalEscalation !== false ||
-    !request.capabilities.ephemeral ||
-    !adapter.capabilities.ephemeral
+    !capabilitiesMatch(request.capabilities, adapter.capabilities)
   ) {
     throw new Error(
-      `Adapter ${adapter.id} cannot enforce the requested direct-read capability contract.`,
+      `Adapter ${adapter.id} declares capabilities that do not match the requested contract.`,
     );
   }
 }
 
 // @sigil implements packages/compiler/src/evaluation-skills.sigil::SigilEvaluationSkillRegistry::ImplementationEvidencePolicy logic,constraints
-function evaluationPrompt(request: AgentEvaluationRequest): string {
+export function evaluationPrompt(request: AgentEvaluationRequest): string {
   return `You are the Sigil compiler evaluator for stage ${
     JSON.stringify(request.stage)
   }.
@@ -208,10 +361,10 @@ Treat the selected retrieval graph and aggregated context as authoritative scope
 Inspect the workspace directly only through selected evidence paths to verify citations or diagnose an explicit
 retrieval gap; do not independently traverse the repository graph. You may run only
 these read-only command families:
-${request.capabilities.allowedCommands.map((item) => `- ${item}`).join("\n")}
+${request.commandPolicy.allowedCommands.map((item) => `- ${item}`).join("\n")}
 
 Never run these command families:
-${request.capabilities.forbiddenCommands.map((item) => `- ${item}`).join("\n")}
+${request.commandPolicy.forbiddenCommands.map((item) => `- ${item}`).join("\n")}
 
 Do not edit files, use the network, request approval, invoke another compilation,
 generate code, or run implementation experiments. Cite reproducible workspace
@@ -221,9 +374,15 @@ substantive text, not a structural brace or concept or section header when such
 text exists. For a conflict, anchor the primary statement and cite every other
 location in evidence. Use null location fields only when no physical workspace
 evidence can be identified. The compiler owns semantic identity; do not invent
-semantic subjects. Use only an allowed diagnostic rule. Return the required JSON
-object with a findings array; use an empty array when no supported finding
-remains.`;
+semantic subjects. Use only an allowed diagnostic rule.
+
+Return ONLY this JSON object and nothing else — no prose, no markdown fence:
+{"findings":[{"code":string,"severity":"error"|"warning"|"optimization"|"information","message":string,"filePath":string|null,"line":integer|null,"column":integer|null,"evidence":string,"impact":string,"correction":string}]}
+Every finding MUST include non-empty string values for code, severity, message,
+evidence, impact, and correction. filePath is a string or null. line and column
+are positive integers or null. evidence, impact, and correction MUST each be a
+single non-empty string, never an array or object. Do not add top-level fields
+besides findings. Use an empty findings array when no supported finding remains.`;
 }
 
 const FINDINGS_SCHEMA = {
@@ -266,35 +425,109 @@ const FINDINGS_SCHEMA = {
   },
 } as const;
 
-function parseCodexEvents(
-  raw: string,
-  maxCommandOutputChars: number,
-): AgentEvaluationResult {
-  const commands: AgentCommandTrace[] = [];
-  let usage: AgentUsage | undefined;
-  let finalText: string | undefined;
-  for (const [index, line] of raw.split(/\r?\n/).entries()) {
-    if (!line.trim()) continue;
+class CodexEventParser {
+  readonly #commands: AgentCommandTrace[] = [];
+  #usage: AgentUsage | undefined;
+  #findings: readonly AgentFinding[] | undefined;
+  #latestCheckpointFindings: readonly AgentFinding[] | undefined;
+  #buffer = "";
+  #line = 0;
+
+  constructor(
+    readonly maxCommandOutputChars: number,
+    readonly maxProviderFrameChars: number,
+    readonly maxFinalResultChars: number,
+  ) {}
+
+  write(chunk: string): void {
+    this.#buffer += chunk;
+    while (true) {
+      const newline = this.#buffer.indexOf("\n");
+      if (newline < 0) break;
+      const line = this.#buffer.slice(0, newline).replace(/\r$/, "");
+      this.#buffer = this.#buffer.slice(newline + 1);
+      this.#acceptLine(line);
+    }
+    if (this.#buffer.length > this.maxProviderFrameChars) {
+      throw new AdapterFailure(
+        "operational-limit",
+        `Codex event line ${this.#line + 1} exceeds maxProviderFrameChars.`,
+      );
+    }
+  }
+
+  finish(): AgentEvaluationResult {
+    if (this.#buffer) this.#acceptLine(this.#buffer.replace(/\r$/, ""));
+    this.#buffer = "";
+    if (!this.#findings) {
+      throw new AdapterFailure(
+        "final-result-protocol",
+        "Codex event stream did not contain a final agent message.",
+      );
+    }
+    return {
+      findings: this.#findings,
+      commands: this.#commands,
+      usage: this.#usage,
+      usageAvailability: this.#usage ? "final" : "unavailable",
+      costAvailability: "unavailable",
+    };
+  }
+
+  #acceptLine(line: string): void {
+    this.#line++;
+    if (!line.trim()) return;
+    if (line.length > this.maxProviderFrameChars) {
+      throw new AdapterFailure(
+        "operational-limit",
+        `Codex event line ${this.#line} exceeds maxProviderFrameChars.`,
+      );
+    }
     let event: Record<string, unknown>;
     try {
       event = JSON.parse(line);
-    } catch {
-      throw new Error(`Codex event line ${index + 1} is not valid JSON.`);
+    } catch (error) {
+      throw new AdapterFailure(
+        "final-result-protocol",
+        `Codex event line ${this.#line} is not valid JSON.`,
+        undefined,
+        { cause: error },
+      );
+    }
+    if (this.#findings) {
+      throw new AdapterFailure(
+        "final-result-protocol",
+        "Codex event stream contained framing after its completed terminal result.",
+      );
     }
     if (event.type === "item.completed") {
       const item = objectValue(event.item);
       if (item?.type === "agent_message" && typeof item.text === "string") {
-        finalText = item.text;
-      } else if (item?.type === "command_execution") {
-        const output = typeof item.aggregated_output === "string"
-          ? item.aggregated_output
-          : "";
-        if (output.length > maxCommandOutputChars) {
-          throw new Error(
-            `Agent command output exceeded the ${maxCommandOutputChars}-character budget.`,
-          );
+        let candidate: readonly AgentFinding[] | undefined;
+        try {
+          candidate = parseFindingsObject(item.text);
+        } catch {
+          candidate = undefined;
         }
-        commands.push({
+        if (candidate) {
+          if (item.text.length > this.maxFinalResultChars) {
+            throw new AdapterFailure(
+              "final-result-protocol",
+              "Codex terminal result exceeds maxFinalResultChars.",
+            );
+          }
+          // Agent messages before turn completion are checkpoints. Only the latest
+          // checkpoint becomes terminal when Codex emits turn.completed.
+          this.#latestCheckpointFindings = candidate;
+        }
+      } else if (item?.type === "command_execution") {
+        truncateRetainedOutput(
+          typeof item.aggregated_output === "string"
+            ? item.aggregated_output
+            : "",
+          this.maxCommandOutputChars,
+        );
+        this.#commands.push({
           command: typeof item.command === "string" ? item.command : "unknown",
           status: typeof item.status === "string" ? item.status : undefined,
           exitCode: typeof item.exit_code === "number"
@@ -303,8 +536,12 @@ function parseCodexEvents(
         });
       }
     } else if (event.type === "turn.completed") {
+      if (this.#latestCheckpointFindings) {
+        this.#findings = this.#latestCheckpointFindings;
+        this.#latestCheckpointFindings = undefined;
+      }
       const rawUsage = objectValue(event.usage);
-      usage = rawUsage
+      this.#usage = rawUsage
         ? {
           inputTokens: numberValue(rawUsage.input_tokens),
           cachedInputTokens: numberValue(rawUsage.cached_input_tokens),
@@ -313,37 +550,15 @@ function parseCodexEvents(
         : undefined;
     }
   }
-  if (!finalText) {
-    throw new Error(
-      "Codex event stream did not contain a final agent message.",
-    );
-  }
-  return {
-    findings: parseFindingsObject(finalText),
-    commands,
-    usage,
-  };
 }
 
-function validateExecutionBudgets(
+export function validateExecutionBudgets(
   result: AgentEvaluationResult,
   request: AgentEvaluationRequest,
 ): void {
   if (result.commands.length > request.budgets.maxCommands) {
     throw new Error(
       `Agent executed ${result.commands.length} commands, exceeding the ${request.budgets.maxCommands}-command budget.`,
-    );
-  }
-  const inputTokens = result.usage?.inputTokens ?? 0;
-  if (inputTokens > request.budgets.maxInputTokens) {
-    throw new Error(
-      `Agent input usage was ${inputTokens} tokens, exceeding the ${request.budgets.maxInputTokens}-token budget.`,
-    );
-  }
-  const outputTokens = result.usage?.outputTokens ?? 0;
-  if (outputTokens > request.budgets.maxOutputTokens) {
-    throw new Error(
-      `Agent output usage was ${outputTokens} tokens, exceeding the ${request.budgets.maxOutputTokens}-token budget.`,
     );
   }
   const violation = result.commands.find((event) =>
@@ -490,7 +705,7 @@ function basename(path: string): string {
   );
 }
 
-function parseFindingsObject(raw: string): readonly AgentFinding[] {
+export function parseFindingsObject(raw: string): readonly AgentFinding[] {
   let value: unknown;
   try {
     value = JSON.parse(raw);

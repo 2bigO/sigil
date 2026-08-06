@@ -49,6 +49,8 @@ jobs:
       - run: deno task lint
       - run: deno task check
       - run: deno task test:core
+      - run: deno task test:compiler
+      - run: deno task test:compiler-adapter-opencode
       - run: deno task test:cli
       - name: Build native archives
         run: deno run --allow-read --allow-write --allow-run scripts/build-cli-release.ts --version '${{ steps.version.outputs.version }}'
