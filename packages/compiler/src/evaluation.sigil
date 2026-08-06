@@ -123,8 +123,8 @@ expand SigilCompilationEvaluation {
 
     AgentWorkspaceInspection {
       Request the selected adapter to start the agent at the workspace root with
-      read-only access, approval escalation disabled, ephemeral state, and agent tool
-      network access disabled.
+      read-only access, approval escalation disabled, agent tool network access
+      disabled, and state persistence resolved from that selected adapter.
 
       Treat these restrictions as requested behavior and adapter declarations, not as
       compiler-verified guarantees.
@@ -167,8 +167,8 @@ expand SigilCompilationEvaluation {
 
     AgentWorkspaceInspection {
       The evaluation request requires read-only workspace access, disabled agent tool
-      network access, no approval escalation, ephemeral state, and the selected
-      workspace as working root.
+      network access, no approval escalation, the selected workspace as working root,
+      and state persistence equal to the selected adapter declaration.
 
       An adapter declares whether it satisfies requested capabilities. The compiler
       rejects a declared mismatch but does not verify the implementation, provider
@@ -189,11 +189,13 @@ expand SigilCompilationEvaluation {
       incomplete and prevent green.
 
       Adapter cancellation rejects CompilationEvaluation with COMPILER_CANCELLED.
-      Adapter unavailability, binding mismatch, or capability mismatch is resolved as
-      required evaluator unavailability before the stage. Elapsed-time, preventive
-      budget, provider process, and provider result protocol failures become
-      incomplete evaluator outcomes. Only compiler host or
-      CompilationEventWriterProtocol failures reject with COMPILER_FAILED.
+      Binding mismatch or capability mismatch is required evaluator unavailability
+      before the stage. Elapsed-time, preventive-budget, operational-limit, provider
+      process, process-cleanup, and final-result-protocol failures become incomplete
+      evaluator outcomes. A valid exceeded post-settlement budget outcome also makes
+      that evaluator outcome incomplete while preserving findings and telemetry. Only
+      Compiler host or CompilationEventWriterProtocol failures reject with
+      COMPILER_FAILED.
 
       Missing progress events, unavailable usage or cost, and truncated nonessential
       command output do not fail an otherwise valid evaluation.

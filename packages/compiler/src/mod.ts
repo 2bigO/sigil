@@ -12,6 +12,8 @@ export * from "./event-reader.ts";
 export * from "./evaluation-capabilities.ts";
 export * from "./evaluation-execution.ts";
 export * from "./evaluation-request.ts";
+export * from "./adapter-execution-coordinator.ts";
+export * from "./adapter-subprocess.ts";
 export * from "./compilation-target.ts";
 export * from "./report-protocol.ts";
 export * from "./report-export.ts";

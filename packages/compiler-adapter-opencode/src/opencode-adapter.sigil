@@ -1,0 +1,93 @@
+@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentCapabilityContract, SigilAgentEvaluationRequest }
+
+component SigilOpenCodeCompilerAdapter {
+  goal {
+    Execute provider-neutral compiler evaluation through OpenCode and return one
+    validated result without claiming unsupported ephemeral behavior.
+  }
+
+  interface {
+    OpenCodeAdapter {
+      evaluate(SigilAgentEvaluationRequest) implements SigilAgentAdapter for provider
+      opencode with implementation identity builtin.opencode-cli and the exact
+      adapter package version
+
+      SigilAgentCapabilityContract declares read-only workspace access, no agent-tool
+      network, no approval escalation, and persistent state
+
+      execution and cleanup failures use transport-neutral AdapterFailure kinds and
+      preserve caller-visible recovery evidence
+    }
+  }
+}
+
+expand SigilOpenCodeCompilerAdapter {
+  logic {
+    OpenCodeAdapter {
+      Validate the request and exact capability match before invocation. Send
+      guidance through standard input to opencode run with JSON events, selected
+      workspace, optional model, pure mode, and restrictive inline configuration.
+
+      Supply OpenCode execution and cleanup hooks to
+      SigilAgentAdapterExecutionCoordinator and use SigilAgentAdapterSubprocess for
+      the private process lifecycle. Map process failure to execution and
+      process-cleanup to cleanup while retaining transport-neutral caller recovery
+      evidence.
+
+      Parse the complete JSON event stream and require exactly one final result in
+      assistant terminal text. Map AdapterSubprocessFailure into AdapterFailure,
+      retaining cleanup recovery evidence, before returning AgentEvaluationResult.
+    }
+  }
+
+  constraints {
+    OpenCodeExecutionBoundary {
+      Deny edits, shell commands, web access, subagents, external-directory access,
+      and interactive questions while allowing required workspace reads.
+
+      Do not continue, fork, attach, or reuse a prior OpenCode session.
+
+      OpenCode persists session and project data and exposes no ephemeral CLI option;
+      declare persistent state and never claim ephemeral execution.
+    }
+  }
+
+  decisions {
+    PersistentOpenCodeExecution {
+      Decision: Declare persistent state and use evaluator-specific persistence
+      requirements instead of claiming ephemeral mode.
+
+      Scope: Governs OpenCode invocation and capability matching; excludes provider
+      authentication and deletion of provider-managed storage.
+
+      Trade-offs: Evaluation leaves provider-managed session records.
+
+      Discarded alternatives: Misdeclaring ephemeral state and deleting shared
+      OpenCode storage were rejected.
+
+      Consequences: Explicit selection accepts persistent provider state while fixed
+      read-only, offline, and approval-free requirements remain.
+
+      Revisit when: OpenCode documents an isolated ephemeral execution mode.
+    }
+
+    CliOwnedBundling {
+      Decision: Keep this adapter in its own package and let the CLI register it.
+
+      Scope: Governs package direction and the default CLI host.
+
+      Consequences: Direct compiler consumers register the adapter explicitly.
+    }
+  }
+
+  cases {
+    OpenCodeAdapter {
+      A persistent request invokes opencode once and accepts one valid terminal
+      result after process and output settlement.
+
+      An ephemeral request mismatches before invocation.
+
+      Timeout, cancellation, or process failure follows bounded subprocess cleanup.
+    }
+  }
+}

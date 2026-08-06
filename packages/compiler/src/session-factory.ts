@@ -22,6 +22,7 @@ export class SigilCompilationSessionFactory {
   constructor(
     private readonly store: FileCompilationSessionStore =
       new FileCompilationSessionStore(),
+    private readonly compiler: typeof compile = compile,
   ) {}
 
   async create(
@@ -33,7 +34,7 @@ export class SigilCompilationSessionFactory {
     validateInvocation(target, profileName, focus);
     const configuration = await loadCompilationConfiguration(workspacePath);
     const settings = resolveCompilationSettings(configuration);
-    await compile(workspacePath, target, {
+    await this.compiler(workspacePath, target, {
       profile: profileName,
       requestedStage: "deterministic-foundation",
       disableHistory: true,
@@ -70,7 +71,7 @@ export class SigilCompilationSessionFactory {
       session: new SigilCompilationSession(
         identity,
         this.store,
-        compile,
+        this.compiler,
         settings.limits.sessionTtlMs,
       ),
       result: {

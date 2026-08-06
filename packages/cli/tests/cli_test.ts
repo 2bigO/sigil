@@ -12,12 +12,59 @@ import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
+import { compileWithBundledAdapters } from "../src/compiler-adapters.ts";
 import {
   EXIT_DIAGNOSTICS,
   EXIT_OK,
   EXIT_RUNTIME,
   EXIT_USAGE,
 } from "../src/exit.ts";
+
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-opencode-bundle-" });
+  try {
+    await Deno.mkdir(`${root}/.sigil`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: "0.7.0",
+        workspace: { name: "opencode-bundle", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {
+          compile: {
+            adapter: {
+              provider: "opencode",
+              implementationId: "builtin.opencode-cli",
+              implementationVersion: "0.7.1",
+            },
+          },
+        },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/main.sigil`,
+      `component Example {
+  goal {
+    Explain the example.
+  }
+}
+`,
+    );
+    const report = await compileWithBundledAdapters(
+      root,
+      { kind: "workspace" },
+      { requestedStage: "deterministic-foundation", disableHistory: true },
+    );
+    assertEquals(report.profile.evaluators[0].provider, "opencode");
+    assertEquals(
+      report.profile.evaluators[0].implementationId,
+      "builtin.opencode-cli",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
 
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
@@ -2182,6 +2229,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
         maxCompilationRequestChars: 900_000,
         maxAgentInputChars: 900_000,
         sessionTtlMs: 86_400_000,
+        providerCleanupMs: 5_000,
       },
       executionBudgets: {
         elapsedTimeMs: 180_000,
@@ -2278,6 +2326,7 @@ Deno.test("compile delegates design and implementation focus to the compiler", a
         maxCompilationRequestChars: 1,
         maxAgentInputChars: 1,
         sessionTtlMs: 1,
+        providerCleanupMs: 1,
       },
       executionBudgets: {
         elapsedTimeMs: 1,

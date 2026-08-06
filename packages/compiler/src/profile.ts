@@ -17,6 +17,7 @@ const DEFAULT_LIMITS: CompilationLimits = {
   maxCompilationRequestChars: 1_000_000,
   maxAgentInputChars: 1_000_000,
   sessionTtlMs: 86_400_000,
+  providerCleanupMs: 5_000,
 };
 
 // @sigil implements packages/compiler/src/compiler.sigil::SigilCompiler::OneShotCompilation logic,cases

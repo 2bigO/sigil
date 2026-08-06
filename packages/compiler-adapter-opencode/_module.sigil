@@ -1,0 +1,34 @@
+@packages/compiler-adapter-opencode/src/opencode-adapter.sigil import { SigilOpenCodeCompilerAdapter }
+
+component SigilOpenCodeCompilerAdapterPackage {
+  goal {
+    Package the OpenCode compiler adapter independently and supply it to the Sigil
+    CLI bundle without entering the provider-neutral compiler package.
+  }
+
+  interface {
+    OpenCodeAdapterPackage {
+      SigilOpenCodeCompilerAdapter is the public adapter contract.
+    }
+  }
+}
+
+expand SigilOpenCodeCompilerAdapterPackage {
+  constraints {
+    PackageBoundary {
+      The package depends on compiler contracts. The compiler does not depend on this
+      package; the CLI owns registration and release assembly.
+    }
+  }
+
+  decisions {
+    SeparateProviderPackage {
+      Decision: Publish the OpenCode adapter separately and bundle it into the CLI.
+
+      Scope: Governs adapter ownership, dependency direction, and release assembly.
+
+      Consequences: Provider changes version independently without a separate adapter
+      installation for CLI users.
+    }
+  }
+}

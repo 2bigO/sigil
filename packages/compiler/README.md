@@ -22,7 +22,10 @@ for editors and evidence display.
 
 The recognized providers are exactly Codex, Claude, OpenCode, and Pi. Adapters
 may be compiler-owned or supplied by plugins and are selected by provider,
-stable implementation identifier, and exact implementation version.
+stable implementation identifier, exact implementation version, and optional
+model. OpenCode is supplied by the separate
+`@qoherent/sigil-compiler-adapter-opencode` package; the compiler does not
+depend on that provider package.
 
 Adapter capability and observability declarations are self-reported metadata,
 not verified guarantees. Selecting or supplying an adapter accepts the risk that
@@ -114,5 +117,6 @@ retention are configurable under `tools.compile`:
 
 Every value must be a positive safe integer. `budgets` selects effective
 execution values and `limits` controls request size and proposal-session
-retention. Omitted fields retain the
+retention. `limits.providerCleanupMs` bounds each graceful and forced provider
+cleanup phase and defaults to 5000 milliseconds. Omitted fields retain the
 backward-compatible defaults.

@@ -3,8 +3,6 @@ import {
   type ImplementationSource,
   isSupportedImplementationSource,
   loadSigilWorkspace,
-  type ResolvedComponent,
-  type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
   retrievePurposeContext,
   type SigilDiagnostic,
@@ -14,13 +12,12 @@ import metadata from "../deno.json" with { type: "json" };
 import {
   ClaudeAdapter,
   CodexAdapter,
-  OpenCodeAdapter,
   PiAdapter,
   resolveAdapterRegistration,
 } from "./adapters.ts";
 import {
   capabilitiesMatch,
-  REQUIRED_EVALUATION_CAPABILITIES,
+  evaluationCapabilitiesFor,
 } from "./evaluation-capabilities.ts";
 import {
   buildAgentEvaluationRequest,
@@ -61,7 +58,6 @@ import {
 } from "./semantic-subjects.ts";
 import type {
   AgentAdapter,
-  AgentCapabilityContract,
   AgentFinding,
   CompilationReport,
   CompilationTarget,
@@ -81,8 +77,6 @@ interface StageDefinition {
   readonly skill?: EvaluationSkillPackage;
 }
 
-const INSPECTION_CAPABILITIES: AgentCapabilityContract =
-  REQUIRED_EVALUATION_CAPABILITIES;
 const INSPECTION_COMMAND_POLICY = {
   allowedCommands: [
     "sigil version",
@@ -340,17 +334,20 @@ export async function compile(
             );
             const request = buildAgentEvaluationRequest({
               stage: stage.id,
+              purpose: retrievalPurpose,
               skill: definition.skill.guidance,
               allowedRules: definition.skill.manifest.rules,
               implementationEvidence:
                 definition.skill.manifest.implementationEvidence,
               workspaceRoot: workspace.root,
+              workspaceSnapshotIdentity:
+                resolved.workspace.workspaceSnapshotIdentity,
               target: compilationEvaluationTarget(
                 component,
                 workspace.root,
                 retrieval,
               ),
-              capabilities: INSPECTION_CAPABILITIES,
+              capabilities: evaluationCapabilitiesFor(adapters[0].capabilities),
               commandPolicy: INSPECTION_COMMAND_POLICY,
               observability: adapters[0].observability,
               budgets: profile.executionBudgets,
@@ -361,6 +358,7 @@ export async function compile(
                 maxFinalResultChars: profile.limits.maxCompilationRequestChars,
                 maxRetainedCommandOutputChars:
                   profile.executionBudgets.maxCommandOutputChars,
+                providerCleanupMs: profile.limits.providerCleanupMs,
               },
               signal: cancellationSignal,
             });
@@ -375,6 +373,7 @@ export async function compile(
             for (const adapter of adapters) {
               const adapterRequest = buildAgentEvaluationRequest({
                 ...request,
+                capabilities: evaluationCapabilitiesFor(adapter.capabilities),
                 observability: adapter.observability,
               });
               const result = validateAgentEvaluationResult(
@@ -556,7 +555,8 @@ async function bindSuppliedAdapter(
     if (
       selected.provider !== evaluator.provider ||
       selected.implementationId !== evaluator.implementationId ||
-      selected.implementationVersion !== evaluator.implementationVersion
+      selected.implementationVersion !== evaluator.implementationVersion ||
+      selected.model !== evaluator.model
     ) {
       throw new CompilerFailure(
         "COMPILER_PROFILE_EVALUATORS_REQUIRED",
@@ -640,9 +640,14 @@ function stageDefinitions(
 }
 
 function assertAdapterCapabilities(adapter: AgentAdapter): void {
-  if (!capabilitiesMatch(INSPECTION_CAPABILITIES, adapter.capabilities)) {
+  if (
+    !capabilitiesMatch(
+      evaluationCapabilitiesFor(adapter.capabilities),
+      adapter.capabilities,
+    )
+  ) {
     throw new Error(
-      `Adapter ${adapter.id} declares capabilities that do not match read-only, offline, approval-free, ephemeral inspection.`,
+      `Adapter ${adapter.id} declares capabilities that do not match read-only, offline, approval-free inspection with its selected persistence mode.`,
     );
   }
 }
@@ -883,9 +888,13 @@ function adaptersFrom(
   options: CompileOptions,
 ): readonly AgentAdapter[] {
   if (options.adapters) {
+    const registrations = [
+      ...compilerOwnedAdapters(profile.evaluators),
+      ...options.adapters,
+    ];
     return profile.evaluators.map((configuration) => {
       try {
-        return resolveAdapterRegistration(options.adapters!, configuration);
+        return resolveAdapterRegistration(registrations, configuration);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         throw profile.criticalSystem
@@ -900,20 +909,35 @@ function adaptersFrom(
     }
     return [options.adapter];
   }
-  const builtins: readonly AgentAdapter[] = [
-    new CodexAdapter(),
-    new ClaudeAdapter(),
-    new OpenCodeAdapter(),
-    new PiAdapter(),
-  ];
+  const builtins = compilerOwnedAdapters(profile.evaluators);
   return profile.evaluators.map((configuration) => {
     const implementation = resolveAdapterRegistration(builtins, configuration);
-    return configuration.model === implementation.model
-      ? implementation
-      : configuration.provider === "codex"
-      ? new CodexAdapter(configuration.model)
-      : implementation;
+    return implementation;
   });
+}
+
+function compilerOwnedAdapters(
+  configurations: readonly EvaluatorConfiguration[],
+): readonly AgentAdapter[] {
+  const registrations = new Map<string, AgentAdapter>();
+  for (const configuration of configurations) {
+    const adapter = configuration.provider === "codex"
+      ? new CodexAdapter(configuration.model)
+      : configuration.provider === "claude"
+      ? new ClaudeAdapter(configuration.model)
+      : configuration.provider === "pi"
+      ? new PiAdapter(configuration.model)
+      : undefined;
+    if (adapter) {
+      registrations.set(
+        `${adapter.provider}\0${adapter.implementationId}\0${adapter.implementationVersion}\0${
+          adapter.model ?? ""
+        }`,
+        adapter,
+      );
+    }
+  }
+  return [...registrations.values()];
 }
 
 function assertProfileEvaluators(
@@ -926,7 +950,8 @@ function assertProfileEvaluators(
       const adapter = adapters[index];
       return !adapter || adapter.provider !== binding.provider ||
         adapter.implementationId !== binding.implementationId ||
-        adapter.implementationVersion !== binding.implementationVersion;
+        adapter.implementationVersion !== binding.implementationVersion ||
+        adapter.model !== binding.model;
     })
   ) {
     throw profile.criticalSystem

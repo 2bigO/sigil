@@ -4,7 +4,7 @@ import {
   type CompilationEvent,
   type CompilationHistoryStore,
   type CompilationReport,
-  compile,
+  type compile,
   FileCompilationHistoryStore,
   type SigilCompilationSessionFactory,
 } from "@qoherent/sigil-compiler";
@@ -24,6 +24,7 @@ import {
 import { formatResult } from "./formatters.ts";
 import metadata from "../deno.json" with { type: "json" };
 import { compilationCacheDirectory } from "./fs-adapter.ts";
+import { compileWithBundledAdapters } from "./compiler-adapters.ts";
 
 const HELP: Readonly<Record<HelpTopic, string>> = {
   root: `Usage: sigil <command> [options]
@@ -259,7 +260,10 @@ export async function runCli(
           target,
           request.profile ?? "standard",
           request.focus!,
-          { factory: options.sessionFactory },
+          {
+            factory: options.sessionFactory,
+            compiler: options.compiler ?? compileWithBundledAdapters,
+          },
         );
         return {
           exitCode: 0,
@@ -280,6 +284,7 @@ export async function runCli(
                 await options.onCompilationEvent(`${JSON.stringify(event)}\n`);
               }
             },
+            compiler: options.compiler ?? compileWithBundledAdapters,
           },
         );
         const stdout = request.quiet
@@ -320,7 +325,7 @@ export async function runCli(
     if (parsed.request.command === "compile") {
       const events: CompilationEvent[] = [];
       compilationEvents = events;
-      const compileWorkspace = options.compiler ?? compile;
+      const compileWorkspace = options.compiler ?? compileWithBundledAdapters;
       const target = parsed.request.component
         ? { kind: "component" as const, name: parsed.request.component }
         : parsed.request.file && parsed.request.position

@@ -1,0 +1,76 @@
+@packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
+
+component SigilAgentAdapterRegistry {
+  goal {
+    Resolve one exactly bound adapter implementation before provider evaluation so
+    provider adapters do not own host registration semantics.
+  }
+
+  interface {
+    AgentAdapterRegistry {
+      resolve(registrations, evaluatorBinding) returns exactly one SigilAgentAdapter
+      whose provider, implementation identifier, exact implementation version, and
+      optional model equal the SigilCompilationProfile evaluator binding
+
+      the resolved binding copies the selected adapter's canonical resolved
+      observability declaration for request construction; the adapter rejects any
+      unequal request before invocation
+
+      model absence matches only model absence and selects the provider default; zero
+      or multiple exact matches reject before provider invocation
+    }
+  }
+}
+
+expand SigilAgentAdapterRegistry {
+  logic {
+    AgentAdapterRegistry {
+      Filter registrations by provider, implementation identifier, exact version, and
+      optional model. Return the sole match and reject every other match count.
+    }
+  }
+
+  decisions {
+    OptionalProviderDefaultModel {
+      Decision: Permit an absent model binding to match only an adapter registration
+      with absent model metadata and use the provider default.
+
+      Scope: Governs exact registry matching and provider invocation; excludes an
+      explicitly bound model.
+
+      Trade-offs: Omission preserves provider-native defaults and user configuration,
+      but reproducibility then depends on the provider and its effective config.
+
+      Discarded alternatives: Requiring a provider-specific model identifier for
+      every evaluator was rejected because not every host needs to override its
+      configured default.
+
+      Consequences: Exact implementation version remains reproducible; callers that
+      require stable model identity must bind the model explicitly.
+    }
+
+    ExactAdapterRegistrationResolution {
+      Decision: Put exact adapter selection in a compiler-owned registry separate
+      from already selected provider implementations.
+
+      Scope: Governs host registration and evaluator binding; excludes provider
+      invocation and result processing.
+
+      Trade-offs: Hosts must assemble an explicit registration set.
+
+      Design issues addressed: A provider implementation cannot coherently select
+      itself from the host registry it already belongs to.
+
+      Consequences: Provider adapters implement only evaluation while zero or
+      multiple binding matches fail deterministically before invocation.
+    }
+  }
+
+  cases {
+    AgentAdapterRegistry {
+      One exact match is returned. Zero or two exact matches reject without invoking
+      any provider.
+    }
+  }
+}

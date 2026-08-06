@@ -189,15 +189,15 @@ Open design questions are tracked in
 
 The root [.sigil/config.json](./.sigil/config.json) defines this repository as a
 Sigil 0.7.0 workspace and excludes the independent example projects. The root
-[_module.sigil](./_module.sigil) is its directory-import index and contains
-the ordinary high-level project summary for this configured boundary.
+[_module.sigil](./_module.sigil) is its directory-import index and contains the
+ordinary high-level project summary for this configured boundary.
 
 - `spec/` contains language, workflow, platform architecture, and open-question
   documents.
 - `examples/` contains independently configured Sigil projects used as
   design-pressure fixtures.
-- `packages/` contains the implemented `sigil-core`, `sigil-cli`, and initial
-  `sigil-lsp`.
+- `packages/` contains the implemented `sigil-core`, `sigil-compiler`,
+  standalone OpenCode compiler adapter, `sigil-cli`, and initial `sigil-lsp`.
 - `integrations/` contains host adapters such as coding-agent skills, the
   initial VS Code extension, and future editor integrations.
 
@@ -210,8 +210,8 @@ states, and transition logic.
 Its [.sigil/config.json](examples/promise/.sigil/config.json) makes it an
 independent workspace named `promise`.
 
-`Slotted` in [examples/slotted/_module.sigil](examples/slotted/_module.sigil)
-is an example room booking product used to test Sigil against product and module
+`Slotted` in [examples/slotted/_module.sigil](examples/slotted/_module.sigil) is
+an example room booking product used to test Sigil against product and module
 modeling.
 
 Its [.sigil/config.json](examples/slotted/.sigil/config.json) makes it an

@@ -15,6 +15,7 @@ export const DEFAULT_AGENT_OPERATIONAL_LIMITS: AgentOperationalLimits = {
   maxProviderFrameChars: 3_000_000,
   maxFinalResultChars: 1_000_000,
   maxRetainedCommandOutputChars: 3_000_000,
+  providerCleanupMs: 5_000,
 };
 
 // @sigil implements packages/compiler/src/evaluation-execution.sigil::SigilAgentExecutionPolicy::AgentBudgetOutcome interface,cases

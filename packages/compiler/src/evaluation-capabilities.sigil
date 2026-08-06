@@ -13,8 +13,9 @@ component SigilAgentCapabilityContract {
       none, read-only, or read-write; agentToolNetwork and approvalEscalation
       booleans; and statePersistence of ephemeral or persistent
 
-      compiler evaluation requests read-only, false, false, and ephemeral
-      respectively
+      compiler evaluation requests require read-only workspace access, no agent-tool
+      network, and no approval escalation; each evaluator request resolves state
+      persistence from the exactly selected adapter declaration
 
       an adapter declaration matches only when schemaVersion is 1, all four
       dimensions are present, and every value exactly equals its requested value
@@ -29,12 +30,16 @@ component SigilAgentCapabilityContract {
     }
 
     AdapterObservabilityDeclaration {
-      progress is none or streaming; usage and cost are independently unavailable,
-      partial, or final; tokenBudgetEnforcement and costBudgetEnforcement are each
-      unavailable, preflight, live, or post-settlement-only
+      progress describes a live observation channel and is none; usage and cost are
+      independently unavailable, partial, or final; tokenBudgetEnforcement and
+      costBudgetEnforcement are each unavailable, preflight, live, or
+      post-settlement-only
 
-      only preflight and live budget enforcement are preventive; omitted or unknown
-      observability values resolve to unavailable
+      only preflight and live budget enforcement are preventive; progress none
+      prohibits live progress emissions but permits optional progress observations
+      inside validated terminal result metadata; progress always resolves to none,
+      while omitted or unknown usage, cost, tokenBudgetEnforcement, and
+      costBudgetEnforcement resolve to unavailable
     }
   }
 }
@@ -76,9 +81,37 @@ expand SigilAgentCapabilityContract {
       logs, events, reports, diagnostics, status, or evaluator prompts.
     }
 
+    EvaluatorPersistenceRequirement {
+      Decision: Resolve each evaluation request state-persistence requirement from
+      the exactly selected adapter declaration while retaining fixed read-only,
+      offline, and approval-free requirements.
+
+      Scope: Governs compiler evaluation requests and adapter capability matching;
+      excludes claims that a self-declared capability is independently enforced.
+
+      Trade-offs: Evaluators without ephemeral execution remain usable and may leave
+      provider-managed state, while exact implementation binding keeps the accepted
+      declaration reproducible.
+
+      Design issues addressed: Requiring ephemeral persistence for every evaluator
+      makes OpenCode unavailable even though its CLI can satisfy the other inspection
+      restrictions and exposes no ephemeral option.
+
+      Discarded alternatives: Declaring OpenCode ephemeral and rejecting every
+      persistent adapter were rejected because the former is false and the latter
+      prevents explicitly selected persistent evaluators.
+
+      Consequences: Codex requests ephemeral state and OpenCode requests persistent
+      state; both remain subject to exact capability matching and documented trust
+      limitations.
+
+      Revisit when: OpenCode or another supported adapter exposes an enforceable
+      ephemeral execution mode.
+    }
+
     IndependentObservabilityCapabilities {
-      Decision: Model progress, usage, cost, and token or cost budget enforcement as
-      independent declared observability capabilities.
+      Decision: Model terminal usage, cost, and token or cost budget enforcement as
+      independent declared observability capabilities while live progress is none.
 
       Scope: Governs all supported CLI adapters.
 
@@ -86,7 +119,7 @@ expand SigilAgentCapabilityContract {
       or budget outcomes.
 
       Consequences: Terminal-only providers remain usable without invented events or
-      telemetry.
+      telemetry; compiler-owned stage progress remains independent.
     }
   }
 
@@ -100,6 +133,18 @@ expand SigilAgentCapabilityContract {
 
       An implementation version and progress declaration do not affect capability
       equality.
+
+      Omitted or unknown progress resolves to none for canonical observability
+      comparison; omitted or unknown remaining observability fields resolve to
+      unavailable.
+
+      An adapter declaring progress none emits no live progress observations but may
+      include provider-observed progress metadata in its one validated terminal
+      result without changing canonical observability equality.
+
+      A Codex evaluator declaring ephemeral persistence receives an ephemeral
+      request, while an OpenCode evaluator declaring persistent state receives a
+      persistent request without weakening the other capability dimensions.
     }
   }
 }

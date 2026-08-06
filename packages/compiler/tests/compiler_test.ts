@@ -11,7 +11,6 @@ import {
   loadEvaluationSkill,
   loadEvaluationSkills,
   MockAdapter,
-  OpenCodeAdapter,
   openCompilationEventWriter,
   PiAdapter,
   resolveAdapterRegistration,
@@ -45,6 +44,30 @@ async function workspace(
     await Deno.writeTextFile(`${root}/${path}`, contents);
   }
   return root;
+}
+
+function retrievalFixture(
+  purpose: "semantic" | "architecture" | "implementation" = "semantic",
+) {
+  return {
+    schema: "sigil-purpose-retrieval/v1",
+    policyVersion: 1,
+    workspaceSnapshotIdentity: "sha256:test-snapshot",
+    target: {
+      kind: "component",
+      componentName: "Example",
+      pathStatus: "accepted",
+      path: "main.sigil",
+    },
+    purpose,
+    graph: { nodes: [], edges: [] },
+    evidence: [],
+    inclusionReasons: [],
+    exclusions: [],
+    context: { sections: [] },
+    diagnostics: [],
+    fingerprint: "sha256:test-retrieval",
+  } as const;
 }
 
 // @sigil tests packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage interface,logic,constraints,cases
@@ -101,9 +124,8 @@ Deno.test("provider identities and exact adapter registrations are closed", () =
   assertEquals([
     new CodexAdapter().provider,
     new ClaudeAdapter().provider,
-    new OpenCodeAdapter().provider,
     new PiAdapter().provider,
-  ], ["codex", "claude", "opencode", "pi"]);
+  ], ["codex", "claude", "pi"]);
   const adapter = new MockAdapter([], "first");
   assertEquals(
     resolveAdapterRegistration([adapter], {
@@ -114,13 +136,14 @@ Deno.test("provider identities and exact adapter registrations are closed", () =
     adapter,
   );
   assertRejects(
-    async () => {
-      resolveAdapterRegistration([], {
-        provider: "codex",
-        implementationId: "test.mock.first",
-        implementationVersion: "1.0.0",
-      });
-    },
+    () =>
+      Promise.resolve().then(() =>
+        resolveAdapterRegistration([], {
+          provider: "codex",
+          implementationId: "test.mock.first",
+          implementationVersion: "1.0.0",
+        })
+      ),
     Error,
     "found 0",
   );
@@ -151,11 +174,11 @@ Deno.test("budget outcomes preserve unavailable telemetry", () => {
 Deno.test("event writer suppresses progress and preserves one terminal", async () => {
   const frames: Uint8Array[] = [];
   let calls = 0;
-  const opened = await openCompilationEventWriter(async (bytes) => {
+  const opened = await openCompilationEventWriter((bytes) => {
     calls++;
-    if (calls === 2) return "rejected-zero-compatible";
+    if (calls === 2) return Promise.resolve("rejected-zero-compatible");
     frames.push(bytes);
-    return "delivered-all";
+    return Promise.resolve("delivered-all");
   }, {
     operation: "one-shot-compilation",
     stageIdentities: ["semantic-readiness"],
@@ -1010,6 +1033,7 @@ Deno.test("workspace configuration overrides compiler execution budgets", async 
         maxCompilationRequestChars: 1_500_000,
         maxAgentInputChars: 1_250_000,
         sessionTtlMs: 172_800_000,
+        providerCleanupMs: 5_000,
       },
     },
   );
@@ -1112,43 +1136,50 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
   try {
     let observedArgs: readonly string[] = [];
     let observedPrompt = "";
-    const adapter = new CodexAdapter(undefined, (_command, args, input) => {
-      observedArgs = args;
-      observedPrompt = input;
-      return Promise.resolve([
-        JSON.stringify({
-          type: "item.completed",
-          item: {
-            type: "command_execution",
-            command:
-              '/bin/zsh -lc "rg -n \\"SigilCompiler|sigil compile|compile\\\\(\\" packages/compiler packages/cli\nsed -n \\"1,240p\\" packages/compiler/src/compiler.sigil"',
-            status: "completed",
-            exit_code: 0,
-          },
-        }),
-        JSON.stringify({
-          type: "item.completed",
-          item: {
-            type: "agent_message",
-            text: JSON.stringify({ findings: [] }),
-          },
-        }),
-        JSON.stringify({
-          type: "turn.completed",
-          usage: { input_tokens: 100, output_tokens: 5 },
-        }),
-      ].join("\n"));
-    });
+    const adapter = new CodexAdapter(
+      undefined,
+      (_command, args, input, onStdoutChunk) => {
+        observedArgs = args;
+        observedPrompt = input;
+        onStdoutChunk([
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command:
+                '/bin/zsh -lc "rg -n \\"SigilCompiler|sigil compile|compile\\\\(\\" packages/compiler packages/cli\nsed -n \\"1,240p\\" packages/compiler/src/compiler.sigil"',
+              status: "completed",
+              exit_code: 0,
+            },
+          }),
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "agent_message",
+              text: JSON.stringify({ findings: [] }),
+            },
+          }),
+          JSON.stringify({
+            type: "turn.completed",
+            usage: { input_tokens: 100, output_tokens: 5 },
+          }),
+        ].join("\n"));
+        return Promise.resolve();
+      },
+    );
     const result = await adapter.evaluate({
       stage: "semantic-readiness",
+      purpose: "semantic",
       skill: "Inspect files.",
       allowedRules: ["SEMANTIC_AMBIGUITY"],
       implementationEvidence: "context-only",
       workspaceRoot: root,
+      workspaceSnapshotIdentity: "sha256:test-snapshot",
       target: {
         componentName: "Example",
         sigilFile: "main.sigil",
         initialPaths: ["main.sigil"],
+        retrieval: retrievalFixture(),
       },
       capabilities: {
         schemaVersion: 1,
@@ -1167,6 +1198,7 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
         maxProviderFrameChars: 1_000_000,
         maxFinalResultChars: 1_000_000,
         maxRetainedCommandOutputChars: 10_000,
+        providerCleanupMs: 5_000,
       },
       budgets: {
         elapsedTimeMs: 30_000,
@@ -1214,8 +1246,13 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
 }
 `);
   try {
-    const adapter = new CodexAdapter(undefined, () =>
-      Promise.resolve([
+    const adapter = new CodexAdapter(undefined, (
+      _command,
+      _args,
+      _input,
+      onStdoutChunk,
+    ) => {
+      onStdoutChunk([
         JSON.stringify({
           type: "item.completed",
           item: {
@@ -1237,19 +1274,24 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
           type: "turn.completed",
           usage: { input_tokens: 100, output_tokens: 5 },
         }),
-      ].join("\n")));
+      ].join("\n"));
+      return Promise.resolve();
+    });
     await assertRejects(
       () =>
         adapter.evaluate({
           stage: "semantic-readiness",
+          purpose: "semantic",
           skill: "Inspect files.",
           allowedRules: ["SEMANTIC_AMBIGUITY"],
           implementationEvidence: "context-only",
           workspaceRoot: root,
+          workspaceSnapshotIdentity: "sha256:test-snapshot",
           target: {
             componentName: "Example",
             sigilFile: "main.sigil",
             initialPaths: ["main.sigil"],
+            retrieval: retrievalFixture(),
           },
           capabilities: {
             schemaVersion: 1,
@@ -1268,6 +1310,7 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
             maxProviderFrameChars: 1_000_000,
             maxFinalResultChars: 1_000_000,
             maxRetainedCommandOutputChars: 10_000,
+            providerCleanupMs: 5_000,
           },
           budgets: {
             elapsedTimeMs: 30_000,
@@ -1373,6 +1416,7 @@ Deno.test("durable compilation sessions refresh and close without a daemon", asy
               maxCompilationRequestChars: 1,
               maxAgentInputChars: 1,
               sessionTtlMs: 1,
+              providerCleanupMs: 1,
             },
             executionBudgets: {
               elapsedTimeMs: 1,

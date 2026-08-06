@@ -5,13 +5,14 @@ on:
     tags:
       - core-v*
       - cli-v*
+      - opencode-adapter-v*
   workflow_dispatch:
     inputs:
       package:
         description: Package to publish
         required: true
         type: choice
-        options: [core, cli]
+        options: [core, cli, opencode-adapter]
       version:
         description: Exact manifest version to publish
         required: true
@@ -56,6 +57,7 @@ jobs:
           case "$package" in
             core) directory="packages/core" ;;
             cli) directory="packages/cli" ;;
+            opencode-adapter) directory="packages/compiler-adapter-opencode" ;;
             *) echo "Unsupported package: $package" >&2; exit 2 ;;
           esac
           actual="$(deno eval "const c=JSON.parse(await Deno.readTextFile('$directory/deno.json')); console.log(c.version)")"

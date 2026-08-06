@@ -10,13 +10,20 @@ component SigilAgentExecutionPolicy {
     AgentExecutionBudgets {
       contains elapsed time and optional token and cost limits
 
-      elapsed time is compiler-host enforced; token and cost limits use the selected
+      elapsed time is compiler-host enforced from a monotonic origin captured at
+      adapter-execution entry before preflight; its deadline is origin plus the
+      configured elapsed duration, and token and cost limits use the selected
       AdapterObservabilityDeclaration enforcement modes
+
+      elapsed-time exhaustion checked after implementation input preflight and before
+      preventive-budget exhaustion prevents provider invocation and returns
+      elapsed-time; after invocation the deadline submits an elapsed-time terminal
+      condition to adapter arbitration
     }
 
     AgentOperationalLimits {
       contains initial request transport size, provider framing size, final-result
-      size, and retained nonessential command-output size limits
+      size, retained nonessential command-output size, and providerCleanupMs limits
 
       exceeding retained command-output size truncates or discards that content;
       transport, framing, or final-result overflow fails only the affected request or
@@ -26,8 +33,10 @@ component SigilAgentExecutionPolicy {
     AgentCancellation {
       contains the one optional cancellation signal for an evaluation request
 
-      a signal already cancelled prevents provider invocation; after invocation it
-      participates in the adapter's serialized terminal-transition ordering
+      a signal already cancelled prevents provider invocation; one final atomic
+      observation at the invocation transition prevents invocation when cancellation
+      arrived during preflight; after that transition cancellation participates in
+      the adapter's serialized terminal-transition ordering
     }
 
     AgentBudgetOutcome {
@@ -99,6 +108,24 @@ expand SigilAgentExecutionPolicy {
       Consequences: Unknown telemetry is never represented as zero, within-limit, or
       preventive enforcement.
     }
+
+    MonotonicElapsedTimeBoundary {
+      Decision: Capture one monotonic elapsed-time origin at adapter-execution entry,
+      derive one deadline, check it before provider invocation, and submit its expiry
+      through terminal arbitration after invocation.
+
+      Scope: Governs elapsed-time accounting and timeout transitions for one adapter
+      execution.
+
+      Trade-offs: Preflight work consumes the same elapsed-time allowance as provider
+      execution.
+
+      Design issues addressed: Starting the clock at provider invocation leaves
+      preflight unbounded and makes an already exhausted deadline ambiguous.
+
+      Consequences: The provider never starts after pre-invocation exhaustion, while
+      post-invocation expiry participates in deterministic terminal arbitration.
+    }
   }
 
   cases {
@@ -111,6 +138,20 @@ expand SigilAgentExecutionPolicy {
 
       Final token usage above its configured limit produces token exceeded and makes
       the evaluation incomplete regardless of the cost outcome.
+    }
+
+    AgentExecutionBudgets {
+      Elapsed time expiring during preflight returns elapsed-time before provider
+      invocation.
+
+      Elapsed time expiring after invocation submits one elapsed-time terminal
+      condition using the same monotonic deadline.
+    }
+
+    AgentCancellation {
+      Cancellation arriving before the atomic invocation transition returns cancelled
+      and starts no provider; cancellation arriving after the transition enters
+      terminal arbitration and bounded cleanup.
     }
   }
 }

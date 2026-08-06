@@ -1,57 +1,61 @@
-@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
 @packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
-@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+@packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
+@packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 
 component SigilAgentAdapter {
   goal {
-    Map one provider-neutral evaluation request to Codex, Claude, OpenCode, or Pi
-    without changing compiler semantics or overstating adapter trust.
+    Map one provider-neutral evaluation request to one already selected Codex,
+    Claude, OpenCode, or Pi implementation without owning adapter registration.
 
-    Accept compiler-owned or externally supplied adapter implementations, normalize
-    only observed provider evidence, and require one validated final result.
+    Translate provider framing, result locations, telemetry, and command
+    observations into AgentEvaluationResult without accepting or rewriting
+    candidate finding evidence, and require one validated final result without
+    overstating trust.
   }
 
   interface {
     AgentAdapter {
-      execute(request, ResolvedEvaluator) may emit provider observations and settles
-      with exactly one AgentEvaluationResult or rejects before invocation for
-      provider unavailability, binding mismatch, capability mismatch, prior request
-      cancellation, or preflight budget exhaustion, or after invocation for
-      elapsed-time expiry, live budget exhaustion, request cancellation, process
-      failure, or final-result protocol failure
+      declares provider, stable implementation identifier, exact implementation
+      version, model binding, AgentCapabilityContract, and observability
 
-      ResolvedEvaluator contains one unique configured non-empty evaluatorIdentity,
-      provider exactly codex, claude, opencode, or pi, optional model binding, and
-      adapterBinding. CompilationProfile resolves this value; AgentAdapter never
-      infers provider or model from evaluatorIdentity
+      model binding is selection metadata and may be absent for the provider default;
+      evaluate receives an already selected adapter
 
-      adapterBinding identifies one implementation and exact implementation version;
-      one matching registration is required and zero or multiple matches reject
+      evaluate(SigilAgentEvaluationRequest) settles with exactly one
+      AgentEvaluationResult or rejects with one typed AdapterFailure
 
-      capabilityContract is resolved by CompilationProfile and accepted findings are
-      candidates for CompilationDiagnostic normalization
+      request observability must equal this adapter's canonical resolved declaration,
+      where omitted or unknown progress resolves to none and omitted or unknown
+      usage, cost, token-budget enforcement, and cost-budget enforcement resolve to
+      unavailable; inequality is binding-mismatch
 
-      request, capabilityContract, observability, budgets, cancellation, result, and
-      provider-neutral framing use AgentEvaluationRequest
+      request capability compatibility is owned by SigilAgentCapabilityContract;
+      incompatibility is capability-mismatch
+
+      a valid result, including an exceeded post-settlement budget outcome, is
+      returned with findings and telemetry intact
+
+      SigilAgentExecutionPolicy governs provider-neutral budgets and cancellation
 
       capability declarations describe claimed behavior but do not prove filesystem,
       network, command, persistence, or data-handling safety
 
-      adapter output remains untrusted until final-result protocol, schema, rule, and
-      evidence validation succeed
+      adapter output remains untrusted until SigilAgentEvaluationRequest validates
+      the result envelope; returned findings remain untrusted candidates
     }
 
     AdapterFailure {
-      kind is unavailable, binding-mismatch, capability-mismatch, cancelled,
-      elapsed-time, preventive-budget, process, or final-result-protocol
+      contains a machine-readable stable kind and a human-readable, non-parseable
+      message whose exact text is not a compatibility surface
 
-      unavailable, binding-mismatch, and capability-mismatch map to required
-      evaluator unavailability before stage execution; cancelled maps to caller
-      cancellation; elapsed-time, preventive-budget, process, and
-      final-result-protocol map to an incomplete evaluator outcome
+      kind is binding-mismatch, capability-mismatch, cancelled, elapsed-time,
+      preventive-budget, operational-limit, execution, cleanup, or
+      final-result-protocol
 
-      provider result protocol failure is an evaluator failure and does not become a
-      compiler event-transport or host-protocol failure
+      cleanup additionally contains the caller-visible transport-neutral recovery
+      evidence owned by CoordinatorFailure unchanged; every remaining kind contains
+      no execution-mechanism-specific fields
     }
   }
 }

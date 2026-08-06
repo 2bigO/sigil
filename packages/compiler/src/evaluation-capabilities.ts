@@ -11,6 +11,19 @@ export const REQUIRED_EVALUATION_CAPABILITIES: AgentCapabilityContract = {
   statePersistence: "ephemeral",
 };
 
+// @sigil implements packages/compiler/src/evaluation-capabilities.sigil::SigilAgentCapabilityContract::EvaluatorPersistenceRequirement decisions,cases
+export function evaluationCapabilitiesFor(
+  declared: AgentCapabilityContract,
+): AgentCapabilityContract {
+  return {
+    schemaVersion: 1,
+    workspaceAccess: "read-only",
+    agentToolNetwork: false,
+    approvalEscalation: false,
+    statePersistence: declared.statePersistence,
+  };
+}
+
 export const UNAVAILABLE_OBSERVABILITY: AdapterObservabilityDeclaration = {
   progress: "none",
   usage: "unavailable",
@@ -36,7 +49,7 @@ export function normalizeObservability(
   value: Partial<AdapterObservabilityDeclaration> | undefined,
 ): AdapterObservabilityDeclaration {
   return {
-    progress: value?.progress === "streaming" ? "streaming" : "none",
+    progress: "none",
     usage: telemetry(value?.usage),
     cost: telemetry(value?.cost),
     tokenBudgetEnforcement: enforcement(value?.tokenBudgetEnforcement),

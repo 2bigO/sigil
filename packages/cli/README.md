@@ -74,15 +74,16 @@ Commands:
   in the selected and related Sigil files, excluding terms whose `agentContext`
   value is `false`;
 - `sigil retrieve [path] (--component name | --file file) --purpose
-  semantic|architecture|implementation` returns a deterministic selected graph,
-  exact evidence, inclusion reasons, exclusion frontier, aggregated context, and
-  a content fingerprint; add `--format markdown` for a readable context pack;
+  semantic|architecture|implementation`
+  returns a deterministic selected graph, exact evidence, inclusion reasons,
+  exclusion frontier, aggregated context, and a content fingerprint; add
+  `--format markdown` for a readable context pack;
 - `sigil compile [stage] [path] [--component name | --file file
-  [--position line:column]]` runs
-  profile-scoped deterministic and direct-read agent evaluation. A stage operand
-  such as `semantic-readiness` runs that stage and its dependency closure.
-  Prefix a colliding path with `./`. Use `--format jsonl` for the versioned
-  event stream;
+  [--position line:column]]`
+  runs profile-scoped deterministic and direct-read agent evaluation. A stage
+  operand such as `semantic-readiness` runs that stage and its dependency
+  closure. Prefix a colliding path with `./`. Use `--format jsonl` for the
+  versioned event stream;
 - `sigil render ...` returns Markdown.
 
 Configure agentic compilation under `tools.compile`:
@@ -117,6 +118,14 @@ read-only filesystem access, disabled network and approval escalation, and
 structured output. A configured provider that cannot enforce the same contract
 fails closed. Compilation does not generate code or execute implementation
 experiments.
+
+The CLI also bundles and registers the independently packaged OpenCode compiler
+adapter. OpenCode evaluation uses `opencode run --format json`, standard-input
+guidance, the selected workspace and model, and restrictive inline permissions.
+Because OpenCode exposes no ephemeral CLI mode, this adapter declares persistent
+state; the compiler derives the request persistence requirement from the exactly
+selected adapter while keeping read-only, no agent-tool network, and no approval
+escalation requirements fixed.
 
 Unless `--no-cache` is set, completed compilation reports are atomically stored
 under the operating system's user cache directory and used to derive diagnostic

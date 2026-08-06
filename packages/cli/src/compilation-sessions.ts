@@ -3,6 +3,7 @@ import {
   type CompilationFocus,
   type CompilationProposal,
   type CompilationTarget,
+  type compile,
   SigilCompilationSession,
   SigilCompilationSessionFactory,
 } from "@qoherent/sigil-compiler";
@@ -12,6 +13,7 @@ export interface CompilationSessionHost {
   readonly readStdin?: () => Promise<string>;
   readonly onEvent?: (event: CompilationEvent) => void | Promise<void>;
   readonly signal?: AbortSignal;
+  readonly compiler?: typeof compile;
 }
 
 // @sigil implements packages/cli/_module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
@@ -22,7 +24,8 @@ export async function startCompilationSession(
   focus: CompilationFocus,
   host: CompilationSessionHost = {},
 ) {
-  const factory = host.factory ?? new SigilCompilationSessionFactory();
+  const factory = host.factory ??
+    new SigilCompilationSessionFactory(undefined, host.compiler);
   return (await factory.create(workspacePath, target, profile, focus)).result;
 }
 
@@ -42,7 +45,11 @@ export async function evaluateCompilationSession(
     );
   }
   const proposal = validateProposal(value);
-  return new SigilCompilationSession(sessionIdentity).evaluate(proposal, {
+  return new SigilCompilationSession(
+    sessionIdentity,
+    undefined,
+    host.compiler,
+  ).evaluate(proposal, {
     cancellationSignal: host.signal,
     onEvent: host.onEvent,
   });

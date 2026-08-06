@@ -55,7 +55,9 @@ export function compilationEvent(
   return { protocolVersion: 1, runId, sequence, type, payload };
 }
 
-export function startedPayload(expected: ExpectedCompilationRun) {
+export function startedPayload(
+  expected: ExpectedCompilationRun,
+): { readonly operation: string; readonly sessionIdentity?: string } {
   return expected.operation === "session-evaluation"
     ? {
       operation: expected.operation,

@@ -1,5 +1,6 @@
 import type {
   PurposeRetrievalResult,
+  RetrievalPurpose,
   SigilFormKind,
   SigilSectionName,
   SourceRange,
@@ -299,7 +300,7 @@ export interface AgentCommandPolicy {
 }
 
 export interface AdapterObservabilityDeclaration {
-  readonly progress: "none" | "streaming";
+  readonly progress: "none";
   readonly usage: TelemetryAvailability;
   readonly cost: TelemetryAvailability;
   readonly tokenBudgetEnforcement: BudgetEnforcement;
@@ -320,6 +321,7 @@ export interface AgentOperationalLimits {
   readonly maxProviderFrameChars: number;
   readonly maxFinalResultChars: number;
   readonly maxRetainedCommandOutputChars: number;
+  readonly providerCleanupMs: number;
 }
 
 export interface AgentBudgetOutcome {
@@ -329,10 +331,12 @@ export interface AgentBudgetOutcome {
 
 export interface AgentEvaluationRequest {
   readonly stage: string;
+  readonly purpose: RetrievalPurpose;
   readonly skill: string;
   readonly allowedRules: readonly string[];
   readonly implementationEvidence: "context-only" | "compare";
   readonly workspaceRoot: string;
+  readonly workspaceSnapshotIdentity: string;
   readonly target: AgentEvaluationTarget;
   readonly capabilities: AgentCapabilityContract;
   readonly commandPolicy: AgentCommandPolicy;
@@ -380,10 +384,39 @@ export interface AgentEvaluationResult {
   readonly budgetOutcome?: AgentBudgetOutcome;
 }
 
+export type AdapterFailureKind =
+  | "binding-mismatch"
+  | "capability-mismatch"
+  | "cancelled"
+  | "elapsed-time"
+  | "preventive-budget"
+  | "operational-limit"
+  | "execution"
+  | "cleanup"
+  | "final-result-protocol";
+
+export interface AdapterCleanupRecoveryEvidence {
+  readonly implementationIdentity: string;
+  readonly resources: readonly {
+    readonly identity: string;
+    readonly latestState: "active" | "terminal" | "released" | "unknown";
+  }[];
+  readonly resultInputs: readonly {
+    readonly identity: string;
+    readonly latestState: "open" | "closed" | "cancelled" | "unknown";
+  }[];
+  readonly initiatingTerminalKind: AdapterFailureKind;
+  readonly observationFailures: readonly string[];
+  readonly cleanupAttempts: readonly string[];
+  readonly cleanupDeadlineOutcome: "completed" | "expired" | "unverifiable";
+  readonly operatorRecoveryAction: string;
+}
+
 export interface AdapterImplementationBinding {
   readonly provider: AgentProvider;
   readonly implementationId: string;
   readonly implementationVersion: string;
+  readonly model?: string;
 }
 
 export interface AgentAdapter {
@@ -428,6 +461,7 @@ export interface CompilationLimits {
   readonly maxCompilationRequestChars: number;
   readonly maxAgentInputChars: number;
   readonly sessionTtlMs: number;
+  readonly providerCleanupMs: number;
 }
 
 export interface EvaluatorConfiguration {

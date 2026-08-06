@@ -1,281 +1,230 @@
 @packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
+@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
+@packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 
 expand SigilAgentAdapter {
   logic {
     AgentAdapter {
-      Supply each adapter the target request, evaluation skill, output schema,
-      workspace root, and requested capabilities for its evaluation run.
+      Supply the target request, evaluation guidance, output contract, workspace
+      root, and requested capabilities to the selected adapter implementation.
 
-      Resolve exactly one registered adapter matching the effective profile's
-      provider, implementation identifier, and exact implementation version. Reject
-      zero or multiple matches before evaluation.
+      At adapter-execution entry, capture the monotonic elapsed-time origin. Before
+      invocation, check already-requested cancellation, canonical observability
+      binding equality, capability compatibility, implementation input preflight,
+      elapsed-time exhaustion, and preventive budget exhaustion in that order; return
+      only the first failure and invoke no provider.
 
-      Invoke the selected CLI with the restrictions supported and declared by that
-      adapter. Consume structured observations when available, or wait for a terminal
-      structured result when progress is unavailable.
+      Delegate the final cancellation observation and invocation transition to
+      SigilAgentAdapterExecutionCoordinator.
 
-      Stream-process provider output. Omit or truncate bulky command output without
-      failing an otherwise valid evaluation, while preserving enough framing to
-      locate and validate the required final result.
+      As part of capability compatibility, translate required restrictions into the
+      selected adapter's documented provider configuration. If translation cannot be
+      constructed, reject capability-mismatch; construction remains unverified.
 
-      A valid-result terminal transition is observable only after the provider
-      process terminates and every designated output channel reaches end-of-stream.
-      Parse the complete owned stream and require exactly one terminal candidate.
+      Implementation input preflight only serializes and bounds the validated
+      provider-neutral request and restriction configuration. Serialization failure
+      or maxInitialRequestChars overflow rejects operational-limit without invoking
+      the provider.
 
-      Validate the complete final result before normalizing any finding.
+      Invoke the provider once through the selected adapter's implementation-owned
+      execution mechanism. Consume its declared result inputs according to that
+      implementation's ordering and settlement rules.
 
-      Enforce elapsed time in the compiler host. On expiry, request provider
-      cancellation, reject any late final result, and settle the evaluation as
-      incomplete without accepting partial observations as findings.
+      Supply provider-specific invocation, result-input, resource-observation, and
+      cleanup hooks to SigilAgentAdapterExecutionCoordinator. Map CoordinatorResult
+      or CoordinatorFailure to AgentEvaluationResult or AdapterFailure without
+      reinterpreting arbitration or cleanup policy.
 
-      If cancellation is already requested, do not invoke the provider. During a run,
-      serialize cancellation, elapsed-time expiry, preventive budget exhaustion,
-      process failure, and valid process settlement so the first observed terminal
-      transition wins. Any non-settlement terminal requests provider termination and
-      rejects a later result. Before returning that failure, terminate or detach the
-      owned provider process under host cleanup policy and close or cancel every
-      designated output channel.
+      Incrementally parse provider framing, bound retained nonessential command
+      content, and locate exactly one terminal result.
 
-      Invoke each provider once. Do not retry process launch, execution, protocol, or
-      result failures inside the adapter.
+      Translate provider-specific framing, result locations, telemetry, and command
+      observations into AgentEvaluationResult. Do not accept or rewrite candidate
+      finding rules or evidence. Validate the envelope through
+      SigilAgentEvaluationRequest and return findings as untrusted candidates.
 
-      Apply preventive model budgets only when AdapterObservabilityDeclaration marks
-      their enforcement preflight or live. For post-settlement-only or unavailable
-      enforcement, compare final telemetry when available; an observed excess makes
-      the evaluation incomplete but is recorded as detected rather than prevented.
-
-      Preflight budget exhaustion starts no provider process. Live budget exhaustion
-      participates in terminal-transition ordering after invocation.
+      Preflight preventive-budget exhaustion starts no provider execution. Live
+      preventive exhaustion requests an implementation-owned terminal transition and
+      cleanup. Return valid post-settlement results intact.
     }
   }
 
   constraints {
     CapabilityPolicy {
-      Compare the complete adapter declaration with the resolved
-      AgentCapabilityContract from AgentEvaluationRequest. Use its closed value
-      domains and exact-equality rule; unknown or omitted values mismatch.
+      Require the compatibility result owned by SigilAgentCapabilityContract before
+      invocation; a mismatch fails without duplicating its equality algorithm.
 
-      Adapter capability declarations are self-reported compatibility metadata. The
-      compiler may compare them with requested capabilities but does not verify that
-      an adapter implementation or provider CLI enforces them.
+      Provider, implementation identity, exact version, model, and observability do
+      not participate in capability equality.
 
-      Explicitly selecting or supplying an adapter accepts its documented execution
-      risk. The compiler emits no generic adapter-risk log, event, report field,
-      diagnostic, status effect, or evaluator-prompt content.
-
-      A declared capability mismatch fails the required evaluation rather than
-      silently broadening the requested behavior.
+      Capability declarations are self-reported compatibility metadata. Explicit
+      adapter selection accepts documented implementation risk without adding a
+      generic runtime warning to compiler evidence.
     }
 
     ProviderMapping {
-      Codex, Claude, OpenCode, and Pi are the complete recognized provider identity
-      set. Provider-specific command lines, event names, result locations, and
-      telemetry fields remain private adapter details.
+      Codex, Claude, OpenCode, and Pi are the complete provider identity set.
+      Provider-specific commands, events, result locations, and telemetry remain
+      private adapter details.
 
-      Map raw provider output to AgentEvaluationRequest observation and framing
-      vocabulary without exposing provider event identities to compiler consumers.
-
-      Structural final-result failure rejects the complete result. Structurally valid
-      candidate findings remain untrusted until CompilationDiagnostic rule and
-      evidence normalization.
-
-      Recompute AgentBudgetOutcome from the authoritative request and returned
-      telemetry before accepting the adapter result. Reject a mismatched supplied
-      outcome as final-result-protocol failure.
+      Initial request overflow rejects as operational-limit before invocation.
+      Provider framing overflow rejects as operational-limit and triggers
+      implementation-owned bounded cleanup. Final-result size overflow rejects as
+      final-result-protocol after execution and declared result-input settlement.
+      Candidate findings remain untrusted until compiler rule and evidence
+      normalization.
     }
   }
 
   decisions {
     ProviderNeutralEvaluation {
-      Decision: Let the compiler own evaluation requests, final-result validation,
-      diagnostic normalization, and native skill-package contracts while adapters
-      privately map those contracts to provider CLIs.
+      Decision: Keep provider implementations behind one public evaluation request
+      and result contract. AgentAdapter owns provider mapping and the public
+      result/failure surface, and delegates provider-neutral coordination policy to
+      SigilAgentAdapterExecutionCoordinator.
 
-      Scope: Governs every agent and evaluation skill integration.
+      Scope: Governs provider-specific adapter mapping; excludes exact registration,
+      coordinator policy, resource declarations, and cleanup actions.
 
-      Trade-offs: Provider-specific invocation, observation, result, and telemetry
-      behavior requires a separate version-sensitive adapter mapping.
+      Trade-offs: Each provider retains version-sensitive protocol mapping.
 
-      Consequences: Changing providers does not change compiler diagnostic semantics.
+      Consequences: Changing provider integration does not change compiler diagnostic
+      semantics or registry behavior.
     }
 
     ClosedProviderIdentitySet {
       Decision: Recognize exactly Codex, Claude, OpenCode, and Pi provider identities
-      while permitting their adapter implementations to come from the compiler host
-      or plugins.
+      while permitting compiler hosts to register their implementations.
 
-      Scope: Governs compiler evaluator identity and adapter resolution; excludes
-      arbitrary additional providers.
+      Scope: Governs registry and evaluator provider identity; excludes additional
+      providers without a compiler contract change.
 
-      Trade-offs: The provider contract remains predictable, but adding another CLI
-      requires an explicit compiler contract change.
+      Trade-offs: The semantic namespace stays predictable while adding a provider
+      requires an intentional contract update.
 
-      Consequences: Plugins extend implementation availability without extending the
-      semantic provider namespace.
+      Consequences: Separate packages may add implementations without silently
+      extending provider identity.
     }
 
-    ExplicitAdapterImplementationBinding {
-      Decision: Bind each evaluator to one stable implementation identifier and exact
-      implementation version in addition to its provider identity.
+    DeterministicPreflightFailurePrecedence {
+      Decision: Capture the monotonic elapsed-time origin at adapter-execution entry,
+      then check cancellation, observability binding, capability compatibility
+      including restriction-configuration construction, implementation input
+      preflight, elapsed-time exhaustion, and preventive budget exhaustion in that
+      order.
 
-      Scope: Governs effective-profile identity and host or plugin adapter
-      registration.
+      Scope: Governs simultaneous pre-invocation failures only.
 
-      Trade-offs: Adapter upgrades require an intentional configuration or resolved
-      profile change.
+      Trade-offs: One stable failure hides later preflight defects until corrected.
 
-      Design issues addressed: Provider identity alone is ambiguous when host and
-      plugin implementations coexist.
+      Design issues addressed: Independent checks otherwise expose implementation
+      order and produce nondeterministic caller behavior.
 
-      Discarded alternatives: Discovery order and implicit plugin-over-built-in
-      precedence were rejected as nonreproducible.
+      Discarded alternatives: Aggregation was rejected because cancellation should
+      stop inspection and identity must precede behavior, transport, time, and
+      budget.
 
-      Consequences: Zero or multiple exact registration matches fail before provider
-      invocation, and implementation identity participates in the profile
-      fingerprint.
+      Consequences: Equivalent invalid requests return the same failure.
+    }
+
+    TerminalResultOnlyAdapterProgress {
+      Decision: Define progress none as absence of a live adapter observation
+      channel. Permit optional provider progress observations only inside validated
+      terminal result metadata in this compiler version.
+
+      Scope: Governs provider progress; excludes compiler-owned stage lifecycle
+      events emitted through CompilationEventWriter.
+
+      Trade-offs: Provider progress is unavailable while evaluation runs, avoiding a
+      second public envelope and backpressure protocol.
+
+      Consequences: Every bundled adapter declares progress none; terminal progress,
+      command, and usage metadata may still appear in the validated terminal result
+      and never alter canonical observability binding.
+
+      Revisit when: A provider-neutral live observation envelope is designed.
+    }
+
+    CompleteProviderResultInputValidation {
+      Decision: Validate terminal-result framing and size only after provider
+      execution settles and all implementation-declared result inputs complete.
+
+      Scope: Governs successful-result eligibility and final-result-protocol failure;
+      excludes earlier cancellation, limits, and execution failures.
+
+      Trade-offs: A known oversized terminal candidate may continue until bounded
+      implementation settlement, preserving duplicate and trailing-framing detection.
+
+      Discarded alternatives: Accepting or rejecting a terminal candidate before
+      declared result-input completion was rejected because later framing can
+      invalidate it.
+
+      Consequences: Final-result overflow returns no partial result and rejects only
+      after provider and declared result-input settlement.
     }
 
     ExternalAdapterTrustBoundary {
       Decision: Treat adapter capabilities as self-declared and make explicit adapter
-      selection the user's acceptance of documented execution risk.
+      selection acceptance of documented execution risk.
 
-      Scope: Governs compiler-owned and plugin-supplied adapters, provider CLI
-      invocation, capability matching, and risk disclosure.
+      Scope: Governs compiler-owned and externally supplied adapters.
 
-      Assumptions: Adapter and CLI implementations may execute with permissions
-      available to their host environment.
-
-      Trade-offs: The compiler cannot guarantee read-only access, network isolation,
-      ephemeral state, command restrictions, or safe data handling.
-
-      Design issues addressed: Plugin implementations cannot be truthfully certified
-      from partial or terminal-only provider events.
-
-      Discarded alternatives: Inferring enforcement from events and emitting a
-      generic runtime warning were rejected as unreliable and as potential compiler
-      context contamination.
-
-      Consequences: Trust limitations are documented only. Logs, events, reports,
-      diagnostics, status, and evaluator prompts contain no generic risk warning.
+      Consequences: Matching metadata is not a verified safety guarantee and generic
+      risk warnings do not contaminate compiler evidence.
     }
 
     SingleAttemptExecution {
-      Decision: Invoke one provider process once per adapter evaluation and leave any
-      retry decision to the caller as a new evaluation.
+      Decision: Invoke one provider execution once per adapter evaluation and leave
+      retry to a new caller evaluation.
 
-      Scope: Governs launch, execution, protocol, and result failures inside an
-      adapter invocation.
+      Scope: Governs invocation, execution, protocol, and result failures.
 
-      Trade-offs: Transient failures are visible instead of automatically recovered.
-
-      Design issues addressed: Hidden retries can repeat cost and externally supplied
-      adapter behavior while mixing observations from distinct attempts.
-
-      Discarded alternatives: Automatic launch, process, protocol, and result retries
-      inside one evaluation were rejected.
-
-      Consequences: Each evaluation has one process attempt, one terminal ordering,
-      and unambiguous budget accounting.
+      Consequences: Each evaluation has one execution attempt and unambiguous budget
+      accounting.
     }
-
-    FirstObservedTerminalTransition {
-      Decision: Serialize cancellation, elapsed-time expiry, preventive budget
-      exhaustion, process failure, and valid process settlement, and accept the first
-      observed terminal transition.
-
-      Scope: Governs races after one provider invocation begins.
-
-      Trade-offs: A nearly simultaneous valid result can lose to an already observed
-      cancellation or limit, while a later cancellation cannot revoke an accepted
-      result.
-
-      Design issues addressed: Provider callbacks and cancellation signals can race
-      without a shared provider-independent timestamp.
-
-      Discarded alternatives: Always preferring cancellation, limits, or successful
-      settlement was rejected because each can overwrite an earlier terminal fact.
-
-      Consequences: One serialized transition determines settlement and every later
-      terminal signal or result is ignored.
-    }
-
-    CompleteProviderStreamSettlement {
-      Decision: Accept a valid result only after provider termination and designated
-      output end-of-stream, while allowing an earlier non-result terminal transition
-      to fix the outcome before bounded provider cleanup completes.
-
-      Scope: Governs owned provider processes, output channels, result parsing, and
-      post-invocation adapter settlement.
-
-      Trade-offs: A provider or descendant retaining a channel can require forced
-      cleanup, and late valid output cannot replace an earlier failure winner.
-
-      Design issues addressed: Settling a result before output closure leaves
-      trailing duplicate or malformed results ambiguous, while waiting to select
-      cancellation or timeout until cleanup completes makes them race unpredictably.
-
-      Consequences: Terminal arbitration chooses one outcome first; cleanup prevents
-      owned process or channel leakage; complete-stream validation is required only
-      for a successful result.
-    }
-
   }
 
   cases {
     AgentAdapter {
-      A selected adapter declaring an incompatible requested capability fails before
-      evaluation without implying that matching declarations are independently
-      verified.
+      An incompatible capability declaration, or inability to construct its
+      documented provider restriction configuration, fails before invocation.
 
-      Zero or two registrations matching one evaluator's provider, implementation
-      identifier, and version fail before provider invocation.
+      When every preflight condition fails, cancellation wins. Removing each earlier
+      condition returns binding-mismatch, capability-mismatch, operational-limit,
+      elapsed-time, then preventive-budget in order, and no case invokes the
+      provider.
 
-      A terminal-only adapter returns a valid final findings object without progress
-      observations and can complete successfully.
+      Input serialization failure and maxInitialRequestChars overflow both reject
+      operational-limit before provider invocation.
 
-      Truncated command output with an intact valid final result can complete
-      successfully.
+      Unequal request and selected-adapter observability rejects as binding-mismatch
+      before provider invocation and starts no execution.
 
-      An adapter with no usage or cost fields reports unavailable telemetry rather
-      than zero values.
+      A terminal-only adapter returns one valid final result without live provider
+      progress.
 
-      A configured nonpreventive token limit with final token usage within its limit
-      and unavailable cost telemetry produces token within-limit and the independent
-      cost outcome required by whether a cost limit is configured.
+      Retained nonessential command content crossing its bound is truncated or
+      discarded and does not reject an otherwise valid result.
 
-      Partial or unavailable telemetry for a configured nonpreventive limit produces
-      indeterminate. Either final token or cost excess produces exceeded and makes
-      the evaluation incomplete regardless of the other outcome.
+      Duplicate, missing, malformed, or trailing terminal framing rejects as
+      final-result-protocol and returns no result.
 
-      A structurally invalid final result rejects the evaluation.
+      For Codex, schema-valid agent messages inside one open turn are nonterminal
+      checkpoints; the latest checkpoint becomes the turn's candidate only when
+      turn.completed arrives. A second completed turn candidate or any framing after
+      the completed terminal boundary rejects as final-result-protocol.
 
-      An undeclared diagnostic code is rejected before it can affect compilation
-      color.
+      An oversized final result waits for provider and declared result-input
+      settlement, then rejects as final-result-protocol without returning a partial
+      result.
 
-      Two terminal result candidates, or valid result content followed by malformed
-      framing, reject the provider result without accepting either candidate.
+      Live preventive-budget exhaustion participates in coordinator arbitration.
+      Verified cleanup returns preventive-budget; unverified cleanup returns cleanup
+      with recovery evidence; a result settled in an earlier batch remains final.
 
-      Elapsed-time expiry cancels provider work when possible, ignores a late final
-      result, and leaves the evaluation incomplete.
-
-      Cancellation requested before invocation starts no provider process.
-
-      Preflight budget exhaustion starts no provider process and returns the
-      preventive-budget failure.
-
-      Cancellation serialized before process settlement wins, requests termination,
-      and rejects a later final result; completed process settlement serialized first
-      remains authoritative.
-
-      Preventive budget exhaustion serialized before process settlement requests
-      termination and rejects a later final result; valid process settlement
-      serialized first remains authoritative.
-
-      A provider process failure rejects the single attempt without retry.
-
-      A final token or cost total exceeding a post-settlement-only budget leaves the
-      evaluation incomplete and records that the excess was detected but not
-      prevented.
+      Provider-specific hooks produce one coordinator-settled valid result or typed
+      AdapterFailure without adapter-local arbitration.
     }
   }
 }

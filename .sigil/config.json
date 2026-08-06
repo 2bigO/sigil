@@ -5,6 +5,7 @@
     "members": [
       "packages/cli",
       "packages/compiler",
+      "packages/compiler-adapter-opencode",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",

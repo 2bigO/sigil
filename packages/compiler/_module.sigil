@@ -8,6 +8,9 @@
 @packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
 @packages/compiler/src/event-reader.sigil import { SigilCompilationEventReader }
 @packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
+@packages/compiler/src/adapter-registry.sigil import { SigilAgentAdapterRegistry }
+@packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
+@packages/compiler/src/adapter-subprocess.sigil import { SigilAgentAdapterSubprocess }
 @packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
 @packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
 @packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
@@ -40,7 +43,8 @@ component SigilCompiler {
       CompilationProfile, CompilationStatus, CompilationEventProtocol,
       CompilationEventWriterProtocol, CompilationEventReaderProtocol,
       AgentCapabilityContract, AgentExecutionPolicy, AgentEvaluationRequest,
-      AgentAdapter, EvaluationSkillPackage, CompilationEvaluation,
+      AgentAdapter, AgentAdapterRegistry, AgentAdapterExecutionCoordinator,
+      AdapterSubprocess, EvaluationSkillPackage, CompilationEvaluation,
       CompilationReportExport, CompilationHistoryStore, CompilationSessionFactory,
       CompilationSession, CompilationSessionStore, and ProposalWorkspace remain
       available through their imported owning contracts

@@ -41,8 +41,8 @@ component SigilAgentEvaluationRequest {
 
     AgentEvaluationResult {
       contains structurally validated candidate findings, optional observed command
-      and progress metadata, independently unavailable, partial, or final usage and
-      cost telemetry, and AgentBudgetOutcome
+      metadata and terminal progress metadata, independently unavailable, partial, or
+      final usage and cost telemetry, and AgentBudgetOutcome
 
       structurally invalid result content invalidates the complete result; candidate
       rule and evidence acceptance remains owned by CompilationDiagnostic
@@ -62,8 +62,10 @@ expand SigilAgentEvaluationRequest {
       Missing, duplicate, conflicting, or structurally malformed terminal content
       invalidates the result envelope.
 
-      Progress, command traces, usage, and cost are optional observations and never
-      substitute for the terminal result.
+      Terminal progress metadata, command traces, usage, and cost are optional
+      observations and never substitute for the terminal result. Terminal progress
+      metadata is not a live observation channel and does not change a progress none
+      declaration.
     }
   }
 
@@ -118,6 +120,9 @@ expand SigilAgentEvaluationRequest {
     AgentEvaluationResult {
       A terminal-only provider returns one valid final result and no progress
       observations.
+
+      A provider with progress none may include progress observed by the provider in
+      its one terminal result but emits no live progress observation.
 
       Two terminal candidates in the complete provider stream invalidate both.
 
