@@ -54,6 +54,10 @@ Deno.test("initializes with the approved 0.7 capabilities and lifecycle", async 
       full: true,
     }),
   );
+  assertEquals(
+    JSON.stringify(capabilities.executeCommandProvider),
+    JSON.stringify({ commands: ["sigil.renderDocument"] }),
+  );
   assertEquals(server.state, "running");
 
   const shutdown = await server.handle(request(3, "shutdown"));
@@ -1047,6 +1051,38 @@ Deno.test("directory-index definitions navigate to the original declaration", as
   assert(!indexedHoverValue.includes("Source: `/workspace"));
 });
 
+// @sigil tests packages/lsp/_module.sigil::SigilLsp::DocumentRendering interface,logic,constraints,cases,decisions
+Deno.test("renders a whole document to Markdown through executeCommand", async () => {
+  const server = makeServer();
+  await initialize(server);
+
+  const rendered = responseResult(
+    await server.handle(request(2, "workspace/executeCommand", {
+      command: "sigil.renderDocument",
+      arguments: [contractUri],
+    })),
+  ) as string;
+  assert(rendered.includes("### component"));
+  assert(rendered.includes("Thing"));
+  assert(rendered.includes("**Collected expansions**"));
+
+  // A file with no declared component renders to an empty result.
+  const empty = responseResult(
+    await server.handle(request(3, "workspace/executeCommand", {
+      command: "sigil.renderDocument",
+      arguments: [pathToFileUri(`${root}/absent.sigil`)],
+    })),
+  ) as string;
+  assertEquals(empty, "");
+
+  // An unknown command is an invalid-params error.
+  const unknown = await server.handle(
+    request(4, "workspace/executeCommand", { command: "sigil.unknown" }),
+  );
+  assertEquals(errorCode(unknown), -32602);
+});
+
+// @sigil tests packages/lsp/_module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
 Deno.test("renders component and collected-expansion source paths relative to the workspace root", async () => {
   const server = makeServer();
   await initialize(server);

@@ -837,6 +837,26 @@ async function componentMarkdown(
   return lines.join("\n");
 }
 
+export async function renderDocumentMarkdown(
+  resolved: ResolvedSigilWorkspace,
+  fs: SigilFileSystem,
+  ownership: OwnershipHoverCache,
+  filePath: string,
+): Promise<string> {
+  const normalized = normalizePath(filePath);
+  const renderer = new HoverMarkdownRenderer(resolved, fs, ownership);
+  const components = resolved.components
+    .filter((component) => normalizePath(component.filePath) === normalized)
+    .sort((left, right) =>
+      left.declaration.range.start.line - right.declaration.range.start.line
+    );
+  const sections: string[] = [];
+  for (const component of components) {
+    sections.push(await componentMarkdown(component, true, renderer));
+  }
+  return sections.join("\n\n---\n\n");
+}
+
 async function conceptDefinition(
   resolved: ResolvedSigilWorkspace,
   fs: SigilFileSystem,
