@@ -374,9 +374,15 @@ substantive text, not a structural brace or concept or section header when such
 text exists. For a conflict, anchor the primary statement and cite every other
 location in evidence. Use null location fields only when no physical workspace
 evidence can be identified. The compiler owns semantic identity; do not invent
-semantic subjects. Use only an allowed diagnostic rule. Return the required JSON
-object with a findings array; use an empty array when no supported finding
-remains.`;
+semantic subjects. Use only an allowed diagnostic rule.
+
+Return ONLY this JSON object and nothing else — no prose, no markdown fence:
+{"findings":[{"code":string,"severity":"error"|"warning"|"optimization"|"information","message":string,"filePath":string|null,"line":integer|null,"column":integer|null,"evidence":string,"impact":string,"correction":string}]}
+Every finding MUST include non-empty string values for code, severity, message,
+evidence, impact, and correction. filePath is a string or null. line and column
+are positive integers or null. evidence, impact, and correction MUST each be a
+single non-empty string, never an array or object. Do not add top-level fields
+besides findings. Use an empty findings array when no supported finding remains.`;
 }
 
 const FINDINGS_SCHEMA = {

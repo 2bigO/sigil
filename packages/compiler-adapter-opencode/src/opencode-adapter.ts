@@ -34,7 +34,7 @@ const RESTRICTIVE_CONFIG = {
   permission: {
     read: "allow",
     edit: "deny",
-    bash: "deny",
+    bash: "allow",
     webfetch: "deny",
     task: "deny",
     external_directory: "deny",
@@ -187,10 +187,15 @@ export function parseOpenCodeEvents(
   maxFinalResultChars: number,
   maxRetainedCommandOutputChars: number,
 ): AgentEvaluationResult {
-  const text: string[] = [];
+  const textByKey = new Map<string, string[]>();
+  const turnOrder: string[] = [];
+  const finishReasonByKey = new Map<string, string>();
+  const usageByKey = new Map<string, AgentUsage>();
+  const costByKey = new Map<string, number>();
+  let syntheticTurn = 0;
   const commands: AgentCommandTrace[] = [];
-  let usage: AgentUsage | undefined;
-  let costAmount: number | undefined;
+  let lastFinishReason: string | undefined;
+
   for (const [index, line] of raw.split(/\r?\n/).entries()) {
     if (!line.trim()) continue;
     if (line.length > maxFrameChars) {
@@ -212,8 +217,18 @@ export function parseOpenCodeEvents(
     }
     const part = objectValue(event.part) ?? event;
     const type = String(event.type ?? part.type ?? "");
+    const messageID = typeof part.messageID === "string"
+      ? part.messageID
+      : undefined;
+    const key = messageID ?? `turn:${syntheticTurn}`;
     if (type === "text" && typeof part.text === "string") {
-      text.push(part.text);
+      let bucket = textByKey.get(key);
+      if (!bucket) {
+        bucket = [];
+        textByKey.set(key, bucket);
+        turnOrder.push(key);
+      }
+      bucket.push(part.text);
     } else if (type === "tool" || type === "tool_use") {
       const state = objectValue(part.state);
       const input = objectValue(state?.input);
@@ -226,17 +241,22 @@ export function parseOpenCodeEvents(
         command: command.slice(0, maxRetainedCommandOutputChars),
         status: typeof state?.status === "string" ? state.status : undefined,
       });
+    } else if (type === "step_start" && !messageID) {
+      syntheticTurn++;
     } else if (type === "step_finish") {
+      const reason = typeof part.reason === "string" ? part.reason : undefined;
+      finishReasonByKey.set(key, reason ?? "");
+      lastFinishReason = reason;
       const tokens = objectValue(part.tokens);
-      const cache = objectValue(tokens?.cache);
       if (tokens) {
-        usage = {
+        usageByKey.set(key, {
           inputTokens: numberValue(tokens.input),
-          cachedInputTokens: numberValue(cache?.read),
+          cachedInputTokens: numberValue(objectValue(tokens.cache)?.read),
           outputTokens: numberValue(tokens.output),
-        };
+        });
       }
-      costAmount = numberValue(part.cost);
+      const cost = numberValue(part.cost);
+      if (cost !== undefined) costByKey.set(key, cost);
     } else if (type === "error") {
       throw new AdapterFailure(
         "execution",
@@ -246,11 +266,43 @@ export function parseOpenCodeEvents(
       );
     }
   }
-  const finalText = text.join("");
+
+  const stopKeys = [...finishReasonByKey.keys()]
+    .filter((name) => finishReasonByKey.get(name) === "stop");
+  let terminalKey: string | undefined;
+  if (stopKeys.length === 1) {
+    terminalKey = stopKeys[0];
+  } else if (stopKeys.length > 1) {
+    throw new AdapterFailure(
+      "final-result-protocol",
+      "OpenCode emitted multiple terminal assistant turns.",
+    );
+  } else {
+    const allKeys = new Set<string>([
+      ...textByKey.keys(),
+      ...finishReasonByKey.keys(),
+    ]);
+    if (allKeys.size === 1) {
+      terminalKey = [...allKeys][0];
+    } else {
+      throw new AdapterFailure(
+        "final-result-protocol",
+        `OpenCode ended before producing a terminal assistant turn (last finish reason: ${
+          lastFinishReason ?? "unknown"
+        }).`,
+      );
+    }
+  }
+
+  const finalText = (textByKey.get(terminalKey) ?? []).join("");
   if (!finalText) {
     throw new AdapterFailure(
       "final-result-protocol",
-      "OpenCode event stream did not contain assistant terminal text.",
+      `OpenCode event stream did not contain assistant terminal text (terminal turn reason: ${
+        finishReasonByKey.get(terminalKey) || "none"
+      }; ${commands.length} command trace${
+        commands.length === 1 ? "" : "s"
+      } observed).`,
     );
   }
   if (finalText.length > maxFinalResultChars) {
@@ -259,9 +311,10 @@ export function parseOpenCodeEvents(
       "OpenCode terminal result exceeds maxFinalResultChars.",
     );
   }
+  const extracted = extractResultObject(finalText);
   let findings;
   try {
-    findings = parseFindingsObject(finalText);
+    findings = parseFindingsObject(extracted);
   } catch (error) {
     throw new AdapterFailure(
       "final-result-protocol",
@@ -273,11 +326,22 @@ export function parseOpenCodeEvents(
   return {
     findings,
     commands,
-    usage,
-    usageAvailability: usage ? "final" : "unavailable",
-    cost: costAmount === undefined ? undefined : { amount: costAmount },
-    costAvailability: costAmount === undefined ? "unavailable" : "final",
+    usage: usageByKey.get(terminalKey),
+    usageAvailability: usageByKey.has(terminalKey) ? "final" : "unavailable",
+    cost: costByKey.has(terminalKey)
+      ? { amount: costByKey.get(terminalKey)! }
+      : undefined,
+    costAvailability: costByKey.has(terminalKey) ? "final" : "unavailable",
   };
+}
+
+function extractResultObject(text: string): string {
+  const trimmed = text.trim();
+  const whole = trimmed.match(/^```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n```\s*$/);
+  if (whole) return whole[1].trim();
+  const embedded = trimmed.match(/```[a-zA-Z0-9_-]*\s*\n([\s\S]*?)\n```/);
+  if (embedded) return embedded[1].trim();
+  return trimmed;
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
