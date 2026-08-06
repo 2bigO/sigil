@@ -54,6 +54,10 @@ Deno.test("initializes with the approved 0.7 capabilities and lifecycle", async 
       full: true,
     }),
   );
+  assertEquals(
+    JSON.stringify(capabilities.executeCommandProvider),
+    JSON.stringify({ commands: ["sigil.renderDocument"] }),
+  );
   assertEquals(server.state, "running");
 
   const shutdown = await server.handle(request(3, "shutdown"));
@@ -633,13 +637,13 @@ Deno.test("navigates and hovers contextual imported concepts", async () => {
   );
   assert(
     markdown.includes(
-      "**interface** — [Thing](file:///workspace/contract.sigil#L1,11) in `/workspace/contract.sigil`",
+      "**interface** — [Thing](file:///workspace/contract.sigil#L1,11) in `contract.sigil`",
     ),
   );
   assert(markdown.includes("run()"));
   assert(
     markdown.includes(
-      "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `/workspace/consumer.sigil`",
+      "**interface** — [Consumer](file:///workspace/consumer.sigil#L3,11) in `consumer.sigil`",
     ),
   );
   assert(markdown.includes("Re-expose "));
@@ -1035,11 +1039,72 @@ Deno.test("directory-index definitions navigate to the original declaration", as
       },
     )),
   ) as Record<string, unknown>;
+  const indexedHoverValue = String(
+    (hover.contents as Record<string, unknown>).value,
+  );
   assert(
-    String((hover.contents as Record<string, unknown>).value).includes(
+    indexedHoverValue.includes(
       "component [Thing](file:///workspace/module/contract.sigil#L1,11)",
     ),
   );
+  assert(indexedHoverValue.includes("Source: `module/contract.sigil`"));
+  assert(!indexedHoverValue.includes("Source: `/workspace"));
+});
+
+// @sigil tests packages/lsp/_module.sigil::SigilLsp::DocumentRendering interface,logic,constraints,cases,decisions
+Deno.test("renders a whole document to Markdown through executeCommand", async () => {
+  const server = makeServer();
+  await initialize(server);
+
+  const rendered = responseResult(
+    await server.handle(request(2, "workspace/executeCommand", {
+      command: "sigil.renderDocument",
+      arguments: [contractUri],
+    })),
+  ) as string;
+  assert(rendered.includes("### component"));
+  assert(rendered.includes("Thing"));
+  assert(rendered.includes("**Collected expansions**"));
+
+  // A file with no declared component renders to an empty result.
+  const empty = responseResult(
+    await server.handle(request(3, "workspace/executeCommand", {
+      command: "sigil.renderDocument",
+      arguments: [pathToFileUri(`${root}/absent.sigil`)],
+    })),
+  ) as string;
+  assertEquals(empty, "");
+
+  // An unknown command is an invalid-params error.
+  const unknown = await server.handle(
+    request(4, "workspace/executeCommand", { command: "sigil.unknown" }),
+  );
+  assertEquals(errorCode(unknown), -32602);
+});
+
+// @sigil tests packages/lsp/_module.sigil::SigilLsp::NavigationAndInspection interface,logic,constraints,cases
+Deno.test("renders component and collected-expansion source paths relative to the workspace root", async () => {
+  const server = makeServer();
+  await initialize(server);
+
+  const hover = responseResult(
+    await server.handle(request(
+      2,
+      "textDocument/hover",
+      {
+        textDocument: { uri: contractUri },
+        position: { line: 0, character: 12 },
+      },
+    )),
+  ) as Record<string, unknown>;
+  const value = String((hover.contents as Record<string, unknown>).value);
+
+  assert(value.includes("Source: `contract.sigil`"));
+  assert(value.includes("**Collected expansions**"));
+  // The collected-expansion path is displayed relative, not as `/workspace/...`.
+  assert(value.includes("\n`contract.sigil`"));
+  assert(!value.includes("Source: `/workspace"));
+  assert(!value.includes("`/workspace/contract.sigil`"));
 });
 
 // @sigil tests packages/lsp/_module.sigil::SigilLsp::ProtocolSession interface,state,logic,constraints,cases

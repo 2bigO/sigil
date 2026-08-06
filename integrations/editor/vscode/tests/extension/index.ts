@@ -227,14 +227,62 @@ console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type
     await rm(fakeCompilerDirectory, { recursive: true, force: true });
   }
 
-  await vscode.commands.executeCommand("sigil.showComponentPreview");
-  await eventually(() => {
-    const active = vscode.window.activeTextEditor;
-    return active?.document.uri.scheme === "sigil-preview" ? [active] : [];
+  // Success: previewing the whole Sigil file opens a Markdown preview webview
+  // beside the source editor, independent of cursor position.
+  await vscode.window.showTextDocument(document, {
+    viewColumn: vscode.ViewColumn.One,
+    preserveFocus: false,
   });
-  const preview = vscode.window.activeTextEditor?.document;
-  assert.equal(preview?.uri.scheme, "sigil-preview");
-  assert(preview.getText().includes("UserProfile"));
+  await vscode.commands.executeCommand("sigil.openPreview");
+  const previewTabs = await eventually(() =>
+    vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .filter((tab) => tab.input instanceof vscode.TabInputWebview)
+  );
+  assert(previewTabs.length > 0, "Expected a Markdown preview webview tab");
+
+  // Informational path: running preview on a non-Sigil editor shows a
+  // non-destructive message and opens no additional preview. The command awaits
+  // showInformationMessage, which does not resolve on its own in the headless
+  // host, so stub it to resolve immediately and capture the message.
+  const plain = await vscode.workspace.openTextDocument({
+    content: "not sigil",
+    language: "plaintext",
+  });
+  await vscode.window.showTextDocument(plain, {
+    viewColumn: vscode.ViewColumn.One,
+    preserveFocus: false,
+  });
+  const webviewCountBefore = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter((tab) => tab.input instanceof vscode.TabInputWebview).length;
+
+  const originalShowInfo = vscode.window.showInformationMessage;
+  let infoMessage: string | undefined;
+  // deno-lint-ignore no-explicit-any
+  (vscode.window as any).showInformationMessage = (message: string) => {
+    infoMessage = message;
+    return Promise.resolve(undefined);
+  };
+  try {
+    await vscode.commands.executeCommand("sigil.openPreview");
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (vscode.window as any).showInformationMessage = originalShowInfo;
+  }
+
+  assert(
+    infoMessage?.includes("Open a Sigil document"),
+    "A non-Sigil editor should surface the informational message",
+  );
+  const webviewCountAfter = vscode.window.tabGroups.all
+    .flatMap((group) => group.tabs)
+    .filter((tab) => tab.input instanceof vscode.TabInputWebview).length;
+  assert.equal(
+    webviewCountAfter,
+    webviewCountBefore,
+    "A non-Sigil editor should not open another preview",
+  );
 }
 
 async function eventually<T>(

@@ -74,6 +74,7 @@ export interface ParseRequest extends GlobalOptions {
 export interface CheckRequest extends GlobalOptions {
   readonly command: "check";
   readonly path?: string;
+  readonly showLocations: boolean;
 }
 export interface FmtRequest extends GlobalOptions {
   readonly command: "fmt";
@@ -208,6 +209,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   const exclude: string[] = [];
   let project = false;
   let agent: SkillAgent | "all" | undefined;
+  let showLocations = false;
   let profile: string | undefined;
   let focus: CompileRequest["focus"];
   let noCache = false;
@@ -247,6 +249,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         break;
       case "--quiet":
         quiet = true;
+        break;
+      case "--show-locations":
+        showLocations = true;
         break;
       case "--project":
         project = true;
@@ -403,6 +408,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       commandHelpTopic,
     );
   }
+  if (commandName !== "check" && showLocations) {
+    return usage(
+      `${commandName} does not accept --show-locations.`,
+      commandHelpTopic,
+    );
+  }
   if (
     commandName !== "compile" &&
     (profile || focus || noCache || output || format === "jsonl")
@@ -520,6 +531,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         path: positional[0],
         ...(commandName === "fmt" ? { check } : {}),
         ...base,
+        ...(commandName === "check" ? { showLocations } : {}),
       } as
         | CheckRequest
         | FmtRequest

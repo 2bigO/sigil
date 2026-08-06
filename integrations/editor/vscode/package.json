@@ -38,7 +38,7 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:sigil",
-    "onCommand:sigil.showComponentPreview",
+    "onCommand:sigil.openPreview",
     "onCommand:sigil.compileComponent",
     "onCommand:sigil.compileWorkspace",
     "onCommand:sigil.selectCompilationFocus"
@@ -79,9 +79,10 @@
     ],
     "commands": [
       {
-        "command": "sigil.showComponentPreview",
-        "title": "Sigil: Show Component Preview",
-        "category": "Sigil"
+        "command": "sigil.openPreview",
+        "title": "Sigil: Open Preview",
+        "category": "Sigil",
+        "icon": "$(open-preview)"
       },
       {
         "command": "sigil.compileComponent",
@@ -128,7 +129,7 @@
     "menus": {
       "commandPalette": [
         {
-          "command": "sigil.showComponentPreview",
+          "command": "sigil.openPreview",
           "when": "editorLangId == sigil"
         },
         {
@@ -141,6 +142,11 @@
       ],
       "editor/title": [
         {
+          "command": "sigil.openPreview",
+          "when": "editorLangId == sigil",
+          "group": "navigation"
+        },
+        {
           "command": "sigil.compileComponent",
           "when": "editorLangId == sigil",
           "group": "navigation"
@@ -151,7 +157,7 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "check": "tsc --noEmit",
-    "test:unit": "tsx --test tests/unit/**/*.test.ts",
+    "test:unit": "tsx --test tests/unit/compilation.test.ts tests/unit/contributions.test.ts",
     "test:extension": "npm run build && node scripts/run-extension-tests.mjs",
     "test": "npm run check && npm run test:unit",
     "package": "npm run build && node scripts/package-extension.mjs",

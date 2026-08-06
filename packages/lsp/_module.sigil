@@ -93,6 +93,11 @@ component SigilLsp {
       glossary occurrences
     }
 
+    DocumentRendering {
+      renders a resolved Sigil document to Markdown through a standard workspace
+      executeCommand
+    }
+
     WorkspaceSupport {
       operates on file-backed workspaces selected from workspaceFolders, rootUri, or
       the current directory
@@ -162,6 +167,9 @@ expand SigilLsp {
 
       Hover presents core contract and expansion projections without inventing
       semantics.
+
+      Hover renders component and collected-expansion source paths relative to the
+      resolved workspace root.
 
       Definition, hover, and semantic-token classification share one
       component-reference resolver.
@@ -247,6 +255,13 @@ expand SigilLsp {
 
       Semantic tokens classify resolved occurrences with the term token type.
     }
+
+    DocumentRendering {
+      Rendering projects every component declared in the requested file, with its
+      collected expansions, to Markdown by reusing the hover contract projection.
+
+      A file with no declared component renders to an empty result.
+    }
   }
 
   constraints {
@@ -281,6 +296,10 @@ expand SigilLsp {
 
       LiteralBlock types and bodies never become component, concept, glossary, or
       ownership navigation.
+
+      Human-facing hover source paths use normalized workspace-relative display
+      paths, while file access, diagnostics, definition targets, and protocol
+      locations keep absolute normalized paths and file URIs.
 
       Owned implementation hover links point to the originating artifact location and
       remain standard Markdown links.
@@ -336,6 +355,11 @@ expand SigilLsp {
       Combined hover does not change semantic-token overlap resolution.
     }
 
+    DocumentRendering {
+      Rendering uses a standard LSP workspace executeCommand and adds no bespoke
+      protocol method.
+    }
+
     SourceFormatting {
       The initial language-server change consumes SemanticUnit and LiteralBlock
       models without advertising a document-formatting capability.
@@ -376,6 +400,41 @@ expand SigilLsp {
 
       Revisit when: Large-document evidence requires incremental synchronization or a
       supported non-stdio host becomes necessary.
+    }
+
+    HoverSourcePathPresentation {
+      Decision: Render component and collected-expansion source paths in hover
+      Markdown relative to the resolved Sigil workspace root, while keeping absolute
+      normalized paths and file URIs for file access, diagnostics, definition, and
+      protocol locations.
+
+      Scope: Governs human-facing hover and the reused VS Code component preview;
+      excludes stored core paths, graph and JSON output, diagnostic URIs, and
+      definition targets.
+
+      Design issues addressed: Absolute paths are machine-specific and can leak local
+      directory or user names in screenshots and copied hover content.
+
+      Consequences: Hover and the VS Code preview show workspace-relative POSIX
+      paths; navigation and file access are unchanged.
+    }
+
+    DocumentRendering {
+      Decision: Expose whole-document Markdown rendering through a standard workspace
+      executeCommand that reuses the hover contract projection, rather than a bespoke
+      request or a duplicate renderer.
+
+      Scope: Governs how editors obtain a rendered Sigil document; excludes hover,
+      navigation, and diagnostics.
+
+      Design issues addressed: Editors need a whole-file rendered view without
+      depending on the CLI or duplicating core semantics.
+
+      Consequences: The server advertises an executeCommand capability; rendered
+      output stays consistent with the hover contract projection.
+
+      Revisit when: A richer rendered representation than the hover projection
+      becomes necessary.
     }
 
     NavigationAndInspection {
@@ -461,6 +520,18 @@ expand SigilLsp {
 
       Hover exposes the public contract and every collected expansion source.
 
+      Hovering a component displays its source and every collected-expansion path
+      relative to the resolved workspace root, so a root file appears as
+      _module.sigil and a nested file as spec/language.sigil.
+
+      A workspace-member component displays paths relative to its containing
+      workspace root, including the member directory.
+
+      Displayed hover source paths use forward slashes on Windows, macOS, and Linux.
+
+      The VS Code component preview displays the same workspace-relative source paths
+      because it reuses the standard hover response.
+
       Unmatched capitalized prose remains ordinary text.
 
       Component-contract and collected-expansion hovers link displayed component and
@@ -541,6 +612,11 @@ expand SigilLsp {
 
       Go to Definition on that concept opens the originating concept declaration
       rather than GlossaryFile.
+    }
+
+    DocumentRendering {
+      Requesting a render for a file returns Markdown for every component declared in
+      that file.
     }
 
     WorkspaceSupport {

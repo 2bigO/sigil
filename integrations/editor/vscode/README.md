@@ -8,7 +8,10 @@ Version 0.7 responsibilities:
   concept, and reviewed glossary-term highlighting through LSP semantic tokens;
 - bundle and connect to `sigil-lsp` for diagnostics, symbols, navigation, hover,
   and semantic highlighting;
-- expose `Sigil: Show Component Preview` using the standard LSP hover response;
+- expose `Sigil: Open Preview`, which renders the whole active `.sigil` file to
+  Markdown and opens it in VS Code's built-in Markdown preview, available from
+  the Command Palette and from a preview button in the editor title toolbar of
+  `.sigil` editors (Markdown-style *Open Preview to the Side*);
 - expose explicit component and workspace compilation through an external
   compatible `sigil` executable;
 - provide editor-native affordances without duplicating `sigil-core` behavior.
@@ -25,6 +28,17 @@ workspace folder; workspace compilation prompts for a folder when no active
 document disambiguates it. The JSONL bridge validates protocol version, run
 identity, sequence, payloads, reports, and the single terminal event before
 projecting diagnostics.
+
+## Document preview
+
+Open a `.sigil` file and either run **Sigil: Open Preview** from the Command
+Palette or click the preview icon (`$(open-preview)`) in the editor title
+toolbar. The whole file is rendered to Markdown by the language server (every
+component declared in the file, with its collected expansions) and shown in the
+built-in Markdown preview beside the source editor. The preview is not
+cursor-dependent — it always renders the entire file. The toolbar button appears
+only for Sigil editors; if the language server is unavailable or the file has no
+components, an informational message is shown and no preview opens.
 
 This integration should become the first concrete human UI for Sigil.
 

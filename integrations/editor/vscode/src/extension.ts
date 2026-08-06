@@ -6,7 +6,6 @@ import {
   type ServerOptions,
   TransportKind,
 } from "vscode-languageclient/node";
-import { type HoverLike, hoverToMarkdown } from "./preview.ts";
 import {
   type CompilationEvent,
   type CompilationProcess,
@@ -15,7 +14,8 @@ import {
   runCompilationProcess,
 } from "./compilation.ts";
 
-const PREVIEW_COMMAND = "sigil.showComponentPreview";
+const PREVIEW_COMMAND = "sigil.openPreview";
+const RENDER_DOCUMENT_COMMAND = "sigil.renderDocument";
 const PREVIEW_SCHEME = "sigil-preview";
 const COMPILE_COMPONENT_COMMAND = "sigil.compileComponent";
 const COMPILE_WORKSPACE_COMMAND = "sigil.compileWorkspace";
@@ -30,16 +30,24 @@ const workspaceRevisions = new Map<string, number>();
 // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   readonly #contents = new Map<string, string>();
-  #sequence = 0;
+  readonly #emitter = new vscode.EventEmitter<vscode.Uri>();
+  readonly onDidChange = this.#emitter.event;
 
-  create(content: string): vscode.Uri {
-    const uri = vscode.Uri.from({
+  // One stable preview URI per source document so re-running the command
+  // refreshes the same preview rather than opening a new tab. The `.md` path
+  // makes VS Code treat the virtual document as Markdown.
+  previewUri(source: vscode.Uri): vscode.Uri {
+    const name = source.path.split("/").pop() ?? "preview";
+    return vscode.Uri.from({
       scheme: PREVIEW_SCHEME,
-      path: "/Component Preview.md",
-      query: String(++this.#sequence),
+      path: `/${name}.md`,
+      query: source.toString(),
     });
+  }
+
+  set(uri: vscode.Uri, content: string): void {
     this.#contents.set(uri.toString(), content);
-    return uri;
+    this.#emitter.fire(uri);
   }
 
   provideTextDocumentContent(uri: vscode.Uri): string {
@@ -84,7 +92,7 @@ export async function activate(
       previews,
     ),
     vscode.commands.registerCommand(PREVIEW_COMMAND, async () => {
-      await showComponentPreview(previews);
+      await openPreview(previews);
     }),
     vscode.commands.registerCommand(
       COMPILE_COMPONENT_COMMAND,
@@ -489,13 +497,12 @@ function projectCompilationReport(
   }: ${activeFindingCount} active findings`;
 }
 
-async function showComponentPreview(
-  previews: PreviewContentProvider,
-): Promise<void> {
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::DocumentPreview interface,state,logic,constraints,cases
+async function openPreview(previews: PreviewContentProvider): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== "sigil") {
     await vscode.window.showInformationMessage(
-      "Open a Sigil document and place the cursor on a component to preview it.",
+      "Open a Sigil document to preview it.",
     );
     return;
   }
@@ -505,29 +512,24 @@ async function showComponentPreview(
     );
     return;
   }
-  const hover = await client.sendRequest<HoverLike | null>(
-    "textDocument/hover",
+  const markdown = await client.sendRequest<string>(
+    "workspace/executeCommand",
     {
-      textDocument: { uri: editor.document.uri.toString() },
-      position: {
-        line: editor.selection.active.line,
-        character: editor.selection.active.character,
-      },
+      command: RENDER_DOCUMENT_COMMAND,
+      arguments: [editor.document.uri.toString()],
     },
   );
-  const markdown = hoverToMarkdown(hover);
-  if (!markdown) {
+  if (!markdown?.trim()) {
     await vscode.window.showInformationMessage(
-      "No Sigil component is available at the active cursor.",
+      "No Sigil components are available to preview in this file.",
     );
     return;
   }
-  const document = await vscode.workspace.openTextDocument(
-    previews.create(markdown),
+  const previewUri = previews.previewUri(editor.document.uri);
+  previews.set(previewUri, markdown);
+  await vscode.workspace.openTextDocument(previewUri);
+  await vscode.commands.executeCommand(
+    "markdown.showPreviewToSide",
+    previewUri,
   );
-  await vscode.window.showTextDocument(document, {
-    preview: true,
-    preserveFocus: false,
-    viewColumn: vscode.ViewColumn.Beside,
-  });
 }

@@ -808,7 +808,7 @@ async function componentMarkdown(
   const lines = [
     `### component ${componentLink}`,
     "",
-    `Source: \`${component.filePath}\``,
+    `Source: \`${markdown.displayPath(component.filePath)}\``,
     "",
     "**Goal**",
     ...markdownList(await markdown.semanticUnits(goal?.units ?? [])),
@@ -819,7 +819,7 @@ async function componentMarkdown(
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
-      lines.push("", `\`${expansion.filePath}\``);
+      lines.push("", `\`${markdown.displayPath(expansion.filePath)}\``);
       for (const section of expansion.declaration.sections) {
         const semanticUnits = await markdown.semanticUnits(section.units);
         lines.push(
@@ -835,6 +835,26 @@ async function componentMarkdown(
     lines.push("", ...ownedImplementationLines);
   }
   return lines.join("\n");
+}
+
+export async function renderDocumentMarkdown(
+  resolved: ResolvedSigilWorkspace,
+  fs: SigilFileSystem,
+  ownership: OwnershipHoverCache,
+  filePath: string,
+): Promise<string> {
+  const normalized = normalizePath(filePath);
+  const renderer = new HoverMarkdownRenderer(resolved, fs, ownership);
+  const components = resolved.components
+    .filter((component) => normalizePath(component.filePath) === normalized)
+    .sort((left, right) =>
+      left.declaration.range.start.line - right.declaration.range.start.line
+    );
+  const sections: string[] = [];
+  for (const component of components) {
+    sections.push(await componentMarkdown(component, true, renderer));
+  }
+  return sections.join("\n\n---\n\n");
 }
 
 async function conceptDefinition(
@@ -883,7 +903,7 @@ async function conceptMarkdown(
   const lines = [
     `### concept ${conceptLink}`,
     "",
-    `Origin: ${originLink} in \`${identity.filePath}\``,
+    `Origin: ${originLink} in \`${markdown.displayPath(identity.filePath)}\``,
   ];
   for (const occurrence of reference.concept.occurrences) {
     const semanticUnits = await markdown.semanticUnits(occurrence.block.units);
@@ -896,7 +916,9 @@ async function conceptMarkdown(
       : `\`${occurrence.componentName}\``;
     lines.push(
       "",
-      `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${occurrence.filePath}\``,
+      `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${
+        markdown.displayPath(occurrence.filePath)
+      }\``,
       ...markdownList(semanticUnits),
     );
   }
@@ -926,6 +948,10 @@ class HoverMarkdownRenderer {
     this.#resolved = resolved;
     this.#fs = fs;
     this.#ownership = ownership;
+  }
+
+  displayPath(filePath: string): string {
+    return relativePath(this.#resolved.workspace.root, filePath);
   }
 
   component(
