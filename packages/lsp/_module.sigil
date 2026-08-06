@@ -163,6 +163,9 @@ expand SigilLsp {
       Hover presents core contract and expansion projections without inventing
       semantics.
 
+      Hover renders component and collected-expansion source paths relative to the
+      resolved workspace root.
+
       Definition, hover, and semantic-token classification share one
       component-reference resolver.
 
@@ -282,6 +285,10 @@ expand SigilLsp {
       LiteralBlock types and bodies never become component, concept, glossary, or
       ownership navigation.
 
+      Human-facing hover source paths use normalized workspace-relative display
+      paths, while file access, diagnostics, definition targets, and protocol
+      locations keep absolute normalized paths and file URIs.
+
       Owned implementation hover links point to the originating artifact location and
       remain standard Markdown links.
     }
@@ -378,6 +385,23 @@ expand SigilLsp {
       supported non-stdio host becomes necessary.
     }
 
+    HoverSourcePathPresentation {
+      Decision: Render component and collected-expansion source paths in hover
+      Markdown relative to the resolved Sigil workspace root, while keeping absolute
+      normalized paths and file URIs for file access, diagnostics, definition, and
+      protocol locations.
+
+      Scope: Governs human-facing hover and the reused VS Code component preview;
+      excludes stored core paths, graph and JSON output, diagnostic URIs, and
+      definition targets.
+
+      Design issues addressed: Absolute paths are machine-specific and can leak local
+      directory or user names in screenshots and copied hover content.
+
+      Consequences: Hover and the VS Code preview show workspace-relative POSIX
+      paths; navigation and file access are unchanged.
+    }
+
     NavigationAndInspection {
       Decision: Surface implementation-comment-linked targets in component hover and
       section-filtered targets in concept-occurrence hover as clickable Markdown
@@ -460,6 +484,18 @@ expand SigilLsp {
       Definition on an expand opens its matching component.
 
       Hover exposes the public contract and every collected expansion source.
+
+      Hovering a component displays its source and every collected-expansion path
+      relative to the resolved workspace root, so a root file appears as
+      _module.sigil and a nested file as spec/language.sigil.
+
+      A workspace-member component displays paths relative to its containing
+      workspace root, including the member directory.
+
+      Displayed hover source paths use forward slashes on Windows, macOS, and Linux.
+
+      The VS Code component preview displays the same workspace-relative source paths
+      because it reuses the standard hover response.
 
       Unmatched capitalized prose remains ordinary text.
 
