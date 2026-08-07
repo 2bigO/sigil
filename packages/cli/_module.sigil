@@ -2,6 +2,7 @@
 @packages/core import { SigilCore, SigilContextRetrieval }
 @packages/compiler import { SigilCompiler, SigilCompilationSessionFactory }
 @packages/compiler-adapter-opencode import { SigilOpenCodeCompilerAdapter }
+@packages/compiler-adapter-pi import { SigilPiCompilerAdapter }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 
 component SigilCli {
@@ -350,8 +351,9 @@ expand SigilCli {
 
     CompilationFacade {
       compile resolves CLI operands and options, registers the bundled
-      SigilOpenCodeCompilerAdapter with SigilCompiler, delegates evaluation, and
-      projects compiler events and the final report without reinterpreting findings.
+      SigilOpenCodeCompilerAdapter and SigilPiCompilerAdapter with SigilCompiler,
+      delegates evaluation, and projects compiler events and the final report without
+      reinterpreting findings.
 
       --file with --position selects the component or expand enclosing that one-based
       source position.
@@ -520,8 +522,9 @@ expand SigilCli {
 
       compile does not modify selected workspace content.
 
-      The CLI distribution bundles and registers SigilOpenCodeCompilerAdapter while
-      the adapter remains an independently versioned package.
+      The CLI distribution bundles and registers SigilOpenCodeCompilerAdapter and
+      SigilPiCompilerAdapter while each adapter remains an independently versioned
+      package.
 
       --output delegates CompilationReportExport to SigilCompiler, requires a
       destination outside the selected workspace, and does not emit or return a
@@ -801,6 +804,21 @@ expand SigilCli {
 
       Consequences: CLI runs resolve builtin.opencode-cli by exact version, while
       direct compiler consumers register adapters explicitly.
+    }
+
+    BundledPiCompilerAdapter {
+      Decision: Bundle and register the separately packaged Pi compiler adapter in
+      the Sigil CLI distribution.
+
+      Scope: Governs CLI-hosted compiler runs and release assembly; excludes direct
+      compiler consumers and third-party adapter registration.
+
+      Trade-offs: The CLI release coordinates one additional package version while
+      the compiler avoids a provider-specific dependency cycle.
+
+      Consequences: CLI runs resolve builtin.pi-cli by exact version, while direct
+      compiler consumers register adapters explicitly. The compiler does not own a
+      colliding Pi stub registration for the same identity.
     }
 
     StageOperandDisambiguation {

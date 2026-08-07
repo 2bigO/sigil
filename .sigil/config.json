@@ -6,6 +6,7 @@
       "packages/cli",
       "packages/compiler",
       "packages/compiler-adapter-opencode",
+      "packages/compiler-adapter-pi",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",
@@ -41,8 +42,8 @@
         "sessionTtlMs": 86400000
       },
       "adapter": {
-        "provider": "opencode",
-        "implementationId": "builtin.opencode-cli",
+        "provider": "pi",
+        "implementationId": "builtin.pi-cli",
         "implementationVersion": "0.7.1"
       }
     }

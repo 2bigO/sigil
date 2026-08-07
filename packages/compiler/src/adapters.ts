@@ -222,7 +222,7 @@ class UnavailableCliAdapter implements AgentAdapter {
   } as const;
 
   constructor(
-    readonly provider: "claude" | "opencode" | "pi",
+    readonly provider: "claude" | "opencode",
     readonly implementationId: string,
     readonly model?: string,
     readonly id: string = provider,
@@ -241,12 +241,6 @@ class UnavailableCliAdapter implements AgentAdapter {
 export class ClaudeAdapter extends UnavailableCliAdapter {
   constructor(model?: string, id = "claude") {
     super("claude", "builtin.claude-cli", model, id);
-  }
-}
-
-export class PiAdapter extends UnavailableCliAdapter {
-  constructor(model?: string, id = "pi") {
-    super("pi", "builtin.pi-cli", model, id);
   }
 }
 

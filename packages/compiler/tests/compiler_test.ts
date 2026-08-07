@@ -12,7 +12,6 @@ import {
   loadEvaluationSkills,
   MockAdapter,
   openCompilationEventWriter,
-  PiAdapter,
   resolveAdapterRegistration,
   SigilCompilationSession,
   SigilCompilationSessionFactory,
@@ -124,8 +123,7 @@ Deno.test("provider identities and exact adapter registrations are closed", () =
   assertEquals([
     new CodexAdapter().provider,
     new ClaudeAdapter().provider,
-    new PiAdapter().provider,
-  ], ["codex", "claude", "pi"]);
+  ], ["codex", "claude"]);
   const adapter = new MockAdapter([], "first");
   assertEquals(
     resolveAdapterRegistration([adapter], {
