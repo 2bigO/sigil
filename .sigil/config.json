@@ -41,8 +41,8 @@
         "sessionTtlMs": 86400000
       },
       "adapter": {
-        "provider": "codex",
-        "implementationId": "builtin.codex-cli",
+        "provider": "opencode",
+        "implementationId": "builtin.opencode-cli",
         "implementationVersion": "0.7.1"
       }
     }

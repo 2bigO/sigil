@@ -96,7 +96,7 @@ export async function activate(
     }),
     vscode.commands.registerCommand(
       COMPILE_COMPONENT_COMMAND,
-      async (requestedFocus?: CompilationFocus) => {
+      async (requestedFocus?: unknown) => {
         const editor = vscode.window.activeTextEditor;
         if (!editor || editor.document.languageId !== "sigil") {
           await vscode.window.showInformationMessage(
@@ -104,7 +104,8 @@ export async function activate(
           );
           return;
         }
-        const focus = requestedFocus ?? await resolveCompilationFocus();
+        const focus = asCompilationFocus(requestedFocus) ??
+          await resolveCompilationFocus();
         if (!focus) return;
         const position = editor.selection.active;
         await compileFromEditor(
@@ -112,12 +113,8 @@ export async function activate(
           output,
           compilationDiagnostics,
           compilationStatus,
-          [
-            "--file",
-            editor.document.uri.fsPath,
-            "--position",
-            `${position.line + 1}:${position.character + 1}`,
-          ],
+          editor.document.uri,
+          position,
           focus,
           editor.document.uri,
         );
@@ -125,15 +122,17 @@ export async function activate(
     ),
     vscode.commands.registerCommand(
       COMPILE_WORKSPACE_COMMAND,
-      async (requestedFocus?: CompilationFocus) => {
-        const focus = requestedFocus ?? await resolveCompilationFocus();
+      async (requestedFocus?: unknown) => {
+        const focus = asCompilationFocus(requestedFocus) ??
+          await resolveCompilationFocus();
         if (!focus) return;
         await compileFromEditor(
           context,
           output,
           compilationDiagnostics,
           compilationStatus,
-          [],
+          undefined,
+          undefined,
           focus,
           vscode.window.activeTextEditor?.document.uri,
         );
@@ -256,11 +255,12 @@ async function compileFromEditor(
   output: vscode.LogOutputChannel,
   diagnostics: vscode.DiagnosticCollection,
   status: vscode.StatusBarItem,
-  targetArgs: readonly string[],
+  documentUri: vscode.Uri | undefined,
+  position: vscode.Position | undefined,
   focus: CompilationFocus,
   preferredUri?: vscode.Uri,
 ): Promise<void> {
-  const folder = await selectCompilationFolder(preferredUri);
+  const folder = await selectCompilationFolder(documentUri ?? preferredUri);
   if (!folder) {
     await vscode.window.showInformationMessage(
       "Sigil compilation requires a file-backed workspace.",
@@ -288,6 +288,15 @@ async function compileFromEditor(
   const label = compilationFocusLabel(focus);
   status.text = `$(sync~spin) Sigil ${label}…`;
   status.tooltip = `Focus: ${label}\nProfile: ${profile}`;
+  const targetArgs: string[] = [];
+  if (documentUri && position) {
+    targetArgs.push(
+      "--file",
+      workspaceRelativeSigilPath(folder.uri, documentUri),
+      "--position",
+      `${position.line + 1}:${position.character + 1}`,
+    );
+  }
   const process = runCompilationProcess(
     executable,
     [
@@ -340,6 +349,19 @@ async function compileFromEditor(
     if (activeCompilation === process) activeCompilation = undefined;
   }
   void context;
+}
+
+function workspaceRelativeSigilPath(
+  folder: vscode.Uri,
+  documentUri: vscode.Uri,
+): string {
+  return path
+    .relative(folder.fsPath, documentUri.fsPath)
+    .replaceAll("\\", "/");
+}
+
+function asCompilationFocus(value: unknown): CompilationFocus | undefined {
+  return value === "design" || value === "implementation" ? value : undefined;
 }
 
 // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,constraints,cases
@@ -426,6 +448,17 @@ function showCompilationEvent(
 ): void {
   if (event.type === "stage-started") {
     output.info(`Running ${String(event.payload.stage)}...`);
+  } else if (event.type === "stage-completed") {
+    const report = event.payload.report as
+      | { id?: string; state?: string; diagnosticCount?: number }
+      | undefined;
+    if (report?.id) {
+      output.info(
+        `Completed ${report.id} (${report.state ?? "unknown"}, ${
+          report.diagnosticCount ?? 0
+        } findings).`,
+      );
+    }
   } else if (event.type === "diagnostic") {
     const diagnostic = event.payload.diagnostic as
       | { severity?: string; code?: string; message?: string }
