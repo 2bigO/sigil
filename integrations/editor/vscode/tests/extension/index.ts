@@ -167,7 +167,7 @@ console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type
         "compile",
         folder.uri.fsPath,
         "--file",
-        source.fsPath,
+        path.relative(folder.uri.fsPath, source.fsPath).replaceAll("\\", "/"),
         "--position",
         `${position.line + 1}:${position.character + 1}`,
         "--profile",

@@ -107,9 +107,18 @@ process.exitCode = 3;
 
 // @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
 test("rejects invalid compiler stage lifecycle transitions", async () => {
+  const stageReport = {
+    id: "semantic-readiness",
+    required: true,
+    state: "completed",
+    evaluator: "deterministic",
+    diagnosticCount: 0,
+  };
   const script = `
 console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:1,type:"started",payload:{}}));
-console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage-completed",payload:{stage:{id:"semantic-readiness"}}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage-completed",payload:{report:${
+    JSON.stringify(stageReport)
+  }}}));
 `;
   const compilation = runCompilationProcess(
     process.execPath,
@@ -121,6 +130,87 @@ console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage
   await assert.rejects(
     compilation.result,
     /completed without its matching start event/,
+  );
+});
+
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,constraints,cases
+test("accepts stage-completed StageReport payloads", async () => {
+  const stageReport = {
+    id: "semantic-readiness",
+    required: true,
+    state: "completed",
+    evaluator: "deterministic",
+    diagnosticCount: 0,
+  };
+  const report = {
+    reportVersion: 2,
+    status: "green",
+    componentNames: ["One"],
+    diagnostics: [],
+    stages: [stageReport],
+  };
+  const script = `
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:1,type:"started",payload:{operation:"one-shot-compilation"}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage-started",payload:{stage:"semantic-readiness"}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:3,type:"stage-completed",payload:{report:${
+    JSON.stringify(stageReport)
+  }}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:4,type:"completed",payload:{report:${
+    JSON.stringify(report)
+  }}}));
+`;
+  const events: string[] = [];
+  const compilation = runCompilationProcess(
+    process.execPath,
+    ["-e", script, "--"],
+    process.cwd(),
+    (event) => events.push(event.type),
+    () => {},
+  );
+  assert.equal((await compilation.result).status, "green");
+  assert.deepEqual(events, [
+    "started",
+    "stage-started",
+    "stage-completed",
+    "completed",
+  ]);
+});
+
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
+test("allows a terminal while a stage remains open", async () => {
+  const report = {
+    reportVersion: 2,
+    status: "green",
+    componentNames: ["One"],
+    diagnostics: [],
+  };
+  const script = `
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:1,type:"started",payload:{}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:2,type:"stage-started",payload:{stage:"semantic-readiness"}}));
+console.log(JSON.stringify({protocolVersion:1,runId:"run",sequence:3,type:"completed",payload:{report:${
+    JSON.stringify(report)
+  }}}));
+`;
+  const compilation = runCompilationProcess(
+    process.execPath,
+    ["-e", script, "--"],
+    process.cwd(),
+    () => {},
+    () => {},
+  );
+  assert.equal((await compilation.result).status, "green");
+});
+
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
+test("rejects legacy stage-completed payloads without StageReport", () => {
+  assert.throws(() =>
+    parseCompilationEvent(JSON.stringify({
+      protocolVersion: 1,
+      runId: "run",
+      sequence: 2,
+      type: "stage-completed",
+      payload: { stage: { id: "semantic-readiness" } },
+    }))
   );
 });
 
