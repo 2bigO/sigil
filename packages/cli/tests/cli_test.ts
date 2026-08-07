@@ -69,6 +69,52 @@ Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
   }
 });
 
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("CLI bundle registers the standalone Pi adapter", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-pi-bundle-" });
+  try {
+    await Deno.mkdir(`${root}/.sigil`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: "0.7.0",
+        workspace: { name: "pi-bundle", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {
+          compile: {
+            adapter: {
+              provider: "pi",
+              implementationId: "builtin.pi-cli",
+              implementationVersion: "0.7.1",
+            },
+          },
+        },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/main.sigil`,
+      `component Example {
+  goal {
+    Explain the example.
+  }
+}
+`,
+    );
+    const report = await compileWithBundledAdapters(
+      root,
+      { kind: "workspace" },
+      { requestedStage: "deterministic-foundation", disableHistory: true },
+    );
+    assertEquals(report.profile.evaluators[0].provider, "pi");
+    assertEquals(
+      report.profile.evaluators[0].implementationId,
+      "builtin.pi-cli",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints

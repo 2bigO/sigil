@@ -12,7 +12,6 @@ import metadata from "../deno.json" with { type: "json" };
 import {
   ClaudeAdapter,
   CodexAdapter,
-  PiAdapter,
   resolveAdapterRegistration,
 } from "./adapters.ts";
 import {
@@ -925,8 +924,6 @@ function compilerOwnedAdapters(
       ? new CodexAdapter(configuration.model)
       : configuration.provider === "claude"
       ? new ClaudeAdapter(configuration.model)
-      : configuration.provider === "pi"
-      ? new PiAdapter(configuration.model)
       : undefined;
     if (adapter) {
       registrations.set(

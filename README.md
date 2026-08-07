@@ -197,7 +197,8 @@ ordinary high-level project summary for this configured boundary.
 - `examples/` contains independently configured Sigil projects used as
   design-pressure fixtures.
 - `packages/` contains the implemented `sigil-core`, `sigil-compiler`,
-  standalone OpenCode compiler adapter, `sigil-cli`, and initial `sigil-lsp`.
+  standalone OpenCode and Pi compiler adapters, `sigil-cli`, and initial
+  `sigil-lsp`.
 - `integrations/` contains host adapters such as coding-agent skills, the
   initial VS Code extension, and future editor integrations.
 
