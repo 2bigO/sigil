@@ -95,8 +95,7 @@ component SigilSemanticModel {
       evidence
 
       ImportUse records component-reference, public-concept-reference,
-      structural-expand, or module-index-surface evidence with source ownership and
-      range
+      structural-expand evidence with source ownership and range
 
       ResolvedConcept preserves its originating identity, visibility, import status,
       and contextual occurrences

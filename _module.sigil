@@ -49,6 +49,9 @@ component Sigil {
       provides non-interactive command-line automation, editor-neutral language
       intelligence, and a VS Code authoring surface
 
+      SigilCli, SigilLsp, and SigilVsCodeExtension remain available through their
+      imported owning contracts
+
       keeps command-line and language-server operations from modifying .sigil source
     }
 
@@ -70,6 +73,7 @@ component Sigil {
       distinguishes compilation status from human design approval and implementation
       authorization
     }
+
   }
 }
 

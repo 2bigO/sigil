@@ -58,6 +58,8 @@ component SigilVsCodeExtension {
     CompilationSurface {
       contributes the Sigil: Compile Component and Sigil: Compile Workspace commands
 
+      SigilCli remains available through its imported owning contract
+
       provides a clickable Sigil Compilation status item for selecting design
       readiness or implementation alignment
 
@@ -69,6 +71,7 @@ component SigilVsCodeExtension {
 
       groups findings by component, stage, severity, and lifecycle
     }
+
   }
 }
 

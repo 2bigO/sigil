@@ -135,7 +135,7 @@ provide import, concept, glossary, or ownership evidence.
 
 Every resolved imported name needs a qualifying exact-case use in `interface`,
 `state`, `logic`, `constraints`, or `cases`, or a structural use through a
-matching local `expand` or `_module.sigil` surface. `goal`, `decisions`, and
+matching local `expand`. `goal`, `decisions`, and
 literal blocks are documentary for import-use purposes.
 
 Use `sigil fmt <selected-path> --check` after approved edits. Apply `sigil fmt`

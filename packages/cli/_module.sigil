@@ -187,6 +187,7 @@ component SigilCli {
 
       sigil compile session close session-id releases the proposal workspace
     }
+
   }
 }
 

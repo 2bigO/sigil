@@ -32,6 +32,9 @@ SkillPackage {
       SigilSkillCompatibility owns compatibility schema, range evaluation, and
       failure behavior before workspace interpretation
 
+      SigilLanguage and SigilCli remain available through their imported owning
+      contracts
+
       references are loaded progressively when their procedures apply
 
       host installation locations and adapters do not alter workflow semantics
@@ -42,9 +45,15 @@ SkillPackage {
       compilation, standards, authoring, glossary, implementation, review-gate,
       design-conversation, and external-evidence components
 
+      SigilWorkspaceBootstrap, SigilDesignCompilationReview, SigilStandardsReview,
+      SigilAuthoringWorkflow, SigilGlossaryWorkflow, SigilImplementationWorkflow,
+      SigilDesignConversation, and ExternalGuidanceEvidence remain available through
+      their imported owning contracts
+
       directory imports expose those cohesive workflow components without making the
       module index own their operational policy or mutable lifecycle
     }
+
   }
 }
 

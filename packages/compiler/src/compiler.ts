@@ -1153,7 +1153,8 @@ async function stageFailure(
     message: error instanceof Error ? error.message : String(error),
     semanticSubjects: [],
     evidence: "The required evaluator did not complete successfully.",
-    impact: "This run cannot become green.",
+    impact:
+      "This stage did not complete; a required stage prevents green, while an optional stage remains visible without changing required-stage status.",
     correction:
       "Configure an available read-only adapter or disable the stage in a project profile.",
     evaluator: adapter?.id ?? "unavailable",

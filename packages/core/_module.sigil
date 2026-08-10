@@ -47,6 +47,9 @@ component SigilCore {
       resolveSigilWorkspace(workspace) returns resolved imports with use evidence,
       components, collective expansions, concept namespaces, graph relationships, and
       diagnostics
+
+      SigilLanguage and SigilWorkspaceConfig remain available through their imported
+      owning contracts
     }
 
     SemanticProjections {
@@ -63,6 +66,8 @@ component SigilCore {
 
       agentDependentContextFor(resolvedWorkspace, componentName) returns direct
       importing-file context derived from imported-component graph edges
+
+      SigilContextRetrieval remains available through its imported owning contract
 
       ownedImplementationTargetsFor(resolvedWorkspace, implementationSources,
       componentIdentity, conceptName?, sectionName?) returns implementation targets
@@ -97,6 +102,23 @@ component SigilCore {
       propagates required host filesystem failures instead of translating them into
       Sigil diagnostics
     }
+
+    SigilLanguage defines the versioned syntax and semantic rules interpreted by
+    core.
+
+    SigilWorkspaceConfig defines the configuration contract used to select the
+    workspace boundary and source set.
+
+    SigilGlossaryEngine resolves reviewed vocabulary and scoped glossary
+    occurrences.
+
+    SigilFormatter provides deterministic canonical formatting for Sigil sources.
+
+    SigilImplementationOwnership resolves implementation annotations and ownership
+    projections for governed source artifacts.
+
+    SigilContextRetrieval assembles bounded deterministic context for semantic,
+    architecture, and implementation consumers.
   }
 }
 

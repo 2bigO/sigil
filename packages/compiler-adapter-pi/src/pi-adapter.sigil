@@ -1,4 +1,4 @@
-@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentCapabilityContract, SigilAgentEvaluationRequest }
+@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentEvaluationRequest }
 
 component SigilPiCompilerAdapter {
   goal {
@@ -12,14 +12,8 @@ component SigilPiCompilerAdapter {
       pi with implementation identity builtin.pi-cli and the exact adapter package
       version
 
-      SigilAgentCapabilityContract declares read-only workspace access, no agent-tool
-      network, no approval escalation, and ephemeral state
-
-      observability declares progress none, usage final, cost final, and
-      post-settlement-only token and cost budget enforcement
-
-      execution and cleanup failures use transport-neutral AdapterFailure kinds and
-      preserve caller-visible recovery evidence
+      provider-specific capability and observability declarations are supplied to the
+      imported AgentAdapter contract
     }
   }
 }
@@ -49,12 +43,9 @@ expand SigilPiCompilerAdapter {
 
   constraints {
     PiExecutionBoundary {
-      Enable bash so the evaluator can run the compiler inspection command policy
-      families (sigil version, parse, check, fmt --check, glossary, graph, context,
-      render, rg, sed, and git status/diff/show/log/grep/ls-files). Deny edit and
-      write tools. Do not load Pi skills, AGENTS.md or CLAUDE.md context files, or
-      extensions for evaluation; compiler focus skills arrive only through
-      evaluationPrompt.
+      Enable bash for the read-only evaluation policy. Deny edit and write tools. Do
+      not load Pi skills, AGENTS.md or CLAUDE.md context files, or extensions for
+      evaluation; compiler focus skills arrive only through evaluationPrompt.
 
       Use --no-session and never continue, resume, fork, or reuse a prior Pi session.
       Declare ephemeral state and never claim persistent execution.

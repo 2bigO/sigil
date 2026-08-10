@@ -210,7 +210,7 @@ component SigilLanguage {
       dependents
 
       every resolved imported name is used by a qualifying contract, operational,
-      structural, or directory-surface reference
+      structural reference
     }
 
     SectionSemantics {
@@ -425,8 +425,7 @@ expand SigilLanguage {
       Component references use the same immediately adjacent ASCII A-Z, a-z, 0-9,
       underscore, and hyphen boundary exclusion as concept references.
 
-      An applicable local expand and intentional provider directory-surface exposure
-      count as structural use.
+      An applicable local expand counts as structural use.
 
       References in goal, decisions, literal bodies, other source documents,
       differently cased words, and identifier substrings do not count as use;
@@ -560,15 +559,14 @@ expand SigilLanguage {
 
     StrictImportUse {
       Decision: Reject each resolved imported name that has no qualifying contract,
-      operational, structural, or directory-surface use in its declaring source.
+      operational, or structural use in its declaring source.
 
       Scope: Governs named component imports and imported public-concept reuse;
       excludes unresolved names and documentary mentions in goal, decisions, literal
       bodies, and other source documents.
 
       Trade-offs: Authors must state real dependency use outside documentary
-      rationale, while provider directory-surface imports remain intentionally
-      usable.
+      rationale, including in module-index sources.
 
       Design issues addressed: Resolution previously accepted dependency declarations
       that had no effect on the importing contract or operational description.
@@ -893,8 +891,8 @@ expand SigilLanguage {
       One textual or structural use qualifies every repeated entry for the same name
       and provider; with no use, every entry receives SIGIL_UNUSED_IMPORT.
 
-      A resolved direct import exposed by a provider directory surface counts as
-      structural use.
+      A resolved direct import in a module index without a qualifying semantic or
+      structural use produces SIGIL_UNUSED_IMPORT.
     }
 
     DeclarationMultiplicity {

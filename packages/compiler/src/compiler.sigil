@@ -18,15 +18,17 @@ component SigilOneShotCompilation {
     OneShotCompilation {
       compile(workspacePath, CompilationTarget, profileName, CompilationOptions?)
       streams CompilationEvent and returns CompilationReport only after successful
-      completed-event settlement
+      completed-event settlement once the event writer is bound
 
       cancellation rejects with COMPILER_CANCELLED; an unknown or conflicting target,
       profile, stage, or focus rejects with COMPILER_INVALID_INVOCATION; unavailable
       required evaluators reject with COMPILER_PROFILE_EVALUATORS_REQUIRED; host or
       protocol failure rejects with COMPILER_FAILED
 
-      every rejection returns no CompilationReport and emits its corresponding
-      terminal event whenever a compatible CompilationEventWriter remains open
+      every rejection after event-writer binding returns no CompilationReport and
+      emits its corresponding terminal event whenever a compatible
+      CompilationEventWriter remains open; pre-binding invocation rejection returns
+      no report without an event
 
       failure writing any required terminal event supersedes the pending outcome with
       COMPILER_FAILED and returns no CompilationReport
@@ -154,6 +156,25 @@ expand SigilOneShotCompilation {
   }
 
   decisions {
+    EventSettlementBoundary {
+      Decision: Guarantee terminal event delivery only after an invocation has bound
+      a compatible event writer; pre-binding validation failures return their stable
+      error without an event.
+
+      Scope: Governs one-shot invocation rejection and terminal event settlement;
+      excludes event-writer construction failure and reusable compilation sessions.
+
+      Trade-offs: Callers must distinguish pre-binding rejection from rejection after
+      event transport is established.
+
+      Design issues addressed: The compiler module contract must not promise an event
+      for validation failures that occur before a writer exists.
+
+      Consequences: Event-driven hosts receive deterministic terminal settlement for
+      every rejection covered by an established writer without requiring impossible
+      pre-writer delivery.
+    }
+
     InvalidCompilationInvocation {
       Decision: Reject an unknown or conflicting target, profile, stage, or focus
       through one stable COMPILER_INVALID_INVOCATION caller error.

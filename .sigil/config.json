@@ -42,8 +42,8 @@
         "sessionTtlMs": 86400000
       },
       "adapter": {
-        "provider": "pi",
-        "implementationId": "builtin.pi-cli",
+        "provider": "codex",
+        "implementationId": "builtin.codex-cli",
         "implementationVersion": "0.7.1"
       }
     }
