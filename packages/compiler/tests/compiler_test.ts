@@ -1,6 +1,7 @@
 import {
   ClaudeAdapter,
   CodexAdapter,
+  compilationColor,
   type CompilationEvent,
   type CompilationHistoryStore,
   type CompilationReport,
@@ -307,6 +308,20 @@ Deno.test("warnings produce yellow and errors produce red", async () => {
   } finally {
     await Deno.remove(root, { recursive: true });
   }
+});
+
+// @sigil tests packages/compiler/src/status.sigil::SigilCompilationStatus::CompilationStatus logic,cases
+Deno.test("failed optional stages remain visible without preventing green", () => {
+  assertEquals(
+    compilationColor([], [{
+      id: "optional-stage",
+      required: false,
+      state: "failed",
+      evaluator: "test",
+      diagnosticCount: 1,
+    }]),
+    "green",
+  );
 });
 
 // @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases

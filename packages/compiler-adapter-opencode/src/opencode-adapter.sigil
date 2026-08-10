@@ -1,4 +1,4 @@
-@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentCapabilityContract, SigilAgentEvaluationRequest }
+@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentEvaluationRequest }
 
 component SigilOpenCodeCompilerAdapter {
   goal {
@@ -12,11 +12,8 @@ component SigilOpenCodeCompilerAdapter {
       opencode with implementation identity builtin.opencode-cli and the exact
       adapter package version
 
-      SigilAgentCapabilityContract declares read-only workspace access, no agent-tool
-      network, no approval escalation, and persistent state
-
-      execution and cleanup failures use transport-neutral AdapterFailure kinds and
-      preserve caller-visible recovery evidence
+      provider-specific capability and observability declarations are supplied to the
+      imported AgentAdapter contract
     }
   }
 }
@@ -42,12 +39,9 @@ expand SigilOpenCodeCompilerAdapter {
 
   constraints {
     OpenCodeExecutionBoundary {
-      Allow read-only shell commands restricted by the evaluator policy to the
-      read-only command families it advertises (sigil version, parse, check, fmt
-      --check, glossary, graph, context, render, rg, sed, and git
-      status/diff/show/log/grep/ls-files). Deny edits, network clients, file
-      mutation, subagents, external-directory access, and interactive questions while
-      allowing required workspace reads.
+      Allow the read-only shell access required by the evaluation policy. Deny edits,
+      network clients, file mutation, subagents, external-directory access, and
+      interactive questions while allowing required workspace reads.
 
       Do not continue, fork, attach, or reuse a prior OpenCode session.
 
@@ -102,13 +96,6 @@ expand SigilOpenCodeCompilerAdapter {
       adapter boundary, or the evaluator policy's allowed command families change.
     }
 
-    CliOwnedBundling {
-      Decision: Keep this adapter in its own package and let the CLI register it.
-
-      Scope: Governs package direction and the default CLI host.
-
-      Consequences: Direct compiler consumers register the adapter explicitly.
-    }
   }
 
   cases {

@@ -772,15 +772,6 @@ function resolveImportUses(
         ) uses.push(use);
       };
 
-      if (isModuleFile(resolvedImport.sourceFile)) {
-        addUse({
-          kind: "module-index-surface",
-          filePath: resolvedImport.sourceFile,
-          range: resolvedImport.declaration.nameRanges[index] ??
-            resolvedImport.declaration.range,
-        });
-      }
-
       for (const expansion of source.expands) {
         if (expansion.name !== imported.name) continue;
         addUse({

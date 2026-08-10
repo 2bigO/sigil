@@ -348,8 +348,7 @@ export interface ImportUse {
   readonly kind:
     | "component-reference"
     | "public-concept-reference"
-    | "structural-expand"
-    | "module-index-surface";
+    | "structural-expand";
   readonly filePath: string;
   readonly ownerKind?: SigilFormKind;
   readonly ownerName?: string;

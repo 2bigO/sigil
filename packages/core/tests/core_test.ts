@@ -168,6 +168,49 @@ expand Consumer {
   );
 });
 
+// @sigil tests packages/core/src/resolver.sigil::SigilResolver::ImportUse interface,logic,constraints,cases
+Deno.test("rejects an unused direct import from a module index", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "dep.sigil": `component Dep {
+  goal {
+    Provide a dependency.
+  }
+
+  interface {
+    DepContract {
+      value
+    }
+  }
+}
+`,
+    "internal/_module.sigil": `@dep.sigil import { Dep }
+
+component InternalIndex {
+  goal {
+    Provide an internal directory index.
+  }
+
+  interface {
+    IndexContract {
+      index()
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  assertHasCode(resolved.diagnostics, "SIGIL_UNUSED_IMPORT");
+  const imported = resolved.imports.find((item) =>
+    item.sourceFile === "internal/_module.sigil"
+  )?.names[0];
+  assert(imported);
+  assertEquals(imported.used, false);
+  assertEquals(imported.uses.length, 0);
+});
+
 /*
  * @sigil tests packages/core/src/parser.sigil::SigilParser::LiteralBlock constraints,cases
  * @sigil tests packages/core/src/parser.sigil::SigilParser::FormattingStyle constraints,cases
@@ -912,7 +955,10 @@ Deno.test("resolves directory indexes independently of workspace members", async
     "_module.sigil": rootModule,
     "internal/_module.sigil":
       `@internal/contract.sigil import { Internal }\n\n${
-        rootModule.replaceAll("Sigil", "InternalModule")
+        rootModule.replaceAll("Sigil", "InternalModule").replace(
+          "    provides contracts",
+          "    Internal remains available through its imported owning contract\n\n    provides contracts",
+        )
       }`,
     "internal/contract.sigil": rootModule.replaceAll("Sigil", "Internal"),
     "internal/private.sigil": rootModule.replaceAll("Sigil", "Private"),
@@ -921,7 +967,10 @@ Deno.test("resolves directory indexes independently of workspace members", async
     "explicit-consumer.sigil":
       "@internal/private.sigil import { Private }\n\ncomponent ExplicitConsumer {\n  goal {\n    Consume a public component by file.\n  }\n\n  interface {\n    run(Private)\n  }\n}\n",
     "facade/_module.sigil": `@internal import { Internal }\n\n${
-      rootModule.replaceAll("Sigil", "FacadeModule")
+      rootModule.replaceAll("Sigil", "FacadeModule").replace(
+        "    provides contracts",
+        "    Internal remains available through its imported owning contract\n\n    provides contracts",
+      )
     }`,
     "facade-consumer.sigil":
       "@facade import { Internal }\n\ncomponent FacadeConsumer {\n  goal {\n    Consume an explicitly chained index.\n  }\n\n  interface {\n    run(Internal)\n  }\n}\n",

@@ -2,8 +2,8 @@
 
 component SigilAgentAdapterSubprocess {
   goal {
-    Own provider subprocess launch, terminal arbitration, output-channel
-    settlement, and bounded cleanup shared by CLI adapter implementations.
+    Own provider subprocess launch, output-channel settlement, and bounded cleanup
+    shared by CLI adapter implementations.
   }
 
   interface {
@@ -45,13 +45,8 @@ expand SigilAgentAdapterSubprocess {
       its limit. After launch, deliver bounded channel-identified frames with
       per-channel ordering and backpressure.
 
-      Serialize cancellation, elapsed-time expiry, preventive-budget termination,
-      operational-limit overflow, process failure, and successful settlement; the
-      first observed terminal transition wins.
-
-      For a non-result terminal transition, close input, request graceful
-      termination, and wait up to providerCleanupMs for process exit and channel
-      closure.
+      For a non-result process transition, close input, request graceful termination,
+      and wait up to providerCleanupMs for process exit and channel closure.
 
       If graceful cleanup expires, request forced termination, cancel designated
       output channels, and wait up to providerCleanupMs again.
@@ -63,11 +58,9 @@ expand SigilAgentAdapterSubprocess {
 
   constraints {
     CleanupSettlement {
-      Never deliver further frames or accept a provider result after a non-result
-      terminal transition wins.
-
-      Process-cleanup failure supersedes cancellation, timeout, preventive-budget,
-      operational-limit, or process failure when termination cannot be verified.
+      Process cleanup reports process and channel settlement to the owning execution
+      coordinator; provider-neutral terminal arbitration remains outside this
+      component.
 
       Platform signal behavior may differ, but both cleanup phases and their observed
       process and channel states remain explicit.
@@ -97,9 +90,6 @@ expand SigilAgentAdapterSubprocess {
   cases {
     AdapterSubprocess {
       Graceful exit within providerCleanupMs preserves the selected terminal failure.
-
-      A live preventive-budget request wins only when observed before settlement,
-      triggers bounded cleanup, and rejects every later result.
 
       An oversized initial input starts no process; an oversized provider frame
       triggers bounded cleanup after launch.

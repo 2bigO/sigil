@@ -10,6 +10,7 @@ component SigilOpenCodeCompilerAdapterPackage {
     OpenCodeAdapterPackage {
       SigilOpenCodeCompilerAdapter is the public adapter contract.
     }
+
   }
 }
 

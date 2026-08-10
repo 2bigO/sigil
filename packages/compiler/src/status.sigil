@@ -29,7 +29,8 @@ expand SigilCompilationStatus {
   decisions {
     CompilationColor {
       Decision: Use red for errors or incomplete required evaluation, yellow for
-      warnings without errors, and green only for complete warning-free evaluation.
+      warnings without errors, and green only for complete warning-free required
+      evaluation.
 
       Scope: Governs every compiler status presentation.
 
@@ -43,8 +44,8 @@ expand SigilCompilationStatus {
     CompilationStatus {
       A syntax error produces red. One warning without errors produces yellow.
 
-      Complete evaluation with no errors or warnings produces green; optimization and
-      information messages do not prevent green.
+      Complete required evaluation with no errors or warnings produces green;
+      optimization and information messages do not prevent green.
     }
   }
 }

@@ -340,8 +340,7 @@ export async function retrievePurposeContext(
           !name.componentFile ||
           !name.uses.some((use) =>
             use.ownerName === seed.name &&
-            (use.ownerKind === "component" || use.ownerKind === "expand") &&
-            use.kind !== "module-index-surface"
+            (use.ownerKind === "component" || use.ownerKind === "expand")
           )
         ) continue;
         const dependency = resolved.components.find((component) =>

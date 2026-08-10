@@ -101,11 +101,14 @@ component SigilLsp {
     WorkspaceSupport {
       operates on file-backed workspaces selected from workspaceFolders, rootUri, or
       the current directory
+
+      SigilWorkspaceConfig remains available through its imported owning contract
     }
 
     ReadOnlyLanguageService {
       language-server operations do not modify .sigil source
     }
+
   }
 }
 
