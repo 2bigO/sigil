@@ -11,10 +11,11 @@ component SigilCompiler {
     Give designers and architects a compiler-like improvement loop for high-level
     Sigil contracts through profile-scoped deterministic and agentic evaluation.
 
-    Keep compiler-owned deterministic processing and proposal coordination
-    read-only without claiming that externally supplied CLI adapters preserve that
-    boundary, replacing human design approval, or moving semantic judgment into
-    SigilCore.
+    Keep deterministic processing inside the compiler and protect the source
+    workspace from modification.
+
+    Proposal coordination may write only compiler-owned proposal and session state.
+    The compiler does not replace human design approval.
   }
 
   interface {

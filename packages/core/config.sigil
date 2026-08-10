@@ -1,4 +1,79 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig, SigilModuleIndex }
+@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/diagnostics.sigil import { SigilDiagnostics }
+
+component SigilConfigurationParser {
+  goal {
+    Parse and validate one Sigil ConfigFile into deterministic configuration data
+    and diagnostics before workspace source loading begins.
+
+    Keep configuration interpretation separate from workspace discovery and loading
+    while reusing the configuration model and diagnostic vocabulary.
+  }
+
+  interface {
+    ConfigurationParsing {
+      parseSigilConfig(source, filePath?) returns a SigilConfigParseResult with
+      validated configuration when available and accumulated diagnostics
+
+      SigilSemanticModel owns the result and configuration data, while
+      SigilDiagnostics owns diagnostic construction
+    }
+  }
+}
+
+expand SigilConfigurationParser {
+  logic {
+    ConfigurationParsing {
+      Parse strict UTF-8 JSON and validate the complete ConfigFile shape before
+      returning configuration data.
+
+      Preserve recoverable configuration diagnostics without selecting workspace
+      sources or performing filesystem access.
+    }
+  }
+
+  constraints {
+    DeterministicConfiguration {
+      Configuration parsing is deterministic, in-memory, and independent from
+      workspace discovery, source loading, and host presentation.
+
+      ConfigFile validation follows the model and rules owned by SigilWorkspaceConfig.
+    }
+
+    RecoverableConfiguration {
+      Invalid configuration returns diagnostics and no validated configuration.
+
+      Host filesystem and runtime failures remain outside this parser boundary.
+    }
+  }
+
+  decisions {
+    ConfigurationParserBoundary {
+      Decision: Give ConfigFile parsing its own deterministic component while keeping
+      configuration meaning and workspace-boundary rules in SigilWorkspaceConfig.
+
+      Scope: Governs JSON parsing, schema validation, version validation, and
+      configuration diagnostics; excludes workspace discovery, source loading, and
+      filesystem access.
+
+      Consequences: SigilWorkspaceLoader consumes validated parser results, and
+      hosts do not duplicate ConfigFile validation.
+
+      Revisit when: Configuration interpretation requires workspace loading or
+      host-specific policy.
+    }
+  }
+
+  cases {
+    ConfigurationParsing {
+      Valid ConfigFile returns validated configuration without diagnostics.
+
+      Malformed JSON or invalid fields returns configuration diagnostics and no
+      validated configuration.
+    }
+  }
+}
 
 expand SigilWorkspaceConfig {
   state {

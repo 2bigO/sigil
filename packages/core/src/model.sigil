@@ -162,8 +162,9 @@ component SigilSemanticModel {
     }
 
     ResolvedWorkspaceModel {
-      ResolvedSigilWorkspace combines SigilResolution with SigilGraph and preserves
-      its source SigilWorkspace workspaceSnapshotIdentity
+      ResolvedSigilWorkspace combines SigilResolution with SigilGraph and
+      GlossaryProjection, preserves its source SigilWorkspace
+      workspaceSnapshotIdentity, and exposes merged deterministic diagnostics
     }
   }
 }
