@@ -19,7 +19,11 @@ export const DEFAULT_SIGIL_EXCLUDES = [
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
+/*
+ * @sigil implements packages/core/config.sigil::SigilConfigurationParser::ConfigurationParsing interface
+ * @sigil implements packages/core/config.sigil::SigilConfigurationParser logic,constraints,cases
+ * @sigil implements spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
+ */
 export function parseSigilConfig(
   source: string,
   filePath: string = SIGIL_CONFIG_PATH,

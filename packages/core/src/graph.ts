@@ -82,16 +82,19 @@ function sourceComponentsFor(
   );
 }
 
-// @sigil implements packages/core/src/graph.sigil::SigilGraphBuilder::StronglyConnectedComponents interface,logic,constraints,cases
+// @sigil implements packages/core/src/graph.sigil::SigilGraphBuilder::StronglyConnectedGroups interface,logic,constraints,cases
 export function stronglyConnectedComponentGroups(
   graph: SigilGraph,
 ): readonly (readonly ComponentIdentity[])[] {
   const nodes = graph.componentNodes.map((node) => ({
     componentName: node.name,
     declarationPath: node.filePath,
-  })).sort(compareIdentity);
+  }));
   const key = (node: ComponentIdentity) =>
     `${node.declarationPath}\0${node.componentName}`;
+  const nodeOrder = new Map(nodes.map((node, index) => [key(node), index]));
+  const compareNodeOrder = (a: ComponentIdentity, b: ComponentIdentity) =>
+    nodeOrder.get(key(a))! - nodeOrder.get(key(b))!;
   const byKey = new Map(nodes.map((node) => [key(node), node]));
   const adjacency = new Map(
     nodes.map((node) => [key(node), new Set<string>()]),
@@ -117,7 +120,7 @@ export function stronglyConnectedComponentGroups(
     low.set(id, nextIndex++);
     stack.push(id);
     onStack.add(id);
-    for (const target of [...(adjacency.get(id) ?? [])].sort()) {
+    for (const target of adjacency.get(id) ?? []) {
       if (!indices.has(target)) {
         visit(target);
         low.set(id, Math.min(low.get(id)!, low.get(target)!));
@@ -133,13 +136,9 @@ export function stronglyConnectedComponentGroups(
         onStack.delete(current);
         group.push(byKey.get(current)!);
       } while (current !== id);
-      groups.push(group.sort(compareIdentity));
+      groups.push(group.sort(compareNodeOrder));
     }
   };
   for (const node of nodes) if (!indices.has(key(node))) visit(key(node));
-  return groups.sort((a, b) => compareIdentity(a[0], b[0]));
-}
-function compareIdentity(a: ComponentIdentity, b: ComponentIdentity): number {
-  return a.declarationPath.localeCompare(b.declarationPath) ||
-    a.componentName.localeCompare(b.componentName);
+  return groups.sort((a, b) => compareNodeOrder(a[0], b[0]));
 }

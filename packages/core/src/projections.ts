@@ -100,6 +100,7 @@ export function agentDependencyContextFor(
   };
 }
 
+// @sigil implements packages/core/src/projections.sigil::SigilProjections::AgentDependentContext interface,logic,constraints,cases
 export function agentDependentContextFor(
   resolved: ResolvedSigilWorkspace,
   componentName: string,

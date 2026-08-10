@@ -33,8 +33,8 @@
         "elapsedTimeMs": 1800000,
         "maxCommands": 512,
         "maxCommandOutputChars": 3000000,
-        "maxInputTokens": 2000000,
-        "maxOutputTokens": 2000000
+        "maxInputTokens": 4000000,
+        "maxOutputTokens": 4000000
       },
       "limits": {
         "maxCompilationRequestChars": 2000000,

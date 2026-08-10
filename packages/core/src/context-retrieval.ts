@@ -1,5 +1,6 @@
 import { sha256Canonical } from "./canonical.ts";
 import { diagnostic } from "./diagnostics.ts";
+import { glossaryContextForFiles } from "./glossary.ts";
 import { stronglyConnectedComponentGroups } from "./graph.ts";
 import { ownedImplementationTargetsFor } from "./implementation-ownership.ts";
 import { dirname, normalizePath, relativePath } from "./path.ts";
@@ -7,6 +8,7 @@ import type {
   EvidenceKind,
   EvidenceUnit,
   ExcludedRelation,
+  GlossaryContextProjection,
   GlossaryProjection,
   ImplementationEvidenceInput,
   InclusionReason,
@@ -102,7 +104,10 @@ interface EvidenceDraft {
   readonly edgeKeys: readonly string[];
 }
 
-// @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface
+ * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval logic,constraints,cases
+ */
 export async function retrievePurposeContext(
   resolved: ResolvedSigilWorkspace,
   target: PurposeRetrievalTarget,
@@ -471,26 +476,28 @@ export async function retrievePurposeContext(
           edge.targetFile === members[0]?.filePath
         );
       if (!cyclic) continue;
+      const memberKeys = new Set(
+        members.map((member) => componentKey(member)),
+      );
+      const anchorKey = componentKey(seeds[0]);
+      const cycleEdges = resolved.graph.importedComponentEdges.flatMap((edge) =>
+        edge.sourceComponents.flatMap((source) => {
+          const sourceComponent = members.find((member) =>
+            member.name === source.componentName &&
+            member.filePath === source.declarationPath
+          );
+          const target = members.find((member) =>
+            member.name === edge.componentName &&
+            member.filePath === edge.targetFile
+          );
+          if (!sourceComponent || !target) return [];
+          const sourceKey = componentKey(sourceComponent);
+          if (!memberKeys.has(sourceKey)) return [];
+          return [{ edge, target, sourceKey }];
+        })
+      );
       for (const member of members) {
         const memberKey = addComponent(member, "cycle");
-        const anchor = seeds[0];
-        const anchorKey = componentKey(anchor);
-        const edgeKey = addEdge({
-          relation: "cycle-member",
-          sourceKey: anchorKey,
-          targetKey: memberKey,
-          originPath: relativeComponentPath(member),
-          originRange: member.declaration.range,
-        });
-        addContractEvidence(
-          evidence,
-          member,
-          "cycle-contract",
-          "select-cycle-member",
-          anchorKey,
-          [edgeKey],
-          ["goal", "interface"],
-        );
         for (const expansion of member.expansions.expands) {
           const path = relativePath(
             resolved.workspace.root,
@@ -515,16 +522,40 @@ export async function retrievePurposeContext(
             originPath: path,
             originRange: expansion.declaration.range,
           });
-          addDeclarationEvidence(
-            evidence,
-            expansion.declaration.sections.flatMap((section) => section.units),
-            "cycle-contract",
-            member.name,
-            "select-cycle-member",
-            anchorKey,
-            [edgeKey],
-          );
         }
+      }
+      for (const { edge, target, sourceKey } of cycleEdges) {
+        const targetKey = componentKey(target);
+        const edgeKey = addEdge({
+          relation: "cycle-member",
+          sourceKey,
+          targetKey,
+          originPath: relativePath(
+            resolved.workspace.root,
+            edge.sourceFile,
+          ),
+          originRange: edge.originRange,
+        });
+        addContractEvidence(
+          evidence,
+          target,
+          "cycle-contract",
+          "select-cycle-member",
+          anchorKey,
+          [edgeKey],
+          ["goal", "interface"],
+        );
+        addDeclarationEvidence(
+          evidence,
+          target.expansions.expands.flatMap((expansion) =>
+            expansion.declaration.sections.flatMap((section) => section.units)
+          ),
+          "cycle-contract",
+          target.name,
+          "select-cycle-member",
+          anchorKey,
+          [edgeKey],
+        );
       }
     }
     for (const { component, role } of [...selected.values()]) {
@@ -610,6 +641,7 @@ export async function retrievePurposeContext(
   }
 
   let unavailableImplementation = false;
+  const implementationDiagnostics: SigilDiagnostic[] = [];
   if (purpose === "implementation") {
     unavailableImplementation = !implementationEvidence ||
       implementationEvidence.discoveryState === "unavailable";
@@ -626,6 +658,7 @@ export async function retrievePurposeContext(
         if (!projection) {
           continue;
         }
+        implementationDiagnostics.push(...projection.diagnostics);
         for (const owned of projection.targets) {
           const source = implementationEvidence!.sources.find((item) =>
             normalizePath(item.filePath) === normalizePath(owned.filePath) ||
@@ -682,7 +715,42 @@ export async function retrievePurposeContext(
     }
   }
 
-  if (glossaryEvidence) addGlossaryEvidence(evidence, glossaryEvidence);
+  const selectedPaths = selectedEvidencePaths(resolved, nodes, edges, evidence);
+  const scopedGlossary = glossaryEvidence
+    ? glossaryContextForFiles(glossaryEvidence, [...selectedPaths])
+    : undefined;
+  if (scopedGlossary) addGlossaryEvidence(evidence, scopedGlossary);
+  const diagnostics = collectRetrievalDiagnostics(
+    resolved,
+    selectedPaths,
+    scopedGlossary?.diagnostics ?? [],
+    purpose === "implementation"
+      ? [
+        ...implementationDiagnostics,
+        ...(implementationEvidence?.diagnostics ?? []),
+      ]
+      : [],
+    unavailableImplementation
+      ? [
+        retrievalDiagnostic(
+          "SIGIL_RETRIEVAL_IMPLEMENTATION_DISCOVERY_UNAVAILABLE",
+        ),
+      ]
+      : [],
+  );
+  for (const item of diagnostics) {
+    evidence.push({
+      kind: "diagnostic",
+      path: item.filePath
+        ? normalizeRelativeSource(resolved, item.filePath)
+        : undefined,
+      range: item.range,
+      text: `${item.severity} ${item.code}: ${item.message}`,
+      rule: "select-diagnostic",
+      seedKey: componentKey(seeds[0]),
+      edgeKeys: [],
+    });
+  }
   return await materialize(
     resolved,
     targetIdentity,
@@ -690,14 +758,7 @@ export async function retrievePurposeContext(
     nodes,
     edges,
     evidence,
-    unavailableImplementation
-      ? [
-        retrievalDiagnostic(
-          "SIGIL_RETRIEVAL_IMPLEMENTATION_DISCOVERY_UNAVAILABLE",
-        ),
-        ...(implementationEvidence?.diagnostics ?? []),
-      ]
-      : [],
+    diagnostics,
     unavailableImplementation,
   );
 }
@@ -770,7 +831,7 @@ function addDeclarationEvidence(
 }
 function addGlossaryEvidence(
   out: EvidenceDraft[],
-  glossary: GlossaryProjection,
+  glossary: GlossaryContextProjection,
 ) {
   const semantic = [...out];
   for (
@@ -798,6 +859,65 @@ function addGlossaryEvidence(
       edgeKeys: trigger.edgeKeys,
     });
   }
+}
+
+function selectedEvidencePaths(
+  resolved: ResolvedSigilWorkspace,
+  nodes: ReadonlyMap<string, NodeDraft>,
+  edges: ReadonlyMap<string, EdgeDraft>,
+  evidence: readonly EvidenceDraft[],
+): Set<string> {
+  return new Set(
+    [
+      ...[...nodes.values()].map((item) => item.path),
+      ...[...edges.values()].map((item) => item.originPath),
+      ...evidence.flatMap((item) => item.path ? [item.path] : []),
+    ].map((path) => normalizeRelativeSource(resolved, path)),
+  );
+}
+
+function collectRetrievalDiagnostics(
+  resolved: ResolvedSigilWorkspace,
+  selectedPaths: ReadonlySet<string>,
+  glossaryDiagnostics: readonly SigilDiagnostic[],
+  implementationDiagnostics: readonly SigilDiagnostic[],
+  retrievalDiagnostics: readonly SigilDiagnostic[] = [],
+): readonly SigilDiagnostic[] {
+  const candidates = [
+    ...resolved.diagnostics.filter((item) =>
+      !item.filePath ||
+      selectedPaths.has(normalizeRelativeSource(resolved, item.filePath))
+    ),
+    ...glossaryDiagnostics,
+    ...implementationDiagnostics,
+    ...retrievalDiagnostics,
+  ];
+  const unique = new Map<string, SigilDiagnostic>();
+  for (const item of candidates) {
+    const path = item.filePath
+      ? normalizeRelativeSource(resolved, item.filePath)
+      : undefined;
+    const key = JSON.stringify({
+      code: item.code,
+      severity: item.severity,
+      message: item.message,
+      path,
+      range: item.range,
+    });
+    unique.set(
+      key,
+      path === item.filePath ? item : { ...item, filePath: path },
+    );
+  }
+  const severityRank = { error: 0, warning: 1, info: 2 };
+  return [...unique.values()].sort((left, right) =>
+    severityRank[left.severity] - severityRank[right.severity] ||
+    (left.filePath ?? "").localeCompare(right.filePath ?? "") ||
+    (left.range?.start.line ?? 0) - (right.range?.start.line ?? 0) ||
+    (left.range?.start.column ?? 0) - (right.range?.start.column ?? 0) ||
+    left.code.localeCompare(right.code) ||
+    left.message.localeCompare(right.message)
+  );
 }
 
 async function materialize(

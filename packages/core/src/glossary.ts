@@ -256,12 +256,30 @@ export function glossaryContextForFiles(
         selectedTermKeys.has(glossaryTermKey(term))
       ),
     }));
+  const selectedTermRanges = terms.map((term) => term.declarationRange);
+  const diagnostics = projection.diagnostics.filter((item) => {
+    if (!item.filePath) return true;
+    if (selectedPaths.includes(normalizePath(item.filePath))) return true;
+    return normalizePath(item.filePath) ===
+        normalizePath(projection.glossaryPath ?? "") &&
+      !!item.range &&
+      selectedTermRanges.some((range) => rangesOverlap(item.range!, range));
+  });
   return {
     glossaryPath: projection.glossaryPath,
     terms,
     resolvedContexts,
     occurrences: selectedOccurrences,
+    diagnostics,
   };
+}
+
+function rangesOverlap(left: SourceRange, right: SourceRange): boolean {
+  const start = (range: SourceRange) =>
+    range.start.line * 1_000_000 + range.start.column;
+  const end = (range: SourceRange) =>
+    range.end.line * 1_000_000 + range.end.column;
+  return start(left) <= end(right) && start(right) <= end(left);
 }
 
 interface RawGlossaryTerm {

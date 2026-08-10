@@ -22,9 +22,9 @@ component SigilImplementationOwnership {
       diagnostics is an immutable ordered collection of SigilDiagnostic values owned
       by SigilSemanticModel
 
-      ImplementationSourceRecord contains exactly path and sourceText; path is one
+      ImplementationSourceRecord contains exactly filePath and text; filePath is one
       normalized workspace-relative path accepted by isSupportedImplementationSource,
-      and sourceText is the exact decoded text the host read from that path
+      and text is the exact decoded text the host read from that filePath
 
       complete means every successfully discovered supported source is present,
       including the valid zero-source case; records are ordered by normalized path
@@ -41,6 +41,10 @@ component SigilImplementationOwnership {
       ownedImplementationTargetsFor(resolvedWorkspace, implementationSources,
       componentIdentity, conceptName?, sectionName?) returns an owned-implementation
       projection or undefined
+
+      implementationSources is exactly the ordered immutable source collection from
+      ImplementationEvidenceInput.sources, not the evidence envelope itself;
+      envelope validation and snapshot/discovery-state handling remain with the caller.
 
       componentIdentity contains the exact case-sensitive componentName and
       normalized workspace-relative declarationPath of one resolved component

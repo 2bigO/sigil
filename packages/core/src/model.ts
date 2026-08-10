@@ -248,6 +248,7 @@ export interface GlossaryContextProjection {
   readonly terms: readonly GlossaryTerm[];
   readonly resolvedContexts: readonly ResolvedGlossaryContext[];
   readonly occurrences: readonly GlossaryOccurrence[];
+  readonly diagnostics: readonly SigilDiagnostic[];
 }
 
 export type ImplementationRelation = "implements" | "uses" | "tests";
@@ -261,12 +262,12 @@ export type ImplementationSection =
 
 export type ImplementationArtifactKind = "code" | "test" | "markdown";
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,cases
 export interface ImplementationSource {
   readonly filePath: string;
   readonly text: string;
 }
 
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationEvidenceInput interface
 export interface ImplementationEvidenceInput {
   readonly workspaceSnapshotIdentity: string;
   readonly discoveryState: "complete" | "unavailable";
