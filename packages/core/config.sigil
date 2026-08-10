@@ -38,7 +38,8 @@ expand SigilConfigurationParser {
       Configuration parsing is deterministic, in-memory, and independent from
       workspace discovery, source loading, and host presentation.
 
-      ConfigFile validation follows the model and rules owned by SigilWorkspaceConfig.
+      ConfigFile validation follows the model and rules owned by
+       SigilWorkspaceConfig.
     }
 
     RecoverableConfiguration {

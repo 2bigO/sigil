@@ -1475,7 +1475,7 @@ expand Ownership {
   const full = ownedImplementationTargetsFor(
     resolved,
     implementationSources,
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
   );
   assert(full);
   assertEquals(full.owningComponent.name, "Ownership");
@@ -1497,7 +1497,7 @@ expand Ownership {
   const scoped = ownedImplementationTargetsFor(
     resolved,
     implementationSources,
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
     "OwnedImplementationTargets",
   );
   assert(scoped);
@@ -1505,7 +1505,7 @@ expand Ownership {
   const sectionScoped = ownedImplementationTargetsFor(
     resolved,
     implementationSources,
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
     "OwnedImplementationTargets",
     "logic",
   );
@@ -1513,6 +1513,14 @@ expand Ownership {
   assertEquals(sectionScoped.sectionName, "logic");
   assertEquals(sectionScoped.targets.length, 1);
   assertEquals(sectionScoped.targets[0].symbolIdentity, "parseSigilDocument");
+  assertEquals(
+    ownedImplementationTargetsFor(
+      resolved,
+      implementationSources,
+      { componentName: "Ownership", declarationPath: "other.sigil" },
+    ),
+    undefined,
+  );
   assertEquals(full.targets[0].artifactKind, "markdown");
   assertEquals(full.targets[0].filePath, "packages/cli/README.md");
   assertEquals(full.diagnostics.length, 0);
@@ -1576,7 +1584,7 @@ expand Ownership {
           "// @sigil implements ownership-details.sigil::Unrelated interface\nexport function unrelated() {}\n",
       },
     ],
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
   );
   assert(projection);
   assertEquals(projection.targets.length, 1);
@@ -1633,7 +1641,7 @@ Deno.test("diagnoses invalid implementation relations and section selectors", as
       filePath: `src/invalid-${index}.ts`,
       text: `// ${annotation}\nexport function invalid${index}() {}\n`,
     })),
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
   );
   assert(projection);
   assertEquals(projection.targets.length, 0);
@@ -1688,7 +1696,7 @@ Deno.test("requires multiline comments for multiple ownership annotations", asyn
 export class EntryPoint {}
 `,
     }],
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
   );
   assert(projection);
   assertEquals(projection.targets.length, 2);
@@ -1723,7 +1731,7 @@ Deno.test("diagnoses detached implementation ownership comments", async () => {
       text:
         "// @sigil implements ownership.sigil::Ownership::EntryPoint interface\nconst value = 1;\n",
     }],
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
   );
   assert(projection);
   assertEquals(projection.targets.length, 0);
@@ -1780,7 +1788,7 @@ Deno.test("resolves entrypoints using each language's declaration syntax", async
   const projection = ownedImplementationTargetsFor(
     resolved,
     sources,
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
     "EntryPoint",
   );
   assert(projection);
@@ -1851,7 +1859,7 @@ Deno.test("resolves nested and constrained C++ template entrypoints", async () =
           `// @sigil implements ${target}\ntemplate <typename T>\nrequires std::copyable<T>\nT makeConstrainedRepository() {}\n`,
       },
     ],
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
     "EntryPoint",
   );
   assert(projection);
@@ -1905,7 +1913,7 @@ Deno.test("resolves Go and Node test entrypoints", async () => {
   const projection = ownedImplementationTargetsFor(
     resolved,
     sources,
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
     "EntryPoint",
   );
   assert(projection);
@@ -1950,7 +1958,7 @@ Deno.test("ignores annotation examples inside strings and Markdown fences", asyn
         text: `\`\`\`md\n<!-- @sigil uses ${target} -->\n\`\`\`\n`,
       },
     ],
-    "Ownership",
+    { componentName: "Ownership", declarationPath: "ownership.sigil" },
   );
   assert(projection);
   assertEquals(projection.targets.length, 0);
@@ -2764,7 +2772,98 @@ Deno.test("purpose retrieval is deterministic and stops at direct dependencies",
   assert(first.fingerprint.startsWith("sha256:"));
 });
 
-// @sigil tests packages/core/src/graph.sigil::SigilGraphBuilder::StronglyConnectedComponents logic,constraints,cases
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+Deno.test("architecture retrieval preserves imported-component cycle edges", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "a.sigil": `@b.sigil import { B }\n\n${validComponent("A", "use(B)")}`,
+    "b.sigil": `@a.sigil import { A }\n\n${validComponent("B", "use(A)")}`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "a.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const result = await retrievePurposeContext(
+    resolved,
+    {
+      kind: "component",
+      componentName: "A",
+      path: "a.sigil",
+    },
+    "architecture",
+    resolved.glossary,
+  );
+  const cycleEdges = result.graph.edges.filter((edge) =>
+    edge.relation === "cycle-member"
+  );
+  assertEquals(cycleEdges.length, 2);
+  const describeEdge = (edge: (typeof cycleEdges)[number]) => ({
+    source: result.graph.nodes.find((node) =>
+      node.identity === edge.sourceIdentity
+    ),
+    target: result.graph.nodes.find((node) =>
+      node.identity === edge.targetIdentity
+    ),
+    originPath: edge.originPath,
+    originLine: edge.originRange?.start.line,
+  });
+  const aToB = cycleEdges.find((edge) => edge.originPath === "a.sigil");
+  const bToA = cycleEdges.find((edge) => edge.originPath === "b.sigil");
+  assert(aToB && bToA);
+  assertEquals(describeEdge(aToB).source?.kind, "component-declaration");
+  assertEquals(describeEdge(aToB).source?.componentName, "A");
+  assertEquals(describeEdge(aToB).target?.componentName, "B");
+  assertEquals(describeEdge(aToB).originLine, 1);
+  assertEquals(describeEdge(bToA).source?.componentName, "B");
+  assertEquals(describeEdge(bToA).target?.componentName, "A");
+  assertEquals(describeEdge(bToA).originLine, 1);
+});
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+Deno.test("successful retrieval preserves scoped diagnostics as evidence", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "a.sigil": validComponent("A", "use()"),
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "a.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const diagnostic = {
+    code: "SIGIL_LINE_TOO_LONG" as const,
+    severity: "info" as const,
+    message: "selected source diagnostic",
+    filePath: "a.sigil",
+    range: {
+      start: { line: 1, column: 1 },
+      end: { line: 1, column: 2 },
+    },
+  };
+  const result = await retrievePurposeContext(
+    { ...resolved, diagnostics: [...resolved.diagnostics, diagnostic] },
+    {
+      kind: "component",
+      componentName: "A",
+      path: "a.sigil",
+    },
+    "semantic",
+    resolved.glossary,
+  );
+  assert(
+    result.diagnostics.some((item) => item.message === diagnostic.message),
+  );
+  assert(
+    result.evidence.some((item) =>
+      item.kind === "diagnostic" && item.text.includes(diagnostic.message)
+    ),
+  );
+});
+
+// @sigil tests packages/core/src/graph.sigil::SigilGraphBuilder::StronglyConnectedGroups logic,constraints,cases
 Deno.test("component SCC groups are stable and exact", () => {
   const groups = stronglyConnectedComponentGroups({
     componentNodes: [
@@ -2799,7 +2898,7 @@ Deno.test("component SCC groups are stable and exact", () => {
     ],
   });
   assertEquals(groups.length, 1);
-  assertEquals(groups[0].map((item) => item.componentName).join(","), "A,B");
+  assertEquals(groups[0].map((item) => item.componentName).join(","), "B,A");
 });
 
 function validComponent(name: string, operation: string): string {

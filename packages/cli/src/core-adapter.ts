@@ -305,14 +305,14 @@ export class CoreAdapter {
   ownedImplementationTargetsFor(
     resolved: ResolvedSigilWorkspace,
     implementationSources: readonly ImplementationSource[],
-    componentName: ComponentIdentity | string,
+    componentIdentity: ComponentIdentity,
     conceptName?: string,
     sectionName?: ImplementationSection,
   ): OwnedImplementationProjection | undefined {
     return coreOwnedImplementationTargetsFor(
       resolved,
       implementationSources,
-      componentName,
+      componentIdentity,
       conceptName,
       sectionName,
     );

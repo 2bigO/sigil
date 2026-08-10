@@ -85,21 +85,21 @@ interface EntrypointMatch {
   readonly offset: number;
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership logic,constraints,cases
+ */
 export function ownedImplementationTargetsFor(
   resolved: ResolvedSigilWorkspace,
   implementationSources: readonly ImplementationSource[],
-  componentIdentity: ComponentIdentity | string,
+  componentIdentity: ComponentIdentity,
   conceptName?: string,
   sectionName?: ImplementationSection,
 ): OwnedImplementationProjection | undefined {
-  const componentName = typeof componentIdentity === "string"
-    ? componentIdentity
-    : componentIdentity.componentName;
+  const componentName = componentIdentity.componentName;
   const owningComponent = resolved.components.find((component) =>
     component.name === componentName &&
-    (typeof componentIdentity === "string" ||
-      component.filePath === componentIdentity.declarationPath)
+    component.filePath === componentIdentity.declarationPath
   );
   if (!owningComponent) return undefined;
 
