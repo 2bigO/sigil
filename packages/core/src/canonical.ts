@@ -1,5 +1,5 @@
 /*
- * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalResult logic,constraints
+ * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalResult interface
  * @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceSnapshotIdentity logic,constraints
  */
 export function canonicalJson(value: unknown): string {

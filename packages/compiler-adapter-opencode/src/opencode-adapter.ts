@@ -67,7 +67,7 @@ export class OpenCodeAdapter implements AgentAdapter {
     readonly id = "opencode",
   ) {}
 
-  // @sigil implements packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,constraints,cases
+  // @sigil implements packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,cases
   async evaluate(
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {

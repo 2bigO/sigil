@@ -34,7 +34,7 @@ export function constructCompilationReport(
   };
 }
 
-// @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface,logic,constraints,cases
+// @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface
 export function validateCompilationReportWire(
   value: unknown,
 ): value is CompilationReport {

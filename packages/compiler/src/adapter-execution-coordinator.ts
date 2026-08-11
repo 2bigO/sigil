@@ -33,7 +33,7 @@ export interface AdapterExecutionResources {
   observationFailure(description: string): void;
 }
 
-// @sigil implements packages/compiler/src/adapter-execution-coordinator.sigil::SigilAgentAdapterExecutionCoordinator::AgentAdapterExecutionCoordinator interface,logic,constraints,cases
+// @sigil implements packages/compiler/src/adapter-execution-coordinator.sigil::SigilAgentAdapterExecutionCoordinator::AgentAdapterExecutionCoordinator interface,logic,cases
 export async function coordinateAdapterExecution<T>(
   operation: AdapterExecutionOperation<T>,
 ): Promise<T> {

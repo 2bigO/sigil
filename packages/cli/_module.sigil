@@ -60,6 +60,9 @@ component SigilCli {
 
       sigil render [path]
 
+      check reports resolved workspace diagnostics together with deterministic
+      ownership-annotation diagnostics from supported implementation sources
+
       context reports a scoped glossary projection for the selected component or file
       and its related sources
 
@@ -123,6 +126,11 @@ component SigilCli {
       When implementation-source enumeration fails after workspace resolution,
       context returns resolved contracts and one empty ownership projection per
       selected component with a warning diagnostic.
+    }
+
+    OwnershipDiagnostics {
+      check scans supported implementation sources and reports malformed, detached,
+      unknown-target, and unresolved-section ownership diagnostics.
     }
 
     GlossaryInspectionCommand {
@@ -335,6 +343,12 @@ expand SigilCli {
       context converts a failed optional implementation-source enumeration into
       SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY, supplies no ownership sources, and
       continues building structured context.
+    }
+
+    OwnershipDiagnostics {
+      check delegates workspace-wide ownership-diagnostic scanning to SigilCore and
+      preserves resolved workspace diagnostics and optional source-discovery
+      warnings.
     }
 
     GlossaryInspection {
@@ -753,6 +767,21 @@ expand SigilCli {
       files containing multiple components.
     }
 
+    OwnershipDiagnostics {
+      Decision: Include deterministic ownership diagnostics in check after successful
+      workspace resolution while keeping ownership target projections
+      component-scoped.
+
+      Scope: Governs check diagnostics for supported implementation sources; excludes
+      context projection shape, compiler evaluator behavior, and Sigil source edits.
+
+      Trade-offs: check performs an additional implementation-source scan and may
+      return diagnostics for annotations outside the command's component context.
+
+      Consequences: CI and local validation expose malformed ownership links before
+      context or compiler consumers attempt to use them.
+    }
+
     ExpandFileContextSelection {
       Decision: Resolve context --file selection through both component declarations
       and expands, mapping each matching expand to its parent component identity.
@@ -1009,6 +1038,11 @@ expand SigilCli {
       enumeration fails, context returns selected contracts, an empty projection for
       each selected component, SIGIL_IMPLEMENTATION_SOURCE_DISCOVERY, and exit code
       0.
+    }
+
+    OwnershipDiagnostics {
+      check reports valid ownership annotations without diagnostics and reports each
+      malformed or unresolved ownership annotation with its source location.
     }
 
     GlossaryInspection {

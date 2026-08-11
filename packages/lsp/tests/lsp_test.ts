@@ -1051,7 +1051,7 @@ Deno.test("directory-index definitions navigate to the original declaration", as
   assert(!indexedHoverValue.includes("Source: `/workspace"));
 });
 
-// @sigil tests packages/lsp/_module.sigil::SigilLsp::DocumentRendering interface,logic,constraints,cases,decisions
+// @sigil tests packages/lsp/_module.sigil::SigilLsp::DocumentRendering interface,logic,constraints,cases
 Deno.test("renders a whole document to Markdown through executeCommand", async () => {
   const server = makeServer();
   await initialize(server);

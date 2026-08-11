@@ -166,6 +166,25 @@ export function ownedImplementationTargetsFor(
   };
 }
 
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnershipDiagnostics interface,logic,cases
+export function ownershipDiagnosticsFor(
+  resolved: ResolvedSigilWorkspace,
+  implementationSources: readonly ImplementationSource[],
+): readonly SigilDiagnostic[] {
+  const diagnostics: SigilDiagnostic[] = [];
+  for (const source of implementationSources) {
+    const normalizedSource = {
+      filePath: normalizePath(source.filePath),
+      text: source.text,
+    };
+    if (!isSupportedImplementationSource(normalizedSource.filePath)) continue;
+    implementationAnnotations(resolved, normalizedSource, diagnostics);
+  }
+  return [...new Map(
+    diagnostics.map((item) => [JSON.stringify(item), item] as const),
+  ).values()].sort(compareDiagnostics);
+}
+
 /*
  * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport interface,cases
  * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationTargetScope constraints
@@ -742,6 +761,19 @@ function annotationDiagnostic(
     filePath: source.filePath,
     range: rangeForOffsets(source.text, comment.start, comment.end),
   });
+}
+
+function compareDiagnostics(
+  left: SigilDiagnostic,
+  right: SigilDiagnostic,
+): number {
+  const severityRank = { error: 0, warning: 1, info: 2 };
+  return severityRank[left.severity] - severityRank[right.severity] ||
+    (left.filePath ?? "").localeCompare(right.filePath ?? "") ||
+    (left.range?.start.line ?? 0) - (right.range?.start.line ?? 0) ||
+    (left.range?.start.column ?? 0) - (right.range?.start.column ?? 0) ||
+    left.code.localeCompare(right.code) ||
+    left.message.localeCompare(right.message);
 }
 
 function rangeForOffsets(

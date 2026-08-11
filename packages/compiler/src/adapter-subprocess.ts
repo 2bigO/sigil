@@ -22,7 +22,7 @@ export interface AdapterSubprocessResult {
   readonly code: number;
 }
 
-// @sigil implements packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AgentAdapterSubprocess interface,logic,constraints,cases
+// @sigil implements packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AdapterSubprocess interface,logic,cases
 export async function runAdapterSubprocess(
   invocation: AdapterSubprocessInvocation,
 ): Promise<AdapterSubprocessResult> {

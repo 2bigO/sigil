@@ -72,7 +72,7 @@ function request(
   };
 }
 
-// @sigil tests packages/compiler-adapter-pi/src/pi-adapter.sigil::SigilPiCompilerAdapter::PiAdapter interface,logic,constraints,cases
+// @sigil tests packages/compiler-adapter-pi/src/pi-adapter.sigil::SigilPiCompilerAdapter::PiAdapter interface,logic,cases
 Deno.test("Pi adapter invokes print JSON mode with ephemeral read-only tools", async () => {
   let observed: AdapterSubprocessInvocation | undefined;
   const adapter = new PiAdapter("openai/gpt-5", (invocation) => {

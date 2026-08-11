@@ -24,6 +24,7 @@ import {
   loadSigilWorkspace,
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
+  ownershipDiagnosticsFor as coreOwnershipDiagnosticsFor,
   parseSigilDocument,
   type PurposeRetrievalResult,
   type PurposeRetrievalTarget,
@@ -317,6 +318,13 @@ export class CoreAdapter {
       sectionName,
     );
   }
+  // @sigil implements packages/cli/_module.sigil::SigilCli::OwnershipDiagnostics interface,logic,cases
+  ownershipDiagnosticsFor(
+    resolved: ResolvedSigilWorkspace,
+    implementationSources: readonly ImplementationSource[],
+  ): readonly SigilDiagnostic[] {
+    return coreOwnershipDiagnosticsFor(resolved, implementationSources);
+  }
   // @sigil implements packages/cli/_module.sigil::SigilCli::OwnershipContext interface,logic,constraints,cases
   async implementationSourcesFor(
     resolved: ResolvedSigilWorkspace,
@@ -366,7 +374,7 @@ export class CoreAdapter {
       diagnostics: discovery.diagnostics,
     };
   }
-  // @sigil implements packages/cli/_module.sigil::SigilCli::PurposeRetrieval interface,logic,constraints,cases
+  // @sigil implements packages/cli/_module.sigil::SigilCli::PurposeContextRetrieval interface,logic
   retrievePurposeContext(
     resolved: ResolvedSigilWorkspace,
     target: PurposeRetrievalTarget,

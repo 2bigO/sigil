@@ -43,8 +43,8 @@ component SigilImplementationOwnership {
       projection or undefined
 
       implementationSources is exactly the ordered immutable source collection from
-      ImplementationEvidenceInput.sources, not the evidence envelope itself;
-      envelope validation and snapshot/discovery-state handling remain with the caller.
+      ImplementationEvidenceInput.sources, not the evidence envelope itself; envelope
+      validation and snapshot/discovery-state handling remain with the caller.
 
       componentIdentity contains the exact case-sensitive componentName and
       normalized workspace-relative declarationPath of one resolved component
@@ -59,6 +59,15 @@ component SigilImplementationOwnership {
       The query scans implementation comments that link entrypoint definitions or
       agent-facing Markdown back to the selected Sigil component and optional concept
       and section scopes.
+    }
+
+    OwnershipDiagnostics {
+      ownershipDiagnosticsFor(resolvedWorkspace, implementationSources) returns all
+      deterministic ownership-annotation diagnostics from supported implementation
+      sources without requiring a selected component.
+
+      The result includes malformed, detached, unknown-target, and unresolved-section
+      diagnostics and excludes valid annotations and unsupported source paths.
     }
 
     OwnedImplementationProjection {
@@ -134,6 +143,14 @@ expand SigilImplementationOwnership {
       return undefined before scanning when the component or supplied concept does
       not resolve; otherwise return one projection after scanning even when it has no
       targets
+    }
+
+    OwnershipDiagnostics {
+      scan every supported implementation source once and collect diagnostics from
+      malformed or unresolved ownership annotations without selecting targets.
+
+      deduplicate and order diagnostics by severity, source location, code, and
+      message.
     }
   }
 
@@ -443,6 +460,24 @@ expand SigilImplementationOwnership {
       Consequences: Retrieval and host consumers can treat empty ownership evidence
       as complete while handling unresolved identities explicitly.
     }
+
+    OwnershipDiagnostics {
+      Decision: Provide a workspace-wide deterministic ownership-diagnostic scan
+      separately from component-scoped target projections.
+
+      Scope: Governs annotation validation without target selection; excludes
+      implementation-source discovery, host presentation, and evaluator policy.
+
+      Trade-offs: A separate scan validates annotations for components not selected
+      by a host, while callers perform one additional pass over supported sources.
+
+      Consequences: CLI check can expose malformed ownership links without
+      duplicating component projection logic or misattributing diagnostics to one
+      component.
+
+      Revisit when: Ownership diagnostics need source discovery provenance or
+      component-scoped filtering.
+    }
   }
 
   cases {
@@ -486,6 +521,11 @@ expand SigilImplementationOwnership {
 
       A resolved exact component with no matching annotation returns an empty
       projection.
+    }
+
+    OwnershipDiagnostics {
+      A workspace check can report an invalid ownership annotation even when its
+      target component is not otherwise selected by a host command.
     }
 
     TargetResolution {

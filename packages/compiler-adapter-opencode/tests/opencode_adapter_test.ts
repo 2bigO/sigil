@@ -74,7 +74,7 @@ function request(
   };
 }
 
-// @sigil tests packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,constraints,cases
+// @sigil tests packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,cases
 Deno.test("OpenCode adapter invokes JSON run with restrictive persistent configuration", async () => {
   let observed: AdapterSubprocessInvocation | undefined;
   const adapter = new OpenCodeAdapter("openai/gpt-5", (invocation) => {

@@ -14,6 +14,7 @@ import {
   matchesSigilFile,
   normalizePath,
   ownedImplementationTargetsFor,
+  ownershipDiagnosticsFor,
   parseSigilConfig,
   parseSigilDocument,
   parseSigilGlossary,
@@ -1007,7 +1008,7 @@ Deno.test("resolves directory indexes independently of workspace members", async
   );
 });
 
-// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexFile interface,constraints,decisions,cases
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexFile interface,constraints
 Deno.test("treats the legacy hash-prefixed module filename as an ordinary source", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -1037,7 +1038,7 @@ Deno.test("treats the legacy hash-prefixed module filename as an ordinary source
   );
 });
 
-// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexFile interface,cases
+// @sigil tests spec/language.sigil::SigilModuleIndex::ModuleIndexFile interface
 Deno.test("does not resolve a module index excluded by source selection", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource({
@@ -1525,6 +1526,19 @@ expand Ownership {
   assertEquals(full.targets[0].filePath, "packages/cli/README.md");
   assertEquals(full.diagnostics.length, 0);
   assertEquals(full.targets[1].range?.start.line, 2);
+
+  const diagnostics = ownershipDiagnosticsFor(resolved, [
+    ...implementationSources,
+    {
+      filePath: "packages/core/src/invalid.ts",
+      text:
+        "// @sigil implements ownership.sigil::Ownership::Missing interface\n" +
+        "export function invalid() {}\n",
+    },
+  ]);
+  assertEquals(diagnostics.length, 1);
+  assertEquals(diagnostics[0].code, "SIGIL_PARSE_STRUCTURE");
+  assert(diagnostics[0].message.includes("unknown concept Missing"));
 });
 
 /*
@@ -2728,7 +2742,7 @@ function assertNoErrors(
   );
 }
 
-// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,cases
 Deno.test("purpose retrieval is deterministic and stops at direct dependencies", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -2772,7 +2786,7 @@ Deno.test("purpose retrieval is deterministic and stops at direct dependencies",
   assert(first.fingerprint.startsWith("sha256:"));
 });
 
-// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,cases
 Deno.test("architecture retrieval preserves imported-component cycle edges", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),
@@ -2821,7 +2835,7 @@ Deno.test("architecture retrieval preserves imported-component cycle edges", asy
   assertEquals(describeEdge(bToA).originLine, 1);
 });
 
-// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,logic,constraints,cases
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,cases
 Deno.test("successful retrieval preserves scoped diagnostics as evidence", async () => {
   const fs = new InMemorySigilFileSystem({
     ".sigil/config.json": configSource(),

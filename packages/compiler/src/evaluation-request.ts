@@ -46,7 +46,7 @@ export function validateAgentEvaluationRequest(
   }
 }
 
-// @sigil implements packages/compiler/src/evaluation-request.sigil::SigilAgentEvaluationRequest::AgentEvaluationResult interface,constraints,cases
+// @sigil implements packages/compiler/src/evaluation-request.sigil::SigilAgentEvaluationRequest::AgentEvaluationResult interface,cases
 export function validateAgentEvaluationResult(
   request: AgentEvaluationRequest,
   result: AgentEvaluationResult,
