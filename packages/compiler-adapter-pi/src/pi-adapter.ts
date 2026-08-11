@@ -52,7 +52,7 @@ export class PiAdapter implements AgentAdapter {
     readonly id = "pi",
   ) {}
 
-  // @sigil implements packages/compiler-adapter-pi/src/pi-adapter.sigil::SigilPiCompilerAdapter::PiAdapter interface,logic,constraints,cases
+  // @sigil implements packages/compiler-adapter-pi/src/pi-adapter.sigil::SigilPiCompilerAdapter::PiAdapter interface,logic,cases
   async evaluate(
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {

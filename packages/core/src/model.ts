@@ -515,7 +515,6 @@ export interface ResolvedSigilWorkspace {
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 
-// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::RetrievalModel interface,constraints
 export type RetrievalPurpose = "semantic" | "architecture" | "implementation";
 export type PurposeRetrievalTarget =
   | {
@@ -524,6 +523,8 @@ export type PurposeRetrievalTarget =
     readonly path: string;
   }
   | { readonly kind: "file"; readonly path: string };
+
+// @sigil implements packages/core/src/model.sigil::SigilSemanticModel::RetrievalModel interface
 export interface RetrievalTargetIdentity {
   readonly kind: "component" | "file";
   readonly componentName?: string;

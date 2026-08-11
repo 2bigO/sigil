@@ -27,7 +27,7 @@ let displayedCompilationRoot: string | undefined;
 let displayedCompilationFocus: CompilationFocus | undefined;
 const workspaceRevisions = new Map<string, number>();
 
-// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::DocumentPreview interface,state,logic,cases
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
   readonly #contents = new Map<string, string>();
   readonly #emitter = new vscode.EventEmitter<vscode.Uri>();
@@ -57,7 +57,7 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
 
 /**
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
- * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ComponentPreview interface,state,logic,cases
+ * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::DocumentPreview interface,state,logic,cases
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::SupportedExtensionHosts interface,constraints,cases
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ReadOnlyEditorSupport interface,constraints
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,logic,constraints

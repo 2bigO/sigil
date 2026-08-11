@@ -285,7 +285,7 @@ export class MockAdapter implements AgentAdapter {
   }
 }
 
-// @sigil implements packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,constraints,cases
+// @sigil implements packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,cases
 export function resolveAdapterRegistration(
   registrations: readonly AgentAdapter[],
   binding: AdapterImplementationBinding,

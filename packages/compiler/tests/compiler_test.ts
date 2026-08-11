@@ -119,7 +119,7 @@ Deno.test("evaluation skill loading returns closed tagged outcomes", async () =>
   );
 });
 
-// @sigil tests packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter constraints,cases
+// @sigil tests packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,cases
 Deno.test("provider identities and exact adapter registrations are closed", () => {
   assertEquals([
     new CodexAdapter().provider,
@@ -168,8 +168,10 @@ Deno.test("budget outcomes preserve unavailable telemetry", () => {
   );
 });
 
-// @sigil tests packages/compiler/src/event-writer.sigil::SigilCompilationEventWriter::CompilationEventWriterProtocol interface,constraints,cases
-// @sigil tests packages/compiler/src/event-reader.sigil::SigilCompilationEventReader::CompilationEventReaderProtocol interface,constraints,cases
+/*
+ * @sigil tests packages/compiler/src/event-writer.sigil::SigilCompilationEventWriter::CompilationEventWriterProtocol interface,constraints,cases
+ * @sigil tests packages/compiler/src/event-reader.sigil::SigilCompilationEventReader::CompilationEventReaderProtocol interface,constraints,cases
+ */
 Deno.test("event writer suppresses progress and preserves one terminal", async () => {
   const frames: Uint8Array[] = [];
   let calls = 0;
@@ -206,7 +208,7 @@ Deno.test("event writer suppresses progress and preserves one terminal", async (
 });
 
 /*
- * @sigil tests packages/compiler/_module.sigil::SigilCompiler::CompilationInvocation interface
+ * @sigil tests packages/compiler/src/compiler.sigil::SigilOneShotCompilation::CompilationInvocation logic,cases
  * @sigil tests packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceDiscovery logic,cases
  */
 Deno.test("compile discovers workspace config from a Sigil file path", async () => {
@@ -504,7 +506,7 @@ Deno.test("critical-system evaluator failure ends the run with the profile error
   }
 });
 
-// @sigil tests packages/compiler/src/compiler.sigil::SigilCompiler::CompilationTarget logic,cases
+// @sigil tests packages/compiler/src/compilation-target.sigil::SigilCompilationTarget::CompilationTarget logic,cases
 Deno.test("location targets select enclosing components through expand files", async () => {
   const root = await workspace(
     `component Example {
@@ -736,7 +738,7 @@ Deno.test("corrupt compilation history is ignored", async () => {
 });
 
 /*
- * @sigil tests packages/compiler/_module.sigil::SigilCompiler::CompilationTarget logic,cases
+ * @sigil tests packages/compiler/src/compilation-target.sigil::SigilCompilationTarget::CompilationTarget logic,cases
  * @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter logic,cases
  */
 Deno.test("workspace evaluation sends minimal direct-read targets in dependency order", async () => {

@@ -11,7 +11,7 @@ export const REQUIRED_EVALUATION_CAPABILITIES: AgentCapabilityContract = {
   statePersistence: "ephemeral",
 };
 
-// @sigil implements packages/compiler/src/evaluation-capabilities.sigil::SigilAgentCapabilityContract::EvaluatorPersistenceRequirement decisions,cases
+// @sigil implements packages/compiler/src/evaluation-capabilities.sigil::SigilAgentCapabilityContract::AgentCapabilityContract interface,cases
 export function evaluationCapabilitiesFor(
   declared: AgentCapabilityContract,
 ): AgentCapabilityContract {

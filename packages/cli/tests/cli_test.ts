@@ -144,6 +144,33 @@ Deno.test("check resolves repository config from a nested working directory", as
   assertEquals(json.diagnosticCounts.error, 0);
 });
 
+/*
+ * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/_module.sigil::SigilCli::OwnershipDiagnostics interface,logic,cases
+ */
+Deno.test("check reports ownership diagnostics from implementation sources", async () => {
+  const root = await makeWorkspace("ownership-check");
+  try {
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      validSigil("Feature"),
+    );
+    await Deno.writeTextFile(
+      `${root}/implementation.ts`,
+      "// @sigil implements contract.sigil::Feature::Missing interface\n" +
+        "export function runFeature() {}\n",
+    );
+
+    const result = await runCli(["check", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const output = parseJson(result.stdout);
+    assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
+    assertEquals(output.diagnosticCounts.error, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
 Deno.test("init creates defaults, accepts a custom name, and refuses overwrite", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-init-" });
@@ -321,9 +348,7 @@ Deno.test("check reports missing interface concepts as warning-only", async () =
   }
 });
 
-/*
- * @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations interface,logic,constraints,cases
- */
+// @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations interface,logic,constraints,cases
 Deno.test("check --show-locations adds file, line, and column to text diagnostics", async () => {
   const root = await makeWorkspace("show-locations");
   try {
@@ -442,9 +467,7 @@ Deno.test("--show-locations is rejected outside check", async () => {
   );
 });
 
-/*
- * @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
- */
+// @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
 Deno.test("check location rendering handles ranges, missing ranges, and path styles", () => {
   const base = {
     command: "check",
@@ -1673,7 +1696,7 @@ Deno.test("context dependent flag requires component selection", async () => {
   }
 });
 
-// @sigil tests packages/cli/_module.sigil::SigilCli::PurposeRetrieval interface,logic,constraints,cases
+// @sigil tests packages/cli/_module.sigil::SigilCli::PurposeContextRetrieval interface,logic
 Deno.test("retrieve returns one deterministic purpose result", async () => {
   const root = await makeWorkspace("retrieve-purpose");
   try {

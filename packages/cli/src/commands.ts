@@ -112,11 +112,23 @@ export async function runCommand(
     request.root,
   );
   if (request.command === "check") {
+    const implementationSourceDiscovery = await core.implementationSourcesFor(
+      resolved,
+    );
+    const ownershipDiagnostics = core.ownershipDiagnosticsFor(
+      resolved,
+      implementationSourceDiscovery.sources,
+    );
+    const diagnostics = [
+      ...resolved.diagnostics,
+      ...implementationSourceDiscovery.diagnostics,
+      ...ownershipDiagnostics,
+    ];
     return {
       command: "check",
       ...workspaceMetadata(resolved.workspace),
-      diagnostics: resolved.diagnostics,
-      diagnosticCounts: diagnosticCounts(resolved.diagnostics),
+      diagnostics,
+      diagnosticCounts: diagnosticCounts(diagnostics),
     };
   }
   if (request.command === "glossary") {
