@@ -6,6 +6,7 @@ import {
   type SigilConfigParseResult,
   type SigilDiagnostic,
 } from "./model.ts";
+import { globMatches } from "./path.ts";
 
 export const DEFAULT_SIGIL_INCLUDES = ["**/*.sigil"] as const;
 export const DEFAULT_SIGIL_EXCLUDES = [
@@ -116,31 +117,6 @@ export function excludesSigilSubtree(
   );
   const probe = `${normalized}/__sigil_subtree__`;
   return config.files.exclude.some((pattern) => globMatches(pattern, probe));
-}
-
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
-export function globMatches(pattern: string, path: string): boolean {
-  const normalizedPattern = pattern.replaceAll("\\", "/").replace(/^\.\//, "");
-  let source = "^";
-  for (let index = 0; index < normalizedPattern.length; index++) {
-    const char = normalizedPattern[index];
-    if (char === "*" && normalizedPattern[index + 1] === "*") {
-      index++;
-      if (normalizedPattern[index + 1] === "/") {
-        index++;
-        source += "(?:.*/)?";
-      } else {
-        source += ".*";
-      }
-    } else if (char === "*") {
-      source += "[^/]*";
-    } else if (char === "?") {
-      source += "[^/]";
-    } else {
-      source += char.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
-    }
-  }
-  return new RegExp(`${source}$`).test(path);
 }
 
 function validateWorkspace(value: unknown, messages: string[]): void {

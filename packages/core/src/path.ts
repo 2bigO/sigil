@@ -25,6 +25,30 @@ export function normalizePath(path: string): string {
   return joined || ".";
 }
 
+export function globMatches(pattern: string, path: string): boolean {
+  const normalizedPattern = pattern.replaceAll("\\", "/").replace(/^\.\//, "");
+  let source = "^";
+  for (let index = 0; index < normalizedPattern.length; index++) {
+    const char = normalizedPattern[index];
+    if (char === "*" && normalizedPattern[index + 1] === "*") {
+      index++;
+      if (normalizedPattern[index + 1] === "/") {
+        index++;
+        source += "(?:.*/)?";
+      } else {
+        source += ".*";
+      }
+    } else if (char === "*") {
+      source += "[^/]*";
+    } else if (char === "?") {
+      source += "[^/]";
+    } else {
+      source += char.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+    }
+  }
+  return new RegExp(`${source}$`).test(path);
+}
+
 export function dirname(path: string): string {
   const normalized = normalizePath(path);
   if (
