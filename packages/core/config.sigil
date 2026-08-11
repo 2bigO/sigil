@@ -39,7 +39,7 @@ expand SigilConfigurationParser {
       workspace discovery, source loading, and host presentation.
 
       ConfigFile validation follows the model and rules owned by
-       SigilWorkspaceConfig.
+      SigilWorkspaceConfig.
     }
 
     RecoverableConfiguration {
@@ -58,8 +58,8 @@ expand SigilConfigurationParser {
       configuration diagnostics; excludes workspace discovery, source loading, and
       filesystem access.
 
-      Consequences: SigilWorkspaceLoader consumes validated parser results, and
-      hosts do not duplicate ConfigFile validation.
+      Consequences: SigilWorkspaceLoader consumes validated parser results, and hosts
+      do not duplicate ConfigFile validation.
 
       Revisit when: Configuration interpretation requires workspace loading or
       host-specific policy.

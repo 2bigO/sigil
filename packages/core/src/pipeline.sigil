@@ -9,8 +9,8 @@ component SigilWorkspaceResolutionPipeline {
     Compose resolved workspace relationship, graph, and glossary data into one
     deterministic result for core consumers.
 
-    Keep stage ordering, result assembly, and diagnostic deduplication separate from
-    the individual resolver, graph, and glossary owners.
+    Keep stage ordering, result assembly, and diagnostic deduplication separate
+    from the individual resolver, graph, and glossary owners.
   }
 
   interface {
@@ -22,8 +22,8 @@ component SigilWorkspaceResolutionPipeline {
       Malformed loaded documents and glossary data remain represented by partial
       results and diagnostics when the underlying stages can recover.
 
-      The operation performs no filesystem access or configuration discovery; required
-      dependency and runtime failures propagate to the caller.
+      The operation performs no filesystem access or configuration discovery;
+      required dependency and runtime failures propagate to the caller.
 
       Each call is stateless and completes one pipeline operation without retaining a
       lifecycle or session.
