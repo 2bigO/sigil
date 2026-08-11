@@ -1,5 +1,5 @@
 @spec/language.sigil import { SigilLanguage }
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 @packages/core/src/parser.sigil import { SigilParser }
 

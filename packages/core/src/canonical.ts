@@ -26,6 +26,10 @@ export function canonicalJson(value: unknown): string {
   throw new TypeError("Value is not representable as canonical JSON.");
 }
 
+/*
+ * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalResult interface
+ * @sigil implements packages/core/src/workspace.sigil::SigilWorkspaceLoader::WorkspaceSnapshotIdentity logic,constraints
+ */
 export async function sha256Canonical(value: unknown): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalJson(value));
   const digest = await crypto.subtle.digest("SHA-256", bytes);

@@ -1,4 +1,8 @@
-import type { FormatResult, SemanticUnit, SigilDocument } from "./model.ts";
+import type {
+  FormatResult,
+  SemanticUnit,
+  SigilDocument,
+} from "./model/source.ts";
 
 const PROSE_WIDTH = 79;
 

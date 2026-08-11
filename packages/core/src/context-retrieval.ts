@@ -5,27 +5,30 @@ import { stronglyConnectedComponentGroups } from "./graph.ts";
 import { ownedImplementationTargetsFor } from "./implementation-ownership.ts";
 import { dirname, normalizePath, relativePath } from "./path.ts";
 import type {
+  GlossaryContextProjection,
+  GlossaryProjection,
+} from "./model/glossary.ts";
+import type { ImplementationEvidenceInput } from "./model/ownership.ts";
+import type {
   EvidenceKind,
   EvidenceUnit,
   ExcludedRelation,
-  GlossaryContextProjection,
-  GlossaryProjection,
-  ImplementationEvidenceInput,
   InclusionReason,
   PurposeRetrievalResult,
   PurposeRetrievalTarget,
-  ResolvedComponent,
-  ResolvedSigilWorkspace,
   RetrievalEdge,
   RetrievalNode,
   RetrievalNodeKind,
   RetrievalPurpose,
   RetrievalRelation,
-  SemanticUnit,
-  SigilDiagnostic,
-  SigilSectionName,
-  SourceRange,
-} from "./model.ts";
+} from "./model/retrieval.ts";
+import type {
+  ResolvedComponent,
+  ResolvedSigilWorkspace,
+} from "./model/resolution.ts";
+import type { SemanticUnit } from "./model/source.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SigilSectionName, SourceRange } from "./model/language.ts";
 
 const RELATION_ORDER: readonly RetrievalRelation[] = [
   "selected-declaration",

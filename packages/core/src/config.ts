@@ -1,11 +1,10 @@
+import { SIGIL_CONFIG_PATH, SIGIL_VERSION } from "./model/language.ts";
 import { diagnostic } from "./diagnostics.ts";
-import {
-  SIGIL_CONFIG_PATH,
-  SIGIL_VERSION,
-  type SigilConfig,
-  type SigilConfigParseResult,
-  type SigilDiagnostic,
-} from "./model.ts";
+import type {
+  SigilConfig,
+  SigilConfigParseResult,
+} from "./model/configuration.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
 import { globMatches } from "./path.ts";
 
 export const DEFAULT_SIGIL_INCLUDES = ["**/*.sigil"] as const;

@@ -9,13 +9,15 @@ import type {
   ParseResult,
   Section,
   SemanticUnit,
-  SigilDiagnostic,
   SigilDocument,
-  SigilFormKind,
-  SigilSectionName,
-  SourceRange,
-} from "./model.ts";
-import { SIGIL_VERSION } from "./model.ts";
+} from "./model/source.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import {
+  SIGIL_VERSION,
+  type SigilFormKind,
+  type SigilSectionName,
+  type SourceRange,
+} from "./model/language.ts";
 import { isModuleFile } from "./path.ts";
 
 const SECTION_NAMES = new Set<SigilSectionName>([

@@ -1,5 +1,5 @@
 @spec/language.sigil import { SigilModuleIndex }
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
 @packages/core/src/resolver.sigil import { SigilResolver }
 
 component SigilGraphBuilder {

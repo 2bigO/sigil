@@ -1,6 +1,8 @@
 @spec/language.sigil import { SigilLanguage }
 @packages/core/config.sigil import { SigilConfigurationParser }
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
+@packages/core/src/diagnostics.sigil import { SigilDiagnostics }
+@packages/core/src/filesystem.sigil import { SigilFileSystem }
 @packages/core/src/parser.sigil import { SigilParser }
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 @packages/core/src/formatter.sigil import { SigilFormatter }
@@ -27,10 +29,11 @@ component SigilCore {
       SigilCore exports the deterministic Sigil language, configuration, workspace,
       resolution, graph, glossary, projection, ownership, retrieval, and immutable
       semantic-model contracts assembled from SigilLanguage,
-      SigilConfigurationParser, SigilSemanticModel, SigilParser, SigilFormatter,
-      SigilWorkspaceLoader, SigilResolver, SigilGraphBuilder,
-      SigilWorkspaceResolutionPipeline, SigilProjections, SigilGlossaryEngine,
-      SigilImplementationOwnership, and SigilContextRetrieval
+      SigilConfigurationParser, SigilSemanticModel, SigilDiagnostics,
+      SigilFileSystem, SigilParser, SigilFormatter, SigilWorkspaceLoader,
+      SigilResolver, SigilGraphBuilder, SigilWorkspaceResolutionPipeline,
+      SigilProjections, SigilGlossaryEngine, SigilImplementationOwnership, and
+      SigilContextRetrieval
 
       hosts consume those cohesive contracts without reimplementing source
       interpretation, workspace rules, relationship resolution, or projections
@@ -87,8 +90,8 @@ expand SigilCore {
 
       SigilContextRetrieval consumes graph, glossary, and ownership evidence.
 
-      No operational component imports SigilCore; the module index only assembles the
-      public namespace.
+      No core operational component imports SigilCore; the module index only
+      assembles the public namespace.
 
       Host integrations consume core semantics instead of implementing independent
       Sigil parsers, workspace rules, resolvers, or concept interpretation.

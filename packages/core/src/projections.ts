@@ -1,3 +1,4 @@
+import type { ImportedComponentEdge } from "./model/graph.ts";
 import type {
   AgentDependencyContext,
   AgentDependentContext,
@@ -5,11 +6,10 @@ import type {
   ComponentContractView,
   DependencyDecisionView,
   DependentImportingFileContext,
-  ImportedComponentEdge,
   ResolvedComponent,
   ResolvedConceptNamespace,
   ResolvedSigilWorkspace,
-} from "./model.ts";
+} from "./model/resolution.ts";
 
 // @sigil implements packages/core/src/projections.sigil::SigilProjections::ContractProjection interface,logic,cases
 export function componentContracts(

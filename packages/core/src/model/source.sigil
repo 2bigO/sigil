@@ -1,0 +1,18 @@
+@packages/core/src/model/language.sigil import { SigilLanguageModel }
+@packages/core/src/model/diagnostics.sigil import { SigilDiagnosticModel }
+
+component SigilSourceModel {
+  goal {
+    Define recovered Sigil source documents, semantic units, and declarations for
+    parsers and deterministic consumers.
+  }
+
+  interface {
+    SourceModel {
+      SigilLanguageModel supplies structural vocabulary and source positions, and
+      SigilDiagnosticModel supplies diagnostics. SemanticUnit, LiteralBlock, concept
+      blocks, sections, declarations, SigilDocument, ParseResult, FormatResult, and
+      ParseOptions preserve recovered source structures and diagnostics.
+    }
+  }
+}

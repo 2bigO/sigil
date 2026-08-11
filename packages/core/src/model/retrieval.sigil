@@ -1,0 +1,16 @@
+@packages/core/src/model/source.sigil import { SigilSourceModel }
+@packages/core/src/model/diagnostics.sigil import { SigilDiagnosticModel }
+
+component SigilRetrievalModel {
+  goal {
+    Define immutable purpose-retrieval targets, evidence, graphs, and results.
+  }
+
+  interface {
+    RetrievalModel {
+      SigilSourceModel and SigilDiagnosticModel provide source and diagnostic data.
+      PurposeRetrievalResult and its target, graph, evidence, inclusion, exclusion,
+      context, and fingerprint data preserve deterministic retrieval output.
+    }
+  }
+}

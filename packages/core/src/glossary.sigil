@@ -1,5 +1,5 @@
 @spec/glossary.sigil import { SigilWorkspaceGlossary }
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 
 component SigilGlossaryEngine {

@@ -7,15 +7,13 @@ import type {
   GlossaryScope,
   GlossaryTerm,
   ResolvedGlossaryContext,
-  SemanticUnit,
-  SigilDiagnostic,
-  SigilDocument,
-  SigilWorkspace,
-  SourceLocation,
-  SourceRange,
   WorkspaceGlossary,
-} from "./model.ts";
-import { SIGIL_GLOSSARY_PATH } from "./model.ts";
+} from "./model/glossary.ts";
+import type { SemanticUnit, SigilDocument } from "./model/source.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SourceLocation, SourceRange } from "./model/language.ts";
+import type { SigilWorkspace } from "./model/workspace.ts";
+import { SIGIL_GLOSSARY_PATH } from "./model/language.ts";
 import { globMatches, normalizePath, relativePath } from "./path.ts";
 
 export const GLOSSARY_SCHEMA_VERSION = 1 as const;

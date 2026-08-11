@@ -1,5 +1,4 @@
 @spec/language.sigil import { SigilLanguage, SigilModuleIndex }
-@packages/core/src/model.sigil import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 
 component SigilParser {
