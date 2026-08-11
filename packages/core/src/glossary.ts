@@ -1,4 +1,3 @@
-import { globMatches } from "./config.ts";
 import { diagnostic } from "./diagnostics.ts";
 import type {
   GlossaryContextProjection,
@@ -17,7 +16,7 @@ import type {
   WorkspaceGlossary,
 } from "./model.ts";
 import { SIGIL_GLOSSARY_PATH } from "./model.ts";
-import { normalizePath, relativePath } from "./path.ts";
+import { globMatches, normalizePath, relativePath } from "./path.ts";
 
 export const GLOSSARY_SCHEMA_VERSION = 1 as const;
 
