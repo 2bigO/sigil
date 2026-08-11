@@ -1,10 +1,8 @@
-import type {
-  ComponentIdentity,
-  SigilGraph,
-  SigilResolution,
-} from "./model.ts";
+import type { ComponentIdentity } from "./model/ownership.ts";
+import type { SigilGraph } from "./model/graph.ts";
+import type { SigilResolution } from "./model/resolution.ts";
 
-export type { SigilGraph } from "./model.ts";
+export type { SigilGraph } from "./model/graph.ts";
 
 // @sigil implements packages/core/src/graph.sigil::SigilGraphBuilder::GraphConstruction interface,logic,constraints
 export function buildSigilGraph(resolution: SigilResolution): SigilGraph {

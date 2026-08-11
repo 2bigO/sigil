@@ -1,4 +1,4 @@
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
 @packages/core/src/resolver.sigil import { SigilResolver }
 @packages/core/src/graph.sigil import { SigilGraphBuilder }
 

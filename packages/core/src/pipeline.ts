@@ -1,8 +1,6 @@
-import type {
-  ResolvedSigilWorkspace,
-  SigilDiagnostic,
-  SigilWorkspace,
-} from "./model.ts";
+import type { ResolvedSigilWorkspace } from "./model/resolution.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SigilWorkspace } from "./model/workspace.ts";
 import { buildSigilGraph } from "./graph.ts";
 import { glossaryProjectionForWorkspace } from "./glossary.ts";
 import { resolveSigilRelationships } from "./resolver.ts";

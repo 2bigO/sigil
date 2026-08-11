@@ -1,4 +1,4 @@
-import type { SigilFileSystem } from "./model.ts";
+import type { SigilFileSystem } from "./model/workspace.ts";
 import { normalizePath } from "./path.ts";
 
 // @sigil implements packages/core/src/filesystem.sigil::SigilFileSystem::InMemoryFileSystem interface,logic,constraints,cases

@@ -1,0 +1,33 @@
+component SigilLanguageModel {
+  goal {
+    Define stable language constants and source-position primitives with shared
+    structural vocabulary for deterministic Sigil model contracts.
+  }
+
+  interface {
+    LanguageModel {
+      SIGIL_VERSION, SigilFormKind, and SigilSectionName define the supported
+      language version and structural declaration vocabulary. SourceLocation and
+      SourceRange define immutable source-position primitives shared across domains.
+    }
+  }
+}
+
+expand SigilLanguageModel {
+  decisions {
+    SourcePositionOwnership {
+      Decision: Place SourceLocation and SourceRange in the foundational language
+      model so diagnostics and recovered source structures consume one-way shared
+      primitives.
+
+      Scope: Governs source-position data ownership across core model domains;
+      excludes diagnostics, parsed source structures, and their operational use.
+
+      Trade-offs: The language model exposes two general immutable data shapes in
+      addition to language constants and declaration vocabulary.
+
+      Consequences: Diagnostics remain source-ranged without a source-to-diagnostics
+      ownership cycle, and domain modules keep explicit acyclic dependencies.
+    }
+  }
+}

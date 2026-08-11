@@ -1,8 +1,8 @@
 import type {
   SigilDiagnostic,
   SigilDiagnosticCode,
-  SourceRange,
-} from "./model.ts";
+} from "./model/diagnostics.ts";
+import type { SourceRange } from "./model/language.ts";
 
 // @sigil implements packages/core/src/diagnostics.sigil::SigilDiagnostics::DiagnosticConstruction interface,constraints,cases
 export function diagnostic(

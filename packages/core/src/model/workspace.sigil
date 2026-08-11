@@ -1,0 +1,20 @@
+@packages/core/src/model/configuration.sigil import { SigilConfigurationModel }
+@packages/core/src/model/source.sigil import { SigilSourceModel }
+@packages/core/src/model/glossary.sigil import { SigilGlossaryModel }
+@packages/core/src/model/diagnostics.sigil import { SigilDiagnosticModel }
+
+component SigilWorkspaceModel {
+  goal {
+    Define immutable filesystem and loaded-workspace data shared by workspace,
+    resolution, and graph stages.
+  }
+
+  interface {
+    WorkspaceModel {
+      SigilConfigurationModel, SigilSourceModel, SigilGlossaryModel, and
+      SigilDiagnosticModel provide the associated data. SigilFileSystem,
+      LoadedSigilFile, SigilWorkspace, and WorkspaceLoadOptions represent
+      host-neutral filesystem access and one loaded workspace snapshot.
+    }
+  }
+}

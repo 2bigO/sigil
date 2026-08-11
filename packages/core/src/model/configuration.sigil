@@ -1,0 +1,16 @@
+@packages/core/src/model/language.sigil import { SigilLanguageModel }
+
+component SigilConfigurationModel {
+  goal {
+    Define immutable configuration data exchanged between configuration parsing and
+    workspace loading.
+  }
+
+  interface {
+    ConfigurationModel {
+      SigilLanguageModel supplies the versioned language vocabulary. SigilConfig,
+      SigilWorkspaceConfig, SigilFileDiscoveryConfig, and SigilConfigParseResult
+      represent validated ConfigFile data and diagnostics.
+    }
+  }
+}

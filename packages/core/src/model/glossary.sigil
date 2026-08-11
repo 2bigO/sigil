@@ -1,0 +1,18 @@
+@packages/core/src/model/source.sigil import { SigilSourceModel }
+@packages/core/src/model/diagnostics.sigil import { SigilDiagnosticModel }
+
+component SigilGlossaryModel {
+  goal {
+    Define immutable reviewed glossary entries, contexts, occurrences, and
+    projections exchanged by glossary and workspace stages.
+  }
+
+  interface {
+    GlossaryModel {
+      SigilSourceModel supplies source ranges and SigilDiagnosticModel supplies
+      diagnostics. WorkspaceGlossary, GlossaryTerm, GlossaryContext, resolved
+      contexts, occurrences, parse results, and projections preserve scoped
+      vocabulary data.
+    }
+  }
+}

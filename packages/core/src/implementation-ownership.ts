@@ -8,11 +8,13 @@ import type {
   ImplementationSource,
   OwnedImplementationProjection,
   OwnedImplementationTarget,
+} from "./model/ownership.ts";
+import type {
   ResolvedComponent,
   ResolvedSigilWorkspace,
-  SigilDiagnostic,
-  SourceRange,
-} from "./model.ts";
+} from "./model/resolution.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SourceRange } from "./model/language.ts";
 
 const IMPLEMENTATION_RELATIONS: ReadonlySet<ImplementationRelation> = new Set([
   "implements",
