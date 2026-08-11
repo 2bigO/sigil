@@ -12,6 +12,7 @@
     "lint": "deno lint",
     "check": "deno check packages/core/src/mod.ts packages/compiler/src/mod.ts packages/compiler-adapter-opencode/src/mod.ts packages/cli/src/main.ts packages/lsp/src/main.ts && deno task check:vscode",
     "check:vscode": "npm --prefix integrations/editor/vscode run check",
+    "install:vscode": "npm ci --prefix integrations/editor/vscode",
     "test:core": "deno task --cwd packages/core test",
     "test:compiler": "deno task --cwd packages/compiler test",
     "test:compiler-adapter-opencode": "deno task --cwd packages/compiler-adapter-opencode test",
@@ -21,7 +22,7 @@
     "test:vscode:extension": "npm --prefix integrations/editor/vscode run test:extension",
     "test:skill": "deno run --allow-read scripts/validate-skill.ts",
     "test": "deno task test:core && deno task test:compiler && deno task test:compiler-adapter-opencode && deno task test:cli && deno task test:lsp && deno task test:vscode && deno task test:vscode:extension && deno task test:skill",
-    "package:vscode": "npm --prefix integrations/editor/vscode run package",
+    "package:vscode": "deno run --allow-read --allow-run scripts/ensure-vscode-deps.ts && npm --prefix integrations/editor/vscode run package",
     "package:cli": "deno run --allow-read --allow-write --allow-run scripts/build-cli-release.ts",
     "publish:dry-run": "deno task --cwd packages/core publish:dry-run && deno task --cwd packages/compiler publish:dry-run && deno task --cwd packages/compiler-adapter-opencode publish:dry-run && deno task --cwd packages/cli publish:dry-run && deno task --cwd packages/lsp publish:dry-run && deno task package:vscode"
   }
