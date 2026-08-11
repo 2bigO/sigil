@@ -28,12 +28,14 @@ export type CommandRunner = (
   command: string,
   args: readonly string[],
   input: string,
-  onStdoutChunk: (chunk: string) => void,
+  onStdoutChunk: (chunk: string) => void | Promise<void>,
   signal?: AbortSignal,
   execution?: {
     readonly cwd: string;
     readonly providerCleanupMs: number;
     readonly implementationIdentity: string;
+    readonly maxInitialRequestChars: number;
+    readonly maxProviderFrameChars: number;
   },
 ) => Promise<void>;
 
@@ -59,6 +61,8 @@ const defaultRunner: CommandRunner = async (
     input,
     signal,
     providerCleanupMs: execution.providerCleanupMs,
+    maxInitialRequestChars: execution.maxInitialRequestChars,
+    maxProviderFrameChars: execution.maxProviderFrameChars,
     onStdoutChunk,
   });
 };
@@ -185,6 +189,8 @@ export class CodexAdapter implements AgentAdapter {
               providerCleanupMs: request.limits.providerCleanupMs,
               implementationIdentity:
                 `${this.implementationId}@${this.implementationVersion}`,
+              maxInitialRequestChars: request.limits.maxInitialRequestChars,
+              maxProviderFrameChars: request.limits.maxProviderFrameChars,
             },
           );
           const result = parser.finish();

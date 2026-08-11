@@ -13,7 +13,9 @@ export interface AdapterSubprocessInvocation {
   readonly input: string;
   readonly signal: AbortSignal;
   readonly providerCleanupMs: number;
-  readonly onStdoutChunk?: (chunk: string) => void;
+  readonly maxInitialRequestChars: number;
+  readonly maxProviderFrameChars: number;
+  readonly onStdoutChunk?: (chunk: string) => void | Promise<void>;
 }
 
 export interface AdapterSubprocessResult {
@@ -26,6 +28,12 @@ export interface AdapterSubprocessResult {
 export async function runAdapterSubprocess(
   invocation: AdapterSubprocessInvocation,
 ): Promise<AdapterSubprocessResult> {
+  if (invocation.input.length > invocation.maxInitialRequestChars) {
+    throw new AdapterFailure(
+      "operational-limit",
+      `Provider input exceeds the ${invocation.maxInitialRequestChars}-character limit.`,
+    );
+  }
   let child: Deno.ChildProcess;
   try {
     child = new Deno.Command(invocation.command, {
@@ -46,7 +54,11 @@ export async function runAdapterSubprocess(
   }
 
   const resourceIdentity = `process:${child.pid}`;
-  const stdout = readOutput(child.stdout, invocation.onStdoutChunk);
+  const stdout = readOutput(
+    child.stdout,
+    invocation.onStdoutChunk,
+    invocation.maxProviderFrameChars,
+  );
   const stderr = new Response(child.stderr).text();
   const status = child.status;
   try {
@@ -122,24 +134,45 @@ export async function runAdapterSubprocess(
 
 async function readOutput(
   stream: ReadableStream<Uint8Array>,
-  onChunk: ((chunk: string) => void) | undefined,
+  onChunk: ((chunk: string) => void | Promise<void>) | undefined,
+  maxFrameChars: number,
 ): Promise<string> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let retained = "";
+  let openFrame = "";
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
     const text = decoder.decode(value, { stream: true });
-    if (onChunk) onChunk(text);
+    assertFrameLimit(text, maxFrameChars, openFrame);
+    const lastBreak = Math.max(text.lastIndexOf("\n"), text.lastIndexOf("\r"));
+    openFrame = lastBreak < 0 ? openFrame + text : text.slice(lastBreak + 1);
+    if (onChunk) await onChunk(text);
     else retained += text;
   }
   const tail = decoder.decode();
   if (tail) {
-    if (onChunk) onChunk(tail);
+    assertFrameLimit(tail, maxFrameChars, openFrame);
+    if (onChunk) await onChunk(tail);
     else retained += tail;
   }
   return retained;
+}
+
+function assertFrameLimit(
+  chunk: string,
+  maxFrameChars: number,
+  prefix: string,
+): void {
+  for (const frame of `${prefix}${chunk}`.split(/\r?\n/)) {
+    if (frame.length > maxFrameChars) {
+      throw new AdapterFailure(
+        "operational-limit",
+        `Provider output frame exceeds the ${maxFrameChars}-character limit.`,
+      );
+    }
+  }
 }
 
 function abortResult(signal: AbortSignal): Promise<{ readonly kind: "abort" }> {

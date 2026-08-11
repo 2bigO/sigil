@@ -5,14 +5,15 @@
 @packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
 @packages/compiler/src/compiler.sigil import { SigilOneShotCompilation }
 @packages/compiler/src/session-factory.sigil import { SigilCompilationSessionFactory }
+@packages/compiler/src/compilation-target.sigil import { SigilCompilationTarget }
 
 component SigilCompiler {
   goal {
     Give designers and architects a compiler-like improvement loop for high-level
     Sigil contracts through profile-scoped deterministic and agentic evaluation.
 
-    Keep deterministic processing inside the compiler and protect the source
-    workspace from modification.
+    Keep deterministic processing inside the compiler and prevent compiler-owned
+    modification of the source workspace.
 
     Proposal coordination may write only compiler-owned proposal and session state.
     The compiler does not replace human design approval.

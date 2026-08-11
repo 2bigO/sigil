@@ -66,6 +66,7 @@ export async function coordinateAdapterExecution<T>(
   const signal = operation.signal
     ? AbortSignal.any([operation.signal, timeout.signal])
     : timeout.signal;
+  const arbiter = new AdapterTerminalArbiter<T>();
   const resources = new Map<string, "active" | "released">();
   const cleanupAttempts: string[] = [];
   const observationFailures: string[] = [];
@@ -96,7 +97,31 @@ export async function coordinateAdapterExecution<T>(
     },
   };
   try {
-    const result = await operation.invoke(signal, resourceHooks);
+    let result: T | undefined;
+    try {
+      result = await operation.invoke(signal, resourceHooks);
+      arbiter.submitResult(result);
+    } catch (error) {
+      arbiter.submitFailure(error);
+    }
+    if (operation.signal?.aborted) {
+      arbiter.submitFailure(
+        new AdapterFailure(
+          "cancelled",
+          "Evaluation was cancelled.",
+        ),
+      );
+    }
+    if (timeout.signal.aborted) {
+      arbiter.submitFailure(
+        new AdapterFailure(
+          "elapsed-time",
+          "Evaluation elapsed-time budget expired.",
+        ),
+      );
+    }
+    const settled = await arbiter.drain();
+    if (settled instanceof Error) throw settled;
     assertReleasedResources(
       operation.implementationIdentity,
       resources,
@@ -104,7 +129,7 @@ export async function coordinateAdapterExecution<T>(
       observationFailures,
       "execution",
     );
-    return result;
+    return settled;
   } catch (error) {
     const initiatingKind = error instanceof AdapterFailure
       ? error.kind
@@ -139,6 +164,66 @@ export async function coordinateAdapterExecution<T>(
     throw error;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+class AdapterTerminalArbiter<T> {
+  readonly #conditions: Array<{
+    readonly sequence: number;
+    readonly kind: AdapterFailureKind | "result";
+    readonly value: T | unknown;
+  }> = [];
+
+  submitResult(value: T): void {
+    this.#conditions.push({
+      sequence: this.#conditions.length,
+      kind: "result",
+      value,
+    });
+  }
+
+  submitFailure(error: unknown): void {
+    const failure = error instanceof AdapterFailure
+      ? error
+      : new AdapterFailure(
+        "execution",
+        error instanceof Error ? error.message : String(error),
+        undefined,
+        { cause: error },
+      );
+    this.#conditions.push({
+      sequence: this.#conditions.length,
+      kind: failure.kind,
+      value: failure,
+    });
+  }
+
+  async drain(): Promise<T | Error> {
+    await Promise.resolve();
+    const precedence: Record<AdapterFailureKind | "result", number> = {
+      cancelled: 0,
+      "binding-mismatch": 3,
+      "capability-mismatch": 3,
+      "elapsed-time": 1,
+      "preventive-budget": 2,
+      "operational-limit": 3,
+      execution: 4,
+      "final-result-protocol": 5,
+      cleanup: 6,
+      result: 7,
+    };
+    const winner =
+      [...this.#conditions].sort((left, right) =>
+        precedence[left.kind] - precedence[right.kind] ||
+        left.sequence - right.sequence
+      )[0];
+    if (!winner) {
+      return new AdapterFailure(
+        "execution",
+        "Adapter invocation produced no outcome.",
+      );
+    }
+    return winner.value as T | Error;
   }
 }
 
