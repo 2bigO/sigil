@@ -4,7 +4,7 @@ import { resolveCompilationSettings } from "./profile.ts";
 import { SigilProposalWorkspace } from "./proposal-workspace.ts";
 import { FileCompilationSessionStore } from "./session-store.ts";
 import { SigilCompilationSession } from "./session.ts";
-import { CompilerFailure } from "./status.ts";
+import { CompilerFailure, compilerFailureCode } from "./status.ts";
 import type {
   CompilationFocus,
   CompilationSessionRecord,
@@ -64,7 +64,19 @@ export class SigilCompilationSessionFactory {
       const created = await this.store.create(record);
       await created.lease.release();
     } catch (error) {
-      await workspace.workspace.close().catch(() => {});
+      try {
+        await workspace.workspace.close();
+      } catch (cleanupError) {
+        const cleanupCode = compilerFailureCode(cleanupError);
+        const code = cleanupCode === "COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED"
+          ? cleanupCode
+          : "COMPILER_WORKSPACE_HOST_FAILURE";
+        throw new CompilerFailure(
+          code,
+          "Compilation session creation failed and proposal-workspace cleanup could not complete.",
+          { cause: new AggregateError([error, cleanupError]) },
+        );
+      }
       throw error;
     }
     return {

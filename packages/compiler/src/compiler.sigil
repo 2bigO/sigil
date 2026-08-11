@@ -25,6 +25,11 @@ component SigilOneShotCompilation {
       required evaluators reject with COMPILER_PROFILE_EVALUATORS_REQUIRED; host or
       protocol failure rejects with COMPILER_FAILED
 
+      an invalid, missing, or unconfigured workspacePath rejects with
+      COMPILER_INVALID_INVOCATION before event-writer binding. An inaccessible path
+      or workspace that SigilCore cannot load cleanly rejects with COMPILER_FAILED
+      before event-writer binding.
+
       every rejection after event-writer binding returns no CompilationReport and
       emits its corresponding terminal event whenever a compatible
       CompilationEventWriter remains open; pre-binding invocation rejection returns
@@ -181,11 +186,13 @@ expand SigilOneShotCompilation {
     }
 
     InvalidCompilationInvocation {
-      Decision: Reject an unknown or conflicting target, profile, stage, or focus
-      through one stable COMPILER_INVALID_INVOCATION caller error.
+      Decision: Reject an unknown or conflicting target, profile, stage, focus, or
+      invalid, missing, or unconfigured workspacePath through one stable
+      COMPILER_INVALID_INVOCATION caller error.
 
-      Scope: Governs one-shot invocation validation; excludes evaluator availability,
-      cancellation, and host or protocol failure.
+      Scope: Governs one-shot invocation validation; excludes inaccessible or invalid
+      workspace loading, evaluator availability, cancellation, and host or protocol
+      failure.
 
       Trade-offs: One code covers several caller-correctable input categories.
 

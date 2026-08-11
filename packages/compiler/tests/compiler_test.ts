@@ -1039,6 +1039,12 @@ Deno.test("workspace configuration overrides compiler execution budgets", async 
   goal {
     Explain the example.
   }
+
+  interface {
+    ExampleContract {
+      Provide the example contract.
+    }
+  }
 }
 `,
     {},

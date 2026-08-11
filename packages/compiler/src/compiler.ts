@@ -141,9 +141,11 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
 export async function loadCompilationConfiguration(
   startPath: string,
 ): Promise<CompileConfiguration> {
+  await assertWorkspacePath(startPath);
   const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
     startPath,
   });
+  assertLoadedWorkspace(workspace.diagnostics);
   return parseCompilationConfiguration(workspace.config?.tools.compile);
 }
 
@@ -166,11 +168,13 @@ export async function compile(
         "requestedStage and focus are mutually exclusive.",
       );
     }
+    await assertWorkspacePath(workspacePath);
     const fs = new DenoReadOnlyFileSystem();
     const workspace = await loadSigilWorkspace(fs, {
       startPath: workspacePath,
       currentDirectory: Deno.cwd(),
     });
+    assertLoadedWorkspace(workspace.diagnostics);
     const resolved = resolveSigilWorkspace(workspace);
     const configuration = parseCompilationConfiguration(
       workspace.config?.tools.compile,
@@ -535,6 +539,52 @@ export async function compile(
     }
     throw error;
   }
+}
+
+async function assertWorkspacePath(workspacePath: string): Promise<void> {
+  if (!workspacePath.trim()) {
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
+      "workspacePath must identify an existing configured workspace or Sigil source.",
+    );
+  }
+  try {
+    await Deno.lstat(workspacePath);
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      throw new CompilerFailure(
+        "COMPILER_INVALID_INVOCATION",
+        "workspacePath does not exist.",
+        { cause: error },
+      );
+    }
+    throw new CompilerFailure(
+      "COMPILER_FAILED",
+      "workspacePath could not be accessed.",
+      { cause: error },
+    );
+  }
+}
+
+function assertLoadedWorkspace(
+  diagnostics: readonly { readonly code: string; readonly severity: string }[],
+): void {
+  const error = diagnostics.find((item) =>
+    item.severity === "error" &&
+    (item.code === "SIGIL_CONFIG_NOT_FOUND" ||
+      item.code.startsWith("SIGIL_CONFIG_"))
+  );
+  if (!error) return;
+  if (error.code === "SIGIL_CONFIG_NOT_FOUND") {
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
+      "workspacePath is not governed by a configured Sigil workspace.",
+    );
+  }
+  throw new CompilerFailure(
+    "COMPILER_FAILED",
+    `SigilCore could not load the selected workspace: ${error.code}.`,
+  );
 }
 
 async function bindSuppliedAdapter(

@@ -13,12 +13,23 @@ component SigilCompilationSessionFactory {
   interface {
     CompilationSessionFactory {
       create(workspacePath, target, profileName, focus) validates target, profile,
-      and focus and returns one durable SigilCompilationSession or no session
+      focus, and workspacePath and returns one durable SigilCompilationSession or no
+      session
 
       invalid target, profile, or focus rejects with COMPILER_INVALID_INVOCATION;
       unavailable required SigilCompilationProfile evaluators reject with
       COMPILER_PROFILE_EVALUATORS_REQUIRED; proposal-workspace and session-store
       failures otherwise propagate their exact stable code
+
+      an invalid, missing, or unconfigured workspacePath rejects with
+      COMPILER_INVALID_INVOCATION before proposal-workspace or session-store
+      materialization. Inaccessible paths or configuration-loading failure reject
+      with COMPILER_FAILED before materialization.
+
+      failed-create cleanup that cannot verify proposal-workspace ownership rejects
+      COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED; cleanup host failure rejects
+      COMPILER_WORKSPACE_HOST_FAILURE. Each cleanup-precedence failure exposes the
+      original session-store failure and cleanup evidence through its cause.
 
       focus accepts design for architecture-design and its dependency closure or
       implementation for current-code-compatibility and its dependency closure
@@ -29,9 +40,9 @@ component SigilCompilationSessionFactory {
 expand SigilCompilationSessionFactory {
   logic {
     CompilationSessionFactory {
-      Validate target, profile, and focus in that order before materialization.
-      Reject invalid input with COMPILER_INVALID_INVOCATION and unavailable required
-      evaluators with COMPILER_PROFILE_EVALUATORS_REQUIRED.
+      Validate target, profile, focus, and workspacePath in that order before
+      materialization. Reject invalid input with COMPILER_INVALID_INVOCATION and
+      unavailable required evaluators with COMPILER_PROFILE_EVALUATORS_REQUIRED.
 
       Map design focus to architecture-design and implementation focus to current-
       code-compatibility, including each stage's complete dependency closure.
@@ -61,7 +72,8 @@ expand SigilCompilationSessionFactory {
       input, evaluator availability, proposal creation, persistence, and cleanup.
 
       Consequences: A returned session is durable, while a rejected creation leaves
-      no usable partial session and preserves evidence when cleanup cannot finish.
+      no usable partial session and preserves the original store failure and cleanup
+      evidence when cleanup cannot finish.
     }
   }
 
@@ -69,6 +81,11 @@ expand SigilCompilationSessionFactory {
     CompilationSessionFactory {
       Invalid target, profile, or focus performs no proposal materialization or
       session-store mutation and rejects with COMPILER_INVALID_INVOCATION.
+
+      Invalid, missing, or unconfigured workspacePath performs no proposal
+      materialization or session-store mutation and rejects with
+      COMPILER_INVALID_INVOCATION. Inaccessible or configuration-loading failure
+      rejects with COMPILER_FAILED before materialization.
 
       Design focus binds architecture-design and its dependency closure;
       implementation focus binds current-code-compatibility and its dependency
