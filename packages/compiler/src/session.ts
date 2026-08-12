@@ -1,4 +1,5 @@
 import { compile } from "./compiler.ts";
+import { evaluateCompilation } from "./evaluation.ts";
 import {
   type CompilationEventWriter,
   openCompilationEventWriter,
@@ -11,6 +12,7 @@ import {
   FileCompilationSessionStore,
 } from "./session-store.ts";
 import { CompilerFailure, compilerFailureCode } from "./status.ts";
+import { constructSessionCompilationReport } from "./report-protocol.ts";
 import type {
   CompilationEvent,
   CompilationHistoryStore,
@@ -74,7 +76,8 @@ export class SigilCompilationSession {
       );
       const generation = await workspace.apply(proposal);
       const history = new SessionHistoryStore(opened.record.latestReport);
-      const report = await this.compiler(
+      const report = await evaluateCompilation(
+        this.compiler,
         generation.workspacePath,
         opened.record.target,
         opened.record.profileName,
@@ -85,18 +88,15 @@ export class SigilCompilationSession {
           onEvent: (event) => forwardProgress(eventWriter!, event),
         },
       );
-      const authoritative: CompilationReport = {
-        ...report,
+      const authoritative = constructSessionCompilationReport(report, {
         runId: eventWriter.runId,
         workspaceRoot: opened.record.workspacePath.replaceAll("\\", "/"),
-        session: {
-          sessionIdentity: this.sessionIdentity,
-          baseEpoch: opened.record.baseEpoch,
-          generation: generation.generation,
-          baseFingerprint: opened.record.baseFingerprint,
-          proposalFingerprint: generation.proposalFingerprint,
-        },
-      };
+        sessionIdentity: this.sessionIdentity,
+        baseEpoch: opened.record.baseEpoch,
+        generation: generation.generation,
+        baseFingerprint: opened.record.baseFingerprint,
+        proposalFingerprint: generation.proposalFingerprint,
+      });
       const record: CompilationSessionRecord = {
         ...opened.record,
         lifecycle: "active",

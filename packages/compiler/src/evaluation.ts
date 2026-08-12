@@ -3,7 +3,36 @@ import type {
   ResolvedComponent,
 } from "@qoherent/sigil-core";
 import { validateAgentEvaluationRequest } from "./evaluation-request.ts";
-import type { AgentEvaluationRequest, AgentEvaluationTarget } from "./types.ts";
+import type {
+  AgentEvaluationRequest,
+  AgentEvaluationTarget,
+  CompilationReport,
+  CompilationTarget,
+  CompileOptions,
+} from "./types.ts";
+
+export type CompilationEvaluationRunner = (
+  workspacePath: string,
+  target: CompilationTarget,
+  profileName: string,
+  options: CompileOptions,
+) => Promise<CompilationReport>;
+
+/**
+ * The session-facing evaluation boundary. It keeps the session independent of
+ * the public one-shot compiler signature while preserving the injected runner
+ * used by tests and host integrations.
+ */
+// @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::CompilationEvaluation interface
+export async function evaluateCompilation(
+  runner: CompilationEvaluationRunner,
+  workspacePath: string,
+  target: CompilationTarget,
+  profileName: string,
+  options: CompileOptions,
+): Promise<CompilationReport> {
+  return await runner(workspacePath, target, profileName, options);
+}
 
 // @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::EvaluationContext logic,constraints,cases
 export function compilationEvaluationTarget(
