@@ -6,7 +6,6 @@ import {
   type AgentCommandTrace,
   type AgentEvaluationRequest,
   type AgentEvaluationResult,
-  AgentRequestTransportLimitError,
   type AgentUsage,
   assertCapabilityContract,
   capabilitiesMatch,
@@ -16,6 +15,7 @@ import {
   normalizeObservability,
   parseFindingsObject,
   runAdapterSubprocess,
+  validateAdapterSubprocessInput,
   validateAgentEvaluationRequest,
   validateAgentEvaluationResult,
 } from "@qoherent/sigil-compiler";
@@ -113,22 +113,16 @@ export class OpenCodeAdapter implements AgentAdapter {
       JSON.stringify(RESTRICTIVE_CONFIG);
     } catch (error) {
       throw new AdapterFailure(
-        error instanceof AgentRequestTransportLimitError
-          ? "operational-limit"
-          : "incomplete-evidence",
-        error instanceof AgentRequestTransportLimitError
-          ? error.message
-          : "OpenCode evaluation request evidence is incomplete or invalid.",
+        "incomplete-evidence",
+        "OpenCode evaluation request evidence is incomplete or invalid.",
         undefined,
         { cause: error },
       );
     }
-    if (prompt.length > request.limits.maxInitialRequestChars) {
-      throw new AdapterFailure(
-        "operational-limit",
-        `OpenCode request exceeds maxInitialRequestChars (${request.limits.maxInitialRequestChars}).`,
-      );
-    }
+    validateAdapterSubprocessInput(
+      prompt,
+      request.limits.maxInitialRequestChars,
+    );
 
     const args = [
       "run",

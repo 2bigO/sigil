@@ -22,11 +22,15 @@ component SigilAgentAdapterSubprocess {
       operational-limit and owns initial request size calculation
 
       run(command, args, input, AgentExecutionBudgets, AgentOperationalLimits,
-      AgentCancellation, AdapterExecutionHandle, terminationControl, onFrame)
-      declares one unstarted handle before launch, attaches at most one process,
-      delivers identified stdout and stderr frames in per-channel order, and reports
-      process status, channel settlement, and provider-specific failures to the
-      coordinator
+      AgentCancellation, AdapterExecutionHandle, AdapterExecutionResources,
+      terminationControl, onFrame) declares one unstarted handle before launch,
+      attaches at most one process, delivers identified stdout and stderr frames in
+      per-channel order, and reports process status, channel settlement, and
+      provider-specific failures to the coordinator
+
+      AdapterExecutionHandle, AdapterExecutionResources, and terminationControl are
+      coordinator-owned required inputs; run never creates fallback lifecycle
+      ownership or executes without them
 
       terminationControl may request preventive-budget termination during a run
 
@@ -74,6 +78,23 @@ expand SigilAgentAdapterSubprocess {
   }
 
   decisions {
+    CoordinatorBoundSubprocessInvocation {
+      Decision: Require every subprocess run to receive the coordinator-created
+      execution handle, resource hooks, and termination control.
+
+      Scope: Governs subprocess invocation and cleanup-observation ownership;
+      excludes provider command construction and platform termination mechanics.
+
+      Trade-offs: Direct subprocess callers must create a coordinator-compatible
+      execution context.
+
+      Design issues addressed: Optional lifecycle hooks permit an unobserved process
+      to bypass bounded cleanup verification.
+
+      Consequences: Every provider process and result input is declared, observed,
+      and recoverable through one coordinator-owned lifecycle.
+    }
+
     TwoPhaseProviderCleanup {
       Decision: Attempt graceful and then forced provider termination within one
       total providerCleanupMs deadline and make unverified cleanup a distinct

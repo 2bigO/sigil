@@ -19,9 +19,9 @@ import {
 import {
   createAdapterSubprocessHandle,
   runAdapterSubprocess,
+  validateAdapterSubprocessInput,
 } from "./adapter-subprocess.ts";
 import {
-  AgentRequestTransportLimitError,
   validateAgentEvaluationRequest,
   validateAgentEvaluationResult,
 } from "./evaluation-request.ts";
@@ -140,22 +140,16 @@ export class CodexAdapter implements AgentAdapter {
       prompt = evaluationPrompt(request);
     } catch (error) {
       throw new AdapterFailure(
-        error instanceof AgentRequestTransportLimitError
-          ? "operational-limit"
-          : "incomplete-evidence",
-        error instanceof AgentRequestTransportLimitError
-          ? error.message
-          : "Codex evaluation request evidence is incomplete or invalid.",
+        "incomplete-evidence",
+        "Codex evaluation request evidence is incomplete or invalid.",
         undefined,
         { cause: error },
       );
     }
-    if (prompt.length > request.limits.maxInitialRequestChars) {
-      throw new AdapterFailure(
-        "operational-limit",
-        `Agent request is ${prompt.length} characters, exceeding the ${request.limits.maxInitialRequestChars}-character transport limit.`,
-      );
-    }
+    validateAdapterSubprocessInput(
+      prompt,
+      request.limits.maxInitialRequestChars,
+    );
     if (performance.now() - elapsedOrigin >= request.budgets.elapsedTimeMs) {
       throw new AdapterFailure(
         "elapsed-time",
