@@ -30,7 +30,7 @@
     "compile": {
       "defaultProfile": "standard",
       "budgets": {
-        "elapsedTimeMs": 1800000,
+        "elapsedTimeMs": 3000000,
         "maxCommands": 512,
         "maxCommandOutputChars": 3000000,
         "maxInputTokens": 4000000,

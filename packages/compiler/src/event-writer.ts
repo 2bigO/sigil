@@ -136,8 +136,10 @@ class WriterState implements CompilationEventWriter {
     return this.enqueue(true, () => {
       if (
         !isCompilationReport(report) || report.runId !== this.runId ||
-        JSON.stringify(report.stages.map((stage) => stage.id)) !==
-          JSON.stringify(this.expected.stageIdentities) ||
+        !isOrderedStageSubset(
+          report.stages.map((stage) => stage.id),
+          this.expected.stageIdentities,
+        ) ||
         (this.expected.operation === "session-evaluation"
           ? report.session?.sessionIdentity !== this.expected.sessionIdentity
           : report.session !== undefined) ||
@@ -281,6 +283,19 @@ class WriterState implements CompilationEventWriter {
     }
     return true;
   }
+}
+
+function isOrderedStageSubset(
+  actual: readonly string[],
+  expected: readonly string[],
+): boolean {
+  let previous = -1;
+  for (const stage of actual) {
+    const index = expected.indexOf(stage);
+    if (index <= previous) return false;
+    previous = index;
+  }
+  return true;
 }
 
 export interface CompilationEventStream {

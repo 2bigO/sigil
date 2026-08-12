@@ -9,12 +9,31 @@ import { OpenCodeAdapter } from "@qoherent/sigil-compiler-adapter-opencode";
 import { PiAdapter } from "@qoherent/sigil-compiler-adapter-pi";
 
 // @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade logic
+export function compileWithBundledAdapters(
+  workspacePath: string,
+  target: CompilationTarget | undefined,
+  options?: CompileOptions & { readonly profile?: string },
+): Promise<CompilationReport>;
+export function compileWithBundledAdapters(
+  workspacePath: string,
+  target: CompilationTarget | undefined,
+  profileName: string,
+  options?: CompileOptions,
+): Promise<CompilationReport>;
 export async function compileWithBundledAdapters(
   workspacePath: string,
   target: CompilationTarget = { kind: "workspace" },
-  options: CompileOptions = {},
+  profileOrOptions: string | (CompileOptions & { readonly profile?: string }) =
+    {},
+  suppliedOptions: CompileOptions = {},
 ): Promise<CompilationReport> {
   const configuration = await loadCompilationConfiguration(workspacePath);
+  const profileName = typeof profileOrOptions === "string"
+    ? profileOrOptions
+    : profileOrOptions.profile ?? configuration.defaultProfile ?? "standard";
+  const options = typeof profileOrOptions === "string"
+    ? suppliedOptions
+    : profileOrOptions;
   const openCodeModels = new Set<string | undefined>([undefined]);
   const piModels = new Set<string | undefined>([undefined]);
   if (configuration.adapter?.provider === "opencode") {
@@ -39,8 +58,13 @@ export async function compileWithBundledAdapters(
     ...[...openCodeModels].map((model) => new OpenCodeAdapter(model)),
     ...[...piModels].map((model) => new PiAdapter(model)),
   ];
-  return await compile(workspacePath, target, {
-    ...options,
-    adapters: [...(options.adapters ?? []), ...bundled],
-  });
+  return await compile(
+    workspacePath,
+    target,
+    profileName,
+    {
+      ...options,
+      adapters: [...(options.adapters ?? []), ...bundled],
+    },
+  );
 }

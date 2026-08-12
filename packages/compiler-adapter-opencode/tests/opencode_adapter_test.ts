@@ -1,8 +1,11 @@
 import {
+  type AdapterExecutionHandle,
+  type AdapterExecutionResources,
   AdapterFailure,
   type AdapterSubprocessInvocation,
   type AgentEvaluationRequest,
   coordinateAdapterExecution,
+  createAdapterSubprocessHandle,
   resolveAdapterRegistration,
   runAdapterSubprocess,
 } from "@qoherent/sigil-compiler";
@@ -74,6 +77,23 @@ function request(
   };
 }
 
+function testExecutionHandle(): AdapterExecutionHandle {
+  return {
+    identity: "test.opencode@1",
+    cleanup: async () => {},
+  };
+}
+
+const testExecutionResources: AdapterExecutionResources = {
+  declareResource() {},
+  declareResultInput() {},
+  observeResource() {},
+  observeResultInput() {},
+  reportResourceObservation() {},
+  reportResultInputObservation() {},
+  cleanupAttempt() {},
+};
+
 // @sigil tests packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,cases
 Deno.test("OpenCode adapter invokes JSON run with restrictive persistent configuration", async () => {
   let observed: AdapterSubprocessInvocation | undefined;
@@ -98,13 +118,15 @@ Deno.test("OpenCode adapter invokes JSON run with restrictive persistent configu
   const result = await adapter.evaluate(request(adapter));
   if (!observed) throw new Error("OpenCode was not invoked.");
   assertEquals(observed.command, "opencode");
+  assertEquals(observed.handle?.identity, "builtin.opencode-cli@0.7.1");
   assertEquals(observed.args.slice(0, 3), ["run", "--format", "json"]);
   assertEquals(observed.args.includes("--ephemeral"), false);
   assertEquals(
     observed.args.slice(observed.args.indexOf("--model") + 1)[0],
     "openai/gpt-5",
   );
-  assertMatch(observed.input, /Return ONLY this JSON object/);
+  assertMatch(observed.input, /Return ONLY valid JSON/);
+  assertMatch(observed.input, /\{"findings":\[\]\}/);
   const config = JSON.parse(observed.env?.OPENCODE_CONFIG_CONTENT ?? "{}");
   assertEquals(config.permission.read, "allow");
   for (
@@ -312,6 +334,7 @@ Deno.test("coordinator rejects elapsed preflight without invoking provider", asy
         elapsedOrigin: performance.now() - 10,
         elapsedTimeMs: 1,
         implementationIdentity: "test.opencode@1",
+        handle: testExecutionHandle(),
         invoke: () => {
           invoked = true;
           return Promise.resolve("unexpected");
@@ -320,6 +343,265 @@ Deno.test("coordinator rejects elapsed preflight without invoking provider", asy
     AdapterFailure,
   );
   assertEquals(error.kind, "elapsed-time");
+  assertEquals(invoked, false);
+});
+
+Deno.test("coordinator does not invoke a provider after cancellation", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let invoked = false;
+  const error = await assertRejects(
+    () =>
+      coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: 1_000,
+        implementationIdentity: "test.opencode@1",
+        handle: testExecutionHandle(),
+        signal: controller.signal,
+        invoke: () => {
+          invoked = true;
+          return Promise.resolve("unexpected");
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "cancelled");
+  assertEquals(invoked, false);
+});
+
+Deno.test("coordinator cleans an unstarted handle after pre-invocation cancellation", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let invoked = false;
+  let cleaned = false;
+  const error = await assertRejects(
+    () =>
+      coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: 1_000,
+        providerCleanupMs: 10,
+        implementationIdentity: "test.opencode@1",
+        signal: controller.signal,
+        handle: {
+          identity: "test.opencode@1",
+          cleanup: async () => {
+            cleaned = true;
+          },
+        },
+        invoke: () => {
+          invoked = true;
+          return Promise.resolve("unexpected");
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "cancelled");
+  assertEquals(invoked, false);
+  assertEquals(cleaned, true);
+});
+
+Deno.test("coordinator starts the provider before an in-transition cancellation submits", async () => {
+  const controller = new AbortController();
+  let invoked = false;
+  const error = await assertRejects(
+    () =>
+      coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: 1_000,
+        providerCleanupMs: 10,
+        implementationIdentity: "test.opencode@1",
+        handle: {
+          identity: "test.opencode@1",
+          cleanup: async () => {},
+        },
+        signal: controller.signal,
+        invoke: () => {
+          invoked = true;
+          controller.abort();
+          return new Promise(() => {});
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "cancelled");
+  assertEquals(invoked, true);
+});
+
+Deno.test("coordinator arbitrates cancellation before provider completion", async () => {
+  const controller = new AbortController();
+  let release!: () => void;
+  const providerFinished = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let cleaned = false;
+  const execution = coordinateAdapterExecution({
+    elapsedOrigin: performance.now(),
+    elapsedTimeMs: 1_000,
+    providerCleanupMs: 100,
+    implementationIdentity: "test.opencode@1",
+    handle: {
+      identity: "test.opencode@1",
+      cleanup: async () => {
+        cleaned = true;
+      },
+    },
+    signal: controller.signal,
+    invoke: async () => {
+      await providerFinished;
+      return "late result";
+    },
+  });
+  controller.abort();
+  const error = await assertRejects(() => execution, AdapterFailure);
+  assertEquals(error.kind, "cancelled");
+  assertEquals(cleaned, true);
+  release();
+});
+
+Deno.test("coordinator records result inputs separately in cleanup evidence", async () => {
+  const error = await assertRejects(
+    () =>
+      coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: 1_000,
+        providerCleanupMs: 10,
+        implementationIdentity: "test.opencode@1",
+        handle: {
+          identity: "test.opencode@1",
+          cleanup: async () => {},
+        },
+        invoke: async (_signal, resources) => {
+          resources.declareResource("process:test");
+          resources.observeResource("process:test", "active");
+          resources.declareResultInput("stdout");
+          resources.observeResultInput("stdout", "open");
+          throw new AdapterFailure("execution", "test failure");
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "cleanup");
+  assertEquals(error.recovery?.resources[0].identity, "process:test");
+  assertEquals(error.recovery?.resources[0].latestState, "active");
+  assertEquals(error.recovery?.resources[0].observationStatus, "observed");
+  assertEquals(
+    typeof error.recovery?.resources[0].latestStateObservedAt,
+    "number",
+  );
+  assertEquals(error.recovery?.resultInputs[0].identity, "stdout");
+  assertEquals(error.recovery?.resultInputs[0].latestState, "open");
+  assertEquals(error.recovery?.resultInputs[0].observationStatus, "observed");
+  assertEquals(
+    typeof error.recovery?.resultInputs[0].latestStateObservedAt,
+    "number",
+  );
+});
+
+Deno.test("coordinator waits for registered result inputs before accepting a result", async () => {
+  let settleInput!: () => void;
+  const execution = coordinateAdapterExecution({
+    elapsedOrigin: performance.now(),
+    elapsedTimeMs: 1_000,
+    implementationIdentity: "test.opencode@1",
+    handle: testExecutionHandle(),
+    invoke: async (_signal, resources) => {
+      resources.declareResultInput("stdout");
+      resources.observeResultInput("stdout", "open");
+      settleInput = () => resources.observeResultInput("stdout", "closed");
+      return "result";
+    },
+  });
+  await Promise.resolve();
+  assertEquals(
+    await Promise.race([
+      execution.then(() => false),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 0)),
+    ]),
+    true,
+  );
+  settleInput();
+  assertEquals(await execution, "result");
+});
+
+Deno.test("coordinator preserves terminal proof after later observation failure", async () => {
+  const error = await assertRejects(
+    () =>
+      coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: 1_000,
+        providerCleanupMs: 10,
+        implementationIdentity: "test.opencode@1",
+        handle: {
+          identity: "test.opencode@1",
+          cleanup: async (_kind, _deadline, resources) => {
+            resources.observeResource("process:test", "terminal");
+            resources.reportResourceObservation(
+              "process:test",
+              "failed",
+              "post-terminal status poll failed",
+            );
+            resources.observeResultInput("stdout", "cancelled");
+          },
+        },
+        invoke: async (_signal, resources) => {
+          resources.declareResource("process:test");
+          resources.observeResource("process:test", "active");
+          resources.declareResultInput("stdout");
+          resources.observeResultInput("stdout", "open");
+          resources.declareResultInput("stderr");
+          resources.observeResultInput("stderr", "open");
+          throw new AdapterFailure("execution", "test failure");
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "cleanup");
+  assertEquals(error.recovery?.resources[0].latestState, "terminal");
+  assertEquals(error.recovery?.resources[0].observationStatus, "observed");
+  assertEquals(error.recovery?.resources[0].observationEvidence, [
+    "post-terminal status poll failed",
+  ]);
+  assertEquals(error.recovery?.resultInputs[0].latestState, "cancelled");
+  assertEquals(error.recovery?.resultInputs[0].observationStatus, "observed");
+  assertEquals(error.recovery?.resultInputs[1].identity, "stderr");
+  assertEquals(error.recovery?.resultInputs[1].latestState, "open");
+});
+
+Deno.test("OpenCode reports invalid request evidence without invoking its runner", async () => {
+  let invoked = false;
+  const adapter = new OpenCodeAdapter(undefined, async () => {
+    invoked = true;
+    throw new Error("runner should not be called");
+  });
+  const valid = request(adapter);
+  const error = await assertRejects(
+    () =>
+      adapter.evaluate({
+        ...valid,
+        target: { ...valid.target, retrieval: undefined as never },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "incomplete-evidence");
+  assertEquals(invoked, false);
+});
+
+Deno.test("OpenCode classifies initial request overflow as an operational limit", async () => {
+  let invoked = false;
+  const adapter = new OpenCodeAdapter(undefined, async () => {
+    invoked = true;
+    throw new Error("runner should not be called");
+  });
+  const valid = request(adapter);
+  const error = await assertRejects(
+    () =>
+      adapter.evaluate({
+        ...valid,
+        limits: { ...valid.limits, maxInitialRequestChars: 1 },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "operational-limit");
   assertEquals(invoked, false);
 });
 
@@ -342,10 +624,105 @@ Deno.test("subprocess cancellation performs bounded verified cleanup", async () 
         input: "",
         signal: controller.signal,
         providerCleanupMs: 500,
+        maxInitialRequestChars: 1_000,
+        maxProviderFrameChars: 1_000,
       }),
     AdapterFailure,
   );
   assertEquals(error.kind, "elapsed-time");
-  assertEquals(error.recovery?.cleanupDeadlineOutcome, "completed");
-  assertEquals(error.recovery?.resources[0].latestState, "terminal");
+});
+
+Deno.test("subprocess frame-limit failure performs bounded verified cleanup", async () => {
+  const error = await assertRejects(
+    () =>
+      runAdapterSubprocess({
+        implementationIdentity: "test.opencode@1",
+        command: Deno.execPath(),
+        args: [
+          "eval",
+          'console.log("x".repeat(100)); setInterval(() => {}, 1000)',
+        ],
+        cwd: Deno.cwd(),
+        input: "",
+        signal: new AbortController().signal,
+        providerCleanupMs: 500,
+        maxInitialRequestChars: 1_000,
+        maxProviderFrameChars: 10,
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "operational-limit");
+});
+
+Deno.test("subprocess stderr frame-limit failure participates in live settlement", async () => {
+  const error = await assertRejects(
+    () =>
+      runAdapterSubprocess({
+        implementationIdentity: "test.opencode@1",
+        command: Deno.execPath(),
+        args: [
+          "eval",
+          'console.error("x".repeat(100)); setInterval(() => {}, 1000)',
+        ],
+        cwd: Deno.cwd(),
+        input: "",
+        signal: new AbortController().signal,
+        providerCleanupMs: 500,
+        maxInitialRequestChars: 1_000,
+        maxProviderFrameChars: 10,
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "operational-limit");
+});
+
+Deno.test("subprocess handle rejects a second process attachment", () => {
+  const handle = createAdapterSubprocessHandle("test.opencode@1");
+  const child = {
+    kill() {},
+    unref() {},
+  } as unknown as Deno.ChildProcess;
+  handle.attach(
+    child,
+    Promise.resolve({ success: true, code: 0, signal: null }),
+    Promise.resolve(""),
+    Promise.resolve(""),
+    testExecutionResources,
+    ["process:test", "result-input:stdout", "result-input:stderr"],
+  );
+  const error = assertRejects(
+    async () =>
+      handle.attach(
+        child,
+        Promise.resolve({ success: true, code: 0, signal: null }),
+        Promise.resolve(""),
+        Promise.resolve(""),
+        testExecutionResources,
+        ["process:test2", "result-input:stdout", "result-input:stderr"],
+      ),
+    AdapterFailure,
+  );
+  return error.then((failure) => assertEquals(failure.kind, "execution"));
+});
+
+Deno.test("subprocess reports frames from both output channels", async () => {
+  const frames: { channel: string; text: string }[] = [];
+  const result = await runAdapterSubprocess({
+    implementationIdentity: "test.opencode@1",
+    command: Deno.execPath(),
+    args: ["eval", 'console.log("out"); console.error("err")'],
+    cwd: Deno.cwd(),
+    input: "",
+    signal: new AbortController().signal,
+    maxInitialRequestChars: 1_000,
+    maxProviderFrameChars: 1_000,
+    onFrame: (frame) => {
+      frames.push(frame);
+    },
+  });
+  assertEquals(result.code, 0);
+  assertEquals(frames.map((frame) => frame.channel).sort(), [
+    "stderr",
+    "stdout",
+  ]);
 });

@@ -2481,7 +2481,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
     "--format",
     "jsonl",
   ], {
-    compiler: async (_workspace, _target, options) => {
+    compiler: async (_workspace, _target, _profileName, options) => {
       requestedStage = options?.requestedStage;
       await options?.onEvent?.({
         protocolVersion: 1,
@@ -2573,6 +2573,7 @@ Deno.test("compile delegates design and implementation focus to the compiler", a
   const compiler = (
     _workspace: string,
     _target: CompilationTarget | undefined,
+    _profileName: string,
     options: CompileOptions = {},
   ) => {
     focuses.push(options.focus);
@@ -2647,7 +2648,7 @@ Deno.test("compile maps file positions to exact location targets", async () => {
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade constraints,cases
 Deno.test("compile preserves a failed terminal event in buffered JSONL", async () => {
   const result = await runCli(["compile", "--format", "jsonl"], {
-    compiler: async (_workspace, _target, options) => {
+    compiler: async (_workspace, _target, _profileName, options) => {
       await options?.onEvent?.({
         protocolVersion: 1,
         runId: "run-failed",

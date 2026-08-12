@@ -6,10 +6,12 @@ import {
   type AgentCommandTrace,
   type AgentEvaluationRequest,
   type AgentEvaluationResult,
+  AgentRequestTransportLimitError,
   type AgentUsage,
   assertCapabilityContract,
   capabilitiesMatch,
   coordinateAdapterExecution,
+  createAdapterSubprocessHandle,
   evaluationPrompt,
   normalizeObservability,
   parseFindingsObject,
@@ -111,8 +113,12 @@ export class OpenCodeAdapter implements AgentAdapter {
       JSON.stringify(RESTRICTIVE_CONFIG);
     } catch (error) {
       throw new AdapterFailure(
-        "operational-limit",
-        "OpenCode request preflight failed.",
+        error instanceof AgentRequestTransportLimitError
+          ? "operational-limit"
+          : "incomplete-evidence",
+        error instanceof AgentRequestTransportLimitError
+          ? error.message
+          : "OpenCode evaluation request evidence is incomplete or invalid.",
         undefined,
         { cause: error },
       );
@@ -132,13 +138,18 @@ export class OpenCodeAdapter implements AgentAdapter {
       request.workspaceRoot,
       ...(this.model ? ["--model", this.model] : []),
     ];
+    const handle = createAdapterSubprocessHandle(
+      `${this.implementationId}@${this.implementationVersion}`,
+    );
     return await coordinateAdapterExecution({
       elapsedOrigin,
       elapsedTimeMs: request.budgets.elapsedTimeMs,
+      providerCleanupMs: request.limits.providerCleanupMs,
       implementationIdentity:
         `${this.implementationId}@${this.implementationVersion}`,
+      handle,
       signal: request.signal,
-      invoke: async (signal) => {
+      invoke: async (signal, resources, terminationControl) => {
         const result = await this.runner({
           implementationIdentity:
             `${this.implementationId}@${this.implementationVersion}`,
@@ -152,7 +163,11 @@ export class OpenCodeAdapter implements AgentAdapter {
           },
           input: prompt,
           signal,
-          providerCleanupMs: request.limits.providerCleanupMs,
+          maxInitialRequestChars: request.limits.maxInitialRequestChars,
+          maxProviderFrameChars: request.limits.maxProviderFrameChars,
+          handle,
+          resources,
+          terminationControl,
         });
         const parsed = parseOpenCodeEvents(
           result.stdout,
