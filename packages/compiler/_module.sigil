@@ -5,15 +5,18 @@
 @packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
 @packages/compiler/src/compiler.sigil import { SigilOneShotCompilation }
 @packages/compiler/src/session-factory.sigil import { SigilCompilationSessionFactory }
-@packages/compiler/src/compilation-target.sigil import { SigilCompilationTarget }
+@packages/compiler/src/session.sigil import { SigilCompilationSession }
 
 component SigilCompiler {
   goal {
     Give designers and architects a compiler-like improvement loop for high-level
     Sigil contracts through profile-scoped deterministic and agentic evaluation.
 
-    Keep deterministic processing inside the compiler and prevent compiler-owned
-    modification of the source workspace.
+    Keep profile/stage selection, target scheduling, adapter binding,
+    event/report/history protocols, and read-only evaluation coordination inside
+    the compiler. SigilCore owns configuration discovery, source selection/loading,
+    parsing, resolution, graph/context retrieval, and deterministic language
+    diagnostics.
 
     Proposal coordination may write only compiler-owned proposal and session state.
     The compiler does not replace human design approval.
@@ -21,11 +24,9 @@ component SigilCompiler {
 
   interface {
     Compiler {
-      compile(workspacePath, CompilationTarget, profileName, CompilationOptions?)
-      uses OneShotCompilation and streams CompilationEvent before returning one
-      authoritative CompilationReport; rejections after event-writer binding emit
-      their terminal event, while pre-binding invocation rejections return their
-      stable error without an event
+      OneShotCompilation is provided by SigilOneShotCompilation and returns one
+      authoritative CompilationReport; lifecycle and event settlement remain owned by
+      SigilOneShotCompilation
 
       SigilContextRetrieval supplies deterministic purpose evidence to evaluation;
       SigilCore remains the authority for deterministic workspace semantics
@@ -45,8 +46,9 @@ component SigilCompiler {
       SigilOneShotCompilation owns one compilation invocation from validation and
       workspace acquisition through evaluation, reporting, export, and settlement.
 
-      SigilCompilationSessionFactory creates durable compiler sessions and their
-      isolated proposal-workspace lifecycle for session-based compilation.
+      SigilCompilationSessionFactory creates durable compiler sessions; subsequent
+      session operation and proposal-workspace lifecycle remain owned by
+      SigilCompilationSession.
     }
   }
 }
@@ -64,6 +66,17 @@ expand SigilCompiler {
   }
 
   decisions {
+    CompilerDeterministicBoundary {
+      Decision: Keep compilation orchestration deterministic processing in
+      SigilCompiler while delegating deterministic language and workspace semantics
+      to SigilCore.
+
+      Scope: Governs compiler/Core ownership; excludes agentic evaluation outcomes.
+
+      Consequences: Compiler hosts share one orchestration protocol without
+      duplicating parsing, resolution, retrieval, or language-diagnostic semantics.
+    }
+
     CompilerBoundary {
       Decision: Place agent orchestration in a separate @qoherent/sigil-compiler
       package and expose it through thin host façades.

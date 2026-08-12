@@ -58,6 +58,7 @@ import {
 import type {
   AgentAdapter,
   AgentFinding,
+  CompilationFocus,
   CompilationReport,
   CompilationTarget,
   CompileConfiguration,
@@ -141,18 +142,43 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
 export async function loadCompilationConfiguration(
   startPath: string,
 ): Promise<CompileConfiguration> {
+  return (await loadCompilationWorkspace(startPath)).configuration;
+}
+
+export async function loadCompilationWorkspace(
+  startPath: string,
+): Promise<{ readonly configuration: CompileConfiguration; readonly root: string }> {
   await assertWorkspacePath(startPath);
   const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
     startPath,
   });
   assertLoadedWorkspace(workspace.diagnostics);
-  return parseCompilationConfiguration(workspace.config?.tools.compile);
+  return {
+    configuration: parseCompilationConfiguration(workspace.config?.tools.compile),
+    root: workspace.root,
+  };
+}
+
+export async function validateCompilationProfile(
+  configuration: CompileConfiguration,
+  profileName: string,
+  focus: CompilationFocus,
+): Promise<void> {
+  const definitions = stageDefinitions(await loadEvaluationSkills());
+  const profile = await effectiveProfile(
+    profileName,
+    configuration,
+    definitions,
+    stageForCompilationFocus(focus),
+  );
+  assertProfileEvaluators(profile, adaptersFrom(profile, {}));
 }
 
 // @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation interface,logic,cases
 export async function compile(
   workspacePath: string,
   target: CompilationTarget = { kind: "workspace" },
+  profileName: string,
   options: CompileOptions = {},
 ): Promise<CompilationReport> {
   const requestedStage = options.requestedStage ??
@@ -182,14 +208,21 @@ export async function compile(
     const skills = await loadEvaluationSkills();
     const definitions = stageDefinitions(skills);
     let profile = await effectiveProfile(
-      options.profile ?? configuration.defaultProfile ?? "standard",
+      profileName,
       configuration,
       definitions,
       requestedStage,
     );
     profile = await bindSuppliedAdapter(profile, options.adapter);
+    const adapters = adaptersFrom(profile, options);
+    assertProfileEvaluators(profile, adapters);
+    const components = resolveCompilationTarget(
+      resolved,
+      target,
+      workspace.root,
+    );
     const openedWriter = await openCompilationEventWriter(
-      callbackEventSink(options.onEvent),
+      options.eventSink ?? callbackEventSink(options.onEvent),
       {
         operation: "one-shot-compilation",
         stageIdentities: profile.stages.map((stage) => stage.id),
@@ -203,13 +236,6 @@ export async function compile(
     }
     eventWriter = openedWriter.writer;
     const runId = openedWriter.runId;
-    const adapters = adaptersFrom(profile, options);
-    assertProfileEvaluators(profile, adapters);
-    const components = resolveCompilationTarget(
-      resolved,
-      target,
-      workspace.root,
-    );
     const implementationSources = await loadImplementationSources(
       fs,
       workspace.root,
@@ -732,7 +758,10 @@ async function effectiveProfile(
   const custom = configuration.profiles?.[name];
   const base = custom?.extends ?? name;
   if (base !== "standard" && base !== "critical-system") {
-    throw new Error(`Unknown compilation profile ${JSON.stringify(name)}.`);
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
+      `Unknown compilation profile ${JSON.stringify(name)}.`,
+    );
   }
   const included = base === "standard"
     ? definitions.filter((stage) => stage.id !== "standards-risk")
@@ -742,7 +771,8 @@ async function effectiveProfile(
     ? stageClosure(requestedStage, included)
     : included;
   if (requestedStage && selected.some((stage) => disabled.has(stage.id))) {
-    throw new Error(
+    throw new CompilerFailure(
+      "COMPILER_INVALID_INVOCATION",
       `Requested stage ${
         JSON.stringify(requestedStage)
       } depends on a stage disabled by profile ${JSON.stringify(name)}.`,
@@ -913,14 +943,15 @@ function stageClosure(
         JSON.stringify(requestedStage)
       } is not enabled by this profile.`
       : `Unknown compilation stage ${JSON.stringify(requestedStage)}.`;
-    throw new Error(known);
+    throw new CompilerFailure("COMPILER_INVALID_INVOCATION", known);
   }
   const selected = new Set<string>();
   const visit = (stage: StageDefinition): void => {
     for (const dependency of stage.dependencies) {
       const definition = available.find((item) => item.id === dependency);
       if (!definition) {
-        throw new Error(
+        throw new CompilerFailure(
+          "COMPILER_INVALID_INVOCATION",
           `Stage ${stage.id} requires unavailable dependency ${dependency}.`,
         );
       }
@@ -948,7 +979,7 @@ function adaptersFrom(
         const message = error instanceof Error ? error.message : String(error);
         throw profile.criticalSystem
           ? profileEvaluatorError(message)
-          : new Error(message);
+          : new CompilerFailure("COMPILER_PROFILE_EVALUATORS_REQUIRED", message);
       }
     });
   }
@@ -1005,7 +1036,8 @@ function assertProfileEvaluators(
       ? profileEvaluatorError(
         "The selected adapters do not exactly satisfy the effective profile bindings.",
       )
-      : new Error(
+      : new CompilerFailure(
+        "COMPILER_PROFILE_EVALUATORS_REQUIRED",
         "The selected adapters do not exactly satisfy the effective profile bindings.",
       );
   }
@@ -1039,7 +1071,7 @@ function evaluatorConfigurationError(
 ): Error {
   return base === "critical-system"
     ? profileEvaluatorError(message)
-    : new Error(message);
+    : new CompilerFailure("COMPILER_PROFILE_EVALUATORS_REQUIRED", message);
 }
 
 async function fromCoreDiagnostic(
@@ -1086,14 +1118,17 @@ async function fromAgentFinding(
   componentName: string,
   resolver: SemanticSubjectResolver,
 ): Promise<CompilerDiagnostic> {
-  const range = finding.line
+  const line = finding.line ?? undefined;
+  const column = finding.column ?? undefined;
+  const filePath = finding.filePath ?? undefined;
+  const range = line
     ? {
-      start: { line: finding.line, column: finding.column ?? 1 },
-      end: { line: finding.line, column: (finding.column ?? 1) + 1 },
+      start: { line, column: column ?? 1 },
+      end: { line, column: (column ?? 1) + 1 },
     }
     : undefined;
   const semanticSubjects = await resolver.resolve(
-    finding.filePath,
+    filePath,
     range,
     componentName,
   );
@@ -1103,7 +1138,7 @@ async function fromAgentFinding(
       finding.code,
       stage,
       semanticSubjects,
-      finding.filePath,
+      filePath,
       range,
       componentName,
     ),
@@ -1111,7 +1146,7 @@ async function fromAgentFinding(
     stage,
     skill: `${skill.manifest.id}@${skill.manifest.version}`,
     message: finding.message,
-    filePath: finding.filePath,
+    filePath,
     range,
     semanticSubjects,
     evidence: finding.evidence,

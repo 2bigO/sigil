@@ -3,8 +3,10 @@
 Treat the supplied purpose retrieval result as the authoritative architecture
 scope. Evaluate its selected component, expansions, dependencies, importers,
 module indexes, cycle groups, public concept origins, reasons, and exclusions.
-Inspect selected evidence paths only to verify a citation or report an explicit
-retrieval gap; do not independently traverse the workspace graph.
+Use selected evidence by default. Only when that evidence is insufficient because
+an explicit evidence gap blocks evaluation, perform targeted graph or context
+inspection limited to related evidence necessary to investigate that gap. Do not
+broadly rediscover the repository or redefine the authoritative scope.
 
 Evaluate:
 

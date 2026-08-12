@@ -341,8 +341,8 @@ export async function runCli(
       const report = await compileWorkspace(
         parsed.request.root ?? parsed.request.path ?? Deno.cwd(),
         target,
+        parsed.request.profile ?? "standard",
         {
-          profile: parsed.request.profile,
           requestedStage: parsed.request.stage,
           focus: parsed.request.focus,
           noHistory: parsed.request.noCache,

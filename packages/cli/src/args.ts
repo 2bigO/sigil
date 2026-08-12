@@ -632,7 +632,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         );
       }
       if (
-        component || file || position || profile || focus || noCache || output
+        component || file || position || profile ||
+        focus || noCache || output
       ) {
         return usage(
           `compile session ${action} does not accept compilation selection options.`,
@@ -651,6 +652,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
           command: "compile-session",
           action: action as "evaluate" | "refresh" | "close",
           sessionIdentity: operand,
+          ...(action === "evaluate" ? { focus } : {}),
           ...base,
         },
       };

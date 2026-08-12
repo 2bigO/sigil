@@ -182,6 +182,10 @@ component SigilCli {
       compile returns the status and authoritative CompilationReport produced by
       SigilCompiler
 
+      When --profile is omitted, CLI resolves the selected workspace's
+      tools.compile.defaultProfile; absent configuration selects standard. It passes
+      that resolved profile explicitly to one-shot compilation and session creation.
+
       in JSON Lines mode standard output contains only the versioned CompilationEvent
       stream and human progress or host logs use standard error
 
@@ -578,6 +582,9 @@ expand SigilCli {
       --profile continues to select evaluators, budgets, capabilities, and profile
       configuration while --focus selects a stage closure within that profile.
 
+      --profile is optional only at the CLI boundary. SigilCompiler and
+      SigilCompilationSessionFactory receive one explicit resolved profile name.
+
       --position requires --file and uses the line:column form with positive
       one-based integers.
     }
@@ -611,6 +618,17 @@ expand SigilCli {
   }
 
   decisions {
+    WorkspaceProfileDefaulting {
+      Decision: Resolve an omitted CLI --profile from tools.compile.defaultProfile,
+      falling back to standard, before calling compiler one-shot or session APIs.
+
+      Scope: Governs CLI compilation and session-start dispatch; excludes explicit
+      profile validation and profile behavior owned by SigilCompiler.
+
+      Consequences: One-shot and session creation use the same selected profile,
+      while compiler APIs remain explicit and reusable by non-CLI hosts.
+    }
+
     CliInvocation {
       Decision: Resolve explicit help and usage-error help against the longest
       recognized path in the command tree.

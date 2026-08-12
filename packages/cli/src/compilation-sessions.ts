@@ -48,6 +48,7 @@ export async function evaluateCompilationSession(
   return new SigilCompilationSession(
     sessionIdentity,
     undefined,
+    undefined,
     host.compiler,
   ).evaluate(proposal, {
     cancellationSignal: host.signal,

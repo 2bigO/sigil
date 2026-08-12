@@ -50,8 +50,8 @@ component SigilAgentAdapter {
       message whose exact text is not a compatibility surface
 
       kind is binding-mismatch, capability-mismatch, cancelled, elapsed-time,
-      preventive-budget, operational-limit, execution, cleanup, or
-      final-result-protocol
+      preventive-budget, incomplete-evidence, operational-limit, process, execution,
+      cleanup, or final-result-protocol
 
       cleanup additionally contains the caller-visible transport-neutral recovery
       evidence owned by CoordinatorFailure unchanged; every remaining kind contains

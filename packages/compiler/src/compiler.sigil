@@ -93,14 +93,15 @@ expand SigilOneShotCompilation {
     OneShotCompilation {
       Validate CompilationOptions, then acquire the selected configured workspace
       through SigilCore read-only semantics before asking SigilCompilationTarget to
-      resolve the target against that exact loaded workspace.
+      resolve the target against that exact loaded workspace. Resolve the profile,
+      evaluator availability, and target before event-writer binding.
+
+      Delegate profile, requested-stage, focus mapping, dependency closure, evaluator
+      availability, budgets, and capabilities to SigilCompilationProfile.
 
       Bind eventSink or the internal discard sink to one per-invocation
       CompilationEventWriter and pass that writer to SigilCompilationEvaluation.
       Never share a writer or sink binding across invocations.
-
-      Delegate profile, requested-stage, focus mapping, dependency closure, evaluator
-      availability, budgets, and capabilities to SigilCompilationProfile.
 
       Dispatch the resolved workspace, target, stages, capabilities, and optional
       prior report to SigilCompilationEvaluation. Never construct a writable selected
@@ -330,8 +331,8 @@ expand SigilOneShotCompilation {
       loaded; target resolution uses that workspace's selected sources.
 
       Unavailable required evaluators reject with
-      COMPILER_PROFILE_EVALUATORS_REQUIRED, return no report, and emit a failed event
-      when transport remains writable.
+      COMPILER_PROFILE_EVALUATORS_REQUIRED before event-writer binding, return no
+      report, and emit no event.
 
       disableHistory performs no history read or replacement. Successful one-shot
       evaluation returns an internal result, constructs one authoritative report,

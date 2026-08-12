@@ -103,6 +103,7 @@ Deno.test("Pi adapter invokes print JSON mode with ephemeral read-only tools", a
   const result = await adapter.evaluate(request(adapter));
   if (!observed) throw new Error("Pi was not invoked.");
   assertEquals(observed.command, "pi");
+  assertEquals(observed.handle?.identity, "builtin.pi-cli@0.7.1");
   assertEquals(observed.args.includes("--print"), true);
   assertEquals(observed.args.includes("--mode"), true);
   assertEquals(
@@ -123,7 +124,8 @@ Deno.test("Pi adapter invokes print JSON mode with ephemeral read-only tools", a
     observed.args[observed.args.indexOf("--model") + 1],
     "openai/gpt-5",
   );
-  assertMatch(observed.input, /Return ONLY this JSON object/);
+  assertMatch(observed.input, /Return ONLY valid JSON/);
+  assertMatch(observed.input, /\{"findings":\[\]\}/);
   assertEquals(adapter.capabilities.statePersistence, "ephemeral");
   assertEquals(result.findings, []);
   assertEquals(result.usage?.inputTokens, 12);
@@ -142,6 +144,44 @@ Deno.test("Pi adapter rejects persistent requests before invocation", async () =
     AdapterFailure,
   );
   assertEquals(error.kind, "capability-mismatch");
+  assertEquals(invoked, false);
+});
+
+Deno.test("Pi reports invalid request evidence without invoking its runner", async () => {
+  let invoked = false;
+  const adapter = new PiAdapter(undefined, async () => {
+    invoked = true;
+    throw new Error("runner should not be called");
+  });
+  const valid = request(adapter);
+  const error = await assertRejects(
+    () =>
+      adapter.evaluate({
+        ...valid,
+        target: { ...valid.target, retrieval: undefined as never },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "incomplete-evidence");
+  assertEquals(invoked, false);
+});
+
+Deno.test("Pi classifies initial request overflow as an operational limit", async () => {
+  let invoked = false;
+  const adapter = new PiAdapter(undefined, async () => {
+    invoked = true;
+    throw new Error("runner should not be called");
+  });
+  const valid = request(adapter);
+  const error = await assertRejects(
+    () =>
+      adapter.evaluate({
+        ...valid,
+        limits: { ...valid.limits, maxInitialRequestChars: 1 },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "operational-limit");
   assertEquals(invoked, false);
 });
 

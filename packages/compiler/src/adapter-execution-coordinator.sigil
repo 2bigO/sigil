@@ -9,19 +9,38 @@ component SigilAgentAdapterExecutionCoordinator {
 
   interface {
     AdapterExecutionHooks {
-      preflight(serializedInput, AgentOperationalLimits) returns success or
-      operational-limit without starting provider execution
+      invoke(AdapterExecutionHandle, registerDeclaration, reportObservation,
+      submitTerminalCondition) is supplied by the adapter implementation that owns
+      provider-specific mechanics; the adapter declares its handle before starting
+      provider work and invoke settles exactly once with a provider result or one
+      terminal condition
 
-      invoke(registerDeclaration, reportObservation, submitTerminalCondition) is
-      supplied by the adapter implementation that owns provider-specific mechanics;
-      the coordinator atomically linearizes its final cancellation observation with
-      calling it at most once and observes its submissions
-
-      cleanup(winningCondition, providerCleanupMs, reportObservation) performs
-      implementation-specific cleanup attempts and reports their outcomes
+      invoke completion is observed when its result or terminal-condition submission
+      settles; registered result inputs are observed independently and must settle
+      before a result or final-result-protocol condition is eligible
 
       every owned resource and result input is registered before first use or state
       observation
+    }
+
+    AdapterExecutionHandle {
+      identity is stable and unique within one evaluation and is declared before
+      provider work begins; it is initially unstarted and attaches provider resources
+      only after launch
+
+      cleanup(winningCondition, cleanupDeadline, reportObservation) performs
+      provider-specific termination and release attempts before the absolute
+      monotonic cleanupDeadline selected by the coordinator for this execution handle
+
+      cleanup settles before cleanupDeadline after reporting completed lifecycle
+      observations, or reports deadline expiry without awaiting later provider work
+
+      cleanup for an unstarted handle releases that handle without invoking a
+      provider; cleanup for an attached handle terminates and releases its provider
+      resources and result inputs
+
+      cleanup reports attempts and typed lifecycle observations but never selects the
+      terminal outcome or declares cleanup verified
     }
 
     AdapterExecutionDeclaration {
@@ -52,8 +71,9 @@ component SigilAgentAdapterExecutionCoordinator {
       batch; later submissions belong to the next batch
 
       within one batch, kind precedence is cancellation, elapsed-time,
-      preventive-budget, operational-limit, execution, final-result-protocol, then
-      newly eligible valid result; the lowest sequence wins within one kind
+      preventive-budget, operational-limit, process, execution,
+      final-result-protocol, then newly eligible valid result; the lowest sequence
+      wins within one kind
 
       a second valid-result submission becomes final-result-protocol at the second
       submission's sequence; an already settled valid result is immutable
@@ -65,8 +85,8 @@ component SigilAgentAdapterExecutionCoordinator {
     }
 
     CoordinatorFailure {
-      kind is cancelled, elapsed-time, preventive-budget, operational-limit,
-      execution, final-result-protocol, or cleanup
+      kind is cancelled, elapsed-time, preventive-budget, incomplete-evidence,
+      operational-limit, process, execution, final-result-protocol, or cleanup
 
       cleanup contains complete recovery evidence and the initiating terminal kind
     }
@@ -75,9 +95,11 @@ component SigilAgentAdapterExecutionCoordinator {
       execute(AdapterExecutionHooks, SigilAgentExecutionPolicy) returns one
       CoordinatorResult or one CoordinatorFailure
 
-      a non-result winner invokes cleanup; cleanup is verified only when every
-      declared resource has latest known terminal or released state and every result
-      input has latest known closed or cancelled state before the cleanup deadline
+      a non-result winner selects one monotonic cleanupDeadline at winner selection
+      by adding providerCleanupMs to that selection time, invokes cleanup once, and
+      verifies cleanup after its deadline-bounded settlement only when every declared
+      resource has latest known terminal or released state and every result input has
+      latest known closed or cancelled state at or before cleanupDeadline
 
       cleanup recovery evidence contains all declarations and latest states,
       observation failures, ordered attempts, deadline outcome, initiating terminal
@@ -89,33 +111,40 @@ component SigilAgentAdapterExecutionCoordinator {
 expand SigilAgentAdapterExecutionCoordinator {
   logic {
     AgentAdapterExecutionCoordinator {
-      Run hook preflight before invocation. After invocation, accept only registered
-      state observations and eligible terminal submissions. If the shared monotonic
-      elapsed deadline expires after invocation, submit one elapsed-time terminal
-      condition.
+      Adapter-owned preflight completes before coordinator invocation. After
+      invocation, accept only registered state observations and eligible terminal
+      submissions. If the shared monotonic elapsed deadline expires after invocation,
+      submit one elapsed-time terminal condition.
 
-      At the invocation transition, atomically observe cancellation and start the
-      provider. Cancellation observed before the transition returns cancelled without
-      invocation; cancellation observed after it becomes an eligible terminal
-      submission.
+      At the invocation transition, atomically observe cancellation, accept the
+      adapter-declared unstarted handle, and start the provider. Cancellation
+      observed before the transition returns cancelled without invocation;
+      cancellation observed after it becomes an eligible terminal submission.
 
       At each deferred drain, atomically snapshot submitted conditions and apply kind
       precedence, then lowest evaluation-local sequence. A condition submitted during
       or after the snapshot enters the next batch.
 
-      A valid result is eligible only after execution and all result inputs settle
-      and its envelope validates. Operational-limit is eligible when provider framing
-      crosses maxProviderFrameChars. Final-result-protocol is eligible only after
-      execution and result-input settlement without one valid envelope.
+      A valid result is eligible only after invoke completion and all result inputs
+      settle and its envelope validates. Operational-limit is eligible when provider
+      framing crosses maxProviderFrameChars. Final-result-protocol is eligible only
+      after invoke completion and result-input settlement without one valid envelope
+      or when final-result size crosses maxFinalResultChars.
 
-      A non-result winner starts cleanup. Earlier failed attempts do not prevent
-      verification when final latest known states satisfy the contract before the
-      deadline.
+      A non-result winner invokes the declared AdapterExecutionHandle cleanup. The
+      coordinator verifies declared resource and result-input settlement by the
+      cleanup deadline; adapters report observations and attempts but never decide
+      verification. Earlier failed attempts do not prevent verification when final
+      latest known states satisfy the contract before the deadline.
 
       Deadline expiry with an absent, active, open, or otherwise nonterminal latest
       state, or inability to obtain required proof, returns cleanup. A later
       observation failure does not erase prior immutable terminal proof but remains
       in recovery evidence.
+
+      An undeclared observation or result submission after a non-result winner is an
+      execution terminal condition when still eligible; submissions after final
+      settlement are ignored and recorded only as recovery evidence.
     }
   }
 
@@ -166,6 +195,38 @@ expand SigilAgentAdapterExecutionCoordinator {
       Consequences: Equivalent submitted conditions produce one stable outcome.
     }
 
+    CoordinatorOwnedCleanupVerification {
+      Decision: Require adapters to declare a provider-specific execution handle
+      before provider work starts, while the coordinator invokes its cleanup for a
+      non-result winner and verifies declared lifecycle settlement by the deadline.
+
+      Scope: Governs adapter execution-handle declaration, coordinator cleanup
+      invocation, and recovery verification; excludes provider-specific termination
+      mechanisms.
+
+      Trade-offs: Adapters expose a small lifecycle handle, while the coordinator
+      remains responsible for uniform cleanup policy and recovery evidence.
+
+      Consequences: Adapter implementations retain handle declaration and mechanism
+      ownership, while callers receive one consistent cleanup outcome and evidence
+      format.
+
+      The coordinator passes remaining cleanup time to the handle; no cleanup phase
+      may extend the one total providerCleanupMs deadline.
+    }
+
+    CleanupDeadlineBoundary {
+      Decision: Define cleanupDeadline as the absolute monotonic instant calculated
+      when a non-result winner is selected, rather than granting each cleanup phase
+      an independent duration.
+
+      Scope: Governs coordinator cleanup timing and adapter cleanup-hook arguments;
+      excludes the elapsed-time deadline that controls provider execution.
+
+      Consequences: Every provider cleanup action shares one measurable boundary and
+      verification never accepts post-deadline settlement.
+    }
+
     CleanupFailureSupersession {
       Decision: Return cleanup instead of the initiating failure when cleanup cannot
       be verified, while retaining the initiating kind and recovery evidence.
@@ -203,10 +264,21 @@ expand SigilAgentAdapterExecutionCoordinator {
 
       Cancellation arriving immediately before the atomic invocation transition
       starts no provider; the same signal arriving immediately after the transition
-      enters the next eligible arbitration batch and triggers bounded cleanup when it
-      wins.
+      enters the next eligible arbitration batch and triggers cleanup of the declared
+      unstarted or attached handle when it wins.
 
       A result settled in an earlier batch ignores later terminal submissions.
+
+      A non-result winner invokes the declared handle exactly once. An unstarted
+      handle settles without a provider cleanup action. Cleanup must settle at the
+      deadline after reporting expiry when provider work remains. Cleanup whose final
+      resource or result-input observations remain absent or nonterminal at or before
+      the deadline returns cleanup with the initiating terminal kind and recovery
+      evidence.
+
+      An undeclared observation or eligible late result returns execution; a
+      submission after final settlement changes no outcome and is retained only as
+      recovery evidence.
 
       An observation failure after terminal proof preserves that proof and records
       the failure; absent or nonterminal proof at the deadline returns cleanup.

@@ -1,4 +1,5 @@
 import {
+  AdapterFailure,
   ClaudeAdapter,
   CodexAdapter,
   compilationColor,
@@ -8,18 +9,26 @@ import {
   compile,
   CompilerFailure,
   deriveBudgetOutcome,
+  FileCompilationSessionStore,
   FileCompilationHistoryStore,
   loadEvaluationSkill,
   loadEvaluationSkills,
   MockAdapter,
   openCompilationEventWriter,
   resolveAdapterRegistration,
+  runAdapterSubprocess,
   SigilCompilationSession,
   SigilCompilationSessionFactory,
   SigilProposalWorkspace,
+  validateAgentEvaluationResult,
   validateCompilationEventStream,
 } from "../src/mod.ts";
-import { assertEquals, assertMatch, assertRejects } from "@std/assert";
+import {
+  assertEquals,
+  assertMatch,
+  assertRejects,
+  assertThrows,
+} from "@std/assert";
 
 async function workspace(
   source: string,
@@ -70,6 +79,82 @@ function retrievalFixture(
   } as const;
 }
 
+Deno.test("terminal findings require nullable location fields", () => {
+  const request = {
+    budgets: {
+      elapsedTimeMs: 1_000,
+      maxCommands: 1,
+      maxCommandOutputChars: 1_000,
+      maxInputTokens: 1,
+      maxOutputTokens: 1,
+    },
+    observability: {
+      usage: "unavailable",
+      cost: "unavailable",
+      tokenBudgetEnforcement: "unavailable",
+      costBudgetEnforcement: "unavailable",
+    },
+  } as never;
+  const finding = {
+    code: "SEMANTIC_AMBIGUITY",
+    severity: "warning" as const,
+    message: "Location-independent finding.",
+    filePath: null,
+    line: null,
+    column: null,
+    evidence: "No physical workspace evidence is available.",
+    impact: "The contract remains ambiguous.",
+    correction: "Supply the missing contract evidence.",
+  };
+  assertEquals(
+    validateAgentEvaluationResult(request, {
+      findings: [finding],
+      commands: [],
+    })
+      .findings[0].filePath,
+    null,
+  );
+  const { filePath: _filePath, ...missingLocation } = finding;
+  assertThrows(() =>
+    validateAgentEvaluationResult(request, {
+      findings: [missingLocation],
+      commands: [],
+    } as never)
+  );
+});
+
+Deno.test("subprocess execution declares owned inputs before an attempted launch", async () => {
+  const observations: string[] = [];
+  const error = await assertRejects(
+    () => runAdapterSubprocess({
+      implementationIdentity: "test.adapter@1",
+      command: "/definitely-not-a-provider-command",
+      args: [],
+      cwd: Deno.cwd(),
+      input: "{}",
+      signal: new AbortController().signal,
+      maxInitialRequestChars: 10,
+      maxProviderFrameChars: 10,
+      resources: {
+        declareResource: (identity) => observations.push(`resource:${identity}`),
+        declareResultInput: (identity) => observations.push(`input:${identity}`),
+        observeResource() {},
+        observeResultInput() {},
+        reportResourceObservation() {},
+        reportResultInputObservation() {},
+        cleanupAttempt() {},
+      },
+    }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "process");
+  assertEquals(observations, [
+    "resource:process:test.adapter@1",
+    "input:result-input:stdout",
+    "input:result-input:stderr",
+  ]);
+});
+
 // @sigil tests packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage interface,logic,constraints,cases
 Deno.test("evaluation skills declare implementation evidence authority and modularity rules", async () => {
   const skills = await loadEvaluationSkills();
@@ -103,6 +188,20 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
     ]
   ) {
     assertEquals(architectureRules.includes(rule), true);
+  }
+  for (const skill of skills.values()) {
+    const guidance = skill.guidance.replaceAll(/\s+/g, " ");
+    assertMatch(guidance, /Use selected evidence by default/);
+    assertMatch(
+      guidance,
+      /Only when that evidence is insufficient/,
+    );
+    assertMatch(guidance, /explicit evidence gap blocks evaluation/);
+    assertMatch(guidance, /perform targeted graph or context inspection/);
+    assertMatch(
+      guidance,
+      /Do not broadly rediscover the repository/,
+    );
   }
 });
 
@@ -168,6 +267,36 @@ Deno.test("budget outcomes preserve unavailable telemetry", () => {
   );
 });
 
+Deno.test("malformed adapter result envelopes fail compilation", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+  }
+`);
+  try {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      adapter: new MockAdapter({
+        findings: "not-an-array",
+        commands: [],
+      } as never),
+    });
+    assertEquals(report.status, "red");
+    assertEquals(
+      report.stages.find((stage) => stage.id === "semantic-readiness")?.state,
+      "failed",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/compiler/src/event-writer.sigil::SigilCompilationEventWriter::CompilationEventWriterProtocol interface,constraints,cases
  * @sigil tests packages/compiler/src/event-reader.sigil::SigilCompilationEventReader::CompilationEventReaderProtocol interface,constraints,cases
@@ -228,6 +357,7 @@ Deno.test("compile discovers workspace config from a Sigil file path", async () 
     const report = await compile(
       `${root}/main.sigil`,
       { kind: "workspace" },
+      "standard",
       { adapter: new MockAdapter() },
     );
     assertEquals(report.workspaceRoot, root.replaceAll("\\", "/"));
@@ -252,10 +382,11 @@ Deno.test("standard profile becomes green only with complete warning-free evalua
 `);
   try {
     const events: CompilationEvent[] = [];
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       adapter: new MockAdapter(),
-      onEvent: (event) => {
-        events.push(event);
+      eventSink: async (bytes) => {
+        events.push(JSON.parse(new TextDecoder().decode(bytes)));
+        return "delivered-all";
       },
     });
     assertEquals(report.status, "green");
@@ -292,16 +423,19 @@ Deno.test("warnings produce yellow and errors produce red", async () => {
       code: "SEMANTIC_AMBIGUITY",
       severity: "warning" as const,
       message: "Boundary is unclear.",
+      filePath: null,
+      line: null,
+      column: null,
       evidence: "The interface omits its result.",
       impact: "Consumers cannot rely on the operation.",
       correction: "Define the result.",
     };
-    const yellow = await compile(root, { kind: "workspace" }, {
+    const yellow = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([warning]),
     });
     assertEquals(yellow.status, "yellow");
-    const red = await compile(root, { kind: "workspace" }, {
+    const red = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([{ ...warning, severity: "error" }]),
     });
@@ -361,13 +495,17 @@ Deno.test("critical-system adds risk evaluation without implementation stages", 
     },
   );
   try {
-    const report = await compile(root, { kind: "workspace" }, {
-      profile: "critical-system",
-      adapters: [
-        new MockAdapter([], "first"),
-        new MockAdapter([], "second"),
-      ],
-    });
+    const report = await compile(
+      root,
+      { kind: "workspace" },
+      "critical-system",
+      {
+        adapters: [
+          new MockAdapter([], "first"),
+          new MockAdapter([], "second"),
+        ],
+      },
+    );
     assertEquals(
       report.stages.find((item) => item.id === "standards-risk")?.state,
       "completed",
@@ -407,7 +545,7 @@ Deno.test("critical-system configuration is optional until the profile is select
     },
   );
   try {
-    const standard = await compile(root, { kind: "workspace" }, {
+    const standard = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter(),
     });
@@ -416,8 +554,7 @@ Deno.test("critical-system configuration is optional until the profile is select
     const events: CompilationEvent[] = [];
     await assertRejects(
       () =>
-        compile(root, { kind: "workspace" }, {
-          profile: "critical-system",
+        compile(root, { kind: "workspace" }, "critical-system", {
           adapter: new MockAdapter(),
           onEvent: (event) => {
             events.push(event);
@@ -426,17 +563,108 @@ Deno.test("critical-system configuration is optional until the profile is select
       Error,
       "requires at least two distinct",
     );
-    assertEquals(events.at(-1)?.type, "failed");
-    assertEquals(
-      events.at(-1)?.payload.code,
-      "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+    assertEquals(events, []);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("invalid targets reject before binding an event writer", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`);
+  try {
+    const events: CompilationEvent[] = [];
+    await assertRejects(
+      () =>
+        compile(root, { kind: "component", name: "Missing" }, "standard", {
+          adapter: new MockAdapter(),
+          onEvent: (event) => {
+            events.push(event);
+          },
+        }),
+      Error,
+      "No component matched",
     );
-    assertEquals(
-      events.filter((event) =>
-        ["completed", "failed", "cancelled"].includes(event.type)
-      ).length,
-      1,
+    assertEquals(events, []);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("unknown profiles and stages use invalid-invocation failures", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`);
+  try {
+    const unknownProfile = await assertRejects(
+      () => compile(root, { kind: "workspace" }, "missing-profile"),
+      CompilerFailure,
     );
+    assertEquals(unknownProfile.code, "COMPILER_INVALID_INVOCATION");
+
+    const unknownStage = await assertRejects(
+      () =>
+        compile(root, { kind: "workspace" }, "standard", {
+          requestedStage: "missing-stage",
+        }),
+      CompilerFailure,
+    );
+    assertEquals(unknownStage.code, "COMPILER_INVALID_INVOCATION");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("standard evaluator binding failures use profile-evaluator failures", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {},
+    {
+      adapter: {
+        provider: "codex",
+        implementationId: "configured.adapter",
+        implementationVersion: "1.0.0",
+      },
+    },
+  );
+  try {
+    const error = await assertRejects(
+      () => compile(root, { kind: "workspace" }, "standard", {
+        adapter: new MockAdapter([], "different"),
+      }),
+      CompilerFailure,
+    );
+    assertEquals(error.code, "COMPILER_PROFILE_EVALUATORS_REQUIRED");
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -480,8 +708,7 @@ Deno.test("critical-system evaluator failure ends the run with the profile error
     const events: CompilationEvent[] = [];
     await assertRejects(
       () =>
-        compile(root, { kind: "workspace" }, {
-          profile: "critical-system",
+        compile(root, { kind: "workspace" }, "critical-system", {
           requestedStage: "semantic-readiness",
           adapters: [
             new MockAdapter(() => {
@@ -533,15 +760,20 @@ expand Example {
     },
   );
   try {
-    const report = await compile(root, {
-      kind: "location",
-      filePath: "details.sigil",
-      line: 5,
-      column: 8,
-    }, {
-      requestedStage: "semantic-readiness",
-      adapter: new MockAdapter(),
-    });
+    const report = await compile(
+      root,
+      {
+        kind: "location",
+        filePath: "details.sigil",
+        line: 5,
+        column: 8,
+      },
+      "standard",
+      {
+        requestedStage: "semantic-readiness",
+        adapter: new MockAdapter(),
+      },
+    );
     assertEquals(report.componentNames, ["Example"]);
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -597,8 +829,7 @@ Deno.test("independent evaluator disagreement is explicit", async () => {
       impact: "Implementations may diverge.",
       correction: "State the expected result.",
     };
-    const report = await compile(root, { kind: "workspace" }, {
-      profile: "critical",
+    const report = await compile(root, { kind: "workspace" }, "critical", {
       requestedStage: "semantic-readiness",
       adapters: [
         new MockAdapter([finding], "first"),
@@ -643,12 +874,15 @@ Deno.test("history derives unchanged, resolved, and regressed lifecycle", async 
     code: "SEMANTIC_AMBIGUITY",
     severity: "warning" as const,
     message: "The goal is ambiguous.",
+    filePath: null,
+    line: null,
+    column: null,
     evidence: "The goal lacks a result.",
     impact: "Implementations may diverge.",
     correction: "State the result.",
   };
   try {
-    const first = await compile(root, { kind: "workspace" }, {
+    const first = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([finding]),
       history,
@@ -657,7 +891,7 @@ Deno.test("history derives unchanged, resolved, and regressed lifecycle", async 
       first.diagnostics.find((item) => item.code === finding.code)?.lifecycle,
       "new",
     );
-    const unchanged = await compile(root, { kind: "workspace" }, {
+    const unchanged = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([finding]),
       history,
@@ -667,7 +901,7 @@ Deno.test("history derives unchanged, resolved, and regressed lifecycle", async 
         ?.lifecycle,
       "unchanged",
     );
-    const resolved = await compile(root, { kind: "workspace" }, {
+    const resolved = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter(),
       history,
@@ -678,7 +912,7 @@ Deno.test("history derives unchanged, resolved, and regressed lifecycle", async 
       "resolved",
     );
     assertEquals(resolved.status, "green");
-    const regressed = await compile(root, { kind: "workspace" }, {
+    const regressed = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([finding]),
       history,
@@ -784,7 +1018,7 @@ ${"// SECRET_SOURCE_MARKER_72D9\n".repeat(45_000)}`;
       serialized: string;
       skill: string;
     }[] = [];
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       adapter: new MockAdapter((request) => {
         const serialized = JSON.stringify(request);
         observed.push({
@@ -848,7 +1082,7 @@ Deno.test("stage selection runs the exact dependency closure", async () => {
 }
 `);
   try {
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter(),
     });
@@ -886,7 +1120,7 @@ Deno.test("diagnostics resolve direct units with concept and section fallbacks",
     },
   );
   try {
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([
         finding("unit", "main.sigil", 8),
@@ -956,7 +1190,7 @@ export function read(): void {}
     },
   );
   try {
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([
         finding("governing", "implementation.ts", 5),
@@ -1012,11 +1246,11 @@ Deno.test("semantic-unit fingerprints survive formatting-only wrapping", async (
 }
 `);
   try {
-    const first = await compile(compact, { kind: "workspace" }, {
+    const first = await compile(compact, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([finding("compact", "main.sigil", 3)]),
     });
-    const second = await compile(wrapped, { kind: "workspace" }, {
+    const second = await compile(wrapped, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([finding("wrapped", "main.sigil", 3)]),
     });
@@ -1060,7 +1294,7 @@ Deno.test("workspace configuration overrides compiler execution budgets", async 
   );
   try {
     let observedBudget = 0;
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter((request) => {
         observedBudget = request.budgets.maxCommandOutputChars;
@@ -1098,7 +1332,7 @@ Deno.test("invalid compiler execution budgets fail before evaluation", async () 
   try {
     await assertRejects(
       () =>
-        compile(root, { kind: "workspace" }, {
+        compile(root, { kind: "workspace" }, "standard", {
           requestedStage: "semantic-readiness",
           adapter: new MockAdapter(),
         }),
@@ -1119,12 +1353,15 @@ Deno.test("undeclared evaluator rules fail the stage without affecting color dir
 }
 `);
   try {
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "semantic-readiness",
       adapter: new MockAdapter([{
         code: "INVENTED_RULE",
         severity: "error",
         message: "Unsupported.",
+        filePath: null,
+        line: null,
+        column: null,
         evidence: "None.",
         impact: "None.",
         correction: "None.",
@@ -1159,32 +1396,35 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
     let observedPrompt = "";
     const adapter = new CodexAdapter(
       undefined,
-      (_command, args, input, onStdoutChunk) => {
+      (_command, args, input, onFrame) => {
         observedArgs = args;
         observedPrompt = input;
-        onStdoutChunk([
-          JSON.stringify({
-            type: "item.completed",
-            item: {
-              type: "command_execution",
-              command:
-                '/bin/zsh -lc "rg -n \\"SigilCompiler|sigil compile|compile\\\\(\\" packages/compiler packages/cli\nsed -n \\"1,240p\\" packages/compiler/src/compiler.sigil"',
-              status: "completed",
-              exit_code: 0,
-            },
-          }),
-          JSON.stringify({
-            type: "item.completed",
-            item: {
-              type: "agent_message",
-              text: JSON.stringify({ findings: [] }),
-            },
-          }),
-          JSON.stringify({
-            type: "turn.completed",
-            usage: { input_tokens: 100, output_tokens: 5 },
-          }),
-        ].join("\n"));
+        onFrame({
+          channel: "stdout",
+          text: [
+            JSON.stringify({
+              type: "item.completed",
+              item: {
+                type: "command_execution",
+                command:
+                  '/bin/zsh -lc "rg -n \\"SigilCompiler|sigil compile|compile\\\\(\\" packages/compiler packages/cli\nsed -n \\"1,240p\\" packages/compiler/src/compiler.sigil"',
+                status: "completed",
+                exit_code: 0,
+              },
+            }),
+            JSON.stringify({
+              type: "item.completed",
+              item: {
+                type: "agent_message",
+                text: JSON.stringify({ findings: [] }),
+              },
+            }),
+            JSON.stringify({
+              type: "turn.completed",
+              usage: { input_tokens: 100, output_tokens: 5 },
+            }),
+          ].join("\n"),
+        });
         return Promise.resolve();
       },
     );
@@ -1233,7 +1473,19 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
     assertEquals(observedArgs.includes("read-only"), true);
     assertEquals(observedArgs[observedArgs.indexOf("-C") + 1], root);
     assertEquals(observedArgs.includes("--json"), true);
-    assertMatch(observedPrompt, /Inspect the workspace directly/);
+    assertMatch(observedPrompt, /use selected evidence by default/);
+    assertMatch(
+      observedPrompt,
+      /Only when that evidence is insufficient\s+because an explicit evidence gap blocks evaluation/,
+    );
+    assertMatch(
+      observedPrompt,
+      /perform targeted graph or\s+context inspection/,
+    );
+    assertMatch(
+      observedPrompt,
+      /Do not broadly rediscover the repository or redefine the authoritative scope/,
+    );
     assertMatch(
       observedPrompt,
       /point into the\s+smallest exact source statement/,
@@ -1251,6 +1503,10 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
       observedPrompt,
       /do not report a finding solely because current implementation/,
     );
+    const emptyFindingsExample = observedPrompt.match(/\{"findings":\[\]\}/)
+      ?.[0];
+    assertEquals(JSON.parse(emptyFindingsExample ?? "{}").findings, []);
+    assertEquals(observedPrompt.includes('{"code":string'), false);
     assertMatch(result.commands[0].command, /rg -n/);
     assertEquals(result.usage?.inputTokens, 100);
   } finally {
@@ -1259,6 +1515,51 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
 });
 
 // @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
+Deno.test("Codex classifies initial request overflow as an operational limit", async () => {
+  let invoked = false;
+  const adapter = new CodexAdapter(undefined, async () => {
+    invoked = true;
+  });
+  const error = await assertRejects(
+    () =>
+      adapter.evaluate({
+        stage: "semantic-readiness",
+        purpose: "semantic",
+        skill: "Inspect files.",
+        allowedRules: ["SEMANTIC_AMBIGUITY"],
+        implementationEvidence: "context-only",
+        workspaceRoot: Deno.cwd(),
+        workspaceSnapshotIdentity: "sha256:test-snapshot",
+        target: {
+          componentName: "Example",
+          sigilFile: "main.sigil",
+          initialPaths: ["main.sigil"],
+          retrieval: retrievalFixture(),
+        },
+        capabilities: adapter.capabilities,
+        commandPolicy: { allowedCommands: [], forbiddenCommands: [] },
+        observability: adapter.observability,
+        limits: {
+          maxInitialRequestChars: 1,
+          maxProviderFrameChars: 1_000,
+          maxFinalResultChars: 1_000,
+          maxRetainedCommandOutputChars: 1_000,
+          providerCleanupMs: 1_000,
+        },
+        budgets: {
+          elapsedTimeMs: 1_000,
+          maxCommands: 1,
+          maxCommandOutputChars: 1_000,
+          maxInputTokens: 1,
+          maxOutputTokens: 1,
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "operational-limit");
+  assertEquals(invoked, false);
+});
+
 Deno.test("Codex adapter rejects an actually invoked nested compilation", async () => {
   const root = await workspace(`component Example {
   goal {
@@ -1271,31 +1572,34 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
       _command,
       _args,
       _input,
-      onStdoutChunk,
+      onFrame,
     ) => {
-      onStdoutChunk([
-        JSON.stringify({
-          type: "item.completed",
-          item: {
-            type: "command_execution",
-            command:
-              '/bin/zsh -lc "rg -n \\"compile\\" packages/compiler\nsigil compile ."',
-            status: "completed",
-            exit_code: 0,
-          },
-        }),
-        JSON.stringify({
-          type: "item.completed",
-          item: {
-            type: "agent_message",
-            text: JSON.stringify({ findings: [] }),
-          },
-        }),
-        JSON.stringify({
-          type: "turn.completed",
-          usage: { input_tokens: 100, output_tokens: 5 },
-        }),
-      ].join("\n"));
+      onFrame({
+        channel: "stdout",
+        text: [
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "command_execution",
+              command:
+                '/bin/zsh -lc "rg -n \\"compile\\" packages/compiler\nsigil compile ."',
+              status: "completed",
+              exit_code: 0,
+            },
+          }),
+          JSON.stringify({
+            type: "item.completed",
+            item: {
+              type: "agent_message",
+              text: JSON.stringify({ findings: [] }),
+            },
+          }),
+          JSON.stringify({
+            type: "turn.completed",
+            usage: { input_tokens: 100, output_tokens: 5 },
+          }),
+        ].join("\n"),
+      });
       return Promise.resolve();
     });
     await assertRejects(
@@ -1386,6 +1690,111 @@ Deno.test("proposal workspace atomically replaces complete source override sets"
  * @sigil tests packages/compiler/src/session-factory.sigil::SigilCompilationSessionFactory interface,logic,cases
  * @sigil tests packages/compiler/src/session.sigil::SigilCompilationSession interface,state,logic,constraints,cases
  */
+Deno.test("session creation validates the requested focus before materialization", async () => {
+  const root = await workspace(`component Example {
+  goal { Explain the example. }
+  interface { Run { run() } }
+}
+`);
+  let compilerInvoked = false;
+  const factory = new SigilCompilationSessionFactory(
+    undefined,
+    async () => {
+      compilerInvoked = true;
+      throw new Error("one-shot compilation must not run during creation");
+    },
+  );
+  try {
+    const created = await factory.create(
+      root,
+      { kind: "workspace" },
+      "standard",
+      "design",
+    );
+    assertEquals(compilerInvoked, false);
+    await created.session.close();
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("session creation resolves the profile before materialization", async () => {
+  const root = await workspace(`component Example {
+  goal { Explain the example. }
+  interface { Run { run() } }
+}
+`);
+  class TrackingStore extends FileCompilationSessionStore {
+    createCalls = 0;
+    override create(...args: Parameters<FileCompilationSessionStore["create"]>) {
+      this.createCalls++;
+      return super.create(...args);
+    }
+  }
+  const store = new TrackingStore();
+  try {
+    const error = await assertRejects(
+      () => new SigilCompilationSessionFactory(store).create(
+        root,
+        { kind: "workspace" },
+        "missing-profile",
+        "design",
+      ),
+      CompilerFailure,
+    );
+    assertEquals(error.code, "COMPILER_INVALID_INVOCATION");
+    assertEquals(store.createCalls, 0);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("evaluation commit failure removes the verified proposal workspace before releasing its lease", async () => {
+  const root = await workspace(`component Example {
+  goal { Explain the example. }
+  interface { Run { run() } }
+}
+`);
+  class FailingCommitStore extends FileCompilationSessionStore {
+    override commit(
+      _lease: Parameters<FileCompilationSessionStore["commit"]>[0],
+      _record: Parameters<FileCompilationSessionStore["commit"]>[1],
+    ): Promise<void> {
+      return Promise.reject(new CompilerFailure(
+        "COMPILER_WORKSPACE_HOST_FAILURE",
+        "Synthetic commit failure.",
+      ));
+    }
+  }
+  const store = new FailingCommitStore();
+  try {
+    const created = await new SigilCompilationSessionFactory(store).create(
+      root,
+      { kind: "workspace" },
+      "standard",
+      "design",
+    );
+    const session = new SigilCompilationSession(
+      created.result.sessionIdentity,
+      "design",
+      store,
+      async () => ({}) as CompilationReport,
+    );
+    const error = await assertRejects(
+      () => session.evaluate({ sources: {} }),
+      CompilerFailure,
+    );
+    assertEquals(error.code, "COMPILER_WORKSPACE_HOST_FAILURE");
+    const missing = await assertRejects(
+      () => store.open(created.result.sessionIdentity),
+      CompilerFailure,
+    );
+    assertEquals(missing.code, "COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("durable compilation sessions refresh and close without a daemon", async () => {
   const root = await workspace(`component Example {
   goal { Explain the example. }
@@ -1407,10 +1816,12 @@ Deno.test("durable compilation sessions refresh and close without a daemon", asy
     const events: CompilationEvent[] = [];
     const session = new SigilCompilationSession(
       created.result.sessionIdentity,
+      "design",
       undefined,
       async (
         workspacePath,
         target = { kind: "workspace" },
+        profileName,
         options = {},
       ) => {
         assertMatch(
@@ -1561,7 +1972,7 @@ Deno.test("history replacement follows completed settlement and warns without fa
     },
   };
   try {
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "deterministic-foundation",
       history,
       onEvent: (event) => {
@@ -1599,7 +2010,7 @@ Deno.test("report export is atomic and remains outside the selected workspace", 
 `);
   const destination = await Deno.makeTempFile();
   try {
-    const report = await compile(root, { kind: "workspace" }, {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
       requestedStage: "deterministic-foundation",
       reportExport: destination,
     });
@@ -1609,7 +2020,7 @@ Deno.test("report export is atomic and remains outside the selected workspace", 
     );
     await assertRejects(
       () =>
-        compile(root, { kind: "workspace" }, {
+        compile(root, { kind: "workspace" }, "standard", {
           requestedStage: "deterministic-foundation",
           reportExport: `${root}/report.json`,
         }),
@@ -1633,6 +2044,7 @@ function finding(
     message,
     filePath,
     line,
+    column: null,
     evidence: `${filePath}:${line}`,
     impact: "The contract is ambiguous.",
     correction: "Clarify the contract.",
