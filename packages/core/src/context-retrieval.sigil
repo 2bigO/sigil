@@ -1,4 +1,4 @@
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
 @packages/core/src/graph.sigil import { SigilGraphBuilder }
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 @packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }

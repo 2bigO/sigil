@@ -1,5 +1,6 @@
 import type {
   ConceptIdentity,
+  ComponentIdentity,
   GlossaryTerm,
   ImplementationSection,
   ImplementationSource,
@@ -97,18 +98,18 @@ export class OwnershipHoverCache {
   }
 
   projection(
-    componentName: string,
+    componentIdentity: ComponentIdentity,
     conceptName?: string,
     sectionName?: ImplementationSection,
   ): Promise<OwnedImplementationProjection | undefined> {
-    const key = `${componentName}\0${conceptName ?? ""}\0${sectionName ?? ""}`;
+    const key = `${componentIdentity.declarationPath}\0${componentIdentity.componentName}\0${conceptName ?? ""}\0${sectionName ?? ""}`;
     let projection = this.#projections.get(key);
     if (!projection) {
       projection = this.#sourceIndex.sources().then((sources) =>
         ownedImplementationTargetsFor(
           this.#resolved,
           sources,
-          componentName,
+          componentIdentity,
           conceptName,
           sectionName,
         )
@@ -997,7 +998,7 @@ class HoverMarkdownRenderer {
   ): Promise<string[]> {
     if (conceptName && !sectionName) return [];
     const projection = await this.#ownership.projection(
-      component.name,
+      { componentName: component.name, declarationPath: component.filePath },
       conceptName,
       sectionName,
     );

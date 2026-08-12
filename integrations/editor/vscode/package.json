@@ -87,8 +87,7 @@
       {
         "command": "sigil.compileComponent",
         "title": "Sigil: Compile Component",
-        "category": "Sigil",
-        "icon": "$(play)"
+        "category": "Sigil"
       },
       {
         "command": "sigil.compileWorkspace",
@@ -98,7 +97,8 @@
       {
         "command": "sigil.selectCompilationFocus",
         "title": "Sigil: Select Compilation Focus",
-        "category": "Sigil"
+        "category": "Sigil",
+        "icon": "$(play)"
       }
     ],
     "configuration": {
@@ -147,7 +147,7 @@
           "group": "navigation"
         },
         {
-          "command": "sigil.compileComponent",
+          "command": "sigil.selectCompilationFocus",
           "when": "editorLangId == sigil",
           "group": "navigation"
         }

@@ -633,11 +633,12 @@ source that declares it. The following count independently for each name:
 - an exact-case reference to one of the imported component's public concepts in
   those sections;
 - a local `expand` of the imported component;
-- direct exposure by a `_module.sigil` directory surface.
+- a local `expand` of the imported component.
 
 Mentions in `goal`, `decisions`, literal bodies, comments, annotations, other
 source files, differently cased words, or identifier substrings do not count.
-Each resolved unused name produces `SIGIL_UNUSED_IMPORT`. Unresolved or
+Each resolved unused name produces `SIGIL_UNUSED_IMPORT`, including direct imports
+declared by `_module.sigil`. Unresolved or
 ambiguous names do not also produce that diagnostic.
 
 A `_module.sigil` must declare at least one local component.

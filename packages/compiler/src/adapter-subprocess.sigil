@@ -1,9 +1,10 @@
 @packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
+@packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 
 component SigilAgentAdapterSubprocess {
   goal {
-    Own provider subprocess launch, terminal arbitration, output-channel
-    settlement, and bounded cleanup shared by CLI adapter implementations.
+    Own provider subprocess launch, output-channel settlement, and bounded cleanup
+    shared by CLI adapter implementations.
   }
 
   interface {
@@ -21,10 +22,15 @@ component SigilAgentAdapterSubprocess {
       operational-limit and owns initial request size calculation
 
       run(command, args, input, AgentExecutionBudgets, AgentOperationalLimits,
-      AgentCancellation, terminationControl, onFrame) invokes at most one process,
-      delivers identified stdout and stderr frames in per-channel order, and settles
-      with process status or a cancelled, elapsed-time, preventive-budget,
-      operational-limit, process, or process-cleanup failure
+      AgentCancellation, AdapterExecutionHandle, AdapterExecutionResources,
+      terminationControl, onFrame) declares one unstarted handle before launch,
+      attaches at most one process, delivers identified stdout and stderr frames in
+      per-channel order, and reports process status, channel settlement, and
+      provider-specific failures to the coordinator
+
+      AdapterExecutionHandle, AdapterExecutionResources, and terminationControl are
+      coordinator-owned required inputs; run never creates fallback lifecycle
+      ownership or executes without them
 
       terminationControl may request preventive-budget termination during a run
 
@@ -42,32 +48,29 @@ expand SigilAgentAdapterSubprocess {
   logic {
     AdapterSubprocess {
       Do not launch when cancellation is already requested or initial input exceeds
-      its limit. After launch, deliver bounded channel-identified frames with
-      per-channel ordering and backpressure.
+      its limit. Declare the unstarted AdapterExecutionHandle before launch and
+      attach process and channel declarations immediately after launch. After launch,
+      deliver bounded channel-identified frames with per-channel ordering and
+      backpressure.
 
-      Serialize cancellation, elapsed-time expiry, preventive-budget termination,
-      operational-limit overflow, process failure, and successful settlement; the
-      first observed terminal transition wins.
+      For a non-result process transition, close input, request graceful termination,
+      and wait only within the remaining coordinator cleanup deadline for process
+      exit and channel closure.
 
-      For a non-result terminal transition, close input, request graceful
-      termination, and wait up to providerCleanupMs for process exit and channel
-      closure.
+      If graceful cleanup has not settled within the remaining deadline, request
+      forced termination, cancel designated output channels, and continue only until
+      that same deadline expires.
 
-      If graceful cleanup expires, request forced termination, cancel designated
-      output channels, and wait up to providerCleanupMs again.
-
-      If forced cleanup also expires, unreference the process, preserve recovery
-      evidence, and return process-cleanup failure instead of the earlier outcome.
+      If forced cleanup also expires, unreference the process and report deadline
+      expiry with recovery evidence; the coordinator selects the caller outcome.
     }
   }
 
   constraints {
     CleanupSettlement {
-      Never deliver further frames or accept a provider result after a non-result
-      terminal transition wins.
-
-      Process-cleanup failure supersedes cancellation, timeout, preventive-budget,
-      operational-limit, or process failure when termination cannot be verified.
+      Process cleanup receives the coordinator-selected absolute monotonic deadline
+      through AdapterExecutionHandle, reports process and channel settlement to the
+      owning execution coordinator, and does not select a terminal outcome.
 
       Platform signal behavior may differ, but both cleanup phases and their observed
       process and channel states remain explicit.
@@ -75,14 +78,33 @@ expand SigilAgentAdapterSubprocess {
   }
 
   decisions {
+    CoordinatorBoundSubprocessInvocation {
+      Decision: Require every subprocess run to receive the coordinator-created
+      execution handle, resource hooks, and termination control.
+
+      Scope: Governs subprocess invocation and cleanup-observation ownership;
+      excludes provider command construction and platform termination mechanics.
+
+      Trade-offs: Direct subprocess callers must create a coordinator-compatible
+      execution context.
+
+      Design issues addressed: Optional lifecycle hooks permit an unobserved process
+      to bypass bounded cleanup verification.
+
+      Consequences: Every provider process and result input is declared, observed,
+      and recoverable through one coordinator-owned lifecycle.
+    }
+
     TwoPhaseProviderCleanup {
-      Decision: Attempt graceful and then forced provider termination, bounding each
-      phase by providerCleanupMs and making unverified cleanup a distinct failure.
+      Decision: Attempt graceful and then forced provider termination within one
+      total providerCleanupMs deadline and make unverified cleanup a distinct
+      failure.
 
       Scope: Governs owned provider processes and designated output channels.
 
-      Trade-offs: Failure return may take twice the cleanup limit and an unverified
-      process may be unreferenced only after recovery evidence is retained.
+      Trade-offs: Forced termination receives only the graceful phase's remaining
+      time, and an unverified process may be unreferenced only after recovery
+      evidence is retained.
 
       Design issues addressed: A termination signal does not prove process exit or
       output closure.
@@ -97,9 +119,6 @@ expand SigilAgentAdapterSubprocess {
   cases {
     AdapterSubprocess {
       Graceful exit within providerCleanupMs preserves the selected terminal failure.
-
-      A live preventive-budget request wins only when observed before settlement,
-      triggers bounded cleanup, and rejects every later result.
 
       An oversized initial input starts no process; an oversized provider frame
       triggers bounded cleanup after launch.

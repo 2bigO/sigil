@@ -1,4 +1,3 @@
-import { globMatches } from "./config.ts";
 import { diagnostic } from "./diagnostics.ts";
 import type {
   GlossaryContextProjection,
@@ -8,16 +7,14 @@ import type {
   GlossaryScope,
   GlossaryTerm,
   ResolvedGlossaryContext,
-  SemanticUnit,
-  SigilDiagnostic,
-  SigilDocument,
-  SigilWorkspace,
-  SourceLocation,
-  SourceRange,
   WorkspaceGlossary,
-} from "./model.ts";
-import { SIGIL_GLOSSARY_PATH } from "./model.ts";
-import { normalizePath, relativePath } from "./path.ts";
+} from "./model/glossary.ts";
+import type { SemanticUnit, SigilDocument } from "./model/source.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SourceLocation, SourceRange } from "./model/language.ts";
+import type { SigilWorkspace } from "./model/workspace.ts";
+import { SIGIL_GLOSSARY_PATH } from "./model/language.ts";
+import { globMatches, normalizePath, relativePath } from "./path.ts";
 
 export const GLOSSARY_SCHEMA_VERSION = 1 as const;
 
@@ -178,11 +175,7 @@ export function glossaryOccurrencesForDocument(
   return occurrences;
 }
 
-/*
- * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspectionFacade interface
- * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
- * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspection logic,cases
- */
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
 export function glossaryProjectionForWorkspace(
   workspace: SigilWorkspace,
 ): GlossaryProjection {
@@ -227,11 +220,7 @@ export function glossaryProjectionForWorkspace(
   };
 }
 
-/*
- * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspectionFacade interface
- * @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
- * @sigil implements packages/core/_module.sigil::SigilCore::GlossaryInspection logic,cases
- */
+// @sigil implements packages/core/src/glossary.sigil::SigilGlossaryEngine::GlossaryInspection interface,logic,constraints,cases
 export function glossaryContextForFiles(
   projection: GlossaryProjection,
   filePaths: readonly string[],
@@ -256,12 +245,30 @@ export function glossaryContextForFiles(
         selectedTermKeys.has(glossaryTermKey(term))
       ),
     }));
+  const selectedTermRanges = terms.map((term) => term.declarationRange);
+  const diagnostics = projection.diagnostics.filter((item) => {
+    if (!item.filePath) return true;
+    if (selectedPaths.includes(normalizePath(item.filePath))) return true;
+    return normalizePath(item.filePath) ===
+        normalizePath(projection.glossaryPath ?? "") &&
+      !!item.range &&
+      selectedTermRanges.some((range) => rangesOverlap(item.range!, range));
+  });
   return {
     glossaryPath: projection.glossaryPath,
     terms,
     resolvedContexts,
     occurrences: selectedOccurrences,
+    diagnostics,
   };
+}
+
+function rangesOverlap(left: SourceRange, right: SourceRange): boolean {
+  const start = (range: SourceRange) =>
+    range.start.line * 1_000_000 + range.start.column;
+  const end = (range: SourceRange) =>
+    range.end.line * 1_000_000 + range.end.column;
+  return start(left) <= end(right) && start(right) <= end(left);
 }
 
 interface RawGlossaryTerm {

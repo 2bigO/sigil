@@ -69,6 +69,52 @@ Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
   }
 });
 
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("CLI bundle registers the standalone Pi adapter", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-pi-bundle-" });
+  try {
+    await Deno.mkdir(`${root}/.sigil`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: "0.7.0",
+        workspace: { name: "pi-bundle", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {
+          compile: {
+            adapter: {
+              provider: "pi",
+              implementationId: "builtin.pi-cli",
+              implementationVersion: "0.7.1",
+            },
+          },
+        },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/main.sigil`,
+      `component Example {
+  goal {
+    Explain the example.
+  }
+}
+`,
+    );
+    const report = await compileWithBundledAdapters(
+      root,
+      { kind: "workspace" },
+      { requestedStage: "deterministic-foundation", disableHistory: true },
+    );
+    assertEquals(report.profile.evaluators[0].provider, "pi");
+    assertEquals(
+      report.profile.evaluators[0].implementationId,
+      "builtin.pi-cli",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
@@ -96,6 +142,33 @@ Deno.test("check resolves repository config from a nested working directory", as
   assertEquals(json.workspaceRoot, "../..");
   assertEquals(json.configPath, "../../.sigil/config.json");
   assertEquals(json.diagnosticCounts.error, 0);
+});
+
+/*
+ * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
+ * @sigil tests packages/cli/_module.sigil::SigilCli::OwnershipDiagnostics interface,logic,cases
+ */
+Deno.test("check reports ownership diagnostics from implementation sources", async () => {
+  const root = await makeWorkspace("ownership-check");
+  try {
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      validSigil("Feature"),
+    );
+    await Deno.writeTextFile(
+      `${root}/implementation.ts`,
+      "// @sigil implements contract.sigil::Feature::Missing interface\n" +
+        "export function runFeature() {}\n",
+    );
+
+    const result = await runCli(["check", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const output = parseJson(result.stdout);
+    assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
+    assertEquals(output.diagnosticCounts.error, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
@@ -275,9 +348,7 @@ Deno.test("check reports missing interface concepts as warning-only", async () =
   }
 });
 
-/*
- * @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations interface,logic,constraints,cases
- */
+// @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations interface,logic,constraints,cases
 Deno.test("check --show-locations adds file, line, and column to text diagnostics", async () => {
   const root = await makeWorkspace("show-locations");
   try {
@@ -396,9 +467,7 @@ Deno.test("--show-locations is rejected outside check", async () => {
   );
 });
 
-/*
- * @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
- */
+// @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
 Deno.test("check location rendering handles ranges, missing ranges, and path styles", () => {
   const base = {
     command: "check",
@@ -1627,7 +1696,7 @@ Deno.test("context dependent flag requires component selection", async () => {
   }
 });
 
-// @sigil tests packages/cli/_module.sigil::SigilCli::PurposeRetrieval interface,logic,constraints,cases
+// @sigil tests packages/cli/_module.sigil::SigilCli::PurposeContextRetrieval interface,logic
 Deno.test("retrieve returns one deterministic purpose result", async () => {
   const root = await makeWorkspace("retrieve-purpose");
   try {
@@ -2412,7 +2481,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
     "--format",
     "jsonl",
   ], {
-    compiler: async (_workspace, _target, options) => {
+    compiler: async (_workspace, _target, _profileName, options) => {
       requestedStage = options?.requestedStage;
       await options?.onEvent?.({
         protocolVersion: 1,
@@ -2504,6 +2573,7 @@ Deno.test("compile delegates design and implementation focus to the compiler", a
   const compiler = (
     _workspace: string,
     _target: CompilationTarget | undefined,
+    _profileName: string,
     options: CompileOptions = {},
   ) => {
     focuses.push(options.focus);
@@ -2578,7 +2648,7 @@ Deno.test("compile maps file positions to exact location targets", async () => {
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade constraints,cases
 Deno.test("compile preserves a failed terminal event in buffered JSONL", async () => {
   const result = await runCli(["compile", "--format", "jsonl"], {
-    compiler: async (_workspace, _target, options) => {
+    compiler: async (_workspace, _target, _profileName, options) => {
       await options?.onEvent?.({
         protocolVersion: 1,
         runId: "run-failed",

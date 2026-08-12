@@ -5,6 +5,7 @@ import type {
   SigilSectionName,
   SourceRange,
 } from "@qoherent/sigil-core";
+import type { WritableEnvelopeSink } from "./event-writer.ts";
 
 export const COMPILATION_PROTOCOL_VERSION = 1;
 export const COMPILATION_REPORT_VERSION = 2;
@@ -187,7 +188,6 @@ export interface CompilationEvent {
 }
 
 export interface CompileOptions {
-  readonly profile?: string;
   readonly requestedStage?: string;
   readonly focus?: CompilationFocus;
   readonly disableHistory?: boolean;
@@ -203,6 +203,7 @@ export interface CompileOptions {
     warning: CompilationHistoryWarning,
   ) => void | Promise<void>;
   readonly onEvent?: (event: CompilationEvent) => void | Promise<void>;
+  readonly eventSink?: WritableEnvelopeSink;
 }
 
 export interface CompilationHistoryWarning {
@@ -271,9 +272,9 @@ export interface AgentFinding {
   readonly code: string;
   readonly severity: DiagnosticSeverity;
   readonly message: string;
-  readonly filePath?: string;
-  readonly line?: number;
-  readonly column?: number;
+  readonly filePath: string | null;
+  readonly line: number | null;
+  readonly column: number | null;
   readonly evidence: string;
   readonly impact: string;
   readonly correction: string;
@@ -390,20 +391,51 @@ export type AdapterFailureKind =
   | "cancelled"
   | "elapsed-time"
   | "preventive-budget"
+  | "incomplete-evidence"
   | "operational-limit"
+  | "process"
   | "execution"
   | "cleanup"
   | "final-result-protocol";
+
+export type AdapterResourceLifecycleState =
+  | "absent"
+  | "active"
+  | "terminal"
+  | "released";
+
+export type AdapterResultInputLifecycleState =
+  | "absent"
+  | "open"
+  | "closed"
+  | "cancelled";
+
+export type AdapterObservationStatus =
+  | "observed"
+  | "failed"
+  | "incomplete"
+  | "impossible";
+
+export type CoordinatorFailureKind = Exclude<
+  AdapterFailureKind,
+  "binding-mismatch" | "capability-mismatch"
+>;
 
 export interface AdapterCleanupRecoveryEvidence {
   readonly implementationIdentity: string;
   readonly resources: readonly {
     readonly identity: string;
-    readonly latestState: "active" | "terminal" | "released" | "unknown";
+    readonly latestState: AdapterResourceLifecycleState;
+    readonly observationStatus: AdapterObservationStatus;
+    readonly latestStateObservedAt: number | null;
+    readonly observationEvidence: readonly string[];
   }[];
   readonly resultInputs: readonly {
     readonly identity: string;
-    readonly latestState: "open" | "closed" | "cancelled" | "unknown";
+    readonly latestState: AdapterResultInputLifecycleState;
+    readonly observationStatus: AdapterObservationStatus;
+    readonly latestStateObservedAt: number | null;
+    readonly observationEvidence: readonly string[];
   }[];
   readonly initiatingTerminalKind: AdapterFailureKind;
   readonly observationFailures: readonly string[];

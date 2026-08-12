@@ -1,56 +1,54 @@
 @packages/core import { SigilCore, SigilContextRetrieval }
-@packages/compiler/src/proposal-workspace.sigil import { SigilProposalWorkspace }
-@packages/compiler/src/session.sigil import { SigilCompilationSession }
-@packages/compiler/src/session-store.sigil import { SigilCompilationSessionStore }
-@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
-@packages/compiler/src/status.sigil import { SigilCompilationStatus }
-@packages/compiler/src/event-protocol.sigil import { SigilCompilationEventProtocol }
-@packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
-@packages/compiler/src/event-reader.sigil import { SigilCompilationEventReader }
 @packages/compiler/src/adapter.sigil import { SigilAgentAdapter }
-@packages/compiler/src/adapter-registry.sigil import { SigilAgentAdapterRegistry }
 @packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 @packages/compiler/src/adapter-subprocess.sigil import { SigilAgentAdapterSubprocess }
-@packages/compiler/src/evaluation-capabilities.sigil import { SigilAgentCapabilityContract }
-@packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
 @packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
-@packages/compiler/src/evaluation-registry.sigil import { SigilEvaluationSkillRegistry }
-@packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
-@packages/compiler/src/compilation-target.sigil import { SigilCompilationTarget }
 @packages/compiler/src/compiler.sigil import { SigilOneShotCompilation }
-@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
-@packages/compiler/src/history-store.sigil import { SigilCompilationHistoryStore }
-@packages/compiler/src/report-export.sigil import { SigilCompilationReportExporter }
 @packages/compiler/src/session-factory.sigil import { SigilCompilationSessionFactory }
+@packages/compiler/src/session.sigil import { SigilCompilationSession }
 
 component SigilCompiler {
   goal {
     Give designers and architects a compiler-like improvement loop for high-level
     Sigil contracts through profile-scoped deterministic and agentic evaluation.
 
-    Keep compiler-owned deterministic processing and proposal coordination
-    read-only without claiming that externally supplied CLI adapters preserve that
-    boundary, replacing human design approval, or moving semantic judgment into
-    SigilCore.
+    Keep profile/stage selection, target scheduling, adapter binding,
+    event/report/history protocols, and read-only evaluation coordination inside
+    the compiler. SigilCore owns configuration discovery, source selection/loading,
+    parsing, resolution, graph/context retrieval, and deterministic language
+    diagnostics.
+
+    Proposal coordination may write only compiler-owned proposal and session state.
+    The compiler does not replace human design approval.
   }
 
   interface {
     Compiler {
-      compile(workspacePath, CompilationTarget, profileName, CompilationOptions?)
-      uses OneShotCompilation and streams CompilationEvent before returning one
-      authoritative CompilationReport or its stable rejection
-
-      CompilationProfile, CompilationStatus, CompilationEventProtocol,
-      CompilationEventWriterProtocol, CompilationEventReaderProtocol,
-      AgentCapabilityContract, AgentExecutionPolicy, AgentEvaluationRequest,
-      AgentAdapter, AgentAdapterRegistry, AgentAdapterExecutionCoordinator,
-      AdapterSubprocess, EvaluationSkillPackage, CompilationEvaluation,
-      CompilationReportExport, CompilationHistoryStore, CompilationSessionFactory,
-      CompilationSession, CompilationSessionStore, and ProposalWorkspace remain
-      available through their imported owning contracts
+      OneShotCompilation is provided by SigilOneShotCompilation and returns one
+      authoritative CompilationReport; lifecycle and event settlement remain owned by
+      SigilOneShotCompilation
 
       SigilContextRetrieval supplies deterministic purpose evidence to evaluation;
       SigilCore remains the authority for deterministic workspace semantics
+
+      SigilAgentAdapter defines the provider-neutral evaluation contract for adapters
+      that return untrusted compilation candidates.
+
+      SigilAgentAdapterExecutionCoordinator owns bounded adapter execution,
+      cancellation, settlement, and cleanup coordination.
+
+      SigilAgentAdapterSubprocess owns the provider-process lifecycle and exposes
+      only the constrained subprocess capability required by adapters.
+
+      SigilAgentEvaluationRequest defines the validated evaluation input supplied to
+      an agent adapter.
+
+      SigilOneShotCompilation owns one compilation invocation from validation and
+      workspace acquisition through evaluation, reporting, export, and settlement.
+
+      SigilCompilationSessionFactory creates durable compiler sessions; subsequent
+      session operation and proposal-workspace lifecycle remain owned by
+      SigilCompilationSession.
     }
   }
 }
@@ -58,8 +56,9 @@ component SigilCompiler {
 expand SigilCompiler {
   constraints {
     HumanAuthorityBoundary {
-      Green status is evidence that one exact source snapshot passed one exact
-      profile.
+      Green status is evidence that every required stage of one exact source snapshot
+      and profile completed without current errors, warnings, or material
+      disagreement.
 
       Green status does not approve the design, authorize implementation, or replace
       an accountable human review.
@@ -67,6 +66,17 @@ expand SigilCompiler {
   }
 
   decisions {
+    CompilerDeterministicBoundary {
+      Decision: Keep compilation orchestration deterministic processing in
+      SigilCompiler while delegating deterministic language and workspace semantics
+      to SigilCore.
+
+      Scope: Governs compiler/Core ownership; excludes agentic evaluation outcomes.
+
+      Consequences: Compiler hosts share one orchestration protocol without
+      duplicating parsing, resolution, retrieval, or language-diagnostic semantics.
+    }
+
     CompilerBoundary {
       Decision: Place agent orchestration in a separate @qoherent/sigil-compiler
       package and expose it through thin host façades.
@@ -102,13 +112,5 @@ expand SigilCompiler {
       public namespace changes.
     }
 
-    HumanAuthorityBoundary {
-      Decision: Treat green as profile-scoped evidence rather than design approval or
-      implementation authorization.
-
-      Scope: Governs every compilation report and downstream workflow.
-
-      Consequences: Critical design handoff retains accountable human review.
-    }
   }
 }

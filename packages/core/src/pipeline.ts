@@ -1,13 +1,14 @@
-import type {
-  ResolvedSigilWorkspace,
-  SigilDiagnostic,
-  SigilWorkspace,
-} from "./model.ts";
+import type { ResolvedSigilWorkspace } from "./model/resolution.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SigilWorkspace } from "./model/workspace.ts";
 import { buildSigilGraph } from "./graph.ts";
 import { glossaryProjectionForWorkspace } from "./glossary.ts";
 import { resolveSigilRelationships } from "./resolver.ts";
 
-// @sigil implements packages/core/_module.sigil::SigilCore::WorkspaceResolution interface,logic,cases
+/*
+ * @sigil implements packages/core/src/pipeline.sigil::SigilWorkspaceResolutionPipeline::WorkspaceResolution interface
+ * @sigil implements packages/core/src/pipeline.sigil::SigilWorkspaceResolutionPipeline logic,cases
+ */
 export function resolveSigilWorkspace(
   workspace: SigilWorkspace,
 ): ResolvedSigilWorkspace {

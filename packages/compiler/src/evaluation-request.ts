@@ -35,22 +35,14 @@ export function validateAgentEvaluationRequest(
   ) {
     throw new Error("Purpose retrieval is incomplete.");
   }
-  const serialized = JSON.stringify(
-    request,
-    (_key, value) => value instanceof AbortSignal ? undefined : value,
-  );
-  if (serialized.length > request.limits.maxInitialRequestChars) {
-    throw new Error(
-      `Agent request is ${serialized.length} characters, exceeding the ${request.limits.maxInitialRequestChars}-character transport limit.`,
-    );
-  }
 }
 
-// @sigil implements packages/compiler/src/evaluation-request.sigil::SigilAgentEvaluationRequest::AgentEvaluationResult interface,constraints,cases
+// @sigil implements packages/compiler/src/evaluation-request.sigil::SigilAgentEvaluationRequest::AgentEvaluationResult interface,cases
 export function validateAgentEvaluationResult(
   request: AgentEvaluationRequest,
   result: AgentEvaluationResult,
 ): AgentEvaluationResult {
+  assertEvaluationResult(result);
   const derived = deriveBudgetOutcome(
     request.budgets,
     request.observability,
@@ -66,4 +58,124 @@ export function validateAgentEvaluationResult(
     throw new Error("Adapter supplied an invalid budget outcome.");
   }
   return { ...result, budgetOutcome: derived };
+}
+
+function assertEvaluationResult(result: AgentEvaluationResult): void {
+  if (
+    !isRecord(result) || !Array.isArray(result.findings) ||
+    !Array.isArray(result.commands)
+  ) {
+    throw new Error("Adapter returned a malformed evaluation result envelope.");
+  }
+  for (const finding of result.findings) assertFinding(finding);
+  for (const command of result.commands) assertCommand(command);
+  assertUsage(result.usage);
+  assertAvailability(result.usageAvailability, "usageAvailability");
+  assertCost(result.cost);
+  assertAvailability(result.costAvailability, "costAvailability");
+}
+
+function assertFinding(value: unknown): void {
+  if (
+    !isRecord(value) || !isString(value.code) ||
+    !["error", "warning", "optimization", "information"].includes(
+      value.severity as string,
+    ) ||
+    !isString(value.message) || !isString(value.evidence) ||
+    !isString(value.impact) || !isString(value.correction) ||
+    !hasNullableString(value, "filePath") ||
+    !hasNullablePositiveInteger(value, "line") ||
+    !hasNullablePositiveInteger(value, "column")
+  ) {
+    throw new Error("Adapter returned a malformed finding.");
+  }
+}
+
+function assertCommand(value: unknown): void {
+  if (
+    !isRecord(value) || !isString(value.command) ||
+    !isOptionalString(value.status) || !isOptionalInteger(value.exitCode)
+  ) {
+    throw new Error("Adapter returned a malformed command trace.");
+  }
+}
+
+function assertUsage(value: unknown): void {
+  if (value === undefined) return;
+  if (
+    !isRecord(value) || !isOptionalNonNegativeInteger(value.inputTokens) ||
+    !isOptionalNonNegativeInteger(value.cachedInputTokens) ||
+    !isOptionalNonNegativeInteger(value.outputTokens)
+  ) {
+    throw new Error("Adapter returned malformed usage telemetry.");
+  }
+}
+
+function assertCost(value: unknown): void {
+  if (value === undefined) return;
+  if (
+    !isRecord(value) || !isOptionalNonNegativeNumber(value.amount) ||
+    !isOptionalString(value.currency)
+  ) {
+    throw new Error("Adapter returned malformed cost telemetry.");
+  }
+}
+
+function assertAvailability(value: unknown, field: string): void {
+  if (value === undefined) return;
+  if (
+    !isString(value) || !["unavailable", "partial", "final"].includes(value)
+  ) {
+    throw new Error(`Adapter returned an invalid ${field}.`);
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || isString(value);
+}
+
+function hasNullableString(
+  value: Record<string, unknown>,
+  key: string,
+): boolean {
+  return Object.hasOwn(value, key) &&
+    (value[key] === null || isString(value[key]));
+}
+
+function isOptionalInteger(value: unknown): boolean {
+  return value === undefined ||
+    (typeof value === "number" && Number.isInteger(value));
+}
+
+function isOptionalPositiveInteger(value: unknown): boolean {
+  return value === undefined ||
+    (typeof value === "number" && Number.isInteger(value) && value > 0);
+}
+
+function hasNullablePositiveInteger(
+  value: Record<string, unknown>,
+  key: string,
+): boolean {
+  const candidate = value[key];
+  return Object.hasOwn(value, key) && (candidate === null ||
+    (typeof candidate === "number" && Number.isInteger(candidate) &&
+      candidate > 0));
+}
+
+function isOptionalNonNegativeInteger(value: unknown): boolean {
+  return value === undefined ||
+    (typeof value === "number" && Number.isInteger(value) && value >= 0);
+}
+
+function isOptionalNonNegativeNumber(value: unknown): boolean {
+  return value === undefined ||
+    (typeof value === "number" && Number.isFinite(value) && value >= 0);
 }

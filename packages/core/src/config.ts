@@ -1,11 +1,11 @@
+import { SIGIL_CONFIG_PATH, SIGIL_VERSION } from "./model/language.ts";
 import { diagnostic } from "./diagnostics.ts";
-import {
-  SIGIL_CONFIG_PATH,
-  SIGIL_VERSION,
-  type SigilConfig,
-  type SigilConfigParseResult,
-  type SigilDiagnostic,
-} from "./model.ts";
+import type {
+  SigilConfig,
+  SigilConfigParseResult,
+} from "./model/configuration.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import { globMatches } from "./path.ts";
 
 export const DEFAULT_SIGIL_INCLUDES = ["**/*.sigil"] as const;
 export const DEFAULT_SIGIL_EXCLUDES = [
@@ -19,7 +19,11 @@ export const DEFAULT_SIGIL_EXCLUDES = [
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
+/*
+ * @sigil implements packages/core/config.sigil::SigilConfigurationParser::ConfigurationParsing interface
+ * @sigil implements packages/core/config.sigil::SigilConfigurationParser logic,constraints,cases
+ * @sigil implements spec/language.sigil::SigilWorkspaceConfig::ConfigValidation logic,constraints,cases
+ */
 export function parseSigilConfig(
   source: string,
   filePath: string = SIGIL_CONFIG_PATH,
@@ -112,31 +116,6 @@ export function excludesSigilSubtree(
   );
   const probe = `${normalized}/__sigil_subtree__`;
   return config.files.exclude.some((pattern) => globMatches(pattern, probe));
-}
-
-// @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
-export function globMatches(pattern: string, path: string): boolean {
-  const normalizedPattern = pattern.replaceAll("\\", "/").replace(/^\.\//, "");
-  let source = "^";
-  for (let index = 0; index < normalizedPattern.length; index++) {
-    const char = normalizedPattern[index];
-    if (char === "*" && normalizedPattern[index + 1] === "*") {
-      index++;
-      if (normalizedPattern[index + 1] === "/") {
-        index++;
-        source += "(?:.*/)?";
-      } else {
-        source += ".*";
-      }
-    } else if (char === "*") {
-      source += "[^/]*";
-    } else if (char === "?") {
-      source += "[^/]";
-    } else {
-      source += char.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
-    }
-  }
-  return new RegExp(`${source}$`).test(path);
 }
 
 function validateWorkspace(value: unknown, messages: string[]): void {

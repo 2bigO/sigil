@@ -1,0 +1,165 @@
+@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentEvaluationRequest }
+
+component SigilPiCompilerAdapter {
+  goal {
+    Execute provider-neutral compiler evaluation through the Pi coding-agent CLI
+    and return one validated result under an ephemeral, read-only tool boundary.
+  }
+
+  interface {
+    PiAdapter {
+      evaluate(SigilAgentEvaluationRequest) implements SigilAgentAdapter for provider
+      pi with implementation identity builtin.pi-cli and the exact adapter package
+      version
+
+      provider-specific capability and observability declarations are supplied to the
+      imported AgentAdapter contract
+    }
+  }
+}
+
+expand SigilPiCompilerAdapter {
+  logic {
+    PiAdapter {
+      Validate the request and exact capability match before invocation. Send
+      evaluationPrompt guidance through standard input to pi print mode with JSON
+      events, selected workspace cwd, optional model, no session, no Pi skill,
+      context, or extension discovery, no project-local approve, offline startup, and
+      a hard tool allowlist of read, grep, find, ls, and bash.
+
+      Supply Pi execution and cleanup hooks to SigilAgentAdapterExecutionCoordinator
+      and use SigilAgentAdapterSubprocess for the private process lifecycle. Map
+      process failure to execution and process-cleanup to cleanup while retaining
+      transport-neutral caller recovery evidence.
+
+      Parse the complete JSON event stream. Prefer assistant message_end text whose
+      stopReason is stop or end_turn. If no such turn exists and exactly one
+      assistant message_end has empty or missing stopReason, accept that text.
+      Otherwise reject final-result-protocol. Require exactly one findings object in
+      the selected terminal text. Map AdapterSubprocessFailure into AdapterFailure,
+      retaining cleanup recovery evidence, before returning AgentEvaluationResult.
+    }
+  }
+
+  constraints {
+    PiExecutionBoundary {
+      Enable bash for the read-only evaluation policy. Deny edit and write tools. Do
+      not load Pi skills, AGENTS.md or CLAUDE.md context files, or extensions for
+      evaluation; compiler focus skills arrive only through evaluationPrompt.
+
+      Use --no-session and never continue, resume, fork, or reuse a prior Pi session.
+      Declare ephemeral state and never claim persistent execution.
+
+      Accept only one terminal assistant result selected by stop or end_turn, or by
+      the single empty-or-missing stopReason fallback; nonterminal tool-use turns are
+      not terminal results.
+    }
+  }
+
+  decisions {
+    EphemeralPiExecution {
+      Decision: Declare ephemeral state and invoke pi with --no-session so evaluation
+      does not save a provider session.
+
+      Scope: Governs Pi invocation and capability matching; excludes provider
+      authentication and unrelated user Pi sessions outside this process.
+
+      Trade-offs: Callers cannot resume an evaluation session through Pi session
+      storage.
+
+      Discarded alternatives: Persistent sessions like OpenCode were rejected because
+      Pi documents an ephemeral CLI option.
+
+      Consequences: Capability matching requests ephemeral state for Pi while fixed
+      read-only, offline, and approval-free requirements remain.
+
+      Revisit when: Pi removes or changes --no-session semantics.
+    }
+
+    ReadOnlyToolsWithBashForInspection {
+      Decision: Allowlist the read, grep, find, ls, and bash tools and rely on the
+      evaluator policy prompt to restrict shell commands to the read-only inspection
+      families, including sigil inspection commands.
+
+      Scope: Governs Pi --tools configuration and the trust boundary between the
+      adapter and the compiler evaluation policy. Excludes per-command hard
+      sandboxing at the adapter boundary beyond the tool allowlist.
+
+      Trade-offs: Pi tool allowlists cannot enforce per-shell-command families, so
+      bash compliance with the inspection policy depends on the model following the
+      evaluator prompt.
+
+      Discarded alternatives: Omitting bash was rejected because the compiler
+      inspection policy advertises sigil, rg, sed, and git families that require a
+      shell. Enabling edit or write tools was rejected as incompatible with read-only
+      workspace access.
+
+      Consequences: The adapter enables bash for allowed inspection commands. Edits,
+      writes, Pi skill discovery, context files, and extensions remain disabled.
+
+      Revisit when: Pi adds per-command shell allowlists or the evaluator policy's
+      allowed command families change.
+    }
+
+    CompilerSkillViaPromptNotPiSkills {
+      Decision: Pass --no-skills and embed compiler stage guidance only through
+      evaluationPrompt so focus-selected evaluation skills remain authoritative.
+
+      Scope: Governs Pi resource discovery flags for evaluation runs; excludes host
+      skill installation destinations used by interactive Pi authoring.
+
+      Trade-offs: Pi cannot auto-load compiler skill packages as Pi skills; the full
+      guidance must fit the evaluation request transport.
+
+      Design issues addressed: Focus selects compiler-native evaluation skills;
+      loading Pi or project skills would compete with that authoritative guidance.
+
+      Consequences: semantic-readiness, architecture-design, and other focus stages
+      reach the model through the same provider-neutral prompt envelope used by Codex
+      and OpenCode.
+    }
+
+    PiJsonEventTerminalResult {
+      Decision: Select terminal assistant text from message_end stopReason stop or
+      end_turn, with a fallback only when exactly one assistant message_end has empty
+      or missing stopReason.
+
+      Scope: Governs Pi JSON event parsing for the final findings object; excludes
+      capability matching and tool allowlisting.
+
+      Trade-offs: Intermediate tool-use narration cannot supply the findings object.
+
+      Design issues addressed: Pi streams multiple assistant message_end events;
+      treating every text blob as terminal would accept incomplete turns.
+
+      Discarded alternatives: Always using the last assistant text regardless of
+      stopReason was rejected because toolUse turns are nonterminal.
+
+      Consequences: Missing stop turns fail final-result-protocol unless the single
+      empty-reason fallback applies.
+
+      Revisit when: Pi documents a different authoritative terminal event for print
+      JSON mode.
+    }
+  }
+
+  cases {
+    PiAdapter {
+      An ephemeral request invokes pi once and accepts one valid terminal result
+      after process and output settlement.
+
+      A persistent request mismatches before invocation.
+
+      Bash remains available for allowed sigil inspection commands in the prompt
+      policy; edit and write tools are not enabled.
+
+      An assistant message_end with stopReason stop or end_turn supplies the terminal
+      findings text.
+
+      Multiple nonterminal toolUse assistant turns without a stop turn reject
+      final-result-protocol.
+
+      Timeout, cancellation, or process failure follows bounded subprocess cleanup.
+    }
+  }
+}

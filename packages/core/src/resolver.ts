@@ -1,9 +1,7 @@
 import { diagnostic } from "./diagnostics.ts";
 import type {
   CollectedExpansion,
-  ComponentDeclaration,
   ConceptIdentity,
-  ExpandDeclaration,
   ImportUse,
   ResolvedComponent,
   ResolvedConcept,
@@ -11,11 +9,15 @@ import type {
   ResolvedConceptOccurrence,
   ResolvedConceptReference,
   ResolvedImport,
-  SemanticUnit,
-  SigilDiagnostic,
   SigilResolution,
-  SigilWorkspace,
-} from "./model.ts";
+} from "./model/resolution.ts";
+import type {
+  ComponentDeclaration,
+  ExpandDeclaration,
+  SemanticUnit,
+} from "./model/source.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SigilWorkspace } from "./model/workspace.ts";
 import { isModuleFile, joinPath, normalizePath } from "./path.ts";
 
 interface IndexedComponent {
@@ -771,15 +773,6 @@ function resolveImportUses(
           )
         ) uses.push(use);
       };
-
-      if (isModuleFile(resolvedImport.sourceFile)) {
-        addUse({
-          kind: "module-index-surface",
-          filePath: resolvedImport.sourceFile,
-          range: resolvedImport.declaration.nameRanges[index] ??
-            resolvedImport.declaration.range,
-        });
-      }
 
       for (const expansion of source.expands) {
         if (expansion.name !== imported.name) continue;

@@ -1,0 +1,58 @@
+@packages/compiler-adapter-pi/src/pi-adapter.sigil import { SigilPiCompilerAdapter }
+
+component SigilPiCompilerAdapterPackage {
+  goal {
+    Publish the Pi compiler adapter as an independent package that exports
+    SigilPiCompilerAdapter without entering the provider-neutral compiler package.
+  }
+
+  interface {
+    PiAdapterPackage {
+      SigilPiCompilerAdapter is the public adapter contract.
+    }
+  }
+}
+
+expand SigilPiCompilerAdapterPackage {
+  constraints {
+    PackageBoundary {
+      The package depends on compiler contracts. The compiler does not depend on this
+      package.
+
+      This package owns its public export surface and independent version identity.
+      CLI registration of builtin.pi-cli and CLI release assembly are owned by
+      SigilCli, not by this package.
+    }
+  }
+
+  decisions {
+    SeparateProviderPackage {
+      Decision: Publish the Pi adapter as a separate package from the compiler and
+      allow the CLI to bundle it without making the compiler depend on it.
+
+      Scope: Governs package membership, dependency direction, and public export of
+      SigilPiCompilerAdapter. Excludes CLI registration mechanics and release
+      packaging steps owned by SigilCli.
+
+      Trade-offs: Direct compiler consumers must register the adapter explicitly; the
+      CLI coordinates an additional package version when it bundles.
+
+      Discarded alternatives: Implementing Pi inside the compiler package was
+      rejected to keep provider packages out of the provider-neutral compiler.
+      Requiring a separate end-user adapter install for every CLI user was rejected.
+
+      Consequences: Provider changes version independently. Successful CLI bundling
+      and registration remain SigilCli responsibilities.
+    }
+  }
+
+  cases {
+    PiAdapterPackage {
+      The package exports SigilPiCompilerAdapter as its public contract.
+
+      The compiler package has no dependency on this package.
+
+      CLI registration and release assembly remain outside this package boundary.
+    }
+  }
+}

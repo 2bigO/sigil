@@ -95,6 +95,36 @@ test("manifest contributes the preview command to the editor title toolbar for S
   assert.equal(palette.when, "editorLangId == sigil");
 });
 
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface interface,logic,cases
+test("editor title compile action uses the same focus-selection command as the status bar", async () => {
+  const manifest = JSON.parse(await readFile("package.json", "utf8"));
+  const selectFocus = manifest.contributes.commands.find(
+    (item: { command?: string }) =>
+      item.command === "sigil.selectCompilationFocus",
+  );
+  assert(selectFocus, "select compilation focus command missing");
+  assert.equal(selectFocus.icon, "$(play)");
+
+  type MenuItem = {
+    command?: string;
+    when?: string;
+    group?: string;
+  };
+  const editorTitle = manifest.contributes.menus["editor/title"];
+  const entry = editorTitle.find(
+    (item: MenuItem) => item.command === "sigil.selectCompilationFocus",
+  );
+  assert(entry, "editor/title must contribute select compilation focus");
+  assert.equal(entry.when, "editorLangId == sigil");
+  assert.equal(entry.group, "navigation");
+  assert.equal(
+    editorTitle.some(
+      (item: MenuItem) => item.command === "sigil.compileComponent",
+    ),
+    false,
+  );
+});
+
 /*
  * @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ExtensionPackage interface,constraints,cases
  * @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ArtifactVersionOwnership constraints

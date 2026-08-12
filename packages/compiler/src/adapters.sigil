@@ -22,18 +22,20 @@ expand SigilAgentAdapter {
       selected adapter's documented provider configuration. If translation cannot be
       constructed, reject capability-mismatch; construction remains unverified.
 
-      Implementation input preflight only serializes and bounds the validated
-      provider-neutral request and restriction configuration. Serialization failure
-      or maxInitialRequestChars overflow rejects operational-limit without invoking
-      the provider.
+      Invalid or incomplete provider-neutral request evidence rejects
+      incomplete-evidence without invoking the provider. After validation,
+      implementation input preflight serializes and bounds the request and
+      restriction configuration. Serialization failure or maxInitialRequestChars
+      overflow rejects operational-limit without invoking the provider.
 
       Invoke the provider once through the selected adapter's implementation-owned
       execution mechanism. Consume its declared result inputs according to that
       implementation's ordering and settlement rules.
 
-      Supply provider-specific invocation, result-input, resource-observation, and
-      cleanup hooks to SigilAgentAdapterExecutionCoordinator. Map CoordinatorResult
-      or CoordinatorFailure to AgentEvaluationResult or AdapterFailure without
+      Supply a deferred provider-specific execution handle plus invocation,
+      result-input, resource-observation, and cleanup hooks to
+      SigilAgentAdapterExecutionCoordinator. Map CoordinatorResult or
+      CoordinatorFailure to AgentEvaluationResult or AdapterFailure without
       reinterpreting arbitration or cleanup policy.
 
       Incrementally parse provider framing, bound retained nonessential command
@@ -195,8 +197,9 @@ expand SigilAgentAdapter {
       elapsed-time, then preventive-budget in order, and no case invokes the
       provider.
 
-      Input serialization failure and maxInitialRequestChars overflow both reject
-      operational-limit before provider invocation.
+      Invalid or incomplete request evidence rejects incomplete-evidence before
+      provider invocation. Input serialization failure and maxInitialRequestChars
+      overflow reject operational-limit before provider invocation.
 
       Unequal request and selected-adapter observability rejects as binding-mismatch
       before provider invocation and starts no execution.

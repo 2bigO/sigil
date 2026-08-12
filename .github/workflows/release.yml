@@ -6,13 +6,14 @@ on:
       - core-v*
       - cli-v*
       - opencode-adapter-v*
+      - pi-adapter-v*
   workflow_dispatch:
     inputs:
       package:
         description: Package to publish
         required: true
         type: choice
-        options: [core, cli, opencode-adapter]
+        options: [core, cli, opencode-adapter, pi-adapter]
       version:
         description: Exact manifest version to publish
         required: true
@@ -58,6 +59,7 @@ jobs:
             core) directory="packages/core" ;;
             cli) directory="packages/cli" ;;
             opencode-adapter) directory="packages/compiler-adapter-opencode" ;;
+            pi-adapter) directory="packages/compiler-adapter-pi" ;;
             *) echo "Unsupported package: $package" >&2; exit 2 ;;
           esac
           actual="$(deno eval "const c=JSON.parse(await Deno.readTextFile('$directory/deno.json')); console.log(c.version)")"

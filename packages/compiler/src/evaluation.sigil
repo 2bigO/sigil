@@ -1,4 +1,4 @@
-@packages/core import { SigilCore, SigilContextRetrieval }
+@packages/core import { SigilContextRetrieval, SigilWorkspaceLoader }
 @packages/compiler/src/profile.sigil import { SigilCompilationProfile }
 @packages/compiler/src/status.sigil import { SigilCompilationStatus }
 @packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
@@ -17,7 +17,7 @@ component SigilCompilationEvaluation {
     boundary; their declared restrictions are externally trusted rather than an
     end-to-end compiler guarantee.
 
-    Compose WorkspaceProcessing, CompilationProfile, CompilationStatus,
+    Compose SigilWorkspaceLoader, CompilationProfile, CompilationStatus,
     CompilationEventWriterProtocol, AgentAdapter, EvaluationSkillPackage, and
     report trace schemas through their owning public contracts without owning
     terminal settlement.
@@ -31,8 +31,9 @@ component SigilCompilationEvaluation {
       rejects cancellation with COMPILER_CANCELLED, or rejects a host or protocol
       failure with COMPILER_FAILED
 
-      WorkspaceProcessing supplies deterministic semantics, CompilationProfile
-      supplies stages and capabilities, and CompilationStatus derives color
+      SigilWorkspaceLoader supplies deterministic workspace discovery and loading
+      semantics, CompilationProfile supplies stages and capabilities, and
+      CompilationStatus derives color
 
       CompilationEventWriterProtocol governs nonterminal progress framing,
       AgentAdapter executes agentic stages, and EvaluationSkillPackage supplies their

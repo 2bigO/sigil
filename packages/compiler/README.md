@@ -24,8 +24,9 @@ The recognized providers are exactly Codex, Claude, OpenCode, and Pi. Adapters
 may be compiler-owned or supplied by plugins and are selected by provider,
 stable implementation identifier, exact implementation version, and optional
 model. OpenCode is supplied by the separate
-`@qoherent/sigil-compiler-adapter-opencode` package; the compiler does not
-depend on that provider package.
+`@qoherent/sigil-compiler-adapter-opencode` package and Pi by
+`@qoherent/sigil-compiler-adapter-pi`; the compiler does not depend on those
+provider packages.
 
 Adapter capability and observability declarations are self-reported metadata,
 not verified guarantees. Selecting or supplying an adapter accepts the risk that

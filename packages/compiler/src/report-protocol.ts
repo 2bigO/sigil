@@ -34,7 +34,36 @@ export function constructCompilationReport(
   };
 }
 
-// @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface,logic,constraints,cases
+export interface SessionReportIdentity {
+  readonly runId: string;
+  readonly workspaceRoot: string;
+  readonly sessionIdentity: string;
+  readonly baseEpoch: number;
+  readonly generation: number;
+  readonly baseFingerprint: string;
+  readonly proposalFingerprint: string;
+}
+
+// @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport interface,cases
+export function constructSessionCompilationReport(
+  evaluation: CompilationReport,
+  identity: SessionReportIdentity,
+): CompilationReport {
+  return {
+    ...evaluation,
+    runId: identity.runId,
+    workspaceRoot: identity.workspaceRoot,
+    session: {
+      sessionIdentity: identity.sessionIdentity,
+      baseEpoch: identity.baseEpoch,
+      generation: identity.generation,
+      baseFingerprint: identity.baseFingerprint,
+      proposalFingerprint: identity.proposalFingerprint,
+    },
+  };
+}
+
+// @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface
 export function validateCompilationReportWire(
   value: unknown,
 ): value is CompilationReport {

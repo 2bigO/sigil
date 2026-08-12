@@ -1,10 +1,14 @@
 import { resolve } from "node:path";
-import { compile, loadCompilationConfiguration } from "./compiler.ts";
+import {
+  compile,
+  loadCompilationWorkspace,
+  validateCompilationProfile,
+} from "./compiler.ts";
 import { resolveCompilationSettings } from "./profile.ts";
 import { SigilProposalWorkspace } from "./proposal-workspace.ts";
 import { FileCompilationSessionStore } from "./session-store.ts";
 import { SigilCompilationSession } from "./session.ts";
-import { CompilerFailure } from "./status.ts";
+import { CompilerFailure, compilerFailureCode } from "./status.ts";
 import type {
   CompilationFocus,
   CompilationSessionRecord,
@@ -32,16 +36,13 @@ export class SigilCompilationSessionFactory {
     focus: CompilationFocus,
   ): Promise<CompilationSessionCreation> {
     validateInvocation(target, profileName, focus);
-    const configuration = await loadCompilationConfiguration(workspacePath);
+    const loaded = await loadCompilationWorkspace(workspacePath);
+    const configuration = loaded.configuration;
+    await validateCompilationProfile(configuration, profileName, focus);
     const settings = resolveCompilationSettings(configuration);
-    await this.compiler(workspacePath, target, {
-      profile: profileName,
-      requestedStage: "deterministic-foundation",
-      disableHistory: true,
-    });
     const identity = crypto.randomUUID();
     const workspace = await SigilProposalWorkspace.create(
-      resolve(workspacePath),
+      resolve(loaded.root),
       identity,
     );
     const expiresAt = new Date(
@@ -50,7 +51,7 @@ export class SigilCompilationSessionFactory {
     const record: CompilationSessionRecord = {
       version: 1,
       sessionIdentity: identity,
-      workspacePath: resolve(workspacePath),
+      workspacePath: resolve(loaded.root),
       target,
       profileName,
       focus,
@@ -64,12 +65,25 @@ export class SigilCompilationSessionFactory {
       const created = await this.store.create(record);
       await created.lease.release();
     } catch (error) {
-      await workspace.workspace.close().catch(() => {});
+      try {
+        await workspace.workspace.close();
+      } catch (cleanupError) {
+        const cleanupCode = compilerFailureCode(cleanupError);
+        const code = cleanupCode === "COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED"
+          ? cleanupCode
+          : "COMPILER_WORKSPACE_HOST_FAILURE";
+        throw new CompilerFailure(
+          code,
+          "Compilation session creation failed and proposal-workspace cleanup could not complete.",
+          { cause: new AggregateError([error, cleanupError]) },
+        );
+      }
       throw error;
     }
     return {
       session: new SigilCompilationSession(
         identity,
+        focus,
         this.store,
         this.compiler,
         settings.limits.sessionTtlMs,

@@ -5,15 +5,15 @@ import {
 } from "./config.ts";
 import { diagnostic } from "./diagnostics.ts";
 import { parseSigilGlossary } from "./glossary.ts";
-import { SIGIL_CONFIG_PATH, SIGIL_GLOSSARY_PATH } from "./model.ts";
+import { SIGIL_CONFIG_PATH, SIGIL_GLOSSARY_PATH } from "./model/language.ts";
+import type { SigilConfig } from "./model/configuration.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
 import type {
   LoadedSigilFile,
-  SigilConfig,
-  SigilDiagnostic,
   SigilFileSystem,
   SigilWorkspace,
   WorkspaceLoadOptions,
-} from "./model.ts";
+} from "./model/workspace.ts";
 import { parseSigilDocument } from "./parser.ts";
 import {
   ancestorsFrom,

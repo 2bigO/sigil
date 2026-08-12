@@ -20,7 +20,7 @@ const DEFAULT_LIMITS: CompilationLimits = {
   providerCleanupMs: 5_000,
 };
 
-// @sigil implements packages/compiler/src/compiler.sigil::SigilCompiler::OneShotCompilation logic,cases
+// @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation logic,cases
 export function stageForCompilationFocus(
   focus: CompilationFocus | undefined,
 ): string | undefined {
@@ -31,7 +31,7 @@ export function stageForCompilationFocus(
     : undefined;
 }
 
-// @sigil implements packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile logic,constraints,cases
+// @sigil implements packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile logic
 export function parseCompilationConfiguration(
   value: unknown,
 ): CompileConfiguration {
@@ -57,7 +57,7 @@ export function parseCompilationConfiguration(
   return raw as unknown as CompileConfiguration;
 }
 
-// @sigil implements packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile logic,constraints
+// @sigil implements packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile logic
 export function resolveCompilationSettings(
   configuration: CompileConfiguration,
 ): {

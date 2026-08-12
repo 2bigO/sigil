@@ -121,13 +121,17 @@ structured output. A configured provider that cannot enforce the same contract
 fails closed. Compilation does not generate code or execute implementation
 experiments.
 
-The CLI also bundles and registers the independently packaged OpenCode compiler
-adapter. OpenCode evaluation uses `opencode run --format json`, standard-input
-guidance, the selected workspace and model, and restrictive inline permissions.
-Because OpenCode exposes no ephemeral CLI mode, this adapter declares persistent
-state; the compiler derives the request persistence requirement from the exactly
-selected adapter while keeping read-only, no agent-tool network, and no approval
-escalation requirements fixed.
+The CLI also bundles and registers the independently packaged OpenCode and Pi
+compiler adapters. OpenCode evaluation uses `opencode run --format json`,
+standard-input guidance, the selected workspace and model, and restrictive
+inline permissions. Because OpenCode exposes no ephemeral CLI mode, that adapter
+declares persistent state. Pi evaluation uses `pi --print --mode json
+--no-session` with a read-only tool allowlist that includes bash for inspection
+commands, and disables Pi skill, context-file, and extension discovery so
+compiler focus skills arrive only through the evaluation prompt. The compiler
+derives the request persistence requirement from the exactly selected adapter
+while keeping read-only, no agent-tool network, and no approval escalation
+requirements fixed.
 
 Unless `--no-cache` is set, completed compilation reports are atomically stored
 under the operating system's user cache directory and used to derive diagnostic

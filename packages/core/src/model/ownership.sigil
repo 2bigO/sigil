@@ -1,0 +1,18 @@
+@packages/core/src/model/source.sigil import { SigilSourceModel }
+@packages/core/src/model/diagnostics.sigil import { SigilDiagnosticModel }
+
+component SigilImplementationOwnershipModel {
+  goal {
+    Define immutable ownership-annotation evidence and resolved implementation
+    target data.
+  }
+
+  interface {
+    OwnershipModel {
+      SigilSourceModel supplies annotation ranges and SigilDiagnosticModel supplies
+      diagnostics. ImplementationSource, ImplementationEvidenceInput, ownership
+      relations, sections, artifacts, targets, and projections preserve annotation
+      evidence.
+    }
+  }
+}

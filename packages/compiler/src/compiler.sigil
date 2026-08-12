@@ -18,15 +18,22 @@ component SigilOneShotCompilation {
     OneShotCompilation {
       compile(workspacePath, CompilationTarget, profileName, CompilationOptions?)
       streams CompilationEvent and returns CompilationReport only after successful
-      completed-event settlement
+      completed-event settlement once the event writer is bound
 
       cancellation rejects with COMPILER_CANCELLED; an unknown or conflicting target,
       profile, stage, or focus rejects with COMPILER_INVALID_INVOCATION; unavailable
       required evaluators reject with COMPILER_PROFILE_EVALUATORS_REQUIRED; host or
       protocol failure rejects with COMPILER_FAILED
 
-      every rejection returns no CompilationReport and emits its corresponding
-      terminal event whenever a compatible CompilationEventWriter remains open
+      an invalid, missing, or unconfigured workspacePath rejects with
+      COMPILER_INVALID_INVOCATION before event-writer binding. An inaccessible path
+      or workspace that SigilCore cannot load cleanly rejects with COMPILER_FAILED
+      before event-writer binding.
+
+      every rejection after event-writer binding returns no CompilationReport and
+      emits its corresponding terminal event whenever a compatible
+      CompilationEventWriter remains open; pre-binding invocation rejection returns
+      no report without an event
 
       failure writing any required terminal event supersedes the pending outcome with
       COMPILER_FAILED and returns no CompilationReport
@@ -86,14 +93,15 @@ expand SigilOneShotCompilation {
     OneShotCompilation {
       Validate CompilationOptions, then acquire the selected configured workspace
       through SigilCore read-only semantics before asking SigilCompilationTarget to
-      resolve the target against that exact loaded workspace.
+      resolve the target against that exact loaded workspace. Resolve the profile,
+      evaluator availability, and target before event-writer binding.
+
+      Delegate profile, requested-stage, focus mapping, dependency closure, evaluator
+      availability, budgets, and capabilities to SigilCompilationProfile.
 
       Bind eventSink or the internal discard sink to one per-invocation
       CompilationEventWriter and pass that writer to SigilCompilationEvaluation.
       Never share a writer or sink binding across invocations.
-
-      Delegate profile, requested-stage, focus mapping, dependency closure, evaluator
-      availability, budgets, and capabilities to SigilCompilationProfile.
 
       Dispatch the resolved workspace, target, stages, capabilities, and optional
       prior report to SigilCompilationEvaluation. Never construct a writable selected
@@ -137,10 +145,15 @@ expand SigilOneShotCompilation {
     }
 
     ReadOnlyCompilation {
-      Compiler-owned workspace acquisition, retrieval, evaluation orchestration,
-      report construction, and proposal coordination do not modify Sigil source,
-      implementation source, configuration, tests, documentation, or other
-      selected-workspace content.
+      Protected source-workspace content, including Sigil source, implementation
+      source, configuration, tests, documentation, and selected repository evidence,
+      remains read-only during compilation.
+
+      Compiler-owned compilation may write only its explicitly owned proposal-
+      workspace, session, event, report, history, and requested-export state.
+
+      Evaluators receive read-only proposal-workspace access and never receive the
+      compiler's writable proposal-workspace capability.
 
       An externally supplied CLI adapter or provider is user-selected and
       self-declared. The compiler requests its declared restrictions but cannot
@@ -154,12 +167,33 @@ expand SigilOneShotCompilation {
   }
 
   decisions {
-    InvalidCompilationInvocation {
-      Decision: Reject an unknown or conflicting target, profile, stage, or focus
-      through one stable COMPILER_INVALID_INVOCATION caller error.
+    EventSettlementBoundary {
+      Decision: Guarantee terminal event delivery only after an invocation has bound
+      a compatible event writer; pre-binding validation failures return their stable
+      error without an event.
 
-      Scope: Governs one-shot invocation validation; excludes evaluator availability,
-      cancellation, and host or protocol failure.
+      Scope: Governs one-shot invocation rejection and terminal event settlement;
+      excludes event-writer construction failure and reusable compilation sessions.
+
+      Trade-offs: Callers must distinguish pre-binding rejection from rejection after
+      event transport is established.
+
+      Design issues addressed: The compiler module contract must not promise an event
+      for validation failures that occur before a writer exists.
+
+      Consequences: Event-driven hosts receive deterministic terminal settlement for
+      every rejection covered by an established writer without requiring impossible
+      pre-writer delivery.
+    }
+
+    InvalidCompilationInvocation {
+      Decision: Reject an unknown or conflicting target, profile, stage, focus, or
+      invalid, missing, or unconfigured workspacePath through one stable
+      COMPILER_INVALID_INVOCATION caller error.
+
+      Scope: Governs one-shot invocation validation; excludes inaccessible or invalid
+      workspace loading, evaluator availability, cancellation, and host or protocol
+      failure.
 
       Trade-offs: One code covers several caller-correctable input categories.
 
@@ -297,8 +331,8 @@ expand SigilOneShotCompilation {
       loaded; target resolution uses that workspace's selected sources.
 
       Unavailable required evaluators reject with
-      COMPILER_PROFILE_EVALUATORS_REQUIRED, return no report, and emit a failed event
-      when transport remains writable.
+      COMPILER_PROFILE_EVALUATORS_REQUIRED before event-writer binding, return no
+      report, and emit no event.
 
       disableHistory performs no history read or replacement. Successful one-shot
       evaluation returns an internal result, constructs one authoritative report,

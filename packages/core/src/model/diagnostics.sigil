@@ -1,0 +1,15 @@
+@packages/core/src/model/language.sigil import { SigilLanguageModel }
+
+component SigilDiagnosticModel {
+  goal {
+    Define immutable diagnostic vocabulary and source-ranged diagnostic data.
+  }
+
+  interface {
+    DiagnosticModel {
+      SigilLanguageModel supplies the structural and source-position vocabulary;
+      SigilDiagnosticCode, SigilDiagnosticSeverity, and SigilDiagnostic provide
+      stable deterministic diagnostic data.
+    }
+  }
+}

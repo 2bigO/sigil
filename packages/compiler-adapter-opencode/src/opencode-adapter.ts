@@ -10,10 +10,12 @@ import {
   assertCapabilityContract,
   capabilitiesMatch,
   coordinateAdapterExecution,
+  createAdapterSubprocessHandle,
   evaluationPrompt,
   normalizeObservability,
   parseFindingsObject,
   runAdapterSubprocess,
+  validateAdapterSubprocessInput,
   validateAgentEvaluationRequest,
   validateAgentEvaluationResult,
 } from "@qoherent/sigil-compiler";
@@ -67,7 +69,7 @@ export class OpenCodeAdapter implements AgentAdapter {
     readonly id = "opencode",
   ) {}
 
-  // @sigil implements packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,constraints,cases
+  // @sigil implements packages/compiler-adapter-opencode/src/opencode-adapter.sigil::SigilOpenCodeCompilerAdapter::OpenCodeAdapter interface,logic,cases
   async evaluate(
     request: AgentEvaluationRequest,
   ): Promise<AgentEvaluationResult> {
@@ -111,18 +113,16 @@ export class OpenCodeAdapter implements AgentAdapter {
       JSON.stringify(RESTRICTIVE_CONFIG);
     } catch (error) {
       throw new AdapterFailure(
-        "operational-limit",
-        "OpenCode request preflight failed.",
+        "incomplete-evidence",
+        "OpenCode evaluation request evidence is incomplete or invalid.",
         undefined,
         { cause: error },
       );
     }
-    if (prompt.length > request.limits.maxInitialRequestChars) {
-      throw new AdapterFailure(
-        "operational-limit",
-        `OpenCode request exceeds maxInitialRequestChars (${request.limits.maxInitialRequestChars}).`,
-      );
-    }
+    validateAdapterSubprocessInput(
+      prompt,
+      request.limits.maxInitialRequestChars,
+    );
 
     const args = [
       "run",
@@ -132,13 +132,18 @@ export class OpenCodeAdapter implements AgentAdapter {
       request.workspaceRoot,
       ...(this.model ? ["--model", this.model] : []),
     ];
+    const handle = createAdapterSubprocessHandle(
+      `${this.implementationId}@${this.implementationVersion}`,
+    );
     return await coordinateAdapterExecution({
       elapsedOrigin,
       elapsedTimeMs: request.budgets.elapsedTimeMs,
+      providerCleanupMs: request.limits.providerCleanupMs,
       implementationIdentity:
         `${this.implementationId}@${this.implementationVersion}`,
+      handle,
       signal: request.signal,
-      invoke: async (signal) => {
+      invoke: async (signal, resources, terminationControl) => {
         const result = await this.runner({
           implementationIdentity:
             `${this.implementationId}@${this.implementationVersion}`,
@@ -152,7 +157,11 @@ export class OpenCodeAdapter implements AgentAdapter {
           },
           input: prompt,
           signal,
-          providerCleanupMs: request.limits.providerCleanupMs,
+          maxInitialRequestChars: request.limits.maxInitialRequestChars,
+          maxProviderFrameChars: request.limits.maxProviderFrameChars,
+          handle,
+          resources,
+          terminationControl,
         });
         const parsed = parseOpenCodeEvents(
           result.stdout,

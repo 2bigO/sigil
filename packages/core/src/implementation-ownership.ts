@@ -8,11 +8,13 @@ import type {
   ImplementationSource,
   OwnedImplementationProjection,
   OwnedImplementationTarget,
+} from "./model/ownership.ts";
+import type {
   ResolvedComponent,
   ResolvedSigilWorkspace,
-  SigilDiagnostic,
-  SourceRange,
-} from "./model.ts";
+} from "./model/resolution.ts";
+import type { SigilDiagnostic } from "./model/diagnostics.ts";
+import type { SourceRange } from "./model/language.ts";
 
 const IMPLEMENTATION_RELATIONS: ReadonlySet<ImplementationRelation> = new Set([
   "implements",
@@ -85,21 +87,21 @@ interface EntrypointMatch {
   readonly offset: number;
 }
 
-// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface,logic,constraints,cases
+/*
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnedImplementationLookup interface
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership logic,constraints,cases
+ */
 export function ownedImplementationTargetsFor(
   resolved: ResolvedSigilWorkspace,
   implementationSources: readonly ImplementationSource[],
-  componentIdentity: ComponentIdentity | string,
+  componentIdentity: ComponentIdentity,
   conceptName?: string,
   sectionName?: ImplementationSection,
 ): OwnedImplementationProjection | undefined {
-  const componentName = typeof componentIdentity === "string"
-    ? componentIdentity
-    : componentIdentity.componentName;
+  const componentName = componentIdentity.componentName;
   const owningComponent = resolved.components.find((component) =>
     component.name === componentName &&
-    (typeof componentIdentity === "string" ||
-      component.filePath === componentIdentity.declarationPath)
+    component.filePath === componentIdentity.declarationPath
   );
   if (!owningComponent) return undefined;
 
@@ -164,6 +166,25 @@ export function ownedImplementationTargetsFor(
     targets,
     diagnostics,
   };
+}
+
+// @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::OwnershipDiagnostics interface,logic,cases
+export function ownershipDiagnosticsFor(
+  resolved: ResolvedSigilWorkspace,
+  implementationSources: readonly ImplementationSource[],
+): readonly SigilDiagnostic[] {
+  const diagnostics: SigilDiagnostic[] = [];
+  for (const source of implementationSources) {
+    const normalizedSource = {
+      filePath: normalizePath(source.filePath),
+      text: source.text,
+    };
+    if (!isSupportedImplementationSource(normalizedSource.filePath)) continue;
+    implementationAnnotations(resolved, normalizedSource, diagnostics);
+  }
+  return [...new Map(
+    diagnostics.map((item) => [JSON.stringify(item), item] as const),
+  ).values()].sort(compareDiagnostics);
 }
 
 /*
@@ -742,6 +763,19 @@ function annotationDiagnostic(
     filePath: source.filePath,
     range: rangeForOffsets(source.text, comment.start, comment.end),
   });
+}
+
+function compareDiagnostics(
+  left: SigilDiagnostic,
+  right: SigilDiagnostic,
+): number {
+  const severityRank = { error: 0, warning: 1, info: 2 };
+  return severityRank[left.severity] - severityRank[right.severity] ||
+    (left.filePath ?? "").localeCompare(right.filePath ?? "") ||
+    (left.range?.start.line ?? 0) - (right.range?.start.line ?? 0) ||
+    (left.range?.start.column ?? 0) - (right.range?.start.column ?? 0) ||
+    left.code.localeCompare(right.code) ||
+    left.message.localeCompare(right.message);
 }
 
 function rangeForOffsets(

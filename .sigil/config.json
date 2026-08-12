@@ -6,6 +6,7 @@
       "packages/cli",
       "packages/compiler",
       "packages/compiler-adapter-opencode",
+      "packages/compiler-adapter-pi",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",
@@ -29,11 +30,11 @@
     "compile": {
       "defaultProfile": "standard",
       "budgets": {
-        "elapsedTimeMs": 1800000,
+        "elapsedTimeMs": 3000000,
         "maxCommands": 512,
         "maxCommandOutputChars": 3000000,
-        "maxInputTokens": 2000000,
-        "maxOutputTokens": 2000000
+        "maxInputTokens": 4000000,
+        "maxOutputTokens": 4000000
       },
       "limits": {
         "maxCompilationRequestChars": 2000000,

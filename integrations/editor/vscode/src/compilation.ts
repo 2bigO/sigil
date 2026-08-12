@@ -3,8 +3,10 @@ import readline from "node:readline";
 
 export interface CompilerDiagnostic {
   readonly code: string;
+  readonly fingerprint?: string;
   readonly severity: "error" | "warning" | "optimization" | "information";
   readonly stage: string;
+  readonly skill?: string;
   readonly lifecycle: "new" | "unchanged" | "resolved" | "regressed";
   readonly message: string;
   readonly filePath?: string;
@@ -13,6 +15,10 @@ export interface CompilerDiagnostic {
     readonly end: { readonly line: number; readonly column: number };
   };
   readonly semanticSubjects: readonly DiagnosticSemanticSubject[];
+  readonly evidence?: string;
+  readonly impact?: string;
+  readonly correction?: string;
+  readonly evaluator?: string;
 }
 
 export interface DiagnosticSemanticSubject {
@@ -39,10 +45,41 @@ export interface DiagnosticSemanticSubject {
   };
 }
 
+export type StageState =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed"
+  | "skipped-by-dependency"
+  | "disabled"
+  | "cancelled";
+
+export interface StageReport {
+  readonly id: string;
+  readonly required: boolean;
+  readonly state: StageState;
+  readonly evaluator: string;
+  readonly diagnosticCount: number;
+  readonly startedAt?: string;
+  readonly completedAt?: string;
+  readonly evaluations?: readonly unknown[];
+}
+
 export interface CompilationReport {
   readonly reportVersion: 2;
+  readonly runId?: string;
+  readonly workspaceRoot?: string;
+  readonly target?: unknown;
   readonly status: "red" | "yellow" | "green";
   readonly componentNames: readonly string[];
+  readonly startedAt?: string;
+  readonly completedAt?: string;
+  readonly sourceFingerprint?: string;
+  readonly requestedStage?: string;
+  readonly focus?: "design" | "implementation";
+  readonly session?: unknown;
+  readonly profile?: unknown;
+  readonly stages?: readonly StageReport[];
   readonly diagnostics: readonly CompilerDiagnostic[];
 }
 
@@ -121,8 +158,8 @@ export function runCompilationProcess(
           }
           activeStage = event.payload.stage as string;
         } else if (event.type === "stage-completed") {
-          const stage = event.payload.stage as { readonly id: string };
-          if (!activeStage || stage.id !== activeStage) {
+          const report = event.payload.report as StageReport;
+          if (!activeStage || report.id !== activeStage) {
             throw new Error(
               "Compilation stage completed without its matching start event.",
             );
@@ -132,11 +169,9 @@ export function runCompilationProcess(
           throw new Error(
             "Compilation diagnostic was emitted outside an active stage.",
           );
-        } else if (event.type === "completed" && activeStage) {
-          throw new Error(
-            `Compilation completed before stage ${activeStage} ended.`,
-          );
         }
+        // Terminal events may end a valid prefix with an open stage; later
+        // progress can be suppressed by the producer.
         onEvent(event);
         if (event.type === "completed") {
           const report = event.payload.report;
@@ -207,9 +242,7 @@ export function parseCompilationEvent(line: string): CompilationEvent {
   if (
     (event.type === "stage-started" && typeof payload.stage !== "string") ||
     (event.type === "stage-completed" &&
-      (!payload.stage || typeof payload.stage !== "object" ||
-        Array.isArray(payload.stage) ||
-        typeof (payload.stage as Record<string, unknown>).id !== "string")) ||
+      !isStageCompletedReport(payload.report)) ||
     (event.type === "diagnostic" &&
       !isCompilerDiagnostic(payload.diagnostic)) ||
     (event.type === "completed" && !isCompilationReport(payload.report)) ||
@@ -260,7 +293,37 @@ function isCompilationReport(value: unknown): value is CompilationReport {
     ["red", "yellow", "green"].includes(String(report.status)) &&
     Array.isArray(report.componentNames) && Array.isArray(report.diagnostics) &&
     report.componentNames.every((item) => typeof item === "string") &&
-    report.diagnostics.every(isCompilerDiagnostic);
+    report.diagnostics.every(isCompilerDiagnostic) &&
+    (report.stages === undefined ||
+      (Array.isArray(report.stages) && report.stages.every(isStageReport)));
+}
+
+function isStageReport(value: unknown): value is StageReport {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const report = value as Record<string, unknown>;
+  return typeof report.id === "string" && report.id.length > 0 &&
+    typeof report.required === "boolean" &&
+    [
+      "pending",
+      "running",
+      "completed",
+      "failed",
+      "skipped-by-dependency",
+      "disabled",
+      "cancelled",
+    ].includes(String(report.state)) &&
+    typeof report.evaluator === "string" && report.evaluator.length > 0 &&
+    Number.isSafeInteger(report.diagnosticCount) &&
+    (report.diagnosticCount as number) >= 0 &&
+    (report.startedAt === undefined || typeof report.startedAt === "string") &&
+    (report.completedAt === undefined ||
+      typeof report.completedAt === "string") &&
+    (report.evaluations === undefined || Array.isArray(report.evaluations));
+}
+
+function isStageCompletedReport(value: unknown): value is StageReport {
+  return isStageReport(value) &&
+    (value.state === "completed" || value.state === "failed");
 }
 
 function isCompilerDiagnostic(value: unknown): boolean {

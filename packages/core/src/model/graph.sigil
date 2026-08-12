@@ -1,0 +1,16 @@
+@packages/core/src/model/source.sigil import { SigilSourceModel }
+@packages/core/src/model/resolution.sigil import { SigilResolutionModel }
+
+component SigilGraphModel {
+  goal {
+    Define immutable component and file dependency graph data.
+  }
+
+  interface {
+    GraphModel {
+      SigilSourceModel and SigilResolutionModel provide graph evidence. SigilGraph
+      and its component, import, file-dependency, and expansion edges preserve
+      deterministic graph output.
+    }
+  }
+}

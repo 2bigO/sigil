@@ -1,5 +1,5 @@
 @spec/language.sigil import { SigilLanguage, SigilModuleIndex }
-@packages/core/src/model.sigil import { SigilSemanticModel }
+@packages/core/src/model import { SigilSemanticModel }
 @packages/core/src/diagnostics.sigil import { SigilDiagnostics }
 
 component SigilResolver {
@@ -21,7 +21,7 @@ component SigilResolver {
 
     ImportUse {
       each resolved imported name exposes whether and where it is used by qualifying
-      component, public-concept, structural-expand, or module-index-surface evidence
+      component, public-concept, or structural-expand evidence
     }
 
     CollectiveExpansions {
@@ -58,9 +58,6 @@ expand SigilResolver {
       interface, state, logic, constraints, and cases.
 
       Record an applicable local expand as structural use of its imported component.
-
-      Record a resolved direct import in ModuleIndexFile as intentional
-      directory-surface use.
 
       Preserve source ownership, section, kind, and exact range for every use.
     }
@@ -187,8 +184,8 @@ expand SigilResolver {
 
       A provider name appearing only in a LiteralBlock does not use its import.
 
-      A resolved direct ModuleIndexFile import uses its name through the directory
-      surface.
+      A resolved direct ModuleIndexFile import without a qualifying semantic or
+      structural use produces SIGIL_UNUSED_IMPORT.
 
       A cross-file expand without an import produces SIGIL_EXPAND_WITHOUT_COMPONENT.
 

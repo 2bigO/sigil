@@ -16,7 +16,11 @@ import {
   AdapterFailure,
   coordinateAdapterExecution,
 } from "./adapter-execution-coordinator.ts";
-import { runAdapterSubprocess } from "./adapter-subprocess.ts";
+import {
+  createAdapterSubprocessHandle,
+  runAdapterSubprocess,
+  validateAdapterSubprocessInput,
+} from "./adapter-subprocess.ts";
 import {
   validateAgentEvaluationRequest,
   validateAgentEvaluationResult,
@@ -28,12 +32,20 @@ export type CommandRunner = (
   command: string,
   args: readonly string[],
   input: string,
-  onStdoutChunk: (chunk: string) => void,
+  onFrame: (
+    frame: import("./adapter-subprocess.ts").AdapterSubprocessFrame,
+  ) => void | Promise<void>,
   signal?: AbortSignal,
   execution?: {
     readonly cwd: string;
-    readonly providerCleanupMs: number;
     readonly implementationIdentity: string;
+    readonly maxInitialRequestChars: number;
+    readonly maxProviderFrameChars: number;
+    readonly handle: import("./adapter-subprocess.ts").AdapterSubprocessHandle;
+    readonly resources:
+      import("./adapter-execution-coordinator.ts").AdapterExecutionResources;
+    readonly terminationControl:
+      import("./adapter-execution-coordinator.ts").AdapterTerminationControl;
   },
 ) => Promise<void>;
 
@@ -41,7 +53,7 @@ const defaultRunner: CommandRunner = async (
   command,
   args,
   input,
-  onStdoutChunk,
+  onFrame,
   signal,
   execution,
 ) => {
@@ -58,8 +70,12 @@ const defaultRunner: CommandRunner = async (
     cwd: execution.cwd,
     input,
     signal,
-    providerCleanupMs: execution.providerCleanupMs,
-    onStdoutChunk,
+    maxInitialRequestChars: execution.maxInitialRequestChars,
+    maxProviderFrameChars: execution.maxProviderFrameChars,
+    handle: execution.handle,
+    resources: execution.resources,
+    terminationControl: execution.terminationControl,
+    onFrame,
   });
 };
 
@@ -124,16 +140,26 @@ export class CodexAdapter implements AgentAdapter {
       prompt = evaluationPrompt(request);
     } catch (error) {
       throw new AdapterFailure(
-        "operational-limit",
-        "Codex request preflight failed.",
+        "incomplete-evidence",
+        "Codex evaluation request evidence is incomplete or invalid.",
         undefined,
         { cause: error },
       );
     }
-    if (prompt.length > request.limits.maxInitialRequestChars) {
+    validateAdapterSubprocessInput(
+      prompt,
+      request.limits.maxInitialRequestChars,
+    );
+    if (performance.now() - elapsedOrigin >= request.budgets.elapsedTimeMs) {
       throw new AdapterFailure(
-        "operational-limit",
-        `Agent request is ${prompt.length} characters, exceeding the ${request.limits.maxInitialRequestChars}-character transport limit.`,
+        "elapsed-time",
+        "Codex evaluation elapsed-time budget expired before invocation.",
+      );
+    }
+    if (hasPreventiveBudgetExhaustion(request)) {
+      throw new AdapterFailure(
+        "preventive-budget",
+        "Codex evaluation cannot start with an exhausted preventive budget.",
       );
     }
 
@@ -143,16 +169,24 @@ export class CodexAdapter implements AgentAdapter {
       request.limits.maxProviderFrameChars,
       request.limits.maxFinalResultChars,
     );
+    const handle = createAdapterSubprocessHandle(
+      `${this.implementationId}@${this.implementationVersion}`,
+    );
     return await coordinateAdapterExecution({
       elapsedOrigin,
       elapsedTimeMs: request.budgets.elapsedTimeMs,
+      providerCleanupMs: request.limits.providerCleanupMs,
       implementationIdentity:
         `${this.implementationId}@${this.implementationVersion}`,
+      handle,
       signal: request.signal,
-      invoke: async (signal, resources) => {
-        const schemaPath = await Deno.makeTempFile({ suffix: ".json" });
-        resources.register(`file:${schemaPath}`);
+      invoke: async (signal, resources, terminationControl) => {
+        const schemaResourceIdentity = "file:codex-output-schema";
+        resources.declareResource(schemaResourceIdentity);
+        let schemaPath: string | undefined;
         try {
+          schemaPath = await Deno.makeTempFile({ suffix: ".json" });
+          resources.observeResource(schemaResourceIdentity, "active");
           await Deno.writeTextFile(schemaPath, schema);
           const args = [
             "exec",
@@ -178,25 +212,43 @@ export class CodexAdapter implements AgentAdapter {
             "codex",
             args,
             prompt,
-            (chunk) => parser.write(chunk),
+            (frame) => {
+              if (frame.channel === "stdout") parser.write(frame.text);
+            },
             signal,
             {
               cwd: request.workspaceRoot,
-              providerCleanupMs: request.limits.providerCleanupMs,
               implementationIdentity:
                 `${this.implementationId}@${this.implementationVersion}`,
+              maxInitialRequestChars: request.limits.maxInitialRequestChars,
+              maxProviderFrameChars: request.limits.maxProviderFrameChars,
+              handle,
+              resources,
+              terminationControl,
             },
           );
           const result = parser.finish();
           validateExecutionBudgets(result, request);
           return validateAgentEvaluationResult(request, result);
         } finally {
-          resources.cleanupAttempt(`remove:${schemaPath}`);
+          resources.cleanupAttempt(`remove:${schemaPath ?? "uncreated"}`);
           try {
-            await Deno.remove(schemaPath);
-            resources.released(`file:${schemaPath}`);
+            if (schemaPath) {
+              await Deno.remove(schemaPath);
+              resources.observeResource(schemaResourceIdentity, "released");
+            } else {
+              resources.reportResourceObservation(
+                schemaResourceIdentity,
+                "impossible",
+                "Codex output schema temp file was not created.",
+              );
+            }
           } catch (error) {
-            resources.observationFailure(String(error));
+            resources.reportResourceObservation(
+              schemaResourceIdentity,
+              "failed",
+              String(error),
+            );
           }
         }
       },
@@ -222,7 +274,7 @@ class UnavailableCliAdapter implements AgentAdapter {
   } as const;
 
   constructor(
-    readonly provider: "claude" | "opencode" | "pi",
+    readonly provider: "claude" | "opencode",
     readonly implementationId: string,
     readonly model?: string,
     readonly id: string = provider,
@@ -241,12 +293,6 @@ class UnavailableCliAdapter implements AgentAdapter {
 export class ClaudeAdapter extends UnavailableCliAdapter {
   constructor(model?: string, id = "claude") {
     super("claude", "builtin.claude-cli", model, id);
-  }
-}
-
-export class PiAdapter extends UnavailableCliAdapter {
-  constructor(model?: string, id = "pi") {
-    super("pi", "builtin.pi-cli", model, id);
   }
 }
 
@@ -291,7 +337,7 @@ export class MockAdapter implements AgentAdapter {
   }
 }
 
-// @sigil implements packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,constraints,cases
+// @sigil implements packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,cases
 export function resolveAdapterRegistration(
   registrations: readonly AgentAdapter[],
   binding: AdapterImplementationBinding,
@@ -357,10 +403,12 @@ conformance findings within its allowed diagnostic rules.`
   }
 Execution budgets: ${request.budgets.elapsedTimeMs}ms, at most ${request.budgets.maxCommands} commands, ${request.budgets.maxInputTokens} input tokens, and ${request.budgets.maxOutputTokens} output tokens.
 
-Treat the selected retrieval graph and aggregated context as authoritative scope.
-Inspect the workspace directly only through selected evidence paths to verify citations or diagnose an explicit
-retrieval gap; do not independently traverse the repository graph. You may run only
-these read-only command families:
+Treat the selected retrieval graph and aggregated context as authoritative scope,
+and use selected evidence by default. Only when that evidence is insufficient
+because an explicit evidence gap blocks evaluation, perform targeted graph or
+context inspection limited to related evidence necessary to investigate that gap.
+Do not broadly rediscover the repository or redefine the authoritative scope. You
+may run only these read-only command families:
 ${request.commandPolicy.allowedCommands.map((item) => `- ${item}`).join("\n")}
 
 Never run these command families:
@@ -376,13 +424,15 @@ location in evidence. Use null location fields only when no physical workspace
 evidence can be identified. The compiler owns semantic identity; do not invent
 semantic subjects. Use only an allowed diagnostic rule.
 
-Return ONLY this JSON object and nothing else — no prose, no markdown fence:
-{"findings":[{"code":string,"severity":"error"|"warning"|"optimization"|"information","message":string,"filePath":string|null,"line":integer|null,"column":integer|null,"evidence":string,"impact":string,"correction":string}]}
-Every finding MUST include non-empty string values for code, severity, message,
-evidence, impact, and correction. filePath is a string or null. line and column
-are positive integers or null. evidence, impact, and correction MUST each be a
-single non-empty string, never an array or object. Do not add top-level fields
-besides findings. Use an empty findings array when no supported finding remains.`;
+Return ONLY valid JSON — no prose or markdown fence. The response must be an
+object with exactly one field, findings, whose value is an array. Every finding
+must include non-empty string values for code, severity, message, evidence,
+impact, and correction; severity must be error, warning, optimization, or
+information. filePath is a string or null. line and column are positive integers
+or null. evidence, impact, and correction are each one string, never an array or
+object. Do not add top-level fields besides findings. When no supported finding
+remains, return this exact valid JSON object:
+{"findings":[]}`;
 }
 
 const FINDINGS_SCHEMA = {
@@ -571,6 +621,16 @@ export function validateExecutionBudgets(
   }
 }
 
+function hasPreventiveBudgetExhaustion(
+  request: AgentEvaluationRequest,
+): boolean {
+  const { budgets } = request;
+  return budgets.maxCommands <= 0 ||
+    budgets.maxInputTokens !== undefined && budgets.maxInputTokens <= 0 ||
+    budgets.maxOutputTokens !== undefined && budgets.maxOutputTokens <= 0 ||
+    budgets.maxCost !== undefined && budgets.maxCost <= 0;
+}
+
 function shellCommandSegments(command: string): readonly string[] {
   const wrapper = command.match(
     /^\/bin\/(?:zsh|bash|sh)\s+-lc\s+(["'])([\s\S]*)\1$/,
@@ -737,13 +797,44 @@ function validateFinding(value: unknown, index: number): AgentFinding {
     code: item.code as string,
     severity: severity as AgentFinding["severity"],
     message: item.message as string,
-    filePath: typeof item.filePath === "string" ? item.filePath : undefined,
-    line: numberValue(item.line),
-    column: numberValue(item.column),
+    filePath: nullableString(item, "filePath", index),
+    line: nullablePositiveInteger(item, "line", index),
+    column: nullablePositiveInteger(item, "column", index),
     evidence: item.evidence as string,
     impact: item.impact as string,
     correction: item.correction as string,
   };
+}
+
+function nullableString(
+  item: Record<string, unknown>,
+  key: string,
+  index: number,
+): string | null {
+  const value = item[key];
+  if (
+    !Object.hasOwn(item, key) || (value !== null && typeof value !== "string")
+  ) {
+    throw new Error(`Agent finding ${index}.${key} must be a string or null.`);
+  }
+  return value as string | null;
+}
+
+function nullablePositiveInteger(
+  item: Record<string, unknown>,
+  key: string,
+  index: number,
+): number | null {
+  const value = item[key];
+  if (
+    !Object.hasOwn(item, key) || (value !== null &&
+      (typeof value !== "number" || !Number.isInteger(value) || value <= 0))
+  ) {
+    throw new Error(
+      `Agent finding ${index}.${key} must be a positive integer or null.`,
+    );
+  }
+  return value as number | null;
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
