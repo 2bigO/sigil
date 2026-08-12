@@ -6,7 +6,6 @@ import {
   type AgentCommandTrace,
   type AgentEvaluationRequest,
   type AgentEvaluationResult,
-  AgentRequestTransportLimitError,
   type AgentUsage,
   assertCapabilityContract,
   capabilitiesMatch,
@@ -16,6 +15,7 @@ import {
   normalizeObservability,
   parseFindingsObject,
   runAdapterSubprocess,
+  validateAdapterSubprocessInput,
   validateAgentEvaluationRequest,
   validateAgentEvaluationResult,
 } from "@qoherent/sigil-compiler";
@@ -97,22 +97,16 @@ export class PiAdapter implements AgentAdapter {
       prompt = evaluationPrompt(request);
     } catch (error) {
       throw new AdapterFailure(
-        error instanceof AgentRequestTransportLimitError
-          ? "operational-limit"
-          : "incomplete-evidence",
-        error instanceof AgentRequestTransportLimitError
-          ? error.message
-          : "Pi evaluation request evidence is incomplete or invalid.",
+        "incomplete-evidence",
+        "Pi evaluation request evidence is incomplete or invalid.",
         undefined,
         { cause: error },
       );
     }
-    if (prompt.length > request.limits.maxInitialRequestChars) {
-      throw new AdapterFailure(
-        "operational-limit",
-        `Pi request exceeds maxInitialRequestChars (${request.limits.maxInitialRequestChars}).`,
-      );
-    }
+    validateAdapterSubprocessInput(
+      prompt,
+      request.limits.maxInitialRequestChars,
+    );
 
     const args = [
       "--print",

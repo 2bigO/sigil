@@ -2,8 +2,6 @@ import type { PurposeRetrievalResult } from "@qoherent/sigil-core";
 import { deriveBudgetOutcome } from "./evaluation-execution.ts";
 import type { AgentEvaluationRequest, AgentEvaluationResult } from "./types.ts";
 
-export class AgentRequestTransportLimitError extends Error {}
-
 // @sigil implements packages/compiler/src/evaluation-request.sigil::SigilAgentEvaluationRequest::AgentEvaluationRequest interface,cases
 export function validateAgentEvaluationRequest(
   request: AgentEvaluationRequest,
@@ -36,15 +34,6 @@ export function validateAgentEvaluationRequest(
     !Array.isArray(retrieval.context.sections)
   ) {
     throw new Error("Purpose retrieval is incomplete.");
-  }
-  const serialized = JSON.stringify(
-    request,
-    (_key, value) => value instanceof AbortSignal ? undefined : value,
-  );
-  if (serialized.length > request.limits.maxInitialRequestChars) {
-    throw new AgentRequestTransportLimitError(
-      `Agent request is ${serialized.length} characters, exceeding the ${request.limits.maxInitialRequestChars}-character transport limit.`,
-    );
   }
 }
 

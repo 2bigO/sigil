@@ -444,7 +444,7 @@ class AdapterTerminalArbiter<T> {
         { cause: error },
       );
     const kind: CoordinatorFailureKind = failure.kind === "binding-mismatch" ||
-        failure.kind === "capability-mismatch"
+        failure.kind === "capability-mismatch" || failure.kind === "cleanup"
       ? "execution"
       : failure.kind;
     const normalized = kind === failure.kind
@@ -484,12 +484,12 @@ class AdapterTerminalArbiter<T> {
       "elapsed-time": 1,
       "preventive-budget": 2,
       "incomplete-evidence": 3,
-      "operational-limit": 3,
-      process: 4,
-      execution: 4,
-      "final-result-protocol": 5,
-      cleanup: 6,
-      result: 7,
+      "operational-limit": 4,
+      process: 5,
+      execution: 6,
+      "final-result-protocol": 7,
+      cleanup: Number.POSITIVE_INFINITY,
+      result: 8,
     };
     const winner =
       batch.sort((left, right) =>

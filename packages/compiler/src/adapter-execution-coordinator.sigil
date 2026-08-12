@@ -71,7 +71,7 @@ component SigilAgentAdapterExecutionCoordinator {
       batch; later submissions belong to the next batch
 
       within one batch, kind precedence is cancellation, elapsed-time,
-      preventive-budget, operational-limit, process, execution,
+      preventive-budget, incomplete-evidence, operational-limit, process, execution,
       final-result-protocol, then newly eligible valid result; the lowest sequence
       wins within one kind
 
@@ -131,6 +131,10 @@ expand SigilAgentAdapterExecutionCoordinator {
       after invoke completion and result-input settlement without one valid envelope
       or when final-result size crosses maxFinalResultChars.
 
+      Incomplete-evidence is eligible when invocation exposes invalid or incomplete
+      required evaluation evidence. Cleanup is never an arbitration submission; it is
+      the coordinator's post-winner verification outcome.
+
       A non-result winner invokes the declared AdapterExecutionHandle cleanup. The
       coordinator verifies declared resource and result-input settlement by the
       cleanup deadline; adapters report observations and attempts but never decide
@@ -186,8 +190,8 @@ expand SigilAgentAdapterExecutionCoordinator {
       result, while a result settled in an earlier snapshot remains final.
 
       Design issues addressed: Cancellation reflects caller intent; hard time and
-      budget bounds precede provider defects; framing limits precede execution and
-      terminal protocol interpretation.
+      budget bounds precede evidence and provider defects; evidence invalidation
+      precedes framing limits, execution, and terminal protocol interpretation.
 
       Discarded alternatives: Provider arrival order, result-first snapshots,
       aggregation, and implementation iteration order were rejected.
@@ -257,6 +261,10 @@ expand SigilAgentAdapterExecutionCoordinator {
       A newly eligible result sharing a batch with cancellation returns cancelled;
       without cancellation but with elapsed-time it returns elapsed-time; without
       either but with framing overflow it returns operational-limit.
+
+      A newly eligible result sharing a batch with incomplete-evidence returns
+      incomplete-evidence; incomplete-evidence sharing that batch with framing
+      overflow also returns incomplete-evidence.
 
       Elapsed-time expiry submitted before the snapshot defeats a newly eligible
       result in that snapshot; a valid result settled in an earlier snapshot remains

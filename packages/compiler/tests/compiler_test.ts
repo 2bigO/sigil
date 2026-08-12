@@ -8,6 +8,7 @@ import {
   type CompilationReport,
   compile,
   CompilerFailure,
+  createAdapterSubprocessHandle,
   deriveBudgetOutcome,
   FileCompilationSessionStore,
   FileCompilationHistoryStore,
@@ -135,6 +136,7 @@ Deno.test("subprocess execution declares owned inputs before an attempted launch
       signal: new AbortController().signal,
       maxInitialRequestChars: 10,
       maxProviderFrameChars: 10,
+      handle: createAdapterSubprocessHandle("test.adapter@1"),
       resources: {
         declareResource: (identity) => observations.push(`resource:${identity}`),
         declareResultInput: (identity) => observations.push(`input:${identity}`),
@@ -144,6 +146,7 @@ Deno.test("subprocess execution declares owned inputs before an attempted launch
         reportResultInputObservation() {},
         cleanupAttempt() {},
       },
+      terminationControl: { requestPreventiveBudgetTermination() {} },
     }),
     AdapterFailure,
   );

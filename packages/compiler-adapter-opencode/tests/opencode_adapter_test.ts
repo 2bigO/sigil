@@ -626,6 +626,9 @@ Deno.test("subprocess cancellation performs bounded verified cleanup", async () 
         providerCleanupMs: 500,
         maxInitialRequestChars: 1_000,
         maxProviderFrameChars: 1_000,
+        handle: createAdapterSubprocessHandle("test.opencode@1"),
+        resources: testExecutionResources,
+        terminationControl: { requestPreventiveBudgetTermination() {} },
       }),
     AdapterFailure,
   );
@@ -648,6 +651,9 @@ Deno.test("subprocess frame-limit failure performs bounded verified cleanup", as
         providerCleanupMs: 500,
         maxInitialRequestChars: 1_000,
         maxProviderFrameChars: 10,
+        handle: createAdapterSubprocessHandle("test.opencode@1"),
+        resources: testExecutionResources,
+        terminationControl: { requestPreventiveBudgetTermination() {} },
       }),
     AdapterFailure,
   );
@@ -670,6 +676,9 @@ Deno.test("subprocess stderr frame-limit failure participates in live settlement
         providerCleanupMs: 500,
         maxInitialRequestChars: 1_000,
         maxProviderFrameChars: 10,
+        handle: createAdapterSubprocessHandle("test.opencode@1"),
+        resources: testExecutionResources,
+        terminationControl: { requestPreventiveBudgetTermination() {} },
       }),
     AdapterFailure,
   );
@@ -716,6 +725,9 @@ Deno.test("subprocess reports frames from both output channels", async () => {
     signal: new AbortController().signal,
     maxInitialRequestChars: 1_000,
     maxProviderFrameChars: 1_000,
+    handle: createAdapterSubprocessHandle("test.opencode@1"),
+    resources: testExecutionResources,
+    terminationControl: { requestPreventiveBudgetTermination() {} },
     onFrame: (frame) => {
       frames.push(frame);
     },

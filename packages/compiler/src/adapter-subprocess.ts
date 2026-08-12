@@ -13,13 +13,13 @@ export interface AdapterSubprocessInvocation {
   readonly env?: Readonly<Record<string, string>>;
   readonly input: string;
   readonly signal: AbortSignal;
-  /** Backward-compatible direct-runner limit; cleanup is coordinator-owned. */
+  /** Retained only for direct test timing compatibility; cleanup is coordinator-owned. */
   readonly providerCleanupMs?: number;
   readonly maxInitialRequestChars: number;
   readonly maxProviderFrameChars: number;
-  readonly handle?: AdapterSubprocessHandle;
-  readonly resources?: AdapterExecutionResources;
-  readonly terminationControl?: import("./adapter-execution-coordinator.ts").AdapterTerminationControl;
+  readonly handle: AdapterSubprocessHandle;
+  readonly resources: AdapterExecutionResources;
+  readonly terminationControl: import("./adapter-execution-coordinator.ts").AdapterTerminationControl;
   readonly onFrame?: (
     frame: AdapterSubprocessFrame,
   ) => void | Promise<void>;
@@ -40,6 +40,19 @@ export function createAdapterSubprocessHandle(
   identity: string,
 ): AdapterSubprocessHandle {
   return new AdapterSubprocessHandle(identity);
+}
+
+// @sigil implements packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AdapterSubprocess interface,logic,cases
+export function validateAdapterSubprocessInput(
+  input: string,
+  maxInitialRequestChars: number,
+): void {
+  if (input.length > maxInitialRequestChars) {
+    throw new AdapterFailure(
+      "operational-limit",
+      `Provider input exceeds the ${maxInitialRequestChars}-character limit.`,
+    );
+  }
 }
 
 interface AttachedSubprocess {
@@ -169,22 +182,17 @@ export class AdapterSubprocessHandle implements AdapterExecutionHandle {
 export async function runAdapterSubprocess(
   invocation: AdapterSubprocessInvocation,
 ): Promise<AdapterSubprocessResult> {
-  const resources = invocation.resources ?? inertResources;
-  const handle = invocation.handle ?? createAdapterSubprocessHandle(
-    invocation.implementationIdentity,
-  );
+  const { resources, handle } = invocation;
   const resourceIdentity = `process:${handle.identity}`;
   const identities = [
     resourceIdentity,
     "result-input:stdout",
     "result-input:stderr",
   ];
-  if (invocation.input.length > invocation.maxInitialRequestChars) {
-    throw new AdapterFailure(
-      "operational-limit",
-      `Provider input exceeds the ${invocation.maxInitialRequestChars}-character limit.`,
-    );
-  }
+  validateAdapterSubprocessInput(
+    invocation.input,
+    invocation.maxInitialRequestChars,
+  );
   if (invocation.signal.aborted) {
     throw new AdapterFailure(
       "cancelled",
@@ -297,15 +305,6 @@ export async function runAdapterSubprocess(
   }
 }
 
-const inertResources: AdapterExecutionResources = {
-  declareResource() {},
-  declareResultInput() {},
-  observeResource() {},
-  observeResultInput() {},
-  reportResourceObservation() {},
-  reportResultInputObservation() {},
-  cleanupAttempt() {},
-};
 
 async function settleBeforeDeadline(
   attached: AttachedSubprocess,
