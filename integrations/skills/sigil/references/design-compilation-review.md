@@ -11,10 +11,23 @@ Sigil mutation or implementation.
 
 Select the nearest configured workspace that imports the affected Sigil file.
 Use `sigil retrieve --purpose architecture` as the preferred source for imports,
-expands, and consumers. Prefer an exact-case component target; use a file target
-when colocated declarations or expands are the scope. Correct retrieval
-diagnostics before proceeding. Use `sigil graph` or `sigil context` only for a
-required relationship or detail absent from a successful retrieval.
+expands, and consumers. Correct retrieval diagnostics before proceeding. Use
+`sigil graph` or `sigil context` only for a required relationship or detail
+absent from a successful retrieval.
+
+Select one compile target in this order:
+
+1. the nearest importing `_module.sigil` whose retrieval closure contains all
+   affected files and semantic units; select it with `--file <module-index>`;
+2. if no such module index exists, the exact-case component whose retrieval
+   closure covers the greatest number of affected changed units, matching
+   expands, and direct imports or consumers;
+3. if no component covers the affected boundary, compile the selected workspace
+   without `--component` rather than choosing an arbitrary partial target.
+
+Break a coverage tie by choosing the target nearest to the edited declaration.
+Record the target and any affected units outside its closure; do not claim a
+partial target evaluates an uncovered unit.
 
 ## Compile-And-Resolve Loop
 
@@ -25,20 +38,24 @@ after every semantic write:
 
 ```bash
 sigil check <workspace-root> --format json --pretty
-sigil compile <workspace-root> --focus design --component <name>
+sigil compile <workspace-root> --focus design <target-selector>
 ```
 
 Compiler sessions remain available only for an explicitly requested exceptional
 diagnostic investigation. They are not a required pre-write proposal workflow.
 
-Design compilation can take substantial time. Wait for its terminal outcome:
+Design compilation can take substantial time. Wait without cancelling it for its terminal outcome:
 the JSONL event protocol emits `completed` with the authoritative version-2
 CompilationReport, or emits `failed` or `cancelled` without a report. A stream
 consumer also waits for source end after that terminal event. Stage-started
 events, partial progress, silence while an evaluator runs, or a slow response
 are not results. Keep the agent working session open while the compiler runs
-and report that it is waiting when progress is slow. Treat a missing terminal
-outcome as a host or transport problem, not as red, yellow, or green evidence.
+and report that it is waiting when progress is slow. Do not start a replacement
+compile for the same scope, abandon the run, or make a design decision from
+partial output. Treat a missing terminal outcome as a host or transport problem,
+not as red, yellow, or green evidence. If the execution host interrupts the
+stream, report that interruption and resume waiting or retry the same target
+only after the host can run it to completion.
 
 1. Fix a deterministic, structural, or coherence issue directly when the report
    and established intent determine one safe correction.

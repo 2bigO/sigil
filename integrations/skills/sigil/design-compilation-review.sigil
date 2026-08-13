@@ -38,6 +38,13 @@ DesignCompilationReview {
       write the scoped Sigil change to the selected workspace and compile it with
       ordinary SigilCli focus design.
 
+      Select the nearest importing module index whose retrieval closure covers all
+      affected semantic units. When none exists, select the component whose closure
+      covers the most changed units, matching expands, and direct relationships;
+      break a tie by declaration proximity. Compile the workspace without a component
+      when no component covers the boundary, and record every unit outside a partial
+      target closure.
+
       Do not use a compiler session for normal authoring or review. A session remains
       available only for explicitly requested exceptional diagnostics.
 
@@ -48,7 +55,12 @@ DesignCompilationReview {
       A stream consumer also waits for source end after the terminal event.
       Stage-started events, partial progress, silence while an evaluator runs, or a
       slow response do not establish red, yellow, or green evidence. Keep the agent
-      session open while it runs; a missing terminal is a host or transport problem.
+      session open while it runs. Do not cancel, abandon, or replace the same-scope
+      compile because it is slow; a missing terminal is a host or transport problem.
+
+      If the execution host interrupts the stream, report the interruption and resume
+      waiting or retry the same selected target only when the host can run it through
+      source end. Never classify partial output as a compiler result.
 
       Use red and yellow diagnostics to investigate evidence and return confirmed
       material problems to DesignConversation. Revise red candidates and yellow

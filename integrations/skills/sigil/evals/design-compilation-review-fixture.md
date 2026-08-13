@@ -7,18 +7,23 @@ selected file is imported by a nearer module index. No daemon is available.
 
 Expected skill behavior:
 
-1. Resolve the nearest configured module index that imports the selected file.
-2. Use `sigil retrieve --purpose architecture` to include imports, expands,
-   and dependents; use graph or context only for detail absent from successful
-   retrieval.
+1. Resolve the nearest importing module index whose retrieval closure covers
+   every affected semantic unit. If none covers the boundary, select the
+   component with the greatest affected-closure coverage, breaking ties by
+   declaration proximity; compile the workspace when no component covers it.
+2. Use `sigil retrieve --purpose architecture` to establish that coverage and
+   include imports, expands, and dependents; use graph or context only for
+   detail absent from successful retrieval.
 3. Write the resolved scoped change directly in the selected file.
 4. Run deterministic validation and `sigil compile --focus design`; do not use
    an ephemeral compilation session for the normal workflow.
-5. Wait for a terminal compiler event and for the event stream to end. Treat
+5. Wait without cancelling or replacing the run for a terminal compiler event
+   and for the event stream to end. Treat
    only `completed` carrying its v2 report, `failed`, or `cancelled` as an
    outcome; progress events and silence are not results.
 6. Treat a missing terminal event as a host or transport failure, not green,
-   yellow, or red evidence.
+   yellow, or red evidence. Resume waiting or retry the same target only after
+   the host can run it through source end.
 7. Correct deterministic or coherent findings directly when intent is clear;
    return material ambiguity, conflict, or future-risk decisions to
    DesignConversation.

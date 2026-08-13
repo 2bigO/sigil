@@ -5,8 +5,8 @@
 component SigilAuthoringWorkflow {
   goal {
     Author coherent Sigil boundaries, semantic units, concept identities, imports,
-    module indexes, and durable decision rationale after provisional design
-    evidence has been reviewed.
+    module indexes, and durable decision rationale as an initial written draft,
+    then revise it from provisional design evidence.
   }
 
   interface {
@@ -77,6 +77,15 @@ DecisionRationaleWorkflow {
 
 expand SigilAuthoringWorkflow {
   logic {
+DirectAuthoringLifecycle {
+      After material design intent is resolved, write the exact scoped Sigil draft
+      directly to the selected file before DesignCompilationReview.
+
+      Use DesignCompilationReview evidence only to revise, validate, and complete
+      that written draft. A red or unresolved yellow report returns to correction or
+      DesignConversation; it never retroactively prevents creating the initial draft.
+    }
+
 ImportSemantics {
       Inspect accessible imported components and public concepts before proposing
       local identities.
