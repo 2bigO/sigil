@@ -3,6 +3,7 @@
 <!--
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationCoverage interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationAlignment interface,logic,constraints,cases
 -->
 
 Use this procedure before every implementation mutation. It prevents artifact
@@ -19,7 +20,8 @@ changes.
 5. Build the implementation coverage map
 6. Link implementation ownership
 7. Propose and approve missing Sigil
-8. Limits and examples
+8. Reconcile completed implementation
+9. Limits and examples
 
 ## 1. Run Implementation Preflight
 
@@ -291,7 +293,31 @@ Ownership comments are not part of the scoped Sigil change. Plan their targets i
 implementation coverage map, then include them in the exact implementation
 change set submitted to ReviewGate.
 
-## 8. Limits And Examples
+## 8. Reconcile Completed Implementation
+
+After each approved implementation change, reconcile the exact completed scope
+before reporting completion:
+
+1. preserve a durable task-scoped compiler log and run `sigil compile
+   <workspace-root> --focus implementation <target-selector>`;
+2. wait for the compiler's terminal outcome and closed output stream; do not treat
+   progress, silence, or a passing build or test run as alignment evidence;
+3. compare the terminal report with the governing Sigil, implementation coverage
+   map, ownership annotations, direct dependents, and relevant verification evidence;
+4. when no unresolved drift remains, report implementation complete;
+5. when a finding needs user judgment but changes no governing contract, ask the
+   user to resolve and approve the exact implementation change set, rerun
+   `ReviewGate(action: implementation)`, apply it only when ready, and repeat this
+   procedure;
+6. when a finding changes or exposes a missing governing contract, stop
+   implementation, write the scoped Sigil correction, follow the design validation
+   and compilation loop, repeat implementation preflight, and then resume work.
+
+Keep this loop open until every implementation and contract finding is resolved.
+An unavailable, incomplete, failed, cancelled, red, or unresolved-yellow
+implementation compile is not alignment evidence and cannot support completion.
+
+## 9. Limits And Examples
 
 ### Programming Abstraction
 

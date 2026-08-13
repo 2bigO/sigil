@@ -3,7 +3,10 @@ name: sigil
 description: Work with Sigil, a rationale-oriented modeling language and CLI for software systems. Use when a coding agent needs to read, write, review, reconcile, validate, query, render, or use `.sigil` files; model or revise a component, API, state machine, UI surface, or architecture boundary; adopt Sigil in an existing codebase; assess design readiness, drift, terminology, ownership, or implementation coverage; or implement code governed by Sigil. Prefer the `sigil` CLI for deterministic workspace operations. Inspect governing Sigil before every implementation mutation.
 ---
 
-<!-- @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases -->
+<!--
+@sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationAlignment interface,logic,constraints,cases
+-->
 
 # Sigil
 
@@ -34,6 +37,11 @@ how its implementation should be understood and changed.
    `references/implementation-design.md` and obtain
    `ReviewGate(action: implementation)` readiness for the validated written
    Sigil and exact implementation scope.
+7. After implementation, follow the completed-implementation reconciliation in
+   `references/implementation-design.md`. Run implementation-focused compilation,
+   resolve implementation-only questions with the user, and return
+   contract-affecting drift to written-Sigil design work. Do not report completion
+   until the alignment loop has no unresolved drift.
 
 Do not use compiler sessions for normal authoring or review. Keep them available
 only for an explicitly requested exceptional diagnostic investigation.
@@ -74,6 +82,9 @@ only for an explicitly requested exceptional diagnostic investigation.
    compilation. Keep `ModuleIndexFile` as a small boundary summary.
 7. Follow `references/glossary-workflow.md` after semantic edits. Always state
    whether glossary extraction is required, deferred, or inspection-only.
+8. After implementation, follow the completed-implementation reconciliation in
+   `references/implementation-design.md` until implementation alignment reports no
+   unresolved drift.
 
 ## ReviewGate
 
@@ -111,6 +122,7 @@ sigil parse path/to/file.sigil --format json --pretty
 sigil check path-or-workspace --format json --pretty
 sigil fmt path-or-workspace --check
 sigil compile path-or-workspace --focus design --component Name
+sigil compile path-or-workspace --focus implementation --component Name
 sigil retrieve path-or-workspace --component Name --purpose semantic --format markdown
 sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format markdown
 sigil retrieve path-or-workspace --component Name --purpose implementation --format markdown
