@@ -15,12 +15,12 @@ import { CompilerFailure, compilerFailureCode } from "./status.ts";
 import { constructSessionCompilationReport } from "./report-protocol.ts";
 import type {
   CompilationEvent,
+  CompilationFocus,
   CompilationHistoryStore,
   CompilationProposal,
   CompilationReport,
   CompilationSessionRecord,
   CompilationSessionRefreshResult,
-  CompilationFocus,
 } from "./types.ts";
 
 const DEFAULT_SESSION_TTL_MS = 86_400_000;
@@ -339,10 +339,14 @@ async function expireIfNecessary(
   lease: CompilationSessionLease,
   store: FileCompilationSessionStore,
 ): Promise<void> {
-  if (Date.parse(record.expiresAt) > Date.now() || record.lifecycle === "expired") {
+  if (
+    Date.parse(record.expiresAt) > Date.now() || record.lifecycle === "expired"
+  ) {
     return;
   }
-  const workspace = await SigilProposalWorkspace.restore(record.proposalWorkspace);
+  const workspace = await SigilProposalWorkspace.restore(
+    record.proposalWorkspace,
+  );
   try {
     await workspace.close();
     await store.commit(lease, { ...record, lifecycle: "expired" });
@@ -351,7 +355,10 @@ async function expireIfNecessary(
       "Compilation session has expired.",
     );
   } catch (error) {
-    if (error instanceof CompilerFailure && error.code === "COMPILER_SESSION_EXPIRED") {
+    if (
+      error instanceof CompilerFailure &&
+      error.code === "COMPILER_SESSION_EXPIRED"
+    ) {
       throw error;
     }
     const failedRecord: CompilationSessionRecord = {

@@ -259,7 +259,10 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         project = true;
         break;
       case "--agent": {
-        if (commandName === "compile") { compileAgent = true; break; }
+        if (commandName === "compile") {
+          compileAgent = true;
+          break;
+        }
         const value = take(arg);
         if (typeof value !== "string") return value;
         if (!isSkillAgent(value) && value !== "all") {
@@ -419,7 +422,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (
     commandName !== "compile" &&
-    (profile || compileAgent || focus || noCache || output || format === "jsonl")
+    (profile || compileAgent || focus || noCache || output ||
+      format === "jsonl")
   ) {
     return usage(
       `${commandName} does not accept compile options.`,
@@ -578,7 +582,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     };
   }
   if (commandName === "compile") {
-    if (compileAgent && profile) return usage("compile accepts either --profile or --agent, not both.", "compile");
+    if (compileAgent && profile) {
+      return usage(
+        "compile accepts either --profile or --agent, not both.",
+        "compile",
+      );
+    }
     if (positional[0] === "session") {
       const action = positional[1];
       if (

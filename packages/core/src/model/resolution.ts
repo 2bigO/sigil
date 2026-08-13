@@ -11,7 +11,6 @@ import type {
   ExpandDeclaration,
   ImportDeclaration,
   Section,
-  SemanticUnit,
 } from "./source.ts";
 import type { SigilWorkspace } from "./workspace.ts";
 import type { ImportedComponentEdge, SigilGraph } from "./graph.ts";

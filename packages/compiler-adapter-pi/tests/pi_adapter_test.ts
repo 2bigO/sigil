@@ -149,7 +149,7 @@ Deno.test("Pi adapter rejects persistent requests before invocation", async () =
 
 Deno.test("Pi reports invalid request evidence without invoking its runner", async () => {
   let invoked = false;
-  const adapter = new PiAdapter(undefined, async () => {
+  const adapter = new PiAdapter(undefined, () => {
     invoked = true;
     throw new Error("runner should not be called");
   });
@@ -168,7 +168,7 @@ Deno.test("Pi reports invalid request evidence without invoking its runner", asy
 
 Deno.test("Pi classifies initial request overflow as an operational limit", async () => {
   let invoked = false;
-  const adapter = new PiAdapter(undefined, async () => {
+  const adapter = new PiAdapter(undefined, () => {
     invoked = true;
     throw new Error("runner should not be called");
   });

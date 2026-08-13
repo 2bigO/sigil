@@ -19,7 +19,8 @@ export interface AdapterSubprocessInvocation {
   readonly maxProviderFrameChars: number;
   readonly handle: AdapterSubprocessHandle;
   readonly resources: AdapterExecutionResources;
-  readonly terminationControl: import("./adapter-execution-coordinator.ts").AdapterTerminationControl;
+  readonly terminationControl:
+    import("./adapter-execution-coordinator.ts").AdapterTerminationControl;
   readonly onFrame?: (
     frame: AdapterSubprocessFrame,
   ) => void | Promise<void>;
@@ -69,7 +70,9 @@ interface ChannelOutput {
   readonly cancel: () => Promise<void>;
 }
 
-function asChannelOutput(output: ChannelOutput | Promise<string>): ChannelOutput {
+function asChannelOutput(
+  output: ChannelOutput | Promise<string>,
+): ChannelOutput {
   return "promise" in output
     ? output
     : { promise: output, cancel: () => Promise.resolve() };
@@ -305,7 +308,6 @@ export async function runAdapterSubprocess(
   }
 }
 
-
 async function settleBeforeDeadline(
   attached: AttachedSubprocess,
   cleanupDeadline: number,
@@ -356,7 +358,10 @@ function readOutput(
       if (done) break;
       const text = decoder.decode(value, { stream: true });
       assertFrameLimit(text, maxFrameChars, openFrame);
-      const lastBreak = Math.max(text.lastIndexOf("\n"), text.lastIndexOf("\r"));
+      const lastBreak = Math.max(
+        text.lastIndexOf("\n"),
+        text.lastIndexOf("\r"),
+      );
       openFrame = lastBreak < 0 ? openFrame + text : text.slice(lastBreak + 1);
       if (onFrame) await onFrame({ channel, text });
       else retained += text;
@@ -408,7 +413,7 @@ async function outputFailure(
     return {
       kind: "output-failure",
       error: error instanceof AdapterFailure ? error : new AdapterFailure(
-    "process",
+        "process",
         error instanceof Error ? error.message : String(error),
         undefined,
         { cause: error },

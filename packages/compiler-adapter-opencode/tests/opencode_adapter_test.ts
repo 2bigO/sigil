@@ -386,6 +386,7 @@ Deno.test("coordinator cleans an unstarted handle after pre-invocation cancellat
           identity: "test.opencode@1",
           cleanup: async () => {
             cleaned = true;
+            await Promise.resolve();
           },
         },
         invoke: () => {
@@ -443,6 +444,7 @@ Deno.test("coordinator arbitrates cancellation before provider completion", asyn
       identity: "test.opencode@1",
       cleanup: async () => {
         cleaned = true;
+        await Promise.resolve();
       },
     },
     signal: controller.signal,
@@ -470,7 +472,7 @@ Deno.test("coordinator records result inputs separately in cleanup evidence", as
           identity: "test.opencode@1",
           cleanup: async () => {},
         },
-        invoke: async (_signal, resources) => {
+        invoke: (_signal, resources) => {
           resources.declareResource("process:test");
           resources.observeResource("process:test", "active");
           resources.declareResultInput("stdout");
@@ -508,6 +510,7 @@ Deno.test("coordinator waits for registered result inputs before accepting a res
       resources.declareResultInput("stdout");
       resources.observeResultInput("stdout", "open");
       settleInput = () => resources.observeResultInput("stdout", "closed");
+      await Promise.resolve();
       return "result";
     },
   });
@@ -541,6 +544,7 @@ Deno.test("coordinator preserves terminal proof after later observation failure"
               "post-terminal status poll failed",
             );
             resources.observeResultInput("stdout", "cancelled");
+            await Promise.resolve();
           },
         },
         invoke: async (_signal, resources) => {
@@ -550,6 +554,7 @@ Deno.test("coordinator preserves terminal proof after later observation failure"
           resources.observeResultInput("stdout", "open");
           resources.declareResultInput("stderr");
           resources.observeResultInput("stderr", "open");
+          await Promise.resolve();
           throw new AdapterFailure("execution", "test failure");
         },
       }),
@@ -569,7 +574,7 @@ Deno.test("coordinator preserves terminal proof after later observation failure"
 
 Deno.test("OpenCode reports invalid request evidence without invoking its runner", async () => {
   let invoked = false;
-  const adapter = new OpenCodeAdapter(undefined, async () => {
+  const adapter = new OpenCodeAdapter(undefined, () => {
     invoked = true;
     throw new Error("runner should not be called");
   });
@@ -588,7 +593,7 @@ Deno.test("OpenCode reports invalid request evidence without invoking its runner
 
 Deno.test("OpenCode classifies initial request overflow as an operational limit", async () => {
   let invoked = false;
-  const adapter = new OpenCodeAdapter(undefined, async () => {
+  const adapter = new OpenCodeAdapter(undefined, () => {
     invoked = true;
     throw new Error("runner should not be called");
   });
@@ -700,15 +705,16 @@ Deno.test("subprocess handle rejects a second process attachment", () => {
     ["process:test", "result-input:stdout", "result-input:stderr"],
   );
   const error = assertRejects(
-    async () =>
-      handle.attach(
+    async () => {
+      await handle.attach(
         child,
         Promise.resolve({ success: true, code: 0, signal: null }),
         Promise.resolve(""),
         Promise.resolve(""),
         testExecutionResources,
         ["process:test2", "result-input:stdout", "result-input:stderr"],
-      ),
+      );
+    },
     AdapterFailure,
   );
   return error.then((failure) => assertEquals(failure.kind, "execution"));

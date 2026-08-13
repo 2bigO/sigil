@@ -1,6 +1,5 @@
 import type { SourceRange } from "./language.ts";
 import type { ComponentIdentity } from "./ownership.ts";
-import type { ResolvedImportName, SigilResolution } from "./resolution.ts";
 export type { SourceRange } from "./language.ts";
 export type { ComponentIdentity } from "./ownership.ts";
 export type { ResolvedImportName, SigilResolution } from "./resolution.ts";

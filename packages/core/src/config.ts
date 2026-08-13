@@ -101,27 +101,54 @@ export function parseSigilLocalConfig(source: string, filePath: string): {
   readonly diagnostics: readonly SigilDiagnostic[];
 } {
   let value: unknown;
-  try { value = JSON.parse(source); } catch (error) {
-    return { diagnostics: [diagnostic("SIGIL_CONFIG_PARSE", `Unable to parse ${filePath} JSON: ${error instanceof Error ? error.message : String(error)}`, { filePath })] };
+  try {
+    value = JSON.parse(source);
+  } catch (error) {
+    return {
+      diagnostics: [
+        diagnostic(
+          "SIGIL_CONFIG_PARSE",
+          `Unable to parse ${filePath} JSON: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { filePath },
+        ),
+      ],
+    };
   }
-  if (!isObject(value)) return { diagnostics: invalidDiagnostics(["Local configuration must be a JSON object."], filePath) };
+  if (!isObject(value)) {
+    return {
+      diagnostics: invalidDiagnostics([
+        "Local configuration must be a JSON object.",
+      ], filePath),
+    };
+  }
   const messages: string[] = [];
   rejectUnknown(value, ["tools"], "local configuration", messages);
   validateTools(value.tools, messages);
-  return messages.length ? { diagnostics: invalidDiagnostics(messages, filePath) } : {
-    tools: value.tools as SigilConfig["tools"] | undefined,
-    diagnostics: [],
-  };
+  return messages.length
+    ? { diagnostics: invalidDiagnostics(messages, filePath) }
+    : {
+      tools: value.tools as SigilConfig["tools"] | undefined,
+      diagnostics: [],
+    };
 }
 
-export function mergeToolConfiguration(shared: SigilConfig["tools"], local: SigilConfig["tools"] | undefined): SigilConfig["tools"] {
+export function mergeToolConfiguration(
+  shared: SigilConfig["tools"],
+  local: SigilConfig["tools"] | undefined,
+): SigilConfig["tools"] {
   return (mergeJson(shared, local) ?? {}) as SigilConfig["tools"];
 }
 
 function mergeJson(shared: unknown, local: unknown): unknown {
   if (local === undefined) return shared;
   if (!isObject(shared) || !isObject(local)) return local;
-  return Object.fromEntries(Object.entries({ ...shared, ...local }).map(([key, value]) => [key, mergeJson(shared[key], value)]));
+  return Object.fromEntries(
+    Object.entries({ ...shared, ...local }).map((
+      [key, value],
+    ) => [key, mergeJson(shared[key], value)]),
+  );
 }
 
 // @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
