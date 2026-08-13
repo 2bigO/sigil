@@ -93,8 +93,8 @@ GreenfieldWorkflow {
       Run evidence, standards, design compilation, implementation-coverage, and
       concept-identifier review as applicable.
 
-      Synthesize exact Sigil, obtain ReviewGate readiness for sigil-change, write and
-      validate it, then report the result before implementation review.
+      Write exact scoped Sigil, validate it through DesignCompilationReview, then
+      report the written result before implementation review.
     }
 
 BrownfieldWorkflow {
@@ -112,12 +112,12 @@ BrownfieldWorkflow {
       Propose and review an ordinary summary component in each boundary's
       ModuleIndexFile.
 
-      After ReviewGate returns ready for the boundary-summary sigil-change and the
-      summary is written and validated, narrow to the requested coherent task
-      boundary and reconcile its evidence.
+      After the boundary summary is written and validated through
+      DesignCompilationReview, narrow to the requested coherent task boundary and
+      reconcile its evidence.
 
-      Present exact task components, expands, locations, and imports to ReviewGate
-      with sigil-change, then write only when ready and validate the result.
+      Write exact task components, expands, locations, and imports, then validate the
+      result through DesignCompilationReview.
     }
   }
 
@@ -170,7 +170,7 @@ WorkspaceMutationBoundary {
 
       ConfigFile initialization is the narrow CLI mutation exception.
 
-      Semantic Sigil mutation belongs to the approved agent workflow.
+      Semantic Sigil mutation belongs to the written-Sigil design workflow.
     }
   }
 
@@ -214,7 +214,7 @@ WorkflowSelection {
 
 GreenfieldWorkflow {
       An undecided public behavior discovered during implementation returns to
-      ReviewGate with sigil-change.
+      DesignConversation and written-Sigil design work.
     }
 
 BrownfieldWorkflow {

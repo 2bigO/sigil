@@ -5,21 +5,21 @@
 component SigilDesignCompilationReview {
   goal {
     Consume compiler-owned semantic-readiness and architecture evaluation as
-    provisional evidence for exact written and unwritten Sigil candidates without
-    transferring design decisions or mutation authority to the compiler.
+    provisional evidence for exact written Sigil without transferring design
+    decisions or implementation approval authority to the compiler.
   }
 
   interface {
 DesignCompilationReview {
-      evaluates each exact unwritten Sigil candidate through SigilCli compilation
-      focus design before ReviewGate for sigil-change
+      evaluates exact written Sigil through ordinary SigilCli compilation focus
+      design before user file review and any implementation ReviewGate
 
       consumes deterministic-foundation, semantic-readiness, and architecture-design
-      results from the exact proposal generation
+      results from the exact written scope
 
-      permits proposal review when the complete design compilation is green or when
-      every yellow finding is explicitly reviewed and accepted as nonblocking by the
-      human user
+      permits written-file review when design compilation is green or when every
+      yellow finding is explicitly reviewed and accepted as nonblocking by the human
+      user
     }
   }
 }
@@ -28,42 +28,52 @@ expand SigilDesignCompilationReview {
   state {
 DesignCompilationReview {
       Design compilation is unavailable, incomplete, red, yellow, or green for one
-      exact proposal generation and reviewed scope.
+      exact written scope and reviewed boundary.
     }
   }
 
   logic {
 DesignCompilationReview {
       After design intent and applicable external guidance are sufficiently resolved,
-      open one proposal compilation session for the selected scope.
+      write the scoped Sigil change to the selected workspace and compile it with
+      ordinary SigilCli focus design.
 
-      Submit each complete candidate source set as a proposal generation without
-      writing it to the selected workspace. The compiler session is an owner- private
-      proposal workspace for evidence only, not the mutation target.
+      Do not use a compiler session for normal authoring or review. A session remains
+      available only for explicitly requested exceptional diagnostics.
+
+      Design compilation may take substantial time. Wait for its terminal outcome:
+      completed carries the authoritative version-2 CompilationReport, while failed
+      and cancelled are terminal outcomes without a report.
+
+      A stream consumer also waits for source end after the terminal event.
+      Stage-started events, partial progress, silence while an evaluator runs, or a
+      slow response do not establish red, yellow, or green evidence. Keep the agent
+      session open while it runs; a missing terminal is a host or transport problem.
 
       Use red and yellow diagnostics to investigate evidence and return confirmed
       material problems to DesignConversation. Revise red candidates and yellow
       candidates with unresolved findings.
 
-      After concept grouping or any semantic change, evaluate a new complete
-      generation.
+      After every semantic write, use the design report to choose one next action:
+      correct a deterministic or coherence issue directly when established intent
+      determines the correction, or enter DesignConversation when it exposes a
+      material decision, conflicting intent, or future-facing pitfall.
 
-      Submit only an exact green proposal generation, or a yellow generation whose
-      every finding the human explicitly accepted as nonblocking, together with its
-      report fingerprint and finding dispositions to ReviewGate for sigil-change.
+      Write the scoped correction and recompile. Repeat until green or every yellow
+      finding is explicitly reviewed and accepted as nonblocking. Do not continue to
+      grouping, glossary extraction, or implementation from red, unresolved yellow,
+      unavailable, or incomplete evidence.
 
-      After ReviewGate approves the exact target-workspace scope and complete source
-      change set, materialize only that approved proposal in the target workspace.
-      Materialization is forbidden while ReviewGate is blocked or review-required.
-      Then run deterministic validation and compilation focus design against the
-      written source before glossary extraction or implementation review.
+      Present the exact green written scope, or a yellow scope whose every finding
+      the human explicitly accepted as nonblocking, for user review in the file. Then
+      continue to glossary extraction or implementation review.
     }
   }
 
   constraints {
 DesignCompilationReview {
       Compiler green and reviewed yellow are provisional design evidence and do not
-      approve Sigil mutation, glossary mutation, or implementation.
+      approve glossary mutation or implementation.
 
       The skill does not duplicate semantic-readiness or architecture-design judgment
       already owned by the compiler focus closure.
@@ -73,39 +83,40 @@ DesignCompilationReview {
       the host workflow.
 
       An unavailable, incomplete, or red required design compilation prevents
-      ReviewGate for sigil-change from returning ready. Yellow also prevents ready
-      until the human explicitly reviews every finding and accepts it as nonblocking.
+      implementation review. Yellow also prevents implementation readiness until the
+      human explicitly reviews every finding and accepts it as nonblocking.
 
-      ReviewGate evidence identifies the target workspace root, target paths,
-      complete resulting source, exact session, generation, base fingerprint,
-      proposal fingerprint, target, profile, focus, and completed stages. Session
-      evidence never grants permission to mutate the target workspace.
+      A report that requires user judgment remains in DesignConversation; the host
+      does not guess a correction merely to complete the compile-and-resolve loop.
+
+      Written-file review evidence identifies the target workspace root, target
+      paths, changed semantic units, target, profile, focus, and finding
+      dispositions. It supports implementation review but never approves it.
     }
   }
 
   decisions {
     CompilerDrivenDesignReview {
       Decision: Use SigilCompiler focus design as the semantic-readiness and
-      modularity evaluator for exact written and unwritten Sigil candidates.
+      modularity evaluator for exact written Sigil.
 
-      Scope: Governs SigilSkill design review before sigil-change approval and after
-      approved Sigil is written; excludes human design decisions, external-guidance
-      research, glossary extraction, and mutation authority.
+      Scope: Governs SigilSkill design review after scoped Sigil is written; excludes
+      human design decisions, external-guidance research, glossary extraction, and
+      implementation approval.
 
-      Trade-offs: Semantic proposal work now requires an available configured
-      compiler evaluator and may require repeated agentic compilation.
+      Trade-offs: Semantic work is immediately visible in the target file, so users
+      review the actual change rather than a chat proposal, but compilation may take
+      substantial time before it yields terminal evidence.
 
-      Design issues addressed: Separate host and compiler review checklists can
-      produce different readiness conclusions and cannot evaluate unwritten proposals
-      through ordinary Sigil tools.
+      Design issues addressed: Temporary proposal sessions consume context and make
+      small-model review harder to follow.
 
       Discarded alternatives: Retaining duplicate host semantic and modularity review
       was rejected because the compiler design closure already owns those
       evaluations.
 
-      Consequences: One compiler report evaluates deterministic validity, semantic
-      readiness, and architecture while ReviewGate remains the sole mutation
-      authority.
+      Consequences: One ordinary compiler report evaluates deterministic validity,
+      semantic readiness, and architecture on the file the user reviews.
     }
 
     ReviewedYellowDesignEvidence {
@@ -132,22 +143,22 @@ DesignCompilationReview {
 
   cases {
 DesignCompilationReview {
-      A red proposal generation with contradictory state ownership returns to
+      A red written Sigil with contradictory state ownership returns to
       DesignConversation before concept grouping or glossary extraction.
 
-      A yellow proposal with one unresolved warning remains blocked. When the human
-      explicitly accepts every finding as nonblocking, its report and dispositions
-      may proceed as provisional evidence.
+      A yellow written scope with one unresolved warning remains blocked. When a
+      human explicitly accepts every finding as nonblocking, its report and
+      dispositions may proceed as provisional evidence.
 
-      An ungrouped green proposal proceeds to concept grouping, then compiles a new
-      complete generation before glossary extraction.
+      An ungrouped green written scope proceeds to concept grouping, then recompiles
+      before glossary extraction.
 
-      An unavailable compilation reports the unavailable compiler evidence, keeps the
-      exact candidate unchanged, and may retry only after capability is restored.
+      An unavailable compilation reports the unavailable compiler evidence and may
+      retry only after capability is restored.
 
       An incomplete compilation reports completed and missing stages plus available
-      budget or evidence limitations, keeps ReviewGate from ready, and permits a new
-      complete generation after the limitation is resolved.
+      budget or evidence limitations, blocks implementation review, and permits a
+      retry after the limitation is resolved.
     }
   }
 }

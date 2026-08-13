@@ -10,83 +10,70 @@ Sigil mutation or implementation.
 ## Select The Scope
 
 Select the nearest configured workspace that imports the affected Sigil file.
-Use `sigil graph` or `sigil context` from that module index when imports,
-expands, or consumers affect the report. Prefer an exact component target; use
-a file or location target when the declaration identity is not yet stable.
+Use `sigil retrieve --purpose architecture` as the preferred source for imports,
+expands, and consumers. Prefer an exact-case component target; use a file target
+when colocated declarations or expands are the scope. Correct retrieval
+diagnostics before proceeding. Use `sigil graph` or `sigil context` only for a
+required relationship or detail absent from a successful retrieval.
 
-## Evaluate Unwritten Candidates
+## Compile-And-Resolve Loop
 
-Start one owner-private, OS-temporary proposal session. This is a compiler
-      proposal workspace for evidence only, not the target workspace or
-the destination of an approved change. No daemon is involved:
-
-```bash
-sigil compile session start <workspace-root> --focus design --component <name>
-```
-
-The result identifies the session, base epoch, base fingerprint, and expiry.
-Submit each complete candidate override set as one JSON object on standard
-input:
-
-```json
-{"sources":{"path/to/component.sigil":"complete resulting source text"}}
-```
-
-```bash
-sigil compile session evaluate <session-id> --format jsonl
-```
-
-Every proposal is complete relative to the immutable base epoch, not a delta
-from the prior proposal. Keep omitted base sources unchanged. Use `refresh`
-only when selected workspace evidence intentionally changed, and `close` when
-review ends:
-
-```bash
-sigil compile session refresh <session-id>
-sigil compile session close <session-id>
-```
-
-## Interpret Evidence
-
-- Red is not reviewable for mutation. Investigate and revise the candidate.
-- Yellow is reviewable only after the human explicitly reviews every finding
-  and accepts each one as nonblocking for the exact scope.
-- Green means the exact proposal generation passed the exact design focus and
-  profile. It is evidence, not approval.
-
-Return confirmed material problems to DesignConversation. Do not duplicate the
-compiler's semantic-readiness or architecture-design judgment in a second
-host-generated status. The host still owns external-guidance applicability,
-finding disposition, design decisions, concept grouping, glossary extraction,
-and ReviewGate.
-
-Evidence submitted to `ReviewGate(action: sigil-change)` identifies the selected
-target workspace root and target paths, complete resulting source for every
-changed file, exact session, generation, base epoch, base and proposal
-fingerprints, target, profile, focus, completed stages, report status, and every
-yellow disposition. The session candidate is evidence used to prepare that
-exact real-workspace proposal; it is not the proposal destination.
-
-## Apply To The Target Workspace And Validate Written Sigil
-
-After ReviewGate returns `ready` for that exact target-workspace scope and
-source change set, materialize only the approved source into the target
-workspace. Materialization is a repository mutation and is forbidden while the
-gate is `blocked` or `review-required`; do not use the temporary compiler
-session as a substitute for this write. Then rerun deterministic validation and
-compile the written source:
+Write the scoped change directly to the target workspace. The target file is
+the review artifact; do not reproduce complete proposed source in chat and do
+not start a compiler session for ordinary authoring or review. Run this loop
+after every semantic write:
 
 ```bash
 sigil check <workspace-root> --format json --pretty
 sigil compile <workspace-root> --focus design --component <name>
 ```
 
+Compiler sessions remain available only for an explicitly requested exceptional
+diagnostic investigation. They are not a required pre-write proposal workflow.
+
+Design compilation can take substantial time. Wait for its terminal outcome:
+the JSONL event protocol emits `completed` with the authoritative version-2
+CompilationReport, or emits `failed` or `cancelled` without a report. A stream
+consumer also waits for source end after that terminal event. Stage-started
+events, partial progress, silence while an evaluator runs, or a slow response
+are not results. Keep the agent working session open while the compiler runs
+and report that it is waiting when progress is slow. Treat a missing terminal
+outcome as a host or transport problem, not as red, yellow, or green evidence.
+
+1. Fix a deterministic, structural, or coherence issue directly when the report
+   and established intent determine one safe correction.
+2. Enter `references/design-conversation.md` when a finding exposes an
+   unresolved material decision, conflicting intent, or future-facing pitfall.
+3. Write the resulting scoped correction and compile again.
+
+Repeat until the report is green or every yellow finding is explicitly reviewed
+and accepted as nonblocking. Do not synthesize follow-on Sigil, extract glossary
+candidates, or begin implementation from red, unresolved-yellow, unavailable,
+or incomplete design evidence. If progress requires user judgment, keep the
+affected scope in DesignConversation rather than guessing.
+
+## Interpret The Final Report
+
+- Red is not reviewable for implementation.
+- Yellow requires explicit human acceptance of every finding as nonblocking for
+  the exact scope.
+- Green is evidence for user review and implementation approval, not approval.
+
+Do not duplicate the compiler's semantic-readiness or architecture-design
+judgment in a second host-generated status. The host still owns external-
+guidance applicability, finding disposition, design decisions, concept grouping,
+glossary extraction, and ReviewGate.
+
+Evidence for written-file review identifies the selected workspace root, changed
+paths, semantic units, target, profile, focus, report status, and every yellow
+disposition. Submit this evidence with the validated written Sigil to
+`ReviewGate(action: implementation)` only when implementation is requested.
+
 Written evidence must be green or explicitly reviewed yellow before concept
 grouping, glossary extraction, or implementation review. Any semantic edit or
-grouping change invalidates the prior report and requires a new generation or
-written compilation.
+grouping change restarts the compile-and-resolve loop.
 
-An unavailable, incomplete, or red compiler result blocks semantic mutation
-review. An unresolved yellow finding also blocks it. Session expiry, ownership
-failure, target ambiguity, or snapshot change is reported explicitly and never
-bypassed by evaluating a different untracked source copy.
+An unavailable, incomplete, or red compiler result blocks implementation
+review. An unresolved yellow finding also blocks it. Report target ambiguity or
+other compilation failure explicitly; never bypass it with an untracked source
+copy.

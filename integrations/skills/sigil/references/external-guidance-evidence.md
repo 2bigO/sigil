@@ -257,7 +257,7 @@ During design conversation, show directly relevant source identity and links
 with an evidence-informed recommendation. During standards review, include the
 complete source record and map each finding to its support.
 
-Approved Sigil may retain a source identifier and applicable version only when
+Validated written Sigil may retain a source identifier and applicable version only when
 needed to reconstruct material decision rationale or its revisit condition.
 Keep source URLs and full bibliographic records outside Sigil unless the user
 approves a different project policy. Write approved outcomes as project

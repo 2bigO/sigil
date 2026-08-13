@@ -75,5 +75,5 @@ Expected skill behavior:
     material problem remains.
 30. Keep intentionally deferred decisions and material evidence limitations
     visible in synthesis.
-31. Treat resolved correction and accepted improvements as evidence for
-    `ReviewGate(action: sigil-change)` rather than edit authority.
+31. Treat resolved correction and accepted improvements as authority to write
+    the scoped Sigil directly, then validate and compile the written result.

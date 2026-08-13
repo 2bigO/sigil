@@ -17,7 +17,7 @@ review request without changed Sigil.
 
 Expected skill behavior:
 
-1. After every approved Sigil write or semantic edit, run deterministic glossary
+1. After every validated written Sigil change or semantic edit, run deterministic glossary
    inspection and ordinary workspace validation, including when GlossaryFile is
    absent.
 2. Treat deterministic inspection and model-assisted candidate extraction as
@@ -44,7 +44,7 @@ Expected skill behavior:
 14. Avoid proposing ordinary English merely because it is frequent.
 15. Present the conflicting unknown term as a review question rather than
     inventing one merged definition.
-16. Treat approved Sigil as normative and propose correction of the conflicting
+16. Treat validated written Sigil as normative and propose correction of the conflicting
     glossary entry.
 17. Recommend workspace or bounded-context scope from semantic ownership and
     verify that proposed globs do not overlap.
@@ -65,7 +65,8 @@ Expected skill behavior:
     instead of citing the diagnostic count.
 25. Continue to the next applicable ReviewGate action after applying and
     validating an approved glossary change.
-26. Before coding, run `sigil context` and include its scoped `glossaryContext`
+26. Before coding, run `sigil retrieve --purpose implementation` and include
+    its scoped `glossaryContext`
     in the coding-agent handoff.
 27. Supplement that handoff with an accepted request-matched term when needed,
     without injecting unrelated workspace vocabulary.

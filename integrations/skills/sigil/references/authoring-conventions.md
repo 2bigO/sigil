@@ -117,9 +117,9 @@ Summarize durable rationale rather than prompts, raw session transcripts, or
 hidden reasoning. Responsibility, accountability, approver, and handoff metadata
 remain outside the convention.
 
-After writing approved Sigil, repeat the coverage audit against the exact
-written semantic units. A missing material decision returns to
-`ReviewGate(action: sigil-change)` and blocks implementation readiness.
+After writing scoped Sigil, repeat the coverage audit against the exact written
+semantic units. A missing material decision blocks implementation readiness
+until the written Sigil is corrected and revalidated.
 
 ## Semantic Units, Width, And Literals
 
@@ -138,7 +138,7 @@ Every resolved imported name needs a qualifying exact-case use in `interface`,
 matching local `expand`. `goal`, `decisions`, and
 literal blocks are documentary for import-use purposes.
 
-Use `sigil fmt <selected-path> --check` after approved edits. Apply `sigil fmt`
+Use `sigil fmt <selected-path> --check` after scoped edits. Apply `sigil fmt`
 only when formatting that selected scope is approved; never infer permission
 for a repository-wide formatting pass.
 
@@ -152,17 +152,16 @@ identifier generation, or warning repair while semantic readiness is
 `unassessed` or `correction required`.
 
 After semantic readiness appears aligned for the selected scope,
-concept-identifier creation, reuse, regrouping, renaming, and warning repair use
-`ReviewGate(action: sigil-change)` for the exact proposal before any repository
-mutation.
+concept-identifier creation, reuse, regrouping, renaming, and warning repair
+are written directly to the scoped Sigil and then revalidated.
 
 Before proposing an identifier:
 
 1. inspect the remainder of the same section, every other section of the
    component, and every matching expand for the same semantic idea;
 2. inspect existing local concepts and accessible imported public concepts;
-3. use `sigil graph` to inspect direct importers for relevant use cases and
-   established terminology;
+3. use `sigil retrieve --purpose architecture` to inspect direct importers for
+   relevant use cases and established terminology;
 4. traverse transitive importers only when a concept is re-exposed or namespace
    ambiguity must be assessed;
 5. classify each affected interface region as local reuse, imported public
@@ -188,18 +187,18 @@ private visibility, collective coherence, and transitive import ambiguity.
 Subagent completion is not user approval and grants no edit authority to the
 primary agent.
 
-Present the complete exact proposal to ReviewGate, enter awaiting approval, and
-leave files unchanged until `sigil-change` is ready. Prefer PascalCase without
-hyphens or underscores. Treat an unusually long name as a possible grouping or
-component-boundary problem.
+Report the changed concepts and evidence in the written-file review. Prefer
+PascalCase without hyphens or underscores. Treat an unusually long name as a
+possible grouping or component-boundary problem.
 
 When subagents are unavailable, perform the same discovery, proposal, and
 validation in the primary agent. Keep anchoring outside concept-identifier work.
 
-After applying an approved grouping or identifier change:
+After applying a grouping or identifier change:
 
 1. run `sigil check`;
-2. use `sigil context` or `sigil graph` when identity relationships changed;
+2. use `sigil retrieve --purpose architecture` when identity relationships
+   changed; use `context` or `graph` only for missing detail;
 3. repeat the semantic-readiness review on the grouped Sigil;
 4. investigate any suspected material ambiguity and return to DesignConversation
    in correction mode only when the ambiguity confirms a material problem;
@@ -230,6 +229,6 @@ Do not move a configured-boundary `_module.sigil`; its ordinary summary remains
 at the workspace root or declared-member boundary. Internal module indexes may
 move with their owning directories.
 
-Update affected imports after an approved placement-only move, run
+Update affected imports after a placement-only move, run
 `sigil check`, and use `graph` or `context` when relationships matter. Any
-semantic-unit change requires `ReviewGate(action: sigil-change)`.
+semantic-unit change requires written-file validation and design compilation.

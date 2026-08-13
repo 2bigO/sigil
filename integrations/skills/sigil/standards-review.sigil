@@ -75,8 +75,8 @@ StandardsReview {
       Standards review records complete source details and maps findings to their
       supporting evidence.
 
-      Approved Sigil may retain a source identifier and applicable version only when
-      needed to reconstruct material rationale or its revisit condition.
+      Validated written Sigil may retain a source identifier and applicable version
+      only when needed to reconstruct material rationale or its revisit condition.
 
       Source URLs and full bibliographic records remain outside Sigil unless a
       separate policy is approved.
@@ -84,7 +84,7 @@ StandardsReview {
       Approved additions are written as project decisions rather than claims of
       certification.
 
-      A conflict never silently overrides approved Sigil.
+      A conflict never silently overrides validated written Sigil.
     }
   }
 

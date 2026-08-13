@@ -14,8 +14,8 @@ normal design activity, not merely a response to an unclear prompt.
 1. Frame the design conversation
 2. Explore questions and choices
 3. Establish boundaries and contracts
-4. Review and synthesize proposed Sigil
-5. Apply an approved proposal
+4. Review and synthesize scoped Sigil edits
+5. Write and validate the scoped Sigil
 6. Limits and examples
 
 ## 1. Frame The Design Conversation
@@ -111,23 +111,23 @@ layout out of public interfaces unless they are deliberate guarantees.
 
 When implementation shape is material and already clear, follow
 `references/implementation-design.md` and include implementation components,
-implementation-specific expands, and the coverage map in the same proposal.
+implementation-specific expands, and the coverage map in the same scoped write.
 Otherwise complete implementation design after the higher-level contract is
-approved and use a separate Sigil review cycle.
+validated and use a separate Sigil review cycle.
 
-## 4. Review And Synthesize Proposed Sigil
+## 4. Review And Synthesize Scoped Sigil
 
 Apply `references/standards-review.md` before asking for final approval. Verify
 the currency and applicability of evidence packets created during design
 conversation, then review semantic readiness, applicable guidance, cross-Sigil
 coherence, modularity, constraint-derived cases, and evidence or uncertainty.
 
-Review the exact ungrouped proposal first. If semantic readiness is
+Review the exact ungrouped written change first. If semantic readiness is
 `correction required`, enter DesignConversation in correction mode and stop
 before concept grouping. Investigate a suspected finding before assigning that
 state. Only after readiness appears aligned may
 `references/authoring-conventions.md` group interface concepts. Repeat semantic
-review on the grouped proposal before presenting it for approval.
+review on the grouped write before file review.
 
 Before approval, inventory every material selected choice in the proposed
 contract and include its matching decision record or justified omission in the
@@ -145,10 +145,11 @@ tradeoffs accepted, and deliberately deferred questions.
 Describe each component's responsibility, public dependents, owned state or
 policy, and important non-responsibilities.
 
-### Proposed Sigil
+### Written Sigil
 
-Show the exact components, expands, and imports that would be written. Do not
-replace exact text with a high-level description.
+Write the scoped components, expands, and imports directly to their target
+files. Use those files as the review artifact; do not duplicate their full text
+in chat.
 
 ### Proposed Locations And Imports
 
@@ -160,27 +161,25 @@ will be added or updated.
 Report unresolved conflicts, unavailable guidance, intentionally deferred
 choices, and any uncertainty that blocks implementation.
 
-### ReviewGate Request
+### Written-File Review
 
-Submit `action: sigil-change`, the target workspace root, every target
-path, the complete resulting source for each changed file, the exact scope,
-synthesized semantic change set, and evidence. Ask the user to approve, reject,
-or revise it. Conversation is evidence and does not make ReviewGate ready.
+Report the target workspace root, changed paths, exact scope, semantic change
+set, and evidence. The user reviews the written files before implementation.
 
-## 5. Apply An Approved Proposal
+## 5. Validate Written Sigil
 
-After `ReviewGate(action: sigil-change)` returns ready:
+After writing the scoped Sigil:
 
-1. materialize the approved complete source into the target workspace;
-2. create or update only the approved Sigil files;
+1. create or update only the scoped Sigil files;
 3. run `sigil check` on the workspace;
-4. use `sigil graph` or `sigil context` when relationships changed;
+4. use `sigil retrieve --purpose architecture` when relationships changed; use
+   `graph` or `context` only for missing detail;
 5. reread the written files and repeat semantic, coherence, and modularity
    review;
 6. repeat the decision-rationale coverage audit against the written semantic
    lines and return to proposal review when coverage is missing;
-7. if concept grouping is still required, propose and apply it only through
-   ReviewGate with `sigil-change`, then rerun deterministic and semantic review;
+7. if concept grouping is still required, write it to the scoped Sigil, then
+   rerun deterministic and semantic review;
 8. perform glossary candidate extraction only after the final semantic review
    appears aligned;
 9. report changed files, captured decisions, open questions, and validation
@@ -194,7 +193,7 @@ returns ready and every material implementation concern has established
 coverage or an intentional omit decision.
 
 If implementation reveals a missing material decision, return to conversation,
-update the Sigil proposal, and use `ReviewGate(action: sigil-change)`.
+update and validate the written Sigil before resuming implementation review.
 
 ## 6. Limits And Examples
 

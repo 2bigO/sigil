@@ -14,7 +14,8 @@
 component SigilSkill {
   goal {
     Provide coding-agent hosts with one reusable workflow for designing, reviewing,
-    reconciling, and implementing software through approved Sigil contracts.
+    reconciling, and implementing software through validated written Sigil
+    contracts.
 
     Keep ambiguity resolution, evidence classification, standards review, and human
     approval in the host workflow while consuming compiler-owned semantic and
@@ -47,8 +48,8 @@ SkillPackage {
 
       SigilWorkspaceBootstrap, SigilDesignCompilationReview, SigilStandardsReview,
       SigilAuthoringWorkflow, SigilGlossaryWorkflow, SigilImplementationWorkflow,
-      SigilDesignConversation, and ExternalGuidanceEvidence remain available through
-      their imported owning contracts
+      SigilReviewGate, SigilDesignConversation, and ExternalGuidanceEvidence remain
+      available through their imported owning contracts
 
       directory imports expose those cohesive workflow components without making the
       module index own their operational policy or mutable lifecycle
