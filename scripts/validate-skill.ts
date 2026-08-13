@@ -64,11 +64,6 @@ requireText(skill, "name: sigil", "SKILL.md name");
 requireText(skill, "description:", "SKILL.md description");
 requireText(
   skill,
-  "This file is the workflow dispatcher.",
-  "compact workflow dispatcher",
-);
-requireText(
-  skill,
   "references/workspace-bootstrap.md",
   "workspace bootstrap routing",
 );
@@ -87,7 +82,7 @@ requireText(
 );
 requireText(
   skill,
-  "A requested outcome does not make\nReviewGate ready for `sigil-change` or `implementation`",
+  "Do not implement merely because the user requested an outcome or a\ncheck passed.",
   "outcome and approval separation",
 );
 requireText(
@@ -112,17 +107,17 @@ requireText(
 );
 requireText(
   designCompilationReview,
-  "sigil compile session start <workspace-root> --focus design",
-  "proposal compilation session start",
+  "sigil compile <workspace-root> --agent --focus design <target-selector> --format jsonl",
+  "ordinary design compilation",
 );
 requireText(
   designCompilationReview,
-  "human explicitly reviews every finding",
+  "every yellow finding is explicitly reviewed",
   "reviewed-yellow disposition",
 );
 requireText(
   designCompilationReview,
-  "Do not duplicate the\ncompiler's semantic-readiness or architecture-design judgment",
+  "Do not duplicate the compiler's semantic-readiness or architecture-design\njudgment",
   "compiler evidence authority boundary",
 );
 requireText(
@@ -132,8 +127,7 @@ requireText(
 );
 requireText(
   skill,
-  "explicitly report whether glossary extraction is required, deferred,\n" +
-    "  or deterministic inspection only",
+  "Always state whether glossary extraction is\n   required, deferred, or inspection-only.",
   "explicit session glossary status routing",
 );
 requireText(
@@ -197,21 +191,24 @@ requireText(
   "Separate distinct prose-level ideas with blank lines",
   "semantic blank-line style",
 );
-requireText(skill, "one primary decision per turn", "sequential clarification");
 requireText(
   skill,
-  "Verify that every material implementation concern has established coverage",
+  "Ask one primary decision at a time",
+  "sequential clarification",
+);
+requireText(
+  implementationWorkflowContract,
+  "Classify every material implementation concern as established, partial, or",
   "clear Sigil coverage guard",
 );
 requireText(
-  skill,
-  "Report the validated written Sigil without creating another approval gate.",
+  designCompilationReview,
+  "Green is evidence for user review and implementation approval, not approval.",
   "no separate written-Sigil approval stage",
 );
 requireText(
-  skill,
-  "Submit the validated written Sigil and exact implementation scope together\n" +
-    "     to `ReviewGate(action: implementation)`",
+  implementationDesign,
+  "use `ReviewGate(action: implementation)` over the validated written Sigil and\n   exact implementation scope before implementation.",
   "implementation approval boundary",
 );
 requireText(
@@ -220,13 +217,13 @@ requireText(
   "missing concept identifier workflow",
 );
 requireText(
-  skill,
-  "A successful CLI check also does not establish semantic readiness.",
+  standardsReview,
+  "`sigil check` validates deterministic syntax, configuration, resolution,",
   "deterministic and semantic validation boundary",
 );
 requireText(
-  skill,
-  "Do not begin concept grouping or glossary candidate extraction until",
+  standardsReview,
+  "Do not begin concept reuse discovery, concept grouping, identifier",
   "semantic readiness before enrichment",
 );
 requireText(
@@ -298,7 +295,7 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "use `sigil graph` to inspect direct importers",
+  "use `sigil retrieve --purpose architecture` to inspect direct importers",
   "direct consumer concept evidence",
 );
 requireText(
@@ -330,12 +327,12 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "warning repair use\n`ReviewGate(action: sigil-change)` for the exact proposal before any repository\nmutation",
-  "concept identifier ReviewGate action",
+  "concept-identifier creation, reuse, regrouping, renaming, and warning repair\nare written directly to the scoped Sigil and then revalidated.",
+  "concept identifier direct-authoring route",
 );
 requireText(
-  skill,
-  "Every delegated semantic proposal is advisory",
+  authoringConventions,
+  "Subagent completion is not user approval and grants no edit authority to the\nprimary agent.",
   "global delegated proposal evidence boundary",
 );
 requireText(
@@ -370,7 +367,7 @@ requireText(
 );
 requireText(
   authoringConventions,
-  "After writing approved Sigil, repeat the coverage audit",
+  "After writing scoped Sigil, repeat the coverage audit",
   "post-write decision coverage audit",
 );
 requireText(
@@ -458,17 +455,17 @@ for (const behavior of requiredDesignCompilationReviewBehaviors) {
 }
 requireText(
   designCompilationReviewFixture,
-  "nearest configured module index that imports the selected file",
+  "Resolve the importing module\n   index whose closure covers every affected unit",
   "nearest importing module-index selection",
 );
 requireText(
   designCompilationReviewFixture,
-  "human reviews every finding",
+  "human reviews every finding and\n   explicitly accepts each one as nonblocking",
   "explicit reviewed-yellow disposition",
 );
 requireText(
   designCompilationReviewFixture,
-  "compile the\n    written Sigil with focus `design`",
+  "Run deterministic validation and `sigil compile --focus design`",
   "post-write design compilation",
 );
 const requiredWorkspaceBootstrapBehaviors = [
@@ -666,8 +663,8 @@ requireText(
 );
 requireText(
   greenfieldFixture,
-  "exact\n    `ReviewGate(action: sigil-change)` request",
-  "greenfield exact ReviewGate request",
+  "`ReviewGate(action: implementation)` is ready for the",
+  "greenfield implementation ReviewGate request",
 );
 requireText(
   greenfieldFixture,
@@ -1065,9 +1062,8 @@ requireText(
 );
 requireText(
   conceptIdentifierFixture,
-  "Submit the exact proposal to `ReviewGate(action: sigil-change)` and leave\n" +
-    "    every repository file unchanged while its result is review-required",
-  "concept fixture ReviewGate waiting state",
+  "Write the complete validated concept changes directly in the scoped Sigil\n    files for file review.",
+  "concept fixture direct-authoring state",
 );
 requireText(
   conceptIdentifierFixture,
@@ -1086,7 +1082,7 @@ requireText(
 );
 requireText(
   conceptIdentifierFixture,
-  "rerun deterministic and semantic review before\n    glossary candidate extraction",
+  "rerun deterministic and semantic review before\n   glossary candidate extraction",
   "concept fixture final semantic review",
 );
 
@@ -1153,7 +1149,7 @@ requireText(
 );
 requireText(
   decisionRationaleFixture,
-  "Repeat the coverage audit after writing approved Sigil",
+  "Repeat the coverage audit after writing validated Sigil",
   "decision fixture post-write audit",
 );
 forbidText(
@@ -1257,7 +1253,7 @@ requireText(
 );
 requireText(
   glossaryFixture,
-  "After every approved Sigil write or semantic edit",
+  "After every validated written Sigil change or semantic edit",
   "glossary fixture mandatory post-write inspection",
 );
 requireText(
@@ -1302,7 +1298,7 @@ requireText(
 );
 requireText(
   glossaryFixture,
-  "include its scoped `glossaryContext`",
+  "include\n    its scoped `glossaryContext`",
   "glossary fixture coding context handoff",
 );
 requireText(
@@ -1373,7 +1369,7 @@ requireText(
 );
 requireText(
   brownfield,
-  "After the approved configured-boundary summary is written and validated",
+  "After the configured-boundary summary is written and validated",
   "brownfield boundary-before-task ordering",
 );
 
@@ -1397,8 +1393,8 @@ requireText(
 );
 requireText(
   greenfield,
-  "Show the exact components, expands, and imports that would be written.",
-  "greenfield exact proposal",
+  "Write the scoped components, expands, and imports directly to their target\nfiles.",
+  "greenfield direct authoring",
 );
 
 requireText(
