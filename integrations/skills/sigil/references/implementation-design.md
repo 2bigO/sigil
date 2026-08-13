@@ -31,18 +31,20 @@ preflight before the first mutation and repeat it whenever the requested scope,
 governing Sigil, implementation evidence, or material concerns change:
 
 1. complete `references/workspace-bootstrap.md`;
-2. retrieve the governing component and expands with
+2. apply `references/design-intake.md`; stop when it returns
+   `conversation-required` or `context-insufficient`;
+3. retrieve the governing component and expands with
    `sigil retrieve --purpose implementation`; its ownership source evidence is
    required for complete implementation context. If retrieval reports
    unavailable implementation discovery, resolve that condition before
    implementation. Use `sigil context` or `sigil graph` only for detail absent
    from a successful retrieval;
-3. inspect the selected implementation boundary, direct dependents, tests, and
+4. inspect the selected implementation boundary, direct dependents, tests, and
    relevant implementation evidence;
-4. classify every material concern as established, partial, or missing;
-5. write, validate, and compile missing or changed Sigil when the mutation
+5. classify every material concern as established, partial, or missing;
+6. write, validate, and compile missing or changed Sigil when the mutation
    introduces or exposes an uncovered material decision;
-6. use `ReviewGate(action: implementation)` over the validated written Sigil and
+7. use `ReviewGate(action: implementation)` over the validated written Sigil and
    exact implementation scope before implementation.
 
 Implementation artifacts include source code, configuration, migrations,

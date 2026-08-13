@@ -1,4 +1,5 @@
 @integrations/skills/sigil/external-guidance-evidence.sigil import { ExternalGuidanceEvidence }
+@integrations/skills/sigil/design-intake.sigil import { SigilDesignIntake }
 @packages/core/src/context-retrieval.sigil import { SigilContextRetrieval }
 
 component SigilDesignConversation {
@@ -25,8 +26,8 @@ component SigilDesignConversation {
     }
 
     DesignConversation {
-      begins only when explicit design, review, or improvement work or a material
-      unresolved issue requires user judgment
+      begins when SigilDesignIntake identifies a material unresolved issue requiring
+      user judgment, or when explicit design, review, or improvement work applies
 
       operates in exploration, improvement, or correction mode
 
@@ -73,6 +74,7 @@ expand SigilDesignConversation {
 
       A confirmed material problem keeps the conversation in correction until
       resolved.
+
     }
 
     DecisionLedger {
@@ -103,8 +105,8 @@ expand SigilDesignConversation {
     }
 
     DesignConversation {
-      Enter only for explicit design, review, or improvement work or when a material
-      unresolved decision or finding requires user judgment.
+      Enter when SigilDesignIntake reports a material unresolved decision or when
+      explicit design, review, or improvement work applies.
 
       Use exploration mode for incomplete intent, improvement mode for a coherent
       contract with credible improvement opportunities, and correction mode only for
@@ -190,6 +192,7 @@ expand SigilDesignConversation {
       tradeoff decisions.
 
       Immaterial hypothetical edge cases are not pursued merely for completeness.
+
     }
 
     EvidencePacket {
@@ -314,6 +317,7 @@ expand SigilDesignConversation {
 
       An uncertain user receives a recommendation with consequences and resolves
       every material choice rather than accepting an unexplained default.
+
     }
 
     EvidencePacket {
