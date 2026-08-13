@@ -37,7 +37,8 @@ how its implementation should be understood and changed.
    compiler emits a terminal outcome and its stream closes, and its report-driven
    correction path.
 6. Report changed files, decisions, assumptions, unresolved questions,
-   validation, and glossary status. Let the user review the written Sigil.
+   validation, and glossary status. Always state whether glossary extraction is
+   required, deferred, or inspection-only. Let the user review the written Sigil.
 7. Before changing implementation, read
    `references/implementation-design.md` and obtain
    `ReviewGate(action: implementation)` readiness for the validated written
@@ -134,9 +135,9 @@ sigil check path-or-workspace --format json --pretty
 sigil fmt path-or-workspace --check
 sigil compile path-or-workspace --agent --focus design --component Name --format jsonl
 sigil compile path-or-workspace --agent --focus implementation --component Name --format jsonl
-sigil retrieve path-or-workspace --component Name --purpose semantic --format markdown
-sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format markdown
-sigil retrieve path-or-workspace --component Name --purpose implementation --format markdown
+sigil retrieve path-or-workspace --component Name --purpose semantic --format json
+sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format json
+sigil retrieve path-or-workspace --component Name --purpose implementation --format json
 sigil graph path-or-workspace --format json --pretty
 sigil context path-or-workspace --component Name --format json --pretty
 sigil context path-or-workspace --file path/to/file.sigil --format json --pretty
