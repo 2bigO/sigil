@@ -36,15 +36,14 @@ Expected skill behavior:
    status, grouping decisions, and proposed names in the returned proposal.
 14. Validate grammar, case-insensitive uniqueness, visibility, collective
    coherence, and transitive ambiguity in the primary agent.
-15. Present the complete validated proposal and exact Sigil changes to the user.
-16. Submit the exact proposal to `ReviewGate(action: sigil-change)` and leave
-    every repository file unchanged while its result is review-required.
-17. Treat subagent completion as advisory output rather than user approval or
-    edit authority for the primary agent.
-18. Apply concept creation, reuse, regrouping, renaming, or warning repair only
-    when ReviewGate is ready for the exact sigil-change scope and change set.
-19. After approved grouping, rerun deterministic and semantic review before
-    glossary candidate extraction.
+15. Write the complete validated concept changes directly in the scoped Sigil
+    files for file review.
+16. Treat subagent completion as advisory output rather than user approval or
+    evidence that material intent is resolved.
+17. Apply concept creation, reuse, regrouping, renaming, or warning repair only
+    after material intent is resolved; validate and compile each semantic write.
+18. After validated grouping, rerun deterministic and semantic review before
+   glossary candidate extraction.
 20. Investigate material ambiguity exposed by grouping and return to
     DesignConversation in correction mode only when it confirms a material
     problem.

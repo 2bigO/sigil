@@ -29,11 +29,10 @@ Expected skill behavior:
    covered, missing, or justified omission.
 10. Keep semantic readiness at correction required while either material choice
     lacks its decision record.
-11. Include every missing exact decision block in the semantic proposal, submit
-    it to `ReviewGate(action: sigil-change)`, and leave files unchanged until
-    ready.
-12. Repeat the coverage audit after writing approved Sigil and return to
-    ReviewGate with `sigil-change` if coverage is missing.
+11. Include every missing exact decision block in the scoped Sigil files, then
+    validate and compile the written result.
+12. Repeat the coverage audit after writing validated Sigil; return to
+    DesignConversation if coverage is missing.
 13. Reuse the accessible public transaction concept in the reporting decision
    when both occurrences concern the same semantic idea.
 14. Keep the reporting occurrence contextual and do not make either decision

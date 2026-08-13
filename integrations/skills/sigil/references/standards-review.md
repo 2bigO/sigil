@@ -74,7 +74,7 @@ and block synthesis, approval, and implementation until resolution.
 
 Once the pre-grouping compilation is green or reviewed yellow, follow
 `references/authoring-conventions.md` for missing concept identifiers. After an
-approved grouping change, rerun deterministic validation and design compilation.
+written grouping change, rerun deterministic validation and design compilation.
 When grouping is unnecessary, the post-write design compilation directly
 controls extraction eligibility.
 
@@ -105,7 +105,7 @@ with evidence, return to DesignConversation in the applicable mode. Missing
 coverage blocks proposal approval and prevents design evidence from being
 submitted as ready for ReviewGate.
 
-After approved Sigil is written, repeat the audit against the exact resulting
+After validated written Sigil is updated, repeat the audit against the exact resulting
 semantic units. Successful CLI validation never substitutes for this audit.
 
 ### Goal Clarity
@@ -144,7 +144,7 @@ Implementation-hiding rules and forbidden internal access belong in
 Review exact interface prose during design-evidence preparation
 without requiring identifiers first. Treat every
 `SIGIL_MISSING_CONCEPT_IDENTIFIER` warning as a deferred authoring gap. After
-design compilation is green or reviewed yellow, repair it through the approved
+design compilation is green or reviewed yellow, repair it through the
 concept-identifier workflow, then verify during final design compilation that repeated identifiers
 describe one coherent concept and imported provider expands remain outside the
 consumer's public dependency context.
@@ -180,8 +180,9 @@ verification point in the review summary instead of forcing it into Sigil.
 
 ### Cross-Sigil Coherence
 
-Use `sigil context` and `sigil graph` when available. Read exact source wording
-before reporting a conflict.
+Use `sigil retrieve --purpose architecture` as the default context source. Use
+`sigil context` or `sigil graph` only for detail that is absent from a successful
+retrieval. Read exact source wording before reporting a conflict.
 
 Check the selected component, all matching expands, imported and importing
 contracts, relevant ordinary summary components at the workspace root or
@@ -192,7 +193,7 @@ declared members, and nearby internal Sigil files for:
 - dependencies that expect an interface the provider does not promise;
 - duplicated or missing ownership;
 - expands that contradict rather than complement one another;
-- code or repository facts that disagree with approved Sigil.
+- code or repository facts that disagree with validated written Sigil.
 
 Treat code/spec disagreement as drift. Do not assume code or Sigil is correct
 without evidence or user direction.
@@ -266,7 +267,7 @@ conversation, a directly relevant source identity and link may accompany an
 evidence-informed recommendation. During standards review, retain the complete
 records under `Sources Consulted`.
 
-Approved Sigil may retain a source identifier and applicable version only when
+Validated written Sigil may retain a source identifier and applicable version only when
 needed to reconstruct material decision rationale or its revisit condition.
 Keep source URLs and full bibliographic records outside Sigil unless the user
 approves a different project policy. Never write certification or complete
@@ -299,7 +300,7 @@ concept grouping or glossary candidate extraction.
 
 Classify every researched finding:
 
-- **Compatible guidance:** adds detail without contradicting approved Sigil,
+- **Compatible guidance:** adds detail without contradicting validated written Sigil,
   related contracts, repository facts, or an explicit user decision.
 - **Potential conflict:** wording or evidence may disagree, but scope,
   applicability, or intent remains uncertain.
@@ -339,9 +340,9 @@ material problem, enter DesignConversation in correction mode and report:
 
 Keep design review blocked until the confirmed problem is resolved. A confirmed
 material problem cannot be deferred, provisionally
-assumed, or bypassed for approval or implementation. Resolution is evidence
-that authorizes only preparation of an exact Sigil proposal; it does not make
-ReviewGate ready.
+assumed, or bypassed for approval or implementation. Resolution authorizes
+writing the exact scoped Sigil; it does not make ReviewGate ready for
+implementation.
 
 ### Compatible Guidance
 
@@ -353,15 +354,15 @@ Before editing, present:
 - the source record in the review summary;
 - whether the suggestion is blocking or optional.
 
-Compatible guidance may identify an optional improvement to coherent approved
-Sigil. Present it through DesignConversation improvement mode when adopting it
+Compatible guidance may identify an optional improvement to coherent validated
+written Sigil. Present it through DesignConversation improvement mode when adopting it
 requires a material project decision. Rejecting or deferring an optional
 improvement does not make the existing contract defective.
 
-Submit the exact lines to `ReviewGate(action: sigil-change)`. When it returns
-ready, write the lines as project decisions, not claims such as “ISO requires
-this.” Then run `sigil check`, use `context` or `graph` when relationships
-changed, and report the validated result without another approval gate.
+Write the exact lines as project decisions, not claims such as “ISO requires
+this.” Then run `sigil check`, use `sigil retrieve --purpose architecture` when
+relationships changed, and use `context` or `graph` only for missing detail.
+Report the validated result without another approval gate.
 
 ### Potential Or Definite Conflict
 
@@ -468,7 +469,7 @@ record in the review summary.
 
 ### Conflict
 
-If approved Sigil exposes sensitive credentials in a public interface while
+If validated written Sigil exposes sensitive credentials in a public interface while
 applicable security guidance says they must remain secret, preserve the Sigil,
 report the exact conflict and impact, and offer interface alternatives. Do not
 silently rewrite the contract.

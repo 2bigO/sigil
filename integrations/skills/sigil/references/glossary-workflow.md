@@ -2,7 +2,7 @@
 
 # Reviewed Glossary Workflow
 
-Use this procedure after every approved `.sigil` write or semantic edit, when
+Use this procedure after every validated `.sigil` write or semantic edit, when
 `.sigil/glossary.json` exists, when the user asks to create or maintain project
 vocabulary, or when terminology ambiguity materially affects Sigil design or
 review.
@@ -15,7 +15,7 @@ semantic conflicts but cannot make inferred language authoritative.
 
 In every Sigil session, explicitly classify and report one glossary status:
 
-- `extraction required`: approved semantic Sigil was written or edited, the
+- `extraction required`: validated semantic Sigil was written or edited, the
   user requested vocabulary review, or material terminology ambiguity affects
   the selected scope;
 - `extraction deferred`: extraction is triggered but semantic readiness is
@@ -24,7 +24,7 @@ In every Sigil session, explicitly classify and report one glossary status:
   implementation and has no vocabulary-review or material-ambiguity trigger.
 
 When GlossaryFile exists, perform deterministic glossary inspection even when
-model-assisted extraction is not triggered. After an approved semantic Sigil
+model-assisted extraction is not triggered. After a validated semantic Sigil
 write or edit, inspect deterministic state even when GlossaryFile is absent.
 Never silently omit the status. For a deferred status, name the blocking review
 state. For inspection only, explain that no semantic Sigil lines entered
@@ -32,7 +32,7 @@ candidate extraction.
 
 ## 1. Inspect Deterministic State
 
-When GlossaryFile exists or after writing approved Sigil, run:
+When GlossaryFile exists or after writing validated Sigil, run:
 
 ```bash
 sigil glossary . --format json --pretty
@@ -64,7 +64,7 @@ Never report that no glossary changes are needed from CLI output alone.
 
 ## 2. Preserve Authority
 
-An approved normative Sigil contract governs when its wording conflicts with a
+The validated normative Sigil contract governs when its wording conflicts with a
 glossary definition. Report the affected contract lines and glossary entry and
 propose correcting GlossaryFile.
 
@@ -79,13 +79,13 @@ Do not:
 
 ## 3. Extract Candidates
 
-Candidate extraction is a mandatory model-assisted stage for every approved
+Candidate extraction is a mandatory model-assisted stage for every validated
 Sigil write or semantic edit, explicit vocabulary-review request, or material
 terminology ambiguity in the selected scope, but it begins only after:
 
 1. deterministic workspace validation completes without error diagnostics;
 2. the post-write semantic-readiness review appears aligned;
-3. any required concept grouping is proposed, approved, and applied;
+3. any required concept grouping is written, validated, and applied;
 4. deterministic validation and final semantic-readiness review after grouping
    both complete successfully.
 
@@ -106,7 +106,7 @@ Initial extraction examines free-form prose in loaded `.sigil` documents only.
 Exclude structural syntax, concept identifiers, imports, code fences, inline
 code, and URLs.
 
-After an approved semantic mutation, extraction starts from the changed semantic
+After a validated semantic mutation, extraction starts from the changed semantic
 lines. For an explicit vocabulary review or material terminology ambiguity
 without changed Sigil, extract from the selected loaded Sigil scope. Do not
 expand either form into an unrelated workspace-wide scan.
@@ -214,9 +214,9 @@ the glossary validates.
 
 ## 7. Prepare Coding Context
 
-Before implementation, run `sigil context` for the selected component or file.
-Make its `glossaryContext` available to the coding agent together with the
-approved Sigil contract.
+Before implementation, run `sigil retrieve --purpose implementation` for the
+selected component or file. Make its scoped glossary context available to the
+coding agent together with the validated written Sigil contract.
 
 The scoped projection contains accepted definitions recognized in the selected
 component or file and its related expansion sources. Preserve canonical terms,

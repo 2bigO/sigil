@@ -43,10 +43,9 @@ Expected skill behavior:
     verifying the currency and applicability of evidence created during
     conversation.
 17. Recheck affected related-Sigil coherence before synthesis.
-18. Synthesize conversation and review findings into an exact
-    `ReviewGate(action: sigil-change)` request.
-19. Write only when ReviewGate is ready, validate the Sigil, and report the
-    result without another approval gate.
+18. Synthesize conversation and review findings into exact scoped Sigil edits.
+19. Write them directly, validate and compile the Sigil, then review the
+    result in the file.
 20. Treat the missing Sigil coverage as a reason to collaborate with the user on
     the affected Sigil before adding implementation.
 21. Implement only when `ReviewGate(action: implementation)` is ready for the

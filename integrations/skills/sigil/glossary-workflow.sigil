@@ -1,5 +1,6 @@
 @integrations/skills/sigil/design-compilation-review.sigil import { SigilDesignCompilationReview }
 @integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
+@packages/core/src/context-retrieval.sigil import { SigilContextRetrieval }
 
 component SigilGlossaryWorkflow {
   goal {
@@ -59,7 +60,7 @@ GlossaryWorkflow {
       When concept grouping is unnecessary, the post-write DesignCompilationReview
       directly gates glossary candidate extraction.
 
-      After every approved Sigil write or semantic edit, run deterministic glossary
+      After every validated Sigil write or semantic edit, run deterministic glossary
       and workspace inspection, then independently perform model-assisted extraction
       from the changed semantic units regardless of diagnostic count or GlossaryFile
       presence.
@@ -94,7 +95,7 @@ GlossaryWorkflow {
       Present exact JSON additions, replacements, or removals to ReviewGate with
       glossary-change before mutation.
 
-      After approved Sigil is written or semantically edited, run workspace and
+      After validated Sigil is written or semantically edited, run workspace and
       glossary validation and inspect changed semantic units for candidate terms.
 
       Block review and implementation when undefined or conflicting terminology could
@@ -104,8 +105,9 @@ GlossaryWorkflow {
       proposal, rerun glossary and workspace validation, and return to ReviewGate for
       implementation.
 
-      Before implementation, obtain context through sigil context and make its scoped
-      glossary projection available to the coding agent.
+      Before implementation, obtain context through SigilContextRetrieval
+      implementation purpose and make its scoped glossary projection available to the
+      coding agent.
     }
   }
 
@@ -114,7 +116,7 @@ GlossaryWorkflow {
       Candidate extraction never becomes authoritative without explicit human
       approval.
 
-      Normative approved Sigil governs when GlossaryFile conflicts with a component
+      Normative validated Sigil governs when GlossaryFile conflicts with a component
       contract.
 
       Unknown vocabulary remains a semantic-review candidate rather than a
@@ -147,7 +149,7 @@ GlossaryWorkflow {
       semantic-readiness-gated.
 
       Scope: Governs sessions using the Sigil skill when a GlossaryFile exists,
-      approved Sigil is written or edited, vocabulary review is requested, or
+      validated Sigil is written or edited, vocabulary review is requested, or
       material terminology ambiguity is identified; excludes unrelated implementation
       prose and deferred Markdown extraction.
 
@@ -185,7 +187,7 @@ GlossaryWorkflow {
       the changed lines and surrounding evidence inspected before proceeding to Sigil
       review.
 
-      An approved Sigil edit with no material terminology candidate proceeds to
+      A validated Sigil edit with no material terminology candidate proceeds to
       ReviewGate for implementation after workspace and glossary validation.
 
       A correction-required session reports glossary extraction as deferred and names
