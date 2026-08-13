@@ -20,8 +20,9 @@ changes.
 5. Build the implementation coverage map
 6. Link implementation ownership
 7. Propose and approve missing Sigil
-8. Reconcile completed implementation
-9. Limits and examples
+8. Run applicable verification
+9. Reconcile completed implementation
+10. Limits and examples
 
 ## 1. Run Implementation Preflight
 
@@ -295,7 +296,35 @@ Ownership comments are not part of the scoped Sigil change. Plan their targets i
 implementation coverage map, then include them in the exact implementation
 change set submitted to ReviewGate.
 
-## 8. Reconcile Completed Implementation
+## 8. Run Applicable Verification
+
+After each approved implementation change, build a verification inventory before
+claiming completion. Inspect the affected boundary and direct dependents for
+package manifests, task runners, CI workflows, test configuration, and maintained
+workflow documentation. Treat source code, tests, fixtures, configuration,
+validators, metadata, and generated artifacts as one implementation scope when
+they are part of the change.
+
+Select every applicable command in the inventory:
+
+- focused unit or component tests for the changed owner;
+- direct-dependent, integration, contract, and regression suites reachable from
+  the changed boundary;
+- build, type, lint, static-analysis, and end-to-end checks when the repository
+  evidence makes them applicable.
+
+Run each independent selected command, even if another command fails. Run a check
+with failed prerequisites only when those prerequisites become available; record
+the blocked check, prerequisite, and reason. Do not replace a broader applicable
+suite with a focused test, and do not run unrelated repository-wide commands just
+because they exist.
+
+Report the exact command, working directory, result, and relevant failure output
+for every selected check. Report missing or unavailable commands and excluded
+checks with evidence and a reason. Never silently skip an applicable check. A
+passing focused test or build is not complete verification by itself.
+
+## 9. Reconcile Completed Implementation
 
 After each approved implementation change, reconcile the exact completed scope
 before reporting completion:
@@ -318,7 +347,7 @@ Keep this loop open until every implementation and contract finding is resolved.
 An unavailable, incomplete, failed, cancelled, red, or unresolved-yellow
 implementation compile is not alignment evidence and cannot support completion.
 
-## 9. Limits And Examples
+## 10. Limits And Examples
 
 ### Programming Abstraction
 

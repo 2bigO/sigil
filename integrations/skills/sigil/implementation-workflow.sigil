@@ -55,6 +55,9 @@ ImplementationGovernance {
 ImplementationAlignment {
       reconciles completed implementation with its governing validated written Sigil
 
+      requires the complete applicable verification set to be discovered and run
+      before implementation completion is reported
+
       repeats implementation alignment and compilation until no implementation or
       contract drift remains
 
@@ -62,6 +65,11 @@ ImplementationAlignment {
 
       returns contract-affecting findings to written-Sigil design work before
       implementation continues
+
+      discovers and runs the complete applicable verification set for the affected
+      boundary and its reachable affected dependents before completion
+
+      reports verification command outcomes and every blocked or unavailable check
     }
   }
 }
@@ -82,6 +90,11 @@ ImplementationCoverage {
 
       Aggregate implementation coverage is established only when every material
       concern has established coverage.
+
+      Prospective implementation coverage is complete when every material concern has
+      an approved component, expand, or omission, a cohesive planned owner, and
+      covered decision rationale; this is distinct from post-implementation
+      established coverage.
     }
   }
 
@@ -146,6 +159,10 @@ ImplementationGovernance {
       Before implementation, use ReviewGate with implementation over the validated
       written Sigil and exact implementation scope.
 
+      Implementation readiness is permitted only when prospective implementation
+      coverage is complete and ReviewGate returns ready; blocked or review-required
+      results stop mutation.
+
       Stop implementation and return to written-Sigil design work when implementation
       exposes a missing material decision.
     }
@@ -153,8 +170,9 @@ ImplementationGovernance {
 ImplementationAlignment {
       After implementation, compile and compare the exact implementation scope with
       governing Sigil, implementation coverage, ownership annotations, dependents,
-      and relevant verification evidence using SigilCompilationExecution with focus
-      implementation.
+      and verification evidence using SigilCompilationExecution with focus
+      implementation. Complete the applicable verification inventory and run all
+      independent checks before interpreting alignment as complete.
 
       Repeat the alignment loop until the implementation and validated written Sigil
       have no unresolved drift.
@@ -166,6 +184,7 @@ ImplementationAlignment {
       When a finding changes or exposes a missing governing contract, stop the
       implementation loop, write the scoped Sigil correction, and restart design
       validation and compilation before returning to implementation.
+
     }
   }
 
@@ -248,6 +267,9 @@ ImplementationAlignment {
       A completed implementation is not aligned merely because its build or tests
       pass.
 
+      Completion requires every applicable independent verification command to have
+      run, with blocked or unavailable commands explicitly reported.
+
       Alignment compilation must reach a terminal outcome and close its output stream
       before its evidence is relied upon.
 
@@ -259,6 +281,7 @@ ImplementationAlignment {
 
       No implementation completion may be reported while implementation or contract
       drift remains unresolved.
+
     }
   }
 
@@ -356,6 +379,7 @@ ImplementationAlignment {
 
       Revisit when: The compiler can prove complete implementation alignment without
       host reconciliation evidence.
+
     }
   }
 
@@ -415,6 +439,9 @@ ImplementationAlignment {
       An implementation that passes tests but disagrees with its ownership map enters
       reconciliation rather than being reported complete.
 
+      An implementation that passes its focused tests but has an unrun applicable
+      dependent or integration check remains incomplete.
+
       A post-implementation question about a local implementation choice is resolved
       with the user and then returns to alignment when the governing contract is
       unchanged.
@@ -424,6 +451,7 @@ ImplementationAlignment {
 
       Implementation is complete only after the terminal alignment evidence shows no
       unresolved drift.
+
     }
   }
 }
