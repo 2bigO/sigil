@@ -52,15 +52,27 @@ DesignCompilationReview {
       completed carries the authoritative version-2 CompilationReport, while failed
       and cancelled are terminal outcomes without a report.
 
+      Before starting compilation, reserve and record a durable, task-scoped output
+      path. Capture both compiler stdout and stderr there and preserve the command
+      exit status. The capture must remain readable if the command tool returns
+      before a spawned evaluator exits; it is the source of record, not merely a
+      display copy of the live tool event.
+
       A stream consumer also waits for source end after the terminal event.
       Stage-started events, partial progress, silence while an evaluator runs, or a
       slow response do not establish red, yellow, or green evidence. Keep the agent
       session open while it runs. Do not cancel, abandon, or replace the same-scope
       compile because it is slow; a missing terminal is a host or transport problem.
 
-      If the execution host interrupts the stream, report the interruption and resume
-      waiting or retry the same selected target only when the host can run it through
-      source end. Never classify partial output as a compiler result.
+      If the execution host interrupts the live stream, retrieve the durable capture
+      and continue waiting from it. Poll its appended output and, when necessary, the
+      evaluator process state until the capture contains a terminal event and its
+      writer has closed. Preserve the final report or terminal diagnostics from that
+      capture in review evidence. Do not replace the compile merely because the
+      original live stream is unavailable. When the capture is inaccessible or cannot
+      establish source end, report a host or transport failure and retry the same
+      selected target only after restoring durable capture. Never classify partial
+      output as a compiler result.
 
       Use red and yellow diagnostics to investigate evidence and return confirmed
       material problems to DesignConversation. Revise red candidates and yellow
