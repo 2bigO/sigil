@@ -43,9 +43,11 @@ how its implementation should be understood and changed.
    `references/implementation-design.md` and obtain
    `ReviewGate(action: implementation)` readiness for the validated written
    Sigil and exact implementation scope.
-8. After implementation, follow the completed-implementation reconciliation in
-   `references/implementation-design.md`. Run implementation-focused compilation,
-   resolve implementation-only questions with the user, and return
+8. After implementation, follow the verification and completed-implementation
+   reconciliation in `references/implementation-design.md`. Discover and run the
+   complete applicable focused, dependent, integration, regression, build, static,
+   contract, and end-to-end checks; report blocked or unavailable checks explicitly.
+   Then run implementation-focused compilation, resolve implementation-only questions with the user, and return
    contract-affecting drift to written-Sigil design work. Do not report completion
    until the alignment loop has no unresolved drift.
 

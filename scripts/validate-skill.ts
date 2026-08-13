@@ -879,6 +879,10 @@ const requiredImplementationBehaviors = [
   "scan-for-reconciliation-links",
   "review-reconciliation-candidates",
   "verify-ownership-links",
+  "discover-applicable-verification",
+  "run-complete-applicable-verification",
+  "continue-independent-checks-after-failure",
+  "report-blocked-unavailable-and-excluded-checks",
 ];
 if (!Array.isArray(expected.implementationRequiredBehaviors)) {
   throw new Error("Implementation fixture must declare required behaviors.");
@@ -938,6 +942,21 @@ requireText(
   implementationDesign,
   "File extension, directory, documentation\nappearance, generated status, or tooling classification never exempts a\nmutation from preflight.",
   "artifact classification cannot bypass preflight",
+);
+requireText(
+  implementationDesign,
+  "build a verification inventory before\nclaiming completion",
+  "applicable verification inventory",
+);
+requireText(
+  implementationDesign,
+  "Run each independent selected command, even if another command fails.",
+  "independent verification execution",
+);
+requireText(
+  implementationDesign,
+  "Never silently skip an applicable check.",
+  "explicit verification omissions",
 );
 requireText(
   implementationDesign,

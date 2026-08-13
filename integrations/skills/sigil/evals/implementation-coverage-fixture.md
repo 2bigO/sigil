@@ -76,3 +76,10 @@ Expected skill behavior:
 28. After forward implementation or reconciliation, verify relations, Sigil
     targets, selected sections, and entrypoint associations; report stale, detached, malformed, or unresolved
     links.
+29. Build a general verification inventory from manifests, task runners, CI,
+    test configuration, and maintained workflow documentation.
+30. Run every applicable focused, direct-dependent, integration, contract,
+    regression, build, static, and end-to-end check; do not silently replace a
+    broader check with a focused test or run unrelated repository-wide checks.
+31. Continue independent checks after failures and report blocked or unavailable
+    checks, exact commands, working directories, outcomes, and reasons.
