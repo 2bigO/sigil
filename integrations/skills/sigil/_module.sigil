@@ -8,6 +8,7 @@
 @integrations/skills/sigil/implementation-workflow.sigil import { SigilImplementationWorkflow }
 @integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
+@integrations/skills/sigil/design-intake.sigil import { SigilDesignIntake }
 @integrations/skills/sigil/external-guidance-evidence.sigil import { ExternalGuidanceEvidence }
 @integrations/skills/sigil/compatibility.sigil import { SigilSkillCompatibility }
 
@@ -44,12 +45,14 @@ SkillPackage {
     SkillWorkflow {
       SKILL.md dispatches applicable procedures to the imported workspace, design-
       compilation, standards, authoring, glossary, implementation, review-gate,
-      design-conversation, and external-evidence components
+      design-intake, design-conversation, and external-evidence components
 
       SigilWorkspaceBootstrap, SigilDesignCompilationReview, SigilStandardsReview,
       SigilAuthoringWorkflow, SigilGlossaryWorkflow, SigilImplementationWorkflow,
       SigilReviewGate, SigilDesignConversation, and ExternalGuidanceEvidence remain
       available through their imported owning contracts
+
+      SigilDesignIntake remains available through its imported owning contract
 
       directory imports expose those cohesive workflow components without making the
       module index own their operational policy or mutable lifecycle

@@ -615,6 +615,15 @@
         "exclusion frontiers"
       ],
       "agentContext": true
+    },
+    {
+      "term": "design intake",
+      "definition": "The pre-authoring assessment that classifies a requested change as mechanical, conversation-required, or context-insufficient from its boundary evidence and material decisions.",
+      "aliases": [
+        "DesignIntake",
+        "design intakes"
+      ],
+      "agentContext": true
     }
   ],
   "contexts": [

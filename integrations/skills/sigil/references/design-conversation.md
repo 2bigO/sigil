@@ -2,14 +2,12 @@
 
 # Sigil Design Conversation
 
-Use this procedure for explicit design, review, or improvement work or when
-inspected evidence exposes a material decision that requires user judgment. It
-is shared by Greenfield design, Brownfield reconstruction, established-Sigil
-review, and implementation work.
+Use this procedure when DesignIntake returns `conversation-required`, or for
+explicit design, review, or improvement work. It is shared by Greenfield design,
+Brownfield reconstruction, established-Sigil review, and implementation work.
 
-Do not enter design conversation merely because a request uses Sigil, triggers
-preflight, or asks an ordinary status, explanation, diagnosis, or mechanical
-change with no material design choice.
+DesignIntake owns request classification. Do not reclassify a proven mechanical
+request here or author while DesignIntake reports `context-insufficient`.
 
 The conversation extracts the material intent needed for a coherent, modular,
 and durable design. It does not replace the user's authority or silently fill
@@ -17,7 +15,7 @@ material gaps with model assumptions.
 
 ## Contents
 
-1. Decide whether conversation applies
+1. Receive the DesignIntake result
 2. Build DesignContext
 3. Maintain conversation state and mode
 4. Prioritize decisions
@@ -28,30 +26,16 @@ material gaps with model assumptions.
 9. Finish or block the conversation
 10. Limits and examples
 
-## 1. Decide Whether Conversation Applies
+## 1. Receive The DesignIntake Result
 
-Enter DesignConversation when at least one of these applies:
+Enter DesignConversation when DesignIntake reports `conversation-required`.
+Explicit design, review, or improvement work may enter directly when its material
+decision is already evident. Preserve the intake's decision inventory and routing
+basis in the conversation ledger.
 
-- the user explicitly requests design, architecture, review, or improvement;
-- product or contract intent is incomplete and a material decision remains;
-- review exposes a suspected or confirmed material problem that requires user
-  judgment;
-- a coherent existing contract has a credible improvement opportunity that
-  requires a project choice;
-- external guidance exposes a material conflict, alternative, or improvement
-  that cannot be adopted without user authority.
-
-Do not enter for:
-
-- ordinary read-only status, explanation, or diagnosis;
-- deterministic validation by itself;
-- a mechanical implementation change with established coverage and no material
-  design choice;
-- an already coherent request whose relevant decisions and Sigil remain
-  established;
-- immaterial preferences or hypothetical edge cases.
-
-Conversation applicability is a routing decision, not an approval gate.
+When DesignIntake returns `context-insufficient`, obtain the missing evidence
+before beginning conversation or authoring. Intake routing is not an approval
+gate.
 
 ## 2. Build DesignContext
 

@@ -4,6 +4,7 @@ description: Work with Sigil, a rationale-oriented modeling language and CLI for
 ---
 
 <!--
+@sigil implements integrations/skills/sigil/_module.sigil::SigilSkill::SkillWorkflow interface
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationAlignment interface,logic,constraints,cases
 -->
@@ -18,26 +19,30 @@ how its implementation should be understood and changed.
 1. Read `references/workspace-bootstrap.md` before interpreting workspace
    semantics. It owns CLI discovery, root selection, compatibility, configured
    and unconfigured states, initialization, and failure handling.
-2. Select the workflow:
+2. Read `references/design-intake.md` and classify the request before any semantic
+   authoring or implementation. Only a proven mechanical request bypasses
+   DesignConversation; unresolved material decisions and insufficient context stop
+   authoring.
+3. Select the workflow:
    - Read `references/greenfield-design.md` when implementation does not yet
      constrain the boundary.
    - Read `references/brownfield-adoption.md` when implementation exists but
      coverage is absent, partial, ambiguous, or drifted.
    - Use the established workflow below for credible existing coverage.
-3. Write scoped semantic Sigil changes directly to the target files. The files,
+4. Write scoped semantic Sigil changes directly to the target files. The files,
    not chat proposals or compiler sessions, are the review artifact.
-4. After every semantic edit, follow
+5. After every semantic edit, follow
    `references/design-compilation-review.md`. It owns the one required
    check-and-design-compile loop, including target selection, waiting until the
    compiler emits a terminal outcome and its stream closes, and its report-driven
    correction path.
-5. Report changed files, decisions, assumptions, unresolved questions,
+6. Report changed files, decisions, assumptions, unresolved questions,
    validation, and glossary status. Let the user review the written Sigil.
-6. Before changing implementation, read
+7. Before changing implementation, read
    `references/implementation-design.md` and obtain
    `ReviewGate(action: implementation)` readiness for the validated written
    Sigil and exact implementation scope.
-7. After implementation, follow the completed-implementation reconciliation in
+8. After implementation, follow the completed-implementation reconciliation in
    `references/implementation-design.md`. Run implementation-focused compilation,
    resolve implementation-only questions with the user, and return
    contract-affecting drift to written-Sigil design work. Do not report completion
@@ -63,26 +68,28 @@ only for an explicitly requested exceptional diagnostic investigation.
    dependents, unresolved contradictions, and module-index boundaries. Reuse
    matching public imported identities; imports are dependencies, not repeated
    interface content.
-3. Read `references/standards-review.md` and assess external guidance through
+3. Apply `references/design-intake.md` to the discovered boundary. When it returns
+   `conversation-required`, resolve the decision in DesignConversation before
+   authoring; when it returns `context-insufficient`, obtain the missing evidence
+   before proceeding.
+4. Read `references/standards-review.md` and assess external guidance through
    `references/external-guidance-evidence.md`. Treat `sigil check` as
    structural validation, not design approval.
-4. Follow `references/design-compilation-review.md` for the written design
+5. Follow `references/design-compilation-review.md` for the written design
    compile loop and compiler-owned readiness and architecture evidence. Compile
    the nearest module index that covers the affected Sigil when one exists;
    otherwise select the component whose retrieval closure covers the most
    affected semantic units and their direct relationships. Do not cancel or
    replace that compile while it is running.
-5. Use `references/design-conversation.md` only for explicit design or review
-   work, or when a material unresolved choice needs user judgment. Elicit and
-   resolve every material decision that could create future inconsistency,
-   incoherence, or a costly implementation pitfall; ask one primary decision at
-   a time unless the user requests a grouped review.
-6. Read `references/authoring-conventions.md`, write the scoped components,
+6. Use `references/design-conversation.md` for DesignIntake findings and explicit
+   design, review, or improvement work. Ask one primary decision at a time unless
+   the user requests a grouped review.
+7. Read `references/authoring-conventions.md`, write the scoped components,
    expands, imports, and rationale directly, then rerun validation and design
    compilation. Keep `ModuleIndexFile` as a small boundary summary.
-7. Follow `references/glossary-workflow.md` after semantic edits. Always state
+8. Follow `references/glossary-workflow.md` after semantic edits. Always state
    whether glossary extraction is required, deferred, or inspection-only.
-8. After implementation, follow the completed-implementation reconciliation in
+9. After implementation, follow the completed-implementation reconciliation in
    `references/implementation-design.md` until implementation alignment reports no
    unresolved drift.
 
@@ -104,6 +111,8 @@ check passed.
 
 - `references/design-compilation-review.md`: after design intent is sufficiently
   resolved and after written semantic changes.
+- `references/design-intake.md`: before semantic authoring or implementation for
+  every requested change.
 - `references/authoring-conventions.md`: when creating or semantically editing
   Sigil.
 - `references/glossary-workflow.md`: after semantic Sigil edits, when a glossary
