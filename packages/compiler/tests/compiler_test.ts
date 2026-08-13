@@ -1100,6 +1100,32 @@ Deno.test("stage selection runs the exact dependency closure", async () => {
 });
 
 /*
+ * @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile logic
+ * @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases
+ */
+Deno.test("implementation focus excludes design evaluation stages", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+}
+`);
+  try {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      focus: "implementation",
+      adapter: new MockAdapter(),
+    });
+    assertEquals(report.focus, "implementation");
+    assertEquals(
+      report.stages.map((stage) => stage.id),
+      ["deterministic-foundation", "current-code-compatibility"],
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
  * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::DiagnosticSemanticSubject interface
  * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
  * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases

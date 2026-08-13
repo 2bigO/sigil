@@ -176,10 +176,15 @@ expand SigilCompilationProfile {
       unrelated stages.
 
       Scope: Governs focused compiler runs and effective-profile identity.
+      Implementation alignment runs current-code-compatibility with only its
+      deterministic-foundation prerequisite; it excludes semantic-readiness and
+      architecture-design.
 
       Trade-offs: Stage identifiers are reserved compile operands.
 
-      Consequences: Readiness evaluation avoids unrelated stage cost and meaning.
+      Consequences: Focused evaluation avoids unrelated stage cost and meaning.
+      Implementation alignment reports current-code drift without asserting design or
+      semantic-readiness findings.
     }
 
     CriticalEvaluatorRedundancy {
@@ -203,6 +208,9 @@ expand SigilCompilationProfile {
 
       Requesting semantic-readiness executes deterministic-foundation first and no
       unrelated later stage.
+
+      Requesting implementation alignment executes deterministic-foundation and
+      current-code-compatibility without semantic-readiness or architecture-design.
     }
 
     BuiltInProfiles {
