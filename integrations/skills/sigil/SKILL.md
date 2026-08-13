@@ -25,8 +25,9 @@ how its implementation should be understood and changed.
    not chat proposals or compiler sessions, are the review artifact.
 4. After every semantic edit, follow
    `references/design-compilation-review.md`. It owns the one required
-   check-and-design-compile loop, including waiting for its terminal outcome,
-   and its report-driven correction path.
+   check-and-design-compile loop, including target selection, waiting until the
+   compiler emits a terminal outcome and its stream closes, and its report-driven
+   correction path.
 5. Report changed files, decisions, assumptions, unresolved questions,
    validation, and glossary status. Let the user review the written Sigil.
 6. Before changing implementation, read
@@ -58,7 +59,11 @@ only for an explicitly requested exceptional diagnostic investigation.
    `references/external-guidance-evidence.md`. Treat `sigil check` as
    structural validation, not design approval.
 4. Follow `references/design-compilation-review.md` for the written design
-   compile loop and compiler-owned readiness and architecture evidence.
+   compile loop and compiler-owned readiness and architecture evidence. Compile
+   the nearest module index that covers the affected Sigil when one exists;
+   otherwise select the component whose retrieval closure covers the most
+   affected semantic units and their direct relationships. Do not cancel or
+   replace that compile while it is running.
 5. Use `references/design-conversation.md` only for explicit design or review
    work, or when a material unresolved choice needs user judgment. Elicit and
    resolve every material decision that could create future inconsistency,

@@ -14,6 +14,10 @@
 Use these conventions whenever proposing, creating, or semantically editing
 Sigil. Read `sigil-format.md` when syntax details or examples are needed.
 
+After material design intent is resolved, write the exact scoped Sigil draft
+directly in the selected file. Then use compiler evidence to revise and validate
+that written draft; do not require compiler evidence before creating it.
+
 ## Section Discipline
 
 - Put the component's responsibility and intended outcome in `goal`.
