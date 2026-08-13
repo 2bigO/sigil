@@ -50,13 +50,37 @@ ImplementationGovernance {
 
       applies regardless of language, format, subsystem, or artifact classification
     }
+
+ImplementationAlignment {
+      reconciles completed implementation with its governing validated written Sigil
+
+      repeats implementation alignment and compilation until no implementation or
+      contract drift remains
+
+      distinguishes implementation-only questions from contract-affecting findings
+
+      returns contract-affecting findings to written-Sigil design work before
+      implementation continues
+    }
   }
 }
 
 expand SigilImplementationWorkflow {
   state {
-ImplementationGovernance {
-      Implementation coverage is unassessed, partial, or established.
+ImplementationCoverage {
+      Implementation coverage is unassessed until every material concern in the
+      selected scope has a classification.
+
+      Implementation coverage is partial when any material concern is partial or
+      missing.
+
+      A material concern has established coverage when its mapped owner and
+      implementation location enact its selected component, expand, or omission
+      decision and its required decision rationale is covered or has a justified
+      omission.
+
+      Aggregate implementation coverage is established only when every material
+      concern has established coverage.
     }
   }
 
@@ -123,6 +147,23 @@ ImplementationGovernance {
 
       Stop implementation and return to written-Sigil design work when implementation
       exposes a missing material decision.
+    }
+
+ImplementationAlignment {
+      After implementation, compile and compare the exact implementation scope with
+      governing Sigil, implementation coverage, ownership annotations, dependents,
+      and relevant verification evidence.
+
+      Repeat the alignment loop until the implementation and validated written Sigil
+      have no unresolved drift.
+
+      When a finding needs human judgment but preserves every governing Sigil
+      contract, ask the user to resolve and approve the exact implementation change
+      set, re-evaluate ReviewGate, apply the approved change, and repeat alignment.
+
+      When a finding changes or exposes a missing governing contract, stop the
+      implementation loop, write the scoped Sigil correction, and restart design
+      validation and compilation before returning to implementation.
     }
   }
 
@@ -200,6 +241,23 @@ ImplementationGovernance {
       Restorative rollback is limited to exact unapproved changes introduced by the
       current agent and does not authorize replacement behavior.
     }
+
+ImplementationAlignment {
+      A completed implementation is not aligned merely because its build or tests
+      pass.
+
+      Alignment compilation must reach a terminal outcome and close its output stream
+      before its evidence is relied upon.
+
+      Unresolved implementation-only user decisions keep the implementation loop open
+      but do not require a Sigil change.
+
+      Contract-affecting drift invalidates implementation readiness for the affected
+      scope and returns to design work.
+
+      No implementation completion may be reported while implementation or contract
+      drift remains unresolved.
+    }
   }
 
   decisions {
@@ -273,6 +331,30 @@ ImplementationGovernance {
       Revisit when: The host can deterministically map every repository mutation to
       governing Sigil and enforce the approval states.
     }
+
+ImplementationAlignment {
+      Decision: Reconcile completed implementation in a compile-and-alignment loop
+      until no drift remains, routing findings by whether they affect a governing
+      Sigil contract.
+
+      Scope: Governs post-implementation reconciliation for every approved
+      implementation scope; excludes new semantic authoring policy and unrelated
+      workspace validation.
+
+      Trade-offs: Completion takes an additional evidence pass and may require a user
+      decision after code is written.
+
+      Design issues addressed: A green design compile or passing implementation
+      verification alone can leave implementation ownership or contract behavior
+      drifted.
+
+      Consequences: Implementation-only ambiguity is resolved with the user inside
+      the loop, while contract drift restarts written-Sigil design validation before
+      coding resumes.
+
+      Revisit when: The compiler can prove complete implementation alignment without
+      host reconciliation evidence.
+    }
   }
 
   cases {
@@ -325,6 +407,21 @@ ImplementationGovernance {
       An agent that detects its own unapproved mutations reports them and performs
       only the user-requested exact rollback before returning to written-Sigil design
       work and implementation preflight.
+    }
+
+ImplementationAlignment {
+      An implementation that passes tests but disagrees with its ownership map enters
+      reconciliation rather than being reported complete.
+
+      A post-implementation question about a local implementation choice is resolved
+      with the user and then returns to alignment when the governing contract is
+      unchanged.
+
+      A discovered missing observable behavior updates scoped Sigil, runs the design
+      compile loop, and then resumes implementation preflight.
+
+      Implementation is complete only after the terminal alignment evidence shows no
+      unresolved drift.
     }
   }
 }
