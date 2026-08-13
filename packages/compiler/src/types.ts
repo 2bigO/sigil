@@ -135,6 +135,7 @@ export interface EffectiveProfile {
     readonly enabled: boolean;
     readonly agentic: boolean;
     readonly dependencies: readonly string[];
+    readonly evaluatorIds?: readonly string[];
   }[];
   readonly adapter?: {
     readonly provider: AgentProvider;
@@ -485,6 +486,8 @@ export interface CompileConfiguration {
       readonly extends?: "standard" | "critical-system";
       readonly disabledStages?: readonly string[];
       readonly evaluatorIds?: readonly string[];
+      readonly main?: readonly string[];
+      readonly stages?: Readonly<Record<string, readonly string[]>>;
     }>
   >;
 }

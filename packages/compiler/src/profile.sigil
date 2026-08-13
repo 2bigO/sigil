@@ -30,6 +30,81 @@ component SigilCompilationProfile {
 }
 
 expand SigilCompilationProfile {
+  constraints {
+    ProfileConfiguration {
+      Effective tools.compile configuration may include developer-local overrides
+      merged by SigilWorkspaceLoader before profile resolution.
+
+      Local overrides follow the same validation and profile rules as shared
+      tools.compile configuration.
+    }
+  }
+}
+
+expand SigilCompilationProfile {
+  logic {
+    StageConfiguration {
+      A profile may configure an optional stages map from agentic stage identity to
+      one or more evaluator identities.
+
+      stages.main is the fallback evaluator binding for every agentic stage without
+      an exact stage entry. An exact stage entry takes precedence over main.
+
+      When stages is absent, evaluatorIds retains its existing profile-wide binding
+      behavior. Deterministic stages do not require a stage evaluator binding.
+    }
+  }
+
+  constraints {
+    StageConfiguration {
+      stages keys are known agentic stage identities or the reserved main fallback.
+
+      Every selected stage evaluator identity is nonempty, unique within its binding,
+      and resolves to one configured evaluator with its own provider, adapter
+      implementation, and optional model.
+
+      A selected profile must resolve an evaluator binding for every required agentic
+      stage before evaluation begins.
+    }
+  }
+
+  decisions {
+    StageScopedEvaluatorBinding {
+      Decision: Configure optional profile stages bindings with main as the fallback
+      and exact agentic-stage bindings as overrides.
+
+      Scope: Governs evaluator, adapter, and model selection for stages within one
+      tools.compile profile; excludes deterministic stages and CLI profile selection.
+
+      Trade-offs: Profiles expose more configuration detail, while one shared main
+      binding keeps ordinary profiles concise.
+
+      Design issues addressed: One profile-wide evaluator set cannot select a fast
+      model for one review stage and a deeper or different provider for another.
+
+      Discarded alternatives: Per-stage adapter fields, mandatory bindings for every
+      stage, and a second profile layer were rejected because they duplicate named
+      evaluator configuration or make ordinary profiles unnecessarily verbose.
+
+      Consequences: Each stage report and effective-profile fingerprint identify the
+      evaluator bindings selected for that exact stage.
+    }
+  }
+
+  cases {
+    StageConfiguration {
+      A semantic-readiness binding overrides main while architecture-design uses
+      main.
+
+      A profile without stages continues to use its evaluatorIds binding for every
+      agentic stage.
+
+      An agentic stage without an exact or main binding rejects before evaluation.
+    }
+  }
+}
+
+expand SigilCompilationProfile {
   logic {
     CompilationProfile {
       Merge built-in defaults with the selected tools.compile project profile.
@@ -176,10 +251,15 @@ expand SigilCompilationProfile {
       unrelated stages.
 
       Scope: Governs focused compiler runs and effective-profile identity.
+      Implementation alignment runs current-code-compatibility with only its
+      deterministic-foundation prerequisite; it excludes semantic-readiness and
+      architecture-design.
 
       Trade-offs: Stage identifiers are reserved compile operands.
 
-      Consequences: Readiness evaluation avoids unrelated stage cost and meaning.
+      Consequences: Focused evaluation avoids unrelated stage cost and meaning.
+      Implementation alignment reports current-code drift without asserting design or
+      semantic-readiness findings.
     }
 
     CriticalEvaluatorRedundancy {
@@ -203,6 +283,9 @@ expand SigilCompilationProfile {
 
       Requesting semantic-readiness executes deterministic-foundation first and no
       unrelated later stage.
+
+      Requesting implementation alignment executes deterministic-foundation and
+      current-code-compatibility without semantic-readiness or architecture-design.
     }
 
     BuiltInProfiles {

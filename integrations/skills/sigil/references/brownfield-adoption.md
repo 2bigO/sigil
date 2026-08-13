@@ -21,8 +21,8 @@ rationale. Preserve existing user changes and unrelated worktree content.
 4. Gather and classify task evidence
 5. Reconcile current and intended behavior
 6. Model task boundaries
-7. Prepare the task-Sigil proposal
-8. Apply approved proposals
+7. Write and review task Sigil
+8. Validate written Sigil
 9. Limits and examples
 
 ## 1. Report Or Validate The Workspace
@@ -137,14 +137,13 @@ high-level summary alone is insufficient when separate implementation owners
 have stable contracts, state, lifecycle, policy, or independent reasons to
 change.
 
-Submit the exact boundary module indexes to
-`ReviewGate(action: sigil-change)`. When ready, write only that change set, run
+Write the scoped boundary module indexes directly. Then run
 `sigil check`, use `graph` or `context` when relationships changed, and report
 the validated result. Do not create a separate written-summary approval gate.
 
 ## 3. Focus On The Requested Task
 
-After the approved configured-boundary summary is written and validated, return
+After the configured-boundary summary is written and validated, return
 to the user's requested task. Select the smallest coherent change-frontier
 boundary in this order:
 
@@ -222,7 +221,7 @@ Assess external-guidance applicability for the reconciliation scope and acquire
 required or recommended evidence before presenting affected choices. Treat
 disagreement between authoritative sources as unresolved evidence. Investigate
 suspected conflicts and enter DesignConversation in correction mode only when
-applicable guidance confirms a material conflict with approved Sigil or
+applicable guidance confirms a material conflict with validated written Sigil or
 confirmed intent.
 
 Do not silently treat code, tests, documentation, directory structure, or a
@@ -297,11 +296,10 @@ boundary-wide decision.
 
 List every target path and import addition or update.
 
-### ReviewGate Request
+### Written-File Review
 
-Submit `action: sigil-change`, the exact task boundary scope, evidence,
-locations, imports, and semantic change set. Ask the user to approve, reject, or
-revise that exact request.
+Report the exact task boundary scope, evidence, locations, imports, and semantic
+change set. The user reviews the written files before implementation.
 
 Before requesting ReviewGate readiness, apply semantic-readiness, standards,
 cross-Sigil-coherence, and modularity review. Verify the currency and
@@ -319,22 +317,21 @@ Inventory every new or changed material selected choice in the reconstruction.
 Include its matching decision record or justified omission in the
 decision-rationale coverage map before requesting ReviewGate readiness.
 
-## 8. Apply Approved Proposals
+## 8. Validate Written Sigil
 
-After `ReviewGate(action: sigil-change)` returns ready for the exact task-Sigil
-scope and change set:
+After writing the exact task-Sigil scope:
 
-1. materialize the approved complete source into the target workspace;
-2. create or update only approved Sigil files;
+1. create or update only scoped Sigil files;
 3. colocate components and implementation-specific expands as proposed;
-4. update only approved imports;
+4. update only required scoped imports;
 5. run `sigil check`;
-6. use `sigil graph` or `sigil context` when relationships changed;
+6. use `sigil retrieve --purpose architecture` when relationships changed; use
+   `graph` or `context` only for missing detail;
 7. reread the files and repeat semantic, coherence, and modularity review;
 8. repeat the decision-rationale coverage audit against the written semantic
-   lines and return to proposal review when coverage is missing;
-9. if concept grouping is still required, use ReviewGate with `sigil-change`,
-   then rerun deterministic and semantic review;
+   lines and return to DesignConversation when coverage is missing;
+9. if concept grouping is still required, write it and rerun deterministic and
+   semantic review;
 10. perform glossary candidate extraction only after the final semantic review
    appears aligned;
 11. report the validated written task Sigil without creating another approval
@@ -346,7 +343,7 @@ scope together to `ReviewGate(action: implementation)`. Align code only when it
 returns ready, while preserving unrelated behavior and user changes.
 
 If implementation reveals a missing material decision, return to conversation
-and Sigil proposal before continuing.
+and scoped Sigil design before continuing.
 
 ## 9. Limits And Examples
 
@@ -365,9 +362,8 @@ requested, submit the exact root and files to
 `ReviewGate(action: workspace-initialization)`. After approved initialization,
 validate the config, inspect evidence for the workspace root and every declared
 member, hold focused conversation where evidence is insufficient, synthesize
-each boundary goal and interface, and submit exact ordinary summaries through
-`ReviewGate(action: sigil-change)`. After writing and validating the ready
-change set, focus on the requested task and begin its bounded evidence and
+each boundary goal and interface, and write exact ordinary summaries directly.
+After writing and validating the change set, focus on the requested task and begin its bounded evidence and
 proposal workflow.
 
 ### Vague Application

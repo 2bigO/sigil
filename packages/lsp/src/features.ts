@@ -1,6 +1,6 @@
 import type {
-  ConceptIdentity,
   ComponentIdentity,
+  ConceptIdentity,
   GlossaryTerm,
   ImplementationSection,
   ImplementationSource,
@@ -102,7 +102,10 @@ export class OwnershipHoverCache {
     conceptName?: string,
     sectionName?: ImplementationSection,
   ): Promise<OwnedImplementationProjection | undefined> {
-    const key = `${componentIdentity.declarationPath}\0${componentIdentity.componentName}\0${conceptName ?? ""}\0${sectionName ?? ""}`;
+    const key =
+      `${componentIdentity.declarationPath}\0${componentIdentity.componentName}\0${
+        conceptName ?? ""
+      }\0${sectionName ?? ""}`;
     let projection = this.#projections.get(key);
     if (!projection) {
       projection = this.#sourceIndex.sources().then((sources) =>

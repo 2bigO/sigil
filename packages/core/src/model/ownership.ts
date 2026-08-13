@@ -1,10 +1,6 @@
 import type { SigilDiagnostic } from "./diagnostics.ts";
 import type { SourceRange } from "./language.ts";
-import type {
-  ResolvedComponent,
-  ResolvedConcept,
-  ResolvedSigilWorkspace,
-} from "./resolution.ts";
+import type { ResolvedComponent, ResolvedConcept } from "./resolution.ts";
 export type { SigilDiagnostic } from "./diagnostics.ts";
 export type { SourceRange } from "./language.ts";
 export type {

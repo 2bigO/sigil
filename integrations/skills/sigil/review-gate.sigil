@@ -13,9 +13,8 @@ ReviewGate {
 
       keeps approval bound to the exact action, scope, and change set
 
-      binds Sigil approval to the target workspace root, target paths, and complete
-      resulting source, even when compiler evidence came from a temporary proposal
-      session
+      binds implementation approval to the validated written Sigil, target workspace
+      root, implementation paths, and exact implementation change set
 
       treats delegated proposals, validation, readiness reviews, coverage, and
       diagnostics as evidence rather than approval
@@ -29,8 +28,7 @@ ReviewGate {
 expand SigilReviewGate {
   state {
 ReviewGate {
-      Action is sigil-change, glossary-change, workspace-initialization, or
-      implementation.
+      Action is glossary-change, workspace-initialization, or implementation.
 
       Result is blocked, review-required, or ready.
     }
@@ -69,9 +67,6 @@ ReviewGate {
       Invalidate ready when the action, scope, change set, approval authority, or
       material evidence changes.
 
-      Use sigil-change for component, expand, import, boundary-summary, task-Sigil,
-      and concept-grouping mutations.
-
       Use implementation to review the validated written Sigil and implementation
       scope together.
 
@@ -84,7 +79,9 @@ ReviewGate {
 
   constraints {
 ReviewGate {
-      All explicit mutation approval flows through ReviewGate.
+      Explicit approval for workspace initialization, reviewed glossary mutations,
+      and implementation flows through ReviewGate. Scoped Sigil changes are written
+      directly and reviewed in their target files.
 
       Validation, semantic readiness, coverage, evidence, delegated analysis, and
       conflict classification do not independently grant approval.
@@ -104,13 +101,6 @@ ReviewGate {
       A ready result remains valid only for its approved action, scope, and change
       set.
 
-      A compiler proposal session is evidence-only and never authorizes or replaces
-      materialization of the approved change in the target workspace.
-
-      Materialization in the target workspace is a mutation controlled by
-      ReviewGate(action: sigil-change) and may occur only after ready for the exact
-      target root, paths, and complete source change set.
-
       The host workflow classifies evidence materiality from the exact before-and-
       after evidence supplied to ReviewGate. Uncertain classification invalidates
       readiness and requires renewed human review.
@@ -122,8 +112,9 @@ ReviewGate {
       Decision: Use one reusable ReviewGate for every mutation approval while keeping
       checks, evidence, and blockers outside approval authority.
 
-      Scope: Governs Sigil changes, glossary changes, workspace initialization, and
-      implementation; excludes read-only inspection and deterministic validation.
+      Scope: Governs glossary changes, workspace initialization, and implementation;
+      excludes direct scoped Sigil authoring, read-only inspection, and deterministic
+      validation.
 
       Trade-offs: Different actions reuse one mechanism but still require separately
       scoped approval.
@@ -136,8 +127,8 @@ ReviewGate {
       implementation gates were rejected as overlapping representations of the same
       approval responsibility.
 
-      Consequences: Sigil changes receive one approval, and implementation receives
-      one later approval that reviews the validated written Sigil together with
+      Consequences: Sigil changes are reviewed in the target file, while
+      implementation receives one later approval over validated written Sigil and
       implementation scope.
 
       Revisit when: A mutation type requires materially different approval authority
@@ -169,9 +160,6 @@ ReviewGate {
 
   cases {
 ReviewGate {
-      A boundary-summary proposal, task-Sigil proposal, and concept-grouping proposal
-      all use sigil-change rather than separate named gates.
-
       Written Sigil is validated and reported without a separate written-Sigil
       approval gate.
 

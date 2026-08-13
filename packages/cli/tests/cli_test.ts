@@ -2477,7 +2477,7 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
   const result = await runCli([
     "compile",
     "semantic-readiness",
-    ".",
+    "../..",
     "--format",
     "jsonl",
   ], {
@@ -2518,11 +2518,54 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
       lifecycle: "resolved",
     }],
   };
-  const human = await runCli(["compile", "--no-cache"], {
+  const human = await runCli(["compile", "../..", "--no-cache"], {
     compiler: () => Promise.resolve(resolvedReport),
   });
   assertEquals(human.exitCode, EXIT_OK);
   assert(human.stdout.includes("resolved warning SEMANTIC_AMBIGUITY"));
+});
+
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,cases
+Deno.test("compile resolves configured default and agent profiles before standard", async () => {
+  const root = await makeWorkspace("profile-resolution");
+  await Deno.writeTextFile(
+    `${root}/.sigil/config.json`,
+    JSON.stringify({
+      sigilVersion: SIGIL_VERSION,
+      workspace: { name: "profile-resolution", members: [] },
+      files: { include: ["**/*.sigil"] },
+      tools: {
+        agent: { profile: "agent-review" },
+        compile: { defaultProfile: "workspace-default" },
+      },
+    }),
+  );
+  const selected: string[] = [];
+  const compiler = (
+    _workspace: string,
+    _target: CompilationTarget | undefined,
+    profile: string,
+  ) => {
+    selected.push(profile);
+    return Promise.resolve(
+      { status: "green", diagnostics: [] } as unknown as CompilationReport,
+    );
+  };
+  try {
+    assertEquals(
+      (await runCli(["compile", root, "--quiet"], { compiler })).exitCode,
+      EXIT_OK,
+    );
+    assertEquals(
+      (await runCli(["compile", root, "--agent", "--quiet"], { compiler }))
+        .exitCode,
+      EXIT_OK,
+    );
+    assertEquals(selected[0], "workspace-default");
+    assertEquals(selected[1], "agent-review");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,constraints,cases
@@ -2614,7 +2657,7 @@ Deno.test("compile maps file positions to exact location targets", async () => {
   let target: unknown;
   const result = await runCli([
     "compile",
-    ".",
+    "../..",
     "--file",
     "details.sigil",
     "--position",

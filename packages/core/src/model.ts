@@ -1,4 +1,5 @@
 // @sigil implements packages/core/src/model/_module.sigil::SigilSemanticModel interface,constraints
+// deno-lint-ignore no-empty-interface -- marker interface for the Sigil model boundary
 export interface SigilSemanticModelNamespace {}
 
 export * from "./model/language.ts";

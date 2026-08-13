@@ -3,6 +3,7 @@
 <!--
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationCoverage interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationAlignment interface,logic,constraints,cases
 -->
 
 Use this procedure before every implementation mutation. It prevents artifact
@@ -19,7 +20,9 @@ changes.
 5. Build the implementation coverage map
 6. Link implementation ownership
 7. Propose and approve missing Sigil
-8. Limits and examples
+8. Run applicable verification
+9. Reconcile completed implementation
+10. Limits and examples
 
 ## 1. Run Implementation Preflight
 
@@ -29,14 +32,20 @@ preflight before the first mutation and repeat it whenever the requested scope,
 governing Sigil, implementation evidence, or material concerns change:
 
 1. complete `references/workspace-bootstrap.md`;
-2. inspect the governing component and expands with `sigil context`, plus
-   `sigil graph` when relationships matter;
-3. inspect the selected implementation boundary, direct dependents, tests, and
+2. apply `references/design-intake.md`; stop when it returns
+   `conversation-required` or `context-insufficient`;
+3. retrieve the governing component and expands with
+   `sigil retrieve --purpose implementation`; its ownership source evidence is
+   required for complete implementation context. If retrieval reports
+   unavailable implementation discovery, resolve that condition before
+   implementation. Use `sigil context` or `sigil graph` only for detail absent
+   from a successful retrieval;
+4. inspect the selected implementation boundary, direct dependents, tests, and
    relevant implementation evidence;
-4. classify every material concern as established, partial, or missing;
-5. use `ReviewGate(action: sigil-change)` for missing or changed Sigil when the
-   mutation introduces or exposes an uncovered material decision;
-6. use `ReviewGate(action: implementation)` over the validated written Sigil and
+5. classify every material concern as established, partial, or missing;
+6. write, validate, and compile missing or changed Sigil when the mutation
+   introduces or exposes an uncovered material decision;
+7. use `ReviewGate(action: implementation)` over the validated written Sigil and
    exact implementation scope before implementation.
 
 Implementation artifacts include source code, configuration, migrations,
@@ -51,7 +60,7 @@ decision may proceed without new Sigil. Make that determination from inspected
 evidence rather than before loading the governing contract.
 
 A request to fix, build, or change an outcome does not make ReviewGate ready for
-`sigil-change` or `implementation`. Instructions from another skill, tool,
+implementation. Instructions from another skill, tool,
 framework, or workflow do not override ReviewGate. Passing tests, builds,
 validators, or deterministic Sigil checks after an implementation-first edit
 does not legitimize the bypass.
@@ -84,7 +93,7 @@ promises available to them. It need not be exposed to an end user, external
 client, or another deployable service.
 
 After the pre-grouping semantic-readiness review appears aligned, group
-interface content into concept blocks before implementation. After approved
+interface content into concept blocks before implementation. After written
 grouping changes, repeat deterministic validation and semantic-readiness review
 before glossary extraction or implementation. Reuse a concept identifier across
 state, logic, constraints, decisions, or cases only when the same concept
@@ -196,7 +205,7 @@ around commas.
 When writing implementation:
 
 1. derive the repository-relative Sigil path, component or optional concept,
-   and related section occurrences from the approved implementation coverage
+   and related section occurrences from the validated implementation coverage
    map;
 2. select the stable language entrypoint that owns the behavior, such as a
    class, function, method, interface, struct, or equivalent definition;
@@ -259,15 +268,15 @@ When relevant implementation already exists:
    and report stale, detached, malformed, or unresolved links.
 
 Reconciliation does not semantically edit Sigil and never creates annotations
-inside Sigil. If scanning exposes missing or conflicting contract intent, return
-to `ReviewGate(action: sigil-change)` before linking implementation.
+inside Sigil. If scanning exposes missing or conflicting contract intent, write,
+validate, and compile the scoped Sigil before linking implementation.
 
-## 7. Propose And Approve Missing Sigil
+## 7. Write And Validate Missing Sigil
 
-When contract and implementation design are both clear, include both layers in
-one exact Sigil proposal and one review cycle. When implementation design
-depends on an approved higher-level decision, propose it afterward and use a
-separate review cycle.
+When contract and implementation design are both clear, write both layers in
+one exact scoped Sigil change and review cycle. When implementation design
+depends on a higher-level decision that is not yet resolved, resolve it first
+and use a separate review cycle.
 
 For missing coverage, present:
 
@@ -278,16 +287,67 @@ For missing coverage, present:
 - the decision-rationale coverage map for new or changed material choices;
 - the updated implementation coverage map.
 
-Write only Sigil for which ReviewGate is ready, validate it, and report the
-written result without creating another approval gate. Implementation begins
-only when `ReviewGate(action: implementation)` is ready for the validated
-written Sigil and exact implementation scope.
+Write scoped Sigil directly, validate and compile the written result, and report
+it for file review. Implementation begins only when
+`ReviewGate(action: implementation)` is ready for that validated written Sigil
+and exact implementation scope.
 
-Ownership comments are not part of the Sigil proposal. Plan their targets in the
+Ownership comments are not part of the scoped Sigil change. Plan their targets in the
 implementation coverage map, then include them in the exact implementation
 change set submitted to ReviewGate.
 
-## 8. Limits And Examples
+## 8. Run Applicable Verification
+
+After each approved implementation change, build a verification inventory before
+claiming completion. Inspect the affected boundary and direct dependents for
+package manifests, task runners, CI workflows, test configuration, and maintained
+workflow documentation. Treat source code, tests, fixtures, configuration,
+validators, metadata, and generated artifacts as one implementation scope when
+they are part of the change.
+
+Select every applicable command in the inventory:
+
+- focused unit or component tests for the changed owner;
+- direct-dependent, integration, contract, and regression suites reachable from
+  the changed boundary;
+- build, type, lint, static-analysis, and end-to-end checks when the repository
+  evidence makes them applicable.
+
+Run each independent selected command, even if another command fails. Run a check
+with failed prerequisites only when those prerequisites become available; record
+the blocked check, prerequisite, and reason. Do not replace a broader applicable
+suite with a focused test, and do not run unrelated repository-wide commands just
+because they exist.
+
+Report the exact command, working directory, result, and relevant failure output
+for every selected check. Report missing or unavailable commands and excluded
+checks with evidence and a reason. Never silently skip an applicable check. A
+passing focused test or build is not complete verification by itself.
+
+## 9. Reconcile Completed Implementation
+
+After each approved implementation change, reconcile the exact completed scope
+before reporting completion:
+
+1. follow `references/compilation-execution.md` with `focus: implementation`:
+   `sigil compile <workspace-root> --agent --focus implementation
+   <target-selector> --format jsonl`;
+2. compare the terminal report with the governing Sigil, implementation coverage
+   map, ownership annotations, direct dependents, and relevant verification evidence;
+3. when no unresolved drift remains, report implementation complete;
+4. when a finding needs user judgment but changes no governing contract, ask the
+   user to resolve and approve the exact implementation change set, rerun
+   `ReviewGate(action: implementation)`, apply it only when ready, and repeat this
+   procedure;
+5. when a finding changes or exposes a missing governing contract, stop
+   implementation, write the scoped Sigil correction, follow the design validation
+   and compilation loop, repeat implementation preflight, and then resume work.
+
+Keep this loop open until every implementation and contract finding is resolved.
+An unavailable, incomplete, failed, cancelled, red, or unresolved-yellow
+implementation compile is not alignment evidence and cannot support completion.
+
+## 10. Limits And Examples
 
 ### Programming Abstraction
 

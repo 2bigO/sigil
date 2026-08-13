@@ -10,8 +10,8 @@ import {
   CompilerFailure,
   createAdapterSubprocessHandle,
   deriveBudgetOutcome,
-  FileCompilationSessionStore,
   FileCompilationHistoryStore,
+  FileCompilationSessionStore,
   loadEvaluationSkill,
   loadEvaluationSkills,
   MockAdapter,
@@ -127,27 +127,30 @@ Deno.test("terminal findings require nullable location fields", () => {
 Deno.test("subprocess execution declares owned inputs before an attempted launch", async () => {
   const observations: string[] = [];
   const error = await assertRejects(
-    () => runAdapterSubprocess({
-      implementationIdentity: "test.adapter@1",
-      command: "/definitely-not-a-provider-command",
-      args: [],
-      cwd: Deno.cwd(),
-      input: "{}",
-      signal: new AbortController().signal,
-      maxInitialRequestChars: 10,
-      maxProviderFrameChars: 10,
-      handle: createAdapterSubprocessHandle("test.adapter@1"),
-      resources: {
-        declareResource: (identity) => observations.push(`resource:${identity}`),
-        declareResultInput: (identity) => observations.push(`input:${identity}`),
-        observeResource() {},
-        observeResultInput() {},
-        reportResourceObservation() {},
-        reportResultInputObservation() {},
-        cleanupAttempt() {},
-      },
-      terminationControl: { requestPreventiveBudgetTermination() {} },
-    }),
+    () =>
+      runAdapterSubprocess({
+        implementationIdentity: "test.adapter@1",
+        command: "/definitely-not-a-provider-command",
+        args: [],
+        cwd: Deno.cwd(),
+        input: "{}",
+        signal: new AbortController().signal,
+        maxInitialRequestChars: 10,
+        maxProviderFrameChars: 10,
+        handle: createAdapterSubprocessHandle("test.adapter@1"),
+        resources: {
+          declareResource: (identity) =>
+            observations.push(`resource:${identity}`),
+          declareResultInput: (identity) =>
+            observations.push(`input:${identity}`),
+          observeResource() {},
+          observeResultInput() {},
+          reportResourceObservation() {},
+          reportResultInputObservation() {},
+          cleanupAttempt() {},
+        },
+        terminationControl: { requestPreventiveBudgetTermination() {} },
+      }),
     AdapterFailure,
   );
   assertEquals(error.kind, "process");
@@ -389,6 +392,7 @@ Deno.test("standard profile becomes green only with complete warning-free evalua
       adapter: new MockAdapter(),
       eventSink: async (bytes) => {
         events.push(JSON.parse(new TextDecoder().decode(bytes)));
+        await Promise.resolve();
         return "delivered-all";
       },
     });
@@ -461,6 +465,53 @@ Deno.test("failed optional stages remain visible without preventing green", () =
     }]),
     "green",
   );
+});
+
+// @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration logic,constraints,cases
+Deno.test("stage bindings resolve the default evaluator binding instead of adapter instance ID", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`,
+    {},
+    {
+      adapter: {
+        provider: "codex",
+        implementationId: "test.mock.default",
+        implementationVersion: "1.0.0",
+      },
+      profiles: {
+        standard: { main: ["default"] },
+      },
+    },
+  );
+  try {
+    const report = await compile(
+      root,
+      { kind: "workspace" },
+      "standard",
+      {
+        requestedStage: "semantic-readiness",
+        adapters: [new MockAdapter([], "codex", "test.mock.default")],
+      },
+    );
+    assertEquals(report.status, "green");
+    assertEquals(
+      report.stages.find((stage) => stage.id === "semantic-readiness")?.state,
+      "completed",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
 });
 
 // @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases
@@ -662,9 +713,10 @@ Deno.test("standard evaluator binding failures use profile-evaluator failures", 
   );
   try {
     const error = await assertRejects(
-      () => compile(root, { kind: "workspace" }, "standard", {
-        adapter: new MockAdapter([], "different"),
-      }),
+      () =>
+        compile(root, { kind: "workspace" }, "standard", {
+          adapter: new MockAdapter([], "different"),
+        }),
       CompilerFailure,
     );
     assertEquals(error.code, "COMPILER_PROFILE_EVALUATORS_REQUIRED");
@@ -1100,6 +1152,32 @@ Deno.test("stage selection runs the exact dependency closure", async () => {
 });
 
 /*
+ * @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile logic
+ * @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::StageConfiguration constraints,cases
+ */
+Deno.test("implementation focus excludes design evaluation stages", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+}
+`);
+  try {
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      focus: "implementation",
+      adapter: new MockAdapter(),
+    });
+    assertEquals(report.focus, "implementation");
+    assertEquals(
+      report.stages.map((stage) => stage.id),
+      ["deterministic-foundation", "current-code-compatibility"],
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+/*
  * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::DiagnosticSemanticSubject interface
  * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationDiagnostic logic
  * @sigil tests packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport cases
@@ -1522,6 +1600,7 @@ Deno.test("Codex classifies initial request overflow as an operational limit", a
   let invoked = false;
   const adapter = new CodexAdapter(undefined, async () => {
     invoked = true;
+    await Promise.resolve();
   });
   const error = await assertRejects(
     () =>
@@ -1702,7 +1781,7 @@ Deno.test("session creation validates the requested focus before materialization
   let compilerInvoked = false;
   const factory = new SigilCompilationSessionFactory(
     undefined,
-    async () => {
+    () => {
       compilerInvoked = true;
       throw new Error("one-shot compilation must not run during creation");
     },
@@ -1729,7 +1808,9 @@ Deno.test("session creation resolves the profile before materialization", async 
 `);
   class TrackingStore extends FileCompilationSessionStore {
     createCalls = 0;
-    override create(...args: Parameters<FileCompilationSessionStore["create"]>) {
+    override create(
+      ...args: Parameters<FileCompilationSessionStore["create"]>
+    ) {
       this.createCalls++;
       return super.create(...args);
     }
@@ -1737,12 +1818,13 @@ Deno.test("session creation resolves the profile before materialization", async 
   const store = new TrackingStore();
   try {
     const error = await assertRejects(
-      () => new SigilCompilationSessionFactory(store).create(
-        root,
-        { kind: "workspace" },
-        "missing-profile",
-        "design",
-      ),
+      () =>
+        new SigilCompilationSessionFactory(store).create(
+          root,
+          { kind: "workspace" },
+          "missing-profile",
+          "design",
+        ),
       CompilerFailure,
     );
     assertEquals(error.code, "COMPILER_INVALID_INVOCATION");
@@ -1763,10 +1845,12 @@ Deno.test("evaluation commit failure removes the verified proposal workspace bef
       _lease: Parameters<FileCompilationSessionStore["commit"]>[0],
       _record: Parameters<FileCompilationSessionStore["commit"]>[1],
     ): Promise<void> {
-      return Promise.reject(new CompilerFailure(
-        "COMPILER_WORKSPACE_HOST_FAILURE",
-        "Synthetic commit failure.",
-      ));
+      return Promise.reject(
+        new CompilerFailure(
+          "COMPILER_WORKSPACE_HOST_FAILURE",
+          "Synthetic commit failure.",
+        ),
+      );
     }
   }
   const store = new FailingCommitStore();
@@ -1781,7 +1865,10 @@ Deno.test("evaluation commit failure removes the verified proposal workspace bef
       created.result.sessionIdentity,
       "design",
       store,
-      async () => ({}) as CompilationReport,
+      async () => {
+        await Promise.resolve();
+        return {} as CompilationReport;
+      },
     );
     const error = await assertRejects(
       () => session.evaluate({ sources: {} }),
@@ -1824,7 +1911,7 @@ Deno.test("durable compilation sessions refresh and close without a daemon", asy
       async (
         workspacePath,
         target = { kind: "workspace" },
-        profileName,
+        _profileName,
         options = {},
       ) => {
         assertMatch(

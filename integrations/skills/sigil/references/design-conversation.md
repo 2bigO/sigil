@@ -2,22 +2,20 @@
 
 # Sigil Design Conversation
 
-Use this procedure for explicit design, review, or improvement work or when
-inspected evidence exposes a material decision that requires user judgment. It
-is shared by Greenfield design, Brownfield reconstruction, established-Sigil
-review, and implementation work.
+Use this procedure when DesignIntake returns `conversation-required`, or for
+explicit design, review, or improvement work. It is shared by Greenfield design,
+Brownfield reconstruction, established-Sigil review, and implementation work.
 
-Do not enter design conversation merely because a request uses Sigil, triggers
-preflight, or asks an ordinary status, explanation, diagnosis, or mechanical
-change with no material design choice.
+DesignIntake owns request classification. Do not reclassify a proven mechanical
+request here or author while DesignIntake reports `context-insufficient`.
 
-The conversation guides incomplete intent and existing contracts toward
-coherent, modular, and improvable designs. It is not an exhaustive questionnaire
-and does not replace the user's authority.
+The conversation extracts the material intent needed for a coherent, modular,
+and durable design. It does not replace the user's authority or silently fill
+material gaps with model assumptions.
 
 ## Contents
 
-1. Decide whether conversation applies
+1. Receive the DesignIntake result
 2. Build DesignContext
 3. Maintain conversation state and mode
 4. Prioritize decisions
@@ -28,30 +26,16 @@ and does not replace the user's authority.
 9. Finish or block the conversation
 10. Limits and examples
 
-## 1. Decide Whether Conversation Applies
+## 1. Receive The DesignIntake Result
 
-Enter DesignConversation when at least one of these applies:
+Enter DesignConversation when DesignIntake reports `conversation-required`.
+Explicit design, review, or improvement work may enter directly when its material
+decision is already evident. Preserve the intake's decision inventory and routing
+basis in the conversation ledger.
 
-- the user explicitly requests design, architecture, review, or improvement;
-- product or contract intent is incomplete and a material decision remains;
-- review exposes a suspected or confirmed material problem that requires user
-  judgment;
-- a coherent existing contract has a credible improvement opportunity that
-  requires a project choice;
-- external guidance exposes a material conflict, alternative, or improvement
-  that cannot be adopted without user authority.
-
-Do not enter for:
-
-- ordinary read-only status, explanation, or diagnosis;
-- deterministic validation by itself;
-- a mechanical implementation change with established coverage and no material
-  design choice;
-- an already coherent request whose relevant decisions and Sigil remain
-  established;
-- immaterial preferences or hypothetical edge cases.
-
-Conversation applicability is a routing decision, not an approval gate.
+When DesignIntake returns `context-insufficient`, obtain the missing evidence
+before beginning conversation or authoring. Intake routing is not an approval
+gate.
 
 ## 2. Build DesignContext
 
@@ -69,9 +53,14 @@ applicable:
   opportunities, suspected findings, and confirmed problems;
 - applicable glossary context and external-guidance evidence.
 
-Use `sigil context` and `sigil graph` through the established-Sigil and
-standards-review procedures. DesignConversation consumes this context; it does
-not redefine graph discovery or evidence classification.
+Use `sigil retrieve` as the preferred source of purpose-specific context:
+`semantic` for contract intent and `architecture` for related ownership and
+dependencies. Use exact-case component targets by default and a file target for
+colocated declarations or expands. Correct retrieval diagnostics before relying
+on its result. Use `sigil context` or `sigil graph` only when a successful
+retrieval does not contain a relationship or detail required for the decision.
+DesignConversation consumes this context; it does not redefine retrieval,
+graph discovery, or evidence classification.
 
 Context is sufficient when the affected contract, related ownership and
 dependencies, repository evidence, and material review findings are available
@@ -113,13 +102,13 @@ material decision as:
 
 - **confirmed:** explicitly decided by the user or established by approved
   Sigil;
-- **provisionally assumed:** a conservative, reversible assumption stated to
-  the user;
+- **provisionally assumed:** a stated, low-risk, mechanically derived detail
+  that cannot affect the contract, coherence, or future implementation choices;
 - **intentionally deferred:** not required for the current contract and retained
   visibly;
 - **unresolved:** no safe decision exists yet.
 
-Existing or approved Sigil is evidence of current intent, not proof that the
+Existing or validated written Sigil is evidence of current intent, not proof that the
 design cannot be improved. Reopen a confirmed decision when new evidence
 materially conflicts with it or indicates a material improvement opportunity.
 
@@ -138,6 +127,7 @@ Classify discovered questions by their effect on:
 - permissions, sensitive data, destructive operations, and recovery;
 - binding architecture, persistence, platform, and interoperability;
 - acceptance scenarios and verification.
+- future consistency, change coupling, and foreseeable implementation pitfalls.
 
 Ask the unresolved question whose answer most strongly shapes later decisions.
 Prefer purpose before technology, boundary before decomposition, ownership
@@ -146,9 +136,10 @@ private implementation detail.
 
 A decision is blocking when leaving it unresolved could materially change a
 public contract, ownership, permissions, sensitive or persistent data,
-lifecycle, failure behavior, binding architecture, or acceptance criteria.
-Other decisions may be provisionally assumed or intentionally deferred when the
-user accepts that treatment.
+lifecycle, failure behavior, binding architecture, acceptance criteria, or
+future consistency of related Sigil. Do not assume or defer a blocking decision.
+Only a mechanically derived, low-risk detail that cannot introduce future
+incoherence or a meaningful implementation pitfall may be provisional.
 
 An optional improvement is not blocking merely because it could make the design
 better. State its evidence, consequences, and recommendation, and let the user
@@ -181,7 +172,7 @@ never determines a ReviewGate result.
 
 When authoritative sources disagree before a project decision exists, record
 the disagreement as unresolved design evidence. Enter correction mode only when
-applicable evidence confirms a material conflict with approved Sigil or a
+applicable evidence confirms a material conflict with validated written Sigil or a
 confirmed decision.
 
 Incomplete evidence may support a stated conservative provisional option only
@@ -221,9 +212,9 @@ uncertainty.
 ## 7. Handle Uncertainty, Findings, And Conflicts
 
 When the user is unsure, explain the uncertainty and recommend a conservative
-option with its consequences. A low-risk reversible choice may become
-provisional after it is stated. A non-blocking choice may be deferred and must
-remain visible in synthesis.
+option with its consequences. Resolve material uncertainty with the user; do
+not turn it into a model assumption. A non-blocking choice may be deferred and
+must remain visible in synthesis.
 
 Do not silently default a blocking decision. Ask for user direction or
 qualified review when security, permissions, destructive behavior, persistent
@@ -273,12 +264,12 @@ turn:
 Preserve affected Sigil while the user decides. A confirmed material problem
 cannot be deferred, treated as provisional, or bypassed for implementation.
 Resume exploration or improvement only after the confirmed problem is resolved.
-Resolution is evidence and still requires
-`ReviewGate(action: sigil-change)` for the exact proposal.
+Resolution is evidence; write the scoped Sigil directly and validate it before
+implementation review.
 
 ### Conflicting Answers Or Evidence
 
-When an answer conflicts with an earlier decision, approved Sigil, repository
+When an answer conflicts with an earlier decision, validated written Sigil, repository
 evidence, or applicable guidance:
 
 1. stop advancing to unrelated design questions when the conflict is confirmed
@@ -310,10 +301,10 @@ Do not repeat the entire conversation.
 
 ## 9. Finish Or Block The Conversation
 
-Move to synthesis only when no blocking unresolved decision or confirmed
-material problem remains. Before synthesis, refresh affected related-Sigil
-evidence and verify that the emerging decision preserves coherence and
-modularity.
+Move to synthesis only when no blocking unresolved decision, material model
+assumption, or confirmed material problem remains. Before synthesis, refresh
+affected related-Sigil evidence and verify that the emerging design preserves
+coherence, consistency, and modularity without foreseeable material pitfalls.
 
 The synthesis must state:
 
@@ -322,7 +313,7 @@ The synthesis must state:
 - public behavior, lifecycle, failure, and risk decisions;
 - binding architecture or platform decisions;
 - accepted improvements and retained existing choices;
-- confirmed assumptions and trade-offs;
+- confirmed decisions and trade-offs;
 - intentionally deferred non-blocking decisions and improvements;
 - evidence-informed decisions and directly relevant source identity;
 - unavailable, partially assessed, or conflicting evidence requiring
@@ -330,8 +321,7 @@ The synthesis must state:
 
 Then prepare exact proposed Sigil through the applicable semantic-review and
 implementation-coverage procedures. Conversation is evidence, not approval.
-Submit the exact scope and change set to
-`ReviewGate(action: sigil-change)`.
+Record the exact scope and change set in the written-file review.
 
 If a blocking decision remains unresolved, continue the focused conversation.
 Do not synthesize speculative Sigil or begin implementation.
@@ -339,7 +329,8 @@ Do not synthesize speculative Sigil or begin implementation.
 ## 10. Limits And Examples
 
 Every question must materially improve product intent, public behavior,
-ownership, lifecycle, architecture, risk handling, or verification.
+ownership, lifecycle, architecture, risk handling, verification, future
+consistency, or avoidance of a foreseeable implementation pitfall.
 
 ### Unrelated Request
 

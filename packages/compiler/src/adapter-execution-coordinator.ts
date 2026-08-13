@@ -1,10 +1,10 @@
 import type {
   AdapterCleanupRecoveryEvidence,
   AdapterFailureKind,
-  CoordinatorFailureKind,
   AdapterObservationStatus,
   AdapterResourceLifecycleState,
   AdapterResultInputLifecycleState,
+  CoordinatorFailureKind,
 } from "./types.ts";
 
 export class AdapterFailure extends Error {
@@ -100,7 +100,9 @@ export async function coordinateAdapterExecution<T>(
   const terminationControl: AdapterTerminationControl = {
     requestPreventiveBudgetTermination(message) {
       if (!preventiveBudget.signal.aborted) {
-        preventiveBudget.abort(new AdapterFailure("preventive-budget", message));
+        preventiveBudget.abort(
+          new AdapterFailure("preventive-budget", message),
+        );
       }
     },
   };

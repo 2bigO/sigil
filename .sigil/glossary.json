@@ -355,6 +355,13 @@
       ]
     },
     {
+      "term": "implementation alignment",
+      "definition": "The post-implementation reconciliation loop that compiles and compares an approved implementation with its governing validated written Sigil until no unresolved implementation or contract drift remains.",
+      "aliases": [
+        "implementation-alignment"
+      ]
+    },
+    {
       "term": "implementation mutation",
       "definition": "A creation, modification, move, or deletion of an implementation artifact; excludes read-only inspection and exact user-requested rollback of the current agent's unapproved changes.",
       "aliases": [
@@ -606,6 +613,15 @@
       "definition": "The deterministic one-hop relations deliberately stopped by a purpose policy's explicit non-transitive, cycle-boundary, or module-import rules.",
       "aliases": [
         "exclusion frontiers"
+      ],
+      "agentContext": true
+    },
+    {
+      "term": "design intake",
+      "definition": "The pre-authoring assessment that classifies a requested change as mechanical, conversation-required, or context-insufficient from its boundary evidence and material decisions.",
+      "aliases": [
+        "DesignIntake",
+        "design intakes"
       ],
       "agentContext": true
     }

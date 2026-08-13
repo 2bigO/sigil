@@ -5,8 +5,8 @@
 component SigilAuthoringWorkflow {
   goal {
     Author coherent Sigil boundaries, semantic units, concept identities, imports,
-    module indexes, and durable decision rationale after provisional design
-    evidence has been reviewed.
+    module indexes, and durable decision rationale as an initial written draft,
+    then revise it from provisional design evidence.
   }
 
   interface {
@@ -67,7 +67,7 @@ DecisionRationaleWorkflow {
       without treating them as imported public contract
 
       audits every new or changed material selected choice for durable rationale
-      before ReviewGate for sigil-change can return ready
+      before written-Sigil design compilation can be accepted
 
       reports each choice as covered by a decisions occurrence or intentionally
       omitted with concrete evidence
@@ -77,6 +77,15 @@ DecisionRationaleWorkflow {
 
 expand SigilAuthoringWorkflow {
   logic {
+DirectAuthoringLifecycle {
+      After material design intent is resolved, write the exact scoped Sigil draft
+      directly to the selected file before DesignCompilationReview.
+
+      Use DesignCompilationReview evidence only to revise, validate, and complete
+      that written draft. A red or unresolved yellow report returns to correction or
+      DesignConversation; it never retroactively prevents creating the initial draft.
+    }
+
 ImportSemantics {
       Inspect accessible imported components and public concepts before proposing
       local identities.
@@ -115,7 +124,7 @@ ConceptIdentifierWorkflow {
       expands, local occurrences, imported candidates, consumer evidence, and graph
       paths.
 
-      After approved grouping changes, return to DesignCompilationReview before
+      After written grouping changes, return to DesignCompilationReview before
       glossary candidate extraction.
     }
 
@@ -158,7 +167,7 @@ DecisionRationaleWorkflow {
       to DesignConversation in the applicable mode before proposing the decision
       record.
 
-      Repeat the decision-rationale coverage audit after writing approved Sigil and
+      Repeat the decision-rationale coverage audit after writing validated Sigil and
       before ReviewGate for implementation can return ready.
     }
   }
@@ -197,8 +206,8 @@ ConceptIdentifierWorkflow {
       The subagent reports each region, grouping decision, new or reused status,
       occurrences, graph paths, rejected alternatives, and proposed concise names.
 
-      Concept creation, reuse, regrouping, renaming, and warning repair require
-      ReviewGate readiness for sigil-change before mutation.
+      Concept creation, reuse, regrouping, renaming, and warning repair are written
+      directly to scoped Sigil, then return to DesignCompilationReview.
 
       Concept-identifier work does not invoke anchor persistence, proposal, or
       reconciliation behavior.
@@ -224,8 +233,8 @@ SemanticUnitDiscipline {
       The absence of a decisions section is structurally valid but blocks skill
       semantic readiness when a material selected choice lacks durable rationale.
 
-      A material selected choice cannot make ReviewGate ready for sigil-change or
-      implementation without decision-rationale coverage.
+      A material selected choice cannot proceed to implementation review without
+      decision-rationale coverage.
 
       A trivial, mechanically derived, or safely reconstructable choice does not
       require a filler decision record.
@@ -272,21 +281,21 @@ ModuleIndexFile {
     }
 
 DecisionRationaleWorkflow {
-      Decision: Require a decision-rationale coverage audit before ReviewGate can
-      return ready for sigil-change and again after approved Sigil is written.
+      Decision: Require a decision-rationale coverage audit before written-Sigil
+      design compilation can be accepted and again after Sigil is written.
 
-      Scope: Governs new or changed material selected choices in semantic Sigil
-      proposals; excludes trivial, mechanically derived, and safely reconstructable
-      choices.
+      Scope: Governs new or changed material selected choices in scoped semantic
+      Sigil writes; excludes trivial, mechanically derived, and safely
+      reconstructable choices.
 
-      Trade-offs: Every material proposal requires an additional coverage review and
-      may require more semantic units.
+      Trade-offs: Every material write requires an additional coverage review and may
+      require more semantic units.
 
-      Design issues addressed: Material workflow choices previously reached approval
-      because decision authoring described record format without requiring coverage.
+      Design issues addressed: Material workflow choices previously advanced without
+      coverage because decision authoring described record format but not its audit.
 
-      Consequences: Missing rationale blocks semantic readiness, and exact decision
-      records must be included in the approved proposal.
+      Consequences: Missing rationale blocks accepted design evidence, and exact
+      decision records must be included in the written Sigil.
 
       Revisit when: Deterministic tooling can identify decision-rationale coverage
       without treating model judgment as language validity.

@@ -33,12 +33,11 @@ Expected skill behavior:
     for independently changing state, lifecycle, policy, or behavior.
 11. Show exact missing components, expands, locations, and imports before editing
    Sigil.
-12. Allow contract-level and implementation-level Sigil to share one
-    `sigil-change` scope when both are clear, but use a later separately scoped
-    `sigil-change` when implementation design depends on an approved
-    higher-level decision.
-13. Write only when `ReviewGate(action: sigil-change)` is ready, validate the
-    Sigil, and report it without another approval gate.
+12. Write the clear contract-level and implementation-level Sigil directly in
+    the scoped files; return to DesignConversation when a material decision is
+    unresolved or risks a future inconsistency.
+13. Validate and compile each written semantic change; review the written
+    result in the file without a separate Sigil-change gate.
 14. Implement only when `ReviewGate(action: implementation)` reviews the
     validated written Sigil and exact implementation scope together and returns
     ready.
@@ -47,7 +46,7 @@ Expected skill behavior:
     scripts, workflow instructions, tests, fixtures, metadata, validators,
     generated assets, and documentation.
 16. Do not treat the user's requested outcome as making ReviewGate ready for
-    `sigil-change` or `implementation`.
+    `implementation`.
 17. Decide that an edit is mechanical only after preflight establishes complete
     coverage and no material decision.
 18. Do not treat successful tests, builds, validators, or Sigil checks after an
@@ -77,3 +76,10 @@ Expected skill behavior:
 28. After forward implementation or reconciliation, verify relations, Sigil
     targets, selected sections, and entrypoint associations; report stale, detached, malformed, or unresolved
     links.
+29. Build a general verification inventory from manifests, task runners, CI,
+    test configuration, and maintained workflow documentation.
+30. Run every applicable focused, direct-dependent, integration, contract,
+    regression, build, static, and end-to-end check; do not silently replace a
+    broader check with a focused test or run unrelated repository-wide checks.
+31. Continue independent checks after failures and report blocked or unavailable
+    checks, exact commands, working directories, outcomes, and reasons.

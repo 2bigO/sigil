@@ -38,16 +38,15 @@ Expected skill behavior:
     before creating a local component or concept.
 11. Show how the proposed contracts decompose implementation ownership rather
     than treating the high-level boundary summary as sufficient coverage.
-12. Submit the exact boundary module index to
-   `ReviewGate(action: sigil-change)`, write only when ready, validate it, and
-   report the written result without another approval gate.
+12. Write the exact boundary module index directly, validate and compile it,
+   then review the written result in the file.
 13. After the ready boundary summary is written and validated, focus on the
     requested component, classify its coverage, and gather task-specific
     evidence.
 14. Report conflicting current and intended behavior and propose exact task
     Sigil before editing.
-15. Submit exact task Sigil to `ReviewGate(action: sigil-change)`, then write,
-    validate, and report it only when ready.
+15. Write exact task Sigil directly when its material intent is clear, then
+   validate, compile, and review it; enter DesignConversation if it is not.
 16. If the requested implementation change lacks clear Sigil coverage,
     collaborate with the user to define and approve that coverage before
     changing code.

@@ -183,7 +183,11 @@
     "exclude-sigil-and-json-annotations",
     "scan-for-reconciliation-links",
     "review-reconciliation-candidates",
-    "verify-ownership-links"
+    "verify-ownership-links",
+    "discover-applicable-verification",
+    "run-complete-applicable-verification",
+    "continue-independent-checks-after-failure",
+    "report-blocked-unavailable-and-excluded-checks"
   ],
   "conceptIdentifierFixture": "concept-identifier-fixture.md",
   "conceptIdentifierRequiredBehaviors": [
