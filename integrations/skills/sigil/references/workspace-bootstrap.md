@@ -1,4 +1,7 @@
-<!-- @sigil implements integrations/skills/sigil/workspace-bootstrap.sigil::SigilWorkspaceBootstrap::WorkspaceBootstrap interface,state,logic,constraints,cases -->
+<!--
+@sigil implements integrations/skills/sigil/compatibility.sigil::SigilSkillCompatibility::SkillCompatibility interface,logic,constraints,cases
+@sigil implements integrations/skills/sigil/workspace-bootstrap.sigil::SigilWorkspaceBootstrap::WorkspaceBootstrap interface,state,logic,constraints,cases
+-->
 
 # Workspace Bootstrap
 
