@@ -6,6 +6,7 @@ import {
   type CompilationReport,
   type compile,
   FileCompilationHistoryStore,
+  resolveCompilationProfile,
   type SigilCompilationSessionFactory,
 } from "@qoherent/sigil-compiler";
 import {
@@ -259,7 +260,9 @@ export async function runCli(
         const result = await startCompilationSession(
           request.root ?? request.path ?? Deno.cwd(),
           target,
-          request.profile ?? "standard",
+          request.profile ?? await resolveCompilationProfile(
+            request.root ?? request.path ?? Deno.cwd(),
+          ),
           request.focus!,
           {
             factory: options.sessionFactory,
@@ -338,10 +341,15 @@ export async function runCli(
         : parsed.request.file
         ? { kind: "file" as const, filePath: parsed.request.file }
         : { kind: "workspace" as const };
+      const workspacePath = parsed.request.root ?? parsed.request.path ??
+        Deno.cwd();
       const report = await compileWorkspace(
-        parsed.request.root ?? parsed.request.path ?? Deno.cwd(),
+        workspacePath,
         target,
-        parsed.request.profile ?? "standard",
+        parsed.request.profile ?? await resolveCompilationProfile(
+          workspacePath,
+          parsed.request.agent,
+        ),
         {
           requestedStage: parsed.request.stage,
           focus: parsed.request.focus,

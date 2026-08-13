@@ -145,16 +145,58 @@ export async function loadCompilationConfiguration(
   return (await loadCompilationWorkspace(startPath)).configuration;
 }
 
+export async function loadAgentProfile(
+  workspacePath: string,
+): Promise<string | undefined> {
+  const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
+    startPath: workspacePath,
+    currentDirectory: Deno.cwd(),
+  });
+  assertLoadedWorkspace(workspace.diagnostics);
+  const agent = workspace.config?.tools.agent;
+  return agent && typeof agent === "object" && !Array.isArray(agent) &&
+      typeof (agent as Record<string, unknown>).profile === "string"
+    ? (agent as Record<string, string>).profile
+    : undefined;
+}
+
+export async function resolveCompilationProfile(
+  workspacePath: string,
+  agent: boolean = false,
+): Promise<string> {
+  const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
+    startPath: workspacePath,
+    currentDirectory: Deno.cwd(),
+  });
+  assertLoadedWorkspace(workspace.diagnostics);
+  const agentConfiguration = workspace.config?.tools.agent;
+  const agentProfile = agent && agentConfiguration &&
+      typeof agentConfiguration === "object" &&
+      !Array.isArray(agentConfiguration) &&
+      typeof (agentConfiguration as Record<string, unknown>).profile ===
+        "string"
+    ? (agentConfiguration as Record<string, string>).profile
+    : undefined;
+  const configuration = parseCompilationConfiguration(
+    workspace.config?.tools.compile,
+  );
+  return agentProfile ?? configuration.defaultProfile ?? "standard";
+}
+
 export async function loadCompilationWorkspace(
   startPath: string,
-): Promise<{ readonly configuration: CompileConfiguration; readonly root: string }> {
+): Promise<
+  { readonly configuration: CompileConfiguration; readonly root: string }
+> {
   await assertWorkspacePath(startPath);
   const workspace = await loadSigilWorkspace(new DenoReadOnlyFileSystem(), {
     startPath,
   });
   assertLoadedWorkspace(workspace.diagnostics);
   return {
-    configuration: parseCompilationConfiguration(workspace.config?.tools.compile),
+    configuration: parseCompilationConfiguration(
+      workspace.config?.tools.compile,
+    ),
     root: workspace.root,
   };
 }
@@ -277,11 +319,22 @@ export async function compile(
     const diagnostics: CompilerDiagnostic[] = [];
     const stageReports: StageReport[] = [];
     const failed = new Set<string>();
-    const evaluatorLabel = adapters.map((item) => item.id).join(",") ||
-      "unavailable";
+    const adaptersByEvaluatorId = new Map(
+      profile.evaluators.map((evaluator, index) => [
+        evaluator.id,
+        adapters[index],
+      ]),
+    );
 
     for (const stage of profile.stages) {
       const definition = definitions.find((item) => item.id === stage.id)!;
+      const stageEvaluatorIds = stage.evaluatorIds;
+      const stageAdapters = stageEvaluatorIds
+        ? stageEvaluatorIds.map((id) => adaptersByEvaluatorId.get(id))
+          .filter((adapter): adapter is AgentAdapter => !!adapter)
+        : adapters;
+      const evaluatorLabel = stageAdapters.map((item) => item.id).join(",") ||
+        "unavailable";
       if (!stage.enabled) {
         failed.add(stage.id);
         stageReports.push(stageReport(stage, "disabled", "none", 0));
@@ -322,7 +375,11 @@ export async function compile(
             );
           }
         } else {
-          if (!adapters.length) {
+          if (
+            !stageAdapters.length ||
+            (stageEvaluatorIds &&
+              stageAdapters.length !== stageEvaluatorIds.length)
+          ) {
             throw new Error(
               "No compiler evaluator is configured for the selected profile.",
             );
@@ -330,7 +387,9 @@ export async function compile(
           if (!definition.skill) {
             throw new Error(`Evaluation skill ${stage.id} is unavailable.`);
           }
-          for (const adapter of adapters) assertAdapterCapabilities(adapter);
+          for (const adapter of stageAdapters) {
+            assertAdapterCapabilities(adapter);
+          }
           for (const component of components) {
             const retrievalPurpose =
               definition.skill.manifest.implementationEvidence === "compare"
@@ -376,9 +435,11 @@ export async function compile(
                 workspace.root,
                 retrieval,
               ),
-              capabilities: evaluationCapabilitiesFor(adapters[0].capabilities),
+              capabilities: evaluationCapabilitiesFor(
+                stageAdapters[0].capabilities,
+              ),
               commandPolicy: INSPECTION_COMMAND_POLICY,
-              observability: adapters[0].observability,
+              observability: stageAdapters[0].observability,
               budgets: profile.executionBudgets,
               limits: {
                 maxInitialRequestChars: profile.agentInputBudgetChars,
@@ -399,7 +460,7 @@ export async function compile(
               );
             }
             const componentDiagnostics: CompilerDiagnostic[][] = [];
-            for (const adapter of adapters) {
+            for (const adapter of stageAdapters) {
               const adapterRequest = buildAgentEvaluationRequest({
                 ...request,
                 capabilities: evaluationCapabilitiesFor(adapter.capabilities),
@@ -462,7 +523,7 @@ export async function compile(
               const rawDiagnostic of await disagreementDiagnostics(
                 stage.id,
                 component.name,
-                adapters,
+                stageAdapters,
                 componentDiagnostics,
               )
             ) {
@@ -486,7 +547,7 @@ export async function compile(
         state = "failed";
         failed.add(stage.id);
         const diagnostic = currentLifecycle(
-          await stageFailure(stage.id, adapters[0], error),
+          await stageFailure(stage.id, stageAdapters[0], error),
           previous,
         );
         diagnostics.push(diagnostic);
@@ -784,8 +845,20 @@ async function effectiveProfile(
     enabled: !disabled.has(stage.id),
     agentic: stage.agentic,
     dependencies: stage.dependencies,
+    evaluatorIds: stage.agentic
+      ? evaluatorIdsForStage(name, base, custom, configuration, stage.id)
+      : [],
   }));
-  const evaluators = selectedEvaluators(name, base, custom, configuration);
+  const evaluatorIds = [
+    ...new Set(stages.flatMap((stage) => stage.evaluatorIds ?? [])),
+  ];
+  const evaluators = selectedEvaluators(
+    name,
+    base,
+    custom,
+    configuration,
+    evaluatorIds.length ? evaluatorIds : undefined,
+  );
   const settings = resolveCompilationSettings(configuration);
   const profileBase = {
     name,
@@ -833,6 +906,7 @@ function selectedEvaluators(
     | undefined ? T | undefined
     : never,
   configuration: CompileConfiguration,
+  selectedIds?: readonly string[],
 ): readonly EvaluatorConfiguration[] {
   const configuredIds = custom?.evaluatorIds as unknown;
   if (
@@ -847,7 +921,7 @@ function selectedEvaluators(
       } evaluatorIds must contain non-empty strings.`,
     );
   }
-  const ids = (configuredIds as readonly string[] | undefined) ??
+  const ids = selectedIds ?? (configuredIds as readonly string[] | undefined) ??
     (base === "standard" && configuration.adapter ? ["default"] : []);
   if (new Set(ids).size !== ids.length) {
     throw evaluatorConfigurationError(
@@ -916,6 +990,36 @@ function selectedEvaluators(
   });
 }
 
+function evaluatorIdsForStage(
+  name: string,
+  base: "standard" | "critical-system",
+  custom: NonNullable<CompileConfiguration["profiles"]>[string] | undefined,
+  configuration: CompileConfiguration,
+  stage: string,
+): readonly string[] | undefined {
+  const stages = custom?.stages;
+  if (!stages) {
+    return custom?.main ?? custom?.evaluatorIds ??
+      (base === "standard" && configuration.adapter ? ["default"] : undefined);
+  }
+  const ids = stages[stage] ?? custom?.main;
+  if (
+    !Array.isArray(ids) || ids.length === 0 ||
+    ids.some((id) => typeof id !== "string" || !id) ||
+    new Set(ids).size !== ids.length
+  ) {
+    throw evaluatorConfigurationError(
+      base,
+      `Profile ${
+        JSON.stringify(name)
+      } must configure unique evaluator identities for agentic stage ${
+        JSON.stringify(stage)
+      }.`,
+    );
+  }
+  return ids;
+}
+
 function normalizeEvaluator(
   id: string,
   raw: NonNullable<CompileConfiguration["adapter"]>,
@@ -979,7 +1083,10 @@ function adaptersFrom(
         const message = error instanceof Error ? error.message : String(error);
         throw profile.criticalSystem
           ? profileEvaluatorError(message)
-          : new CompilerFailure("COMPILER_PROFILE_EVALUATORS_REQUIRED", message);
+          : new CompilerFailure(
+            "COMPILER_PROFILE_EVALUATORS_REQUIRED",
+            message,
+          );
       }
     });
   }

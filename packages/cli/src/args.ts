@@ -115,6 +115,7 @@ export interface CompileRequest extends GlobalOptions {
   };
   readonly path?: string;
   readonly profile?: string;
+  readonly agent: boolean;
   readonly noCache: boolean;
   readonly output?: string;
 }
@@ -211,6 +212,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let agent: SkillAgent | "all" | undefined;
   let showLocations = false;
   let profile: string | undefined;
+  let compileAgent = false;
   let focus: CompileRequest["focus"];
   let noCache = false;
   let output: string | undefined;
@@ -257,6 +259,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         project = true;
         break;
       case "--agent": {
+        if (commandName === "compile") { compileAgent = true; break; }
         const value = take(arg);
         if (typeof value !== "string") return value;
         if (!isSkillAgent(value) && value !== "all") {
@@ -416,7 +419,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (
     commandName !== "compile" &&
-    (profile || focus || noCache || output || format === "jsonl")
+    (profile || compileAgent || focus || noCache || output || format === "jsonl")
   ) {
     return usage(
       `${commandName} does not accept compile options.`,
@@ -575,6 +578,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     };
   }
   if (commandName === "compile") {
+    if (compileAgent && profile) return usage("compile accepts either --profile or --agent, not both.", "compile");
     if (positional[0] === "session") {
       const action = positional[1];
       if (
@@ -704,6 +708,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         position,
         path: paths[0],
         profile,
+        agent: compileAgent,
         noCache,
         output,
         ...base,

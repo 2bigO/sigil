@@ -41,10 +41,17 @@
         "maxAgentInputChars": 2000000,
         "sessionTtlMs": 86400000
       },
-      "adapter": {
-        "provider": "codex",
-        "implementationId": "builtin.codex-cli",
-        "implementationVersion": "0.7.1"
+      "profiles": {
+        "standard": {
+          "main": ["codex"]
+        }
+      },
+      "evaluators": {
+        "codex": {
+          "provider": "codex",
+          "implementationId": "builtin.codex-cli",
+          "implementationVersion": "0.7.1"
+        }
       }
     }
   }
