@@ -1,4 +1,4 @@
-@spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig, SigilModuleIndex }
+@spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core import { SigilCore }
 @packages/cli import { SigilCli }
 @packages/compiler import { SigilCompiler }
@@ -30,13 +30,6 @@ component Sigil {
       sources consistently
     }
 
-    DirectoryImportSurfaceExposure {
-      DirectoryImportSurfaceExposure re-exposes DirectoryImportSurface through the
-      root boundary.
-
-      lets authors use intentional directory-import shorthand
-    }
-
     ComponentVisibilityGuarantee {
       ComponentVisibilityGuarantee adapts ComponentVisibility into a root-level
       visibility promise.
@@ -52,7 +45,8 @@ component Sigil {
       SigilCli, SigilLsp, and SigilVsCodeExtension remain available through their
       imported owning contracts
 
-      keeps command-line and language-server operations from modifying .sigil source
+      keeps command-line and language-server operations from modifying .sigil source,
+      except for explicitly requested CLI source formatting
     }
 
     SkillWorkflowIntegration {

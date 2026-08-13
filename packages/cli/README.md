@@ -115,11 +115,151 @@ Configure agentic compilation under `tools.compile`:
 }
 ```
 
+Each developer may create ignored `.sigil/local.json` containing `{ "tools": ... }`.
+It recursively overrides the tracked `tools` object only. Use `sigil compile --agent`
+to select `tools.agent.profile`, falling back to `tools.compile.defaultProfile`.
+
+Profiles may select a fallback evaluator list and stage-specific overrides:
+
+```json
+{
+  "tools": {
+    "compile": {
+      "profiles": {
+        "standard": {
+          "main": ["default"],
+          "stages": { "architecture-design": ["deep"] }
+        }
+      },
+      "evaluators": { "deep": { "provider": "codex", "model": "gpt-5.2" } }
+    }
+  }
+}
+```
+
 The compiler's Codex adapter runs ephemerally at the workspace root with
 read-only filesystem access, disabled network and approval escalation, and
 structured output. A configured provider that cannot enforce the same contract
 fails closed. Compilation does not generate code or execute implementation
 experiments.
+
+### Available adapters
+
+| Provider | Built-in implementation ID | Version | Model setting | Availability |
+| --- | --- | --- | --- | --- |
+| `codex` | `builtin.codex-cli` | `0.7.1` | Optional `model` | Bundled and available through the Codex CLI. |
+| `claude` | `builtin.claude-cli` | `0.7.1` | Optional `model` | Recognized, but the bundled placeholder rejects evaluation; install a compatible adapter implementation to use it. |
+| `opencode` | `builtin.opencode-cli` | `0.7.1` | Optional `model` | Bundled by the Sigil CLI. |
+| `pi` | `builtin.pi-cli` | `0.7.1` | Optional `model` | Bundled by the Sigil CLI. |
+
+Set `provider`, optional `model`, and, when required, the exact
+`implementationId` and `implementationVersion` on `adapter` or a named entry in
+`evaluators`. A named evaluator can then be selected by a profile's `main` or
+`stages` mapping.
+
+Copy-paste example:
+
+```json
+{
+  "tools": {
+    "agent": {
+      "profile": "developer"
+    },
+    "compile": {
+      "defaultProfile": "standard",
+      "adapter": {
+        "provider": "codex",
+        "implementationId": "builtin.codex-cli",
+        "implementationVersion": "0.7.1",
+        "model": "gpt-5"
+      },
+      "evaluators": {
+        "codex-deep": {
+          "provider": "codex",
+          "implementationId": "builtin.codex-cli",
+          "implementationVersion": "0.7.1",
+          "model": "gpt-5.2"
+        },
+        "opencode-review": {
+          "provider": "opencode",
+          "implementationId": "builtin.opencode-cli",
+          "implementationVersion": "0.7.1",
+          "model": "your-opencode-model"
+        },
+        "pi-review": {
+          "provider": "pi",
+          "implementationId": "builtin.pi-cli",
+          "implementationVersion": "0.7.1",
+          "model": "your-pi-model"
+        }
+      },
+      "profiles": {
+        "developer": {
+          "extends": "standard",
+          "main": ["default"],
+          "stages": {
+            "semantic-readiness": ["codex-deep"],
+            "architecture-design": ["opencode-review"],
+            "current-code-compatibility": ["pi-review"]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Put personal provider, model, or profile choices in `.sigil/local.json`; its
+`tools` object merges over the tracked configuration. Run `sigil compile --agent`
+to use `tools.agent.profile`.
+
+### Compiler configuration reference
+
+`tools.compile.adapter` is the legacy default evaluator. When it is present, it
+is exposed to profiles as the evaluator ID `default`; therefore
+`"main": ["default"]` uses this adapter for every agentic stage not named in
+`stages`. `adapter` accepts `provider`, optional `model`, optional
+`implementationId`, and optional `implementationVersion`. Omitting its ID and
+version selects the provider's built-in CLI adapter and this Sigil release's
+version.
+
+`tools.compile.evaluators` is a map of named bindings with the same fields as
+`adapter`. Use these names in `profiles.<name>.main` or
+`profiles.<name>.stages.<stage>`. `main` is required when a `stages` map omits an
+agentic stage. `evaluatorIds` remains supported for older configurations and
+applies to every agentic stage when `main` and `stages` are absent.
+
+`tools.compile.defaultProfile` selects the profile used by ordinary
+`sigil compile` commands. `tools.agent.profile` selects the profile used by
+`sigil compile --agent`. A profile may use `extends: "standard"` or
+`extends: "critical-system"`; `standard` runs deterministic foundation plus the
+normal design stages, while `critical-system` also includes `standards-risk` and
+requires independent evaluators. A custom profile name must declare one of
+those bases with `extends`. `disabledStages` disables optional stages, but cannot
+bypass required dependencies.
+
+The valid agentic `stages` keys are `semantic-readiness`,
+`architecture-design`, `current-code-compatibility`, and `standards-risk`.
+`deterministic-foundation` is built in and does not accept an evaluator binding.
+
+`tools.compile.budgets` contains positive integer limits:
+
+| Field | Default | Purpose |
+| --- | ---: | --- |
+| `elapsedTimeMs` | `1800000` | Maximum elapsed evaluator time (30 minutes). |
+| `maxCommands` | `512` | Maximum inspection commands an evaluator may issue. |
+| `maxCommandOutputChars` | `3000000` | Maximum retained nonessential command output. |
+| `maxInputTokens` | `1000000` | Maximum configured input-token budget. |
+| `maxOutputTokens` | `1000000` | Maximum configured output-token budget. |
+
+`tools.compile.limits` also contains positive integer limits:
+
+| Field | Default | Purpose |
+| --- | ---: | --- |
+| `maxCompilationRequestChars` | `1000000` | Maximum compiler evaluation request and provider result size. |
+| `maxAgentInputChars` | `1000000` | Maximum initial agent request size. |
+| `sessionTtlMs` | `86400000` | Proposal-compilation session lifetime (24 hours). |
+| `providerCleanupMs` | `5000` | Deadline for graceful and forced provider cleanup. |
 
 The CLI also bundles and registers the independently packaged OpenCode and Pi
 compiler adapters. OpenCode evaluation uses `opencode run --format json`,

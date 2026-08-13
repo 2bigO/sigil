@@ -12,6 +12,7 @@ coverage/
 .env
 .env.*
 !.env.example
+.sigil/local.json
 IMPL.md
 
 # Logs

@@ -48,6 +48,67 @@ component SigilWorkspaceLoader {
 
 expand SigilWorkspaceLoader {
   logic {
+    LocalToolConfiguration {
+      Read and validate optional LocalConfigFile after ConfigFile selects the
+      workspace root, then expose the merged effective configuration.
+    }
+  }
+
+  constraints {
+    WorkspaceSnapshotIdentity {
+      Include LocalConfigFile source when present so a local tools override changes
+      the effective workspace snapshot used by compiler reports and evidence.
+    }
+
+    LocalToolConfiguration {
+      LocalConfigFile is optional, has no workspace-discovery authority, and may
+      override only the recursively merged tools configuration.
+
+      Local configuration diagnostics prevent reliance on the effective workspace;
+      the loader never repairs, rewrites, or ignores invalid local configuration.
+    }
+  }
+
+  decisions {
+    DeveloperLocalToolOverrides {
+      Decision: Keep workspace and language authority in tracked ConfigFile while
+      loading an optional developer-local LocalConfigFile that recursively overrides
+      only tools.
+
+      Scope: Governs .sigil/local.json discovery, validation, merging, and snapshot
+      identity; excludes credentials, configuration mutation, and workspace-boundary
+      overrides.
+
+      Trade-offs: Developers can select personal compiler integrations and profiles,
+      while a local file can make two checkouts produce different tool behavior.
+
+      Design issues addressed: A tracked adapter or model binding forces every
+      developer to share one provider setup and makes personal configuration hard to
+      keep out of version control.
+
+      Discarded alternatives: Replacing ConfigFile, permitting arbitrary top-level
+      overrides, and shallow replacement of the complete tools object were rejected
+      because they weaken shared workspace authority or discard unrelated settings.
+
+      Consequences: Shared repository semantics remain reproducible from ConfigFile,
+      and each effective compiler profile records the local tools selection that
+      produced it.
+    }
+  }
+
+  cases {
+    LocalToolConfiguration {
+      A valid local tools.compile override is available to compiler hosts while the
+      same workspace retains its ConfigFile-defined sources and members.
+
+      A malformed local configuration prevents a clean workspace load and preserves
+      both configuration files unchanged.
+    }
+  }
+}
+
+expand SigilWorkspaceLoader {
+  logic {
     WorkspaceSnapshotIdentity {
       Construct an RFC 8785 canonical object containing one record for the workspace
       config source when present, one record for the glossary source when present,

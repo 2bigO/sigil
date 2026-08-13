@@ -22,6 +22,39 @@ component SigilConfigurationParser {
   }
 }
 
+expand SigilWorkspaceConfig {
+  constraints {
+    LocalToolConfiguration {
+      LocalConfigFile is the optional .sigil/local.json developer configuration
+      beside ConfigFile.
+
+      LocalConfigFile contains only an optional tools object. Its values recursively
+      override matching tools objects from ConfigFile; a local scalar, array, or null
+      replaces the matching shared value.
+
+      LocalConfigFile cannot override sigilVersion, workspace, files, or any other
+      ConfigFile top-level field. Absence leaves ConfigFile tools unchanged.
+
+      A malformed LocalConfigFile or a local top-level key other than tools makes
+      workspace configuration invalid without changing ConfigFile.
+
+      LocalConfigFile is developer-local configuration and is excluded from version
+      control by the repository's .gitignore.
+    }
+  }
+
+  cases {
+    LocalToolConfiguration {
+      A missing LocalConfigFile preserves the ConfigFile tools object.
+
+      A LocalConfigFile can replace one compiler adapter model while retaining all
+      other shared tools.compile fields.
+
+      A LocalConfigFile cannot alter workspace membership or Sigil source selection.
+    }
+  }
+}
+
 expand SigilConfigurationParser {
   logic {
     ConfigurationParsing {

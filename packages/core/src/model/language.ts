@@ -25,4 +25,5 @@ export interface SourceRange {
 export const SIGIL_VERSION = "0.7.0";
 export const SIGIL_CORE_VERSION = metadata.version;
 export const SIGIL_CONFIG_PATH = ".sigil/config.json" as const;
+export const SIGIL_LOCAL_CONFIG_PATH = ".sigil/local.json" as const;
 export const SIGIL_GLOSSARY_PATH = ".sigil/glossary.json" as const;

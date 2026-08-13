@@ -167,14 +167,16 @@ component SigilCli {
     }
 
     CompilationFacade {
-      sigil compile [path] [--component name | --file file] [--profile name] [--focus
-      design|implementation] [--no-cache] [--output file] [--format jsonl]
+      sigil compile [path] [--component name | --file file] [--profile name |
+      --agent] [--focus design|implementation] [--no-cache] [--output file] [--format
+      jsonl]
 
-      sigil compile stage-id [path] [--component name | --file file] [--profile name]
-      [--no-cache] [--output file] [--format jsonl]
+      sigil compile stage-id [path] [--component name | --file file] [--profile name
+      | --agent] [--no-cache] [--output file] [--format jsonl]
 
-      sigil compile [path] --file file --position line:column [--profile name]
-      [--focus design|implementation] [--no-cache] [--output file] [--format jsonl]
+      sigil compile [path] --file file --position line:column [--profile name |
+      --agent] [--focus design|implementation] [--no-cache] [--output file] [--format
+      jsonl]
 
       compile presents human progress by default and exposes the structured compiler
       event and report protocol for automation
@@ -185,6 +187,10 @@ component SigilCli {
       When --profile is omitted, CLI resolves the selected workspace's
       tools.compile.defaultProfile; absent configuration selects standard. It passes
       that resolved profile explicitly to one-shot compilation and session creation.
+
+      --agent selects tools.agent.profile from the effective configuration. It
+      conflicts with --profile and falls back to tools.compile.defaultProfile, then
+      standard, when the agent profile is absent.
 
       in JSON Lines mode standard output contains only the versioned CompilationEvent
       stream and human progress or host logs use standard error
@@ -200,6 +206,16 @@ component SigilCli {
       sigil compile session close session-id releases the proposal workspace
     }
 
+  }
+}
+
+expand SigilCli {
+  cases {
+    CompilationFacade {
+      Running sigil compile --agent selects the effective tools.agent.profile.
+
+      Combining --agent with --profile exits with invalid usage.
+    }
   }
 }
 
