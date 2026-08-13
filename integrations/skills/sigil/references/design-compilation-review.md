@@ -45,45 +45,11 @@ after every semantic write:
 
 ```bash
 sigil check <workspace-root> --format json --pretty
-sigil compile <workspace-root> --focus design <target-selector>
+sigil compile <workspace-root> --agent --focus design <target-selector> --format jsonl
 ```
 
-Compiler sessions remain available only for an explicitly requested exceptional
-diagnostic investigation. They are not a required pre-write proposal workflow.
-
-Design compilation can take substantial time. Wait without cancelling it for its terminal outcome:
-the JSONL event protocol emits `completed` with the authoritative version-2
-CompilationReport, or emits `failed` or `cancelled` without a report. A stream
-consumer also waits for source end after that terminal event.
-
-A `failed` terminal outcome blocks review. Preserve its terminal diagnostics,
-durable capture, and exit status; report the failure; and retry the same target
-only after the identified evaluator or host cause is resolved. A `cancelled`
-terminal outcome also blocks review. Preserve its cancellation evidence, durable
-capture, and exit status; report who or what cancelled it when known; and retry
-only after the cause is resolved or the user explicitly requests another run.
-
-Before starting the compile, reserve and record a durable, task-scoped output
-path. Redirect both compiler stdout and stderr to it while preserving the
-command exit status. The path must remain readable if the command tool returns
-before a child evaluator exits; it is the source of record, not merely a copy of
-the live terminal display. For a shell host, use a fresh directory from
-`mktemp -d`, keep its path in the working record, and capture the command in a
-named log inside it.
-
-Stage-started events, partial progress, silence while an evaluator runs, or a
-slow response are not results. Keep the agent working session open while the
-compiler runs and report that it is waiting when progress is slow. Do not start
-a replacement compile for the same scope, abandon the run, or make a design
-decision from partial output. Treat a missing terminal outcome as a host or
-transport problem, not as red, yellow, or green evidence. If the execution host
-interrupts the live stream, retrieve the durable capture and continue waiting
-from it. Poll appended log output and, if needed, the evaluator process state
-until the log contains the terminal event and its writer has closed. Preserve
-the final report or terminal diagnostics from that log in review evidence. Do
-not retry solely because the live terminal event was lost. If the log cannot be
-read or cannot establish source end, report a host or transport failure and retry
-the same target only after durable capture is restored.
+Follow `references/compilation-execution.md` with `focus: design`. Its terminal
+outcome and durable-capture rules apply before interpreting the report.
 
 1. Return a deterministic, structural, or coherence correction requirement to the
    authoring workflow when the report and established intent determine one safe

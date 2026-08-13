@@ -1,6 +1,7 @@
 @packages/core import { SigilImplementationOwnership }
 @packages/core/src/context-retrieval.sigil import { SigilContextRetrieval }
 @integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
+@integrations/skills/sigil/compilation-execution.sigil import { SigilCompilationExecution }
 
 component SigilImplementationWorkflow {
   goal {
@@ -152,7 +153,8 @@ ImplementationGovernance {
 ImplementationAlignment {
       After implementation, compile and compare the exact implementation scope with
       governing Sigil, implementation coverage, ownership annotations, dependents,
-      and relevant verification evidence.
+      and relevant verification evidence using SigilCompilationExecution with focus
+      implementation.
 
       Repeat the alignment loop until the implementation and validated written Sigil
       have no unresolved drift.

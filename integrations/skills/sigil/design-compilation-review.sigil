@@ -1,4 +1,5 @@
 @packages/cli import { SigilCli }
+@integrations/skills/sigil/compilation-execution.sigil import { SigilCompilationExecution }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
 @integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
 
@@ -36,7 +37,7 @@ DesignCompilationReview {
 DesignCompilationReview {
       After design intent and applicable external guidance are sufficiently resolved,
       write the scoped Sigil change to the selected workspace and compile it with
-      ordinary SigilCli focus design.
+      SigilCompilationExecution with focus design.
 
       Derive one affected directory from every affected semantic unit's source-file
       parent, including an expand-only or declarationless file. For each candidate,
