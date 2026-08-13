@@ -300,18 +300,17 @@ change set submitted to ReviewGate.
 After each approved implementation change, reconcile the exact completed scope
 before reporting completion:
 
-1. preserve a durable task-scoped compiler log and run `sigil compile
-   <workspace-root> --focus implementation <target-selector>`;
-2. wait for the compiler's terminal outcome and closed output stream; do not treat
-   progress, silence, or a passing build or test run as alignment evidence;
-3. compare the terminal report with the governing Sigil, implementation coverage
+1. follow `references/compilation-execution.md` with `focus: implementation`:
+   `sigil compile <workspace-root> --agent --focus implementation
+   <target-selector> --format jsonl`;
+2. compare the terminal report with the governing Sigil, implementation coverage
    map, ownership annotations, direct dependents, and relevant verification evidence;
-4. when no unresolved drift remains, report implementation complete;
-5. when a finding needs user judgment but changes no governing contract, ask the
+3. when no unresolved drift remains, report implementation complete;
+4. when a finding needs user judgment but changes no governing contract, ask the
    user to resolve and approve the exact implementation change set, rerun
    `ReviewGate(action: implementation)`, apply it only when ready, and repeat this
    procedure;
-6. when a finding changes or exposes a missing governing contract, stop
+5. when a finding changes or exposes a missing governing contract, stop
    implementation, write the scoped Sigil correction, follow the design validation
    and compilation loop, repeat implementation preflight, and then resume work.
 

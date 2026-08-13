@@ -111,6 +111,8 @@ check passed.
 
 - `references/design-compilation-review.md`: after design intent is sufficiently
   resolved and after written semantic changes.
+- `references/compilation-execution.md`: for every ordinary design or
+  implementation compilation; it owns durable capture and terminal handling.
 - `references/design-intake.md`: before semantic authoring or implementation for
   every requested change.
 - `references/authoring-conventions.md`: when creating or semantically editing
@@ -130,8 +132,8 @@ Prefer the compatible `sigil` CLI; do not recreate its deterministic semantics.
 sigil parse path/to/file.sigil --format json --pretty
 sigil check path-or-workspace --format json --pretty
 sigil fmt path-or-workspace --check
-sigil compile path-or-workspace --focus design --component Name
-sigil compile path-or-workspace --focus implementation --component Name
+sigil compile path-or-workspace --agent --focus design --component Name --format jsonl
+sigil compile path-or-workspace --agent --focus implementation --component Name --format jsonl
 sigil retrieve path-or-workspace --component Name --purpose semantic --format markdown
 sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format markdown
 sigil retrieve path-or-workspace --component Name --purpose implementation --format markdown

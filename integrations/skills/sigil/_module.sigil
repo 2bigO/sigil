@@ -2,6 +2,7 @@
 @packages/cli import { SigilCli }
 @integrations/skills/sigil/workspace-bootstrap.sigil import { SigilWorkspaceBootstrap }
 @integrations/skills/sigil/design-compilation-review.sigil import { SigilDesignCompilationReview }
+@integrations/skills/sigil/compilation-execution.sigil import { SigilCompilationExecution }
 @integrations/skills/sigil/standards-review.sigil import { SigilStandardsReview }
 @integrations/skills/sigil/authoring-workflow.sigil import { SigilAuthoringWorkflow }
 @integrations/skills/sigil/glossary-workflow.sigil import { SigilGlossaryWorkflow }
@@ -44,13 +45,15 @@ SkillPackage {
 
     SkillWorkflow {
       SKILL.md dispatches applicable procedures to the imported workspace, design-
-      compilation, standards, authoring, glossary, implementation, review-gate,
-      design-intake, design-conversation, and external-evidence components
+      compilation, compilation-execution, standards, authoring, glossary,
+      implementation, review-gate, design-intake, design-conversation, and
+      external-evidence components
 
-      SigilWorkspaceBootstrap, SigilDesignCompilationReview, SigilStandardsReview,
-      SigilAuthoringWorkflow, SigilGlossaryWorkflow, SigilImplementationWorkflow,
-      SigilReviewGate, SigilDesignConversation, and ExternalGuidanceEvidence remain
-      available through their imported owning contracts
+      SigilWorkspaceBootstrap, SigilDesignCompilationReview,
+      SigilCompilationExecution, SigilStandardsReview, SigilAuthoringWorkflow,
+      SigilGlossaryWorkflow, SigilImplementationWorkflow, SigilReviewGate,
+      SigilDesignConversation, and ExternalGuidanceEvidence remain available through
+      their imported owning contracts
 
       SigilDesignIntake remains available through its imported owning contract
 
@@ -65,6 +68,10 @@ expand SigilSkill {
   constraints {
 SkillPackage {
       The skill workflow remains semantically host-neutral.
+
+      When an applicable required reference is missing, unreadable, or invalid,
+      report its identity and failure reason and stop the affected workflow. Do not
+      access inapplicable references merely to test their availability.
 
       Each host adapter may define discovery and presentation mechanics but does not
       redefine ReviewGate or approval authority.

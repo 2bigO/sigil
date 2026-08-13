@@ -1,0 +1,69 @@
+@packages/cli import { SigilCli }
+
+component SigilCompilationExecution {
+  goal {
+    Execute ordinary Sigil compilation reproducibly and retain terminal evidence
+    without deciding the design or implementation question being evaluated.
+  }
+
+  interface {
+CompilationExecution {
+      runs one selected SigilCli target with the effective agent profile and either
+      design or implementation compilation focus
+
+      preserves durable stdout, stderr, exit-status, and terminal-event evidence
+
+      returns a completed report, failure, cancellation, or host-transport failure to
+      the calling workflow for focus-specific interpretation
+    }
+  }
+}
+
+expand SigilCompilationExecution {
+  logic {
+CompilationExecution {
+      Reserve a task-scoped durable log before compilation, run SigilCli with
+      `--agent --focus <design|implementation> --format jsonl`, and wait for a
+      terminal event followed by source end.
+
+      On an interrupted live stream, recover the durable log and poll it and the
+      evaluator process when needed until its writer closes. Do not replace a run
+      merely because the live event was lost.
+    }
+  }
+
+  constraints {
+CompilationExecution {
+      `--agent` selects the effective agent profile and never combines with
+      `--profile`. Compiler sessions are reserved for explicitly requested
+      exceptional diagnostics.
+
+      Stage progress, partial output, silence, slow execution, and passing tests do
+      not establish compilation evidence.
+
+      A failed or cancelled run blocks its calling workflow. Retry the same target
+      only after its evaluator, host, or cancellation cause is resolved; a missing
+      terminal event, unreadable log, or missing source end is a host-transport
+      failure rather than a compilation status.
+    }
+  }
+
+  decisions {
+    SharedCompilationExecution {
+      Decision: Centralize ordinary compile execution and terminal recovery while
+      callers retain target selection and focus-specific report interpretation.
+
+      Scope: Governs design and implementation compilation in the Sigil skill;
+      excludes compiler evaluation semantics and review or implementation approval.
+
+      Trade-offs: Callers add one dependency but no longer duplicate fragile stream
+      and retry behavior.
+
+      Design issues addressed: Parallel compile instructions drifted despite sharing
+      the same invocation and terminal-evidence requirements.
+
+      Consequences: Both workflows use the agent profile and a durable JSONL
+      protocol, differing only in compilation focus and interpretation.
+    }
+  }
+}
