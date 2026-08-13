@@ -17,11 +17,18 @@ absent from a successful retrieval.
 
 Select one compile target in this order:
 
-1. the nearest importing `_module.sigil` whose retrieval closure contains all
-   affected files and semantic units; select it with `--file <module-index>`;
+1. derive one affected directory from every affected semantic unit's source-file
+   parent, including expand-only or declarationless files; for each candidate,
+   count normalized relative-path segments from every affected directory to its
+   directory, sort counts greatest to least, and choose the lexically smallest
+   vector; select the eligible importing `_module.sigil` with the best vector,
+   resolving equal vectors by normalized repository-relative module-index path,
+   then select it with `--file <module-index>`;
 2. if no such module index exists, the exact-case component whose retrieval
    closure covers the greatest number of affected changed units, matching
-   expands, and direct imports or consumers;
+   expands, and direct imports or consumers; resolve equal coverage with the same
+   distance vector against every candidate declaration and matching expand directory,
+   then by normalized repository-relative source path and exact-case component name;
 3. if no component covers the affected boundary, compile the selected workspace
    without `--component` rather than choosing an arbitrary partial target.
 
@@ -49,6 +56,13 @@ the JSONL event protocol emits `completed` with the authoritative version-2
 CompilationReport, or emits `failed` or `cancelled` without a report. A stream
 consumer also waits for source end after that terminal event.
 
+A `failed` terminal outcome blocks review. Preserve its terminal diagnostics,
+durable capture, and exit status; report the failure; and retry the same target
+only after the identified evaluator or host cause is resolved. A `cancelled`
+terminal outcome also blocks review. Preserve its cancellation evidence, durable
+capture, and exit status; report who or what cancelled it when known; and retry
+only after the cause is resolved or the user explicitly requests another run.
+
 Before starting the compile, reserve and record a durable, task-scoped output
 path. Redirect both compiler stdout and stderr to it while preserving the
 command exit status. The path must remain readable if the command tool returns
@@ -71,8 +85,9 @@ not retry solely because the live terminal event was lost. If the log cannot be
 read or cannot establish source end, report a host or transport failure and retry
 the same target only after durable capture is restored.
 
-1. Fix a deterministic, structural, or coherence issue directly when the report
-   and established intent determine one safe correction.
+1. Return a deterministic, structural, or coherence correction requirement to the
+   authoring workflow when the report and established intent determine one safe
+   correction; that workflow writes it and invokes this review again.
 2. Enter `references/design-conversation.md` when a finding exposes an
    unresolved material decision, conflicting intent, or future-facing pitfall.
 3. Write the resulting scoped correction and compile again.
@@ -104,7 +119,7 @@ Written evidence must be green or explicitly reviewed yellow before concept
 grouping, glossary extraction, or implementation review. Any semantic edit or
 grouping change restarts the compile-and-resolve loop.
 
-An unavailable, incomplete, or red compiler result blocks implementation
-review. An unresolved yellow finding also blocks it. Report target ambiguity or
-other compilation failure explicitly; never bypass it with an untracked source
-copy.
+An unavailable, incomplete, failed, cancelled, or red compiler result blocks
+implementation review. An unresolved yellow finding also blocks it. Report target
+ambiguity or other compilation failure explicitly; never bypass it with an
+untracked source copy.
