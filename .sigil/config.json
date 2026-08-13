@@ -27,8 +27,8 @@
     ]
   },
   "tools": {
-    "agent":{
-      "profile":"standard"
+    "agent": {
+      "profile": "standard"
     },
     "compile": {
       "defaultProfile": "standard",

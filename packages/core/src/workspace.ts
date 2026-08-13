@@ -1,13 +1,17 @@
 import {
   excludesSigilSubtree,
-  mergeToolConfiguration,
   matchesSigilFile,
-  parseSigilLocalConfig,
+  mergeToolConfiguration,
   parseSigilConfig,
+  parseSigilLocalConfig,
 } from "./config.ts";
 import { diagnostic } from "./diagnostics.ts";
 import { parseSigilGlossary } from "./glossary.ts";
-import { SIGIL_CONFIG_PATH, SIGIL_GLOSSARY_PATH, SIGIL_LOCAL_CONFIG_PATH } from "./model/language.ts";
+import {
+  SIGIL_CONFIG_PATH,
+  SIGIL_GLOSSARY_PATH,
+  SIGIL_LOCAL_CONFIG_PATH,
+} from "./model/language.ts";
 import type { SigilConfig } from "./model/configuration.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
 import type {
@@ -245,18 +249,27 @@ async function readDiscoveredConfig(
     configPath,
   );
   const localConfigPath = joinPath(root, SIGIL_LOCAL_CONFIG_PATH);
-  if (!parsed.config || !await fs.exists(localConfigPath)) return {
-    root,
-    configPath,
-    config: parsed.config,
-    configSource,
-    diagnostics: parsed.diagnostics,
-  };
+  if (!parsed.config || !await fs.exists(localConfigPath)) {
+    return {
+      root,
+      configPath,
+      config: parsed.config,
+      configSource,
+      diagnostics: parsed.diagnostics,
+    };
+  }
   const localConfigSource = await fs.readTextFile(localConfigPath);
   const local = parseSigilLocalConfig(localConfigSource, localConfigPath);
   return {
-    root, configPath, configSource, localConfigPath, localConfigSource,
-    config: local.diagnostics.length ? undefined : { ...parsed.config, tools: mergeToolConfiguration(parsed.config.tools, local.tools) },
+    root,
+    configPath,
+    configSource,
+    localConfigPath,
+    localConfigSource,
+    config: local.diagnostics.length ? undefined : {
+      ...parsed.config,
+      tools: mergeToolConfiguration(parsed.config.tools, local.tools),
+    },
     diagnostics: [...parsed.diagnostics, ...local.diagnostics],
   };
 }
@@ -277,7 +290,13 @@ async function workspaceSnapshotIdentity(
       path: relativePath(root, configPath),
       text: configSource,
     },
-    ...(localConfigPath && localConfigSource !== undefined ? [{ kind: "local-config", path: relativePath(root, localConfigPath), text: localConfigSource }] : []),
+    ...(localConfigPath && localConfigSource !== undefined
+      ? [{
+        kind: "local-config",
+        path: relativePath(root, localConfigPath),
+        text: localConfigSource,
+      }]
+      : []),
     ...files.map((file) => ({
       kind: "sigil",
       path: relativePath(root, file.path),

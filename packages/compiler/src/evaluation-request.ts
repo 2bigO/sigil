@@ -155,11 +155,6 @@ function isOptionalInteger(value: unknown): boolean {
     (typeof value === "number" && Number.isInteger(value));
 }
 
-function isOptionalPositiveInteger(value: unknown): boolean {
-  return value === undefined ||
-    (typeof value === "number" && Number.isInteger(value) && value > 0);
-}
-
 function hasNullablePositiveInteger(
   value: Record<string, unknown>,
   key: string,

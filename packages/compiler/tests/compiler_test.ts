@@ -392,6 +392,7 @@ Deno.test("standard profile becomes green only with complete warning-free evalua
       adapter: new MockAdapter(),
       eventSink: async (bytes) => {
         events.push(JSON.parse(new TextDecoder().decode(bytes)));
+        await Promise.resolve();
         return "delivered-all";
       },
     });
@@ -1599,6 +1600,7 @@ Deno.test("Codex classifies initial request overflow as an operational limit", a
   let invoked = false;
   const adapter = new CodexAdapter(undefined, async () => {
     invoked = true;
+    await Promise.resolve();
   });
   const error = await assertRejects(
     () =>
@@ -1779,7 +1781,7 @@ Deno.test("session creation validates the requested focus before materialization
   let compilerInvoked = false;
   const factory = new SigilCompilationSessionFactory(
     undefined,
-    async () => {
+    () => {
       compilerInvoked = true;
       throw new Error("one-shot compilation must not run during creation");
     },
@@ -1863,7 +1865,10 @@ Deno.test("evaluation commit failure removes the verified proposal workspace bef
       created.result.sessionIdentity,
       "design",
       store,
-      async () => ({}) as CompilationReport,
+      async () => {
+        await Promise.resolve();
+        return {} as CompilationReport;
+      },
     );
     const error = await assertRejects(
       () => session.evaluate({ sources: {} }),
@@ -1906,7 +1911,7 @@ Deno.test("durable compilation sessions refresh and close without a daemon", asy
       async (
         workspacePath,
         target = { kind: "workspace" },
-        profileName,
+        _profileName,
         options = {},
       ) => {
         assertMatch(
