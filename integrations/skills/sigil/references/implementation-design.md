@@ -273,10 +273,15 @@ validate, and compile the scoped Sigil before linking implementation.
 
 ## 7. Write And Validate Missing Sigil
 
-When contract and implementation design are both clear, write both layers in
-one exact scoped Sigil change and review cycle. When implementation design
-depends on a higher-level decision that is not yet resolved, resolve it first
-and use a separate review cycle.
+When contract and implementation design are both clear, keep the layers in two
+separate change sets and review cycles. First write only the scoped Sigil change;
+validate and design-compile it, report the written files, and stop for user review
+and implementation ReviewGate. Do not create, modify, delete, or annotate source
+code, tests, configuration, fixtures, generated artifacts, or documentation during
+that pending review. After ReviewGate returns `ready` for the exact validated Sigil
+and implementation scope, begin a new implementation-only change set. When
+implementation design depends on a higher-level decision that is not yet resolved,
+resolve it first and use a separate design review cycle.
 
 For missing coverage, present:
 
@@ -288,9 +293,16 @@ For missing coverage, present:
 - the updated implementation coverage map.
 
 Write scoped Sigil directly, validate and compile the written result, and report
-it for file review. Implementation begins only when
-`ReviewGate(action: implementation)` is ready for that validated written Sigil
-and exact implementation scope.
+it for file review. The implementation change set must remain empty at this point.
+Implementation begins only in a later change set, after the user has reviewed the
+written Sigil and `ReviewGate(action: implementation)` is ready for that validated
+written Sigil and exact implementation scope.
+
+If any implementation artifact was changed before that gate, stop immediately and
+report an implementation-first bypass. Do not continue from the mixed state; on the
+user's request, restore only the current agent's exact unapproved implementation
+changes, then restart at implementation preflight with the Sigil-only review
+boundary.
 
 Ownership comments are not part of the scoped Sigil change. Plan their targets in the
 implementation coverage map, then include them in the exact implementation

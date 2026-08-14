@@ -3,6 +3,7 @@
 @packages/compiler import { SigilCompiler, SigilCompilationSessionFactory }
 @packages/compiler-adapter-opencode import { SigilOpenCodeCompilerAdapter }
 @packages/compiler-adapter-pi import { SigilPiCompilerAdapter }
+@packages/compiler-adapter-claude import { SigilClaudeCompilerAdapter }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 
 component SigilCli {
@@ -173,6 +174,9 @@ component SigilCli {
 
       sigil compile stage-id [path] [--component name | --file file] [--profile name
       | --agent] [--no-cache] [--output file] [--format jsonl]
+
+      SigilClaudeCompilerAdapter is bundled and available when a compilation profile
+      selects provider claude.
 
       sigil compile [path] --file file --position line:column [--profile name |
       --agent] [--focus design|implementation] [--no-cache] [--output file] [--format

@@ -1,6 +1,5 @@
 import {
   AdapterFailure,
-  ClaudeAdapter,
   CodexAdapter,
   compilationColor,
   type CompilationEvent,
@@ -226,10 +225,7 @@ Deno.test("evaluation skill loading returns closed tagged outcomes", async () =>
 
 // @sigil tests packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,cases
 Deno.test("provider identities and exact adapter registrations are closed", () => {
-  assertEquals([
-    new CodexAdapter().provider,
-    new ClaudeAdapter().provider,
-  ], ["codex", "claude"]);
+  assertEquals(new CodexAdapter().provider, "codex");
   const adapter = new MockAdapter([], "first");
   assertEquals(
     resolveAdapterRegistration([adapter], {

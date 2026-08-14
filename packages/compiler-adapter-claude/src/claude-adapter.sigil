@@ -1,0 +1,138 @@
+@packages/compiler import { SigilAgentAdapter, SigilAgentAdapterExecutionCoordinator, SigilAgentAdapterSubprocess, SigilAgentEvaluationRequest }
+
+component SigilClaudeCompilerAdapter {
+  goal {
+    Execute provider-neutral compiler evaluation through the Claude Code CLI and
+    return one validated result under an ephemeral, best-effort read-only
+    inspection policy with model-mediated Bash risk.
+  }
+
+  interface {
+    ClaudeAdapter {
+      evaluate(SigilAgentEvaluationRequest) implements SigilAgentAdapter for provider
+      claude with implementation identity builtin.claude-cli and the exact adapter
+      package version
+
+      provider-specific declarations match capabilities schemaVersion 1 with
+      read-only workspace access, no agent-tool network, no approval escalation, and
+      ephemeral state persistence.
+
+      Observability declares no progress, partial usage, final cost, and
+      post-settlement-only token and cost budget enforcement.
+    }
+  }
+}
+
+expand SigilClaudeCompilerAdapter {
+  logic {
+    ClaudeAdapter {
+      Consume the provider-neutral request validation and capability-match result
+      before invocation. Send one stream-json user message through claude print mode
+      with the selected workspace, optional model, plan permissions, explicit
+      read-only tools, bare startup, and disabled session persistence.
+
+      The user message carries evaluationPrompt output unchanged. That provider-
+      neutral envelope preserves stage, target identity, purpose, selected retrieval
+      evidence, evaluator guidance, command policy, findings schema, and result
+      instructions; capability, budget, and snapshot fields remain control metadata.
+
+      Supply Claude execution and cleanup hooks to
+      SigilAgentAdapterExecutionCoordinator and use SigilAgentAdapterSubprocess for
+      the private process lifecycle. Parse the complete JSONL stream and require
+      exactly one successful result event. Its result text must be one findings JSON
+      object, optionally enclosed by one Markdown code fence; surrounding narration,
+      multiple JSON values, malformed JSON, and trailing content are rejected as
+      final-result-protocol.
+
+      Aggregate numeric input_tokens, output_tokens, and cache_read_input_tokens from
+      assistant message usage blocks. Missing or malformed usage fields remain
+      unavailable; take total_cost_usd only from the successful result event, and
+      leave cost unavailable when that field is absent or nonnumeric.
+    }
+  }
+
+  constraints {
+    ClaudeExecutionBoundary {
+      Enable Read, Glob, Grep, and Bash for the compiler's best-effort read-only
+      inspection policy. Deny Edit, Write, and NotebookEdit; use plan permission mode
+      and bare startup so project instructions, plugins, hooks, and MCP configuration
+      do not widen the evaluation boundary.
+
+      Use --no-session-persistence and never resume, continue, fork, or reuse a prior
+      Claude session. Declare ephemeral state and keep provider tool network
+      disabled.
+
+      Accept only one result event with subtype success. An unsuccessful result is
+      execution; zero or multiple result events, missing result text, malformed
+      result text, or invalid findings content are final-result-protocol.
+
+      Malformed JSONL, non-object frames, and malformed assistant tool-use frames are
+      final-result-protocol. Valid unsupported event types are ignored, while valid
+      assistant tool-use blocks become started command observations.
+    }
+  }
+
+  decisions {
+    EphemeralClaudeExecution {
+      Decision: Use Claude Code's --no-session-persistence flag and declare ephemeral
+      state for compiler evaluations.
+
+      Scope: Governs Claude invocation and consumes provider-neutral capability
+      matching; excludes provider authentication and unrelated interactive Claude
+      sessions.
+
+      Trade-offs: Callers cannot resume an evaluation through Claude session storage.
+
+      Discarded alternatives: Persistent state like OpenCode was rejected because the
+      Claude CLI exposes an explicit non-persistence mode.
+
+      Consequences: Each evaluation starts a fresh provider session and leaves no
+      provider session record for the compiler to resume.
+    }
+
+    ReadOnlyClaudeTools {
+      Decision: Use plan mode with explicit Read, Glob, Grep, and Bash tools while
+      denying mutation tools and relying on the evaluator prompt for shell command
+      policy.
+
+      Scope: Governs Claude Code permissions for compiler evaluations; excludes
+      operating-system sandboxing, provider authentication, and the provider-neutral
+      command-policy owner.
+
+      Trade-offs: Bash remains a model-mediated boundary, so command-family
+      compliance depends on the evaluator following the read-only policy.
+
+      Discarded alternatives: Disabling Bash was rejected because compiler inspection
+      guidance includes sigil, rg, sed, and git command families.
+    }
+
+    ClaudeResultEvent {
+      Decision: Select the single successful result event as the terminal assistant
+      output and retain assistant tool-use blocks as command observations.
+
+      Scope: Governs Claude stream-json parsing; excludes request validation and
+      subprocess cleanup.
+
+      Consequences: Partial assistant narration cannot satisfy the final-result
+      protocol, and execution error result subtypes remain failures.
+    }
+  }
+
+  cases {
+    ClaudeAdapter {
+      An ephemeral request invokes claude once and accepts one successful result
+      after process and output settlement.
+
+      A persistent request mismatches before invocation.
+
+      Read and inspection tools remain available while edit and write tools are
+      denied.
+
+      An unsuccessful result subtype is execution. Zero or multiple result events,
+      missing result text, malformed or fenced-invalid result text, and invalid
+      findings content are final-result-protocol.
+
+      Timeout, cancellation, or process failure follows bounded subprocess cleanup.
+    }
+  }
+}

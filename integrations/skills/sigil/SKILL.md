@@ -45,10 +45,16 @@ how its implementation should be understood and changed.
 6. Report changed files, decisions, assumptions, unresolved questions,
    validation, and glossary status. Always state whether glossary extraction is
    required, deferred, or inspection-only. Let the user review the written Sigil.
+   At this handoff the implementation change set must be empty: do not write,
+   modify, delete, or annotate code, tests, configuration, fixtures, generated
+   artifacts, or documentation alongside the pending Sigil review.
 7. Before changing implementation, read
    `references/implementation-design.md` and obtain
    `ReviewGate(action: implementation)` readiness for the validated written
-   Sigil and exact implementation scope.
+   Sigil and exact implementation scope. Only after the user has reviewed the
+   written Sigil and this gate returns `ready` may a new implementation change set
+   begin. If implementation was changed earlier, stop and report an
+   implementation-first bypass; do not continue from the mixed state.
 8. After implementation, follow the verification and completed-implementation
    reconciliation in `references/implementation-design.md`. Discover and run the
    complete applicable focused, dependent, integration, regression, build, static,
@@ -117,6 +123,12 @@ evidence, coverage, delegated analysis, and tests are evidence, never approval.
 A ready result applies only to its exact action, scope, change set, and material
 evidence. Do not implement merely because the user requested an outcome or a
 check passed.
+
+The design and implementation phases are separate change sets. A Sigil edit and
+its implementation may never be authored together before review. Validation,
+compilation, coverage, or a user request does not waive this ordering; only a
+`ready` implementation ReviewGate for the exact validated Sigil and scope opens
+the implementation phase.
 
 ## Required References
 
