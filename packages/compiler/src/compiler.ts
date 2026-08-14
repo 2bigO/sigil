@@ -9,11 +9,7 @@ import {
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
-import {
-  ClaudeAdapter,
-  CodexAdapter,
-  resolveAdapterRegistration,
-} from "./adapters.ts";
+import { CodexAdapter, resolveAdapterRegistration } from "./adapters.ts";
 import {
   capabilitiesMatch,
   evaluationCapabilitiesFor,
@@ -1110,8 +1106,6 @@ function compilerOwnedAdapters(
   for (const configuration of configurations) {
     const adapter = configuration.provider === "codex"
       ? new CodexAdapter(configuration.model)
-      : configuration.provider === "claude"
-      ? new ClaudeAdapter(configuration.model)
       : undefined;
     if (adapter) {
       registrations.set(

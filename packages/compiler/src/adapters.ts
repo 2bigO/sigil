@@ -256,46 +256,6 @@ export class CodexAdapter implements AgentAdapter {
   }
 }
 
-class UnavailableCliAdapter implements AgentAdapter {
-  readonly implementationVersion = BUILTIN_VERSION;
-  readonly capabilities = {
-    schemaVersion: 1,
-    workspaceAccess: "read-write",
-    agentToolNetwork: false,
-    approvalEscalation: false,
-    statePersistence: "persistent",
-  } as const;
-  readonly observability = {
-    progress: "none",
-    usage: "unavailable",
-    cost: "unavailable",
-    tokenBudgetEnforcement: "unavailable",
-    costBudgetEnforcement: "unavailable",
-  } as const;
-
-  constructor(
-    readonly provider: "claude" | "opencode",
-    readonly implementationId: string,
-    readonly model?: string,
-    readonly id: string = provider,
-  ) {}
-
-  evaluate(_request: AgentEvaluationRequest): Promise<AgentEvaluationResult> {
-    return Promise.reject(
-      new AdapterFailure(
-        "capability-mismatch",
-        `The installed ${this.provider} CLI adapter does not declare the requested read-only ephemeral capability contract; evaluation was not started.`,
-      ),
-    );
-  }
-}
-
-export class ClaudeAdapter extends UnavailableCliAdapter {
-  constructor(model?: string, id = "claude") {
-    super("claude", "builtin.claude-cli", model, id);
-  }
-}
-
 export class MockAdapter implements AgentAdapter {
   readonly provider = "codex" as const;
   readonly capabilities = {
