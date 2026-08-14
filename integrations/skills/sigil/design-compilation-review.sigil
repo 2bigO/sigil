@@ -1,4 +1,3 @@
-@packages/cli import { SigilCli }
 @integrations/skills/sigil/compilation-execution.sigil import { SigilCompilationExecution }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
 @integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
@@ -12,11 +11,15 @@ component SigilDesignCompilationReview {
 
   interface {
 DesignCompilationReview {
-      evaluates exact written Sigil through ordinary SigilCli compilation focus
-      design before user file review and any implementation ReviewGate
+      evaluates exact written Sigil through SigilCompilationExecution with design
+      focus before user file review and any implementation ReviewGate
 
       consumes deterministic-foundation, semantic-readiness, and architecture-design
       results from the exact written scope
+
+      requires a terminal compilation outcome with a closed output stream before
+      written-file review, concept grouping, glossary extraction, implementation
+      approval, or implementation; this gate cannot be skipped or overridden
 
       permits written-file review when design compilation is green or when every
       yellow finding is explicitly reviewed and accepted as nonblocking by the human
@@ -28,84 +31,60 @@ DesignCompilationReview {
 expand SigilDesignCompilationReview {
   state {
 DesignCompilationReview {
-      Design compilation is unavailable, incomplete, failed, cancelled, red, yellow,
-      or green for one exact written scope and reviewed boundary.
+      Design compilation is awaiting, completed-green, completed-yellow,
+      completed-red, failed, cancelled, or host-transport-blocked for one exact
+      written scope and reviewed boundary. These states map directly to the completed
+      report, failure, cancellation, and host-transport outcomes from
+      SigilCompilationExecution; missing terminal evidence remains
+      host-transport-blocked rather than becoming a separate state.
     }
   }
 
   logic {
 DesignCompilationReview {
-      After design intent and applicable external guidance are sufficiently resolved,
-      write the scoped Sigil change to the selected workspace and compile it with
-      SigilCompilationExecution with focus design.
+      Accept the exact scoped Sigil already written by SigilAuthoringWorkflow after
+      design intent and applicable external guidance are sufficiently resolved, then
+      compile it with SigilCompilationExecution with focus design.
 
-      Derive one affected directory from every affected semantic unit's source-file
-      parent, including an expand-only or declarationless file. For each candidate,
-      count the segments in the normalized relative path from each affected directory
-      to the candidate directory, sort those counts from greatest to least, and rank
-      the resulting vectors lexically with smaller counts first. Select the importing
-      module index whose retrieval closure covers all affected semantic units and has
-      the best vector; resolve equal vectors by normalized repository-relative
-      module- index path in lexical order. When none exists, select the component
-      whose closure covers the most changed units, matching expands, and direct
-      relationships; resolve equal coverage with the same vector against every
-      candidate declaration and matching expand directory, then by normalized source
-      path and exact-case component name in lexical order. Compile the workspace
-      without a component when no component covers the boundary, and record every
-      unit outside a partial target closure.
+      The affected semantic-unit set is the changed declarations and matching expands
+      in the written files, plus direct imported identities named by those units;
+      freeze that set with the written-scope evidence before target selection. Derive
+      one affected directory from every affected semantic unit's source-file parent,
+      including an expand-only or declarationless file. For each candidate, eligible
+      candidates are importing `_module.sigil` files within the selected workspace
+      whose retrieval closure contains the affected units, followed by exact-case
+      components and matching expands in the selected workspace. The workspace target
+      is the final fallback when no candidate covers the boundary. count the segments
+      in the normalized relative path from each affected directory to each candidate
+      declaration or matching-expand directory, sort all resulting vectors lexically
+      with smaller counts first, and use that sorted list as the candidate distance
+      vector. Select the importing module index whose retrieval closure covers all
+      affected semantic units and has the best vector; resolve equal vectors by
+      normalized repository-relative module- index path in lexical order. When none
+      exists, select the component whose closure maximizes the lexicographic tuple of
+      covered semantic units, matching expands, and direct relationships; resolve
+      equal tuples with the same distance vector against every candidate declaration
+      and matching expand directory, then by normalized source path and exact-case
+      component name in lexical order. Compile the workspace without a component when
+      no component covers the boundary, and record every unit outside a partial
+      target closure.
 
-      Do not use a compiler session for normal authoring or review. A session remains
-      available only for explicitly requested exceptional diagnostics.
-
-      Design compilation may take substantial time. Wait for its terminal outcome:
-      completed carries the authoritative version-2 CompilationReport, while failed
-      and cancelled are terminal outcomes without a report.
-
-      A failed terminal outcome blocks review. Preserve its terminal diagnostics,
-      durable capture, and exit status, report the failure, and retry the same target
-      only after the identified evaluator or host cause is resolved.
-
-      A cancelled terminal outcome blocks review. Preserve its cancellation evidence,
-      durable capture, and exit status, report who or what cancelled the run when
-      known, and do not automatically retry; retry the same target only after the
-      cancellation cause is resolved or the user explicitly requests another run.
-
-      Before starting compilation, reserve and record a durable, task-scoped output
-      path. Capture both compiler stdout and stderr there and preserve the command
-      exit status. The capture must remain readable if the command tool returns
-      before a spawned evaluator exits; it is the source of record, not merely a
-      display copy of the live tool event.
-
-      A stream consumer also waits for source end after the terminal event.
-      Stage-started events, partial progress, silence while an evaluator runs, or a
-      slow response do not establish red, yellow, or green evidence. Keep the agent
-      session open while it runs. Do not cancel, abandon, or replace the same-scope
-      compile because it is slow; a missing terminal is a host or transport problem.
-
-      If the execution host interrupts the live stream, retrieve the durable capture
-      and continue waiting from it. Poll its appended output and, when necessary, the
-      evaluator process state until the capture contains a terminal event and its
-      writer has closed. Preserve the final report or terminal diagnostics from that
-      capture in review evidence. Do not replace the compile merely because the
-      original live stream is unavailable. When the capture is inaccessible or cannot
-      establish source end, report a host or transport failure and retry the same
-      selected target only after restoring durable capture. Never classify partial
-      output as a compiler result.
+      Do not use a compiler session for normal authoring or review. Delegate
+      invocation, durable capture, terminal waiting, source closure, retry, and
+      host-failure classification entirely to SigilCompilationExecution. Interpret
+      only its returned terminal report or failure outcome; a running or incomplete
+      execution is a hard blocker.
 
       Use red and yellow diagnostics to investigate evidence and return confirmed
       material problems to DesignConversation. Revise red candidates and yellow
       candidates with unresolved findings.
 
-      After every semantic write, use the design report to return either a
-      deterministic or coherence correction requirement to SigilAuthoringWorkflow
-      when established intent determines it, or a DesignConversation route when it
-      exposes a material decision, conflicting intent, or future-facing pitfall.
-
-      SigilAuthoringWorkflow writes the scoped correction, then invokes this review
-      again. Repeat until green or every yellow finding is explicitly reviewed and
-      accepted as nonblocking. Do not continue to grouping, glossary extraction, or
-      implementation from red, unresolved yellow, unavailable, or incomplete
-      evidence.
+      Return either a deterministic or coherence correction requirement to the host
+      workflow when established intent determines it, or a DesignConversation route
+      when the report exposes a material decision, conflicting intent, or future-
+      facing pitfall. The host workflow owns correction writes and repetition. Do not
+      continue to grouping, glossary extraction, or implementation from red,
+      unresolved yellow, unavailable, or incomplete evidence.
 
       Present the exact green written scope, or a yellow scope whose every finding
       the human explicitly accepted as nonblocking, for user review in the file. Then
@@ -128,6 +107,9 @@ DesignCompilationReview {
       An unavailable, incomplete, or red required design compilation prevents
       implementation review. Yellow also prevents implementation readiness until the
       human explicitly reviews every finding and accepts it as nonblocking.
+
+      A running, unavailable, incomplete, failed, or cancelled required compilation
+      is a hard blocker and cannot be waived or reported as a skipped check.
 
       A report that requires user judgment remains in DesignConversation; the host
       does not guess a correction merely to complete the compile-and-resolve loop.
@@ -183,30 +165,25 @@ DesignCompilationReview {
       changed findings require another disposition.
     }
 
-    ReproducibleTargetAndTerminalRecovery {
+    DeterministicTargetSelection {
       Decision: Rank compile targets by the worst-first vector of normalized path
-      distances from every affected semantic unit and lexical identities, and block
-      failed or cancelled terminal outcomes until their distinct recovery conditions
-      are met.
+      distances from every affected semantic unit and lexical identities.
 
-      Scope: Governs ordinary design-compilation target selection and terminal
-      recovery evidence; excludes compiler status computation and user acceptance of
-      yellow findings.
+      Scope: Governs ordinary design-compilation target selection; excludes compiler
+      status computation, terminal recovery owned by SigilCompilationExecution, and
+      user acceptance of yellow findings.
 
       Trade-offs: Worst-first path ordering can differ from a host's informal sense
-      of proximity, and cancellation may require explicit user intent before a retry.
+      of proximity.
 
       Design issues addressed: Undefined proximity let hosts select different design
-      closures, while missing terminal-outcome handling made failed and cancelled
-      runs non-executable workflow states.
+      closures.
 
-      Discarded alternatives: Host-defined proximity and treating failed or cancelled
-      runs as ordinary missing output were rejected because neither preserves one
-      reproducible scope and recovery path.
+      Discarded alternatives: Host-defined proximity was rejected because it would
+      select different design closures for the same written scope.
 
-      Consequences: A target is repeatable across single- and multi-file scopes, and
-      terminal failures retain evidence and block review until an accountable
-      recovery occurs.
+      Consequences: A target is repeatable across single- and multi-file scopes;
+      terminal recovery remains centralized in SigilCompilationExecution.
     }
   }
 
@@ -222,20 +199,15 @@ DesignCompilationReview {
       An ungrouped green written scope proceeds to concept grouping, then recompiles
       before glossary extraction.
 
-      An unavailable compilation reports the unavailable compiler evidence and may
-      retry only after capability is restored.
+      A host-transport-blocked compilation reports the host-transport evidence and
+      remains blocked under SigilCompilationExecution's retry policy.
 
-      An incomplete compilation reports completed and missing stages plus available
-      budget or evidence limitations, blocks implementation review, and permits a
-      retry after the limitation is resolved.
-
-      A failed compilation reports its terminal diagnostics, durable capture, and
-      exit status, blocks review, and retries only after its host or evaluator cause
-      is resolved.
+      A failed compilation reports its failure evidence and remains blocked under the
+      execution component's retry policy.
 
       A cancelled compilation reports its cancellation evidence, durable capture, and
-      exit status, blocks review, and retries only after the cause is resolved or the
-      user explicitly requests another run.
+      exit status and blocks review; retry behavior remains owned by
+      SigilCompilationExecution.
     }
   }
 }

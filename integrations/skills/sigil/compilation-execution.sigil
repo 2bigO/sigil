@@ -11,7 +11,9 @@ CompilationExecution {
       runs one selected SigilCli target with the effective agent profile and either
       design or implementation compilation focus
 
-      preserves durable stdout, stderr, exit-status, and terminal-event evidence
+      preserves durable stdout, stderr, exit-status, and terminal-event evidence for
+      each named attempt log, with the attempt log reference returned to the calling
+      workflow for retention through review completion
 
       returns a completed report, failure, cancellation, or host-transport failure to
       the calling workflow for focus-specific interpretation
@@ -27,8 +29,10 @@ CompilationExecution {
       terminal event followed by source end.
 
       On an interrupted live stream, recover the durable log and poll it and the
-      evaluator process when needed until its writer closes. Do not replace a run
-      merely because the live event was lost.
+      launched SigilCli process when needed until its writer closes. Do not replace a
+      run merely because the live event was lost. Once the process and writer have
+      ended, retry the identical target once when the first run failed or could not
+      establish terminal evidence.
     }
   }
 
@@ -41,10 +45,22 @@ CompilationExecution {
       Stage progress, partial output, silence, slow execution, and passing tests do
       not establish compilation evidence.
 
-      A failed or cancelled run blocks its calling workflow. Retry the same target
-      only after its evaluator, host, or cancellation cause is resolved; a missing
-      terminal event, unreadable log, or missing source end is a host-transport
-      failure rather than a compilation status.
+      A terminal failed run or a nonzero process exit without a completed report, or
+      a run that ends without terminal evidence, preserves its capture and
+      automatically retries the identical target once after process and writer
+      closure. A completed green, yellow, or red report is returned for
+      focus-specific interpretation and is not automatically retried. The second
+      failed or incomplete attempt blocks its calling workflow. A cancelled run is
+      not retried automatically. A missing terminal event, unreadable log, or missing
+      source end is a host-transport failure rather than a compilation status.
+
+      An identical retry preserves the source snapshot identity, focus, target
+      selector, resolved effective profile, and material invocation options. If those
+      inputs cannot be frozen, report a host failure instead of claiming
+      reproducibility.
+
+      Host-transport failure is the single returned host failure identity for an
+      unreadable capture, missing source end, or inability to freeze retry inputs.
     }
   }
 
@@ -63,7 +79,8 @@ CompilationExecution {
       the same invocation and terminal-evidence requirements.
 
       Consequences: Both workflows use the agent profile and a durable JSONL
-      protocol, differing only in compilation focus and interpretation.
+      protocol, differing only in compilation focus and interpretation. Failed or
+      incomplete runs receive one identical retry after closure.
     }
   }
 }
