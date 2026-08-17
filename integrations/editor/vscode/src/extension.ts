@@ -351,6 +351,7 @@ async function compileFromEditor(
   void context;
 }
 
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
 function workspaceRelativeSigilPath(
   folder: vscode.Uri,
   documentUri: vscode.Uri,
@@ -360,6 +361,7 @@ function workspaceRelativeSigilPath(
     .replaceAll("\\", "/");
 }
 
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
 function asCompilationFocus(value: unknown): CompilationFocus | undefined {
   return value === "design" || value === "implementation" ? value : undefined;
 }

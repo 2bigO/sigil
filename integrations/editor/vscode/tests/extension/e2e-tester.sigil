@@ -1,0 +1,84 @@
+component SigilVsCodeE2ETester {
+  goal {
+    Verify the VS Code integration through an isolated extension host.
+
+    Exercise editor commands and observable compiler integration behavior at the VS
+    Code API boundary without depending on a user's global editor state.
+  }
+
+  interface {
+    ExtensionHostTest {
+      launches the extension development host with the Sigil integration and a
+      controlled file-backed workspace
+
+      invokes contributed language, preview, and compilation commands through the VS
+      Code command API
+
+      captures external compiler arguments, structured output, and diagnostics
+    }
+  }
+
+  constraints {
+    TestRunner {
+      uses @vscode/test-electron to launch a separate VS Code extension host
+
+      disables unrelated extensions and supplies a temporary test workspace or
+      controlled fixture state
+
+      uses a fake external compiler for command-contract assertions and does not
+      invoke an agent provider during ordinary extension tests
+
+      does not mutate the repository's user workspace or depend on global VS Code
+      settings
+    }
+  }
+
+  cases {
+    ExtensionHostLifecycle {
+      the tester starts the extension host, discovers the Sigil extension, waits
+      until hover and definition providers respond for the fixture, and exits with a
+      passing result after all assertions
+
+      an extension activation, readiness, or assertion failure exits the test run
+      with the failing assertion and captured host output
+    }
+
+    LanguageFeatures {
+      opening a Sigil fixture provides a hover and definition through the VS Code
+      language-feature command API
+    }
+
+    ComponentCompilationCommand {
+      invoking Compile Component sends the selected workspace, a workspace-relative
+      Sigil file, one-based cursor position, profile, focus, and JSONL format to the
+      external compiler
+
+      invoking Compile Component from an editor-title action ignores the host's
+      context argument when selecting the compiler focus
+
+      a completed compiler report projects active findings into the Sigil diagnostic
+      collection and excludes resolved findings
+    }
+
+    ExternalCompilerFailure {
+      an external compiler that emits a failed or malformed protocol outcome sets the
+      Sigil compilation status to failed, writes the failure to the Sigil output
+      channel, and shows an error message containing the terminal failure
+    }
+
+    DirtyDocument {
+      invoking Compile Component for an unsaved Sigil document does not start the
+      external compiler and shows a warning asking the user to save the document
+    }
+
+    DocumentPreview {
+      invoking Open Preview through the command API opens a Markdown preview for the
+      whole active Sigil document
+    }
+
+    TestIsolation {
+      unrelated installed extensions and the user's global compiler executable do not
+      determine the command-contract assertions
+    }
+  }
+}
