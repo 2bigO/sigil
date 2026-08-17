@@ -6,7 +6,6 @@ import {
   type AgentCommandTrace,
   type AgentEvaluationRequest,
   type AgentEvaluationResult,
-  type AgentUsage,
   assertCapabilityContract,
   capabilitiesMatch,
   coordinateAdapterExecution,
