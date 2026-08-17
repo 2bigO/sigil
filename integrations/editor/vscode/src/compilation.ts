@@ -158,6 +158,7 @@ export function runCompilationProcess(
           }
           activeStage = event.payload.stage as string;
         } else if (event.type === "stage-completed") {
+          // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface constraints,cases
           const report = event.payload.report as StageReport;
           if (!activeStage || report.id !== activeStage) {
             throw new Error(

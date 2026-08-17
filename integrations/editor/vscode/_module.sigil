@@ -227,6 +227,10 @@ expand SigilVsCodeExtension {
       The extension does not reinterpret compiler findings or compute compilation
       color independently.
 
+      End-to-end extension verification uses @vscode/test-electron to launch a
+      separate extension host with the development extension and controlled test
+      workspace.
+
       The extension labels status with the focus it invoked and displays only
       findings returned by that focus's authoritative report.
 
@@ -235,6 +239,9 @@ expand SigilVsCodeExtension {
       The extension invokes JSON Lines mode, validates protocol compatibility and
       event ordering, and accepts the final CompilationReport only from a completed
       terminal event.
+
+      A stage-completed event carries its stage report in payload.report and the
+      report id must match the active stage started by the preceding lifecycle event.
 
       Every accepted event belongs to the started run, follows a valid lifecycle
       transition, and precedes at most one terminal event.
@@ -457,6 +464,18 @@ expand SigilVsCodeExtension {
 
       Recompiling after a correction marks resolved findings through the compiler
       report comparison.
+
+      The extension-host end-to-end tester invokes Compile Component with a fake
+      compiler, verifies the workspace-relative file target, cursor position,
+      profile, focus, and JSONL protocol arguments, and projects the returned finding
+      into VS Code diagnostics.
+
+      Invoking the editor-title compilation command with VS Code's context argument
+      still uses the configured design or implementation focus rather than forwarding
+      that context as a compiler option.
+
+      The extension-host end-to-end tester refuses to invoke the external compiler
+      when the active Sigil document is dirty.
 
       Editing after a completed run marks its focus-labeled displayed report stale.
 

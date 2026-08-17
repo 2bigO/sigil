@@ -286,6 +286,7 @@ async function compileFromEditor(
   const executable = configuration.get<string>("executable", "sigil");
   const profile = configuration.get<string>("profile", "standard");
   const label = compilationFocusLabel(focus);
+  // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
   status.text = `$(sync~spin) Sigil ${label}…`;
   status.tooltip = `Focus: ${label}\nProfile: ${profile}`;
   const targetArgs: string[] = [];
@@ -361,6 +362,7 @@ function workspaceRelativeSigilPath(
 }
 
 function asCompilationFocus(value: unknown): CompilationFocus | undefined {
+  // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
   return value === "design" || value === "implementation" ? value : undefined;
 }
 
