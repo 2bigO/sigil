@@ -1,6 +1,5 @@
 import {
   AdapterFailure,
-  ClaudeAdapter,
   CodexAdapter,
   compilationColor,
   type CompilationEvent,
@@ -228,10 +227,7 @@ Deno.test("evaluation skill loading returns closed tagged outcomes", async () =>
 
 // @sigil tests packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,cases
 Deno.test("provider identities and exact adapter registrations are closed", () => {
-  assertEquals([
-    new CodexAdapter().provider,
-    new ClaudeAdapter().provider,
-  ], ["codex", "claude"]);
+  assertEquals(new CodexAdapter().provider, "codex");
   const adapter = new MockAdapter([], "first");
   assertEquals(
     resolveAdapterRegistration([adapter], {
@@ -300,6 +296,48 @@ Deno.test("malformed adapter result envelopes fail compilation", async () => {
       report.stages.find((stage) => stage.id === "semantic-readiness")?.state,
       "failed",
     );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::DeterministicFoundationGating logic,constraints,cases
+Deno.test("structural diagnostics skip dependent evaluator stages", async () => {
+  const root = await workspace(`component Example {
+  unsupported {
+    content
+  }
+}
+`);
+  try {
+    let calls = 0;
+    const events: CompilationEvent[] = [];
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      adapter: new MockAdapter(() => {
+        calls++;
+        return [];
+      }),
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    assertEquals(report.status, "red");
+    assertEquals(calls, 0);
+    assertEquals(
+      report.stages.find((stage) => stage.id === "deterministic-foundation")
+        ?.state,
+      "failed",
+    );
+    assertEquals(
+      report.stages.find((stage) => stage.id === "semantic-readiness")?.state,
+      "skipped-by-dependency",
+    );
+    assertEquals(
+      report.stages.find((stage) => stage.id === "current-code-compatibility")
+        ?.state,
+      "skipped-by-dependency",
+    );
+    assertEquals(events.at(-1)?.type, "completed");
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -1432,6 +1470,12 @@ Deno.test("undeclared evaluator rules fail the stage without affecting color dir
   const root = await workspace(`component Example {
   goal {
     Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
   }
 }
 `);

@@ -99,6 +99,17 @@ expand SigilCompilationEvaluation {
       error or warning.
     }
 
+    DeterministicFoundationGating {
+      After emitting deterministic-foundation diagnostics, mark that stage failed
+      when any diagnostic has error severity.
+
+      Skip every stage that depends on the failed foundation, including transitive
+      dependents, without building retrieval context or invoking an agent adapter.
+
+      Return the deterministic diagnostics in the completed red report; structural
+      invalidity is not an evaluator-output or event-protocol failure.
+    }
+
     EvaluationContext {
       Map semantic-readiness to semantic purpose, architecture-design and
       standards-risk to architecture purpose, and current-code-compatibility to
@@ -201,9 +212,39 @@ expand SigilCompilationEvaluation {
       Missing progress events, unavailable usage or cost, and truncated nonessential
       command output do not fail an otherwise valid evaluation.
     }
+
+    DeterministicFoundationGating {
+      A failed deterministic foundation prevents dependent agentic evaluation even
+      when an adapter is configured and available.
+
+      The compiler preserves its ordinary nonterminal diagnostic framing and
+      completed terminal report instead of attempting to classify agent output for
+      structurally invalid selected Sigil.
+    }
   }
 
   decisions {
+    DeterministicFoundationGating {
+      Decision: Treat one deterministic error diagnostic as a failed foundation and
+      skip every dependent evaluation stage.
+
+      Scope: Governs compilation scheduling after deterministic workspace evaluation;
+      excludes warnings, independent stages, and terminal-event ownership.
+
+      Trade-offs: A structurally invalid contract receives less evaluator feedback,
+      while its authoritative deterministic diagnostics remain clear and complete.
+
+      Design issues addressed: Invoking an evaluator with structurally invalid Sigil
+      can turn a source error into an unrelated provider protocol failure.
+
+      Discarded alternatives: Continuing dependent evaluation and translating an
+      evaluator failure into a structural diagnostic were rejected because neither
+      preserves the dependency boundary or the original error classification.
+
+      Consequences: A structural error completes with a red report and no dependent
+      agent invocation; callers can repair the source before semantic evaluation.
+    }
+
     EvaluationContext {
       Decision: Evaluate one component in one stage per agent run using the complete
       deterministic PurposeRetrievalResult selected for that stage's purpose.
@@ -262,6 +303,15 @@ expand SigilCompilationEvaluation {
   }
 
   cases {
+    DeterministicFoundationGating {
+      A selected Sigil source with a structural error emits its deterministic
+      diagnostic, marks deterministic-foundation failed, skips semantic-readiness
+      and other dependent stages, and completes with a red report.
+
+      A configured Codex evaluator receives no request for that structurally invalid
+      compilation, so invalid evaluator output cannot replace the source diagnostic.
+    }
+
     EvaluationContext {
       Two evaluators for the same component, stage purpose, source fingerprint, and
       retrieval fingerprint receive byte-identical selected graph and context.
