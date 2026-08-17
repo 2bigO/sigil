@@ -7,6 +7,7 @@
       "packages/compiler",
       "packages/compiler-adapter-opencode",
       "packages/compiler-adapter-pi",
+      "packages/compiler-adapter-claude",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",
@@ -28,7 +29,7 @@
   },
   "tools": {
     "agent": {
-      "profile": "standard"
+      "profile": "claude"
     },
     "compile": {
       "defaultProfile": "standard",
@@ -47,12 +48,21 @@
       "profiles": {
         "standard": {
           "main": ["codex"]
+        },
+        "claude": {
+          "extends": "standard",
+          "main": ["claude"]
         }
       },
       "evaluators": {
         "codex": {
           "provider": "codex",
           "implementationId": "builtin.codex-cli",
+          "implementationVersion": "0.7.1"
+        },
+        "claude": {
+          "provider": "claude",
+          "implementationId": "builtin.claude-cli",
           "implementationVersion": "0.7.1"
         }
       }

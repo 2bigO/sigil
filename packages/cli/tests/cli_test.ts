@@ -115,6 +115,52 @@ Deno.test("CLI bundle registers the standalone Pi adapter", async () => {
   }
 });
 
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("CLI bundle registers the standalone Claude adapter", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-claude-bundle-" });
+  try {
+    await Deno.mkdir(`${root}/.sigil`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: "0.7.0",
+        workspace: { name: "claude-bundle", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {
+          compile: {
+            adapter: {
+              provider: "claude",
+              implementationId: "builtin.claude-cli",
+              implementationVersion: "0.7.1",
+            },
+          },
+        },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/main.sigil`,
+      `component Example {
+  goal {
+    Explain the example.
+  }
+}
+`,
+    );
+    const report = await compileWithBundledAdapters(
+      root,
+      { kind: "workspace" },
+      { requestedStage: "deterministic-foundation", disableHistory: true },
+    );
+    assertEquals(report.profile.evaluators[0].provider, "claude");
+    assertEquals(
+      report.profile.evaluators[0].implementationId,
+      "builtin.claude-cli",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints

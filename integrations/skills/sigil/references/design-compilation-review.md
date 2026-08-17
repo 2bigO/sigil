@@ -38,8 +38,8 @@ partial target evaluates an uncovered unit.
 
 ## Compile-And-Resolve Loop
 
-Write the scoped change directly to the target workspace. The target file is
-the review artifact; do not reproduce complete proposed source in chat and do
+Accept the exact scoped change already written to the target workspace. The target
+file is the review artifact; do not reproduce complete proposed source in chat and do
 not start a compiler session for ordinary authoring or review. Run this loop
 after every semantic write:
 
@@ -48,8 +48,13 @@ sigil check <workspace-root> --format json --pretty
 sigil compile <workspace-root> --agent --focus design <target-selector> --format jsonl
 ```
 
-Follow `references/compilation-execution.md` with `focus: design`. Its terminal
-outcome and durable-capture rules apply before interpreting the report.
+Follow `references/compilation-execution.md` with `focus: design`. Its terminal,
+source-closure, durable-capture, and one-retry rules apply before interpreting the
+report. If the first run fails or ends without usable terminal evidence, wait for
+its process and writer to close, rerun the identical frozen target once, and
+interpret only the second terminal outcome or the preserved evidence from both
+attempts. Completed green, yellow, and red reports proceed to design review
+interpretation without automatic retry.
 
 1. Return a deterministic, structural, or coherence correction requirement to the
    authoring workflow when the report and established intent determine one safe
@@ -63,6 +68,13 @@ and accepted as nonblocking. Do not synthesize follow-on Sigil, extract glossary
 candidates, or begin implementation from red, unresolved-yellow, unavailable,
 or incomplete design evidence. If progress requires user judgment, keep the
 affected scope in DesignConversation rather than guessing.
+
+Compilation itself is a mandatory gate. No written-file review, concept grouping,
+glossary extraction, implementation ReviewGate, or implementation may proceed
+until the required compile reaches a terminal outcome and its output stream
+closes. A running, unavailable, incomplete, failed, or cancelled compile cannot
+be waived by the user or treated as a skipped check; use the one-retry rule and
+then remain blocked.
 
 ## Interpret The Final Report
 
@@ -88,4 +100,4 @@ grouping change restarts the compile-and-resolve loop.
 An unavailable, incomplete, failed, cancelled, or red compiler result blocks
 implementation review. An unresolved yellow finding also blocks it. Report target
 ambiguity or other compilation failure explicitly; never bypass it with an
-untracked source copy.
+untracked source copy or an omitted compilation.

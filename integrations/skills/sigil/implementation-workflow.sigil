@@ -156,6 +156,10 @@ ImplementationGovernance {
       After writing Sigil, run deterministic validation and design compilation, then
       report the written result for user review.
 
+      Keep the written-Sigil change set separate from the implementation change set.
+      Do not create, modify, delete, or annotate implementation artifacts while the
+      Sigil change is awaiting user review or implementation ReviewGate.
+
       Before implementation, use ReviewGate with implementation over the validated
       written Sigil and exact implementation scope.
 
@@ -165,6 +169,10 @@ ImplementationGovernance {
 
       Stop implementation and return to written-Sigil design work when implementation
       exposes a missing material decision.
+
+      Treat any implementation artifact changed before implementation ReviewGate as
+      an implementation-first bypass: stop, report the drift, and restart from the
+      written-Sigil review boundary.
     }
 
 ImplementationAlignment {

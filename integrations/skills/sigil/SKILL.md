@@ -34,22 +34,36 @@ how its implementation should be understood and changed.
 5. After every semantic edit, follow
    `references/design-compilation-review.md`. It owns the one required
    check-and-design-compile loop, including target selection, waiting until the
-   compiler emits a terminal outcome and its stream closes, and its report-driven
-   correction path.
+   compiler emits a terminal outcome and its stream closes, retrying one failed
+   or incomplete run after the process ends, and its report-driven correction
+   path.
+   A terminal design compilation is a mandatory blocker: do not proceed to
+   concept grouping, glossary extraction, user design review, implementation
+   approval, or implementation while compilation is unavailable, incomplete,
+   failed, cancelled, or still running. Retry according to the shared execution
+   rule; there is no skip or override for this gate.
 6. Report changed files, decisions, assumptions, unresolved questions,
    validation, and glossary status. Always state whether glossary extraction is
    required, deferred, or inspection-only. Let the user review the written Sigil.
+   At this handoff the implementation change set must be empty: do not write,
+   modify, delete, or annotate code, tests, configuration, fixtures, generated
+   artifacts, or documentation alongside the pending Sigil review.
 7. Before changing implementation, read
    `references/implementation-design.md` and obtain
    `ReviewGate(action: implementation)` readiness for the validated written
-   Sigil and exact implementation scope.
+   Sigil and exact implementation scope. Only after the user has reviewed the
+   written Sigil and this gate returns `ready` may a new implementation change set
+   begin. If implementation was changed earlier, stop and report an
+   implementation-first bypass; do not continue from the mixed state.
 8. After implementation, follow the verification and completed-implementation
    reconciliation in `references/implementation-design.md`. Discover and run the
    complete applicable focused, dependent, integration, regression, build, static,
    contract, and end-to-end checks; report blocked or unavailable checks explicitly.
    Then run implementation-focused compilation, resolve implementation-only questions with the user, and return
    contract-affecting drift to written-Sigil design work. Do not report completion
-   until the alignment loop has no unresolved drift.
+   until the alignment loop has no unresolved drift and its required compilation
+   has reached a terminal outcome with the stream closed. Compilation is a hard
+   prerequisite, not an optional verification check.
 
 Do not use compiler sessions for normal authoring or review. Keep them available
 only for an explicitly requested exceptional diagnostic investigation.
@@ -110,12 +124,19 @@ A ready result applies only to its exact action, scope, change set, and material
 evidence. Do not implement merely because the user requested an outcome or a
 check passed.
 
+The design and implementation phases are separate change sets. A Sigil edit and
+its implementation may never be authored together before review. Validation,
+compilation, coverage, or a user request does not waive this ordering; only a
+`ready` implementation ReviewGate for the exact validated Sigil and scope opens
+the implementation phase.
+
 ## Required References
 
 - `references/design-compilation-review.md`: after design intent is sufficiently
   resolved and after written semantic changes.
 - `references/compilation-execution.md`: for every ordinary design or
-  implementation compilation; it owns durable capture and terminal handling.
+  implementation compilation; it owns durable capture, terminal handling, and
+  one-retry behavior for failed or incomplete runs.
 - `references/design-intake.md`: before semantic authoring or implementation for
   every requested change.
 - `references/authoring-conventions.md`: when creating or semantically editing
