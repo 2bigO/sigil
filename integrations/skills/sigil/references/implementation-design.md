@@ -154,6 +154,13 @@ behavior, `constraints` for accessibility, responsive, ownership, and binding
 decisions, and `cases` for observable scenarios. Do not model passive markup or
 every visual element as a component.
 
+When the boundary renders a user interface, read
+`references/frontend-surface-review.md` before selecting owners. It owns the
+surface inventory, client-state ownership classification, presentation
+annotation forms, and frontend drift evidence that this step's concern list
+depends on. Take its inventory as the presentation concern list here rather than
+discovering screens one file at a time.
+
 ## 5. Build The Implementation Coverage Map
 
 Before implementation, report a compact map with these columns:

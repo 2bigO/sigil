@@ -31,6 +31,26 @@
 
 ## Unreleased
 
+- Extend implementation-ownership discovery to frontend surfaces. Markup
+  (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
+  single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry
+  `@sigil` ownership annotations, so a presentation boundary participates in
+  ownership projections, coverage maps, and watcher registration on the same
+  terms as backend code.
+- Scan a single-file component per region rather than per file: an embedded
+  script region uses its code comment syntax and resolves an adjacent
+  entrypoint, an embedded style region uses stylesheet comments, and remaining
+  template markup uses HTML comments. A script region with no following
+  definition, such as `<script setup>`, binds its annotation to the file
+  instead of reporting a detached annotation, and the comment-form rule applies
+  only to regions offering both a line and a multiline form.
+- Add `references/frontend-surface-review.md` to the coding-agent skill,
+  covering surface inventory, client-state ownership classification,
+  presentation annotation placement, and frontend drift evidence, with a
+  matching eval fixture and rubric.
+- Add `PRESENTATION_BOUNDARY` and `UI_STATE_OWNERSHIP` rules to the compiler's
+  architecture-design evaluation skill for presentation responsibility mixing
+  and unowned client state.
 - Rename the sole reserved directory-import index from `#module.sigil` to
   `_module.sigil` for portable filenames and shell-safe unquoted paths; treat
   the legacy filename as an ordinary explicitly importable Sigil source and

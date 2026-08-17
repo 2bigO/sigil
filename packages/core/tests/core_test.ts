@@ -1542,6 +1542,191 @@ expand Ownership {
 });
 
 /*
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ComponentFileRegions logic,constraints,cases
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport cases
+ */
+Deno.test("projects implementation targets from frontend surfaces", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "screen.sigil": `component ScreenSurface {
+  goal {
+    Own one screen surface.
+  }
+
+  interface {
+    ScreenContract {
+      Expose props, emitted events, and visible regions.
+    }
+  }
+
+  state {
+    ScreenContract {
+      Track loading, empty, and error modes.
+    }
+  }
+
+  logic {
+    ScreenContract {
+      Transition between presentation modes.
+    }
+  }
+
+  constraints {
+    ScreenContract {
+      Keyboard operation remains available in every mode.
+    }
+  }
+}
+
+expand ScreenSurface {
+  cases {
+    ScreenContract {
+      A screen renders its empty mode.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const identity = {
+    componentName: "ScreenSurface",
+    declarationPath: "screen.sigil",
+  };
+  const implementationSources = [
+    {
+      filePath: "src/Bare.vue",
+      text: [
+        "<script setup>",
+        "// @sigil uses screen.sigil::ScreenSurface::ScreenContract logic",
+        "import { ref } from 'vue'",
+        "</script>",
+        "",
+      ].join("\n"),
+    },
+    {
+      filePath: "src/Screen.svelte",
+      text:
+        "<!-- @sigil tests screen.sigil::ScreenSurface::ScreenContract cases -->\n<div></div>\n",
+    },
+    {
+      filePath: "src/pages/index.astro",
+      text: [
+        "---",
+        "// @sigil implements screen.sigil::ScreenSurface::ScreenContract state",
+        "function load() {}",
+        "---",
+        "<div />",
+        "",
+      ].join("\n"),
+    },
+    {
+      filePath: "web_src/components/Screen.vue",
+      text: [
+        "<template>",
+        "  <!-- @sigil implements screen.sigil::ScreenSurface::ScreenContract interface -->",
+        '  <div class="screen" />',
+        "</template>",
+        "",
+        '<script setup lang="ts">',
+        "// @sigil implements screen.sigil::ScreenSurface::ScreenContract logic",
+        "function toggleMode() {}",
+        "</script>",
+        "",
+        "<style scoped>",
+        "/* @sigil implements screen.sigil::ScreenSurface::ScreenContract constraints */",
+        ".screen { color: red; }",
+        "</style>",
+        "",
+      ].join("\n"),
+    },
+    {
+      filePath: "web_src/css/screen.css",
+      text:
+        "/* @sigil implements screen.sigil::ScreenSurface::ScreenContract state */\n" +
+        '.screen { background: url(https://example.test/a.png); content: "//"; }\n',
+    },
+    {
+      filePath: "web_src/templates/screen.html",
+      text:
+        "<!-- @sigil uses screen.sigil::ScreenSurface::ScreenContract interface -->\n<div></div>\n",
+    },
+  ];
+
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    identity,
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) =>
+      `${item.filePath}:${item.symbolIdentity ?? ""}`
+    ).join(","),
+    [
+      "src/Bare.vue:",
+      "src/pages/index.astro:load",
+      "src/Screen.svelte:",
+      "web_src/components/Screen.vue:",
+      "web_src/components/Screen.vue:",
+      "web_src/components/Screen.vue:toggleMode",
+      "web_src/css/screen.css:",
+      "web_src/templates/screen.html:",
+    ].join(","),
+  );
+
+  // A single-file component contributes one target per region: template markup
+  // and scoped style bind to the file, while the script block resolves a symbol.
+  const singleFileComponent = projection.targets.filter((item) =>
+    item.filePath === "web_src/components/Screen.vue"
+  );
+  assertEquals(singleFileComponent.length, 3);
+  assertEquals(
+    singleFileComponent.flatMap((item) => item.sections).sort().join(","),
+    "constraints,interface,logic",
+  );
+  assertEquals(
+    singleFileComponent.every((item) => item.artifactKind === "code"),
+    true,
+  );
+  assertEquals(
+    projection.targets.find((item) => item.filePath === "src/Screen.svelte")
+      ?.artifactKind,
+    "test",
+  );
+
+  // A `<script setup>` block has no exported definition, so its annotation
+  // falls back to the file instead of reporting a detached annotation.
+  const bare = projection.targets.find((item) =>
+    item.filePath === "src/Bare.vue"
+  );
+  assertEquals(bare?.symbolIdentity, undefined);
+  assertEquals(bare?.relation, "uses");
+
+  // Plain CSS has no line-comment form, so one annotation in a block comment is
+  // valid rather than a comment-form violation.
+  assertEquals(
+    ownershipDiagnosticsFor(resolved, implementationSources).length,
+    0,
+  );
+
+  const scoped = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    identity,
+    "ScreenContract",
+    "state",
+  );
+  assert(scoped);
+  assertEquals(
+    scoped.targets.map((item) => item.filePath).join(","),
+    "src/pages/index.astro,web_src/css/screen.css",
+  );
+});
+
+/*
  * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationAnnotation interface
  * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::TargetResolution constraints,cases
  */

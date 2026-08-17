@@ -278,5 +278,29 @@
     "report-inspection-only-reason",
     "extract-explicit-vocabulary-request",
     "preserve-selected-vocabulary-scope"
+  ],
+  "frontendSurfaceFixture": "frontend-surface-fixture.md",
+  "frontendSurfaceRequiredBehaviors": [
+    "inventory-before-summarizing",
+    "derive-screens-from-routing-evidence",
+    "report-surface-inventory-table",
+    "treat-fileless-route-as-screen",
+    "inspect-container-presentational-split",
+    "treat-shared-composable-as-component",
+    "assign-single-owner-per-state-class",
+    "report-multiple-writers-as-decision",
+    "specify-async-surface-modes",
+    "treat-accessibility-as-constraint",
+    "annotate-script-region-when-definition-exists",
+    "annotate-template-and-stylesheet-at-file-level",
+    "reuse-design-system-primitive-contract",
+    "omit-passive-markup-and-layout-wrappers",
+    "avoid-inferring-intent-from-names",
+    "report-uncovered-route-as-missing-coverage",
+    "report-unmodelled-shared-visual-contract",
+    "report-inaccessible-design-evidence",
+    "classify-drift-signal-before-reporting",
+    "supply-inventory-to-coverage-map",
+    "use-reviewgate-for-sigil-change"
   ]
 }

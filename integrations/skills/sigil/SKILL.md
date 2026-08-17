@@ -40,9 +40,10 @@ how its implementation should be understood and changed.
    validation, and glossary status. Always state whether glossary extraction is
    required, deferred, or inspection-only. Let the user review the written Sigil.
 7. Before changing implementation, read
-   `references/implementation-design.md` and obtain
-   `ReviewGate(action: implementation)` readiness for the validated written
-   Sigil and exact implementation scope.
+   `references/implementation-design.md`, add
+   `references/frontend-surface-review.md` when the boundary renders a user
+   interface, and obtain `ReviewGate(action: implementation)` readiness for the
+   validated written Sigil and exact implementation scope.
 8. After implementation, follow the verification and completed-implementation
    reconciliation in `references/implementation-design.md`. Discover and run the
    complete applicable focused, dependent, integration, regression, build, static,
@@ -126,6 +127,11 @@ check passed.
   are needed.
 - `references/implementation-design.md`: before every implementation mutation
   or coverage decision.
+- `references/frontend-surface-review.md`: whenever the selected boundary
+  renders a user interface, including screens, routes, reusable components,
+  client state stores, and styling that carries contract meaning. It owns
+  surface inventory, client-state ownership, presentation annotation, and
+  frontend drift evidence.
 
 ## CLI
 
