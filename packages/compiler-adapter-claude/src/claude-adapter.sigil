@@ -29,7 +29,7 @@ expand SigilClaudeCompilerAdapter {
       Consume the provider-neutral request validation and capability-match result
       before invocation. Send one stream-json user message through claude print mode
       with the selected workspace, optional model, plan permissions, explicit
-      read-only tools, bare startup, and disabled session persistence.
+      read-only tools, safe startup, and disabled session persistence.
 
       The user message carries evaluationPrompt output unchanged. That provider-
       neutral envelope preserves stage, target identity, purpose, selected retrieval
@@ -55,8 +55,9 @@ expand SigilClaudeCompilerAdapter {
     ClaudeExecutionBoundary {
       Enable Read, Glob, Grep, and Bash for the compiler's best-effort read-only
       inspection policy. Deny Edit, Write, and NotebookEdit; use plan permission mode
-      and bare startup so project instructions, plugins, hooks, and MCP configuration
-      do not widen the evaluation boundary.
+      and safe startup so project instructions, plugins, hooks, and MCP configuration
+      do not widen the evaluation boundary while provider authentication remains
+      available.
 
       Use --no-session-persistence and never resume, continue, fork, or reuse a prior
       Claude session. Declare ephemeral state and keep provider tool network

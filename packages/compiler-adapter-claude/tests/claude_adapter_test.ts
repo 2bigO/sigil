@@ -112,6 +112,8 @@ Deno.test("Claude adapter invokes ephemeral read-only stream JSON mode", async (
   if (!observed) throw new Error("Claude was not invoked.");
   assertEquals(observed.command, "claude");
   assertEquals(observed.args.includes("--no-session-persistence"), true);
+  assertEquals(observed.args.includes("--safe-mode"), true);
+  assertEquals(observed.args.includes("--bare"), false);
   assertEquals(observed.args.includes("--permission-mode"), true);
   assertEquals(observed.args[observed.args.indexOf("--model") + 1], "sonnet");
   assertMatch(observed.input, /Return ONLY valid JSON/);

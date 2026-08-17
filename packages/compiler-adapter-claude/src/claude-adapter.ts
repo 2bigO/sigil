@@ -117,7 +117,7 @@ export class ClaudeAdapter implements AgentAdapter {
       "--disallowedTools",
       "Edit,Write,NotebookEdit",
       "--no-session-persistence",
-      "--bare",
+      "--safe-mode",
       ...(this.model ? ["--model", this.model] : []),
     ];
     const handle = createAdapterSubprocessHandle(
@@ -324,7 +324,9 @@ export function parseClaudeEvents(
   } catch (error) {
     throw new AdapterFailure(
       "final-result-protocol",
-      "Claude terminal result is not one valid result object.",
+      `Claude terminal result is not one valid result object: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
       undefined,
       { cause: error },
     );
