@@ -115,6 +115,11 @@ Deno.test("Claude adapter invokes ephemeral read-only stream JSON mode", async (
   assertEquals(observed.args.includes("--safe-mode"), true);
   assertEquals(observed.args.includes("--bare"), false);
   assertEquals(observed.args.includes("--permission-mode"), true);
+  const schema = JSON.parse(
+    observed.args[observed.args.indexOf("--json-schema") + 1],
+  );
+  assertEquals(schema.required, ["findings"]);
+  assertEquals(schema.properties.findings.type, "array");
   assertEquals(observed.args[observed.args.indexOf("--model") + 1], "sonnet");
   assertMatch(observed.input, /Return ONLY valid JSON/);
   assertEquals(result.findings, []);
