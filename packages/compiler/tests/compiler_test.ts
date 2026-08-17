@@ -299,6 +299,48 @@ Deno.test("malformed adapter result envelopes fail compilation", async () => {
   }
 });
 
+// @sigil tests packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::DeterministicFoundationGating logic,constraints,cases
+Deno.test("structural diagnostics skip dependent evaluator stages", async () => {
+  const root = await workspace(`component Example {
+  unsupported {
+    content
+  }
+}
+`);
+  try {
+    let calls = 0;
+    const events: CompilationEvent[] = [];
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      adapter: new MockAdapter(() => {
+        calls++;
+        return [];
+      }),
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    assertEquals(report.status, "red");
+    assertEquals(calls, 0);
+    assertEquals(
+      report.stages.find((stage) => stage.id === "deterministic-foundation")
+        ?.state,
+      "failed",
+    );
+    assertEquals(
+      report.stages.find((stage) => stage.id === "semantic-readiness")?.state,
+      "skipped-by-dependency",
+    );
+    assertEquals(
+      report.stages.find((stage) => stage.id === "current-code-compatibility")
+        ?.state,
+      "skipped-by-dependency",
+    );
+    assertEquals(events.at(-1)?.type, "completed");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/compiler/src/event-writer.sigil::SigilCompilationEventWriter::CompilationEventWriterProtocol interface,constraints,cases
  * @sigil tests packages/compiler/src/event-reader.sigil::SigilCompilationEventReader::CompilationEventReaderProtocol interface,constraints,cases
@@ -1426,6 +1468,12 @@ Deno.test("undeclared evaluator rules fail the stage without affecting color dir
   const root = await workspace(`component Example {
   goal {
     Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
   }
 }
 `);

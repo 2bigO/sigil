@@ -5,6 +5,7 @@
 @packages/compiler-adapter-pi import { SigilPiCompilerAdapter }
 @packages/compiler-adapter-claude import { SigilClaudeCompilerAdapter }
 @packages/cli/src/installer.sigil import { SkillInstaller }
+@packages/cli/src/compilation-sessions.sigil import { CompilationSessionCommand }
 
 component SigilCli {
   goal {
@@ -198,16 +199,11 @@ component SigilCli {
 
       in JSON Lines mode standard output contains only the versioned CompilationEvent
       stream and human progress or host logs use standard error
+    }
 
-      sigil compile session start [path] --focus design [--component name | --file
-      file] [--profile name]
-
-      sigil compile session evaluate session-id [--format jsonl] reads one complete
-      CompilationProposal JSON object from standard input
-
-      sigil compile session refresh session-id rebuilds the frozen base snapshot
-
-      sigil compile session close session-id releases the proposal workspace
+    CompilationSessionFacade {
+      CompilationSessionCommand adapts compiler proposal sessions into explicit CLI
+      commands.
     }
 
   }
@@ -219,6 +215,28 @@ expand SigilCli {
       Running sigil compile --agent selects the effective tools.agent.profile.
 
       Combining --agent with --profile exits with invalid usage.
+    }
+  }
+}
+
+expand SigilCli {
+  logic {
+    CompilationSessionFacade {
+      CompilationSessionCommand owns CLI command transport and delegates durable
+      session lifecycle operations to the compiler.
+    }
+  }
+
+  constraints {
+    CompilationSessionFacade {
+      The CLI does not own session identity, leases, expiry, cleanup, or
+      proposal-workspace lifecycle policy.
+    }
+  }
+
+  cases {
+    CompilationSessionFacade {
+      Each session command preserves compiler status and host-failure exit semantics.
     }
   }
 }
@@ -410,22 +428,6 @@ expand SigilCli {
       than replacing or duplicating them.
     }
 
-    CompilationSessionFacade {
-      session start delegates creation and base materialization to
-      SigilCompilationSessionFactory and returns the opaque session identifier, base
-      fingerprint, and expiry.
-
-      Each session command opens the owner-private durable session from the
-      operating-system temporary directory, acquires its nonblocking exclusive file
-      lock, and releases the lock before the command exits.
-
-      session evaluate resolves the existing session, reads exactly one proposal from
-      standard input, and projects its ordinary CompilationEvent stream.
-
-      Each accepted session refresh creates a new observable base epoch. Session
-      close is idempotent only after the session identity and compiler ownership
-      marker have been validated.
-    }
   }
 
   constraints {
@@ -609,32 +611,6 @@ expand SigilCli {
       one-based integers.
     }
 
-    CompilationSessionFacade {
-      Session identifiers are opaque, unpredictable, and valid only for
-      compiler-owned proposal workspaces.
-
-      A session identifier locates a record but does not authorize access. The same
-      operating-system user boundary, durable record, and ownership marker govern
-      access and cleanup.
-
-      Session start binds path, target, profile, focus, and expiry for later
-      evaluations.
-
-      Session start delegates validation, proposal-workspace creation, durable record
-      creation, and failed-create cleanup to SigilCompilationSessionFactory without
-      independently reclassifying dependency failures.
-
-      Session evaluate accepts proposal JSON only from standard input and does not
-      create a proposal file in the selected workspace.
-
-      Session commands preserve compiler status and host-failure exit semantics.
-
-      COMPILER_INVALID_INVOCATION is a caller usage failure and exits with code 2.
-
-      COMPILER_PROFILE_EVALUATORS_REQUIRED and proposal-workspace, persistence,
-      cleanup, event-protocol, or transport failure exit with code 3 and return no
-      session identity or completed report.
-    }
   }
 
   decisions {
@@ -889,6 +865,21 @@ expand SigilCli {
       colliding Pi stub registration for the same identity.
     }
 
+    BundledClaudeCompilerAdapter {
+      Decision: Bundle and register the separately packaged Claude compiler adapter
+      in the Sigil CLI distribution.
+
+      Scope: Governs CLI-hosted compiler runs and release assembly; excludes direct
+      compiler consumers and third-party adapter registration.
+
+      Trade-offs: The CLI release coordinates one additional package version while
+      the compiler avoids a provider-specific dependency cycle.
+
+      Consequences: CLI runs resolve builtin.claude-cli by exact version, while
+      direct compiler consumers register adapters explicitly. The compiler does not
+      own a colliding Claude stub registration for the same identity.
+    }
+
     StageOperandDisambiguation {
       Decision: Interpret an exact known stage identifier as the first compile
       operand and require an explicit relative or absolute spelling for a colliding
@@ -948,26 +939,6 @@ expand SigilCli {
       compilation status.
     }
 
-    CompilationSessionFacade {
-      Decision: Expose explicit start, evaluate, refresh, and close operations for
-      compiler proposal sessions.
-
-      Scope: Governs cross-process CLI access to SigilCompiler proposal sessions.
-
-      Trade-offs: The CLI gains lifecycle commands and must validate opaque session
-      identifiers, leases, standard-input proposal JSON, and expiry.
-
-      Design issues addressed: Sigil skill conversations span multiple commands and
-      user turns, so an in-process session alone cannot reliably preserve the
-      reusable proposal workspace.
-
-      Discarded alternatives: One-shot compilation and an indefinitely running CLI
-      process were rejected because they respectively repeat workspace copying or
-      depend on host-specific process retention.
-
-      Consequences: Coding-agent hosts can iterate on unwritten proposals efficiently
-      while session ownership and cleanup remain explicit.
-    }
   }
 
   cases {
@@ -1127,18 +1098,6 @@ expand SigilCli {
 
       Cancelling compilation terminates delegated work and reports cancellation
       without changing workspace files.
-    }
-
-    CompilationSessionFacade {
-      Starting a design session returns one opaque identifier and one frozen base
-      fingerprint.
-
-      Evaluating two successive proposals reuses the session workspace and reports
-      distinct generations and proposal fingerprints.
-
-      Refreshing a session clears its proposal-generation history.
-
-      Closing or expiring a session prevents later evaluation through its identifier.
     }
 
     CompilationExitStatus {

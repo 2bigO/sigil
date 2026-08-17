@@ -370,6 +370,14 @@ export async function compile(
               true,
             );
           }
+          if (
+            coreDiagnostics.some((diagnostic) =>
+              diagnostic.severity === "error"
+            )
+          ) {
+            state = "failed";
+            failed.add(stage.id);
+          }
         } else {
           if (
             !stageAdapters.length ||
