@@ -17,9 +17,10 @@ DesignCompilationReview {
       consumes deterministic-foundation, semantic-readiness, and architecture-design
       results from the exact written scope
 
-      requires a terminal compilation outcome with a closed output stream before
-      written-file review, concept grouping, glossary extraction, implementation
-      approval, or implementation; this gate cannot be skipped or overridden
+      requires an exited compiler process and its readable completed Markdown report
+      before written-file review, concept grouping, glossary extraction,
+      implementation approval, or implementation; this gate cannot be skipped or
+      overridden
 
       permits written-file review when design compilation is green or when every
       yellow finding is explicitly reviewed and accepted as nonblocking by the human
@@ -34,8 +35,8 @@ DesignCompilationReview {
       Design compilation is awaiting, completed-green, completed-yellow,
       completed-red, failed, cancelled, or host-transport-blocked for one exact
       written scope and reviewed boundary. These states map directly to the completed
-      report, failure, cancellation, and host-transport outcomes from
-      SigilCompilationExecution; missing terminal evidence remains
+      Markdown report, failure, cancellation, and host outcomes from
+      SigilCompilationExecution; missing completed-report evidence remains
       host-transport-blocked rather than becoming a separate state.
     }
   }
@@ -70,10 +71,10 @@ DesignCompilationReview {
       target closure.
 
       Do not use a compiler session for normal authoring or review. Delegate
-      invocation, durable capture, terminal waiting, source closure, retry, and
-      host-failure classification entirely to SigilCompilationExecution. Interpret
-      only its returned terminal report or failure outcome; a running or incomplete
-      execution is a hard blocker.
+      invocation, Markdown output isolation, process waiting, retry, and host-failure
+      classification entirely to SigilCompilationExecution. Interpret only its
+      returned completed report or failure outcome; a running or incomplete execution
+      is a hard blocker.
 
       Use red and yellow diagnostics to investigate evidence and return confirmed
       material problems to DesignConversation. Revise red candidates and yellow
@@ -131,7 +132,7 @@ DesignCompilationReview {
 
       Trade-offs: Semantic work is immediately visible in the target file, so users
       review the actual change rather than a chat proposal, but compilation may take
-      substantial time before it yields terminal evidence.
+      substantial time before it yields a completed report artifact.
 
       Design issues addressed: Temporary proposal sessions consume context and make
       small-model review harder to follow.
@@ -170,7 +171,7 @@ DesignCompilationReview {
       distances from every affected semantic unit and lexical identities.
 
       Scope: Governs ordinary design-compilation target selection; excludes compiler
-      status computation, terminal recovery owned by SigilCompilationExecution, and
+      status computation, report recovery owned by SigilCompilationExecution, and
       user acceptance of yellow findings.
 
       Trade-offs: Worst-first path ordering can differ from a host's informal sense
@@ -183,7 +184,7 @@ DesignCompilationReview {
       select different design closures for the same written scope.
 
       Consequences: A target is repeatable across single- and multi-file scopes;
-      terminal recovery remains centralized in SigilCompilationExecution.
+      completed-report recovery remains centralized in SigilCompilationExecution.
     }
   }
 
@@ -205,9 +206,8 @@ DesignCompilationReview {
       A failed compilation reports its failure evidence and remains blocked under the
       execution component's retry policy.
 
-      A cancelled compilation reports its cancellation evidence, durable capture, and
-      exit status and blocks review; retry behavior remains owned by
-      SigilCompilationExecution.
+      A cancelled compilation reports its cancellation evidence and exit status and
+      blocks review; retry behavior remains owned by SigilCompilationExecution.
     }
   }
 }

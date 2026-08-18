@@ -2,8 +2,9 @@
 
 component SigilCompilationExecution {
   goal {
-    Execute ordinary Sigil compilation reproducibly and retain terminal evidence
-    without deciding the design or implementation question being evaluated.
+    Execute ordinary Sigil compilation reproducibly and retain one compiler-owned
+    Markdown report without consuming a live event stream or deciding the design or
+    implementation question being evaluated.
   }
 
   interface {
@@ -11,12 +12,11 @@ CompilationExecution {
       runs one selected SigilCli target with the effective agent profile and either
       design or implementation compilation focus
 
-      preserves durable stdout, stderr, exit-status, and terminal-event evidence for
-      each named attempt log, with the attempt log reference returned to the calling
-      workflow for retention through review completion
+      reserves a fresh Markdown output path outside the workspace for each attempt
+      and preserves its exit status and stderr evidence through review completion
 
-      returns a completed report, failure, cancellation, or host-transport failure to
-      the calling workflow for focus-specific interpretation
+      returns a readable completed Markdown report, failure, cancellation, or host
+      failure to the calling workflow for focus-specific interpretation
     }
   }
 }
@@ -24,15 +24,19 @@ CompilationExecution {
 expand SigilCompilationExecution {
   logic {
 CompilationExecution {
-      Reserve a task-scoped durable log before compilation, run SigilCli with
-      `--agent --focus <design|implementation> --format jsonl`, and wait for a
-      terminal event followed by source end.
+      Reserve a task-scoped temporary directory and a unique nonexistent report path
+      for each attempt. Run SigilCli with `--agent --focus <design|implementation>
+      --format markdown --output <report-path>` and wait for the launched process to
+      exit.
 
-      On an interrupted live stream, recover the durable log and poll it and the
-      launched SigilCli process when needed until its writer closes. Do not replace a
-      run merely because the live event was lost. Once the process and writer have
-      ended, retry the identical target once when the first run failed or could not
-      establish terminal evidence.
+      Accept a completed compilation only when the process exits with the completed
+      report exit class and the attempt's fresh output is readable and nonempty. Read
+      that file as the compiler-owned Markdown projection and return it with the exit
+      status. Do not listen to, parse, capture, or recover a JSONL event stream.
+
+      After process exit, retry the identical target once when a runtime failure,
+      abnormal termination, missing output, unreadable output, or empty output
+      prevents completed-report evidence.
     }
   }
 
@@ -42,45 +46,55 @@ CompilationExecution {
       `--profile`. Compiler sessions are reserved for explicitly requested
       exceptional diagnostics.
 
-      Stage progress, partial output, silence, slow execution, and passing tests do
-      not establish compilation evidence.
+      Stdout, progress, silence, slow execution, passing tests, and the mere presence
+      of an output path do not establish compilation evidence.
 
-      A terminal failed run or a nonzero process exit without a completed report, or
-      a run that ends without terminal evidence, preserves its capture and
-      automatically retries the identical target once after process and writer
-      closure. A completed green, yellow, or red report is returned for
-      focus-specific interpretation and is not automatically retried. The second
-      failed or incomplete attempt blocks its calling workflow. A cancelled run is
-      not retried automatically. A missing terminal event, unreadable log, or missing
-      source end is a host-transport failure rather than a compilation status.
+      Exit zero or one with the attempt's readable nonempty report is a completed
+      green, yellow, or red report and is returned for focus-specific interpretation;
+      exit one is not automatically a failure because completed yellow and red
+      reports use it. Exit two is an invocation defect that must be corrected rather
+      than retried identically. Exit 130 is cancellation and is not retried
+      automatically. Exit three, another abnormal termination, or an invalid report
+      artifact is an incomplete operational outcome and receives one identical retry.
+      The second failed or incomplete attempt blocks its calling workflow.
+
+      A report path must not exist before its attempt. A report artifact is never
+      accepted when its process exits outside the completed report exit class, even
+      if a file exists, so stale or partially settled output cannot become evidence.
 
       An identical retry preserves the source snapshot identity, focus, target
       selector, resolved effective profile, and material invocation options. If those
       inputs cannot be frozen, report a host failure instead of claiming
       reproducibility.
 
-      Host-transport failure is the single returned host failure identity for an
-      unreadable capture, missing source end, or inability to freeze retry inputs.
+      Host failure is the single returned host failure identity for an unreadable or
+      invalid report artifact, inability to freeze retry inputs, or inability to
+      reserve an isolated output destination.
     }
   }
 
   decisions {
     SharedCompilationExecution {
-      Decision: Centralize ordinary compile execution and terminal recovery while
-      callers retain target selection and focus-specific report interpretation.
+      Decision: Centralize ordinary compile execution around process completion and a
+      fresh compiler-owned Markdown output while callers retain target selection and
+      focus-specific report interpretation.
 
       Scope: Governs design and implementation compilation in the Sigil skill;
       excludes compiler evaluation semantics and review or implementation approval.
 
-      Trade-offs: Callers add one dependency but no longer duplicate fragile stream
-      and retry behavior.
+      Trade-offs: Callers add one dependency and lose live event progress, but no
+      longer duplicate stream listeners, event recovery, or retry behavior.
 
       Design issues addressed: Parallel compile instructions drifted despite sharing
       the same invocation and terminal-evidence requirements.
 
-      Consequences: Both workflows use the agent profile and a durable JSONL
-      protocol, differing only in compilation focus and interpretation. Failed or
-      incomplete runs receive one identical retry after closure.
+      Discarded alternatives: JSONL stream consumption and stdout-only Markdown
+      capture were rejected because ordinary review needs one durable completed
+      artifact rather than event recovery or transient presentation output.
+
+      Consequences: Both workflows use the agent profile and a fresh Markdown output
+      artifact, differing only in compilation focus and interpretation. Failed or
+      incomplete operational runs receive one identical retry after process exit.
     }
   }
 }

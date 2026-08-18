@@ -27,11 +27,10 @@ expand SigilCompilationReportExporter {
   logic {
     CompilationReportExport {
       Resolve the destination and selected workspace before writing, create a sibling
-      temporary file with restrictive permissions, ask
-      SigilCompilationReportMarkdown for the Markdown representation when selected,
-      write and sync the selected completed representation, atomically replace an
-      absent or existing regular destination, and remove the temporary file after
-      any pre-replacement failure.
+      temporary file with restrictive permissions, ask SigilCompilationReportMarkdown
+      for the Markdown representation when selected, write and sync the selected
+      completed representation, atomically replace an absent or existing regular
+      destination, and remove the temporary file after any pre-replacement failure.
     }
   }
 

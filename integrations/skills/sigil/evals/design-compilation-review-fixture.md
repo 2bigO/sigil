@@ -21,23 +21,20 @@ Expected skill behavior:
 3. Write the resolved scoped change directly in the selected file.
 4. Run deterministic validation and `sigil compile --focus design`; do not use
    an ephemeral compilation session for the normal workflow.
-5. Before compiling, record a durable task-scoped stdout/stderr capture path
-   that remains readable when a child evaluator outlives the command-tool event.
-6. Wait without cancelling or replacing the run for a terminal compiler event
-   and for the event stream to end. Treat
-   only `completed` carrying its v2 report, `failed`, or `cancelled` as an
-   outcome; progress events and silence are not results.
-7. If the command tool returns only partial progress while its evaluator is
-   still active, retrieve and poll the durable capture until its writer closes;
-   preserve its final report or terminal diagnostics. Do not issue a replacement
-   compile merely because the original terminal event is absent.
-8. Treat an unreadable capture or one that cannot establish source end as a host
-   or transport failure, not green, yellow, or red evidence. Retry the same
-   target only after durable output capture is restored.
-9. Treat `failed` and `cancelled` terminal events as blocked states. Preserve their
-   evidence and exit status; retry a failed run only after its host or evaluator
-   cause is resolved, and retry a cancelled run only after its cause is resolved
-   or the user explicitly requests it.
+5. Before compiling, reserve a task-scoped temporary directory and a unique,
+   nonexistent Markdown report path outside the workspace for the attempt.
+6. Invoke `sigil compile` with `--format markdown --output <fresh-report-path>`
+   and wait for the process to exit. Do not listen to or parse a JSONL stream.
+7. Treat exit zero or one plus a fresh readable nonempty report as completed
+   evidence; read its status and findings from the Markdown file. Do not accept
+   stdout, progress, silence, or a report file paired with another exit class.
+8. Treat exit two as an invocation defect, exit 130 as cancellation, and exit
+   three or another abnormal termination as an operational failure. Treat a
+   missing, unreadable, or empty output file as incomplete rather than green,
+   yellow, or red evidence.
+9. Preserve stderr and exit status. Retry an operationally failed or incomplete
+   run once after process exit with the same frozen target and a new attempt
+   output path. Do not retry cancellation automatically.
 10. Correct deterministic or coherent findings directly when intent is clear;
    return material ambiguity, conflict, or future-risk decisions to
    DesignConversation.

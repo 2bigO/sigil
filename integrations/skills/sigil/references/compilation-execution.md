@@ -3,64 +3,71 @@
 # Shared Compilation Execution
 
 Use this procedure for every ordinary design or implementation compilation. It
-owns invocation, durable capture, terminal-outcome handling, and retry policy;
-the calling workflow owns target selection and focus-specific interpretation.
+owns invocation, fresh Markdown output isolation, process-exit handling, and
+retry policy; the calling workflow owns target selection and focus-specific
+interpretation.
 
-## Run And Capture
+## Run And Read
 
-Reserve and record a fresh task-scoped directory with `mktemp -d`. Capture both
-streams in a named per-attempt log there while preserving the command exit
-status. Return the attempt log path, exit status, and terminal-event evidence to
-the calling workflow. The log is the source of record and must remain readable
-if a child evaluator outlives the command-tool response; the calling workflow
-owns retention through review completion.
+Reserve and record a task-scoped temporary directory with `mktemp -d`. For each
+attempt, choose a unique Markdown report path inside it and verify that the path
+does not exist before invocation. Keep the path outside the workspace so report
+generation does not mutate the implementation scope. Preserve stderr and the
+command exit status through review completion.
 
 Run the selected target with the agent profile:
 
 ```bash
-sigil compile <workspace-root> --agent --focus <design|implementation> <target-selector> --format jsonl
+sigil compile <workspace-root> --agent --focus <design|implementation> <target-selector> --format markdown --output <fresh-report-path>
 ```
 
 `--agent` selects the effective `tools.agent.profile`. Do not combine it with
 `--profile`. Compiler sessions remain available only for an explicitly requested
 exceptional diagnostic investigation.
 
-Wait without cancelling or replacing the run for a terminal event and source
-end. `completed` carries the authoritative version-2 CompilationReport;
-`failed` and `cancelled` are terminal outcomes without a report. Stage-started
-events, partial progress, silence, a slow response, and a passing build or test
-are not compilation evidence. A long-running evaluator is still one active run;
-do not start a second run while its process or writer remains alive.
+Wait without cancelling or replacing the run until the compiler process exits.
+Do not listen to, parse, capture, or recover a JSONL event stream. Stdout,
+partial progress, silence, a slow response, and passing tests are not completed
+compilation evidence.
 
-If the execution host interrupts the live stream, retrieve and poll the durable
-log and, if needed, evaluator process state until the terminal event is present
-and its writer has closed. Do not retry solely because the live event was lost.
+Accept the attempt as completed only when both conditions hold:
 
-## Terminal Outcomes
+- the process exits with code `0` or `1`; and
+- that attempt's fresh report path is a readable, nonempty file.
 
-- `completed`: preserve the report and pass it to the calling workflow.
-- `failed`: preserve terminal diagnostics, durable capture, and exit status;
-  wait for the evaluator process and writer to close, then retry the identical
-  target once. If the retry fails, report both attempts and block the workflow.
-  A terminal `failed` outcome or a nonzero process exit without a completed
-  report is retryable; a completed green, yellow, or red report is returned to
-  the calling workflow and is not automatically retried.
-- `cancelled`: preserve cancellation evidence, durable capture, and exit status;
-  report the known cause and retry the same target only after it is resolved or
-  the user explicitly requests another run.
-- missing terminal event, unreadable capture, or no established source end:
-  wait for process state and restore durable capture. Once the first run has
-  definitely ended, retry the identical target once. If the retry cannot reach
-  a terminal outcome and source end, report a host or transport failure and
-  block the workflow.
+Read the report from that file and pass it to the calling workflow with the exit
+status. The Markdown is a compiler-owned review projection of the completed
+report, not the machine-readable authoritative schema. Use its `Status` and
+findings for the immediate review decision. Exit `1` is not itself an
+operational failure because completed yellow and red reports use it.
+
+## Process Outcomes
+
+- Exit `0` or `1` with a valid fresh report: return the completed green, yellow,
+  or red report without automatic retry.
+- Exit `2`: correct the invocation defect before compiling again. An identical
+  retry cannot repair invalid arguments.
+- Exit `3` or another abnormal termination: preserve stderr and exit status,
+  then retry the identical frozen target once after the process exits.
+- Exit `130`: preserve cancellation evidence and exit status. Retry only after
+  the cause is resolved or the user explicitly requests another run.
+- Missing, unreadable, or empty output after exit `0` or `1`: classify the
+  attempt as incomplete and retry the identical frozen target once.
+
+Never accept an output artifact paired with exit `2`, `3`, `130`, or another
+abnormal exit, even if a file exists. Never reuse a report path across attempts;
+this prevents stale or partially settled output from becoming evidence.
 
 ## Retry Rule
 
-Retry only after the first process and its output writer have ended. Preserve
-both durable captures and exit statuses. The retry uses the same workspace root,
-source snapshot identity, focus, target selector, resolved effective profile, and
-material command arguments; it is not a replacement scope or a new
-interpretation. If those inputs cannot be frozen, report the host failure rather
-than claiming an identical retry. Do not retry a cancellation automatically.
+Retry only after the first process exits. Preserve both attempts' report paths,
+stderr, and exit statuses. The retry uses the same workspace root, source
+snapshot identity, focus, target selector, resolved effective profile, and
+material command arguments; only its required fresh output path differs. It is
+not a replacement scope or a new interpretation. If those inputs cannot be
+frozen, report the host failure rather than claiming an identical retry. Do not
+retry a usage error or cancellation automatically.
 
-Never classify incomplete output as red, yellow, or green evidence.
+If the second attempt still lacks completed-report evidence, report both
+attempts and block the calling workflow. Never classify incomplete output as
+red, yellow, or green evidence.
