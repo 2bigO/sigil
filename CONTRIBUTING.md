@@ -58,6 +58,9 @@ cd sigil
 npm ci --prefix integrations/editor/vscode
 ```
 
+The `deno task package:vscode` task bootstraps these dependencies automatically
+when they are absent.
+
 Deno resolves and caches its own dependencies on first use, against the
 committed [`deno.lock`](deno.lock), so there is no separate Deno install step.
 
