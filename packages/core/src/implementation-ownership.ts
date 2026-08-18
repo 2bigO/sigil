@@ -56,7 +56,12 @@ const SLASH_COMMENT_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
 ]);
-const MARKUP_COMMENT_EXTENSIONS = new Set([".htm", ".html"]);
+const MARKUP_COMMENT_EXTENSIONS = new Set([
+  ".gohtml",
+  ".htm",
+  ".html",
+  ".tmpl",
+]);
 const STYLE_COMMENT_EXTENSIONS = new Set([
   ".css",
   ".less",
@@ -471,13 +476,13 @@ function sourceRegions(
   if (SLASH_COMMENT_EXTENSIONS.has(extension)) {
     return [{ syntax: "slash", binding: "symbol", start: 0, end: text.length }];
   }
-  if (MARKUP_COMMENT_EXTENSIONS.has(extension)) {
-    return [{ syntax: "markup", binding: "file", start: 0, end: text.length }];
-  }
   if (STYLE_COMMENT_EXTENSIONS.has(extension)) {
     return [{ syntax: "style", binding: "file", start: 0, end: text.length }];
   }
-  if (COMPONENT_FILE_EXTENSIONS.has(extension)) {
+  if (
+    MARKUP_COMMENT_EXTENSIONS.has(extension) ||
+    COMPONENT_FILE_EXTENSIONS.has(extension)
+  ) {
     return componentFileRegions(text, extension);
   }
   return [];
@@ -552,8 +557,11 @@ function astroFrontmatterRegion(text: string): SourceRegion | undefined {
   };
 }
 
+const MARKUP_COMMENT_PATTERN =
+  /<!--[\s\S]*?-->|\{\{-?\s*\/\*[\s\S]*?\*\/\s*-?\}\}/g;
+
 function markupCommentBlocks(source: string): RawComment[] {
-  return [...source.matchAll(/<!--[\s\S]*?-->/g)].map((match) => ({
+  return [...source.matchAll(MARKUP_COMMENT_PATTERN)].map((match) => ({
     kind: "markup" as const,
     text: match[0],
     start: match.index ?? 0,
@@ -785,6 +793,8 @@ function mergeAdjacentLineComments(
 
 function normalizedCommentLines(comment: CommentBlock): string[] {
   return comment.text
+    .replace(/^\{\{-?\s*/, "")
+    .replace(/\s*-?\}\}$/, "")
     .replace(/^<!--|-->$/g, "")
     .replace(/^\/\*|\*\/$/g, "")
     .split(/\r?\n/)
