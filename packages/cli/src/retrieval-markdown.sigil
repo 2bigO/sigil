@@ -1,0 +1,89 @@
+@packages/core/src/model/retrieval.sigil import { SigilRetrievalModel }
+
+component SigilRetrievalMarkdown {
+  goal {
+    Render one compact, deterministic Markdown document from a versioned retrieval
+    projection so people and coding agents can inspect a component contract and its
+    direct relationships without reconstructing flat evidence.
+  }
+
+  interface {
+    RetrievalMarkdownProjection {
+      SigilRetrievalModel RetrievalProjection provides the sole presentation input.
+
+      renderRetrieveMarkdown(projection) returns one Markdown document without
+      changing the projection, raw PurposeRetrievalResult, or either fingerprint.
+
+      The document title identifies the retrieval purpose. The selected component
+      name and repository-relative declaration path appear immediately below it.
+
+      The selected component renders Goal, Interface, Constraints, Decisions, Cases,
+      and Ownership in that order when each section has content.
+
+      Interface content renders under a concept heading only when the projection
+      carries that concept identity. Ungrouped interface content remains directly
+      under Interface.
+
+      Direct dependencies render under Dependencies with their component identity,
+      Goal, and Interface.
+
+      Ownership renders an implements, uses, or tests link to its repository-
+      relative implementation file at its one-based line and column, with an optional
+      symbol and selected sections.
+    }
+  }
+
+  constraints {
+    RetrievalMarkdownProjection {
+      Use one document title, ## section headings, and ### component or concept
+      headings. Dependency Goal and Interface labels are inline rather than deeper
+      headings.
+
+      Render component-owned links as compact directional text that links exact
+      component identities already present in the projection.
+
+      Do not render raw EvidenceKind labels, a matching expansion heading, an
+      implementation-source slice, a duplicate module-index contract, empty-section
+      placeholders, or a separate presentation relationship map.
+
+      Preserve projection ordering and escape Markdown-reserved content without
+      altering semantic text, locations, component identity, or link targets.
+    }
+  }
+
+  decisions {
+    ComponentFirstRetrievalMarkdown {
+      Decision: Render only the component-first RetrievalProjection instead of
+      grouping raw retrieval evidence in the CLI formatter.
+
+      Scope: Governs retrieve Markdown structure; excludes raw JSON retrieval,
+      context Markdown compatibility, workspace rendering, and compilation reports.
+
+      Trade-offs: Markdown depends on the maintained projection schema, while the
+      renderer becomes small, deterministic, and independent of evidence selection.
+
+      Design issues addressed: Raw evidence headings expose retrieval internals and
+      make expansions, module summaries, and implementation source appear as peer
+      human-facing sections.
+
+      Consequences: Component and concept ownership is visible directly, while raw
+      evidence remains available only to consumers that need it.
+
+      Revisit when: A projection field cannot express a necessary agent-facing
+      retrieval decision without renderer-side semantic inference.
+    }
+  }
+
+  cases {
+    RetrievalMarkdownProjection {
+      A selected component with MarkdownOutput renders its matching expansion prose
+      under MarkdownOutput and never emits a selected-expansion heading.
+
+      A component-owned OwnershipLink renders one file-and-position link under the
+      relevant component or concept and does not render implementation source text.
+
+      A selected component with no Constraints, Decisions, Cases, or Ownership omits
+      those headings while retaining Goal, Interface, and Dependencies when present.
+    }
+  }
+}

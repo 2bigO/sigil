@@ -3,14 +3,117 @@
 
 component SigilRetrievalModel {
   goal {
-    Define immutable purpose-retrieval targets, evidence, graphs, and results.
+    Define immutable purpose-retrieval targets, evidence, graphs, raw results, and
+    agent-oriented projections.
   }
 
   interface {
     RetrievalModel {
       SigilSourceModel and SigilDiagnosticModel provide source and diagnostic data.
+
       PurposeRetrievalResult and its target, graph, evidence, inclusion, exclusion,
       context, and fingerprint data preserve deterministic retrieval output.
+    }
+
+    RetrievalProjection {
+      RetrievalProjection is the separately versioned sigil-retrieval-projection/v1
+      agent presentation schema derived deterministically from one
+      PurposeRetrievalResult.
+
+      RetrievalProjection preserves the raw sigil-purpose-retrieval/v1 result and its
+      fingerprint without adding, removing, or reordering raw evidence.
+
+      RetrievalProjection contains purpose, target, ordered RetrievedComponent
+      entries, scoped diagnostics, and a projection fingerprint.
+
+      RetrievedComponent has one stable component identity, path, selected,
+      dependency, importer, cycle-member, or module-context role, component-owned
+      links, and one purpose-appropriate contract projection.
+
+      A component-owned link has one relation, an exact target component identity,
+      and its available import or annotation location. Links do not require a
+      separate presentation-level relationship map.
+
+      A selected component contract groups goal, interface, constraints, decisions,
+      and cases by their owning component. Its interface groups SemanticUnits by
+      concept when a concept identity exists and retains ungrouped interface units
+      without inventing a concept.
+
+      A non-selected dependency contract exposes its goal and interface. A module
+      context remains relationship context and does not repeat a component contract
+      already represented by another RetrievedComponent.
+
+      Matching expansion SemanticUnits merge into the owning component and matching
+      concept or section. An expansion is not a presentation component, relationship
+      category, or heading.
+
+      OwnershipLink records an implements, uses, or tests relation, repository-
+      relative implementation location, optional symbol, and selected sections. It
+      belongs to its owning component or concept.
+
+      Implementation-source evidence remains available only in the raw
+      implementation-purpose result and is omitted from RetrievalProjection.
+    }
+  }
+
+  constraints {
+    RetrievalProjection {
+      Projection component identities and links are exact, stable, and resolvable
+      within the same projection.
+
+      Projection ordering is deterministic: selected components first, then role,
+      path, declaration location, and component name; links use relation, target
+      identity, and available location; section units retain raw evidence order.
+
+      Projection locations use normalized repository-relative paths and one-based
+      line and column values already carried by raw retrieval evidence.
+
+      A projection fingerprint covers its complete projection content and does not
+      replace the raw PurposeRetrievalResult fingerprint.
+    }
+  }
+
+  decisions {
+    AgentRetrievalProjection {
+      Decision: Preserve the evidence-first PurposeRetrievalResult v1 protocol and
+      derive a separately versioned component-first retrieval projection for agents.
+
+      Scope: Governs agent-facing retrieval data and Markdown rendering; excludes raw
+      retrieval membership, evidence, graph, ordering, JSON Lines, and compiler
+      report protocols.
+
+      Trade-offs: The projection adds a maintained schema, but avoids making every
+      host reconstruct component, concept, expansion, ownership, and link grouping.
+
+      Design issues addressed: Flat evidence kinds expose expansions and source
+      slices as peer content, producing repetitive Markdown that is difficult for
+      people and agents to navigate.
+
+      Discarded alternatives: Replacing raw v1 with a breaking grouped result and
+      making every Markdown renderer infer groups from evidence were rejected.
+
+      Consequences: Hosts can consume a stable grouped projection while automation
+      retains the complete raw evidence result and its established fingerprint.
+
+      Revisit when: A consumer requires a projection role, section, or relation that
+      cannot be derived deterministically from purpose retrieval.
+    }
+  }
+
+  cases {
+    RetrievalProjection {
+      A selected component with a MarkdownOutput concept groups its declaration and
+      matching expansion interface units beneath MarkdownOutput without an expansion
+      heading.
+
+      A selected component exposes its constraints, decisions, and cases even when
+      direct dependencies expose only their goal and interface.
+
+      An ownership annotation for a selected concept becomes an OwnershipLink under
+      that concept with the annotation's repository-relative line and column.
+
+      An implementation-purpose raw result retains its selected source slices while
+      the corresponding RetrievalProjection contains only OwnershipLinks.
     }
   }
 }

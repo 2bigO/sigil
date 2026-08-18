@@ -63,6 +63,30 @@ component SigilContextRetrieval {
       identity objects omit absent optional fields rather than encoding null
     }
 
+    RetrievalProjectionDerivation {
+      projectRetrieval(result) returns one RetrievalProjection owned by
+      SigilSemanticModel RetrievalModel without changing result.
+
+      projection uses raw selected graph, ordered evidence, inclusion reasons, and
+      diagnostics only as deterministic inputs; it does not reload the workspace,
+      traverse unselected graph edges, or read implementation files.
+
+      projection groups evidence by exact component identity and optional concept
+      identity before assigning presentational sections.
+
+      selected-contract and selected-expansion contribute to the selected component;
+      dependency-contract and dependency-decision contribute to a dependency;
+      importer-contract and cycle-contract contribute to their matching role;
+      module-index-summary contributes only module-context relationship information.
+
+      ownership-projection becomes the owning component or concept OwnershipLink.
+      implementation-source evidence is excluded from RetrievalProjection while
+      remaining unchanged in PurposeRetrievalResult for implementation purpose.
+
+      Projection links derive from selected graph edges and preserve exact target
+      component identity and available origin location.
+    }
+
     RetrievalDiagnosticVocabulary {
       Every retrieval-owned diagnostic has severity error and one exact code-message
       pair.
@@ -517,6 +541,10 @@ expand SigilContextRetrieval {
       Never serialize resolved declaration objects, complete concept namespaces,
       complete glossary occurrence collections, or implementation sources not
       selected by implementation purpose.
+
+      RetrievalProjection is a separate derived result. ContextAggregation remains
+      the format-neutral raw evidence projection and does not acquire presentation
+      headings or grouped component objects.
     }
 
     EvidenceUnitConstruction {

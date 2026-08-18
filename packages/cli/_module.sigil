@@ -6,6 +6,7 @@
 @packages/compiler-adapter-claude import { SigilClaudeCompilerAdapter }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 @packages/cli/src/compilation-sessions.sigil import { CompilationSessionCommand }
+@packages/cli/src/retrieval-markdown.sigil import { SigilRetrievalMarkdown }
 
 component SigilCli {
   goal {
@@ -110,9 +111,8 @@ component SigilCli {
       decisions, owned implementation projections, related files, glossary context,
       and diagnostics as deterministic Markdown.
 
-      retrieve markdown reports a compact, purpose-appropriate selected scope,
-      relationships, and diagnostics without requiring host-side translation of JSON
-      output.
+      retrieve Markdown delegates component-first retrieval presentation to
+      SigilRetrievalMarkdown.
 
       compile markdown asks SigilCompilationReportMarkdown to project the completed
       authoritative report returned by SigilCompiler and presents that projection
@@ -360,10 +360,12 @@ expand SigilCli {
       shape. It does not claim the schema, policy version, fingerprint, or
       authoritative membership of a PurposeRetrievalResult.
 
-      JSON serializes the structured result. Markdown deterministically renders its
-      AggregatedRetrievalContext with stable headings and provenance labels and
-      reports the semantic fingerprint and diagnostics without changing membership,
-      evidence ordering, or fingerprint input.
+      JSON serializes the structured result. Retrieval Markdown delegates its
+      projection structure and rendering policy to SigilRetrievalMarkdown.
+
+      JSON preserves the complete PurposeRetrievalResult v1. A projection-aware JSON
+      representation identifies sigil-retrieval-projection/v1 without changing raw
+      retrieval membership, evidence ordering, or the raw fingerprint input.
     }
 
     SourceFormatting {
