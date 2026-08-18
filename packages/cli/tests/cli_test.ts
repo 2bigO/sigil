@@ -3,10 +3,11 @@ import {
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
-import type {
-  CompilationReport,
-  CompilationTarget,
-  CompileOptions,
+import {
+  type CompilationReport,
+  type CompilationTarget,
+  type CompileOptions,
+  renderCompilationReportMarkdown,
 } from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
@@ -2414,6 +2415,45 @@ async function writeWorkspaceConfig(root: string, name: string): Promise<void> {
 function validSigil(name: string): string {
   return `component ${name} {\n  goal {\n    Test ${name}.\n  }\n\n  interface {\n    run()\n  }\n}\n`;
 }
+
+function greenCompilationReport(): CompilationReport {
+  return {
+    reportVersion: 2,
+    runId: "run-green",
+    workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
+    componentNames: ["Example"],
+    status: "green",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    focus: "design",
+    profile: {
+      name: "standard",
+      criticalSystem: false,
+      contextBudgetChars: 1,
+      agentInputBudgetChars: 1,
+      limits: {
+        maxCompilationRequestChars: 1,
+        maxAgentInputChars: 1,
+        sessionTtlMs: 86_400_000,
+        providerCleanupMs: 1,
+      },
+      executionBudgets: {
+        elapsedTimeMs: 1,
+        maxCommands: 1,
+        maxCommandOutputChars: 1,
+        maxInputTokens: 1,
+        maxOutputTokens: 1,
+      },
+      stages: [],
+      evaluators: [],
+      fingerprint: "profile",
+    },
+    stages: [],
+    diagnostics: [],
+  };
+}
 // deno-lint-ignore no-explicit-any
 function parseJson(source: string): any {
   return JSON.parse(source);
@@ -2569,6 +2609,27 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
   });
   assertEquals(human.exitCode, EXIT_OK);
   assert(human.stdout.includes("resolved warning SEMANTIC_AMBIGUITY"));
+
+  let exportRepresentation: CompileOptions["reportExportRepresentation"];
+  const markdown = await runCli([
+    "compile",
+    "../..",
+    "--format",
+    "markdown",
+    "--output",
+    "/tmp/report.md",
+  ], {
+    compiler: (_workspace, _target, _profile, options) => {
+      exportRepresentation = options?.reportExportRepresentation;
+      return Promise.resolve(resolvedReport);
+    },
+  });
+  assertEquals(markdown.exitCode, EXIT_OK);
+  assertEquals(
+    markdown.stdout,
+    renderCompilationReportMarkdown(resolvedReport),
+  );
+  assertEquals(exportRepresentation, "markdown");
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,cases
@@ -2618,7 +2679,7 @@ Deno.test("compile resolves configured default and agent profiles before standar
 Deno.test("compile rejects incompatible output formats", async () => {
   const result = await runCli(["compile", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_USAGE);
-  assert(result.stderr.includes("--format must be text or jsonl"));
+  assert(result.stderr.includes("--format must be text, jsonl, or markdown"));
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
@@ -2762,6 +2823,7 @@ Deno.test("compile preserves a failed terminal event in buffered JSONL", async (
 
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
+ * @sigil tests packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface,cases
  * @sigil tests packages/compiler/src/session-store.sigil::SigilCompilationSessionStore::CompilationSessionStorage interface,logic,constraints,cases
  */
 Deno.test("compile session commands persist across independent CLI calls", async () => {
@@ -2798,6 +2860,24 @@ Deno.test("compile session commands persist across independent CLI calls", async
     const startResult = parseJson(started.stdout);
     sessionIdentity = startResult.sessionIdentity;
     assertEquals(startResult.baseEpoch, 1);
+
+    const evaluation = await runCli([
+      "compile",
+      "session",
+      "evaluate",
+      sessionIdentity!,
+      "--format",
+      "markdown",
+    ], {
+      readStdin: () => Promise.resolve(JSON.stringify({ sources: {} })),
+      compiler: () => Promise.resolve(greenCompilationReport()),
+    });
+    assertEquals(evaluation.exitCode, EXIT_OK);
+    assertEquals(
+      evaluation.stdout.startsWith("# Sigil Compilation Report\n"),
+      true,
+    );
+    assertEquals(evaluation.stdout.includes("Status: **GREEN**"), true);
 
     const refreshed = await runCli([
       "compile",

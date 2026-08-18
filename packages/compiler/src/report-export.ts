@@ -1,11 +1,16 @@
 import { CompilerFailure } from "./status.ts";
-import type { CompilationReport } from "./types.ts";
+import { renderCompilationReportMarkdown } from "./report-markdown.ts";
+import type {
+  CompilationReport,
+  CompilationReportRepresentation,
+} from "./types.ts";
 import { resolve } from "node:path";
 
 // @sigil implements packages/compiler/src/report-export.sigil::SigilCompilationReportExporter interface,logic,constraints,cases
 export async function exportCompilationReport(
   report: CompilationReport,
   destination: string,
+  representation: CompilationReportRepresentation,
   workspaceRoot: string,
 ): Promise<void> {
   const workspace = absolute(workspaceRoot);
@@ -38,8 +43,11 @@ export async function exportCompilationReport(
       await Deno.chmod(temporary, 0o600);
       const file = await Deno.open(temporary, { write: true, truncate: true });
       try {
+        const content = representation === "markdown"
+          ? renderCompilationReportMarkdown(report)
+          : `${JSON.stringify(report, null, 2)}\n`;
         await file.write(
-          new TextEncoder().encode(`${JSON.stringify(report, null, 2)}\n`),
+          new TextEncoder().encode(content),
         );
         await file.sync();
       } finally {

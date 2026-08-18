@@ -188,12 +188,15 @@ export interface CompilationEvent {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
+export type CompilationReportRepresentation = "json" | "markdown";
+
 export interface CompileOptions {
   readonly requestedStage?: string;
   readonly focus?: CompilationFocus;
   readonly disableHistory?: boolean;
   readonly noHistory?: boolean;
   readonly reportExport?: string;
+  readonly reportExportRepresentation?: CompilationReportRepresentation;
   readonly output?: string;
   readonly cancellationSignal?: AbortSignal;
   readonly signal?: AbortSignal;

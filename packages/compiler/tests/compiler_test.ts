@@ -15,6 +15,7 @@ import {
   loadEvaluationSkills,
   MockAdapter,
   openCompilationEventWriter,
+  renderCompilationReportMarkdown,
   resolveAdapterRegistration,
   runAdapterSubprocess,
   SigilCompilationSession,
@@ -2154,6 +2155,24 @@ Deno.test("report export is atomic and remains outside the selected workspace", 
       JSON.parse(await Deno.readTextFile(destination)).runId,
       report.runId,
     );
+    const markdownReport = await compile(
+      root,
+      { kind: "workspace" },
+      "standard",
+      {
+        requestedStage: "deterministic-foundation",
+        reportExport: destination,
+        reportExportRepresentation: "markdown",
+      },
+    );
+    assertEquals(
+      await Deno.readTextFile(destination),
+      renderCompilationReportMarkdown(markdownReport),
+    );
+    assertEquals(
+      (await Deno.readTextFile(destination)).includes("## Findings"),
+      false,
+    );
     await assertRejects(
       () =>
         compile(root, { kind: "workspace" }, "standard", {
@@ -2167,6 +2186,93 @@ Deno.test("report export is atomic and remains outside the selected workspace", 
     await Deno.remove(destination).catch(() => {});
     await Deno.remove(root, { recursive: true });
   }
+});
+
+// @sigil tests packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface,logic,constraints,cases
+Deno.test("compilation report Markdown is compact, grouped, and deterministic", () => {
+  const report: CompilationReport = {
+    reportVersion: 2,
+    runId: "run-markdown",
+    workspaceRoot: "/workspace",
+    target: { kind: "component", name: "Example" },
+    componentNames: ["Example"],
+    status: "yellow",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    profile: {
+      name: "standard",
+      criticalSystem: false,
+      contextBudgetChars: 1,
+      agentInputBudgetChars: 1,
+      limits: {
+        maxCompilationRequestChars: 1,
+        maxAgentInputChars: 1,
+        sessionTtlMs: 1,
+        providerCleanupMs: 1,
+      },
+      executionBudgets: {
+        elapsedTimeMs: 1,
+        maxCommands: 1,
+        maxCommandOutputChars: 1,
+        maxInputTokens: 1,
+        maxOutputTokens: 1,
+      },
+      stages: [],
+      evaluators: [],
+      fingerprint: "profile",
+    },
+    stages: [{
+      id: "semantic-readiness",
+      required: true,
+      state: "completed",
+      evaluator: "codex",
+      diagnosticCount: 1,
+    }],
+    diagnostics: [{
+      code: "SEMANTIC_AMBIGUITY",
+      fingerprint: "finding",
+      severity: "warning",
+      stage: "semantic-readiness",
+      skill: "semantic-readiness@1",
+      message: "Clarify | behavior.",
+      filePath: "main.sigil",
+      range: {
+        start: { line: 4, column: 3 },
+        end: { line: 4, column: 12 },
+      },
+      semanticSubjects: [{
+        relation: "direct",
+        sigilPath: "main.sigil",
+        componentName: "Example",
+        ownerKind: "component",
+        ownerName: "Example",
+        sectionName: "interface",
+        conceptIdentifier: "Run",
+      }],
+      evidence: "The contract has two meanings.",
+      impact: "Callers cannot choose safely.",
+      correction: "Choose one meaning.",
+      evaluator: "codex",
+      lifecycle: "new",
+    }],
+  };
+  const markdown = renderCompilationReportMarkdown(report);
+  assertEquals(
+    markdown,
+    renderCompilationReportMarkdown(structuredClone(report)),
+  );
+  assertMatch(
+    markdown,
+    /^# Sigil Compilation Report\n\nStatus: \*\*YELLOW\*\*/,
+  );
+  assertMatch(markdown, /## Stage execution/);
+  assertMatch(markdown, /### semantic-readiness/);
+  assertMatch(markdown, /SEMANTIC_AMBIGUITY/);
+  assertMatch(markdown, /Clarify \| behavior\./);
+  assertEquals((markdown.match(/Evidence:/g) ?? []).length, 1);
+  assertEquals((markdown.match(/Impact:/g) ?? []).length, 1);
+  assertEquals((markdown.match(/Suggested correction:/g) ?? []).length, 1);
 });
 
 function finding(

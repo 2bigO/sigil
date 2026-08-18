@@ -618,9 +618,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
             "compile-session-start",
           );
         }
-        if (position || noCache || output || format === "jsonl") {
+        if (
+          position || noCache || output || format === "jsonl" ||
+          format === "markdown"
+        ) {
           return usage(
-            "compile session start does not accept --position, --no-cache, --output, or jsonl.",
+            "compile session start does not accept --position, --no-cache, --output, jsonl, or markdown.",
             "compile-session-start",
           );
         }
@@ -653,9 +656,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
           `compile-session-${action}` as HelpTopic,
         );
       }
-      if (action !== "evaluate" && format === "jsonl") {
+      if (
+        action !== "evaluate" &&
+        (format === "jsonl" || format === "markdown")
+      ) {
         return usage(
-          `compile session ${action} does not accept jsonl.`,
+          `compile session ${action} does not accept jsonl or markdown.`,
           `compile-session-${action}` as HelpTopic,
         );
       }
@@ -703,8 +709,14 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         "compile",
       );
     }
-    if (format && format !== "jsonl" && format !== "text") {
-      return usage("--format must be text or jsonl for compile.", "compile");
+    if (
+      format && format !== "jsonl" && format !== "text" &&
+      format !== "markdown"
+    ) {
+      return usage(
+        "--format must be text, jsonl, or markdown for compile.",
+        "compile",
+      );
     }
     return {
       kind: "ok",

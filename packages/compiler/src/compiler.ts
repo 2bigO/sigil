@@ -597,7 +597,12 @@ export async function compile(
       throw new DOMException("Compilation cancelled.", "AbortError");
     }
     if (exportDestination) {
-      await exportCompilationReport(report, exportDestination, workspace.root);
+      await exportCompilationReport(
+        report,
+        exportDestination,
+        options.reportExportRepresentation ?? "json",
+        workspace.root,
+      );
     }
     await requireEventDelivery(await eventWriter.completed(report));
     if (historyKey) {
