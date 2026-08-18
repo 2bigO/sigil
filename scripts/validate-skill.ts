@@ -16,6 +16,7 @@ const required = [
   "references/glossary-workflow.md",
   "references/workspace-bootstrap.md",
   "references/authoring-conventions.md",
+  "references/frontend-surface-review.md",
   "evals/design-conversation-fixture.md",
   "evals/external-guidance-evidence-fixture.md",
   "evals/workspace-bootstrap-fixture.md",
@@ -26,6 +27,7 @@ const required = [
   "evals/concept-identifier-fixture.md",
   "evals/decision-rationale-fixture.md",
   "evals/glossary-fixture.md",
+  "evals/frontend-surface-fixture.md",
   "evals/expected.json",
 ];
 
@@ -1437,6 +1439,121 @@ requireText(
   "UI component coverage procedure",
 );
 
+const frontendSurfaceReview = await Deno.readTextFile(
+  `${root}/references/frontend-surface-review.md`,
+);
+const frontendSurfaceFixture = await Deno.readTextFile(
+  `${root}/evals/frontend-surface-fixture.md`,
+);
+const requiredFrontendSurfaceBehaviors = [
+  "inventory-before-summarizing",
+  "derive-screens-from-routing-evidence",
+  "report-surface-inventory-table",
+  "treat-fileless-route-as-screen",
+  "inspect-container-presentational-split",
+  "treat-shared-composable-as-component",
+  "assign-single-owner-per-state-class",
+  "report-multiple-writers-as-decision",
+  "specify-async-surface-modes",
+  "treat-accessibility-as-constraint",
+  "annotate-script-region-when-definition-exists",
+  "annotate-template-and-stylesheet-at-file-level",
+  "reuse-design-system-primitive-contract",
+  "omit-passive-markup-and-layout-wrappers",
+  "avoid-inferring-intent-from-names",
+  "report-uncovered-route-as-missing-coverage",
+  "report-unmodelled-shared-visual-contract",
+  "report-inaccessible-design-evidence",
+  "classify-drift-signal-before-reporting",
+  "supply-inventory-to-coverage-map",
+  "use-reviewgate-for-sigil-change",
+];
+if (!Array.isArray(expected.frontendSurfaceRequiredBehaviors)) {
+  throw new Error("Frontend surface fixture must declare required behaviors.");
+}
+for (const behavior of requiredFrontendSurfaceBehaviors) {
+  if (!expected.frontendSurfaceRequiredBehaviors.includes(behavior)) {
+    throw new Error(
+      `Frontend surface fixture is missing behavior ${behavior}.`,
+    );
+  }
+}
+requireText(
+  skill,
+  "references/frontend-surface-review.md",
+  "frontend surface review routing",
+);
+requireText(
+  frontendSurfaceReview,
+  "Establish the map before summarizing any single component.",
+  "frontend inventory-first rule",
+);
+requireText(
+  frontendSurfaceReview,
+  "## 3. Classify State By Owner",
+  "frontend client-state ownership procedure",
+);
+requireText(
+  frontendSurfaceReview,
+  "Name exactly\none owner for each piece of state.",
+  "frontend single state owner",
+);
+requireText(
+  frontendSurfaceReview,
+  "Treat asynchrony as contract rather than mechanism.",
+  "frontend async contract",
+);
+requireText(
+  frontendSurfaceReview,
+  "Treat accessibility statements as contract rather than style",
+  "frontend accessibility contract",
+);
+requireText(
+  frontendSurfaceReview,
+  "Place a surface annotation in the script region when it has a definition to\nattach to, and in the template otherwise.",
+  "frontend annotation placement",
+);
+requireText(
+  frontendSurfaceReview,
+  "## 6. Detect Drift",
+  "frontend drift evidence procedure",
+);
+requireText(
+  frontendSurfaceReview,
+  "Do not infer intent from class names, file names, or directory shape.",
+  "frontend naming inference limit",
+);
+requireText(
+  implementationDesign,
+  "references/frontend-surface-review.md",
+  "implementation design frontend delegation",
+);
+requireText(
+  brownfield,
+  "references/frontend-surface-review.md",
+  "brownfield frontend delegation",
+);
+requireText(
+  implementationWorkflowContract,
+  "FrontendSurfaceReview",
+  "frontend surface review contract",
+);
+requireText(
+  frontendSurfaceFixture,
+  "Establish the surface inventory before summarizing any single surface",
+  "frontend fixture inventory-first behavior",
+);
+requireText(
+  frontendSurfaceFixture,
+  "Assign exactly one owner to each class of client state",
+  "frontend fixture state ownership behavior",
+);
+requireText(
+  frontendSurfaceFixture,
+  "inaccessible evidence instead of",
+  "frontend fixture inaccessible design evidence",
+);
+
 const glossaryWorkflow = await Deno.readTextFile(
   `${root}/references/glossary-workflow.md`,
 );
@@ -1515,7 +1632,7 @@ requireText(
 );
 
 console.log(
-  "Sigil skill 0.8.0 dispatcher, unified design conversation, proactive external guidance evidence, compiler-driven design review, implementation governance, decision-rationale coverage, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, and fixture rubrics are valid.",
+  "Sigil skill 0.8.0 dispatcher, unified design conversation, proactive external guidance evidence, compiler-driven design review, implementation governance, decision-rationale coverage, workspace bootstrap, compatibility, authoring, glossary, ReviewGate, workflow references, implementation coverage, frontend surface review, and fixture rubrics are valid.",
 );
 
 async function requireFile(path: string): Promise<void> {

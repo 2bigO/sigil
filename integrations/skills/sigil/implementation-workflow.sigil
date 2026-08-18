@@ -33,6 +33,23 @@ ImplementationOwnershipWorkflow {
       linking from inspected Sigil and existing implementation
     }
 
+FrontendSurfaceReview {
+      inventories a presentation boundary from routing, composition, store, token,
+      and story evidence before any single surface is summarized
+
+      assigns exactly one owner to each class of client state and records additional
+      writers as decisions
+
+      summarizes a surface as public props, events, slots, regions, actions, and
+      navigation with private modes, interaction logic, accessibility and responsive
+      constraints, and observable cases
+
+      treats asynchronous behavior and accessibility expectations as contract rather
+      than mechanism
+
+      supplies the presentation concern list that ImplementationCoverage classifies
+    }
+
 ImplementationGovernance {
       requires governing Sigil and implementation coverage to be inspected before any
       implementation mutation
@@ -112,6 +129,33 @@ ImplementationCoverage {
 
       Project approved component and expand boundaries into implementation modules
       before code generation.
+    }
+
+FrontendSurfaceReview {
+      Establish the surface inventory from router configuration, entry and mount
+      points, the component import graph, store or context modules, design token
+      files, and interaction stories before summarizing any single surface.
+
+      Report the inventory as routes, screens, data ownership, child surfaces, and
+      governing Sigil, using deterministic retrieval for the governing column.
+
+      Inspect container and presentational splits, hooks or composables, store
+      modules, router guards, validation schema, design tokens, and slot or
+      render-prop inversion when locating the responsible owner.
+
+      Classify each piece of client state as ephemeral interaction, surface mode,
+      cross-surface application state, server cache, derived value, or routing
+      parameter, and place it with the owner that class implies.
+
+      State loading, empty, error, retry, stale, and cancelled behavior for every
+      request a surface issues.
+
+      Place a surface ownership annotation in the script region when it has an
+      adjacent definition and in the template region otherwise, and annotate a
+      stylesheet only for a shared visual contract.
+
+      Classify each drift signal as observed behavior, documented intent, or
+      suspected accident before reporting it.
     }
 
 ImplementationOwnershipWorkflow {
@@ -213,6 +257,26 @@ ImplementationCoverage {
       not accumulate unrelated behavior or mutable state.
     }
 
+FrontendSurfaceReview {
+      Passive markup, layout wrappers, per-element styling, and individual visual
+      elements receive no separate Sigil.
+
+      A design-system primitive's existing contract is reused rather than restated on
+      each consuming screen.
+
+      Intent is not inferred from class names, file names, or directory shape.
+
+      Wireframes, repository images, and design links are free-form interface content
+      rather than Sigil syntax, and an inaccessible one is reported instead of
+      reconstructed.
+
+      Accessibility and responsive expectations are binding constraints rather than
+      presentation preferences.
+
+      This review supplies presentation evidence and never replaces coverage
+      classification, standards review, or ReviewGate approval.
+    }
+
 ImplementationOwnershipWorkflow {
       Ownership annotations use only the relations and target forms supported by
       SigilImplementationOwnership.
@@ -310,6 +374,41 @@ ImplementationCoverage {
       files remain assembly surfaces.
     }
 
+FrontendSurfaceReview {
+      Decision: Give presentation boundaries their own inventory-first review route
+      with explicit client-state ownership classification, and keep it subordinate to
+      implementation coverage rather than a parallel workflow.
+
+      Scope: Governs how a rendering boundary is inventoried, summarized, annotated,
+      and checked for drift; excludes coverage classification, standards review,
+      compiler evaluation, and approval authority.
+
+      Assumptions: Routing configuration, composition roots, and store modules are
+      readable from the repository without executing the application.
+
+      Trade-offs: An inventory pass costs an extra retrieval step before any surface
+      is summarized, but prevents a screen-by-screen review from missing screens that
+      have no file of their own.
+
+      Design issues addressed: The workflow described UI coverage only as one
+      component-selection rule, so an agent had no procedure for summarizing an
+      existing interface, no place to put client-state ownership, and no
+      frontend-specific drift evidence. Presentation boundaries were therefore
+      reviewed with backend-shaped heuristics that do not locate their owners.
+
+      Discarded alternatives: A separate top-level frontend workflow was rejected
+      because coverage, standards, glossary, and review-gate policy apply unchanged
+      and would have to be duplicated. Extending the existing UI coverage rule in
+      place was rejected because inventory, state ownership, and drift evidence are
+      procedures rather than selection criteria.
+
+      Consequences: Routes, stores, and shared primitives enter the coverage map as
+      named concerns, and unowned client state becomes a reportable readiness gap.
+
+      Revisit when: Presentation and non-presentation boundaries need materially
+      different coverage classification rather than different evidence.
+    }
+
 ImplementationOwnershipWorkflow {
       Decision: Support forward and reconciliation ownership links through
       implementation comments that point to implementation-related section
@@ -398,6 +497,26 @@ ImplementationCoverage {
 
       A generated namespace-assembly entrypoint exposes the approved public modules
       while behavior and state remain in their owning implementation units.
+    }
+
+FrontendSurfaceReview {
+      A route present in the router configuration but absent from the coverage map is
+      reported as a missing screen rather than an absent file.
+
+      A modal open flag stays with its component while a signed-in session flag is
+      owned by a store component.
+
+      A list screen that renders a loading spinner and an empty message without
+      corresponding modes in state is reported as a missing surface mode.
+
+      A single-file component annotated in its script region resolves to that
+      definition, and one annotated only in its template resolves to the file.
+
+      A colour literal repeated across several screens is reported as an unmodelled
+      shared visual contract rather than as duplicated markup.
+
+      A referenced design link that cannot be opened is reported as inaccessible
+      evidence rather than summarized from its filename.
     }
 
 ImplementationOwnershipWorkflow {

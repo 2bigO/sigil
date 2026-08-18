@@ -190,6 +190,8 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
       "DEPENDENCY_CYCLE",
       "MODULE_INDEX_SCOPE",
       "IMPORTED_NAMESPACE_REUSE",
+      "PRESENTATION_BOUNDARY",
+      "UI_STATE_OWNERSHIP",
     ]
   ) {
     assertEquals(architectureRules.includes(rule), true);

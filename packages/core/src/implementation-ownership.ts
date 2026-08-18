@@ -56,10 +56,21 @@ const SLASH_COMMENT_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
 ]);
+const MARKUP_COMMENT_EXTENSIONS = new Set([".htm", ".html"]);
+const STYLE_COMMENT_EXTENSIONS = new Set([
+  ".css",
+  ".less",
+  ".sass",
+  ".scss",
+]);
+const COMPONENT_FILE_EXTENSIONS = new Set([".astro", ".svelte", ".vue"]);
 const SUPPORTED_IMPLEMENTATION_SOURCE_GLOB_PATTERNS = Object.freeze([
   ...MARKDOWN_EXTENSIONS,
   ...HASH_COMMENT_EXTENSIONS,
   ...SLASH_COMMENT_EXTENSIONS,
+  ...MARKUP_COMMENT_EXTENSIONS,
+  ...STYLE_COMMENT_EXTENSIONS,
+  ...COMPONENT_FILE_EXTENSIONS,
 ].map((extension) => `**/*${extension}`));
 
 interface ParsedAnnotation {
@@ -70,9 +81,29 @@ interface ParsedAnnotation {
   readonly sectionNames: readonly string[];
 }
 
-interface CommentBlock {
-  readonly kind: "line" | "multiline" | "markdown";
+type CommentSyntax = "slash" | "hash" | "markup" | "style";
+
+/**
+ * `symbol` requires an adjacent entrypoint definition, `file` never resolves
+ * one, and `optional-symbol` prefers an adjacent entrypoint but falls back to
+ * the containing file when a region has no exported definition to attach to.
+ */
+type AnnotationBinding = "symbol" | "optional-symbol" | "file";
+
+interface RawComment {
+  readonly kind: "line" | "multiline" | "markup";
   readonly text: string;
+  readonly start: number;
+  readonly end: number;
+}
+
+interface CommentBlock extends RawComment {
+  readonly binding: AnnotationBinding;
+}
+
+interface SourceRegion {
+  readonly syntax: CommentSyntax;
+  readonly binding: AnnotationBinding;
   readonly start: number;
   readonly end: number;
 }
@@ -199,7 +230,10 @@ export function isSupportedImplementationSource(filePath: string): boolean {
   const extension = fileExtension(normalized);
   return MARKDOWN_EXTENSIONS.includes(extension) ||
     HASH_COMMENT_EXTENSIONS.has(extension) ||
-    SLASH_COMMENT_EXTENSIONS.has(extension);
+    SLASH_COMMENT_EXTENSIONS.has(extension) ||
+    MARKUP_COMMENT_EXTENSIONS.has(extension) ||
+    STYLE_COMMENT_EXTENSIONS.has(extension) ||
+    COMPONENT_FILE_EXTENSIONS.has(extension);
 }
 
 // @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport interface,cases
@@ -219,13 +253,13 @@ function implementationAnnotations(
     annotation: ParsedAnnotation;
     target: OwnedImplementationTarget;
   }[] = [];
-  const markdown = isMarkdown(source.filePath);
   for (const comment of commentBlocks(source)) {
     const annotationLines = normalizedCommentLines(comment)
       .filter((line) => line.includes("@sigil"));
     if (annotationLines.length === 0) continue;
+    const fileBound = comment.binding === "file";
     if (
-      !markdown &&
+      !fileBound &&
       ((comment.kind === "line" &&
         annotationLines.length !== 1 &&
         !HASH_COMMENT_EXTENSIONS.has(fileExtension(source.filePath))) ||
@@ -249,10 +283,10 @@ function implementationAnnotations(
       continue;
     }
 
-    const entrypoint = markdown
+    const entrypoint = fileBound
       ? undefined
       : entrypointAfter(source, comment.end);
-    if (!markdown && !entrypoint) {
+    if (comment.binding === "symbol" && !entrypoint) {
       diagnostics.push(annotationDiagnostic(
         source,
         comment,
@@ -391,21 +425,195 @@ function componentMatchesSigilPath(
   ].some((filePath) => relativeToWorkspace(resolved, filePath) === sigilPath);
 }
 
+/*
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::AnnotationPlacement constraints
+ * @sigil implements packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ComponentFileRegions logic,constraints,cases
+ */
 function commentBlocks(source: ImplementationSource): readonly CommentBlock[] {
   const extension = fileExtension(source.filePath.toLowerCase());
   if (MARKDOWN_EXTENSIONS.includes(extension)) {
-    return markdownCommentBlocks(source.text);
+    return markdownCommentBlocks(source.text)
+      .map((comment) => ({ ...comment, binding: "file" as const }));
   }
+  const blocks: CommentBlock[] = [];
+  for (const region of sourceRegions(source.text, extension)) {
+    const text = source.text.slice(region.start, region.end);
+    for (const comment of scanRegion(text, region.syntax)) {
+      blocks.push({
+        ...comment,
+        binding: region.binding,
+        start: comment.start + region.start,
+        end: comment.end + region.start,
+      });
+    }
+  }
+  return blocks.sort((left, right) => left.start - right.start);
+}
+
+function scanRegion(text: string, syntax: CommentSyntax): RawComment[] {
+  if (syntax === "hash") return hashCommentBlocks(text);
+  if (syntax === "markup") return markupCommentBlocks(text);
+  if (syntax === "style") return styleCommentBlocks(text);
+  return slashCommentBlocks(text);
+}
+
+/**
+ * A single-file component mixes languages, so its comment syntax and its
+ * ownership binding are decided per region rather than per file.
+ */
+function sourceRegions(
+  text: string,
+  extension: string,
+): readonly SourceRegion[] {
   if (HASH_COMMENT_EXTENSIONS.has(extension)) {
-    return hashCommentBlocks(source.text);
+    return [{ syntax: "hash", binding: "symbol", start: 0, end: text.length }];
   }
   if (SLASH_COMMENT_EXTENSIONS.has(extension)) {
-    return slashCommentBlocks(source.text);
+    return [{ syntax: "slash", binding: "symbol", start: 0, end: text.length }];
+  }
+  if (MARKUP_COMMENT_EXTENSIONS.has(extension)) {
+    return [{ syntax: "markup", binding: "file", start: 0, end: text.length }];
+  }
+  if (STYLE_COMMENT_EXTENSIONS.has(extension)) {
+    return [{ syntax: "style", binding: "file", start: 0, end: text.length }];
+  }
+  if (COMPONENT_FILE_EXTENSIONS.has(extension)) {
+    return componentFileRegions(text, extension);
   }
   return [];
 }
 
-function markdownCommentBlocks(source: string): CommentBlock[] {
+function componentFileRegions(
+  text: string,
+  extension: string,
+): readonly SourceRegion[] {
+  const embedded: SourceRegion[] = [];
+  if (extension === ".astro") {
+    const frontmatter = astroFrontmatterRegion(text);
+    if (frontmatter) embedded.push(frontmatter);
+  }
+  for (const match of text.matchAll(/<(script|style)\b[^>]*>/gi)) {
+    const openingStart = match.index ?? 0;
+    if (
+      embedded.some((region) =>
+        openingStart >= region.start && openingStart < region.end
+      )
+    ) continue;
+    const tag = match[1].toLowerCase();
+    const contentStart = openingStart + match[0].length;
+    const closing = new RegExp(`</${tag}\\s*>`, "i")
+      .exec(text.slice(contentStart));
+    embedded.push({
+      syntax: tag === "script" ? "slash" : "style",
+      binding: tag === "script" ? "optional-symbol" : "file",
+      start: contentStart,
+      end: closing ? contentStart + closing.index : text.length,
+    });
+  }
+  embedded.sort((left, right) => left.start - right.start);
+
+  // Everything outside an embedded block is template markup.
+  const regions: SourceRegion[] = [];
+  let cursor = 0;
+  for (const region of embedded) {
+    if (region.start > cursor) {
+      regions.push({
+        syntax: "markup",
+        binding: "file",
+        start: cursor,
+        end: region.start,
+      });
+    }
+    regions.push(region);
+    cursor = Math.max(cursor, region.end);
+  }
+  if (cursor < text.length) {
+    regions.push({
+      syntax: "markup",
+      binding: "file",
+      start: cursor,
+      end: text.length,
+    });
+  }
+  return regions;
+}
+
+function astroFrontmatterRegion(text: string): SourceRegion | undefined {
+  const opening = /^﻿?[^\S\n]*---[^\S\n]*\r?\n/.exec(text);
+  if (!opening) return undefined;
+  const start = opening[0].length;
+  const closing = text.indexOf("\n---", start - 1);
+  if (closing < start - 1) return undefined;
+  return {
+    syntax: "slash",
+    binding: "optional-symbol",
+    start,
+    end: closing + 1,
+  };
+}
+
+function markupCommentBlocks(source: string): RawComment[] {
+  return [...source.matchAll(/<!--[\s\S]*?-->/g)].map((match) => ({
+    kind: "markup" as const,
+    text: match[0],
+    start: match.index ?? 0,
+    end: (match.index ?? 0) + match[0].length,
+  }));
+}
+
+function styleCommentBlocks(source: string): RawComment[] {
+  const comments: RawComment[] = [];
+  let index = 0;
+  let quote: "'" | '"' | undefined;
+  while (index < source.length) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (quote) {
+      if (char === "\\") {
+        index += 2;
+        continue;
+      }
+      if (char === quote) quote = undefined;
+      index++;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      index++;
+      continue;
+    }
+    if (char === "/" && next === "*") {
+      const start = index;
+      const close = source.indexOf("*/", index + 2);
+      index = close < 0 ? source.length : close + 2;
+      comments.push({
+        kind: "multiline",
+        text: source.slice(start, index),
+        start,
+        end: index,
+      });
+      continue;
+    }
+    // `//` after a colon is a scheme separator such as `url(https://…)`, not a
+    // comment. Plain CSS has no line comment, but Sass and Less do.
+    if (char === "/" && next === "/" && source[index - 1] !== ":") {
+      const start = index;
+      index += 2;
+      while (index < source.length && !/[\r\n]/.test(source[index])) index++;
+      comments.push({
+        kind: "line",
+        text: source.slice(start, index),
+        start,
+        end: index,
+      });
+      continue;
+    }
+    index++;
+  }
+  return mergeAdjacentLineComments(source, comments);
+}
+
+function markdownCommentBlocks(source: string): RawComment[] {
   const fencedRanges: { start: number; end: number }[] = [];
   let fenceStart: number | undefined;
   let fenceMarker: string | undefined;
@@ -429,7 +637,7 @@ function markdownCommentBlocks(source: string): CommentBlock[] {
   }
   return [...source.matchAll(/<!--[\s\S]*?-->/g)]
     .map((match) => ({
-      kind: "markdown" as const,
+      kind: "markup" as const,
       text: match[0],
       start: match.index ?? 0,
       end: (match.index ?? 0) + match[0].length,
@@ -441,8 +649,8 @@ function markdownCommentBlocks(source: string): CommentBlock[] {
     );
 }
 
-function slashCommentBlocks(source: string): CommentBlock[] {
-  const comments: CommentBlock[] = [];
+function slashCommentBlocks(source: string): RawComment[] {
+  const comments: RawComment[] = [];
   let index = 0;
   let quote: "'" | '"' | "`" | undefined;
   while (index < source.length) {
@@ -491,8 +699,8 @@ function slashCommentBlocks(source: string): CommentBlock[] {
   return mergeAdjacentLineComments(source, comments);
 }
 
-function hashCommentBlocks(source: string): CommentBlock[] {
-  const comments: CommentBlock[] = [];
+function hashCommentBlocks(source: string): RawComment[] {
+  const comments: RawComment[] = [];
   let index = 0;
   let quote: "'" | '"' | undefined;
   let triple: "'''" | '"""' | undefined;
@@ -550,9 +758,9 @@ function hashCommentBlocks(source: string): CommentBlock[] {
 
 function mergeAdjacentLineComments(
   source: string,
-  comments: readonly CommentBlock[],
-): CommentBlock[] {
-  const merged: CommentBlock[] = [];
+  comments: readonly RawComment[],
+): RawComment[] {
+  const merged: RawComment[] = [];
   for (const comment of comments) {
     const previous = merged.at(-1);
     const gap = previous ? source.slice(previous.end, comment.start) : "";
@@ -808,10 +1016,6 @@ function relativeToWorkspace(
   return normalized.startsWith(`${root}/`)
     ? normalized.slice(root.length + 1)
     : normalized;
-}
-
-function isMarkdown(filePath: string): boolean {
-  return MARKDOWN_EXTENSIONS.includes(fileExtension(filePath.toLowerCase()));
 }
 
 function fileExtension(filePath: string): string {

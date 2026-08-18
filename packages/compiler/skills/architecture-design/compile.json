@@ -1,6 +1,6 @@
 {
   "id": "architecture-design",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "inputs": ["workspace-root", "component-target"],
   "dependencies": ["semantic-readiness"],
   "capabilities": ["read-workspace"],
@@ -15,7 +15,9 @@
     "DEPENDENCY_DIRECTION",
     "DEPENDENCY_CYCLE",
     "MODULE_INDEX_SCOPE",
-    "IMPORTED_NAMESPACE_REUSE"
+    "IMPORTED_NAMESPACE_REUSE",
+    "PRESENTATION_BOUNDARY",
+    "UI_STATE_OWNERSHIP"
   ],
   "output": "compiler-findings-v1"
 }

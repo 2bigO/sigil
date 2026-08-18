@@ -169,6 +169,12 @@ readiness by itself. Before changing code, follow
 `references/implementation-design.md` to discover internal abstractions, UI
 components, state machines, and operational decisions within that boundary.
 
+When the boundary renders a user interface, also follow
+`references/frontend-surface-review.md`. Adopting an existing frontend needs its
+surface inventory before boundary evidence gathering, because routes, stores,
+and shared primitives do not correspond one-to-one with files and are otherwise
+missed by a file-by-file scan.
+
 For established coverage, use the shared workflow unless evidence suggests drift
 or the user requests reconciliation. Do not use numeric coverage scores.
 

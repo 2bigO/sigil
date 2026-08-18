@@ -49,12 +49,14 @@ how its implementation should be understood and changed.
    modify, delete, or annotate code, tests, configuration, fixtures, generated
    artifacts, or documentation alongside the pending Sigil review.
 7. Before changing implementation, read
-   `references/implementation-design.md` and obtain
-   `ReviewGate(action: implementation)` readiness for the validated written
-   Sigil and exact implementation scope. Only after the user has reviewed the
-   written Sigil and this gate returns `ready` may a new implementation change set
-   begin. If implementation was changed earlier, stop and report an
-   implementation-first bypass; do not continue from the mixed state.
+   `references/implementation-design.md`, add
+   `references/frontend-surface-review.md` when the boundary renders a user
+   interface, and obtain `ReviewGate(action: implementation)` readiness for the
+   validated written Sigil and exact implementation scope. Only after the user
+   has reviewed the written Sigil and this gate returns `ready` may a new
+   implementation change set begin. If implementation was changed earlier, stop
+   and report an implementation-first bypass; do not continue from the mixed
+   state.
 8. After implementation, follow the verification and completed-implementation
    reconciliation in `references/implementation-design.md`. Discover and run the
    complete applicable focused, dependent, integration, regression, build, static,
@@ -147,6 +149,11 @@ the implementation phase.
   are needed.
 - `references/implementation-design.md`: before every implementation mutation
   or coverage decision.
+- `references/frontend-surface-review.md`: whenever the selected boundary
+  renders a user interface, including screens, routes, reusable components,
+  client state stores, and styling that carries contract meaning. It owns
+  surface inventory, client-state ownership, presentation annotation, and
+  frontend drift evidence.
 
 ## CLI
 

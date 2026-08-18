@@ -92,6 +92,26 @@ component SigilImplementationOwnership {
 
       supportedImplementationSourceGlobPatterns returns immutable workspace watcher
       patterns covering the same supported source extensions
+
+      supported paths include single-language code, markup, stylesheet, and
+      single-file component sources
+    }
+
+    ComponentFileRegions {
+      A single-file component source is scanned as an ordered set of regions rather
+      than as one language.
+
+      Each region carries the comment syntax used to find annotations and the binding
+      used to resolve their targets.
+
+      A script region uses the code comment syntax of its enclosing family, a style
+      region uses stylesheet block and line comments, and every remaining region is
+      template markup using HTML comments.
+
+      Binding is exactly symbol, optional-symbol, or file; symbol requires an
+      adjacent entrypoint definition, file never resolves one, and optional-symbol
+      resolves an adjacent entrypoint when one exists and otherwise binds the
+      containing file.
     }
 
     ImplementationAnnotation {
@@ -135,7 +155,7 @@ expand SigilImplementationOwnership {
       result shape
 
       derive symbol-level targets from annotated language entrypoint definitions and
-      use file-level targets for Markdown
+      use file-level targets for Markdown, template markup, and stylesheets
 
       preserve exact targetRange and annotationRange values in every normalized
       target
@@ -143,6 +163,21 @@ expand SigilImplementationOwnership {
       return undefined before scanning when the component or supplied concept does
       not resolve; otherwise return one projection after scanning even when it has no
       targets
+    }
+
+    ComponentFileRegions {
+      select the region set from the source extension; a single-language source
+      yields one region covering the whole text
+
+      derive embedded script and style regions of a single-file component from its
+      opening and closing tags, and treat every uncovered span as template markup
+
+      scan each region with its own comment syntax and shift the resulting comment
+      offsets back into whole-source coordinates
+
+      order the combined comments by source offset so targets remain deterministic
+
+      skip an opening tag that falls inside an already selected region
     }
 
     OwnershipDiagnostics {
@@ -188,7 +223,7 @@ expand SigilImplementationOwnership {
     }
 
     AnnotationPlacement {
-      A source annotation is immediately associated with a language entrypoint
+      A symbol-bound annotation is immediately associated with a language entrypoint
       definition such as a class, function, method, interface, struct, or equivalent
       stable definition.
 
@@ -196,13 +231,35 @@ expand SigilImplementationOwnership {
 
       Multiple annotations use the language's multiline comment form.
 
-      Markdown annotations use HTML comments.
+      The comment-form rule applies only where a region offers both a line and a
+      multiline comment form; file-bound regions waive it.
+
+      Markdown and template markup annotations use HTML comments.
+
+      Stylesheet annotations use block comments, and Sass or Less may also use line
+      comments.
 
       JSON annotations are outside the current scope.
     }
 
+    ComponentFileRegions {
+      Region boundaries are derived from the source text alone and never from a
+      framework toolchain, parser plugin, or network resource.
+
+      An embedded script or style block that is not closed extends to the end of the
+      source.
+
+      Astro frontmatter delimited by leading triple-dash fences is a script region.
+
+      A template markup or stylesheet region binds every annotation to its file
+      because it exposes no stable entrypoint definition.
+    }
+
     ImplementationTargetScope {
       v1 includes source code and tests with supported comment syntax.
+
+      v1 includes markup, stylesheet, and single-file component sources so a
+      presentation surface can carry ownership.
 
       v1 includes Markdown only for agent-facing instructions or workflow documents.
 
@@ -478,6 +535,44 @@ expand SigilImplementationOwnership {
       Revisit when: Ownership diagnostics need source discovery provenance or
       component-scoped filtering.
     }
+
+    ComponentFileRegions {
+      Decision: Extend supported implementation sources to markup, stylesheet, and
+      single-file component extensions, and resolve each single-file component as
+      per-region comment syntax plus per-region binding.
+
+      Scope: Governs source-support policy, comment scanning, and target binding for
+      presentation surfaces; excludes framework-specific parsing, artifact-kind
+      changes, and template expression semantics.
+
+      Assumptions: A presentation surface is authored as one file per component, so
+      the file is a meaningful ownership target when no exported definition exists.
+
+      Trade-offs: Text-derived regions keep scanning deterministic and dependency
+      free, but cannot resolve a symbol inside a template expression and may mis-scan
+      a tag written inside a string literal.
+
+      Design issues addressed: A frontend boundary was structurally unrepresentable.
+      A Vue, Svelte, or Astro component and its stylesheets could carry no ownership
+      annotation, so implementation coverage maps and context summaries silently
+      omitted the presentation half of a codebase and made Sigil appear to govern
+      backend code only.
+
+      Discarded alternatives: Requiring a symbol entrypoint everywhere was rejected
+      because a script-setup component exposes no such definition, which leaves the
+      most common idiom unannotatable. Treating a single-file component as one
+      language was rejected because its comment syntax differs per region. Adding a
+      distinct presentation artifact kind was rejected as a wider public contract
+      change than the coverage gap requires.
+
+      Consequences: A presentation surface participates in ownership projections,
+      coverage maps, and watcher registration on the same terms as backend code, and
+      the comment-form rule applies only to regions offering both comment forms.
+
+      Revisit when: Symbol-level targets are needed inside template markup or
+      stylesheet selectors, or a supported framework stops being recoverable from
+      source text alone.
+    }
   }
 
   cases {
@@ -489,9 +584,30 @@ expand SigilImplementationOwnership {
       before ownership scanning.
     }
 
+    ComponentFileRegions {
+      A single-file component contributes one target per annotated region, so a
+      template comment and a scoped style comment bind to the file while a script
+      comment above a function binds to that function.
+
+      An annotation inside a script-setup block with no following definition binds to
+      the file instead of producing a detached-annotation diagnostic.
+
+      One annotation inside a stylesheet block comment is valid because plain CSS
+      offers no line-comment form.
+
+      A scheme separator such as the one in url(https://example.test/a.png) does not
+      begin a stylesheet line comment.
+
+      Astro frontmatter between leading triple-dash fences resolves a symbol-level
+      target from the definition following its annotation.
+    }
+
     ImplementationSourceSupport {
       A supported source path is accepted by the predicate and matched by a shared
       watcher pattern.
+
+      A single-file component, template markup, and stylesheet path are supported
+      sources.
 
       Sigil, JSON, unsupported, and extensionless paths are rejected by the
       predicate.

@@ -33,6 +33,18 @@ operational logic, narrower mutable state, detailed lifecycle behavior, or
 independently changing policy. Boundary-wide state or orchestration remains
 valid when it cannot coherently belong to a narrower owner.
 
+When the selected component renders a user interface, evaluate presentation
+ownership on the same terms as any other boundary. Report
+`PRESENTATION_BOUNDARY` when one surface owns unrelated rendering, data access,
+navigation, or authorization responsibilities that have separate reasons to
+change, or when a screen restates a design-system primitive's contract instead
+of depending on it. Report `UI_STATE_OWNERSHIP` when client state has no single
+owning component, when a store is written by several surfaces without a
+recorded decision, or when server cache and surface mode are owned by the same
+contract. Treat an interaction, accessibility, or responsive statement as
+contract content rather than style, and do not report the absence of a
+component for passive markup, layout wrappers, or individual visual elements.
+
 Inspect the accessible imported public namespace before recommending a local
 identity. Report `IMPORTED_NAMESPACE_REUSE` for aliases, local synonyms, or
 duplicate provider contracts, but do not force reuse when similar terminology

@@ -64,8 +64,12 @@ expand SigilEvaluationSkillRegistry {
 
       Let architecture-design declare ARCHITECTURE_BOUNDARY, COMPONENT_DECOMPOSITION,
       OWNERSHIP_BOUNDARY, DESIGN_COHESION, INTERFACE_BOUNDARY, COUPLING,
-      DEPENDENCY_DIRECTION, DEPENDENCY_CYCLE, MODULE_INDEX_SCOPE, and
-      IMPORTED_NAMESPACE_REUSE.
+      DEPENDENCY_DIRECTION, DEPENDENCY_CYCLE, MODULE_INDEX_SCOPE,
+      IMPORTED_NAMESPACE_REUSE, PRESENTATION_BOUNDARY, and UI_STATE_OWNERSHIP.
+
+      Evaluate a rendering boundary for presentation responsibility mixing and
+      client-state ownership rather than treating a user interface as unmodelled
+      presentation detail.
 
       Distinguish public-contract contradictions owned by semantic-readiness from
       ownership, dependency, decomposition, coupling, namespace, and change-locality
