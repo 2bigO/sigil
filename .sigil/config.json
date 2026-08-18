@@ -29,7 +29,7 @@
   },
   "tools": {
     "agent": {
-      "profile": "claude"
+      "profile": "standard"
     },
     "compile": {
       "defaultProfile": "standard",

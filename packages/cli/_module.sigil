@@ -1,6 +1,6 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core import { SigilCore, SigilContextRetrieval }
-@packages/compiler import { SigilCompiler, SigilCompilationSessionFactory }
+@packages/compiler import { SigilCompiler, SigilCompilationReportMarkdown, SigilCompilationSessionFactory }
 @packages/compiler-adapter-opencode import { SigilOpenCodeCompilerAdapter }
 @packages/compiler-adapter-pi import { SigilPiCompilerAdapter }
 @packages/compiler-adapter-claude import { SigilClaudeCompilerAdapter }
@@ -96,6 +96,12 @@ component SigilCli {
 
       sigil context [path] (--component name | --file file) --format markdown
 
+      sigil retrieve [path] (--component name | --file file) --purpose
+      semantic|architecture|implementation --format markdown
+
+      sigil compile [path] [--component name | --file file] [--focus
+      design|implementation] --format markdown [--output file]
+
       render markdown reports workspace metadata, component contracts, collected
       expansions, and diagnostics as deterministic Markdown.
 
@@ -103,6 +109,15 @@ component SigilCli {
       concept namespace details, direct dependency contracts and dependency
       decisions, owned implementation projections, related files, glossary context,
       and diagnostics as deterministic Markdown.
+
+      retrieve markdown reports a compact, purpose-appropriate selected scope,
+      relationships, and diagnostics without requiring host-side translation of JSON
+      output.
+
+      compile markdown asks SigilCompilationReportMarkdown to project the completed
+      authoritative report returned by SigilCompiler and presents that projection
+      without independently rendering or changing it. When --output accompanies
+      --format markdown, the compiler atomically exports that same projection.
     }
 
     SourceFormattingCommand {
@@ -148,8 +163,9 @@ component SigilCli {
     StructuredOutput {
       structured output supports --format json and --pretty
 
-      markdown output supports --format markdown for render and context without
-      changing JSON result shape
+      markdown output supports --format markdown for workspace inspection, purpose
+      retrieval, and completed compilation without changing JSON result shapes or
+      JSON Lines event protocol
 
       commands that produce no required stdout support --quiet
     }
@@ -171,17 +187,17 @@ component SigilCli {
     CompilationFacade {
       sigil compile [path] [--component name | --file file] [--profile name |
       --agent] [--focus design|implementation] [--no-cache] [--output file] [--format
-      jsonl]
+      jsonl|markdown]
 
       sigil compile stage-id [path] [--component name | --file file] [--profile name
-      | --agent] [--no-cache] [--output file] [--format jsonl]
+      | --agent] [--no-cache] [--output file] [--format jsonl|markdown]
 
       SigilClaudeCompilerAdapter is bundled and available when a compilation profile
       selects provider claude.
 
       sigil compile [path] --file file --position line:column [--profile name |
       --agent] [--focus design|implementation] [--no-cache] [--output file] [--format
-      jsonl]
+      jsonl|markdown]
 
       compile presents human progress by default and exposes the structured compiler
       event and report protocol for automation
@@ -199,6 +215,14 @@ component SigilCli {
 
       in JSON Lines mode standard output contains only the versioned CompilationEvent
       stream and human progress or host logs use standard error
+
+      without --format markdown, --output exports the authoritative JSON
+      CompilationReport. With --format markdown, --output exports the deterministic
+      completed Markdown projection instead; the JSON Lines stream is unchanged.
+
+      compilation session evaluation accepts --format markdown and uses the same
+      compiler-owned completed-report projection as one-shot compilation; it never
+      writes a report export destination.
     }
 
     CompilationSessionFacade {
@@ -567,9 +591,9 @@ expand SigilCli {
       SigilPiCompilerAdapter while each adapter remains an independently versioned
       package.
 
-      --output delegates CompilationReportExport to SigilCompiler, requires a
-      destination outside the selected workspace, and does not emit or return a
-      completed report when validation or atomic export fails.
+      --output delegates format-selected compilation export to SigilCompiler,
+      requires a destination outside the selected workspace, and does not emit or
+      return a completed report when validation or atomic export fails.
 
       CLI exit status and structured output preserve compiler red, yellow, green,
       failed, and cancelled outcomes without independently computing them.
@@ -614,6 +638,33 @@ expand SigilCli {
   }
 
   decisions {
+    FormatSelectedCompilationExport {
+      Decision: Let --format markdown select the representation written by --output,
+      while preserving authoritative JSON export when markdown is not selected and
+      preserving JSON Lines as the event-stream protocol.
+
+      Scope: Governs one-shot compilation CLI output and export representation;
+      excludes report-schema and event-protocol changes.
+
+      Assumptions: SigilCompiler owns and returns the deterministic Markdown
+      projection only after completing one authoritative CompilationReport.
+
+      Trade-offs: Markdown export is a deterministic presentation artifact, not the
+      authoritative versioned automation contract. Callers requiring the complete
+      report schema must select JSON.
+
+      Design issues addressed: Agents can persist a useful final report with one
+      command instead of parsing JSON or JSON Lines in host-specific scripts.
+
+      Discarded alternatives: A separate markdown-output flag duplicates the output
+      destination, and silently writing JSON for a markdown-selected command makes
+      the requested artifact misleading.
+
+      Consequences: sigil compile . --format markdown --output /tmp/report.md asks
+      SigilCompiler to atomically write the same deterministic Markdown that the CLI
+      presents on stdout; the CLI does not reconstruct its content.
+    }
+
     WorkspaceProfileDefaulting {
       Decision: Resolve an omitted CLI --profile from tools.compile.defaultProfile,
       falling back to standard, before calling compiler one-shot or session APIs.

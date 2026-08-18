@@ -1,4 +1,5 @@
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+@packages/compiler/src/report-markdown.sigil import { SigilCompilationReportMarkdown }
 
 component SigilCompilationReportExporter {
   goal {
@@ -9,9 +10,10 @@ component SigilCompilationReportExporter {
 
   interface {
     CompilationReportExport {
-      export(CompilationReport, destination, selectedWorkspace) requires a
-      destination outside selectedWorkspace, atomically writes the complete version-
-      2 report, and permits replacement only when the destination is absent or an
+      export(CompilationReport, destination, representation, selectedWorkspace)
+      requires a destination outside selectedWorkspace, atomically writes either the
+      complete version-2 JSON report or its deterministic completed Markdown
+      projection, and permits replacement only when the destination is absent or an
       existing regular file
 
       an in-workspace destination, symbolic link, or unexpected file kind rejects
@@ -25,9 +27,11 @@ expand SigilCompilationReportExporter {
   logic {
     CompilationReportExport {
       Resolve the destination and selected workspace before writing, create a sibling
-      temporary file with restrictive permissions, write and sync the complete
-      report, atomically replace an absent or existing regular destination, and
-      remove the temporary file after any pre-replacement failure.
+      temporary file with restrictive permissions, ask
+      SigilCompilationReportMarkdown for the Markdown representation when selected,
+      write and sync the selected completed representation, atomically replace an
+      absent or existing regular destination, and remove the temporary file after
+      any pre-replacement failure.
     }
   }
 
@@ -37,19 +41,26 @@ expand SigilCompilationReportExporter {
       human approval.
 
       Never write inside the selected workspace or expose a partial destination.
+
+      JSON remains the authoritative durable CompilationReport representation.
+      Markdown is the compiler-owned read-only projection; host selection of that
+      representation cannot alter report construction, status, lifecycle, or event
+      delivery.
     }
   }
 
   decisions {
     ExplicitCompilationReportExport {
-      Decision: Export a requested report outside the selected workspace through a
-      restrictive sibling file and atomic replacement before completed settlement.
+      Decision: Export a requested JSON report or selected Markdown projection
+      outside the selected workspace through a restrictive sibling file and atomic
+      replacement before completed settlement.
 
       Scope: Governs explicit report-export destination safety, replacement, and
       failure settlement; excludes implicit compilation history.
 
       Trade-offs: Export cannot target the selected workspace and export failure
-      prevents an otherwise evaluated run from completing successfully.
+      prevents an otherwise evaluated run from completing successfully; Markdown
+      exports trade authoritative machine-readable detail for agent-readable form.
 
       Design issues addressed: Explicit durability must not weaken the selected-
       workspace read-only boundary or expose partial reports.
@@ -57,16 +68,17 @@ expand SigilCompilationReportExporter {
       Discarded alternatives: In-workspace export, direct truncating writes, and
       treating export failure as successful compilation were rejected.
 
-      Consequences: A completed exported run exposes one complete report at the
-      requested destination before consumers observe completion.
+      Consequences: A completed exported run exposes one complete selected
+      representation at the requested destination before consumers observe
+      completion.
     }
   }
 
   cases {
     CompilationReportExport {
       Export to an absent destination outside the selected workspace atomically
-      creates the complete report. Export to an existing regular file atomically
-      replaces it.
+      creates the complete selected representation. Export to an existing regular
+      file atomically replaces it.
 
       Export to an in-workspace path, symbolic link, or unexpected file kind rejects
       with COMPILER_INVALID_INVOCATION and changes no destination.
