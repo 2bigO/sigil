@@ -25,8 +25,13 @@ component SigilRetrievalModel {
       unchanged and derives a separate projection fingerprint from its own content.
 
       RetrievalProjection contains purpose, target, ordered RetrievedComponent
-      entries, diagnostics copied from the raw result in their existing order, and a
-      projection fingerprint.
+      entries, glossary entries derived from glossary-definition evidence in their
+      existing order, diagnostics copied from the raw result in their existing order,
+      and a projection fingerprint.
+
+      A projection glossary entry has the canonical term and definition from one
+      glossary-definition EvidenceUnit. It does not include occurrence records or
+      unused GlossaryFile entries.
 
       RetrievedComponent has one stable component identity, path, one role,
       component-owned links, and one purpose-appropriate contract projection. When
@@ -40,9 +45,11 @@ component SigilRetrievalModel {
       separate presentation-level relationship map.
 
       A selected component contract groups goal, interface, state, logic,
-      constraints, decisions, and cases by their owning component. Its interface
-      groups SemanticUnits by concept when a concept identity exists and retains
-      ungrouped interface units without inventing a concept.
+      constraints, decisions, and cases by their owning component.
+
+      Every RetrievedComponent interface groups SemanticUnits by concept when a
+      concept identity exists and retains ungrouped interface units without inventing
+      a concept.
 
       A non-selected dependency, importer, or cycle-member contract exposes only its
       goal and interface. A module-context contract exposes its selected summary
@@ -84,9 +91,9 @@ component SigilRetrievalModel {
       Projection locations use normalized repository-relative paths and one-based
       line and column values already carried by raw retrieval evidence.
 
-      A projection fingerprint covers purpose, target, components, and diagnostics in
-      their emitted order, excluding the projection fingerprint field itself. It does
-      not replace the raw PurposeRetrievalResult fingerprint.
+      A projection fingerprint covers purpose, target, components, glossary entries,
+      and diagnostics in their emitted order, excluding the projection fingerprint
+      field itself. It does not replace the raw PurposeRetrievalResult fingerprint.
     }
   }
 
@@ -118,6 +125,21 @@ component SigilRetrievalModel {
 
       Consequences: Multiple raw relationships remain visible through links without
       duplicating a component or making its contract depend on evidence order.
+    }
+
+    ProjectionGlossary {
+      Decision: Carry selected glossary-definition evidence on RetrievalProjection as
+      ordered term-and-definition entries instead of making Markdown reread raw
+      evidence.
+
+      Scope: Governs agent-facing projection membership; excludes glossary selection,
+      GlossaryFile authorship, and raw PurposeRetrievalResult shape.
+
+      Rationale: RetrievalMarkdown takes the projection as its sole input, so omitted
+      glossary entries cannot appear in Markdown without a second parse.
+
+      Consequences: Projection fingerprints include glossary entries. Unused glossary
+      rows remain absent.
     }
 
     AgentRetrievalProjection {
@@ -166,6 +188,12 @@ component SigilRetrievalModel {
 
       An implementation-purpose raw result retains its selected source slices while
       the corresponding RetrievalProjection contains only OwnershipLinks.
+
+      A dependency interface unit with a concept identity occupies that named
+      interface group on the dependency RetrievedComponent.
+
+      Glossary-definition evidence becomes one projection glossary entry each and
+      does not become a RetrievedComponent.
     }
   }
 }

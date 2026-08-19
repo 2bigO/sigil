@@ -71,15 +71,42 @@ Deno.test("retrieve Markdown renders module context and escaped ownership links"
       cases: [],
       ownership: [],
       links: [],
+    }, {
+      id: "dep.sigil::Provider",
+      name: "Provider",
+      path: "dep.sigil",
+      role: "dependency",
+      goal: [{ text: "Provide a contract.", path: "dep.sigil" }],
+      interface: [{
+        name: "ProviderApi",
+        items: [{ text: "run()", path: "dep.sigil" }],
+        ownership: [],
+      }],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [],
+      links: [],
+    }],
+    glossary: [{
+      term: "component",
+      definition: "A coherent system part.",
     }],
     diagnostics: [],
     fingerprint: "sha256:test",
   };
   const markdown = renderRetrieveMarkdown(projection);
-  assert(markdown.includes("Use \\*safe\\* Markdown\\."));
-  assert(markdown.includes("[src/feature\\.ts:8:3](src/feature.ts#L8)"));
+  assert(markdown.includes("Use \\*safe\\* Markdown."));
+  assert(markdown.includes("[src/feature.ts:8:3](src/feature.ts#L8)"));
+  assert(markdown.includes("## Dependencies"));
+  assert(markdown.includes("#### ProviderApi"));
+  assert(markdown.includes("- run()"));
+  assert(!markdown.includes("Goal: Provide"));
   assert(markdown.includes("## Module Context"));
   assert(markdown.includes("### Workspace"));
+  assert(markdown.includes("- **component** — A coherent system part."));
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases

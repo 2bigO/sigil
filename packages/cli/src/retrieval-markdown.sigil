@@ -14,41 +14,87 @@ component SigilRetrievalMarkdown {
       renderRetrieveMarkdown(projection) returns one Markdown document without
       changing the projection, raw PurposeRetrievalResult, or either fingerprint.
 
-      The document title identifies the retrieval purpose. The selected component
-      name and repository-relative declaration path appear immediately below it.
+      The sole document title is the projection purpose value, one space, and the
+      word retrieval. Each selected-role RetrievedComponent then renders in
+      projection order. Its heading is the component name. Its repository-relative
+      declaration path follows as a Source line whose text is Source, colon, space,
+      then the path. Zero selected-role components omit that block and still render
+      related groups, Diagnostics, and Glossary when present.
 
-      The selected component renders Goal, Interface, State, Logic, Constraints,
-      Decisions, Cases, and Ownership in that order when each section has content.
+      Each selected component renders Goal, Interface, State, Logic, Constraints,
+      Decisions, Cases, Ownership, and Links in that order when each section has
+      content. Each Goal, State, Logic, Constraints, Decisions, and Cases
+      SemanticUnit is one list entry whose content is that unit's semantic text. Each
+      Interface SemanticUnit is one list entry of that unit's semantic text under
+      Interface or under its concept heading.
 
       Interface content renders under a concept heading only when the projection
       carries that concept identity. Ungrouped interface content remains directly
       under Interface.
 
-      Direct dependencies render under Dependencies with their component identity,
-      Goal, and Interface.
+      Related components render after the selected component in role order:
+      Dependencies, Importers, Cycle members, then Module Context. Each present role
+      uses one group heading. A missing role emits no heading.
 
-      Ownership renders an implements, uses, or tests link to its repository-
-      relative implementation file at its one-based line and column, with an optional
-      symbol and selected sections.
+      Each related component heading is the component name. Its repository-relative
+      path follows as a Source line whose text is Source, colon, space, then the
+      path. Its stable identity follows as an Identity line whose text is Identity,
+      colon, space, then the identity. It then renders Goal and Interface when those
+      sections have SemanticUnits. A module-context component also renders
+      Constraints and Decisions when those summary sections have SemanticUnits. Goal,
+      Interface, Constraints, and Decisions use emphasis labels rather than section
+      headings and omit a label when that section is empty. Interface uses the same
+      concept-heading rule as the selected component. Each Goal, Interface,
+      Constraints, or Decisions SemanticUnit is one list entry of that unit's
+      semantic text.
+
+      Component-owned OwnershipLinks render in the selected Ownership section.
+      Concept-owned OwnershipLinks render only under that concept after that
+      concept's Interface SemanticUnits. Ownership uses an implements, uses, or tests
+      link to its repository-relative implementation file at its one-based line and
+      column. The Ownership list entry is the relation, a Markdown link whose label
+      is path colon line colon column and whose target is path hash L line, then an
+      optional parenthesized symbol, then a colon, space, and the selected section
+      names in projection order separated by comma space when any exist. The
+      Ownership heading is omitted when no component-owned OwnershipLinks remain.
+
+      Projection diagnostics render after related groups and before Glossary. Each
+      diagnostic is one list entry using the stable human text of severity, code, and
+      message without path or range. An empty diagnostic collection emits no heading.
+
+      Glossary terms from the projection render last as one Glossary list. Each term
+      is one list entry whose text is the term in strong emphasis, space, em dash,
+      space, then the definition. A missing glossary emits no heading.
     }
   }
 
   constraints {
     RetrievalMarkdownProjection {
-      Use one document title, ## section headings, and ### component or concept
-      headings. Dependency Goal and Interface labels are inline rather than deeper
-      headings.
+      Use ATX depth 1 for the document title, depth 2 for each selected component and
+      for Dependencies, Importers, Cycle members, Module Context, Diagnostics, and
+      Glossary, depth 3 for selected section titles and related component names, and
+      depth 4 for concept identities. A selected component heading is the component
+      name. Related emphasis labels are Goal, Interface, Constraints, and Decisions
+      wrapped as Markdown strong emphasis. List entries use a hyphen marker. A Links
+      entry writes source identity, space, two hyphens, relation name, two hyphens,
+      greater-than, space, then target identity.
 
-      Render component-owned links as compact directional text that links exact
-      component identities already present in the projection.
+      Do not emit a Goal or Interface heading under a related component. Do not emit
+      a heading per glossary term.
+
+      Render remaining selected-component graph relations as an ordered list. Each
+      entry uses that same Links grammar. Omit origin location. Omit a selected-
+      declaration relation. Omit the Links heading when no remaining relations exist.
 
       Do not render raw EvidenceKind labels, a matching expansion heading, an
       implementation-source slice, a duplicate module-index contract, empty-section
       placeholders, or a separate presentation relationship map. Render a
       non-duplicate module-context contract under Module Context.
 
-      Preserve projection ordering and escape Markdown-reserved content without
-      altering semantic text, locations, component identity, or link targets.
+      Preserve projection ordering. Escape only backslash, backtick, asterisk,
+      underscore, left square bracket, and right square bracket by prefixing a
+      backslash. After that encoding is parsed, semantic text, locations, component
+      identity, and link targets are unchanged.
     }
   }
 
@@ -73,6 +119,56 @@ component SigilRetrievalMarkdown {
       Revisit when: A projection field cannot express a necessary agent-facing
       retrieval decision without renderer-side semantic inference.
     }
+
+    RelatedContractMarkdown {
+      Decision: Render dependency, importer, cycle-member, and module-context
+      contracts with component identity plus Goal and Interface list items, and keep
+      concept headings when the projection supplies a concept identity. A
+      module-context component also exposes its selected summary Constraints and
+      Decisions.
+
+      Scope: Governs related-component Markdown; excludes selected-component section
+      depth, raw evidence kinds, and dependency-decision prose.
+
+      Rationale: Related contracts already carry per-unit concept identity.
+      Flattening them hides the public concept boundary that agents need.
+
+      Trade-offs: Related sections grow longer than inline joined prose, while
+      readers keep the same concept structure as the selected component.
+
+      Discarded alternatives: Joined Goal and Interface paragraphs and omitting
+      related concept headings were rejected after per-unit evidence landed.
+
+      Consequences: Importers and cycle members become visible without printing
+      EvidenceKind labels or repeating a module-index already shown elsewhere.
+    }
+
+    GlossaryMarkdown {
+      Decision: Render projection glossary entries as one trailing list without a
+      heading per term.
+
+      Scope: Governs retrieve Markdown glossary presentation; excludes glossary
+      selection policy and GlossaryFile authorship.
+
+      Rationale: Selected terms are already scoped retrieval evidence. A flat list
+      avoids repeating term text as a heading and a list item.
+
+      Consequences: Markdown can show reviewed terminology only when the projection
+      carries glossary entries.
+    }
+
+    DiagnosticMarkdown {
+      Decision: Render projection diagnostics as one list after related groups and
+      before Glossary, and omit the heading when the collection is empty.
+
+      Scope: Governs retrieve Markdown diagnostic placement; excludes diagnostic
+      selection and raw evidence diagnostic units.
+
+      Rationale: RetrievalProjection already copies ordered diagnostics, and retrieve
+      Markdown would otherwise drop failures that context Markdown reports.
+
+      Consequences: Glossary remains last. Empty retrievals do not grow a heading.
+    }
   }
 
   cases {
@@ -80,15 +176,33 @@ component SigilRetrievalMarkdown {
       A selected component with MarkdownOutput renders its matching expansion prose
       under MarkdownOutput and never emits a selected-expansion heading.
 
-      A component-owned OwnershipLink renders one file-and-position link under the
-      relevant component or concept and does not render implementation source text.
+      A component-owned OwnershipLink renders one file-and-position link in the
+      selected Ownership section. A concept-owned OwnershipLink renders only under
+      that concept and does not appear again under Ownership. Ownership never renders
+      implementation source text.
 
       A selected component with no State, Logic, Constraints, Decisions, Cases, or
-      Ownership omits those headings while retaining Goal, Interface, and
-      Dependencies when present.
+      component-owned OwnershipLinks omits those headings while retaining Goal,
+      Interface, and present related groups.
+
+      Two selected-role components each receive their own name, path, and selected
+      sections before related groups. A diagnostics-only projection still emits the
+      purpose title and Diagnostics.
+
+      A dependency whose interface units carry RetrievalProjection renders those
+      units under that concept heading and does not join them into one paragraph.
 
       A module-index summary whose component is otherwise absent renders once under
       Module Context; an already represented component does not repeat there.
+
+      An empty Importers, Cycle members, Module Context, Diagnostics, or Glossary
+      collection emits no group heading.
+
+      A selected-declaration link does not appear under Links.
+
+      A concept that has OwnershipLinks and no Interface SemanticUnits still emits
+      the Interface heading and that concept heading so those OwnershipLinks have a
+      parent.
     }
   }
 }

@@ -122,7 +122,9 @@ export async function projectRetrieval(
       ? "cycle-member"
       : kind === "module-index-summary"
       ? "module-context"
-      : "selected";
+      : kind === "selected-contract" || kind === "selected-expansion"
+      ? "selected"
+      : undefined;
   const rank = (role: string) =>
     ["selected", "dependency", "importer", "cycle-member", "module-context"]
       .indexOf(role);
@@ -153,6 +155,15 @@ export async function projectRetrieval(
       : declarationByName.get(item.componentName!) ??
         `${item.path}::${item.componentName}`;
   };
+  const glossary = result.evidence.flatMap((item) => {
+    if (item.kind !== "glossary-definition") return [];
+    const separator = item.text.indexOf(": ");
+    if (separator < 0) return [];
+    return [{
+      term: item.text.slice(0, separator),
+      definition: item.text.slice(separator + 2),
+    }];
+  });
   for (const item of result.evidence) {
     if (
       !item.componentName || !item.path ||
@@ -169,11 +180,26 @@ export async function projectRetrieval(
     ) continue;
     const id = componentIdFor(item);
     if (item.kind === "module-index-summary" && entries.has(id)) continue;
+    const nextRole = roleFor(item.kind);
+    if (item.kind === "ownership-projection") {
+      const existing = entries.get(id);
+      if (!existing) continue;
+      existing.ownership.push({
+        relation: item.text.split(" ")[0],
+        path: item.path,
+        range: item.range,
+        symbol: item.text.match(/ at (.+?)(?: \[|$)/)?.[1],
+        sections:
+          item.text.match(/\[([^\]]*)\]/)?.[1].split(",").filter(Boolean) ?? [],
+      });
+      continue;
+    }
+    if (!nextRole) continue;
     const entry = entries.get(id) ?? {
       id,
       name: item.componentName,
       path: id.slice(0, id.lastIndexOf("::")),
-      role: roleFor(item.kind),
+      role: nextRole,
       goal: [],
       interface: [],
       state: [],
@@ -185,21 +211,10 @@ export async function projectRetrieval(
       links: [],
       concepts: new Map(),
     };
-    if (rank(roleFor(item.kind)) < rank(entry.role)) {
-      entry.role = roleFor(item.kind);
+    if (rank(nextRole) < rank(entry.role)) {
+      entry.role = nextRole;
     }
     entries.set(id, entry);
-    if (item.kind === "ownership-projection") {
-      entry.ownership.push({
-        relation: item.text.split(" ")[0],
-        path: item.path,
-        range: item.range,
-        symbol: item.text.match(/ at (.+?)(?: \[|$)/)?.[1],
-        sections:
-          item.text.match(/\[([^\]]*)\]/)?.[1].split(",").filter(Boolean) ?? [],
-      });
-      continue;
-    }
     if (
       entry.role !== "selected" && entry.role !== "module-context" &&
       item.sectionName !== "goal" &&
@@ -259,6 +274,7 @@ export async function projectRetrieval(
     purpose: result.purpose,
     target: result.target,
     components,
+    glossary,
     diagnostics: result.diagnostics,
   };
   return { ...base, fingerprint: `sha256:${await sha256Canonical(base)}` };
@@ -944,6 +960,7 @@ function addContractEvidence(
     edgeKeys,
   );
 }
+// @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::EvidenceUnitConstruction logic
 function addDeclarationEvidence(
   out: EvidenceDraft[],
   units: readonly SemanticUnit[],
@@ -953,36 +970,22 @@ function addDeclarationEvidence(
   seedKey: string,
   edgeKeys: readonly string[],
 ) {
-  const groups = new Map<string, SemanticUnit[]>();
-  for (const unit of units.filter((item) => item.prose.trim())) {
-    const key = [
-      unit.filePath,
-      unit.ownerKind,
-      unit.ownerName,
-      unit.sectionName,
-    ]
-      .join("\0");
-    groups.set(key, [...(groups.get(key) ?? []), unit]);
-  }
-  for (const group of groups.values()) {
-    group.sort((left, right) =>
-      left.range.start.line - right.range.start.line ||
-      left.range.start.column - right.range.start.column
-    );
-    const concepts = new Set(group.map((unit) => unit.conceptIdentifier));
+  const selected = units.filter((item) => item.prose.trim()).sort((
+    left,
+    right,
+  ) =>
+    left.range.start.line - right.range.start.line ||
+    left.range.start.column - right.range.start.column
+  );
+  for (const unit of selected) {
     out.push({
       kind,
-      path: group[0].filePath,
+      path: unit.filePath,
       componentName,
-      sectionName: group[0].sectionName,
-      conceptIdentity: concepts.size === 1
-        ? group[0].conceptIdentifier
-        : undefined,
-      range: {
-        start: group[0].range.start,
-        end: group[group.length - 1].range.end,
-      },
-      text: group.map((unit) => unit.prose).join("\n"),
+      sectionName: unit.sectionName,
+      conceptIdentity: unit.conceptIdentifier,
+      range: unit.range,
+      text: unit.prose,
       rule,
       seedKey,
       edgeKeys,

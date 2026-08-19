@@ -83,6 +83,11 @@ component SigilContextRetrieval {
       implementation-source evidence is excluded from RetrievalProjection while
       remaining unchanged in PurposeRetrievalResult for implementation purpose.
 
+      glossary-definition evidence becomes one projection glossary entry using that
+      unit's canonical term and definition. It does not create a RetrievedComponent.
+
+      public-concept-origin evidence does not create a selected RetrievedComponent.
+
       Projection links derive from selected graph edges and preserve exact target
       component identity and available origin location.
     }

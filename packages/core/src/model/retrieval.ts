@@ -162,11 +162,16 @@ export interface RetrievalProjectionComponent {
   readonly ownership: readonly RetrievalProjectionOwnership[];
   readonly links: readonly RetrievalProjectionLink[];
 }
+export interface RetrievalProjectionGlossaryEntry {
+  readonly term: string;
+  readonly definition: string;
+}
 export interface RetrievalProjection {
   readonly schema: "sigil-retrieval-projection/v1";
   readonly purpose: RetrievalPurpose;
   readonly target: RetrievalTargetIdentity;
   readonly components: readonly RetrievalProjectionComponent[];
+  readonly glossary: readonly RetrievalProjectionGlossaryEntry[];
   readonly diagnostics: readonly SigilDiagnostic[];
   readonly fingerprint: string;
 }
