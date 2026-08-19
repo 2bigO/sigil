@@ -18,6 +18,8 @@ import {
   parseSigilConfig,
   parseSigilDocument,
   parseSigilGlossary,
+  projectRetrieval,
+  resolveSigilRelationships,
   resolveSigilWorkspace,
   retrievePurposeContext,
   SIGIL_CORE_VERSION,
@@ -27,7 +29,6 @@ import {
   supportedImplementationSourceGlobPatterns,
 } from "../src/mod.ts";
 import { buildSigilGraph } from "../src/graph.ts";
-import { resolveSigilRelationships } from "../src/resolver.ts";
 
 /*
  * @sigil tests packages/core/_module.sigil::SigilCore::PackageVersionOwnership constraints
@@ -2969,6 +2970,123 @@ Deno.test("purpose retrieval is deterministic and stops at direct dependencies",
   assert(first.evidence.some((unit) => unit.kind === "dependency-contract"));
   assert(first.inclusionReasons.length > 0);
   assert(first.fingerprint.startsWith("sha256:"));
+});
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::EvidenceUnitConstruction logic
+Deno.test("purpose retrieval emits one evidence unit per SemanticUnit", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "feature.sigil": `component Feature {
+  goal {
+    First goal sentence.
+
+    Second goal sentence.
+  }
+
+  interface {
+    FeatureApi {
+      first()
+
+      second()
+    }
+
+    ungrouped interface unit
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "feature.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const result = await retrievePurposeContext(
+    resolved,
+    {
+      kind: "component",
+      componentName: "Feature",
+      path: "feature.sigil",
+    },
+    "semantic",
+    resolved.glossary,
+  );
+  const selected = result.evidence.filter((unit) =>
+    unit.kind === "selected-contract"
+  );
+  assertEquals(
+    JSON.stringify(selected.map((unit) => ({
+      sectionName: unit.sectionName,
+      conceptIdentity: unit.conceptIdentity ?? null,
+      text: unit.text,
+    }))),
+    JSON.stringify([
+      {
+        sectionName: "goal",
+        conceptIdentity: null,
+        text: "First goal sentence.",
+      },
+      {
+        sectionName: "goal",
+        conceptIdentity: null,
+        text: "Second goal sentence.",
+      },
+      {
+        sectionName: "interface",
+        conceptIdentity: "FeatureApi",
+        text: "first()",
+      },
+      {
+        sectionName: "interface",
+        conceptIdentity: "FeatureApi",
+        text: "second()",
+      },
+      {
+        sectionName: "interface",
+        conceptIdentity: null,
+        text: "ungrouped interface unit",
+      },
+    ]),
+  );
+  assert(selected.every((unit) => !unit.text.includes("\n")));
+});
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::RetrievalProjectionDerivation interface
+Deno.test("retrieval projection retains one module-context summary", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "features/_module.sigil": validComponent("Workspace", "assemble()"),
+    "features/feature.sigil": validComponent("Feature", "run()"),
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "features/feature.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const result = await retrievePurposeContext(
+    resolved,
+    {
+      kind: "component",
+      componentName: "Feature",
+      path: "features/feature.sigil",
+    },
+    "architecture",
+    resolved.glossary,
+  );
+  const projection = await projectRetrieval(result);
+  const moduleContexts = projection.components.filter((component) =>
+    component.role === "module-context"
+  );
+  assertEquals(moduleContexts.length, 1);
+  assertEquals(moduleContexts[0].name, "Workspace");
+  assert(moduleContexts[0].goal.length > 0);
+  assert(projection.glossary.length >= 0);
+  assert(
+    !projection.components.some((component) =>
+      component.role === "selected" && component.name !== "Feature"
+    ),
+  );
 });
 
 // @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface,cases

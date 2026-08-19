@@ -7,6 +7,209 @@ import type {
 } from "@qoherent/sigil-core";
 import type { CoreAdapter } from "./core-adapter.ts";
 import type { ContextCommandResult } from "./output-model.ts";
+import type {
+  RetrievalProjection,
+  RetrievalProjectionComponent,
+  RetrievalProjectionConcept,
+  RetrievalProjectionItem,
+  RetrievalProjectionOwnership,
+} from "@qoherent/sigil-core";
+
+// @sigil implements packages/cli/src/retrieval-markdown.sigil::SigilRetrievalMarkdown::RetrievalMarkdownProjection interface,constraints,cases
+export function renderRetrieveMarkdown(
+  projection: RetrievalProjection,
+): string {
+  const selected = projection.components.filter((item) =>
+    item.role === "selected"
+  );
+  const lines = [`# ${escapeMarkdown(projection.purpose)} retrieval`, ""];
+  for (const component of selected) {
+    lines.push(
+      `## ${escapeMarkdown(component.name)}`,
+      "",
+      `Source: ${escapeMarkdown(component.path)}`,
+      "",
+    );
+    appendSelectedSection(lines, "Goal", component.goal);
+    appendSelectedInterface(lines, component.interface);
+    appendSelectedSection(lines, "State", component.state);
+    appendSelectedSection(lines, "Logic", component.logic);
+    appendSelectedSection(lines, "Constraints", component.constraints);
+    appendSelectedSection(lines, "Decisions", component.decisions);
+    appendSelectedSection(lines, "Cases", component.cases);
+    if (component.ownership.length) {
+      lines.push(
+        "### Ownership",
+        ...component.ownership.map(renderOwnership),
+        "",
+      );
+    }
+    const links = component.links.filter((item) =>
+      item.relation !== "selected-declaration"
+    );
+    if (links.length) {
+      lines.push(
+        "### Links",
+        ...links.map((item) =>
+          `- ${escapeMarkdown(component.id)} --${
+            escapeMarkdown(item.relation)
+          }--> ${escapeMarkdown(item.target)}`
+        ),
+        "",
+      );
+    }
+  }
+  appendRelatedGroup(
+    lines,
+    "Dependencies",
+    projection.components.filter((item) => item.role === "dependency"),
+  );
+  appendRelatedGroup(
+    lines,
+    "Importers",
+    projection.components.filter((item) => item.role === "importer"),
+  );
+  appendRelatedGroup(
+    lines,
+    "Cycle members",
+    projection.components.filter((item) => item.role === "cycle-member"),
+  );
+  appendRelatedGroup(
+    lines,
+    "Module Context",
+    projection.components.filter((item) => item.role === "module-context"),
+    true,
+  );
+  if (projection.diagnostics.length) {
+    lines.push(
+      "## Diagnostics",
+      ...projection.diagnostics.map((item) =>
+        `- ${escapeMarkdown(item.severity)} ${escapeMarkdown(item.code)}: ${
+          escapeMarkdown(item.message)
+        }`
+      ),
+      "",
+    );
+  }
+  if (projection.glossary.length) {
+    lines.push(
+      "## Glossary",
+      ...projection.glossary.map((item) =>
+        `- **${escapeMarkdown(item.term)}** — ${
+          escapeMarkdown(item.definition)
+        }`
+      ),
+      "",
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function appendSelectedSection(
+  lines: string[],
+  name: string,
+  items: readonly RetrievalProjectionItem[],
+): void {
+  if (!items.length) return;
+  lines.push(`### ${name}`, ...items.map(renderUnit), "");
+}
+
+function appendSelectedInterface(
+  lines: string[],
+  concepts: readonly RetrievalProjectionConcept[],
+): void {
+  if (
+    !concepts.some((concept) =>
+      concept.items.length || concept.ownership.length
+    )
+  ) return;
+  lines.push("### Interface");
+  for (const concept of concepts) {
+    if (!concept.items.length && !concept.ownership.length) continue;
+    if (concept.name) lines.push("", `#### ${escapeMarkdown(concept.name)}`);
+    lines.push(
+      ...concept.items.map(renderUnit),
+      ...concept.ownership.map(renderOwnership),
+    );
+  }
+  lines.push("");
+}
+
+function appendRelatedGroup(
+  lines: string[],
+  heading: string,
+  components: readonly RetrievalProjectionComponent[],
+  includeSummary = false,
+): void {
+  if (!components.length) return;
+  lines.push(`## ${heading}`, "");
+  for (const component of components) {
+    lines.push(
+      `### ${escapeMarkdown(component.name)}`,
+      `Source: ${escapeMarkdown(component.path)}`,
+      `Identity: ${escapeMarkdown(component.id)}`,
+      "",
+    );
+    appendRelatedLabeled(lines, "Goal", component.goal);
+    appendRelatedInterface(lines, component.interface);
+    if (includeSummary) {
+      appendRelatedLabeled(lines, "Constraints", component.constraints);
+      appendRelatedLabeled(lines, "Decisions", component.decisions);
+    }
+  }
+}
+
+function appendRelatedLabeled(
+  lines: string[],
+  name: string,
+  items: readonly RetrievalProjectionItem[],
+): void {
+  if (!items.length) return;
+  lines.push(`**${name}**`, ...items.map(renderUnit), "");
+}
+
+function appendRelatedInterface(
+  lines: string[],
+  concepts: readonly RetrievalProjectionConcept[],
+): void {
+  if (
+    !concepts.some((concept) =>
+      concept.items.length || concept.ownership.length
+    )
+  ) return;
+  lines.push("**Interface**");
+  for (const concept of concepts) {
+    if (!concept.items.length && !concept.ownership.length) continue;
+    if (concept.name) lines.push("", `#### ${escapeMarkdown(concept.name)}`);
+    lines.push(
+      ...concept.items.map(renderUnit),
+      ...concept.ownership.map(renderOwnership),
+    );
+  }
+  lines.push("");
+}
+
+function renderUnit(item: RetrievalProjectionItem): string {
+  return `- ${escapeMarkdown(item.text)}`;
+}
+
+function renderOwnership(item: RetrievalProjectionOwnership): string {
+  const line = item.range?.start.line ?? 1;
+  const column = item.range?.start.column ?? 1;
+  const label = `${escapeMarkdown(item.path)}:${line}:${column}`;
+  let text = `- ${item.relation} [${label}](${item.path}#L${line})`;
+  if (item.symbol) text += ` (${escapeMarkdown(item.symbol)})`;
+  if (item.sections.length) {
+    text += `: ${
+      item.sections.map((section) => escapeMarkdown(section)).join(", ")
+    }`;
+  }
+  return text;
+}
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/([\\`*_\[\]])/g, "\\$1");
+}
 
 // @sigil implements packages/cli/_module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
 export function renderWorkspaceMarkdown(

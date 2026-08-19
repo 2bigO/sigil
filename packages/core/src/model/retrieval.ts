@@ -119,3 +119,59 @@ export interface PurposeRetrievalResult {
   readonly diagnostics: readonly SigilDiagnostic[];
   readonly fingerprint: string;
 }
+export interface RetrievalProjectionLocation {
+  readonly path: string;
+  readonly range?: SourceRange;
+}
+export interface RetrievalProjectionItem extends RetrievalProjectionLocation {
+  readonly text: string;
+}
+export interface RetrievalProjectionConcept {
+  readonly name?: string;
+  readonly items: readonly RetrievalProjectionItem[];
+  readonly ownership: readonly RetrievalProjectionOwnership[];
+}
+export interface RetrievalProjectionOwnership
+  extends RetrievalProjectionLocation {
+  readonly relation: "implements" | "uses" | "tests";
+  readonly symbol?: string;
+  readonly sections: readonly ImplementationSection[];
+}
+export interface RetrievalProjectionLink {
+  readonly relation: string;
+  readonly target: string;
+  readonly location?: RetrievalProjectionLocation;
+}
+export interface RetrievalProjectionComponent {
+  readonly id: string;
+  readonly name: string;
+  readonly path: string;
+  readonly role:
+    | "selected"
+    | "dependency"
+    | "importer"
+    | "cycle-member"
+    | "module-context";
+  readonly goal: readonly RetrievalProjectionItem[];
+  readonly interface: readonly RetrievalProjectionConcept[];
+  readonly state: readonly RetrievalProjectionItem[];
+  readonly logic: readonly RetrievalProjectionItem[];
+  readonly constraints: readonly RetrievalProjectionItem[];
+  readonly decisions: readonly RetrievalProjectionItem[];
+  readonly cases: readonly RetrievalProjectionItem[];
+  readonly ownership: readonly RetrievalProjectionOwnership[];
+  readonly links: readonly RetrievalProjectionLink[];
+}
+export interface RetrievalProjectionGlossaryEntry {
+  readonly term: string;
+  readonly definition: string;
+}
+export interface RetrievalProjection {
+  readonly schema: "sigil-retrieval-projection/v1";
+  readonly purpose: RetrievalPurpose;
+  readonly target: RetrievalTargetIdentity;
+  readonly components: readonly RetrievalProjectionComponent[];
+  readonly glossary: readonly RetrievalProjectionGlossaryEntry[];
+  readonly diagnostics: readonly SigilDiagnostic[];
+  readonly fingerprint: string;
+}

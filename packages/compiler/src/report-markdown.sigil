@@ -1,0 +1,87 @@
+@packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
+
+component SigilCompilationReportMarkdown {
+  goal {
+    Give every compiler host one deterministic, agent-readable Markdown projection
+    of a completed authoritative CompilationReport.
+  }
+
+  interface {
+    CompilationReportMarkdown {
+      render(CompilationReport) returns one complete Markdown projection without
+      changing the report, compilation status, lifecycle, or event delivery
+
+      the projection contains one final status summary, one Stage execution table
+      with stage, state, and diagnostic count, then Findings grouped by originating
+      stage
+
+      each nonempty stage group has one compact diagnostic table with severity,
+      lifecycle, rule code, semantic subject, and location; evidence, impact, and
+      suggested correction appear once below the corresponding diagnostic
+    }
+  }
+}
+
+expand SigilCompilationReportMarkdown {
+  logic {
+    CompilationReportMarkdown {
+      Derive every displayed field from the completed CompilationReport, preserve
+      report and stage ordering, omit empty sections, and escape report content so it
+      cannot change the projection's Markdown structure.
+
+      Render one final report rather than replaying CompilationEvent values or
+      repeating the complete JSON representation. Limit ordinary headings to three
+      levels.
+    }
+  }
+
+  constraints {
+    CompilationReportMarkdown {
+      JSON remains the authoritative durable CompilationReport representation.
+      Markdown is a read-only projection and cannot become an input to report
+      construction, status calculation, diagnostic identity, lifecycle comparison, or
+      event settlement.
+
+      Equivalent decoded CompilationReport values produce byte-identical Markdown
+      independent of the calling host.
+    }
+  }
+
+  decisions {
+    CompilerOwnedReportProjection {
+      Decision: Own the completed-report Markdown projection in SigilCompiler and
+      expose it to every host as one deterministic renderer.
+
+      Scope: Governs Markdown projection of CompilationReport; excludes CLI option
+      parsing, terminal progress, and non-compilation workspace Markdown.
+
+      Trade-offs: The compiler package owns a human-readable representation in
+      addition to its authoritative JSON schema, so projection changes require
+      compiler compatibility review even though they do not change report data. The
+      compact Markdown projection intentionally omits report metadata that is not
+      needed for immediate review; the authoritative JSON report retains the complete
+      data.
+
+      Design issues addressed: One-shot compilation, reusable sessions, CLI export,
+      editors, and future hosts must not independently define or drift the final
+      report shape.
+
+      Discarded alternatives: CLI-owned rendering duplicates report semantics at one
+      host boundary, while exporter-owned rendering prevents non-file consumers from
+      reusing the same projection.
+
+      Consequences: Hosts select where to present or persist the projection, while
+      SigilCompiler alone determines its content and ordering.
+    }
+  }
+
+  cases {
+    CompilationReportMarkdown {
+      A report without current diagnostics renders its status and complete Stage
+      execution table and omits Findings.
+
+      A report with findings groups each diagnostic under its originating stage and
+      emits its evidence, impact, and correction exactly once.
+    }
+  }
+}

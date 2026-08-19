@@ -6,6 +6,7 @@ import {
   type CompilationReport,
   type compile,
   FileCompilationHistoryStore,
+  renderCompilationReportMarkdown,
   resolveCompilationProfile,
   type SigilCompilationSessionFactory,
 } from "@qoherent/sigil-compiler";
@@ -180,8 +181,8 @@ Options:
   --profile <name>    Select a compilation profile (default: standard)
   --focus <value>     Evaluate design readiness or implementation alignment
   --no-cache          Do not consult compilation history
-  --output <file>     Export the authoritative report
-  --format <value>    Output text or jsonl
+  --output <file>     Export the selected completed representation
+  --format <value>    Output text, jsonl, or markdown
   --root <path>       Use an explicit workspace root
   --quiet             Suppress human output
   --help              Show this help
@@ -191,7 +192,7 @@ Options:
   "compile-session-start":
     `Usage: sigil compile session start [path] --focus design|implementation [--component <name> | --file <file>] [--profile <name>]\n`,
   "compile-session-evaluate":
-    `Usage: sigil compile session evaluate <session-id> [--format jsonl]\n\nReads one CompilationProposal JSON object from standard input.\n`,
+    `Usage: sigil compile session evaluate <session-id> [--format jsonl|markdown]\n\nReads one CompilationProposal JSON object from standard input.\n`,
   "compile-session-refresh":
     `Usage: sigil compile session refresh <session-id>\n`,
   "compile-session-close": `Usage: sigil compile session close <session-id>\n`,
@@ -227,6 +228,7 @@ export interface CliRunOptions extends CommandHandlerOptions {
  * @sigil implements packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
  * @sigil implements packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil uses packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface
  */
 export async function runCli(
   argv: readonly string[],
@@ -297,6 +299,8 @@ export async function runCli(
           ? options.onCompilationEvent
             ? ""
             : `${events.map((event) => JSON.stringify(event)).join("\n")}\n`
+          : request.format === "markdown"
+          ? renderCompilationReportMarkdown(report)
           : formatCompilation(report);
         return {
           exitCode: report.status === "green" ? 0 : 1,
@@ -361,6 +365,9 @@ export async function runCli(
                 compilationCacheDirectory(),
               )),
           output: parsed.request.output,
+          reportExportRepresentation: parsed.request.format === "markdown"
+            ? "markdown"
+            : "json",
           signal: options.signal,
           onEvent: async (event) => {
             events.push(event);
@@ -385,6 +392,8 @@ export async function runCli(
         ? options.onCompilationEvent
           ? ""
           : events.map((event) => JSON.stringify(event)).join("\n") + "\n"
+        : parsed.request.format === "markdown"
+        ? renderCompilationReportMarkdown(report)
         : formatCompilation(report);
       return {
         exitCode: report.status === "green" ? 0 : 1,
@@ -399,7 +408,7 @@ export async function runCli(
       exitCode: formatDifference
         ? 1
         : exitCodeForDiagnostics(result.diagnostics),
-      stdout: formatResult(result, parsed.request),
+      stdout: await formatResult(result, parsed.request),
       stderr: "",
     };
   } catch (error) {

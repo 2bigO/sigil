@@ -1,12 +1,14 @@
 import {
+  type RetrievalProjection,
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
-import type {
-  CompilationReport,
-  CompilationTarget,
-  CompileOptions,
+import {
+  type CompilationReport,
+  type CompilationTarget,
+  type CompileOptions,
+  renderCompilationReportMarkdown,
 } from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
 import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
@@ -15,6 +17,7 @@ import { runCli } from "../src/main.ts";
 import { compileWithBundledAdapters } from "../src/compiler-adapters.ts";
 import type { CheckRequest } from "../src/args.ts";
 import { formatResult } from "../src/formatters.ts";
+import { renderRetrieveMarkdown } from "../src/markdown.ts";
 import type { CheckCommandResult } from "../src/output-model.ts";
 import {
   EXIT_DIAGNOSTICS,
@@ -22,6 +25,89 @@ import {
   EXIT_RUNTIME,
   EXIT_USAGE,
 } from "../src/exit.ts";
+
+// @sigil tests packages/cli/src/retrieval-markdown.sigil::SigilRetrievalMarkdown::RetrievalMarkdownProjection interface,constraints,cases
+Deno.test("retrieve Markdown renders module context and escaped ownership links", () => {
+  const projection: RetrievalProjection = {
+    schema: "sigil-retrieval-projection/v1",
+    purpose: "semantic",
+    target: {
+      kind: "component",
+      componentName: "Feature",
+      pathStatus: "accepted",
+      path: "feature.sigil",
+    },
+    components: [{
+      id: "feature.sigil::Feature",
+      name: "Feature",
+      path: "feature.sigil",
+      role: "selected",
+      goal: [{ text: "Use *safe* Markdown.", path: "feature.sigil" }],
+      interface: [],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [{
+        relation: "implements",
+        path: "src/feature.ts",
+        range: { start: { line: 8, column: 3 }, end: { line: 8, column: 9 } },
+        symbol: "renderFeature",
+        sections: ["interface"],
+      }],
+      links: [],
+    }, {
+      id: "_module.sigil::Workspace",
+      name: "Workspace",
+      path: "_module.sigil",
+      role: "module-context",
+      goal: [{ text: "Assemble the workspace.", path: "_module.sigil" }],
+      interface: [],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [],
+      links: [],
+    }, {
+      id: "dep.sigil::Provider",
+      name: "Provider",
+      path: "dep.sigil",
+      role: "dependency",
+      goal: [{ text: "Provide a contract.", path: "dep.sigil" }],
+      interface: [{
+        name: "ProviderApi",
+        items: [{ text: "run()", path: "dep.sigil" }],
+        ownership: [],
+      }],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [],
+      links: [],
+    }],
+    glossary: [{
+      term: "component",
+      definition: "A coherent system part.",
+    }],
+    diagnostics: [],
+    fingerprint: "sha256:test",
+  };
+  const markdown = renderRetrieveMarkdown(projection);
+  assert(markdown.includes("Use \\*safe\\* Markdown."));
+  assert(markdown.includes("[src/feature.ts:8:3](src/feature.ts#L8)"));
+  assert(markdown.includes("## Dependencies"));
+  assert(markdown.includes("#### ProviderApi"));
+  assert(markdown.includes("- run()"));
+  assert(!markdown.includes("Goal: Provide"));
+  assert(markdown.includes("## Module Context"));
+  assert(markdown.includes("### Workspace"));
+  assert(markdown.includes("- **component** — A coherent system part."));
+});
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
 Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
@@ -514,7 +600,7 @@ Deno.test("--show-locations is rejected outside check", async () => {
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
-Deno.test("check location rendering handles ranges, missing ranges, and path styles", () => {
+Deno.test("check location rendering handles ranges, missing ranges, and path styles", async () => {
   const base = {
     command: "check",
     pretty: false,
@@ -556,7 +642,7 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
     ],
   };
   const winRequest: CheckRequest = { ...base, format: "text", root: winRoot };
-  const winText = formatResult(winResult, winRequest);
+  const winText = await formatResult(winResult, winRequest);
   assert(
     winText.includes(
       "error SIGIL_UNKNOWN_SECTION C:/repo/pkg/a.sigil:8:3: Unknown section.",
@@ -599,7 +685,7 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
     ],
   };
   const posixRequest: CheckRequest = { ...base, format: "text" };
-  const posixText = formatResult(posixResult, posixRequest);
+  const posixText = await formatResult(posixResult, posixRequest);
   assert(
     posixText.includes(
       "error SIGIL_UNKNOWN_SECTION demo/pkg/a.sigil:4:2: Unknown section.",
@@ -2414,6 +2500,45 @@ async function writeWorkspaceConfig(root: string, name: string): Promise<void> {
 function validSigil(name: string): string {
   return `component ${name} {\n  goal {\n    Test ${name}.\n  }\n\n  interface {\n    run()\n  }\n}\n`;
 }
+
+function greenCompilationReport(): CompilationReport {
+  return {
+    reportVersion: 2,
+    runId: "run-green",
+    workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
+    componentNames: ["Example"],
+    status: "green",
+    startedAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    sourceFingerprint: "source",
+    focus: "design",
+    profile: {
+      name: "standard",
+      criticalSystem: false,
+      contextBudgetChars: 1,
+      agentInputBudgetChars: 1,
+      limits: {
+        maxCompilationRequestChars: 1,
+        maxAgentInputChars: 1,
+        sessionTtlMs: 86_400_000,
+        providerCleanupMs: 1,
+      },
+      executionBudgets: {
+        elapsedTimeMs: 1,
+        maxCommands: 1,
+        maxCommandOutputChars: 1,
+        maxInputTokens: 1,
+        maxOutputTokens: 1,
+      },
+      stages: [],
+      evaluators: [],
+      fingerprint: "profile",
+    },
+    stages: [],
+    diagnostics: [],
+  };
+}
 // deno-lint-ignore no-explicit-any
 function parseJson(source: string): any {
   return JSON.parse(source);
@@ -2569,6 +2694,27 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
   });
   assertEquals(human.exitCode, EXIT_OK);
   assert(human.stdout.includes("resolved warning SEMANTIC_AMBIGUITY"));
+
+  let exportRepresentation: CompileOptions["reportExportRepresentation"];
+  const markdown = await runCli([
+    "compile",
+    "../..",
+    "--format",
+    "markdown",
+    "--output",
+    "/tmp/report.md",
+  ], {
+    compiler: (_workspace, _target, _profile, options) => {
+      exportRepresentation = options?.reportExportRepresentation;
+      return Promise.resolve(resolvedReport);
+    },
+  });
+  assertEquals(markdown.exitCode, EXIT_OK);
+  assertEquals(
+    markdown.stdout,
+    renderCompilationReportMarkdown(resolvedReport),
+  );
+  assertEquals(exportRepresentation, "markdown");
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,cases
@@ -2618,7 +2764,7 @@ Deno.test("compile resolves configured default and agent profiles before standar
 Deno.test("compile rejects incompatible output formats", async () => {
   const result = await runCli(["compile", "--format", "json"]);
   assertEquals(result.exitCode, EXIT_USAGE);
-  assert(result.stderr.includes("--format must be text or jsonl"));
+  assert(result.stderr.includes("--format must be text, jsonl, or markdown"));
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
@@ -2762,6 +2908,7 @@ Deno.test("compile preserves a failed terminal event in buffered JSONL", async (
 
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
+ * @sigil tests packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface,cases
  * @sigil tests packages/compiler/src/session-store.sigil::SigilCompilationSessionStore::CompilationSessionStorage interface,logic,constraints,cases
  */
 Deno.test("compile session commands persist across independent CLI calls", async () => {
@@ -2798,6 +2945,24 @@ Deno.test("compile session commands persist across independent CLI calls", async
     const startResult = parseJson(started.stdout);
     sessionIdentity = startResult.sessionIdentity;
     assertEquals(startResult.baseEpoch, 1);
+
+    const evaluation = await runCli([
+      "compile",
+      "session",
+      "evaluate",
+      sessionIdentity!,
+      "--format",
+      "markdown",
+    ], {
+      readStdin: () => Promise.resolve(JSON.stringify({ sources: {} })),
+      compiler: () => Promise.resolve(greenCompilationReport()),
+    });
+    assertEquals(evaluation.exitCode, EXIT_OK);
+    assertEquals(
+      evaluation.stdout.startsWith("# Sigil Compilation Report\n"),
+      true,
+    );
+    assertEquals(evaluation.stdout.includes("Status: **GREEN**"), true);
 
     const refreshed = await runCli([
       "compile",

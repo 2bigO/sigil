@@ -50,7 +50,11 @@
   "designCompilationReviewRequiredBehaviors": [
     "resolve-nearest-importing-module-index",
     "traverse-graph-context",
-    "start-os-temp-design-session",
+    "reserve-fresh-markdown-report-path",
+    "wait-for-process-exit",
+    "avoid-jsonl-stream-listening",
+    "classify-process-and-report-outcomes",
+    "retry-with-fresh-output-path",
     "forbid-daemon-and-bearer-authority",
     "submit-complete-proposal-generation",
     "consume-compiler-owned-design-evidence",
@@ -61,7 +65,7 @@
     "invalidate-changed-evidence",
     "compile-written-sigil",
     "gate-glossary-and-implementation",
-    "close-session-and-report-failures"
+    "report-operational-failures"
   ],
   "greenfieldFixture": "greenfield-fixture.md",
   "greenfieldRequiredBehaviors": [

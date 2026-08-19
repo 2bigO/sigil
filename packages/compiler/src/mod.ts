@@ -16,6 +16,7 @@ export * from "./adapter-execution-coordinator.ts";
 export * from "./adapter-subprocess.ts";
 export * from "./compilation-target.ts";
 export * from "./report-protocol.ts";
+export * from "./report-markdown.ts";
 export * from "./report-export.ts";
 export * from "./proposal-workspace.ts";
 export * from "./session-store.ts";

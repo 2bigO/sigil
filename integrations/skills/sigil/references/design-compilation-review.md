@@ -45,16 +45,16 @@ after every semantic write:
 
 ```bash
 sigil check <workspace-root> --format json --pretty
-sigil compile <workspace-root> --agent --focus design <target-selector> --format jsonl
+sigil compile <workspace-root> --agent --focus design <target-selector> --format markdown --output <fresh-report-path>
 ```
 
-Follow `references/compilation-execution.md` with `focus: design`. Its terminal,
-source-closure, durable-capture, and one-retry rules apply before interpreting the
-report. If the first run fails or ends without usable terminal evidence, wait for
-its process and writer to close, rerun the identical frozen target once, and
-interpret only the second terminal outcome or the preserved evidence from both
-attempts. Completed green, yellow, and red reports proceed to design review
-interpretation without automatic retry.
+Follow `references/compilation-execution.md` with `focus: design`. Its fresh-output,
+process-exit, report-validation, and one-retry rules apply before interpreting the
+report. If the first run ends without usable completed-report evidence, rerun the
+identical frozen target once with a new attempt output path and interpret only a
+valid completed Markdown report. Preserve operational evidence from both attempts.
+Completed green, yellow, and red reports proceed to design review interpretation
+without automatic retry.
 
 1. Return a deterministic, structural, or coherence correction requirement to the
    authoring workflow when the report and established intent determine one safe
@@ -71,8 +71,8 @@ affected scope in DesignConversation rather than guessing.
 
 Compilation itself is a mandatory gate. No written-file review, concept grouping,
 glossary extraction, implementation ReviewGate, or implementation may proceed
-until the required compile reaches a terminal outcome and its output stream
-closes. A running, unavailable, incomplete, failed, or cancelled compile cannot
+until the required compiler process exits with a readable completed Markdown
+report. A running, unavailable, incomplete, failed, or cancelled compile cannot
 be waived by the user or treated as a skipped check; use the one-retry rule and
 then remain blocked.
 

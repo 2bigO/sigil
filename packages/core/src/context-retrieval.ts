@@ -19,6 +19,7 @@ import type {
   RetrievalEdge,
   RetrievalNode,
   RetrievalNodeKind,
+  RetrievalProjection,
   RetrievalPurpose,
   RetrievalRelation,
 } from "./model/retrieval.ts";
@@ -105,6 +106,178 @@ interface EvidenceDraft {
   readonly rule: string;
   readonly seedKey: string;
   readonly edgeKeys: readonly string[];
+}
+
+// @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::RetrievalProjectionDerivation interface
+export async function projectRetrieval(
+  result: PurposeRetrievalResult,
+): Promise<RetrievalProjection> {
+  const entries = new Map<string, any>();
+  const roleFor = (kind: EvidenceKind) =>
+    kind.startsWith("dependency")
+      ? "dependency"
+      : kind === "importer-contract"
+      ? "importer"
+      : kind === "cycle-contract"
+      ? "cycle-member"
+      : kind === "module-index-summary"
+      ? "module-context"
+      : kind === "selected-contract" || kind === "selected-expansion"
+      ? "selected"
+      : undefined;
+  const rank = (role: string) =>
+    ["selected", "dependency", "importer", "cycle-member", "module-context"]
+      .indexOf(role);
+  const declarationByName = new Map(
+    result.graph.nodes.filter((node) =>
+      node.kind === "component-declaration" && node.componentName
+    ).map((
+      node,
+    ) => [node.componentName!, `${node.path}::${node.componentName}`]),
+  );
+  const expansionOwners = new Map(
+    result.graph.edges.filter((edge) => edge.relation === "matching-expansion")
+      .map((edge) => [edge.targetIdentity, edge.sourceIdentity]),
+  );
+  const componentIdFor = (item: EvidenceUnit) => {
+    const expandedNode = result.graph.nodes.find((node) =>
+      node.path === item.path && node.componentName === item.componentName &&
+      node.kind === "expansion"
+    );
+    const owner = expandedNode
+      ? expansionOwners.get(expandedNode.identity)
+      : undefined;
+    const ownerNode = owner
+      ? result.graph.nodes.find((node) => node.identity === owner)
+      : undefined;
+    return ownerNode?.componentName
+      ? `${ownerNode.path}::${ownerNode.componentName}`
+      : declarationByName.get(item.componentName!) ??
+        `${item.path}::${item.componentName}`;
+  };
+  const glossary = result.evidence.flatMap((item) => {
+    if (item.kind !== "glossary-definition") return [];
+    const separator = item.text.indexOf(": ");
+    if (separator < 0) return [];
+    return [{
+      term: item.text.slice(0, separator),
+      definition: item.text.slice(separator + 2),
+    }];
+  });
+  for (const item of result.evidence) {
+    if (
+      !item.componentName || !item.path ||
+      ![
+        "selected-contract",
+        "selected-expansion",
+        "dependency-contract",
+        "dependency-decision",
+        "importer-contract",
+        "cycle-contract",
+        "module-index-summary",
+        "ownership-projection",
+      ].includes(item.kind)
+    ) continue;
+    const id = componentIdFor(item);
+    if (item.kind === "module-index-summary" && entries.has(id)) continue;
+    const nextRole = roleFor(item.kind);
+    if (item.kind === "ownership-projection") {
+      const existing = entries.get(id);
+      if (!existing) continue;
+      existing.ownership.push({
+        relation: item.text.split(" ")[0],
+        path: item.path,
+        range: item.range,
+        symbol: item.text.match(/ at (.+?)(?: \[|$)/)?.[1],
+        sections:
+          item.text.match(/\[([^\]]*)\]/)?.[1].split(",").filter(Boolean) ?? [],
+      });
+      continue;
+    }
+    if (!nextRole) continue;
+    const entry = entries.get(id) ?? {
+      id,
+      name: item.componentName,
+      path: id.slice(0, id.lastIndexOf("::")),
+      role: nextRole,
+      goal: [],
+      interface: [],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [],
+      links: [],
+      concepts: new Map(),
+    };
+    if (rank(nextRole) < rank(entry.role)) {
+      entry.role = nextRole;
+    }
+    entries.set(id, entry);
+    if (
+      entry.role !== "selected" && entry.role !== "module-context" &&
+      item.sectionName !== "goal" &&
+      item.sectionName !== "interface"
+    ) continue;
+    const value = { text: item.text, path: item.path, range: item.range };
+    if (item.sectionName === "interface") {
+      const key = item.conceptIdentity ?? "";
+      const concept = entry.concepts.get(key) ??
+        { name: item.conceptIdentity, items: [], ownership: [] };
+      concept.items.push(value);
+      entry.concepts.set(key, concept);
+    } else if (
+      ["goal", "state", "logic", "constraints", "decisions", "cases"].includes(
+        String(item.sectionName),
+      )
+    ) entry[item.sectionName!].push(value);
+  }
+  for (const entry of entries.values()) {
+    entry.interface = [...entry.concepts.values()];
+  }
+  const nodeIds = new Map(
+    result.graph.nodes.filter((node) => node.componentName).map((
+      node,
+    ) => [node.identity, `${node.path}::${node.componentName}`]),
+  );
+  for (const edge of result.graph.edges) {
+    const source = nodeIds.get(edge.sourceIdentity);
+    const target = nodeIds.get(edge.targetIdentity);
+    if (source && target && entries.has(source) && entries.has(target)) {
+      entries.get(source).links.push({
+        relation: edge.relation,
+        target,
+        location: { path: edge.originPath, range: edge.originRange },
+      });
+    }
+  }
+  const compare = (left: string, right: string) =>
+    left < right ? -1 : left > right ? 1 : 0;
+  const components = [...entries.values()].map(({ concepts, ...entry }) => ({
+    ...entry,
+    links: entry.links.sort((left: any, right: any) =>
+      compare(left.relation, right.relation) ||
+      compare(left.target, right.target) ||
+      compare(left.location?.path ?? "", right.location?.path ?? "") ||
+      compare(
+        JSON.stringify(left.location?.range ?? {}),
+        JSON.stringify(right.location?.range ?? ""),
+      )
+    ),
+  })).sort((a, b) =>
+    rank(a.role) - rank(b.role) || compare(a.path, b.path) ||
+    compare(a.name, b.name) || compare(a.id, b.id)
+  );
+  const base = {
+    schema: "sigil-retrieval-projection/v1" as const,
+    purpose: result.purpose,
+    target: result.target,
+    components,
+    glossary,
+    diagnostics: result.diagnostics,
+  };
+  return { ...base, fingerprint: `sha256:${await sha256Canonical(base)}` };
 }
 
 /*
@@ -698,7 +871,7 @@ export async function retrievePurposeContext(
             range: owned.annotationRange,
             text: `${owned.relation} ${component.name}${
               owned.symbolIdentity ? ` at ${owned.symbolIdentity}` : ""
-            }`,
+            } [${owned.sections.join(",")}]`,
             rule: "select-owned-implementation",
             seedKey: componentKey(seeds[0]),
             edgeKeys: [edgeKey],
@@ -787,6 +960,7 @@ function addContractEvidence(
     edgeKeys,
   );
 }
+// @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::EvidenceUnitConstruction logic
 function addDeclarationEvidence(
   out: EvidenceDraft[],
   units: readonly SemanticUnit[],
@@ -796,36 +970,22 @@ function addDeclarationEvidence(
   seedKey: string,
   edgeKeys: readonly string[],
 ) {
-  const groups = new Map<string, SemanticUnit[]>();
-  for (const unit of units.filter((item) => item.prose.trim())) {
-    const key = [
-      unit.filePath,
-      unit.ownerKind,
-      unit.ownerName,
-      unit.sectionName,
-    ]
-      .join("\0");
-    groups.set(key, [...(groups.get(key) ?? []), unit]);
-  }
-  for (const group of groups.values()) {
-    group.sort((left, right) =>
-      left.range.start.line - right.range.start.line ||
-      left.range.start.column - right.range.start.column
-    );
-    const concepts = new Set(group.map((unit) => unit.conceptIdentifier));
+  const selected = units.filter((item) => item.prose.trim()).sort((
+    left,
+    right,
+  ) =>
+    left.range.start.line - right.range.start.line ||
+    left.range.start.column - right.range.start.column
+  );
+  for (const unit of selected) {
     out.push({
       kind,
-      path: group[0].filePath,
+      path: unit.filePath,
       componentName,
-      sectionName: group[0].sectionName,
-      conceptIdentity: concepts.size === 1
-        ? group[0].conceptIdentifier
-        : undefined,
-      range: {
-        start: group[0].range.start,
-        end: group[group.length - 1].range.end,
-      },
-      text: group.map((unit) => unit.prose).join("\n"),
+      sectionName: unit.sectionName,
+      conceptIdentity: unit.conceptIdentifier,
+      range: unit.range,
+      text: unit.prose,
       rule,
       seedKey,
       edgeKeys,

@@ -50,6 +50,9 @@ const standardsReview = await Deno.readTextFile(
 const designCompilationReview = await Deno.readTextFile(
   `${root}/references/design-compilation-review.md`,
 );
+const compilationExecution = await Deno.readTextFile(
+  `${root}/references/compilation-execution.md`,
+);
 const externalGuidanceEvidence = await Deno.readTextFile(
   `${root}/references/external-guidance-evidence.md`,
 );
@@ -109,8 +112,33 @@ requireText(
 );
 requireText(
   designCompilationReview,
-  "sigil compile <workspace-root> --agent --focus design <target-selector> --format jsonl",
+  "sigil compile <workspace-root> --agent --focus design <target-selector> --format markdown --output <fresh-report-path>",
   "ordinary design compilation",
+);
+requireText(
+  compilationExecution,
+  "--focus <design|implementation> <target-selector> --format markdown --output <fresh-report-path>",
+  "shared Markdown compilation",
+);
+requireText(
+  compilationExecution,
+  "Do not listen to, parse, capture, or recover a JSONL event stream.",
+  "stream-free compilation execution",
+);
+requireText(
+  compilationExecution,
+  "the process exits with code `0` or `1`",
+  "completed report exit classes",
+);
+requireText(
+  compilationExecution,
+  "Never reuse a report path across attempts",
+  "fresh retry output path",
+);
+forbidText(
+  skill,
+  "--format jsonl",
+  "JSONL compilation in skill dispatcher",
 );
 requireText(
   designCompilationReview,
@@ -430,7 +458,11 @@ const designCompilationReviewFixture = await Deno.readTextFile(
 const requiredDesignCompilationReviewBehaviors = [
   "resolve-nearest-importing-module-index",
   "traverse-graph-context",
-  "start-os-temp-design-session",
+  "reserve-fresh-markdown-report-path",
+  "wait-for-process-exit",
+  "avoid-jsonl-stream-listening",
+  "classify-process-and-report-outcomes",
+  "retry-with-fresh-output-path",
   "forbid-daemon-and-bearer-authority",
   "submit-complete-proposal-generation",
   "consume-compiler-owned-design-evidence",
@@ -441,7 +473,7 @@ const requiredDesignCompilationReviewBehaviors = [
   "invalidate-changed-evidence",
   "compile-written-sigil",
   "gate-glossary-and-implementation",
-  "close-session-and-report-failures",
+  "report-operational-failures",
 ];
 if (!Array.isArray(expected.designCompilationReviewRequiredBehaviors)) {
   throw new Error(
@@ -469,6 +501,21 @@ requireText(
   designCompilationReviewFixture,
   "Run deterministic validation and `sigil compile --focus design`",
   "post-write design compilation",
+);
+requireText(
+  designCompilationReviewFixture,
+  "--format markdown --output <fresh-report-path>",
+  "fixture Markdown report output",
+);
+requireText(
+  designCompilationReviewFixture,
+  "Do not listen to or parse a JSONL stream.",
+  "fixture stream-free execution",
+);
+requireText(
+  designCompilationReviewFixture,
+  "Treat exit zero or one plus a fresh readable nonempty report as completed",
+  "fixture completed report classification",
 );
 const requiredWorkspaceBootstrapBehaviors = [
   "resolve-selected-repository-root",

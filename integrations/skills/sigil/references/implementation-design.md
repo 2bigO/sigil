@@ -350,9 +350,10 @@ before reporting completion:
 
 1. follow `references/compilation-execution.md` with `focus: implementation`:
    `sigil compile <workspace-root> --agent --focus implementation
-   <target-selector> --format jsonl`;
-2. compare the terminal report with the governing Sigil, implementation coverage
-   map, ownership annotations, direct dependents, and relevant verification evidence;
+   <target-selector> --format markdown --output <fresh-report-path>`;
+2. compare the completed Markdown report with the governing Sigil,
+   implementation coverage map, ownership annotations, direct dependents, and
+   relevant verification evidence;
 3. when no unresolved drift remains, report implementation complete;
 4. when a finding needs user judgment but changes no governing contract, ask the
    user to resolve and approve the exact implementation change set, rerun

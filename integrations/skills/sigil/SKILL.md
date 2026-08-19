@@ -33,11 +33,10 @@ how its implementation should be understood and changed.
    not chat proposals or compiler sessions, are the review artifact.
 5. After every semantic edit, follow
    `references/design-compilation-review.md`. It owns the one required
-   check-and-design-compile loop, including target selection, waiting until the
-   compiler emits a terminal outcome and its stream closes, retrying one failed
-   or incomplete run after the process ends, and its report-driven correction
-   path.
-   A terminal design compilation is a mandatory blocker: do not proceed to
+   check-and-design-compile loop, including target selection, waiting for the
+   compiler process to exit, reading its fresh Markdown output file, retrying one
+   failed or incomplete operational run, and its report-driven correction path.
+   A completed design report is a mandatory blocker: do not proceed to
    concept grouping, glossary extraction, user design review, implementation
    approval, or implementation while compilation is unavailable, incomplete,
    failed, cancelled, or still running. Retry according to the shared execution
@@ -64,8 +63,8 @@ how its implementation should be understood and changed.
    Then run implementation-focused compilation, resolve implementation-only questions with the user, and return
    contract-affecting drift to written-Sigil design work. Do not report completion
    until the alignment loop has no unresolved drift and its required compilation
-   has reached a terminal outcome with the stream closed. Compilation is a hard
-   prerequisite, not an optional verification check.
+   process has exited with a readable completed Markdown report. Compilation is
+   a hard prerequisite, not an optional verification check.
 
 Do not use compiler sessions for normal authoring or review. Keep them available
 only for an explicitly requested exceptional diagnostic investigation.
@@ -137,8 +136,8 @@ the implementation phase.
 - `references/design-compilation-review.md`: after design intent is sufficiently
   resolved and after written semantic changes.
 - `references/compilation-execution.md`: for every ordinary design or
-  implementation compilation; it owns durable capture, terminal handling, and
-  one-retry behavior for failed or incomplete runs.
+  implementation compilation; it owns Markdown output isolation, process-exit
+  handling, and one-retry behavior for failed or incomplete operational runs.
 - `references/design-intake.md`: before semantic authoring or implementation for
   every requested change.
 - `references/authoring-conventions.md`: when creating or semantically editing
@@ -163,21 +162,21 @@ Prefer the compatible `sigil` CLI; do not recreate its deterministic semantics.
 sigil parse path/to/file.sigil --format json --pretty
 sigil check path-or-workspace --format json --pretty
 sigil fmt path-or-workspace --check
-sigil compile path-or-workspace --agent --focus design --component Name --format jsonl
-sigil compile path-or-workspace --agent --focus implementation --component Name --format jsonl
-sigil retrieve path-or-workspace --component Name --purpose semantic --format json
-sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format json
-sigil retrieve path-or-workspace --component Name --purpose implementation --format json
+sigil compile path-or-workspace --agent --focus design --component Name --format markdown --output /tmp/sigil-design-report.md
+sigil compile path-or-workspace --agent --focus implementation --component Name --format markdown --output /tmp/sigil-implementation-report.md
+sigil retrieve path-or-workspace --component Name --purpose semantic --format markdown
+sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format markdown
+sigil retrieve path-or-workspace --component Name --purpose implementation --format markdown
 sigil graph path-or-workspace --format json --pretty
-sigil context path-or-workspace --component Name --format json --pretty
-sigil context path-or-workspace --file path/to/file.sigil --format json --pretty
+sigil context path-or-workspace --component Name --format markdown
+sigil context path-or-workspace --file path/to/file.sigil --format  markdown
 sigil glossary path-or-workspace --format json --pretty
 sigil render path-or-workspace
 ```
 
-Exit code `0` is clean; `1` has diagnostics; `2` is usage error; `3` is a host
-or runtime failure that prevents reliance on workspace semantics. CLI output
-never grants implementation approval.
+Exit code `0` is green; `1` accompanies a completed yellow or red report; `2` is
+a usage error; `3` is a host or runtime failure; and `130` is cancellation. CLI
+output never grants implementation approval.
 
 For understanding or review-only requests, do not edit files. For
 standards-aware review, use the headings in `references/standards-review.md`.

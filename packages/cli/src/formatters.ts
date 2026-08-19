@@ -1,12 +1,13 @@
 import type { CommandRequest } from "./args.ts";
 import type { CommandResult } from "./output-model.ts";
-import { renderContextMarkdown } from "./markdown.ts";
+import { projectRetrieval } from "@qoherent/sigil-core";
+import { renderContextMarkdown, renderRetrieveMarkdown } from "./markdown.ts";
 
 // @sigil implements packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
-export function formatResult(
+export async function formatResult(
   result: CommandResult,
   request: CommandRequest,
-): string {
+): Promise<string> {
   if (request.quiet) return "";
   result = normalizeResultPaths(result, request);
   if (
@@ -19,16 +20,7 @@ export function formatResult(
     return renderContextMarkdown(result);
   }
   if (result.command === "retrieve" && request.format === "markdown") {
-    const lines = [
-      `# ${result.purpose} retrieval`,
-      "",
-      `Fingerprint: ${result.fingerprint}`,
-      "",
-    ];
-    for (const section of result.context.sections) {
-      lines.push(`## ${section.kind}`, "", section.text, "");
-    }
-    return `${lines.join("\n")}\n`;
+    return renderRetrieveMarkdown(await projectRetrieval(result));
   }
   if (
     result.command === "version" &&

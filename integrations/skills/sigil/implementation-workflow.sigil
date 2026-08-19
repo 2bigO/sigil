@@ -342,8 +342,8 @@ ImplementationAlignment {
       Completion requires every applicable independent verification command to have
       run, with blocked or unavailable commands explicitly reported.
 
-      Alignment compilation must reach a terminal outcome and close its output stream
-      before its evidence is relied upon.
+      Alignment compilation must exit and produce a readable completed Markdown
+      report before its evidence is relied upon.
 
       Unresolved implementation-only user decisions keep the implementation loop open
       but do not require a Sigil change.
@@ -576,8 +576,8 @@ ImplementationAlignment {
       A discovered missing observable behavior updates scoped Sigil, runs the design
       compile loop, and then resumes implementation preflight.
 
-      Implementation is complete only after the terminal alignment evidence shows no
-      unresolved drift.
+      Implementation is complete only after the completed Markdown alignment report
+      shows no unresolved drift.
 
     }
   }
