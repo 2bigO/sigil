@@ -7,6 +7,137 @@ import type {
 } from "@qoherent/sigil-core";
 import type { CoreAdapter } from "./core-adapter.ts";
 import type { ContextCommandResult } from "./output-model.ts";
+import type {
+  RetrievalProjection,
+  RetrievalProjectionItem,
+} from "@qoherent/sigil-core";
+
+// @sigil implements packages/cli/src/retrieval-markdown.sigil::SigilRetrievalMarkdown::RetrievalMarkdownProjection interface,constraints,cases
+export function renderRetrieveMarkdown(
+  projection: RetrievalProjection,
+): string {
+  const selected = projection.components.filter((item) =>
+    item.role === "selected"
+  );
+  const lines = [`# ${projection.purpose} retrieval`, ""];
+  for (const component of selected) {
+    lines.push(
+      `## ${escapeMarkdown(component.name)}`,
+      "",
+      `Source: ${component.path}`,
+      "",
+    );
+    if (component.goal.length) {
+      lines.push(
+        "### Goal",
+        ...component.goal.map((item) => `- ${escapeMarkdown(item.text)}`),
+        "",
+      );
+    }
+    if (component.interface.length) {
+      lines.push("### Interface");
+      for (const concept of component.interface) {
+        if (concept.name) {
+          lines.push("", `#### ${escapeMarkdown(concept.name)}`);
+        }
+        lines.push(
+          ...concept.items.map((item) => `- ${escapeMarkdown(item.text)}`),
+        );
+      }
+      lines.push("");
+    }
+    for (
+      const [name, items] of [
+        ["State", component.state],
+        ["Logic", component.logic],
+        ["Constraints", component.constraints],
+        ["Decisions", component.decisions],
+        ["Cases", component.cases],
+      ] as const
+    ) {
+      if (items.length) {
+        lines.push(
+          `### ${name}`,
+          ...items.map((item: RetrievalProjectionItem) =>
+            `- ${escapeMarkdown(item.text)}`
+          ),
+          "",
+        );
+      }
+    }
+    if (component.ownership.length) {
+      lines.push(
+        "### Ownership",
+        ...component.ownership.map((item) =>
+          `- ${item.relation} [${escapeMarkdown(item.path)}:${
+            item.range?.start.line ?? "?"
+          }:${item.range?.start.column ?? "?"}](${item.path}#L${
+            item.range?.start.line ?? 1
+          })${item.symbol ? ` (${escapeMarkdown(item.symbol)})` : ""}: ${
+            item.sections.join(", ")
+          }`
+        ),
+        "",
+      );
+    }
+    if (component.links.length) {
+      lines.push(
+        "### Links",
+        ...component.links.map((item) =>
+          `- ${component.id} --${item.relation}--> ${item.target}`
+        ),
+        "",
+      );
+    }
+  }
+  const dependencies = projection.components.filter((item) =>
+    item.role === "dependency"
+  );
+  if (dependencies.length) {
+    lines.push("## Dependencies", "");
+    for (const component of dependencies) {
+      lines.push(
+        `### ${escapeMarkdown(component.name)}`,
+        `Identity: ${component.id}`,
+        `Goal: ${
+          component.goal.map((item) => escapeMarkdown(item.text)).join(" ")
+        }`,
+        `Interface: ${
+          component.interface.flatMap((concept) =>
+            concept.items.map((item) => escapeMarkdown(item.text))
+          ).join(" ")
+        }`,
+        "",
+      );
+    }
+  }
+  const moduleContext = projection.components.filter((item) =>
+    item.role === "module-context"
+  );
+  if (moduleContext.length) {
+    lines.push("## Module Context", "");
+    for (const component of moduleContext) {
+      lines.push(
+        `### ${escapeMarkdown(component.name)}`,
+        `Source: ${component.path}`,
+        ...component.goal.map((item) => `- ${escapeMarkdown(item.text)}`),
+        ...component.interface.flatMap((concept) =>
+          concept.items.map((item) => `- ${escapeMarkdown(item.text)}`)
+        ),
+        ...component.constraints.map((item) =>
+          `- ${escapeMarkdown(item.text)}`
+        ),
+        ...component.decisions.map((item) => `- ${escapeMarkdown(item.text)}`),
+        "",
+      );
+    }
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/([\\`*_{}\[\]<>#+\-.!|])/g, "\\$1");
+}
 
 // @sigil implements packages/cli/_module.sigil::SigilCli::MarkdownOutput interface,logic,constraints
 export function renderWorkspaceMarkdown(

@@ -17,8 +17,8 @@ component SigilRetrievalMarkdown {
       The document title identifies the retrieval purpose. The selected component
       name and repository-relative declaration path appear immediately below it.
 
-      The selected component renders Goal, Interface, Constraints, Decisions, Cases,
-      and Ownership in that order when each section has content.
+      The selected component renders Goal, Interface, State, Logic, Constraints,
+      Decisions, Cases, and Ownership in that order when each section has content.
 
       Interface content renders under a concept heading only when the projection
       carries that concept identity. Ungrouped interface content remains directly
@@ -44,7 +44,8 @@ component SigilRetrievalMarkdown {
 
       Do not render raw EvidenceKind labels, a matching expansion heading, an
       implementation-source slice, a duplicate module-index contract, empty-section
-      placeholders, or a separate presentation relationship map.
+      placeholders, or a separate presentation relationship map. Render a
+      non-duplicate module-context contract under Module Context.
 
       Preserve projection ordering and escape Markdown-reserved content without
       altering semantic text, locations, component identity, or link targets.
@@ -82,8 +83,12 @@ component SigilRetrievalMarkdown {
       A component-owned OwnershipLink renders one file-and-position link under the
       relevant component or concept and does not render implementation source text.
 
-      A selected component with no Constraints, Decisions, Cases, or Ownership omits
-      those headings while retaining Goal, Interface, and Dependencies when present.
+      A selected component with no State, Logic, Constraints, Decisions, Cases, or
+      Ownership omits those headings while retaining Goal, Interface, and
+      Dependencies when present.
+
+      A module-index summary whose component is otherwise absent renders once under
+      Module Context; an already represented component does not repeat there.
     }
   }
 }

@@ -1,4 +1,5 @@
 import {
+  type RetrievalProjection,
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
@@ -16,6 +17,7 @@ import { runCli } from "../src/main.ts";
 import { compileWithBundledAdapters } from "../src/compiler-adapters.ts";
 import type { CheckRequest } from "../src/args.ts";
 import { formatResult } from "../src/formatters.ts";
+import { renderRetrieveMarkdown } from "../src/markdown.ts";
 import type { CheckCommandResult } from "../src/output-model.ts";
 import {
   EXIT_DIAGNOSTICS,
@@ -23,6 +25,62 @@ import {
   EXIT_RUNTIME,
   EXIT_USAGE,
 } from "../src/exit.ts";
+
+// @sigil tests packages/cli/src/retrieval-markdown.sigil::SigilRetrievalMarkdown::RetrievalMarkdownProjection interface,constraints,cases
+Deno.test("retrieve Markdown renders module context and escaped ownership links", () => {
+  const projection: RetrievalProjection = {
+    schema: "sigil-retrieval-projection/v1",
+    purpose: "semantic",
+    target: {
+      kind: "component",
+      componentName: "Feature",
+      pathStatus: "accepted",
+      path: "feature.sigil",
+    },
+    components: [{
+      id: "feature.sigil::Feature",
+      name: "Feature",
+      path: "feature.sigil",
+      role: "selected",
+      goal: [{ text: "Use *safe* Markdown.", path: "feature.sigil" }],
+      interface: [],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [{
+        relation: "implements",
+        path: "src/feature.ts",
+        range: { start: { line: 8, column: 3 }, end: { line: 8, column: 9 } },
+        symbol: "renderFeature",
+        sections: ["interface"],
+      }],
+      links: [],
+    }, {
+      id: "_module.sigil::Workspace",
+      name: "Workspace",
+      path: "_module.sigil",
+      role: "module-context",
+      goal: [{ text: "Assemble the workspace.", path: "_module.sigil" }],
+      interface: [],
+      state: [],
+      logic: [],
+      constraints: [],
+      decisions: [],
+      cases: [],
+      ownership: [],
+      links: [],
+    }],
+    diagnostics: [],
+    fingerprint: "sha256:test",
+  };
+  const markdown = renderRetrieveMarkdown(projection);
+  assert(markdown.includes("Use \\*safe\\* Markdown\\."));
+  assert(markdown.includes("[src/feature\\.ts:8:3](src/feature.ts#L8)"));
+  assert(markdown.includes("## Module Context"));
+  assert(markdown.includes("### Workspace"));
+});
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
 Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
@@ -515,7 +573,7 @@ Deno.test("--show-locations is rejected outside check", async () => {
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
-Deno.test("check location rendering handles ranges, missing ranges, and path styles", () => {
+Deno.test("check location rendering handles ranges, missing ranges, and path styles", async () => {
   const base = {
     command: "check",
     pretty: false,
@@ -557,7 +615,7 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
     ],
   };
   const winRequest: CheckRequest = { ...base, format: "text", root: winRoot };
-  const winText = formatResult(winResult, winRequest);
+  const winText = await formatResult(winResult, winRequest);
   assert(
     winText.includes(
       "error SIGIL_UNKNOWN_SECTION C:/repo/pkg/a.sigil:8:3: Unknown section.",
@@ -600,7 +658,7 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
     ],
   };
   const posixRequest: CheckRequest = { ...base, format: "text" };
-  const posixText = formatResult(posixResult, posixRequest);
+  const posixText = await formatResult(posixResult, posixRequest);
   assert(
     posixText.includes(
       "error SIGIL_UNKNOWN_SECTION demo/pkg/a.sigil:4:2: Unknown section.",

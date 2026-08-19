@@ -1,4 +1,4 @@
-@packages/core/src/model import { SigilSemanticModel }
+@packages/core/src/model/retrieval.sigil import { SigilRetrievalModel }
 @packages/core/src/graph.sigil import { SigilGraphBuilder }
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 @packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }
@@ -48,7 +48,7 @@ component SigilContextRetrieval {
     PurposeRetrievalResult {
       uses the immutable PurposeRetrievalResult, SelectedRetrievalGraph,
       RetrievalNode, RetrievalEdge, EvidenceUnit, InclusionReason, ExcludedRelation,
-      and AggregatedRetrievalContext shapes owned by SigilSemanticModel
+      and AggregatedRetrievalContext shapes owned by SigilRetrievalModel
       RetrievalModel
 
       every stable identity is a lowercase kind prefix, colon, and SHA-256 digest of
@@ -65,7 +65,7 @@ component SigilContextRetrieval {
 
     RetrievalProjectionDerivation {
       projectRetrieval(result) returns one RetrievalProjection owned by
-      SigilSemanticModel RetrievalModel without changing result.
+      SigilRetrievalModel RetrievalModel without changing result.
 
       projection uses raw selected graph, ordered evidence, inclusion reasons, and
       diagnostics only as deterministic inputs; it does not reload the workspace,

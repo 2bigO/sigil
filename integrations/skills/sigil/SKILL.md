@@ -164,9 +164,9 @@ sigil check path-or-workspace --format json --pretty
 sigil fmt path-or-workspace --check
 sigil compile path-or-workspace --agent --focus design --component Name --format markdown --output /tmp/sigil-design-report.md
 sigil compile path-or-workspace --agent --focus implementation --component Name --format markdown --output /tmp/sigil-implementation-report.md
-sigil retrieve path-or-workspace --component Name --purpose semantic --format json
-sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format json
-sigil retrieve path-or-workspace --component Name --purpose implementation --format json
+sigil retrieve path-or-workspace --component Name --purpose semantic --format markdown
+sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format markdown
+sigil retrieve path-or-workspace --component Name --purpose implementation --format markdown
 sigil graph path-or-workspace --format json --pretty
 sigil context path-or-workspace --component Name --format json --pretty
 sigil context path-or-workspace --file path/to/file.sigil --format json --pretty

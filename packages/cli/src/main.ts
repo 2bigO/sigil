@@ -408,7 +408,7 @@ export async function runCli(
       exitCode: formatDifference
         ? 1
         : exitCodeForDiagnostics(result.diagnostics),
-      stdout: formatResult(result, parsed.request),
+      stdout: await formatResult(result, parsed.request),
       stderr: "",
     };
   } catch (error) {
