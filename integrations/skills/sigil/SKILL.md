@@ -168,8 +168,8 @@ sigil retrieve path-or-workspace --component Name --purpose semantic --format ma
 sigil retrieve path-or-workspace --file path/to/file.sigil --purpose architecture --format markdown
 sigil retrieve path-or-workspace --component Name --purpose implementation --format markdown
 sigil graph path-or-workspace --format json --pretty
-sigil context path-or-workspace --component Name --format json --pretty
-sigil context path-or-workspace --file path/to/file.sigil --format json --pretty
+sigil context path-or-workspace --component Name --format markdown
+sigil context path-or-workspace --file path/to/file.sigil --format  markdown
 sigil glossary path-or-workspace --format json --pretty
 sigil render path-or-workspace
 ```
