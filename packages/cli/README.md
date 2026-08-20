@@ -115,9 +115,10 @@ Configure agentic compilation under `tools.compile`:
 }
 ```
 
-Each developer may create ignored `.sigil/local.json` containing `{ "tools": ... }`.
-It recursively overrides the tracked `tools` object only. Use `sigil compile --agent`
-to select `tools.agent.profile`, falling back to `tools.compile.defaultProfile`.
+Each developer may create ignored `.sigil/local.json` containing
+`{ "tools": ... }`. It recursively overrides the tracked `tools` object only.
+Use `sigil compile --agent` to select `tools.agent.profile`, falling back to
+`tools.compile.defaultProfile`.
 
 Profiles may select a fallback evaluator list and stage-specific overrides:
 
@@ -145,12 +146,12 @@ experiments.
 
 ### Available adapters
 
-| Provider | Built-in implementation ID | Version | Model setting | Availability |
-| --- | --- | --- | --- | --- |
-| `codex` | `builtin.codex-cli` | `0.7.1` | Optional `model` | Bundled and available through the Codex CLI. |
-| `claude` | `builtin.claude-cli` | `0.7.1` | Optional `model` | Recognized, but the bundled placeholder rejects evaluation; install a compatible adapter implementation to use it. |
-| `opencode` | `builtin.opencode-cli` | `0.7.1` | Optional `model` | Bundled by the Sigil CLI. |
-| `pi` | `builtin.pi-cli` | `0.7.1` | Optional `model` | Bundled by the Sigil CLI. |
+| Provider   | Built-in implementation ID | Version | Model setting    | Availability                                                                                                       |
+| ---------- | -------------------------- | ------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `codex`    | `builtin.codex-cli`        | `0.7.1` | Optional `model` | Bundled and available through the Codex CLI.                                                                       |
+| `claude`   | `builtin.claude-cli`       | `0.7.1` | Optional `model` | Recognized, but the bundled placeholder rejects evaluation; install a compatible adapter implementation to use it. |
+| `opencode` | `builtin.opencode-cli`     | `0.7.1` | Optional `model` | Bundled by the Sigil CLI.                                                                                          |
+| `pi`       | `builtin.pi-cli`           | `0.7.1` | Optional `model` | Bundled by the Sigil CLI.                                                                                          |
 
 Set `provider`, optional `model`, and, when required, the exact
 `implementationId` and `implementationVersion` on `adapter` or a named entry in
@@ -210,8 +211,8 @@ Copy-paste example:
 ```
 
 Put personal provider, model, or profile choices in `.sigil/local.json`; its
-`tools` object merges over the tracked configuration. Run `sigil compile --agent`
-to use `tools.agent.profile`.
+`tools` object merges over the tracked configuration. Run
+`sigil compile --agent` to use `tools.agent.profile`.
 
 ### Compiler configuration reference
 
@@ -225,8 +226,8 @@ version.
 
 `tools.compile.evaluators` is a map of named bindings with the same fields as
 `adapter`. Use these names in `profiles.<name>.main` or
-`profiles.<name>.stages.<stage>`. `main` is required when a `stages` map omits an
-agentic stage. `evaluatorIds` remains supported for older configurations and
+`profiles.<name>.stages.<stage>`. `main` is required when a `stages` map omits
+an agentic stage. `evaluatorIds` remains supported for older configurations and
 applies to every agentic stage when `main` and `stages` are absent.
 
 `tools.compile.defaultProfile` selects the profile used by ordinary
@@ -234,44 +235,45 @@ applies to every agentic stage when `main` and `stages` are absent.
 `sigil compile --agent`. A profile may use `extends: "standard"` or
 `extends: "critical-system"`; `standard` runs deterministic foundation plus the
 normal design stages, while `critical-system` also includes `standards-risk` and
-requires independent evaluators. A custom profile name must declare one of
-those bases with `extends`. `disabledStages` disables optional stages, but cannot
+requires independent evaluators. A custom profile name must declare one of those
+bases with `extends`. `disabledStages` disables optional stages, but cannot
 bypass required dependencies.
 
-The valid agentic `stages` keys are `semantic-readiness`,
-`architecture-design`, `current-code-compatibility`, and `standards-risk`.
-`deterministic-foundation` is built in and does not accept an evaluator binding.
+The valid agentic `stages` keys are `semantic-readiness`, `architecture-design`,
+`current-code-compatibility`, and `standards-risk`. `deterministic-foundation`
+is built in and does not accept an evaluator binding.
 
 `tools.compile.budgets` contains positive integer limits:
 
-| Field | Default | Purpose |
-| --- | ---: | --- |
-| `elapsedTimeMs` | `1800000` | Maximum elapsed evaluator time (30 minutes). |
-| `maxCommands` | `512` | Maximum inspection commands an evaluator may issue. |
-| `maxCommandOutputChars` | `3000000` | Maximum retained nonessential command output. |
-| `maxInputTokens` | `1000000` | Maximum configured input-token budget. |
-| `maxOutputTokens` | `1000000` | Maximum configured output-token budget. |
+| Field                   |   Default | Purpose                                             |
+| ----------------------- | --------: | --------------------------------------------------- |
+| `elapsedTimeMs`         | `1800000` | Maximum elapsed evaluator time (30 minutes).        |
+| `maxCommands`           |     `512` | Maximum inspection commands an evaluator may issue. |
+| `maxCommandOutputChars` | `3000000` | Maximum retained nonessential command output.       |
+| `maxInputTokens`        | `1000000` | Maximum configured input-token budget.              |
+| `maxOutputTokens`       | `1000000` | Maximum configured output-token budget.             |
 
 `tools.compile.limits` also contains positive integer limits:
 
-| Field | Default | Purpose |
-| --- | ---: | --- |
-| `maxCompilationRequestChars` | `1000000` | Maximum compiler evaluation request and provider result size. |
-| `maxAgentInputChars` | `1000000` | Maximum initial agent request size. |
-| `sessionTtlMs` | `86400000` | Proposal-compilation session lifetime (24 hours). |
-| `providerCleanupMs` | `5000` | Deadline for graceful and forced provider cleanup. |
+| Field                        |    Default | Purpose                                                       |
+| ---------------------------- | ---------: | ------------------------------------------------------------- |
+| `maxCompilationRequestChars` |  `1000000` | Maximum compiler evaluation request and provider result size. |
+| `maxAgentInputChars`         |  `1000000` | Maximum initial agent request size.                           |
+| `sessionTtlMs`               | `86400000` | Proposal-compilation session lifetime (24 hours).             |
+| `providerCleanupMs`          |     `5000` | Deadline for graceful and forced provider cleanup.            |
 
 The CLI also bundles and registers the independently packaged OpenCode and Pi
 compiler adapters. OpenCode evaluation uses `opencode run --format json`,
 standard-input guidance, the selected workspace and model, and restrictive
 inline permissions. Because OpenCode exposes no ephemeral CLI mode, that adapter
-declares persistent state. Pi evaluation uses `pi --print --mode json
---no-session` with a read-only tool allowlist that includes bash for inspection
-commands, and disables Pi skill, context-file, and extension discovery so
-compiler focus skills arrive only through the evaluation prompt. The compiler
-derives the request persistence requirement from the exactly selected adapter
-while keeping read-only, no agent-tool network, and no approval escalation
-requirements fixed.
+declares persistent state. Pi evaluation uses
+`pi --print --mode json
+--no-session` with a read-only tool allowlist that
+includes bash for inspection commands, and disables Pi skill, context-file, and
+extension discovery so compiler focus skills arrive only through the evaluation
+prompt. The compiler derives the request persistence requirement from the
+exactly selected adapter while keeping read-only, no agent-tool network, and no
+approval escalation requirements fixed.
 
 Unless `--no-cache` is set, completed compilation reports are atomically stored
 under the operating system's user cache directory and used to derive diagnostic

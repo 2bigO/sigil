@@ -1,0 +1,139 @@
+@packages/core/src/model/retrieval.sigil import { SigilRetrievalModel }
+
+component SigilEvaluatorRetrievalBrief {
+  goal {
+    Derive one compact, component-oriented evaluator brief from purpose retrieval
+    without changing the complete result retained by compilation.
+  }
+
+  interface {
+    EvaluatorRetrievalBrief {
+      deriveEvaluatorRetrievalBrief(PurposeRetrievalResult) returns one immutable
+      brief containing target, purpose, raw retrieval fingerprint, selected and
+      related component contracts, glossary entries, allowed direct-read paths, and
+      an LLM-friendly projection of the selected dependency graph.
+
+      The brief renders as deterministic compact Markdown-like records for an
+      evaluator prompt. It has no JSON object serialization, repeated schema headers,
+      raw evidence records, inclusion reasons, exclusions, aggregated context, or
+      implementation-source text.
+
+      Component contracts group semantic units below their component and concept
+      identity. A component is shown once even when several graph relationships
+      select it. Expansions merge into that component rather than creating another
+      component heading.
+
+      The dependency graph is one optional Markdown section after component
+      contracts. Each line uses readable component labels and one relation arrow;
+      repeated source labels are grouped as an adjacency list. A declaration path
+      disambiguates equal component names. It contains no raw node or edge JSON,
+      schema keywords, or stable identities.
+
+      Allowed direct-read paths are the normalized unique paths from the selected
+      component and selected raw evidence. They are navigation permissions for
+      targeted verification, not additional evaluation membership.
+    }
+  }
+}
+
+expand SigilEvaluatorRetrievalBrief {
+  logic {
+    EvaluatorRetrievalBrief {
+      Derive component contracts, glossary entries, ownership links, and stable
+      presentation order from SigilRetrievalModel RetrievalProjection.
+
+      Derive the dependency graph directly from the raw selected graph instead of
+      inferring it from component links. Group its selected edges under readable
+      source-component labels, preserve raw edge order within each source, and omit
+      only isolated non-component nodes that convey no component relationship.
+
+      Render one short provenance line, one target line, optional compact component
+      sections, one dependency-graph section, optional glossary, and one
+      allowed-paths section. Omit every empty section and never repeat a field label
+      per semantic unit when its component or concept heading already gives that
+      context.
+    }
+  }
+
+  constraints {
+    EvaluatorRetrievalBrief {
+      The raw PurposeRetrievalResult remains the authoritative membership,
+      completeness, snapshot, and provenance record. Its fingerprint is retained
+      verbatim in the brief and compiler request; the brief never replaces or
+      recomputes it.
+
+      A provider receives only the rendered brief and allowed direct-read paths, not
+      the raw retrieval result. Compiler validation continues to bind the raw result
+      to target, purpose, and workspace snapshot before provider invocation.
+
+      Direct reads may verify an included contract, ownership target, or graph
+      relation. They may not add ordinary finding evidence outside the raw result's
+      selected membership.
+
+      Every rendered component and graph relation resolves to the exact raw selected
+      node and edge used to derive it. Invalid or incomplete raw retrieval prevents
+      brief derivation and provider invocation.
+
+      Rendering is deterministic for byte-identical raw retrieval input. It does not
+      depend on the CLI renderer, workspace reloads, or provider behavior.
+    }
+  }
+
+  decisions {
+    SeparateEvaluatorRetrievalBrief {
+      Decision: Add a compiler-owned evaluator brief distinct from CLI retrieval
+      Markdown and derive it from raw purpose retrieval plus its projection.
+
+      Scope: Governs compiler-to-provider retrieval presentation; excludes CLI output
+      compatibility, raw purpose-retrieval v1, and report storage.
+
+      Rationale: CLI Markdown is optimized for interactive retrieval, whereas an
+      evaluator needs compact prompt evidence, explicit provenance, and readable
+      graph topology without JSON field-name repetition.
+
+      Trade-offs: The compiler maintains a second renderer, while evaluator input is
+      substantially smaller and avoids coupling provider prompts to CLI presentation.
+
+      Discarded alternatives: Serializing raw JSON and reusing CLI Markdown unchanged
+      were rejected because the former duplicates evidence and field names, while the
+      latter does not expose a compact graph projection in the needed form.
+
+      Consequences: The CLI and compiler may evolve distinct presentations while
+      sharing one authoritative PurposeRetrievalResult and retrieval fingerprint.
+    }
+
+    MarkdownDependencyGraph {
+      Decision: Project the selected raw graph into one compact Markdown dependency
+      section rather than sending raw node and edge records.
+
+      Scope: Governs dependency-topology presentation; excludes traversal beyond
+      selected retrieval membership and graph-derived finding semantics.
+
+      Rationale: Component contracts show meaning, while readable relation arrows
+      make dependency direction and ownership relationships inspectable without JSON
+      field names, stable-identity noise, repeated node metadata, or a separate graph
+      request.
+
+      Consequences: Evaluators can reason about the selected topology directly but
+      still require a concrete architectural consequence for a finding.
+    }
+  }
+
+  cases {
+    EvaluatorRetrievalBrief {
+      An implementation-purpose result with repeated implementation-source evidence
+      retains its raw fingerprint and allowed source path once, but sends no source
+      text or duplicate context section to the provider.
+
+      A component that is both a dependency and a cycle member renders one compact
+      contract and one grouped graph line for every selected relation that describes
+      it.
+
+      A result with no glossary, ownership, or graph edges omits those empty brief
+      sections while retaining provenance, target, and selected component contract.
+
+      Two evaluators for the same raw retrieval fingerprint receive byte-identical
+      brief text, graph projection, and allowed direct-read paths.
+    }
+  }
+}

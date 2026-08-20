@@ -435,7 +435,7 @@ export async function compile(
               workspaceRoot: workspace.root,
               workspaceSnapshotIdentity:
                 resolved.workspace.workspaceSnapshotIdentity,
-              target: compilationEvaluationTarget(
+              target: await compilationEvaluationTarget(
                 component,
                 workspace.root,
                 retrieval,

@@ -2,6 +2,7 @@ import { applyDiagnosticLifecycle } from "./history.ts";
 import { compilationColor } from "./status.ts";
 import {
   COMPILATION_REPORT_VERSION,
+  type CompilationEvaluationResult,
   type CompilationReport,
   type CompilerDiagnostic,
   type StageReport,
@@ -46,13 +47,17 @@ export interface SessionReportIdentity {
 
 // @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::CompilationReport interface,cases
 export function constructSessionCompilationReport(
-  evaluation: CompilationReport,
+  evaluation: CompilationEvaluationResult,
   identity: SessionReportIdentity,
+  previous?: CompilationReport,
 ): CompilationReport {
-  return {
+  return constructCompilationReport({
     ...evaluation,
+    diagnostics: evaluation.diagnostics ?? [],
+    stages: evaluation.stages ?? [],
     runId: identity.runId,
     workspaceRoot: identity.workspaceRoot,
+    previous,
     session: {
       sessionIdentity: identity.sessionIdentity,
       baseEpoch: identity.baseEpoch,
@@ -60,7 +65,7 @@ export function constructSessionCompilationReport(
       baseFingerprint: identity.baseFingerprint,
       proposalFingerprint: identity.proposalFingerprint,
     },
-  };
+  });
 }
 
 // @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface

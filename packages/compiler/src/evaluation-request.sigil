@@ -3,6 +3,7 @@
 @packages/compiler/src/evaluation-execution.sigil import { SigilAgentExecutionPolicy }
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
 @packages/compiler/src/adapter-subprocess.sigil import { SigilAgentAdapterSubprocess }
+@packages/compiler/src/evaluator-retrieval.sigil import { SigilEvaluatorRetrievalBrief }
 
 component SigilAgentEvaluationRequest {
   goal {
@@ -18,9 +19,9 @@ component SigilAgentEvaluationRequest {
     AgentEvaluationRequest {
       contains one target identity, stage identity and purpose, provider-neutral
       EvaluationGuidance, output schema, workspace root and snapshot identity,
-      complete PurposeRetrievalResult, resolved AgentCapabilityContract,
-      AdapterObservabilityDeclaration, AgentExecutionBudgets, AgentOperationalLimits,
-      and AgentCancellation
+      complete PurposeRetrievalResult, its derived EvaluatorRetrievalBrief, resolved
+      AgentCapabilityContract, AdapterObservabilityDeclaration,
+      AgentExecutionBudgets, AgentOperationalLimits, and AgentCancellation
 
       EvaluationGuidance contains validated skill identity, version, instructions,
       allowed rules, implementation-evidence policy, and output-contract identity;
@@ -35,6 +36,11 @@ component SigilAgentEvaluationRequest {
       requested purpose; a binding mismatch, retrieval error, or incomplete purpose
       result prevents provider invocation and produces an incomplete-evidence
       evaluator outcome
+
+      EvaluatorRetrievalBrief target, purpose, and raw retrieval fingerprint exactly
+      match the complete PurposeRetrievalResult. The compiler retains that raw result
+      for validation and provenance, while adapter prompt construction receives only
+      the brief and its allowed direct-read paths.
 
       initial request size is a transport bound owned by SigilAgentAdapterSubprocess
       validateInput and does not limit later workspace reads by the selected adapter
@@ -120,6 +126,20 @@ expand SigilAgentEvaluationRequest {
       retrieval evidence selected for another target, purpose, or snapshot.
     }
 
+    CompactEvaluatorRetrievalTransport {
+      Decision: Bind a compact EvaluatorRetrievalBrief beside the complete raw
+      PurposeRetrievalResult and send only the brief to the provider.
+
+      Scope: Governs evaluation-request retrieval transport; excludes raw retrieval
+      validation, CLI rendering, and provider-specific invocation framing.
+
+      Rationale: Preserving raw provenance inside the compiler does not require
+      repeating raw evidence, context, and JSON field names in every provider input.
+
+      Consequences: Request validation detects raw-to-brief mismatch before launch,
+      and adapter input sizing measures the compact provider representation.
+    }
+
   }
 
   cases {
@@ -130,6 +150,9 @@ expand SigilAgentEvaluationRequest {
       A matching retrieval result containing an error diagnostic or incomplete for
       the requested purpose prevents provider invocation and yields incomplete
       evidence.
+
+      A derived brief with another target, purpose, or raw fingerprint prevents
+      provider invocation even when the raw retrieval result is otherwise complete.
     }
 
     AgentEvaluationResult {

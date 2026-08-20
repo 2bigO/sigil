@@ -30,8 +30,13 @@ export interface AdapterExecutionOperation<T> {
     signal: AbortSignal,
     resources: AdapterExecutionResources,
     terminationControl: AdapterTerminationControl,
-  ): Promise<T>;
+    submitTerminalCondition: (condition: AdapterTerminalCondition<T>) => void,
+  ): Promise<T | void>;
 }
+
+export type AdapterTerminalCondition<T> =
+  | { readonly kind: "result"; readonly value: T }
+  | { readonly kind: "failure"; readonly error: unknown };
 
 export interface AdapterTerminationControl {
   requestPreventiveBudgetTermination(message: string): void;
@@ -232,14 +237,35 @@ export async function coordinateAdapterExecution<T>(
           : "Evaluation elapsed-time budget expired before invocation.",
       );
     }
-    void operation.invoke(signal, resourceHooks, terminationControl).then(
+    let submittedByAdapter = false;
+    const submitTerminalCondition = (
+      condition: AdapterTerminalCondition<T>,
+    ) => {
+      submittedByAdapter = true;
+      if (condition.kind === "failure") {
+        arbiter.submitFailure(condition.error);
+        return;
+      }
+      void waitForResultInputs(resultInputs, (notifier) => {
+        resultInputSettlementNotifier = notifier;
+      }).then(() => arbiter.submitResult(condition.value));
+    };
+    void operation.invoke(
+      signal,
+      resourceHooks,
+      terminationControl,
+      submitTerminalCondition,
+    ).then(
       async (result) => {
+        if (submittedByAdapter) return;
         await waitForResultInputs(resultInputs, (notifier) => {
           resultInputSettlementNotifier = notifier;
         });
-        arbiter.submitResult(result);
+        arbiter.submitResult(result as T);
       },
-      (error) => arbiter.submitFailure(error),
+      (error) => {
+        if (!submittedByAdapter) arbiter.submitFailure(error);
+      },
     );
     const settled = await arbiter.waitForWinner();
     if (settled instanceof Error) throw settled;
@@ -413,6 +439,7 @@ class AdapterTerminalArbiter<T> {
   #settled = false;
   #resultSubmitted = false;
   #drainScheduled = false;
+  #nextSequence = 0;
   #resolve?: (value: T | Error) => void;
   readonly #winner = new Promise<T | Error>((resolve) => {
     this.#resolve = resolve;
@@ -430,7 +457,7 @@ class AdapterTerminalArbiter<T> {
     }
     this.#resultSubmitted = true;
     this.#submit({
-      sequence: this.#conditions.length,
+      sequence: this.#nextSequence++,
       kind: "result",
       value,
     });
@@ -455,7 +482,7 @@ class AdapterTerminalArbiter<T> {
         cause: failure,
       });
     this.#submit({
-      sequence: this.#conditions.length,
+      sequence: this.#nextSequence++,
       kind,
       value: normalized,
     });

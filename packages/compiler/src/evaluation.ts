@@ -2,21 +2,24 @@ import type {
   PurposeRetrievalResult,
   ResolvedComponent,
 } from "@qoherent/sigil-core";
+import { deriveEvaluatorRetrievalBrief } from "./evaluator-retrieval.ts";
 import { validateAgentEvaluationRequest } from "./evaluation-request.ts";
 import type {
   AgentEvaluationRequest,
   AgentEvaluationTarget,
+  CompilationEvaluationResult,
   CompilationReport,
   CompilationTarget,
   CompileOptions,
 } from "./types.ts";
+import type { CompilationEventWriter } from "./event-writer.ts";
 
 export type CompilationEvaluationRunner = (
   workspacePath: string,
   target: CompilationTarget,
   profileName: string,
   options: CompileOptions,
-) => Promise<CompilationReport>;
+) => Promise<CompilationReport | CompilationEvaluationResult>;
 
 /**
  * The session-facing evaluation boundary. It keeps the session independent of
@@ -30,25 +33,31 @@ export async function evaluateCompilation(
   target: CompilationTarget,
   profileName: string,
   options: CompileOptions,
-): Promise<CompilationReport> {
-  return await runner(workspacePath, target, profileName, options);
+  eventWriter: CompilationEventWriter,
+  runId: string,
+): Promise<CompilationEvaluationResult> {
+  return await runner(workspacePath, target, profileName, {
+    ...options,
+    disableHistory: true,
+    internalEvaluation: true,
+    eventWriter,
+    runId,
+  } as CompileOptions) as CompilationEvaluationResult;
 }
 
 // @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::EvaluationContext logic,constraints,cases
-export function compilationEvaluationTarget(
+export async function compilationEvaluationTarget(
   component: ResolvedComponent,
   root: string,
   retrieval: PurposeRetrievalResult,
-): AgentEvaluationTarget {
-  const initialPaths = new Set([
-    component.filePath,
-    ...retrieval.evidence.flatMap((item) => item.path ? [item.path] : []),
-  ].map((path) => canonicalWorkspacePath(path, root)));
+): Promise<AgentEvaluationTarget> {
+  const retrievalBrief = await deriveEvaluatorRetrievalBrief(retrieval, root);
   return {
     componentName: component.name,
     sigilFile: canonicalWorkspacePath(component.filePath, root),
-    initialPaths: [...initialPaths],
+    initialPaths: retrievalBrief.allowedDirectReadPaths,
     retrieval,
+    retrievalBrief,
   };
 }
 
@@ -62,6 +71,12 @@ export function buildAgentEvaluationRequest(
     target: Object.freeze({
       ...request.target,
       initialPaths: Object.freeze([...request.target.initialPaths]),
+      retrievalBrief: request.target.retrievalBrief && Object.freeze({
+        ...request.target.retrievalBrief,
+        allowedDirectReadPaths: Object.freeze([
+          ...request.target.retrievalBrief.allowedDirectReadPaths,
+        ]),
+      }),
     }),
   });
 }

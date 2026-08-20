@@ -3,10 +3,9 @@
 @packages/compiler/src/adapter-execution-coordinator.sigil import { SigilAgentAdapterExecutionCoordinator }
 @packages/compiler/src/adapter-subprocess.sigil import { SigilAgentAdapterSubprocess }
 @packages/compiler/src/evaluation-request.sigil import { SigilAgentEvaluationRequest }
+@packages/compiler/src/evaluator-retrieval.sigil import { SigilEvaluatorRetrievalBrief }
 @packages/compiler/src/compiler.sigil import { SigilOneShotCompilation }
 @packages/compiler/src/report-markdown.sigil import { SigilCompilationReportMarkdown }
-@packages/compiler/src/session-factory.sigil import { SigilCompilationSessionFactory }
-@packages/compiler/src/session.sigil import { SigilCompilationSession }
 
 component SigilCompiler {
   goal {
@@ -19,7 +18,6 @@ component SigilCompiler {
     parsing, resolution, graph/context retrieval, and deterministic language
     diagnostics.
 
-    Proposal coordination may write only compiler-owned proposal and session state.
     The compiler does not replace human design approval.
   }
 
@@ -44,15 +42,15 @@ component SigilCompiler {
       SigilAgentEvaluationRequest defines the validated evaluation input supplied to
       an agent adapter.
 
+      SigilEvaluatorRetrievalBrief provides the compact component and graph evidence
+      presentation supplied to an evaluator.
+
       SigilOneShotCompilation owns one compilation invocation from validation and
       workspace acquisition through evaluation, reporting, export, and settlement.
 
       SigilCompilationReportMarkdown provides the shared deterministic Markdown
       projection of a completed authoritative CompilationReport.
 
-      SigilCompilationSessionFactory creates durable compiler sessions; subsequent
-      session operation and proposal-workspace lifecycle remain owned by
-      SigilCompilationSession.
     }
   }
 }

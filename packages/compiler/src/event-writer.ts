@@ -42,7 +42,16 @@ export interface CompilationEventWriter {
   stageCompleted(report: StageReport): Promise<WriterResult>;
   completed(report: CompilationReport): Promise<WriterResult>;
   failed(code: string, message: string): Promise<WriterResult>;
-  cancelled(message: string): Promise<WriterResult>;
+  cancelled(
+    message: string,
+    session?: {
+      readonly sessionIdentity: string;
+      readonly baseEpoch: number;
+      readonly generation: number;
+      readonly baseFingerprint: string;
+      readonly proposalFingerprint: string;
+    },
+  ): Promise<WriterResult>;
 }
 
 export type OpenWriterResult =
@@ -160,12 +169,33 @@ class WriterState implements CompilationEventWriter {
     );
   }
 
-  cancelled(message: string): Promise<WriterResult> {
+  cancelled(
+    message: string,
+    session?: {
+      readonly sessionIdentity: string;
+      readonly baseEpoch: number;
+      readonly generation: number;
+      readonly baseFingerprint: string;
+      readonly proposalFingerprint: string;
+    },
+  ): Promise<WriterResult> {
     return this.enqueue(
       true,
       () =>
-        typeof message === "string"
-          ? ["cancelled", { code: "COMPILER_CANCELLED", message }]
+        typeof message === "string" &&
+          (!session || (
+            session.sessionIdentity === this.expected.sessionIdentity &&
+            Number.isSafeInteger(session.baseEpoch) && session.baseEpoch > 0 &&
+            Number.isSafeInteger(session.generation) &&
+            session.generation > 0 &&
+            typeof session.baseFingerprint === "string" &&
+            typeof session.proposalFingerprint === "string"
+          ))
+          ? ["cancelled", {
+            code: "COMPILER_CANCELLED",
+            message,
+            ...(session ? { session } : {}),
+          }]
           : undefined,
     );
   }

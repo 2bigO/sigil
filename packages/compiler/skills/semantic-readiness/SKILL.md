@@ -3,11 +3,11 @@
 Determine whether the selected component is semantically ready for architecture
 evaluation and implementation planning. Treat the supplied semantic-purpose
 retrieval result as authoritative, including its selected contracts, expansions,
-direct relations, glossary evidence, reasons, and exclusions. Use selected evidence
-by default. Only when that evidence is insufficient because an explicit evidence
-gap blocks evaluation, perform targeted graph or context inspection limited to
-related evidence necessary to investigate that gap. Do not broadly rediscover the
-repository or redefine the authoritative scope.
+direct relations, glossary evidence, reasons, and exclusions. Use selected
+evidence by default. Only when that evidence is insufficient because an explicit
+evidence gap blocks evaluation, perform targeted graph or context inspection
+limited to related evidence necessary to investigate that gap. Do not broadly
+rediscover the repository or redefine the authoritative scope.
 
 Evaluate:
 
@@ -26,8 +26,8 @@ Treat selected Sigil as the desired contract. Implementation evidence may
 clarify a repository capability or expose a possible missing decision, but do
 not report a finding solely because current implementation differs, is missing,
 or lacks ownership annotations. Report a semantic finding only when the problem
-exists independently in the Sigil contract or repository evidence demonstrates
-a genuine feasibility constraint. Compatibility behavior in this stage means
+exists independently in the Sigil contract or repository evidence demonstrates a
+genuine feasibility constraint. Compatibility behavior in this stage means
 compatibility promised by the public contract, not compatibility with current
 code. Implementation comparison belongs exclusively to
 current-code-compatibility.

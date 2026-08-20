@@ -419,7 +419,7 @@ Deno.test("coordinator starts the provider before an in-transition cancellation 
         invoke: () => {
           invoked = true;
           controller.abort();
-          return new Promise(() => {});
+          return new Promise<void>(() => {});
         },
       }),
     AdapterFailure,
@@ -524,6 +524,25 @@ Deno.test("coordinator waits for registered result inputs before accepting a res
   );
   settleInput();
   assertEquals(await execution, "result");
+});
+
+Deno.test("coordinator exposes provider terminal submission and rejects a second result", async () => {
+  const error = await assertRejects(
+    () =>
+      coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: 1_000,
+        implementationIdentity: "test.opencode@1",
+        handle: testExecutionHandle(),
+        invoke: (_signal, _resources, _terminationControl, submit) => {
+          submit({ kind: "result", value: "first" });
+          submit({ kind: "result", value: "second" });
+          return new Promise(() => {});
+        },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.kind, "final-result-protocol");
 });
 
 Deno.test("coordinator preserves terminal proof after later observation failure", async () => {
