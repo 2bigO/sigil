@@ -52,7 +52,7 @@ Deno.test("retrieve Markdown renders module context and escaped ownership links"
       ownership: [{
         relation: "implements",
         path: "src/feature.ts",
-        range: { start: { line: 8, column: 3 }, end: { line: 8, column: 9 } },
+        location: { line: 8, column: 3 },
         symbol: "renderFeature",
         sections: ["interface"],
       }],
@@ -2904,89 +2904,6 @@ Deno.test("compile preserves a failed terminal event in buffered JSONL", async (
     event.payload.code,
     "COMPILER_PROFILE_EVALUATORS_REQUIRED",
   );
-});
-
-/*
- * @sigil tests packages/cli/_module.sigil::SigilCli::CompilationSessionFacade logic,constraints,cases
- * @sigil tests packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface,cases
- * @sigil tests packages/compiler/src/session-store.sigil::SigilCompilationSessionStore::CompilationSessionStorage interface,logic,constraints,cases
- */
-Deno.test("compile session commands persist across independent CLI calls", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-cli-session-" });
-  await Deno.mkdir(`${root}/.sigil`);
-  await Deno.writeTextFile(
-    `${root}/.sigil/config.json`,
-    JSON.stringify({
-      sigilVersion: "0.7.0",
-      workspace: { name: "session", members: [] },
-      files: { include: ["**/*.sigil"], exclude: [] },
-      tools: {},
-    }),
-  );
-  await Deno.writeTextFile(
-    `${root}/main.sigil`,
-    `component Example {
-  goal { Explain the example. }
-  interface { Run { run() } }
-}
-`,
-  );
-  let sessionIdentity: string | undefined;
-  try {
-    const started = await runCli([
-      "compile",
-      "session",
-      "start",
-      root,
-      "--focus",
-      "design",
-    ]);
-    assertEquals(started.exitCode, EXIT_OK);
-    const startResult = parseJson(started.stdout);
-    sessionIdentity = startResult.sessionIdentity;
-    assertEquals(startResult.baseEpoch, 1);
-
-    const evaluation = await runCli([
-      "compile",
-      "session",
-      "evaluate",
-      sessionIdentity!,
-      "--format",
-      "markdown",
-    ], {
-      readStdin: () => Promise.resolve(JSON.stringify({ sources: {} })),
-      compiler: () => Promise.resolve(greenCompilationReport()),
-    });
-    assertEquals(evaluation.exitCode, EXIT_OK);
-    assertEquals(
-      evaluation.stdout.startsWith("# Sigil Compilation Report\n"),
-      true,
-    );
-    assertEquals(evaluation.stdout.includes("Status: **GREEN**"), true);
-
-    const refreshed = await runCli([
-      "compile",
-      "session",
-      "refresh",
-      sessionIdentity!,
-    ]);
-    assertEquals(refreshed.exitCode, EXIT_OK);
-    assertEquals(parseJson(refreshed.stdout).baseEpoch, 2);
-
-    const closed = await runCli([
-      "compile",
-      "session",
-      "close",
-      sessionIdentity!,
-    ]);
-    assertEquals(closed.exitCode, EXIT_OK);
-    sessionIdentity = undefined;
-  } finally {
-    if (sessionIdentity) {
-      await runCli(["compile", "session", "close", sessionIdentity]);
-    }
-    await Deno.remove(root, { recursive: true });
-  }
 });
 
 /*

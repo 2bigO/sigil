@@ -313,8 +313,7 @@ function implementationAnnotations(
           filePath: relativeToWorkspace(resolved, source.filePath),
           sections: annotation.sectionNames as readonly ImplementationSection[],
           symbolIdentity: entrypoint?.identity,
-          range: entrypoint?.range,
-          targetRange: entrypoint?.range,
+          location: entrypoint?.range.start,
           annotationRange: rangeForOffsets(
             source.text,
             comment.start,

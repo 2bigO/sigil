@@ -109,8 +109,8 @@ expand SigilCompilationProfile {
     CompilationProfile {
       Merge built-in defaults with the selected tools.compile project profile.
 
-      Resolve execution budgets from tools.compile.budgets and request/session limits
-      from tools.compile.limits. Omitted fields use the compiler's
+      Resolve execution budgets from tools.compile.budgets and request limits from
+      tools.compile.limits. Omitted fields use the compiler's
       backward-compatible defaults.
 
       Treat the singular adapter as the backward-compatible default evaluator and
@@ -139,7 +139,7 @@ expand SigilCompilationProfile {
       ConfigFile tools.compile contains no credentials or secret values.
 
       tools.compile.budgets configures execution values and limits configures request
-      sizes and proposal-session retention. Every configured value is a positive safe
+      sizes. Every configured value is a positive safe
       integer.
 
       An initial agent-request size limit is an operational transport bound. It does
@@ -180,12 +180,12 @@ expand SigilCompilationProfile {
 
   decisions {
     ConfigurableCompilationResources {
-      Decision: Make execution budgets, evaluation request limits, and
-      proposal-session retention explicit tools.compile configuration with
+      Decision: Make execution budgets and evaluation request limits explicit
+      tools.compile configuration with
       backward-compatible omitted-field defaults.
 
       Scope: Governs compiler profile resolution, adapter request validation, and
-      compilation-session expiry; excludes provider credentials and semantic
+      compilation resource limits; excludes provider credentials and semantic
       evaluation policy.
 
       Trade-offs: Workspaces can size compilation for their available resources,
@@ -197,8 +197,7 @@ expand SigilCompilationProfile {
       adjusting safe limits for larger repositories.
 
       Consequences: Configuration changes alter the effective-profile fingerprint and
-      can change acceptance of large requests, evaluator execution, and session
-      retention.
+      can change acceptance of large requests and evaluator execution.
     }
 
     ClosedCliProviderSelection {

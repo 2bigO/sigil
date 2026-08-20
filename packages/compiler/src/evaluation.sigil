@@ -45,6 +45,12 @@ component SigilCompilationEvaluation {
       current diagnostics, derived status, EvaluationTrace, evaluator outcomes, and
       optional proposal identity needed for authoritative report construction
 
+      current diagnostics contain at most one agent-derived CompilationDiagnostic for
+      each diagnostic fingerprint
+
+      compiler-synthesized diagnostics are not omitted merely because another
+      diagnostic shares their fingerprint
+
       contains no completed, failed, or cancelled terminal event and is not itself a
       CompilationReport
     }
@@ -92,11 +98,15 @@ expand SigilCompilationEvaluation {
 
       Skip only stages whose declared dependencies failed or became unavailable.
 
-      Aggregate every trustworthy diagnostic produced by enabled stages.
+      After converting one evaluator's candidate findings into CompilationDiagnostic
+      values, apply AgentFindingIdentityCollapse to that payload before disagreement
+      comparison, run aggregation, status derivation, or diagnostic event emission.
 
-      Record material disagreement when evaluator results for the same component,
-      stage, rule, and semantic subject differ on the presence or severity of an
-      error or warning.
+      Aggregate every remaining trustworthy diagnostic produced by enabled stages.
+
+      Record material disagreement when collapsed evaluator results for the same
+      component, stage, rule, and semantic subject differ on the presence or severity
+      of an error or warning.
     }
 
     DeterministicFoundationGating {
@@ -122,15 +132,16 @@ expand SigilCompilationEvaluation {
       source fingerprint, and retrieval fingerprint.
 
       Build the evaluation request from the workspace root, selected target, stage
-      skill, capability contract, output schema, execution budgets, and the complete
-      structured retrieval result plus its aggregated context.
+      skill, capability contract, output schema, execution budgets, complete raw
+      retrieval result, and its derived EvaluatorRetrievalBrief.
 
       Invoke each enabled agentic stage separately for workspace components in
       dependency-aware order.
 
-      The retrieval result is the authoritative initial evidence boundary. The
-      evaluator does not independently traverse graph, context, glossary, or
-      ownership projections to redefine its membership.
+      The raw retrieval result is the authoritative initial evidence boundary. The
+      evaluator receives its compact brief, including its Markdown dependency graph,
+      and does not independently traverse graph, context, glossary, or ownership
+      projections to redefine membership.
     }
 
     AgentWorkspaceInspection {
@@ -159,6 +170,23 @@ expand SigilCompilationEvaluation {
       Accept a terminal-only provider when its required final result is complete and
       valid. Preserve unavailable and partial telemetry without inventing zero or
       final values.
+    }
+
+    AgentFindingIdentityCollapse {
+      Keep the first agent-derived CompilationDiagnostic for each diagnostic
+      fingerprint in one evaluator payload and discard later payload findings with
+      that fingerprint.
+
+      When merging those collapsed payloads into the run's current diagnostics and
+      CompilationEventWriter diagnostic events, keep the first agent-derived
+      CompilationDiagnostic for each diagnostic fingerprint and omit later agent
+      findings with that fingerprint.
+
+      Do not collapse deterministic-foundation diagnostics, incomplete evaluator
+      outcomes, disagreement records, or other compiler-synthesized diagnostics.
+
+      Discarded later agent findings do not enter current diagnostics, status
+      derivation, or diagnostic events.
     }
   }
 
@@ -220,6 +248,17 @@ expand SigilCompilationEvaluation {
       The compiler preserves its ordinary nonterminal diagnostic framing and
       completed terminal report instead of attempting to classify agent output for
       structurally invalid selected Sigil.
+    }
+
+    AgentFindingIdentityCollapse {
+      AgentFindingIdentityCollapse does not change diagnostic fingerprint derivation,
+      report lifecycle identity, or CompilationEventWriterProtocol uniqueness.
+
+      A remaining duplicate diagnostic fingerprint, including any
+      compiler-synthesized collision, remains protocol-invalid.
+
+      CompilationEventWriterProtocol still rejects a duplicate diagnostic fingerprint
+      as protocol-invalid and is not the collapse owner.
     }
   }
 
@@ -300,6 +339,37 @@ expand SigilCompilationEvaluation {
       Revisit when: Retrieval results carry sufficient immutable line-addressable
       evidence to remove workspace inspection entirely.
     }
+
+    AgentFindingIdentityCollapse {
+      Decision: Collapse agent-derived findings with the same diagnostic fingerprint
+      by first-wins inside each evaluator payload and again when merging into the
+      run, while leaving compiler-synthesized diagnostics uncollapsed.
+
+      Scope: Governs conversion of candidate agent findings into current diagnostics
+      and nonterminal diagnostic events; excludes fingerprint derivation,
+      disagreement identity, writer uniqueness, and terminal settlement.
+
+      Assumptions: Evaluator wording can vary for one rule, stage, subject, and
+      location without identifying a second finding.
+
+      Trade-offs: A later same-identity agent finding, including a harsher severity,
+      is discarded; disagreement still observes each evaluator's first finding.
+
+      Design issues addressed: Duplicate fingerprints from nondeterministic
+      evaluators close the event writer as protocol-invalid and prevent a completed
+      report.
+
+      Discarded alternatives: Writer-side suppression, last-wins or severity-wins
+      replacement, payload-only collapse, and run-wide collapse of every diagnostic
+      were rejected because they split ownership, hide disagreement, or drop
+      compiler-synthesized failures.
+
+      Consequences: One agent identity produces one diagnostic and event; remaining
+      collisions stay protocol-invalid.
+
+      Revisit when: Diagnostic identity includes evaluator wording or severity, or
+      compiler-synthesized fingerprints become unique per occurrence.
+    }
   }
 
   cases {
@@ -339,6 +409,22 @@ expand SigilCompilationEvaluation {
       An adapter declaring compatible access may run without a generic warning; its
       restrictions remain externally trusted and documented rather than verified by
       compiler events.
+    }
+
+    AgentFindingIdentityCollapse {
+      One evaluator payload with two findings that share a diagnostic fingerprint
+      keeps the first CompilationDiagnostic and completes without a protocol-invalid
+      diagnostic event.
+
+      Two evaluators that emit the same identity with different wording each keep
+      their first finding; disagreement compares those collapsed sets; the run keeps
+      the first merged agent diagnostic and emits it once.
+
+      Two evaluators that differ only in severity still produce a disagreement
+      record; the first merged agent diagnostic keeps its original severity.
+
+      A second COMPILER_EVALUATOR_INCOMPLETE diagnostic in the same stage is not
+      omitted by AgentFindingIdentityCollapse.
     }
   }
 }

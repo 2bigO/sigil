@@ -50,13 +50,15 @@ component SigilRetrievalMarkdown {
 
       Component-owned OwnershipLinks render in the selected Ownership section.
       Concept-owned OwnershipLinks render only under that concept after that
-      concept's Interface SemanticUnits. Ownership uses an implements, uses, or tests
-      link to its repository-relative implementation file at its one-based line and
-      column. The Ownership list entry is the relation, a Markdown link whose label
-      is path colon line colon column and whose target is path hash L line, then an
-      optional parenthesized symbol, then a colon, space, and the selected section
-      names in projection order separated by comma space when any exist. The
-      Ownership heading is omitted when no component-owned OwnershipLinks remain.
+      concept's Interface SemanticUnits. Ownership uses an advisory implements, uses,
+      or tests link to its repository-relative implementation file at its one-based
+      entrypoint line and column. The link has a start location only, never an end
+      range, and does not promise ownership, completeness, or current alignment. The
+      Ownership list entry is the relation, a Markdown link whose label is path colon
+      line colon column and whose target is path hash L line, then an optional
+      parenthesized symbol, then a colon, space, and the selected section names in
+      projection order separated by comma space when any exist. The Ownership heading
+      is omitted when no component-owned OwnershipLinks remain.
 
       Projection diagnostics render after related groups and before Glossary. Each
       diagnostic is one list entry using the stable human text of severity, code, and
@@ -87,9 +89,9 @@ component SigilRetrievalMarkdown {
       declaration relation. Omit the Links heading when no remaining relations exist.
 
       Do not render raw EvidenceKind labels, a matching expansion heading, an
-      implementation-source slice, a duplicate module-index contract, empty-section
-      placeholders, or a separate presentation relationship map. Render a
-      non-duplicate module-context contract under Module Context.
+      implementation-source text or range slice, a duplicate module-index contract,
+      empty-section placeholders, or a separate presentation relationship map. Render
+      a non-duplicate module-context contract under Module Context.
 
       Preserve projection ordering. Escape only backslash, backtick, asterisk,
       underscore, left square bracket, and right square bracket by prefixing a

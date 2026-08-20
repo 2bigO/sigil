@@ -203,21 +203,21 @@ function matchingOwnershipBindings(
   const sameFile = bindings.filter((binding) =>
     canonicalWorkspacePath(binding.target.filePath, workspaceRoot) === filePath
   );
-  const fileWide = sameFile.filter((binding) => !binding.target.range);
+  const fileWide = sameFile.filter((binding) => !binding.target.location);
   const positioned = sameFile.filter((binding) =>
-    binding.target.range &&
-    binding.target.range.start.line <= location.line
+    binding.target.location &&
+    binding.target.location.line <= location.line
   );
   if (!positioned.length) return fileWide;
   const nearest = positioned.reduce((latest, binding) =>
-    binding.target.range!.start.line > latest.target.range!.start.line
+    binding.target.location!.line > latest.target.location!.line
       ? binding
       : latest
   );
   return [
     ...fileWide,
     ...positioned.filter((binding) =>
-      binding.target.range!.start.line === nearest.target.range!.start.line
+      binding.target.location!.line === nearest.target.location!.line
     ),
   ];
 }
@@ -330,7 +330,7 @@ function ownershipTargetKey(target: OwnedImplementationTarget): string {
     filePath: target.filePath,
     sections: target.sections,
     symbolIdentity: target.symbolIdentity,
-    range: target.range,
+    location: target.location,
   });
 }
 

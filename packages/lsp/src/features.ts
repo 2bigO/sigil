@@ -1136,7 +1136,7 @@ class HoverMarkdownRenderer {
       ? `${target.symbolIdentity} · ${fileLabel}`
       : fileLabel;
     return `${target.relation} ${
-      markdownLink(label, location(absoluteFilePath, target.range))
+      markdownLink(label, location(absoluteFilePath, target.location))
     } (${target.sections.join(", ")})`;
   }
 }
@@ -1204,8 +1204,14 @@ function markdownList(lines: readonly string[]): string[] {
   return lines.length ? lines.map((line) => `- ${line}`) : ["- none"];
 }
 
-function location(filePath: string, range?: SourceRange): Location {
-  return { uri: pathToFileUri(filePath), range: sourceRangeToLsp(range) };
+function location(
+  filePath: string,
+  range?: SourceRange | { readonly line: number; readonly column: number },
+): Location {
+  const sourceRange = range && "start" in range
+    ? range
+    : range && { start: range, end: range };
+  return { uri: pathToFileUri(filePath), range: sourceRangeToLsp(sourceRange) };
 }
 
 function workspaceRelativeToAbsolute(

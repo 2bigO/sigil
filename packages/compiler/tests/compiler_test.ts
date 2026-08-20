@@ -10,7 +10,6 @@ import {
   createAdapterSubprocessHandle,
   deriveBudgetOutcome,
   FileCompilationHistoryStore,
-  FileCompilationSessionStore,
   loadEvaluationSkill,
   loadEvaluationSkills,
   MockAdapter,
@@ -18,12 +17,10 @@ import {
   renderCompilationReportMarkdown,
   resolveAdapterRegistration,
   runAdapterSubprocess,
-  SigilCompilationSession,
-  SigilCompilationSessionFactory,
-  SigilProposalWorkspace,
   validateAgentEvaluationResult,
   validateCompilationEventStream,
 } from "../src/mod.ts";
+import { deriveEvaluatorRetrievalBrief } from "../src/evaluator-retrieval.ts";
 import {
   assertEquals,
   assertMatch,
@@ -79,6 +76,57 @@ function retrievalFixture(
     fingerprint: "sha256:test-retrieval",
   } as const;
 }
+
+function retrievalBriefFixture(
+  purpose: "semantic" | "architecture" | "implementation" = "semantic",
+) {
+  return {
+    purpose,
+    componentName: "Example",
+    sigilFile: "main.sigil",
+    retrievalFingerprint: "sha256:test-retrieval",
+    markdown: "Retrieval: sha256:test-retrieval\n\nTarget: Example (semantic)",
+    allowedDirectReadPaths: ["main.sigil"],
+  } as const;
+}
+
+// @sigil tests packages/compiler/src/evaluator-retrieval.sigil::SigilEvaluatorRetrievalBrief::EvaluatorRetrievalBrief logic,constraints,cases
+Deno.test("evaluator retrieval brief projects a readable graph without raw JSON", async () => {
+  const retrieval = {
+    ...retrievalFixture(),
+    graph: {
+      nodes: [
+        {
+          identity: "n:example",
+          kind: "component-declaration" as const,
+          path: "main.sigil",
+          componentName: "Example",
+        },
+        {
+          identity: "n:dependency",
+          kind: "component-declaration" as const,
+          path: "dependency.sigil",
+          componentName: "Dependency",
+        },
+      ],
+      edges: [{
+        identity: "e:dependency",
+        relation: "direct-dependency" as const,
+        sourceIdentity: "n:example",
+        targetIdentity: "n:dependency",
+        originPath: "main.sigil",
+      }],
+    },
+  };
+  const brief = await deriveEvaluatorRetrievalBrief(retrieval, ".");
+  assertMatch(
+    brief.markdown,
+    /Dependency graph\n- Example \(main\.sigil\) --direct-dependency--> Dependency \(dependency\.sigil\)/,
+  );
+  assertEquals(brief.markdown.includes('"identity"'), false);
+  assertEquals(brief.markdown.includes('"evidence"'), false);
+  assertEquals(brief.allowedDirectReadPaths, ["main.sigil"]);
+});
 
 Deno.test("terminal findings require nullable location fields", () => {
   const request = {
@@ -161,6 +209,42 @@ Deno.test("subprocess execution declares owned inputs before an attempted launch
   ]);
 });
 
+// @sigil tests packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AdapterSubprocess logic,cases
+Deno.test("subprocess process failures retain stderr verbatim", async () => {
+  const stderr = "  provider detail\n";
+  const error = await assertRejects(
+    () =>
+      runAdapterSubprocess({
+        implementationIdentity: "test.adapter@1",
+        command: Deno.execPath(),
+        args: [
+          "eval",
+          `await Deno.stderr.write(new TextEncoder().encode(${
+            JSON.stringify(stderr)
+          })); Deno.exit(7);`,
+        ],
+        cwd: Deno.cwd(),
+        input: "{}",
+        signal: new AbortController().signal,
+        maxInitialRequestChars: 10,
+        maxProviderFrameChars: 100,
+        handle: createAdapterSubprocessHandle("test.adapter@1"),
+        resources: {
+          declareResource() {},
+          declareResultInput() {},
+          observeResource() {},
+          observeResultInput() {},
+          reportResourceObservation() {},
+          reportResultInputObservation() {},
+          cleanupAttempt() {},
+        },
+        terminationControl: { requestPreventiveBudgetTermination() {} },
+      }),
+    AdapterFailure,
+  );
+  assertEquals(error.message.endsWith(stderr), true);
+});
+
 // @sigil tests packages/compiler/src/evaluation-registry.sigil::SigilEvaluationSkillRegistry::EvaluationSkillPackage interface,logic,constraints,cases
 Deno.test("evaluation skills declare implementation evidence authority and modularity rules", async () => {
   const skills = await loadEvaluationSkills();
@@ -199,7 +283,7 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
   }
   for (const skill of skills.values()) {
     const guidance = skill.guidance.replaceAll(/\s+/g, " ");
-    assertMatch(guidance, /Use selected evidence by default/);
+    assertMatch(guidance, /Use selected downstream evidence by default/);
     assertMatch(
       guidance,
       /Only when that evidence is insufficient/,
@@ -210,6 +294,7 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
       guidance,
       /Do not broadly rediscover the repository/,
     );
+    assertMatch(guidance, /downstream dependency closure/);
   }
 });
 
@@ -221,7 +306,7 @@ Deno.test("evaluation skill loading returns closed tagged outcomes", async () =>
     "unavailable",
   );
   assertEquals(
-    (await loadEvaluationSkill("semantic-readiness", "1.1.0")).kind,
+    (await loadEvaluationSkill("semantic-readiness", "1.2.0")).kind,
     "ready",
   );
 });
@@ -944,6 +1029,57 @@ Deno.test("independent evaluator disagreement is explicit", async () => {
   }
 });
 
+// @sigil tests packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::AgentFindingIdentityCollapse logic,constraints,cases
+Deno.test("duplicate findings in one evaluator payload emit once and complete", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`);
+  try {
+    const events: CompilationEvent[] = [];
+    const first = {
+      code: "SEMANTIC_AMBIGUITY",
+      severity: "warning" as const,
+      message: "The goal is ambiguous.",
+      filePath: "main.sigil",
+      line: 3,
+      column: 5,
+      evidence: "The goal lacks a measurable result.",
+      impact: "Implementations may diverge.",
+      correction: "State the expected result.",
+    };
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter([
+        first,
+        { ...first, message: "Equivalent finding with different wording." },
+      ]),
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    assertEquals(
+      report.diagnostics.filter((item) => item.code === first.code).length,
+      1,
+    );
+    assertEquals(
+      events.filter((event) => event.type === "diagnostic").length,
+      1,
+    );
+    assertEquals(events.at(-1)?.type, "completed");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore logic,cases
 Deno.test("history derives unchanged, resolved, and regressed lifecycle", async () => {
   const root = await workspace(`component Example {
@@ -1569,6 +1705,7 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
         sigilFile: "main.sigil",
         initialPaths: ["main.sigil"],
         retrieval: retrievalFixture(),
+        retrievalBrief: retrievalBriefFixture(),
       },
       capabilities: {
         schemaVersion: 1,
@@ -1627,6 +1764,9 @@ Deno.test("Codex adapter enforces direct-read invocation and records structured 
       /compiler owns semantic identity; do not invent\s+semantic subjects/,
     );
     assertMatch(observedPrompt, /Implementation evidence policy: context-only/);
+    assertMatch(observedPrompt, /Retrieval: sha256:test-retrieval/);
+    assertEquals(observedPrompt.includes("sigil-purpose-retrieval\/v1"), false);
+    assertEquals(observedPrompt.includes('"inclusionReasons"'), false);
     assertMatch(
       observedPrompt,
       /do not report a finding solely because current implementation/,
@@ -1664,6 +1804,7 @@ Deno.test("Codex classifies initial request overflow as an operational limit", a
           sigilFile: "main.sigil",
           initialPaths: ["main.sigil"],
           retrieval: retrievalFixture(),
+          retrievalBrief: retrievalBriefFixture(),
         },
         capabilities: adapter.capabilities,
         commandPolicy: { allowedCommands: [], forbiddenCommands: [] },
@@ -1746,6 +1887,7 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
             sigilFile: "main.sigil",
             initialPaths: ["main.sigil"],
             retrieval: retrievalFixture(),
+            retrievalBrief: retrievalBriefFixture(),
           },
           capabilities: {
             schemaVersion: 1,
@@ -1782,300 +1924,42 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
   }
 });
 
-// @sigil tests packages/compiler/src/proposal-workspace.sigil::SigilProposalWorkspace interface,logic,cases
-Deno.test("proposal workspace atomically replaces complete source override sets", async () => {
+// @sigil tests packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AdapterSubprocess logic,cases
+Deno.test("Codex process failure preserves complete stderr in the compiler report", async () => {
   const root = await workspace(`component Example {
-  goal { Explain the example. }
-  interface { Run { run() } }
-}
-`);
-  const identity = crypto.randomUUID();
-  const created = await SigilProposalWorkspace.create(root, identity);
-  try {
-    const first = await created.workspace.apply({
-      sources: {
-        "main.sigil": `component Example {
-  goal { Explain the changed example. }
-  interface { Run { run() } }
-}
-`,
-      },
-    });
-    assertEquals(first.generation, 1);
-    assertMatch(first.proposalFingerprint, /^[0-9a-f]{64}$/);
-    await assertRejects(
-      () => created.workspace.apply({ sources: { "../escape.sigil": "" } }),
-      Error,
-      "Invalid proposal",
-    );
-    assertEquals(created.workspace.persistedState().generation, 1);
-  } finally {
-    await created.workspace.close();
-    await Deno.remove(root, { recursive: true });
+  goal {
+    Explain the example.
   }
-});
 
-/*
- * @sigil tests packages/compiler/src/session-factory.sigil::SigilCompilationSessionFactory interface,logic,cases
- * @sigil tests packages/compiler/src/session.sigil::SigilCompilationSession interface,state,logic,constraints,cases
- */
-Deno.test("session creation validates the requested focus before materialization", async () => {
-  const root = await workspace(`component Example {
-  goal { Explain the example. }
-  interface { Run { run() } }
-}
-`);
-  let compilerInvoked = false;
-  const factory = new SigilCompilationSessionFactory(
-    undefined,
-    () => {
-      compilerInvoked = true;
-      throw new Error("one-shot compilation must not run during creation");
-    },
-  );
-  try {
-    const created = await factory.create(
-      root,
-      { kind: "workspace" },
-      "standard",
-      "design",
-    );
-    assertEquals(compilerInvoked, false);
-    await created.session.close();
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-Deno.test("session creation resolves the profile before materialization", async () => {
-  const root = await workspace(`component Example {
-  goal { Explain the example. }
-  interface { Run { run() } }
-}
-`);
-  class TrackingStore extends FileCompilationSessionStore {
-    createCalls = 0;
-    override create(
-      ...args: Parameters<FileCompilationSessionStore["create"]>
-    ) {
-      this.createCalls++;
-      return super.create(...args);
+  interface {
+    ExampleOperation {
+      run()
     }
   }
-  const store = new TrackingStore();
-  try {
-    const error = await assertRejects(
-      () =>
-        new SigilCompilationSessionFactory(store).create(
-          root,
-          { kind: "workspace" },
-          "missing-profile",
-          "design",
-        ),
-      CompilerFailure,
-    );
-    assertEquals(error.code, "COMPILER_INVALID_INVOCATION");
-    assertEquals(store.createCalls, 0);
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-Deno.test("evaluation commit failure removes the verified proposal workspace before releasing its lease", async () => {
-  const root = await workspace(`component Example {
-  goal { Explain the example. }
-  interface { Run { run() } }
 }
 `);
-  class FailingCommitStore extends FileCompilationSessionStore {
-    override commit(
-      _lease: Parameters<FileCompilationSessionStore["commit"]>[0],
-      _record: Parameters<FileCompilationSessionStore["commit"]>[1],
-    ): Promise<void> {
-      return Promise.reject(
-        new CompilerFailure(
-          "COMPILER_WORKSPACE_HOST_FAILURE",
-          "Synthetic commit failure.",
-        ),
-      );
-    }
-  }
-  const store = new FailingCommitStore();
   try {
-    const created = await new SigilCompilationSessionFactory(store).create(
-      root,
-      { kind: "workspace" },
-      "standard",
-      "design",
-    );
-    const session = new SigilCompilationSession(
-      created.result.sessionIdentity,
-      "design",
-      store,
-      async () => {
-        await Promise.resolve();
-        return {} as CompilationReport;
-      },
-    );
-    const error = await assertRejects(
-      () => session.evaluate({ sources: {} }),
-      CompilerFailure,
-    );
-    assertEquals(error.code, "COMPILER_WORKSPACE_HOST_FAILURE");
-    const missing = await assertRejects(
-      () => store.open(created.result.sessionIdentity),
-      CompilerFailure,
-    );
-    assertEquals(missing.code, "COMPILER_WORKSPACE_OWNERSHIP_UNVERIFIED");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-Deno.test("durable compilation sessions refresh and close without a daemon", async () => {
-  const root = await workspace(`component Example {
-  goal { Explain the example. }
-  interface { Run { run() } }
-}
-`);
-  const created = await new SigilCompilationSessionFactory().create(
-    root,
-    { kind: "workspace" },
-    "standard",
-    "design",
-  );
-  try {
-    assertMatch(created.result.sessionIdentity, /^[0-9a-f-]{36}$/);
-    assertEquals(created.result.baseEpoch, 1);
-    const refreshed = await created.session.refresh();
-    assertEquals(refreshed.baseEpoch, 2);
-    assertMatch(refreshed.baseFingerprint, /^[0-9a-f]{64}$/);
-    const events: CompilationEvent[] = [];
-    const session = new SigilCompilationSession(
-      created.result.sessionIdentity,
-      "design",
-      undefined,
-      async (
-        workspacePath,
-        target = { kind: "workspace" },
-        _profileName,
-        options = {},
-      ) => {
-        assertMatch(
-          await Deno.readTextFile(`${workspacePath}/main.sigil`),
-          /changed example/,
-        );
-        return {
-          reportVersion: 2,
-          runId: "proposal-run",
-          workspaceRoot: workspacePath,
-          target,
-          componentNames: ["Example"],
-          status: "green",
-          startedAt: "2026-01-01T00:00:00.000Z",
-          completedAt: "2026-01-01T00:00:01.000Z",
-          sourceFingerprint: "proposal-source",
-          focus: options.focus,
-          profile: {
-            name: "standard",
-            criticalSystem: false,
-            contextBudgetChars: 1,
-            agentInputBudgetChars: 1,
-            limits: {
-              maxCompilationRequestChars: 1,
-              maxAgentInputChars: 1,
-              sessionTtlMs: 1,
-              providerCleanupMs: 1,
-            },
-            executionBudgets: {
-              elapsedTimeMs: 1,
-              maxCommands: 1,
-              maxCommandOutputChars: 1,
-              maxInputTokens: 1,
-              maxOutputTokens: 1,
-            },
-            stages: [
-              {
-                id: "deterministic-foundation",
-                required: true,
-                enabled: true,
-                agentic: false,
-                dependencies: [],
-              },
-              {
-                id: "semantic-readiness",
-                required: true,
-                enabled: true,
-                agentic: true,
-                dependencies: ["deterministic-foundation"],
-              },
-              {
-                id: "architecture-design",
-                required: true,
-                enabled: true,
-                agentic: true,
-                dependencies: ["semantic-readiness"],
-              },
-            ],
-            evaluators: [],
-            fingerprint: "profile",
-          },
-          stages: [
-            {
-              id: "deterministic-foundation",
-              required: true,
-              state: "completed",
-              evaluator: "sigil-core",
-              diagnosticCount: 0,
-            },
-            {
-              id: "semantic-readiness",
-              required: true,
-              state: "completed",
-              evaluator: "mock",
-              diagnosticCount: 0,
-              evaluations: [{
-                evaluatorId: "mock",
-                componentName: "Example",
-                commands: [],
-                usage: undefined,
-                usageAvailability: "unavailable",
-                cost: undefined,
-                costAvailability: "unavailable",
-                budgetOutcome: undefined,
-              }],
-            },
-            {
-              id: "architecture-design",
-              required: true,
-              state: "completed",
-              evaluator: "mock",
-              diagnosticCount: 0,
-            },
-          ],
-          diagnostics: [],
-        };
-      },
-    );
-    const report = await session.evaluate({
-      sources: {
-        "main.sigil": `component Example {
-  goal { Explain the changed example. }
-  interface { Run { run() } }
-}
-`,
-      },
-    }, {
-      onEvent: (event) => {
-        events.push(event);
-      },
+    const stderr = "provider detail one\nprovider detail two\n";
+    const adapter = new CodexAdapter(undefined, async (
+      _command,
+      _args,
+      _input,
+      onFrame,
+    ) => {
+      await onFrame({ channel: "stderr", text: stderr });
+      throw new AdapterFailure("process", "codex exited with 1:");
     });
-    assertEquals(report.workspaceRoot, root.replaceAll("\\", "/"));
-    assertEquals(report.session?.baseEpoch, 2);
-    assertEquals(report.session?.generation, 1);
-    assertEquals(events.at(-1)?.type, "completed");
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      requestedStage: "semantic-readiness",
+      adapter,
+    });
+    assertMatch(
+      report.diagnostics.find((item) =>
+        item.code === "COMPILER_EVALUATOR_INCOMPLETE"
+      )?.message ?? "",
+      /provider detail one\nprovider detail two/,
+    );
   } finally {
-    await created.session.close();
     await Deno.remove(root, { recursive: true });
   }
 });

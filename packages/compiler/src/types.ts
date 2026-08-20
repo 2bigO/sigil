@@ -171,6 +171,21 @@ export interface CompilationReport {
   readonly diagnostics: readonly CompilerDiagnostic[];
 }
 
+/** Internal nonterminal output of compilation evaluation. */
+export interface CompilationEvaluationResult {
+  readonly workspaceRoot: string;
+  readonly target: CompilationTarget;
+  readonly componentNames: readonly string[];
+  readonly startedAt: string;
+  readonly completedAt: string;
+  readonly sourceFingerprint: string;
+  readonly requestedStage?: string;
+  readonly focus?: CompilationFocus;
+  readonly profile: EffectiveProfile;
+  readonly stages: readonly StageReport[];
+  readonly diagnostics: readonly CompilerDiagnostic[];
+}
+
 export type CompilationEventType =
   | "started"
   | "stage-started"
@@ -289,6 +304,16 @@ export interface AgentEvaluationTarget {
   readonly sigilFile: string;
   readonly initialPaths: readonly string[];
   readonly retrieval?: PurposeRetrievalResult;
+  readonly retrievalBrief?: EvaluatorRetrievalBrief;
+}
+
+export interface EvaluatorRetrievalBrief {
+  readonly purpose: RetrievalPurpose;
+  readonly componentName: string;
+  readonly sigilFile: string;
+  readonly retrievalFingerprint: string;
+  readonly markdown: string;
+  readonly allowedDirectReadPaths: readonly string[];
 }
 
 export interface AgentCapabilityContract {

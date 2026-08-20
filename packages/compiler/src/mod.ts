@@ -18,8 +18,4 @@ export * from "./compilation-target.ts";
 export * from "./report-protocol.ts";
 export * from "./report-markdown.ts";
 export * from "./report-export.ts";
-export * from "./proposal-workspace.ts";
-export * from "./session-store.ts";
-export * from "./session.ts";
-export * from "./session-factory.ts";
 export * from "./compiler.ts";

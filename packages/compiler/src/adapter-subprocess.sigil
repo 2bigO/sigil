@@ -14,7 +14,8 @@ component SigilAgentAdapterSubprocess {
 
       process-cleanup contains process identity, graceful and forced attempts,
       observed exit and channel states, and an operator recovery action; process may
-      contain exit status
+      contain exit status and the complete verbatim stderr from a nonzero provider
+      exit
     }
 
     AdapterSubprocess {
@@ -52,6 +53,10 @@ expand SigilAgentAdapterSubprocess {
       attach process and channel declarations immediately after launch. After launch,
       deliver bounded channel-identified frames with per-channel ordering and
       backpressure.
+
+      After a nonzero provider exit and both output channels settle, retain complete
+      stderr in the process failure even when an onFrame consumer already observed
+      that channel. Do not apply a retained-character limit to that failure evidence.
 
       For a non-result process transition, close input, request graceful termination,
       and wait only within the remaining coordinator cleanup deadline for process
@@ -114,6 +119,26 @@ expand SigilAgentAdapterSubprocess {
 
       Consequences: Failure settlement is bounded and never overstates cleanup.
     }
+
+    FailedProviderStderrEvidence {
+      Decision: Preserve complete verbatim stderr from a nonzero provider exit in the
+      process failure instead of discarding it after onFrame delivery.
+
+      Scope: Governs failed provider subprocess diagnostics; excludes successful
+      result framing, per-frame limits, and cleanup recovery evidence.
+
+      Trade-offs: Compiler reports can become large and expose provider-produced
+      diagnostic text.
+
+      Design issues addressed: A provider exit code without stderr prevents hosts
+      from diagnosing evaluator failure.
+
+      Discarded alternatives: Truncation, omission after frame delivery, and a
+      separate host-only log were rejected because they can hide the causal failure.
+
+      Consequences: A failed compiler report contains the provider's complete error
+      text for user diagnosis.
+    }
   }
 
   cases {
@@ -128,6 +153,9 @@ expand SigilAgentAdapterSubprocess {
 
       Failure to verify exit after forced cleanup returns process-cleanup failure and
       retained recovery evidence.
+
+      A nonzero provider exit after stderr output reports that complete stderr in its
+      process failure even when a frame consumer received the same text.
     }
   }
 }

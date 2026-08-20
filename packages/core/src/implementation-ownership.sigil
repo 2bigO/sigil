@@ -81,9 +81,14 @@ component SigilImplementationOwnership {
       each target preserves the artifact kind, file path, selected sections, and
       optional symbol identity when available
 
-      targetRange is the exact adjacent code entrypoint-definition range or the
-      complete agent-facing Markdown document range; annotationRange is the exact
-      ownership-comment range used as provenance
+      location is the one-way entrypoint location for a code annotation or the
+      document-start location for agent-facing Markdown. It has no end position and
+      is absent only for file-scoped annotations without an entrypoint.
+
+      annotationRange is the exact ownership-comment range used as provenance. It
+      remains internal discovery evidence and does not make an annotation a promise
+      that the linked implementation completely owns, implements, or remains aligned
+      with the selected Sigil sections.
     }
 
     ImplementationSourceSupport {
@@ -157,7 +162,7 @@ expand SigilImplementationOwnership {
       derive symbol-level targets from annotated language entrypoint definitions and
       use file-level targets for Markdown, template markup, and stylesheets
 
-      preserve exact targetRange and annotationRange values in every normalized
+      preserve the exact entrypoint location and annotationRange in every normalized
       target
 
       return undefined before scanning when the component or supplied concept does

@@ -1,5 +1,5 @@
 import type { SigilDiagnostic } from "./diagnostics.ts";
-import type { SourceRange } from "./language.ts";
+import type { SourceLocation, SourceRange } from "./language.ts";
 import type { ResolvedComponent, ResolvedConcept } from "./resolution.ts";
 export type { SigilDiagnostic } from "./diagnostics.ts";
 export type { SourceRange } from "./language.ts";
@@ -44,8 +44,7 @@ export interface OwnedImplementationTarget {
   readonly filePath: string;
   readonly sections: readonly ImplementationSection[];
   readonly symbolIdentity?: string;
-  readonly range?: SourceRange;
-  readonly targetRange?: SourceRange;
+  readonly location?: SourceLocation;
   readonly annotationRange: SourceRange;
 }
 

@@ -1,11 +1,10 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core import { SigilCore, SigilContextRetrieval }
-@packages/compiler import { SigilCompiler, SigilCompilationReportMarkdown, SigilCompilationSessionFactory }
+@packages/compiler import { SigilCompiler, SigilCompilationReportMarkdown }
 @packages/compiler-adapter-opencode import { SigilOpenCodeCompilerAdapter }
 @packages/compiler-adapter-pi import { SigilPiCompilerAdapter }
 @packages/compiler-adapter-claude import { SigilClaudeCompilerAdapter }
 @packages/cli/src/installer.sigil import { SkillInstaller }
-@packages/cli/src/compilation-sessions.sigil import { CompilationSessionCommand }
 @packages/cli/src/retrieval-markdown.sigil import { SigilRetrievalMarkdown }
 
 component SigilCli {
@@ -220,14 +219,6 @@ component SigilCli {
       CompilationReport. With --format markdown, --output exports the deterministic
       completed Markdown projection instead; the JSON Lines stream is unchanged.
 
-      compilation session evaluation accepts --format markdown and uses the same
-      compiler-owned completed-report projection as one-shot compilation; it never
-      writes a report export destination.
-    }
-
-    CompilationSessionFacade {
-      CompilationSessionCommand adapts compiler proposal sessions into explicit CLI
-      commands.
     }
 
   }
@@ -239,28 +230,6 @@ expand SigilCli {
       Running sigil compile --agent selects the effective tools.agent.profile.
 
       Combining --agent with --profile exits with invalid usage.
-    }
-  }
-}
-
-expand SigilCli {
-  logic {
-    CompilationSessionFacade {
-      CompilationSessionCommand owns CLI command transport and delegates durable
-      session lifecycle operations to the compiler.
-    }
-  }
-
-  constraints {
-    CompilationSessionFacade {
-      The CLI does not own session identity, leases, expiry, cleanup, or
-      proposal-workspace lifecycle policy.
-    }
-  }
-
-  cases {
-    CompilationSessionFacade {
-      Each session command preserves compiler status and host-failure exit semantics.
     }
   }
 }
@@ -630,8 +599,8 @@ expand SigilCli {
       --profile continues to select evaluators, budgets, capabilities, and profile
       configuration while --focus selects a stage closure within that profile.
 
-      --profile is optional only at the CLI boundary. SigilCompiler and
-      SigilCompilationSessionFactory receive one explicit resolved profile name.
+      --profile is optional only at the CLI boundary. SigilCompiler receives one
+      explicit resolved profile name.
 
       --position requires --file and uses the line:column form with positive
       one-based integers.

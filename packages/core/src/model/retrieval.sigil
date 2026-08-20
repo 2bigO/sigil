@@ -59,12 +59,10 @@ component SigilRetrievalModel {
       concept or section. An expansion is not a presentation component, relationship
       category, or heading.
 
-      OwnershipLink records an implements, uses, or tests relation, repository-
-      relative implementation location, optional symbol, and selected sections. It
-      belongs to its owning component or concept.
-
-      Implementation-source evidence remains available only in the raw
-      implementation-purpose result and is omitted from RetrievalProjection.
+      OwnershipLink records an advisory implements, uses, or tests relation, a
+      repository-relative one-way implementation location, optional symbol, and
+      selected sections. It belongs to its owning component or concept and does not
+      prove implementation completeness or alignment.
     }
   }
 
@@ -186,8 +184,8 @@ component SigilRetrievalModel {
       An ownership annotation for a selected concept becomes an OwnershipLink under
       that concept with the annotation's repository-relative line and column.
 
-      An implementation-purpose raw result retains its selected source slices while
-      the corresponding RetrievalProjection contains only OwnershipLinks.
+      An implementation-purpose result contains advisory OwnershipLinks with a start
+      location only and never embeds implementation-source slices.
 
       A dependency interface unit with a concept identity occupies that named
       interface group on the dependency RetrievedComponent.

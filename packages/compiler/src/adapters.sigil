@@ -6,8 +6,9 @@
 expand SigilAgentAdapter {
   logic {
     AgentAdapter {
-      Supply the target request, evaluation guidance, output contract, workspace
-      root, and requested capabilities to the selected adapter implementation.
+      Supply the target request, compact evaluator retrieval brief, evaluation
+      guidance, output contract, workspace root, and requested capabilities to the
+      selected adapter implementation.
 
       At adapter-execution entry, capture the monotonic elapsed-time origin. Before
       invocation, check already-requested cancellation, canonical observability
@@ -24,9 +25,10 @@ expand SigilAgentAdapter {
 
       Invalid or incomplete provider-neutral request evidence rejects
       incomplete-evidence without invoking the provider. After validation,
-      implementation input preflight serializes and bounds the request and
-      restriction configuration. Serialization failure or maxInitialRequestChars
-      overflow rejects operational-limit without invoking the provider.
+      implementation input preflight serializes and bounds the compact evaluator
+      brief, request controls, and restriction configuration. Serialization failure
+      or maxInitialRequestChars overflow rejects operational-limit without invoking
+      the provider.
 
       Invoke the provider once through the selected adapter's implementation-owned
       execution mechanism. Consume its declared result inputs according to that

@@ -8,14 +8,7 @@ import {
   FileCompilationHistoryStore,
   renderCompilationReportMarkdown,
   resolveCompilationProfile,
-  type SigilCompilationSessionFactory,
 } from "@qoherent/sigil-compiler";
-import {
-  closeCompilationSession,
-  evaluateCompilationSession,
-  refreshCompilationSession,
-  startCompilationSession,
-} from "./compilation-sessions.ts";
 import { type CommandHandlerOptions, runCommand } from "./commands.ts";
 import {
   EXIT_CANCELLED,
@@ -187,15 +180,6 @@ Options:
   --quiet             Suppress human output
   --help              Show this help
 `,
-  "compile-session":
-    `Usage: sigil compile session <start|evaluate|refresh|close> [options]\n`,
-  "compile-session-start":
-    `Usage: sigil compile session start [path] --focus design|implementation [--component <name> | --file <file>] [--profile <name>]\n`,
-  "compile-session-evaluate":
-    `Usage: sigil compile session evaluate <session-id> [--format jsonl|markdown]\n\nReads one CompilationProposal JSON object from standard input.\n`,
-  "compile-session-refresh":
-    `Usage: sigil compile session refresh <session-id>\n`,
-  "compile-session-close": `Usage: sigil compile session close <session-id>\n`,
   render: `Usage: sigil render [path] [options]
 
 Options:
@@ -219,8 +203,6 @@ export interface CliRunOptions extends CommandHandlerOptions {
   readonly onCompilationEvent?: (line: string) => void | Promise<void>;
   readonly onCompilationProgress?: (line: string) => void | Promise<void>;
   readonly signal?: AbortSignal;
-  readonly sessionFactory?: SigilCompilationSessionFactory;
-  readonly readStdin?: () => Promise<string>;
 }
 
 /**
@@ -251,85 +233,6 @@ export async function runCli(
   }
 
   try {
-    if (parsed.request.command === "compile-session") {
-      const request = parsed.request;
-      if (request.action === "start") {
-        const target = request.component
-          ? { kind: "component" as const, name: request.component }
-          : request.file
-          ? { kind: "file" as const, filePath: request.file }
-          : { kind: "workspace" as const };
-        const result = await startCompilationSession(
-          request.root ?? request.path ?? Deno.cwd(),
-          target,
-          request.profile ?? await resolveCompilationProfile(
-            request.root ?? request.path ?? Deno.cwd(),
-          ),
-          request.focus!,
-          {
-            factory: options.sessionFactory,
-            compiler: options.compiler ?? compileWithBundledAdapters,
-          },
-        );
-        return {
-          exitCode: 0,
-          stdout: request.quiet ? "" : `${JSON.stringify(result)}\n`,
-          stderr: "",
-        };
-      }
-      if (request.action === "evaluate") {
-        const events: CompilationEvent[] = [];
-        const report = await evaluateCompilationSession(
-          request.sessionIdentity!,
-          {
-            readStdin: options.readStdin,
-            signal: options.signal,
-            onEvent: async (event) => {
-              events.push(event);
-              if (request.format === "jsonl" && options.onCompilationEvent) {
-                await options.onCompilationEvent(`${JSON.stringify(event)}\n`);
-              }
-            },
-            compiler: options.compiler ?? compileWithBundledAdapters,
-          },
-        );
-        const stdout = request.quiet
-          ? ""
-          : request.format === "jsonl"
-          ? options.onCompilationEvent
-            ? ""
-            : `${events.map((event) => JSON.stringify(event)).join("\n")}\n`
-          : request.format === "markdown"
-          ? renderCompilationReportMarkdown(report)
-          : formatCompilation(report);
-        return {
-          exitCode: report.status === "green" ? 0 : 1,
-          stdout,
-          stderr: "",
-        };
-      }
-      if (request.action === "refresh") {
-        const result = await refreshCompilationSession(
-          request.sessionIdentity!,
-        );
-        return {
-          exitCode: 0,
-          stdout: request.quiet ? "" : `${JSON.stringify(result)}\n`,
-          stderr: "",
-        };
-      }
-      await closeCompilationSession(request.sessionIdentity!);
-      return {
-        exitCode: 0,
-        stdout: request.quiet ? "" : `${
-          JSON.stringify({
-            sessionIdentity: request.sessionIdentity,
-            closed: true,
-          })
-        }\n`,
-        stderr: "",
-      };
-    }
     if (parsed.request.command === "compile") {
       const events: CompilationEvent[] = [];
       compilationEvents = events;

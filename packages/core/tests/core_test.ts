@@ -1526,7 +1526,7 @@ expand Ownership {
   assertEquals(full.targets[0].artifactKind, "markdown");
   assertEquals(full.targets[0].filePath, "packages/cli/README.md");
   assertEquals(full.diagnostics.length, 0);
-  assertEquals(full.targets[1].range?.start.line, 2);
+  assertEquals(full.targets[1].location?.line, 2);
 
   const diagnostics = ownershipDiagnosticsFor(resolved, [
     ...implementationSources,
@@ -1540,6 +1540,103 @@ expand Ownership {
   assertEquals(diagnostics.length, 1);
   assertEquals(diagnostics[0].code, "SIGIL_PARSE_STRUCTURE");
   assert(diagnostics[0].message.includes("unknown concept Missing"));
+});
+
+/*
+ * @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::ImplementationPurposeSelection logic,cases
+ * @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::EvidenceUnitConstruction logic
+ */
+Deno.test("implementation retrieval emits advisory ownership locations without source slices", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "feature.sigil": validComponent("Feature", "run()"),
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "feature.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const result = await retrievePurposeContext(
+    resolved,
+    { kind: "component", componentName: "Feature", path: "feature.sigil" },
+    "implementation",
+    resolved.glossary,
+    {
+      workspaceSnapshotIdentity: resolved.workspace.workspaceSnapshotIdentity,
+      discoveryState: "complete",
+      sources: [{
+        filePath: "feature.ts",
+        text:
+          "// @sigil implements feature.sigil::Feature interface\nexport function run() {}\n",
+      }],
+      diagnostics: [],
+    },
+  );
+  const ownership = result.evidence.find((item) =>
+    item.kind === "ownership-projection"
+  );
+  assert(ownership);
+  assertEquals(
+    JSON.stringify(ownership.location),
+    JSON.stringify({ line: 2, column: 17 }),
+  );
+  assertEquals(ownership.range, undefined);
+  const ownershipEdge = result.graph.edges.find((item) =>
+    item.relation === "owned-implementation"
+  );
+  assertEquals(ownershipEdge?.originRange?.start.line, 1);
+  assert(
+    !result.evidence.some((item) =>
+      item.path === "feature.ts" && item.text.includes("run() {}")
+    ),
+  );
+  const projection = await projectRetrieval(result);
+  assertEquals(
+    JSON.stringify(projection.components[0].ownership[0].location),
+    JSON.stringify({ line: 2, column: 17 }),
+  );
+});
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::ImplementationPurposeSelection logic,cases
+Deno.test("implementation retrieval falls back to annotation range for file-scoped ownership", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "feature.sigil": validComponent("Feature", "run()"),
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "feature.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const result = await retrievePurposeContext(
+    resolved,
+    { kind: "component", componentName: "Feature", path: "feature.sigil" },
+    "implementation",
+    resolved.glossary,
+    {
+      workspaceSnapshotIdentity: resolved.workspace.workspaceSnapshotIdentity,
+      discoveryState: "complete",
+      sources: [{
+        filePath: "feature.css",
+        text:
+          "/* @sigil implements feature.sigil::Feature interface */\n.feature {}\n",
+      }],
+      diagnostics: [],
+    },
+  );
+  const ownership = result.evidence.find((item) =>
+    item.kind === "ownership-projection"
+  );
+  assert(ownership);
+  assertEquals(ownership.location, undefined);
+  assertEquals(ownership.range?.start.line, 1);
+  const target = result.graph.nodes.find((item) =>
+    item.kind === "implementation-target"
+  );
+  assertEquals(target?.location, undefined);
+  assertEquals(target?.range?.start.line, 1);
 });
 
 /*

@@ -149,11 +149,10 @@ expand SigilOneShotCompilation {
       source, configuration, tests, documentation, and selected repository evidence,
       remains read-only during compilation.
 
-      Compiler-owned compilation may write only its explicitly owned proposal-
-      workspace, session, event, report, history, and requested-export state.
+      Compiler-owned compilation may write only its explicitly owned event, report,
+      history, and requested-export state.
 
-      Evaluators receive read-only proposal-workspace access and never receive the
-      compiler's writable proposal-workspace capability.
+      Evaluators receive the selected workspace as read-only evidence.
 
       An externally supplied CLI adapter or provider is user-selected and
       self-declared. The compiler requests its declared restrictions but cannot

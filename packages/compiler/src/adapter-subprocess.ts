@@ -291,7 +291,7 @@ export async function runAdapterSubprocess(
     if (!settled.value.success) {
       throw new AdapterFailure(
         "process",
-        `${invocation.command} exited with ${settled.value.code}: ${stderrText.trim()}`,
+        `${invocation.command} exited with ${settled.value.code}: ${stderrText}`,
       );
     }
     return { stdout: stdoutText, stderr: stderrText, code: settled.value.code };

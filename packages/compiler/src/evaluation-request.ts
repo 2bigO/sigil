@@ -35,6 +35,20 @@ export function validateAgentEvaluationRequest(
   ) {
     throw new Error("Purpose retrieval is incomplete.");
   }
+  const brief = request.target.retrievalBrief;
+  if (
+    !brief ||
+    brief.purpose !== retrieval.purpose ||
+    brief.componentName !== retrieval.target.componentName ||
+    brief.sigilFile !== retrieval.target.path ||
+    brief.retrievalFingerprint !== retrieval.fingerprint ||
+    !brief.markdown ||
+    !Array.isArray(brief.allowedDirectReadPaths)
+  ) {
+    throw new Error(
+      "Evaluator retrieval brief does not match the purpose retrieval.",
+    );
+  }
 }
 
 // @sigil implements packages/compiler/src/evaluation-request.sigil::SigilAgentEvaluationRequest::AgentEvaluationResult interface,cases
