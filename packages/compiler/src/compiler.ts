@@ -313,6 +313,7 @@ export async function compile(
       }
     }
     const diagnostics: CompilerDiagnostic[] = [];
+    const agentDiagnosticFingerprints = new Set<string>();
     const stageReports: StageReport[] = [];
     const failed = new Set<string>();
     const adaptersByEvaluatorId = new Map(
@@ -495,6 +496,7 @@ export async function compile(
                 budgetOutcome: result.budgetOutcome,
               });
               const evaluatorDiagnostics: CompilerDiagnostic[] = [];
+              const evaluatorFingerprints = new Set<string>();
               for (const finding of result.findings) {
                 if (!definition.skill.manifest.rules.includes(finding.code)) {
                   throw new Error(
@@ -514,14 +516,24 @@ export async function compile(
                   ),
                   previous,
                 );
+                if (evaluatorFingerprints.has(diagnostic.fingerprint)) {
+                  continue;
+                }
+                evaluatorFingerprints.add(diagnostic.fingerprint);
                 evaluatorDiagnostics.push(diagnostic);
+              }
+              componentDiagnostics.push(evaluatorDiagnostics);
+              for (const diagnostic of evaluatorDiagnostics) {
+                if (agentDiagnosticFingerprints.has(diagnostic.fingerprint)) {
+                  continue;
+                }
+                agentDiagnosticFingerprints.add(diagnostic.fingerprint);
                 diagnostics.push(diagnostic);
                 await requireEventDelivery(
                   await eventWriter.diagnostic(diagnostic, component.name),
                   true,
                 );
               }
-              componentDiagnostics.push(evaluatorDiagnostics);
             }
             for (
               const rawDiagnostic of await disagreementDiagnostics(

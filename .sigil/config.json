@@ -29,7 +29,7 @@
   },
   "tools": {
     "agent": {
-      "profile": "pi"
+      "profile": "standard"
     },
     "compile": {
       "defaultProfile": "standard",
@@ -56,6 +56,10 @@
         "pi": {
           "extends": "standard",
           "main": ["pi"]
+        },
+        "opencode": {
+          "extends": "standard",
+          "main": ["opencode"]
         }
       },
       "evaluators": {
@@ -72,6 +76,11 @@
         "pi": {
           "provider": "pi",
           "implementationId": "builtin.pi-cli",
+          "implementationVersion": "0.7.1"
+        },
+        "opencode": {
+          "provider": "opencode",
+          "implementationId": "builtin.opencode-cli",
           "implementationVersion": "0.7.1"
         }
       }

@@ -944,6 +944,57 @@ Deno.test("independent evaluator disagreement is explicit", async () => {
   }
 });
 
+// @sigil tests packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::AgentFindingIdentityCollapse logic,constraints,cases
+Deno.test("duplicate findings in one evaluator payload emit once and complete", async () => {
+  const root = await workspace(`component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleOperation {
+      run()
+    }
+  }
+}
+`);
+  try {
+    const events: CompilationEvent[] = [];
+    const first = {
+      code: "SEMANTIC_AMBIGUITY",
+      severity: "warning" as const,
+      message: "The goal is ambiguous.",
+      filePath: "main.sigil",
+      line: 3,
+      column: 5,
+      evidence: "The goal lacks a measurable result.",
+      impact: "Implementations may diverge.",
+      correction: "State the expected result.",
+    };
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter([
+        first,
+        { ...first, message: "Equivalent finding with different wording." },
+      ]),
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    assertEquals(
+      report.diagnostics.filter((item) => item.code === first.code).length,
+      1,
+    );
+    assertEquals(
+      events.filter((event) => event.type === "diagnostic").length,
+      1,
+    );
+    assertEquals(events.at(-1)?.type, "completed");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore logic,cases
 Deno.test("history derives unchanged, resolved, and regressed lifecycle", async () => {
   const root = await workspace(`component Example {
