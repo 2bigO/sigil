@@ -1582,6 +1582,10 @@ Deno.test("implementation retrieval emits advisory ownership locations without s
     JSON.stringify({ line: 2, column: 17 }),
   );
   assertEquals(ownership.range, undefined);
+  const ownershipEdge = result.graph.edges.find((item) =>
+    item.relation === "owned-implementation"
+  );
+  assertEquals(ownershipEdge?.originRange?.start.line, 1);
   assert(
     !result.evidence.some((item) =>
       item.path === "feature.ts" && item.text.includes("run() {}")
@@ -1592,6 +1596,47 @@ Deno.test("implementation retrieval emits advisory ownership locations without s
     JSON.stringify(projection.components[0].ownership[0].location),
     JSON.stringify({ line: 2, column: 17 }),
   );
+});
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::ImplementationPurposeSelection logic,cases
+Deno.test("implementation retrieval falls back to annotation range for file-scoped ownership", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "feature.sigil": validComponent("Feature", "run()"),
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, {
+      startPath: "feature.sigil",
+      currentDirectory: ".",
+    }),
+  );
+  const result = await retrievePurposeContext(
+    resolved,
+    { kind: "component", componentName: "Feature", path: "feature.sigil" },
+    "implementation",
+    resolved.glossary,
+    {
+      workspaceSnapshotIdentity: resolved.workspace.workspaceSnapshotIdentity,
+      discoveryState: "complete",
+      sources: [{
+        filePath: "feature.css",
+        text:
+          "/* @sigil implements feature.sigil::Feature interface */\n.feature {}\n",
+      }],
+      diagnostics: [],
+    },
+  );
+  const ownership = result.evidence.find((item) =>
+    item.kind === "ownership-projection"
+  );
+  assert(ownership);
+  assertEquals(ownership.location, undefined);
+  assertEquals(ownership.range?.start.line, 1);
+  const target = result.graph.nodes.find((item) =>
+    item.kind === "implementation-target"
+  );
+  assertEquals(target?.location, undefined);
+  assertEquals(target?.range?.start.line, 1);
 });
 
 /*

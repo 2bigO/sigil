@@ -53,12 +53,12 @@ component SigilContextRetrieval {
 
       every stable identity is a lowercase kind prefix, colon, and SHA-256 digest of
       one RFC 8785 canonical identity object: node uses kind, normalized path,
-      component name, and range; edge uses relation, endpoint identities, and
-      normalized origin path and range; evidence uses EvidenceKind, normalized path,
-      component, section, and range, with diagnostic evidence additionally using
-      severity, code, and message; inclusion reason uses rule, seed identity,
-      selected identity, and ordered edge identities; exclusion uses rule and edge
-      identity
+      component name, range, and available location; edge uses relation, endpoint
+      identities, and normalized origin path and range; evidence uses EvidenceKind,
+      normalized path, component, section, range, and available location, with
+      diagnostic evidence additionally using severity, code, and message; inclusion
+      reason uses rule, seed identity, selected identity, and ordered edge
+      identities; exclusion uses rule and edge identity
 
       identity objects omit absent optional fields rather than encoding null
     }
@@ -369,8 +369,8 @@ expand SigilContextRetrieval {
     CanonicalWireVocabulary {
       RetrievalNode kind literals are request-target, component-declaration,
       sigil-file, expansion, module-index, public-concept-origin,
-      implementation-target. seed-declaration-file class
-      applies to the sigil-file node for each exact seed declaration path.
+      implementation-target. seed-declaration-file class applies to the sigil-file
+      node for each exact seed declaration path.
 
       RetrievalRelation literals are selected-declaration, matching-expansion,
       direct-dependency, direct-importer, containing-module-index, cycle-member,
@@ -502,8 +502,7 @@ expand SigilContextRetrieval {
       Include every diagnostic from the scoped GlossaryContextProjection for
       semantic, architecture, and implementation purposes. Do not include unrelated
       workspace glossary diagnostics. Include ownership and implementation-source
-      discovery diagnostics only for implementation
-      purpose.
+      discovery diagnostics only for implementation purpose.
 
       Deduplicate diagnostics by code, severity, message, normalized path, and exact
       range. Order error before warning before info, then normalized path with an
@@ -538,10 +537,11 @@ expand SigilContextRetrieval {
       source exactly in ordered ContextSection values that reference evidence and
       provenance identities without adding presentation headings.
 
-      Deduplicate evidence with the tuple of normalized path, source range, component
-      identity, section identity, concept identity, and EvidenceKind. For diagnostic
-      evidence extend that tuple with severity, code, and message. Merge and
-      canonically order the inclusion-reason identities of a duplicated unit.
+      Deduplicate evidence with the tuple of normalized path, source range, available
+      source location, component identity, section identity, concept identity, and
+      EvidenceKind. For diagnostic evidence extend that tuple with severity, code,
+      and message. Merge and canonically order the inclusion-reason identities of a
+      duplicated unit.
 
       Never serialize resolved declaration objects, complete concept namespaces,
       complete glossary occurrence collections, or implementation sources not
@@ -858,9 +858,10 @@ expand SigilContextRetrieval {
 
     CanonicalItemIdentity {
       Decision: Derive each graph, evidence, reason, and exclusion identity from the
-      minimum normalized semantic fields declared for its kind, separate kind domains
-      with prefixes, deduplicate identical canonical objects, and fail closed when
-      distinct same-domain objects share a digest.
+      minimum normalized semantic fields declared for its kind, including an
+      available one-way implementation location alongside source-range provenance,
+      separate kind domains with prefixes, deduplicate identical canonical objects,
+      and fail closed when distinct same-domain objects share a digest.
 
       Scope: Governs item identity and provenance references; excludes the distinct
       complete-result fingerprint.

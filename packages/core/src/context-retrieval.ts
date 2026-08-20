@@ -841,6 +841,7 @@ export async function retrievePurposeContext(
         }
         implementationDiagnostics.push(...projection.diagnostics);
         for (const owned of projection.targets) {
+          const range = owned.location ? undefined : owned.annotationRange;
           const source = implementationEvidence!.sources.find((item) =>
             normalizePath(item.filePath) === normalizePath(owned.filePath) ||
             relativePath(resolved.workspace.root, item.filePath) ===
@@ -850,13 +851,14 @@ export async function retrievePurposeContext(
           const sourcePath = normalizeRelativeSource(resolved, source.filePath);
           const ownerKey = componentKey(component);
           const targetKey = addNode(
-            `implementation\0${sourcePath}\0${owned.symbolIdentity ?? ""}\0${
-              JSON.stringify(owned.location ?? null)
-            }`,
+            `implementation\0${sourcePath}\0${owned.symbolIdentity ?? ""}\0${`${
+              rangeKey(range)
+            }\0${JSON.stringify(owned.location ?? null)}`}`,
             {
               kind: "implementation-target",
               path: sourcePath,
               componentName: component.name,
+              range,
               location: owned.location,
               classRank: 8,
             },
@@ -866,12 +868,13 @@ export async function retrievePurposeContext(
             sourceKey: ownerKey,
             targetKey,
             originPath: sourcePath,
-            originRange: undefined,
+            originRange: owned.annotationRange,
           });
           evidence.push({
             kind: "ownership-projection",
             path: sourcePath,
             componentName: component.name,
+            range,
             location: owned.location,
             text: `${owned.relation} ${component.name}${
               owned.symbolIdentity ? ` at ${owned.symbolIdentity}` : ""
