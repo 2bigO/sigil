@@ -52,7 +52,7 @@ Deno.test("retrieve Markdown renders module context and escaped ownership links"
       ownership: [{
         relation: "implements",
         path: "src/feature.ts",
-        range: { start: { line: 8, column: 3 }, end: { line: 8, column: 9 } },
+        location: { line: 8, column: 3 },
         symbol: "renderFeature",
         sections: ["interface"],
       }],

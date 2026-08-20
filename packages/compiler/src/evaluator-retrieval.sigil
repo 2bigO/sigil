@@ -121,9 +121,9 @@ expand SigilEvaluatorRetrievalBrief {
 
   cases {
     EvaluatorRetrievalBrief {
-      An implementation-purpose result with repeated implementation-source evidence
-      retains its raw fingerprint and allowed source path once, but sends no source
-      text or duplicate context section to the provider.
+      An implementation-purpose result with repeated ownership links retains its raw
+      fingerprint and allowed source path once, but sends no source text or duplicate
+      context section to the provider.
 
       A component that is both a dependency and a cycle member renders one compact
       contract and one grouped graph line for every selected relation that describes

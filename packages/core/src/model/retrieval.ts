@@ -1,6 +1,10 @@
 import type { SigilDiagnostic } from "./diagnostics.ts";
 import type { ImplementationSection } from "./ownership.ts";
-import type { SigilSectionName, SourceRange } from "./language.ts";
+import type {
+  SigilSectionName,
+  SourceLocation,
+  SourceRange,
+} from "./language.ts";
 export type { SigilDiagnostic } from "./diagnostics.ts";
 export type { ImplementationSection } from "./ownership.ts";
 export type { SigilSectionName, SourceRange } from "./language.ts";
@@ -28,8 +32,7 @@ export type RetrievalNodeKind =
   | "expansion"
   | "module-index"
   | "public-concept-origin"
-  | "implementation-target"
-  | "implementation-source";
+  | "implementation-target";
 export type RetrievalRelation =
   | "selected-declaration"
   | "matching-expansion"
@@ -50,7 +53,6 @@ export type EvidenceKind =
   | "public-concept-origin"
   | "glossary-definition"
   | "ownership-projection"
-  | "implementation-source"
   | "diagnostic";
 export interface RetrievalNode {
   readonly identity: string;
@@ -58,6 +60,7 @@ export interface RetrievalNode {
   readonly path: string;
   readonly componentName?: string;
   readonly range?: SourceRange;
+  readonly location?: SourceLocation;
 }
 export interface RetrievalEdge {
   readonly identity: string;
@@ -79,6 +82,7 @@ export interface EvidenceUnit {
   readonly sectionName?: SigilSectionName | ImplementationSection;
   readonly conceptIdentity?: string;
   readonly range?: SourceRange;
+  readonly location?: SourceLocation;
   readonly text: string;
   readonly inclusionReasonIdentities: readonly string[];
 }
@@ -131,8 +135,9 @@ export interface RetrievalProjectionConcept {
   readonly items: readonly RetrievalProjectionItem[];
   readonly ownership: readonly RetrievalProjectionOwnership[];
 }
-export interface RetrievalProjectionOwnership
-  extends RetrievalProjectionLocation {
+export interface RetrievalProjectionOwnership {
+  readonly path: string;
+  readonly location?: SourceLocation;
   readonly relation: "implements" | "uses" | "tests";
   readonly symbol?: string;
   readonly sections: readonly ImplementationSection[];

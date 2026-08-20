@@ -29,7 +29,11 @@ import type {
 } from "./model/resolution.ts";
 import type { SemanticUnit } from "./model/source.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
-import type { SigilSectionName, SourceRange } from "./model/language.ts";
+import type {
+  SigilSectionName,
+  SourceLocation,
+  SourceRange,
+} from "./model/language.ts";
 
 const RELATION_ORDER: readonly RetrievalRelation[] = [
   "selected-declaration",
@@ -52,7 +56,6 @@ const EVIDENCE_ORDER: readonly EvidenceKind[] = [
   "public-concept-origin",
   "glossary-definition",
   "ownership-projection",
-  "implementation-source",
   "diagnostic",
 ];
 const ERROR_MESSAGES = {
@@ -80,6 +83,7 @@ interface NodeDraft {
   readonly path: string;
   readonly componentName?: string;
   readonly range?: SourceRange;
+  readonly location?: SourceLocation;
   readonly classRank: number;
 }
 interface EdgeDraft {
@@ -102,6 +106,7 @@ interface EvidenceDraft {
     | "cases";
   readonly conceptIdentity?: string;
   readonly range?: SourceRange;
+  readonly location?: SourceLocation;
   readonly text: string;
   readonly rule: string;
   readonly seedKey: string;
@@ -187,7 +192,7 @@ export async function projectRetrieval(
       existing.ownership.push({
         relation: item.text.split(" ")[0],
         path: item.path,
-        range: item.range,
+        location: item.location,
         symbol: item.text.match(/ at (.+?)(?: \[|$)/)?.[1],
         sections:
           item.text.match(/\[([^\]]*)\]/)?.[1].split(",").filter(Boolean) ?? [],
@@ -841,19 +846,18 @@ export async function retrievePurposeContext(
             relativePath(resolved.workspace.root, item.filePath) ===
               owned.filePath
           );
-          const targetRange = owned.targetRange ?? owned.range;
-          if (!source || !targetRange) continue;
+          if (!source) continue;
           const sourcePath = normalizeRelativeSource(resolved, source.filePath);
           const ownerKey = componentKey(component);
           const targetKey = addNode(
             `implementation\0${sourcePath}\0${owned.symbolIdentity ?? ""}\0${
-              rangeKey(targetRange)
+              JSON.stringify(owned.location ?? null)
             }`,
             {
               kind: "implementation-target",
               path: sourcePath,
               componentName: component.name,
-              range: targetRange,
+              location: owned.location,
               classRank: 8,
             },
           );
@@ -862,26 +866,16 @@ export async function retrievePurposeContext(
             sourceKey: ownerKey,
             targetKey,
             originPath: sourcePath,
-            originRange: owned.annotationRange,
+            originRange: undefined,
           });
           evidence.push({
             kind: "ownership-projection",
             path: sourcePath,
             componentName: component.name,
-            range: owned.annotationRange,
+            location: owned.location,
             text: `${owned.relation} ${component.name}${
               owned.symbolIdentity ? ` at ${owned.symbolIdentity}` : ""
             } [${owned.sections.join(",")}]`,
-            rule: "select-owned-implementation",
-            seedKey: componentKey(seeds[0]),
-            edgeKeys: [edgeKey],
-          });
-          evidence.push({
-            kind: "implementation-source",
-            path: sourcePath,
-            componentName: component.name,
-            range: targetRange,
-            text: textForRange(source.text, targetRange),
             rule: "select-owned-implementation",
             seedKey: componentKey(seeds[0]),
             edgeKeys: [edgeKey],
@@ -1103,11 +1097,13 @@ async function materialize(
             path: draft.path,
             componentName: draft.componentName,
             range: draft.range,
+            location: draft.location,
           })}`,
           kind: draft.kind,
           path: draft.path,
           componentName: draft.componentName,
           range: draft.range,
+          location: draft.location,
         } satisfies RetrievalNode,
         draft,
       ] as const
@@ -1159,6 +1155,7 @@ async function materialize(
         sectionName: draft.sectionName,
         conceptIdentity: draft.conceptIdentity,
         range: draft.range,
+        location: draft.location,
       })}`,
       kind: draft.kind,
       path: draft.path,
@@ -1166,6 +1163,7 @@ async function materialize(
       sectionName: draft.sectionName,
       conceptIdentity: draft.conceptIdentity,
       range: draft.range,
+      location: draft.location,
       text: draft.text,
       inclusionReasonIdentities: [],
     } satisfies EvidenceUnit,
@@ -1431,26 +1429,6 @@ function overlaps(a: SourceRange, b: SourceRange): boolean {
   const end = (range: SourceRange) =>
     range.end.line * 1_000_000 + range.end.column;
   return start(a) <= end(b) && start(b) <= end(a);
-}
-function textForRange(text: string, range: SourceRange): string {
-  const lines = text.split(/\r?\n/);
-  if (range.start.line === range.end.line) {
-    return (lines[range.start.line - 1] ?? "").slice(
-      range.start.column - 1,
-      range.end.column - 1,
-    );
-  }
-  return lines.slice(range.start.line - 1, range.end.line).map((
-    line,
-    index,
-    all,
-  ) =>
-    index === 0
-      ? line.slice(range.start.column - 1)
-      : index === all.length - 1
-      ? line.slice(0, range.end.column - 1)
-      : line
-  ).join("\n");
 }
 function hasIdentityCollision(items: readonly { identity: string }[]): boolean {
   return new Set(items.map((item) => item.identity)).size !== items.length;

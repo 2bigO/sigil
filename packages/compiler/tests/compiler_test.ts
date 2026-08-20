@@ -283,7 +283,7 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
   }
   for (const skill of skills.values()) {
     const guidance = skill.guidance.replaceAll(/\s+/g, " ");
-    assertMatch(guidance, /Use selected evidence by default/);
+    assertMatch(guidance, /Use selected downstream evidence by default/);
     assertMatch(
       guidance,
       /Only when that evidence is insufficient/,
@@ -294,6 +294,7 @@ Deno.test("evaluation skills declare implementation evidence authority and modul
       guidance,
       /Do not broadly rediscover the repository/,
     );
+    assertMatch(guidance, /downstream dependency closure/);
   }
 });
 
@@ -305,7 +306,7 @@ Deno.test("evaluation skill loading returns closed tagged outcomes", async () =>
     "unavailable",
   );
   assertEquals(
-    (await loadEvaluationSkill("semantic-readiness", "1.1.0")).kind,
+    (await loadEvaluationSkill("semantic-readiness", "1.2.0")).kind,
     "ready",
   );
 });

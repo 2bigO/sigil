@@ -6,6 +6,7 @@
 @packages/core/src/parser.sigil import { SigilParser }
 @packages/core/src/glossary.sigil import { SigilGlossaryEngine }
 @packages/core/src/formatter.sigil import { SigilFormatter }
+@packages/core/src/path.sigil import { SigilPath }
 @packages/core/src/workspace.sigil import { SigilWorkspaceLoader }
 @packages/core/src/resolver.sigil import { SigilResolver }
 @packages/core/src/graph.sigil import { SigilGraphBuilder }
@@ -30,7 +31,7 @@ component SigilCore {
       resolution, graph, glossary, projection, ownership, retrieval, and immutable
       semantic-model contracts assembled from SigilLanguage,
       SigilConfigurationParser, SigilSemanticModel, SigilDiagnostics,
-      SigilFileSystem, SigilParser, SigilFormatter, SigilWorkspaceLoader,
+      SigilFileSystem, SigilParser, SigilFormatter, SigilPath, SigilWorkspaceLoader,
       SigilResolver, SigilGraphBuilder, SigilWorkspaceResolutionPipeline,
       SigilProjections, SigilGlossaryEngine, SigilImplementationOwnership, and
       SigilContextRetrieval
@@ -46,9 +47,9 @@ expand SigilCore {
     CorePackageBoundary {
       The module index is a concise boundary summary and namespace-assembly surface.
 
-      Operational parsing, formatting, configuration, workspace, resolution, graph,
-      glossary, projection, ownership, and retrieval behavior remains owned by its
-      imported cohesive component.
+      Operational parsing, formatting, path, configuration, workspace, resolution,
+      graph, glossary, projection, ownership, and retrieval behavior remains owned by
+      its imported cohesive component.
     }
 
     PackageVersionOwnership {
@@ -72,6 +73,9 @@ expand SigilCore {
       SigilConfigurationParser and SigilParser consume the foundation contracts.
 
       SigilFormatter consumes parser output and foundation contracts.
+
+      SigilPath is a filesystem-independent foundation contract consumed by core and
+      host integrations.
 
       SigilGlossaryEngine consumes model and diagnostic contracts.
 

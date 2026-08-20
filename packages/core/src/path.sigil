@@ -1,0 +1,38 @@
+component SigilPath {
+  goal {
+    Provide deterministic, cross-platform path operations shared by Sigil core and
+    host integrations.
+  }
+
+  interface {
+    PathOperations {
+      normalizePath, globMatches, dirname, joinPath, basename, relativePath, and
+      ancestorsFrom operate on normalized repository and workspace paths.
+
+      isSigilFile and isModuleFile classify normalized Sigil source paths.
+    }
+  }
+
+  constraints {
+    PathSemantics {
+      Operations normalize separator, root, drive, dot-segment, and
+      workspace-relative behavior deterministically without host filesystem access.
+    }
+  }
+
+  decisions {
+    SharedPathContract {
+      Decision: Expose path operations as one core contract rather than unmodelled
+      utility exports.
+
+      Scope: Governs shared path normalization, classification, matching, and
+      navigation; excludes filesystem access and workspace-resolution policy.
+
+      Rationale: CLI and LSP depend on the same public path semantics, so the
+      namespace export requires an explicit cohesive owner.
+
+      Consequences: Hosts reuse one deterministic contract without treating path
+      helpers as an unowned implementation detail.
+    }
+  }
+}

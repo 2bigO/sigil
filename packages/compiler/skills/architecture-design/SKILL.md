@@ -1,13 +1,14 @@
 # Architecture and design
 
 Treat the supplied purpose retrieval result as the authoritative architecture
-scope. Evaluate its selected component, expansions, dependencies, importers,
-module indexes, cycle groups, public concept origins, reasons, and exclusions.
-Use selected evidence by default. Only when that evidence is insufficient
+scope, with the selected component as its root. Evaluate that component, its
+expansions, dependencies reached through its imports, relevant module indexes,
+cycle groups wholly reached downstream, public concept origins, reasons, and
+exclusions. Do not analyze importers, consumers, or other ancestors. Use
+selected downstream evidence by default. Only when that evidence is insufficient
 because an explicit evidence gap blocks evaluation, perform targeted graph or
-context inspection limited to related evidence necessary to investigate that
-gap. Do not broadly rediscover the repository or redefine the authoritative
-scope.
+context inspection limited to the target's downstream dependency closure. Do not
+broadly rediscover the repository or redefine the authoritative scope.
 
 Evaluate:
 

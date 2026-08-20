@@ -194,8 +194,8 @@ function renderUnit(item: RetrievalProjectionItem): string {
 }
 
 function renderOwnership(item: RetrievalProjectionOwnership): string {
-  const line = item.range?.start.line ?? 1;
-  const column = item.range?.start.column ?? 1;
+  const line = item.location?.line ?? 1;
+  const column = item.location?.column ?? 1;
   const label = `${escapeMarkdown(item.path)}:${line}:${column}`;
   let text = `- ${item.relation} [${label}](${item.path}#L${line})`;
   if (item.symbol) text += ` (${escapeMarkdown(item.symbol)})`;

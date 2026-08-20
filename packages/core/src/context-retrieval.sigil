@@ -80,8 +80,9 @@ component SigilContextRetrieval {
       module-index-summary contributes only module-context relationship information.
 
       ownership-projection becomes the owning component or concept OwnershipLink.
-      implementation-source evidence is excluded from RetrievalProjection while
-      remaining unchanged in PurposeRetrievalResult for implementation purpose.
+      Ownership annotations are advisory links, not implementation-completeness or
+      alignment evidence. Implementation purpose does not emit implementation-source
+      text or source-range slices.
 
       glossary-definition evidence becomes one projection glossary entry using that
       unit's canonical term and definition. It does not create a RetrievedComponent.
@@ -309,9 +310,9 @@ expand SigilContextRetrieval {
       Begin with the complete architecture selection.
 
       When implementation discovery is complete, select every owned implementation
-      target and only its exact targetRange from the supported source record for each
-      seed, direct dependency, direct importer component, and cycle member. Include
-      annotationRange as provenance without including unrelated containing source.
+      target and its one-way entrypoint location from the supported source record for
+      each seed, direct dependency, direct importer component, and cycle member.
+      Include annotationRange as provenance without including source content.
 
       Select the owned-implementation relation metadata accompanying every selected
       target.
@@ -337,7 +338,7 @@ expand SigilContextRetrieval {
       edge selected from a seed namespace.
 
       Implementation purpose includes every architecture edge and every owned-
-      implementation edge whose target and targetRange are selected by
+      implementation edge whose target and entrypoint location are selected by
       ImplementationPurposeSelection.
 
       No other built relation enters SelectedRetrievalGraph. Every InclusionReason
@@ -368,7 +369,7 @@ expand SigilContextRetrieval {
     CanonicalWireVocabulary {
       RetrievalNode kind literals are request-target, component-declaration,
       sigil-file, expansion, module-index, public-concept-origin,
-      implementation-target, and implementation-source. seed-declaration-file class
+      implementation-target. seed-declaration-file class
       applies to the sigil-file node for each exact seed declaration path.
 
       RetrievalRelation literals are selected-declaration, matching-expansion,
@@ -378,12 +379,11 @@ expand SigilContextRetrieval {
       EvidenceKind literals are selected-contract, selected-expansion,
       dependency-contract, dependency-decision, importer-contract, cycle-contract,
       module-index-summary, public-concept-origin, glossary-definition,
-      ownership-projection, implementation-source, and diagnostic.
+      ownership-projection and diagnostic.
 
       Node-class literals are exact-seed, seed-declaration-file, seed-expansion,
       direct-dependency, direct-importer, cycle-member, containing-module-index,
-      public-concept-origin, owned-implementation-target, and implementation-source,
-      in that order.
+      public-concept-origin and owned-implementation-target, in that order.
 
       Stable identity prefixes are n for RetrievalNode, e for RetrievalEdge, v for
       EvidenceUnit, r for InclusionReason, and x for ExcludedRelation. Each identity
@@ -501,8 +501,8 @@ expand SigilContextRetrieval {
       attached to a selected Sigil path, component, relation, or evidence unit.
       Include every diagnostic from the scoped GlossaryContextProjection for
       semantic, architecture, and implementation purposes. Do not include unrelated
-      workspace glossary diagnostics. Include ownership, implementation-source
-      discovery, and implementation-source diagnostics only for implementation
+      workspace glossary diagnostics. Include ownership and implementation-source
+      discovery diagnostics only for implementation
       purpose.
 
       Deduplicate diagnostics by code, severity, message, normalized path, and exact
@@ -582,14 +582,14 @@ expand SigilContextRetrieval {
       glossary-definition creates one unit per selected canonical term using the
       GlossaryFile path, term declaration range, canonical spelling as component-
       absent identity, and canonical term plus definition as text. ownership-
-      projection creates one unit per selected ownership target using annotationRange
-      and normalized target metadata. implementation-source creates one unit per
-      selected targetRange using exactly that source slice. diagnostic creates one
-      unit per included diagnostic using its optional path and range. Its text is
-      exactly severity, one space, code, colon, one space, then message. Retrieval-
-      owned diagnostics use RetrievalDiagnosticVocabulary; included dependency-owned
-      diagnostics preserve their supplied severity, code, and message without
-      rewriting.
+      projection creates one unit per selected ownership target using its entrypoint
+      location when available, otherwise its annotation range, and normalized target
+      metadata. It is advisory link evidence only and does not prove implementation
+      completeness or alignment. diagnostic creates one unit per included diagnostic
+      using its optional path and range. Its text is exactly severity, one space,
+      code, colon, one space, then message. Retrieval- owned diagnostics use
+      RetrievalDiagnosticVocabulary; included dependency-owned diagnostics preserve
+      their supplied severity, code, and message without rewriting.
 
       An empty section emits no EvidenceUnit. A structurally recovered SemanticUnit
       remains eligible when its owning document is loaded; its existing diagnostics
@@ -1038,8 +1038,9 @@ expand SigilContextRetrieval {
       path, and a glossary declaration diagnostic overlapping a selected effective
       term remain in the scoped glossary context and retrieval fingerprint.
 
-      An implementation-source diagnostic appears for implementation purpose and is
-      absent from otherwise equivalent semantic and architecture results.
+      An implementation-source discovery diagnostic appears for implementation
+      purpose and is absent from otherwise equivalent semantic and architecture
+      results.
     }
 
     NullGlossaryEvidence {
