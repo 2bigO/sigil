@@ -158,11 +158,14 @@ export interface CompilationReport {
   readonly reportVersion: 3;
   readonly runId: string;
   readonly workspaceRoot: string;
+  /**
+   * The boundary that was compiled. Derived from `requestedScope`, so it may be
+   * wider than what the caller selected.
+   */
+  readonly target: CompilationTarget;
   /** What the caller selected. Evidence of affected scope, not a target. */
   readonly requestedScope: CompilationScopeSeed;
-  /** The boundary actually compiled, derived from the requested scope. */
-  readonly resolvedTarget: CompilationTarget;
-  /** How the resolved target was derived from the requested scope. */
+  /** How `target` was derived from `requestedScope`. */
   readonly selection: CompilationBoundarySelection;
   readonly componentNames: readonly string[];
   readonly status: CompilationColor;
@@ -186,8 +189,8 @@ export interface CompilationReport {
 /** Internal nonterminal output of compilation evaluation. */
 export interface CompilationEvaluationResult {
   readonly workspaceRoot: string;
+  readonly target: CompilationTarget;
   readonly requestedScope: CompilationScopeSeed;
-  readonly resolvedTarget: CompilationTarget;
   readonly selection: CompilationBoundarySelection;
   readonly componentNames: readonly string[];
   readonly startedAt: string;

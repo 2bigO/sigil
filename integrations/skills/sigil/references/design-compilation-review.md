@@ -34,7 +34,7 @@ Pass the scope you actually changed:
 | Work spanning unrelated areas | no selector; compile the workspace |
 
 Read the boundary the compiler chose from the report rather than deriving it
-yourself. `requestedScope` is what you asked for, `resolvedTarget` is what was
+yourself. `requestedScope` is what you asked for, `target` is what was
 compiled, and `selection` records the strategy, the affected and covered
 semantic units, any uncovered evidence, and the deciding tie-break. Report both
 when they differ, and treat a `workspace-fallback` strategy and its reason as

@@ -103,7 +103,7 @@ function isCompatibleReport(value: unknown): value is CompilationReport {
   return report.reportVersion === COMPILATION_REPORT_VERSION &&
     typeof report.runId === "string" &&
     typeof report.workspaceRoot === "string" &&
-    isCompilationTarget(report.resolvedTarget) &&
+    isCompilationTarget(report.target) &&
     !!report.requestedScope && typeof report.requestedScope === "object" &&
     !!report.selection && typeof report.selection === "object" &&
     Array.isArray(report.componentNames) &&

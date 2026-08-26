@@ -39,10 +39,11 @@
   narrow selection.
 - Reject an unresolvable or invalid selector with a stable invocation
   diagnostic instead of silently compiling the whole workspace.
-- Advance `CompilationReport` to `reportVersion` 3. `target` is replaced by
-  `resolvedTarget` and joined by `requestedScope` and `selection`, so an
-  exported report explains which boundary was compiled, why, what it covered,
-  and any uncovered evidence without re-running graph analysis.
+- Advance `CompilationReport` to `reportVersion` 3, adding `requestedScope`
+  and `selection` beside the existing `target`, so an exported report explains
+  which boundary was compiled, why, what it covered, and any uncovered evidence
+  without re-running graph analysis. `target` keeps its name and meaning as the
+  boundary that ran, so a consumer reading it needs no field migration.
 - Remove the duplicated target-selection policy from the coding-agent skill;
   hosts now name the scope that changed and read the resolved boundary from the
   report.

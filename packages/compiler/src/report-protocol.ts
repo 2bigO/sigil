@@ -75,7 +75,7 @@ export function validateCompilationReportWire(
   if (!record(value)) return false;
   return value.reportVersion === COMPILATION_REPORT_VERSION &&
     nonempty(value.runId) && nonempty(value.workspaceRoot) &&
-    validTarget(value.resolvedTarget) && validScope(value.requestedScope) &&
+    validTarget(value.target) && validScope(value.requestedScope) &&
     validSelection(value.selection) && stringArray(value.componentNames) &&
     ["red", "yellow", "green"].includes(String(value.status)) &&
     date(value.startedAt) && date(value.completedAt) &&

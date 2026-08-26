@@ -499,7 +499,7 @@ requireText(
 );
 requireText(
   designCompilationReview,
-  "`requestedScope` is what you asked for, `resolvedTarget` is what was\ncompiled",
+  "`requestedScope` is what you asked for, `target` is what was\ncompiled",
   "requested scope and resolved target reporting",
 );
 requireText(

@@ -2507,8 +2507,8 @@ function greenCompilationReport(): CompilationReport {
     reportVersion: 3,
     runId: "run-green",
     workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
     requestedScope: { kind: "workspace" },
-    resolvedTarget: { kind: "workspace" },
     selection: {
       strategy: "exact-target",
       affectedSemanticUnits: [],
@@ -2621,8 +2621,8 @@ Deno.test("compile preserves JSONL events and compiler status exits", async () =
     reportVersion: 3,
     runId: "run-1",
     workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
     requestedScope: { kind: "workspace" },
-    resolvedTarget: { kind: "workspace" },
     selection: {
       strategy: "exact-target",
       affectedSemanticUnits: [],
@@ -2789,8 +2789,8 @@ Deno.test("compile delegates design and implementation focus to the compiler", a
     reportVersion: 3,
     runId: "run-focus",
     workspaceRoot: "/workspace",
+    target: { kind: "workspace" },
     requestedScope: { kind: "workspace" },
-    resolvedTarget: { kind: "workspace" },
     selection: {
       strategy: "exact-target",
       affectedSemanticUnits: [],

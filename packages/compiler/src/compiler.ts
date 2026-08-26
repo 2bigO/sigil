@@ -602,8 +602,8 @@ export async function compile(
     const report = constructCompilationReport({
       runId,
       workspaceRoot: workspace.root,
+      target,
       requestedScope: boundary.requestedScope,
-      resolvedTarget: target,
       selection: boundary.selection,
       componentNames: components.map((item) => item.name),
       startedAt,

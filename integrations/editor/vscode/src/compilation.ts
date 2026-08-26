@@ -69,11 +69,11 @@ export interface CompilationReport {
   readonly reportVersion: 3;
   readonly runId?: string;
   readonly workspaceRoot?: string;
+  /** The boundary that was compiled; may be wider than what was selected. */
+  readonly target?: unknown;
   /** The selector the caller supplied, before boundary inference. */
   readonly requestedScope?: unknown;
-  /** The boundary that was actually compiled. */
-  readonly resolvedTarget?: unknown;
-  /** How the resolved target was derived from the requested scope. */
+  /** How `target` was derived from `requestedScope`. */
   readonly selection?: unknown;
   readonly status: "red" | "yellow" | "green";
   readonly componentNames: readonly string[];
