@@ -3729,3 +3729,104 @@ component RightIndex {
   assertEquals(unrelated.selection.strategy, "workspace-fallback");
   assert(unrelated.selection.reason?.includes("covers the complete"));
 });
+
+// @sigil tests packages/core/src/compilation-boundary.sigil::SigilCompilationBoundary::SeedValidation interface,logic,constraints,cases
+Deno.test("compilation boundary rejects unresolvable and invalid seeds", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "a/alpha.sigil": `component Alpha {
+  goal {
+    Own the alpha responsibility.
+  }
+
+  interface {
+    AlphaContract {
+      Expose the alpha operations.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+
+  const codesFor = (seed: Parameters<typeof selectCompilationBoundary>[1]) =>
+    selectCompilationBoundary(resolved, seed).diagnostics.map((item) =>
+      item.code
+    ).join(",");
+
+  // A misspelled name must not silently widen to the whole workspace.
+  assertEquals(
+    codesFor({ kind: "component", componentName: "Alhpa" }),
+    "SIGIL_BOUNDARY_SEED_NOT_FOUND",
+  );
+  assertEquals(
+    codesFor({ kind: "file", filePath: "a/missing.sigil" }),
+    "SIGIL_BOUNDARY_SEED_NOT_FOUND",
+  );
+  assertEquals(
+    codesFor({ kind: "directory", directoryPath: "unloaded" }),
+    "SIGIL_BOUNDARY_SEED_NOT_FOUND",
+  );
+  // Escaping, absolute, and empty selectors are invalid rather than unresolved.
+  for (
+    const path of ["../elsewhere", "/absolute/dir", "", "   ", "a/../../out"]
+  ) {
+    assertEquals(
+      codesFor({ kind: "directory", directoryPath: path }),
+      "SIGIL_BOUNDARY_SEED_PATH_INVALID",
+    );
+  }
+  assertEquals(
+    codesFor({
+      kind: "component",
+      componentName: "Alpha",
+      declarationPath: "/abs.sigil",
+    }),
+    "SIGIL_BOUNDARY_SEED_PATH_INVALID",
+  );
+
+  // A resolvable seed reports no diagnostics.
+  assertEquals(codesFor({ kind: "component", componentName: "Alpha" }), "");
+  assertEquals(codesFor({ kind: "file", filePath: "a/alpha.sigil" }), "");
+  assertEquals(codesFor({ kind: "workspace" }), "");
+
+  // A rejected seed carries no inferred scope, so a caller cannot mistake the
+  // reported workspace target for a real selection.
+  const rejected = selectCompilationBoundary(resolved, {
+    kind: "component",
+    componentName: "Alhpa",
+  });
+  assertEquals(rejected.selection.affectedSemanticUnits.length, 0);
+  assert(rejected.diagnostics[0].message.includes("Alhpa"));
+
+  // A path containing a space survives the semantic-unit representation.
+  const spaced = resolveSigilWorkspace(
+    await loadSigilWorkspace(
+      new InMemorySigilFileSystem({
+        ".sigil/config.json": configSource(),
+        "my dir/alpha.sigil": `component Alpha {
+  goal {
+    Own the alpha responsibility.
+  }
+
+  interface {
+    AlphaContract {
+      Expose the alpha operations.
+    }
+  }
+}
+`,
+      }),
+      { startPath: "." },
+    ),
+  );
+  assertEquals(
+    selectCompilationBoundary(spaced, {
+      kind: "component",
+      componentName: "Alpha",
+    }).selection.affectedSemanticUnits.join("|"),
+    "component:Alpha@my dir/alpha.sigil|file:my dir/alpha.sigil",
+  );
+});
