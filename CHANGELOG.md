@@ -31,6 +31,15 @@
 
 ## Unreleased
 
+- Stop rejecting a compilation because its evaluator request carries a complete
+  retrieval result. The declared initial-request limit is enforced where the
+  request reaches its adapter, so exceeding it leaves that evaluator incomplete
+  instead of failing the run, matching a retrieval policy that declares no
+  budget in version 1.
+- Remove `evaluateCompilation` and `CompilationEvaluationRunner`, a
+  session-facing pass-through left with no consumer after the session boundary
+  was removed, and record one-shot compilation as the evaluation pipeline's
+  implementation owner.
 - Extend implementation-ownership discovery to frontend surfaces. Markup
   (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
   single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry
