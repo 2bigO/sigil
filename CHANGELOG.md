@@ -44,6 +44,14 @@
   definition, such as `<script setup>`, binds its annotation to the file
   instead of reporting a detached annotation, and the comment-form rule applies
   only to regions offering both a line and a multiline form.
+- Scan a markup source with the same per-region split as a single-file
+  component, so an ownership annotation inside an embedded `<script>` or
+  `<style>` block resolves instead of being silently dropped with no
+  diagnostic.
+- Accept the Go-template families `.tmpl` and `.gohtml` as implementation
+  sources, and recognize the `{{/* ... */}}` comment form alongside the HTML
+  one. A template comment is stripped server-side, so it carries an annotation
+  without emitting it to the rendered page.
 - Add `references/frontend-surface-review.md` to the coding-agent skill,
   covering surface inventory, client-state ownership classification,
   presentation annotation placement, and frontend drift evidence, with a

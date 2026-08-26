@@ -1825,6 +1825,128 @@ expand ScreenSurface {
 });
 
 /*
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ComponentFileRegions logic,constraints,cases
+ * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationSourceSupport cases
+ */
+Deno.test("projects implementation targets from markup and template sources", async () => {
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "page.sigil": `component PageSurface {
+  goal {
+    Own one server-rendered page surface.
+  }
+
+  interface {
+    PageContract {
+      Expose the rendered regions and their actions.
+    }
+  }
+
+  logic {
+    PageContract {
+      Wire the rendered regions to their handlers.
+    }
+  }
+}
+`,
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const identity = {
+    componentName: "PageSurface",
+    declarationPath: "page.sigil",
+  };
+  const annotation =
+    "@sigil implements page.sigil::PageSurface::PageContract logic";
+  const implementationSources = [
+    // An embedded script block in a markup source is a code region, so its
+    // annotation resolves to the following definition instead of being dropped.
+    {
+      filePath: "templates/inline.html",
+      text: [
+        '<div id="root"></div>',
+        "<script>",
+        `// ${annotation}`,
+        "function inlineHandler() {}",
+        "</script>",
+        "",
+      ].join("\n"),
+    },
+    // A Go template comment is stripped server-side, so it carries an annotation
+    // without emitting it to the rendered page.
+    {
+      filePath: "templates/screens/list.tmpl",
+      text: `{{/* ${annotation} */}}\n<div>{{.Title}}</div>\n`,
+    },
+    // Trim markers surround the same comment form.
+    {
+      filePath: "templates/screens/trim.gohtml",
+      text: `{{- /* ${annotation} */ -}}\n<div></div>\n`,
+    },
+    // An HTML comment remains valid in both families.
+    {
+      filePath: "templates/plain.html",
+      text: `<!-- ${annotation} -->\n<div></div>\n`,
+    },
+  ];
+
+  const projection = ownedImplementationTargetsFor(
+    resolved,
+    implementationSources,
+    identity,
+  );
+  assert(projection);
+  assertEquals(projection.diagnostics.length, 0);
+  assertEquals(
+    projection.targets.map((item) =>
+      `${item.filePath}:${item.symbolIdentity ?? ""}`
+    ).join(","),
+    [
+      "templates/inline.html:inlineHandler",
+      "templates/plain.html:",
+      "templates/screens/list.tmpl:",
+      "templates/screens/trim.gohtml:",
+    ].join(","),
+  );
+  assertEquals(
+    ownershipDiagnosticsFor(resolved, implementationSources).length,
+    0,
+  );
+
+  // Server-rendered template families are supported sources.
+  for (const path of ["a.tmpl", "a.gohtml", "a.html", "a.htm"]) {
+    assertEquals(isSupportedImplementationSource(path), true);
+  }
+
+  // The template comment form belongs to the family that defines it. The same
+  // text in any other markup or component source is ordinary content, not
+  // ownership metadata: `{{ }}` is interpolation syntax in several of them.
+  const templateComment = `{{/* ${annotation} */}}`;
+  for (
+    const [path, text] of [
+      ["a.html", `${templateComment}\n<div></div>\n`],
+      ["a.htm", `${templateComment}\n<div></div>\n`],
+      ["a.vue", `<template>\n  ${templateComment}\n  <div/>\n</template>\n`],
+      ["a.svelte", `${templateComment}\n<div></div>\n`],
+      ["a.astro", `${templateComment}\n<div></div>\n`],
+    ] as [string, string][]
+  ) {
+    const foreign = ownedImplementationTargetsFor(
+      resolved,
+      [{ filePath: path, text }],
+      identity,
+    );
+    assert(foreign);
+    assertEquals(foreign.targets.length, 0);
+    assertEquals(
+      ownershipDiagnosticsFor(resolved, [{ filePath: path, text }]).length,
+      0,
+    );
+  }
+});
+
+/*
  * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::ImplementationAnnotation interface
  * @sigil tests packages/core/src/implementation-ownership.sigil::SigilImplementationOwnership::TargetResolution constraints,cases
  */

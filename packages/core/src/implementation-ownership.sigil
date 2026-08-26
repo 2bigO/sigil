@@ -103,15 +103,18 @@ component SigilImplementationOwnership {
     }
 
     ComponentFileRegions {
-      A single-file component source is scanned as an ordered set of regions rather
-      than as one language.
+      A single-file component or markup source is scanned as an ordered set of
+      regions rather than as one language.
 
       Each region carries the comment syntax used to find annotations and the binding
       used to resolve their targets.
 
       A script region uses the code comment syntax of its enclosing family, a style
       region uses stylesheet block and line comments, and every remaining region is
-      template markup using HTML comments.
+      template markup.
+
+      A template markup region accepts an HTML comment, and a server-template family
+      additionally accepts its own template comment form.
 
       Binding is exactly symbol, optional-symbol, or file; symbol requires an
       adjacent entrypoint definition, file never resolves one, and optional-symbol
@@ -258,6 +261,17 @@ expand SigilImplementationOwnership {
 
       A template markup or stylesheet region binds every annotation to its file
       because it exposes no stable entrypoint definition.
+
+      A markup source is split on the same terms as a single-file component, so an
+      annotation inside an embedded script or style block is resolved rather than
+      ignored.
+
+      A supported extension is selected from a template or component family observed
+      in real repositories, not from one fixed list.
+
+      A template comment form is recognized only in the server-template family that
+      defines it; the same text in another markup or component source is ordinary
+      content.
     }
 
     ImplementationTargetScope {
@@ -566,13 +580,20 @@ expand SigilImplementationOwnership {
       Discarded alternatives: Requiring a symbol entrypoint everywhere was rejected
       because a script-setup component exposes no such definition, which leaves the
       most common idiom unannotatable. Treating a single-file component as one
-      language was rejected because its comment syntax differs per region. Adding a
-      distinct presentation artifact kind was rejected as a wider public contract
-      change than the coverage gap requires.
+      language was rejected because its comment syntax differs per region. Treating a
+      markup source as one region was rejected because it silently drops an
+      annotation placed in an embedded script or style block. Selecting extensions
+      from a single fixed list was rejected because a server-rendered template family
+      such as Go templates would leave a repository's whole template layer
+      unreachable. Adding a distinct presentation artifact kind was rejected as a
+      wider public contract change than the coverage gap requires.
 
       Consequences: A presentation surface participates in ownership projections,
       coverage maps, and watcher registration on the same terms as backend code, and
       the comment-form rule applies only to regions offering both comment forms.
+
+      Consequences: Supporting a server-template comment form keeps an annotation out
+      of the rendered page, which an HTML comment in a shipped template cannot do.
 
       Revisit when: Symbol-level targets are needed inside template markup or
       stylesheet selectors, or a supported framework stops being recoverable from
@@ -605,6 +626,15 @@ expand SigilImplementationOwnership {
 
       Astro frontmatter between leading triple-dash fences resolves a symbol-level
       target from the definition following its annotation.
+
+      An annotation inside an embedded script block of a markup source resolves to
+      the definition that follows it rather than being silently dropped.
+
+      A server-template comment carries an annotation without emitting it to the
+      rendered page, while an HTML comment in the same source remains valid.
+
+      A server-template comment form written in an HTML or single-file component
+      source is ordinary content and yields neither a target nor a diagnostic.
     }
 
     ImplementationSourceSupport {
