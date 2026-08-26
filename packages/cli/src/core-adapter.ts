@@ -25,6 +25,7 @@ import {
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
   ownershipDiagnosticsFor as coreOwnershipDiagnosticsFor,
+  parseSigilConfig,
   parseSigilDocument,
   type PurposeRetrievalResult,
   type PurposeRetrievalTarget,
@@ -46,6 +47,13 @@ import {
 } from "@qoherent/sigil-core";
 import { DenoSigilFileSystem, joinPath, normalizePath } from "./fs-adapter.ts";
 import metadata from "../deno.json" with { type: "json" };
+import {
+  applySetDefault,
+  applySetProfile,
+  seededToolConfiguration,
+  type SetDefaultInput,
+  type SetProfileInput,
+} from "./config-authoring.ts";
 
 export const SIGIL_CLI_VERSION = metadata.version;
 
@@ -53,6 +61,7 @@ interface WritableSigilFileSystem extends SigilFileSystem {
   makeDirectory(path: string): Promise<void>;
   writeTextFile(path: string, source: string): Promise<void>;
   replaceTextFile(path: string, source: string): Promise<void>;
+  atomicReplaceTextFile(path: string, source: string): Promise<void>;
 }
 
 export interface CoreAdapterOptions {
@@ -70,6 +79,13 @@ export interface InitConfigResult {
   readonly root: string;
   readonly configPath: string;
   readonly glossaryPath: string;
+  readonly config: SigilConfig | null;
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+
+export interface ConfigAuthoringResult {
+  readonly root: string;
+  readonly configPath: string;
   readonly config: SigilConfig | null;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
@@ -267,7 +283,7 @@ export class CoreAdapter {
         include: include.length ? [...include] : [...DEFAULT_SIGIL_INCLUDES],
         exclude: exclude.length ? [...exclude] : [...DEFAULT_SIGIL_EXCLUDES],
       },
-      tools: {},
+      tools: seededToolConfiguration(),
     };
     const writable = this.#fs as Partial<WritableSigilFileSystem>;
     if (!writable.makeDirectory || !writable.writeTextFile) {
@@ -287,6 +303,131 @@ export class CoreAdapter {
       );
     }
     return { root, configPath, glossaryPath, config, diagnostics: [] };
+  }
+
+  /**
+   * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
+   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ConfigFileScope constraints
+   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ContentValidationClassification constraints
+   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::AtomicRewrite constraints
+   */
+  async setDefaultProfile(
+    path: string | undefined,
+    profileName: string,
+    agentProfileName: string | undefined,
+  ): Promise<ConfigAuthoringResult> {
+    const root = this.resolveTarget(path ?? this.#currentDirectory);
+    const configPath = joinPath(root, SIGIL_CONFIG_PATH);
+    const loaded = await this.#loadExistingConfig(configPath);
+    if ("diagnostics" in loaded) {
+      return {
+        root,
+        configPath,
+        config: null,
+        diagnostics: loaded.diagnostics,
+      };
+    }
+    const outcome = applySetDefault(
+      loaded.config.tools,
+      {
+        profileName,
+        agentProfileName,
+      } satisfies SetDefaultInput,
+    );
+    if ("error" in outcome) {
+      return {
+        root,
+        configPath,
+        config: loaded.config,
+        diagnostics: [
+          diagnostic(outcome.error.code, outcome.error.message, {
+            filePath: configPath,
+          }),
+        ],
+      };
+    }
+    const nextConfig: SigilConfig = { ...loaded.config, tools: outcome.tools };
+    await this.#writeConfigAtomically(configPath, nextConfig);
+    return { root, configPath, config: nextConfig, diagnostics: [] };
+  }
+
+  /**
+   * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
+   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ConfigFileScope constraints
+   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ContentValidationClassification constraints
+   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::AtomicRewrite constraints
+   */
+  async setProfile(
+    path: string | undefined,
+    input: SetProfileInput,
+  ): Promise<ConfigAuthoringResult> {
+    const root = this.resolveTarget(path ?? this.#currentDirectory);
+    const configPath = joinPath(root, SIGIL_CONFIG_PATH);
+    const loaded = await this.#loadExistingConfig(configPath);
+    if ("diagnostics" in loaded) {
+      return {
+        root,
+        configPath,
+        config: null,
+        diagnostics: loaded.diagnostics,
+      };
+    }
+    const outcome = applySetProfile(loaded.config.tools, input);
+    if ("error" in outcome) {
+      return {
+        root,
+        configPath,
+        config: loaded.config,
+        diagnostics: [
+          diagnostic(outcome.error.code, outcome.error.message, {
+            filePath: configPath,
+          }),
+        ],
+      };
+    }
+    const nextConfig: SigilConfig = { ...loaded.config, tools: outcome.tools };
+    await this.#writeConfigAtomically(configPath, nextConfig);
+    return { root, configPath, config: nextConfig, diagnostics: [] };
+  }
+
+  async #loadExistingConfig(
+    configPath: string,
+  ): Promise<
+    { readonly config: SigilConfig } | {
+      readonly diagnostics: readonly SigilDiagnostic[];
+    }
+  > {
+    if (!(await this.#fs.exists(configPath))) {
+      return {
+        diagnostics: [
+          diagnostic(
+            "SIGIL_CONFIG_NOT_FOUND",
+            `No ConfigFile found at ${configPath}.`,
+            { filePath: configPath },
+          ),
+        ],
+      };
+    }
+    const source = await this.#fs.readTextFile(configPath);
+    const parsed = parseSigilConfig(source, configPath);
+    if (!parsed.config) return { diagnostics: parsed.diagnostics };
+    return { config: parsed.config };
+  }
+
+  async #writeConfigAtomically(
+    configPath: string,
+    config: SigilConfig,
+  ): Promise<void> {
+    const writable = this.#fs as Partial<WritableSigilFileSystem>;
+    if (!writable.atomicReplaceTextFile) {
+      throw new Error(
+        `Filesystem does not support atomically replacing ${SIGIL_CONFIG_PATH}.`,
+      );
+    }
+    await writable.atomicReplaceTextFile(
+      configPath,
+      `${JSON.stringify(config, null, 2)}\n`,
+    );
   }
 
   // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
