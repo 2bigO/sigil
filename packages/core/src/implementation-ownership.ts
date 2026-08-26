@@ -69,6 +69,8 @@ const STYLE_COMMENT_EXTENSIONS = new Set([
   ".scss",
 ]);
 const COMPONENT_FILE_EXTENSIONS = new Set([".astro", ".svelte", ".vue"]);
+// Markup families whose own comment form is stripped before rendering.
+const TEMPLATE_COMMENT_EXTENSIONS = new Set([".gohtml", ".tmpl"]);
 const SUPPORTED_IMPLEMENTATION_SOURCE_GLOB_PATTERNS = Object.freeze([
   ...MARKDOWN_EXTENSIONS,
   ...HASH_COMMENT_EXTENSIONS,
@@ -443,7 +445,7 @@ function commentBlocks(source: ImplementationSource): readonly CommentBlock[] {
   const blocks: CommentBlock[] = [];
   for (const region of sourceRegions(source.text, extension)) {
     const text = source.text.slice(region.start, region.end);
-    for (const comment of scanRegion(text, region.syntax)) {
+    for (const comment of scanRegion(text, region.syntax, extension)) {
       blocks.push({
         ...comment,
         binding: region.binding,
@@ -455,9 +457,13 @@ function commentBlocks(source: ImplementationSource): readonly CommentBlock[] {
   return blocks.sort((left, right) => left.start - right.start);
 }
 
-function scanRegion(text: string, syntax: CommentSyntax): RawComment[] {
+function scanRegion(
+  text: string,
+  syntax: CommentSyntax,
+  extension: string,
+): RawComment[] {
   if (syntax === "hash") return hashCommentBlocks(text);
-  if (syntax === "markup") return markupCommentBlocks(text);
+  if (syntax === "markup") return markupCommentBlocks(text, extension);
   if (syntax === "style") return styleCommentBlocks(text);
   return slashCommentBlocks(text);
 }
@@ -557,11 +563,18 @@ function astroFrontmatterRegion(text: string): SourceRegion | undefined {
   };
 }
 
-const MARKUP_COMMENT_PATTERN =
+const HTML_COMMENT_PATTERN = /<!--[\s\S]*?-->/g;
+const TEMPLATE_COMMENT_PATTERN =
   /<!--[\s\S]*?-->|\{\{-?\s*\/\*[\s\S]*?\*\/\s*-?\}\}/g;
 
-function markupCommentBlocks(source: string): RawComment[] {
-  return [...source.matchAll(MARKUP_COMMENT_PATTERN)].map((match) => ({
+function markupCommentBlocks(
+  source: string,
+  extension: string,
+): RawComment[] {
+  const pattern = TEMPLATE_COMMENT_EXTENSIONS.has(extension)
+    ? TEMPLATE_COMMENT_PATTERN
+    : HTML_COMMENT_PATTERN;
+  return [...source.matchAll(pattern)].map((match) => ({
     kind: "markup" as const,
     text: match[0],
     start: match.index ?? 0,

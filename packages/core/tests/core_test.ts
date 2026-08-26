@@ -1820,6 +1820,32 @@ Deno.test("projects implementation targets from markup and template sources", as
   for (const path of ["a.tmpl", "a.gohtml", "a.html", "a.htm"]) {
     assertEquals(isSupportedImplementationSource(path), true);
   }
+
+  // The template comment form belongs to the family that defines it. The same
+  // text in any other markup or component source is ordinary content, not
+  // ownership metadata: `{{ }}` is interpolation syntax in several of them.
+  const templateComment = `{{/* ${annotation} */}}`;
+  for (
+    const [path, text] of [
+      ["a.html", `${templateComment}\n<div></div>\n`],
+      ["a.htm", `${templateComment}\n<div></div>\n`],
+      ["a.vue", `<template>\n  ${templateComment}\n  <div/>\n</template>\n`],
+      ["a.svelte", `${templateComment}\n<div></div>\n`],
+      ["a.astro", `${templateComment}\n<div></div>\n`],
+    ] as [string, string][]
+  ) {
+    const foreign = ownedImplementationTargetsFor(
+      resolved,
+      [{ filePath: path, text }],
+      identity,
+    );
+    assert(foreign);
+    assertEquals(foreign.targets.length, 0);
+    assertEquals(
+      ownershipDiagnosticsFor(resolved, [{ filePath: path, text }]).length,
+      0,
+    );
+  }
 });
 
 /*

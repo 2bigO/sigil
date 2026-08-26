@@ -263,6 +263,10 @@ expand SigilImplementationOwnership {
 
       A supported extension is selected from a template or component family observed
       in real repositories, not from one fixed list.
+
+      A template comment form is recognized only in the server-template family that
+      defines it; the same text in another markup or component source is ordinary
+      content.
     }
 
     ImplementationTargetScope {
@@ -623,6 +627,9 @@ expand SigilImplementationOwnership {
 
       A server-template comment carries an annotation without emitting it to the
       rendered page, while an HTML comment in the same source remains valid.
+
+      A server-template comment form written in an HTML or single-file component
+      source is ordinary content and yields neither a target nor a diagnostic.
     }
 
     ImplementationSourceSupport {
