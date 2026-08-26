@@ -1,4 +1,11 @@
 import type {
+  CompilationBoundarySelection,
+  CompilationScopeSeed,
+} from "@qoherent/sigil-core";
+
+export type { CompilationBoundarySelection, CompilationScopeSeed };
+
+import type {
   PurposeRetrievalResult,
   RetrievalPurpose,
   SigilFormKind,
@@ -8,7 +15,7 @@ import type {
 import type { WritableEnvelopeSink } from "./event-writer.ts";
 
 export const COMPILATION_PROTOCOL_VERSION = 1;
-export const COMPILATION_REPORT_VERSION = 2;
+export const COMPILATION_REPORT_VERSION = 3;
 
 export type AgentProvider = "codex" | "claude" | "opencode" | "pi";
 export type TelemetryAvailability = "unavailable" | "partial" | "final";
@@ -148,10 +155,15 @@ export interface EffectiveProfile {
 }
 
 export interface CompilationReport {
-  readonly reportVersion: 2;
+  readonly reportVersion: 3;
   readonly runId: string;
   readonly workspaceRoot: string;
-  readonly target: CompilationTarget;
+  /** What the caller selected. Evidence of affected scope, not a target. */
+  readonly requestedScope: CompilationScopeSeed;
+  /** The boundary actually compiled, derived from the requested scope. */
+  readonly resolvedTarget: CompilationTarget;
+  /** How the resolved target was derived from the requested scope. */
+  readonly selection: CompilationBoundarySelection;
   readonly componentNames: readonly string[];
   readonly status: CompilationColor;
   readonly startedAt: string;
@@ -174,7 +186,9 @@ export interface CompilationReport {
 /** Internal nonterminal output of compilation evaluation. */
 export interface CompilationEvaluationResult {
   readonly workspaceRoot: string;
-  readonly target: CompilationTarget;
+  readonly requestedScope: CompilationScopeSeed;
+  readonly resolvedTarget: CompilationTarget;
+  readonly selection: CompilationBoundarySelection;
   readonly componentNames: readonly string[];
   readonly startedAt: string;
   readonly completedAt: string;
@@ -206,6 +220,8 @@ export interface CompilationEvent {
 export type CompilationReportRepresentation = "json" | "markdown";
 
 export interface CompileOptions {
+  /** Preserve the selector as the final target and skip boundary inference. */
+  readonly exactTarget?: boolean;
   readonly requestedStage?: string;
   readonly focus?: CompilationFocus;
   readonly disableHistory?: boolean;

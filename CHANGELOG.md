@@ -31,6 +31,21 @@
 
 ## Unreleased
 
+- Make compilation-boundary selection a compiler behavior. `--component`,
+  `--file`, `--position`, and the new `--directory` are affected-scope seeds
+  rather than final targets: the compiler resolves the nearest module index
+  whose closure covers the affected scope, otherwise the nearest covering
+  component, otherwise the workspace. `--exact-target` preserves a deliberately
+  narrow selection.
+- Reject an unresolvable or invalid selector with a stable invocation
+  diagnostic instead of silently compiling the whole workspace.
+- Advance `CompilationReport` to `reportVersion` 3. `target` is replaced by
+  `resolvedTarget` and joined by `requestedScope` and `selection`, so an
+  exported report explains which boundary was compiled, why, what it covered,
+  and any uncovered evidence without re-running graph analysis.
+- Remove the duplicated target-selection policy from the coding-agent skill;
+  hosts now name the scope that changed and read the resolved boundary from the
+  report.
 - Extend implementation-ownership discovery to frontend surfaces. Markup
   (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
   single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry

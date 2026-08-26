@@ -6,6 +6,7 @@ import {
 } from "@qoherent/sigil-core";
 import {
   type CompilationReport,
+  type CompilationScopeSeed,
   type CompilationTarget,
   type CompileOptions,
   renderCompilationReportMarkdown,
@@ -2503,10 +2504,17 @@ function validSigil(name: string): string {
 
 function greenCompilationReport(): CompilationReport {
   return {
-    reportVersion: 2,
+    reportVersion: 3,
     runId: "run-green",
     workspaceRoot: "/workspace",
-    target: { kind: "workspace" },
+    requestedScope: { kind: "workspace" },
+    resolvedTarget: { kind: "workspace" },
+    selection: {
+      strategy: "exact-target",
+      affectedSemanticUnits: [],
+      coveredSemanticUnits: [],
+      uncoveredSemanticUnits: [],
+    },
     componentNames: ["Example"],
     status: "green",
     startedAt: "2026-01-01T00:00:00.000Z",
@@ -2610,10 +2618,17 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
  */
 Deno.test("compile preserves JSONL events and compiler status exits", async () => {
   const report: CompilationReport = {
-    reportVersion: 2,
+    reportVersion: 3,
     runId: "run-1",
     workspaceRoot: "/workspace",
-    target: { kind: "workspace" },
+    requestedScope: { kind: "workspace" },
+    resolvedTarget: { kind: "workspace" },
+    selection: {
+      strategy: "exact-target",
+      affectedSemanticUnits: [],
+      coveredSemanticUnits: [],
+      uncoveredSemanticUnits: [],
+    },
     componentNames: ["Example"],
     status: "yellow",
     startedAt: "2026-01-01T00:00:00.000Z",
@@ -2735,7 +2750,7 @@ Deno.test("compile resolves configured default and agent profiles before standar
   const selected: string[] = [];
   const compiler = (
     _workspace: string,
-    _target: CompilationTarget | undefined,
+    _target: CompilationScopeSeed | undefined,
     profile: string,
   ) => {
     selected.push(profile);
@@ -2771,10 +2786,17 @@ Deno.test("compile rejects incompatible output formats", async () => {
 Deno.test("compile delegates design and implementation focus to the compiler", async () => {
   const focuses: Array<string | undefined> = [];
   const report: CompilationReport = {
-    reportVersion: 2,
+    reportVersion: 3,
     runId: "run-focus",
     workspaceRoot: "/workspace",
-    target: { kind: "workspace" },
+    requestedScope: { kind: "workspace" },
+    resolvedTarget: { kind: "workspace" },
+    selection: {
+      strategy: "exact-target",
+      affectedSemanticUnits: [],
+      coveredSemanticUnits: [],
+      uncoveredSemanticUnits: [],
+    },
     componentNames: [],
     status: "green",
     startedAt: "2026-01-01T00:00:00.000Z",
@@ -2807,7 +2829,7 @@ Deno.test("compile delegates design and implementation focus to the compiler", a
   };
   const compiler = (
     _workspace: string,
-    _target: CompilationTarget | undefined,
+    _target: CompilationScopeSeed | undefined,
     _profileName: string,
     options: CompileOptions = {},
   ) => {

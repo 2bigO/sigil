@@ -164,7 +164,7 @@ Options:
   --help              Show this help
 `,
   compile:
-    `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>]] [options]
+    `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>] | --directory <dir>] [--exact-target] [options]
 
 Options:
   stage               Run one stage and its dependency closure
@@ -237,8 +237,13 @@ export async function runCli(
       const events: CompilationEvent[] = [];
       compilationEvents = events;
       const compileWorkspace = options.compiler ?? compileWithBundledAdapters;
+      // Every selector is an affected-scope seed. The compiler resolves the
+      // boundary that actually covers it unless --exact-target is given.
       const target = parsed.request.component
-        ? { kind: "component" as const, name: parsed.request.component }
+        ? {
+          kind: "component" as const,
+          componentName: parsed.request.component,
+        }
         : parsed.request.file && parsed.request.position
         ? {
           kind: "location" as const,
@@ -247,6 +252,11 @@ export async function runCli(
         }
         : parsed.request.file
         ? { kind: "file" as const, filePath: parsed.request.file }
+        : parsed.request.directory
+        ? {
+          kind: "directory" as const,
+          directoryPath: parsed.request.directory,
+        }
         : { kind: "workspace" as const };
       const workspacePath = parsed.request.root ?? parsed.request.path ??
         Deno.cwd();
@@ -258,6 +268,7 @@ export async function runCli(
           parsed.request.agent,
         ),
         {
+          exactTarget: parsed.request.exactTarget,
           requestedStage: parsed.request.stage,
           focus: parsed.request.focus,
           noHistory: parsed.request.noCache,

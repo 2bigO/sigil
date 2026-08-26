@@ -456,8 +456,8 @@ const designCompilationReviewFixture = await Deno.readTextFile(
   `${root}/evals/design-compilation-review-fixture.md`,
 );
 const requiredDesignCompilationReviewBehaviors = [
-  "resolve-nearest-importing-module-index",
-  "traverse-graph-context",
+  "seed-scope-and-delegate-boundary-selection",
+  "read-resolved-target-from-report",
   "reserve-fresh-markdown-report-path",
   "wait-for-process-exit",
   "avoid-jsonl-stream-listening",
@@ -489,8 +489,18 @@ for (const behavior of requiredDesignCompilationReviewBehaviors) {
 }
 requireText(
   designCompilationReviewFixture,
-  "Resolve the importing module\n   index whose closure covers every affected unit",
-  "nearest importing module-index selection",
+  "let the compiler resolve the\n   boundary",
+  "compiler-owned boundary selection",
+);
+requireText(
+  designCompilationReview,
+  "The compiler owns compilation-boundary selection.",
+  "boundary selection ownership",
+);
+requireText(
+  designCompilationReview,
+  "`requestedScope` is what you asked for, `resolvedTarget` is what was\ncompiled",
+  "requested scope and resolved target reporting",
 );
 requireText(
   designCompilationReviewFixture,
