@@ -150,44 +150,30 @@ export function selectCompilationBoundary(
     );
   }
 
-  const coveringModuleIndexes = resolved.components.filter((candidate) =>
-    isModuleFile(candidate.filePath) &&
-    covers(closureFor(resolved, candidate, true), scope)
-  );
-  if (coveringModuleIndexes.length > 0) {
-    const best = rankByProximity(resolved, coveringModuleIndexes, scope);
+  // A module index is the intentional boundary summary for its directory, so
+  // it outranks any covering component.
+  for (
+    const [strategy, moduleIndex] of [
+      ["nearest-covering-module-index", true],
+      ["covering-component", false],
+    ] as const
+  ) {
+    const candidates = resolved.components.filter((candidate) =>
+      isModuleFile(candidate.filePath) === moduleIndex &&
+      covers(closureFor(resolved, candidate, moduleIndex), scope)
+    );
+    if (candidates.length === 0) continue;
+    const best = rankByProximity(resolved, candidates, scope);
+    const path = workspacePath(resolved, best.candidate.filePath);
     return {
       requestedScope: seed,
-      resolvedTarget: {
-        kind: "file",
-        filePath: workspacePath(resolved, best.candidate.filePath),
-      },
-      selection: {
-        strategy: "nearest-covering-module-index",
-        affectedSemanticUnits: affectedUnits,
-        coveredSemanticUnits: affectedUnits,
-        uncoveredSemanticUnits: [],
-        tieBreak: best.tieBreak,
-      },
-      diagnostics: [],
-    };
-  }
-
-  const coveringComponents = resolved.components.filter((candidate) =>
-    !isModuleFile(candidate.filePath) &&
-    covers(closureFor(resolved, candidate, false), scope)
-  );
-  if (coveringComponents.length > 0) {
-    const best = rankByProximity(resolved, coveringComponents, scope);
-    return {
-      requestedScope: seed,
-      resolvedTarget: {
+      resolvedTarget: moduleIndex ? { kind: "file", filePath: path } : {
         kind: "component",
         name: best.candidate.name,
-        declarationPath: workspacePath(resolved, best.candidate.filePath),
+        declarationPath: path,
       },
       selection: {
-        strategy: "covering-component",
+        strategy,
         affectedSemanticUnits: affectedUnits,
         coveredSemanticUnits: affectedUnits,
         uncoveredSemanticUnits: [],
