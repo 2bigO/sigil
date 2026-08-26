@@ -31,6 +31,16 @@
 
 ## Unreleased
 
+- Extract the Codex CLI adapter into `@qoherent/sigil-compiler-adapter-codex`,
+  registered from the CLI like its sibling adapter packages. The compiler is now
+  provider-neutral: it constructs no provider implementation, and an evaluator
+  provider is an opaque identifier owned by its adapter package rather than one
+  of four hardcoded names. A provider naming no registered adapter is reported
+  when registration resolves rather than when configuration parses.
+- Export the findings schema and shared adapter execution helpers from the
+  compiler as the one contract every adapter satisfies, replacing byte-identical
+  copies in provider packages.
+
 - Extend implementation-ownership discovery to frontend surfaces. Markup
   (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
   single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry

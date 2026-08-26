@@ -8,6 +8,7 @@ import {
 import { OpenCodeAdapter } from "@qoherent/sigil-compiler-adapter-opencode";
 import { PiAdapter } from "@qoherent/sigil-compiler-adapter-pi";
 import { ClaudeAdapter } from "@qoherent/sigil-compiler-adapter-claude";
+import { CodexAdapter } from "@qoherent/sigil-compiler-adapter-codex";
 
 // @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade logic
 export function compileWithBundledAdapters(
@@ -38,6 +39,7 @@ export async function compileWithBundledAdapters(
   const openCodeModels = new Set<string | undefined>([undefined]);
   const piModels = new Set<string | undefined>([undefined]);
   const claudeModels = new Set<string | undefined>([undefined]);
+  const codexModels = new Set<string | undefined>([undefined]);
   if (configuration.adapter?.provider === "opencode") {
     openCodeModels.add(configuration.adapter.model);
   }
@@ -46,6 +48,13 @@ export async function compileWithBundledAdapters(
   }
   if (configuration.adapter?.provider === "claude") {
     claudeModels.add(
+      typeof configuration.adapter.model === "string"
+        ? configuration.adapter.model
+        : undefined,
+    );
+  }
+  if (configuration.adapter?.provider === "codex") {
+    codexModels.add(
       typeof configuration.adapter.model === "string"
         ? configuration.adapter.model
         : undefined,
@@ -67,11 +76,17 @@ export async function compileWithBundledAdapters(
         typeof evaluator.model === "string" ? evaluator.model : undefined,
       );
     }
+    if (evaluator.provider === "codex") {
+      codexModels.add(
+        typeof evaluator.model === "string" ? evaluator.model : undefined,
+      );
+    }
   }
   const bundled = [
     ...[...openCodeModels].map((model) => new OpenCodeAdapter(model)),
     ...[...piModels].map((model) => new PiAdapter(model)),
     ...[...claudeModels].map((model) => new ClaudeAdapter(model)),
+    ...[...codexModels].map((model) => new CodexAdapter(model)),
   ];
   return await compile(
     workspacePath,

@@ -378,7 +378,7 @@ expand SigilCompilationEvaluation {
       diagnostic, marks deterministic-foundation failed, skips semantic-readiness and
       other dependent stages, and completes with a red report.
 
-      A configured Codex evaluator receives no request for that structurally invalid
+      A configured evaluator receives no request for that structurally invalid
       compilation, so invalid evaluator output cannot replace the source diagnostic.
     }
 

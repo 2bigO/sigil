@@ -9,7 +9,7 @@ import {
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
-import { CodexAdapter, resolveAdapterRegistration } from "./adapters.ts";
+import { resolveAdapterRegistration } from "./adapters.ts";
 import {
   capabilitiesMatch,
   evaluationCapabilitiesFor,
@@ -968,12 +968,10 @@ function selectedEvaluators(
       .implementationId;
     const implementationVersion = (raw as Record<string, unknown>)
       .implementationVersion;
-    if (!["codex", "claude", "opencode", "pi"].includes(String(provider))) {
+    if (typeof provider !== "string" || provider.trim() === "") {
       throw evaluatorConfigurationError(
         base,
-        `Evaluator ${
-          JSON.stringify(id)
-        } must use provider codex, claude, opencode, or pi.`,
+        `Evaluator ${JSON.stringify(id)} must name a provider.`,
       );
     }
     if (model !== undefined && typeof model !== "string") {
@@ -1093,10 +1091,7 @@ function adaptersFrom(
   options: CompileOptions,
 ): readonly AgentAdapter[] {
   if (options.adapters) {
-    const registrations = [
-      ...compilerOwnedAdapters(profile.evaluators),
-      ...options.adapters,
-    ];
+    const registrations = options.adapters;
     return profile.evaluators.map((configuration) => {
       try {
         return resolveAdapterRegistration(registrations, configuration);
@@ -1117,31 +1112,9 @@ function adaptersFrom(
     }
     return [options.adapter];
   }
-  const builtins = compilerOwnedAdapters(profile.evaluators);
-  return profile.evaluators.map((configuration) => {
-    const implementation = resolveAdapterRegistration(builtins, configuration);
-    return implementation;
-  });
-}
-
-function compilerOwnedAdapters(
-  configurations: readonly EvaluatorConfiguration[],
-): readonly AgentAdapter[] {
-  const registrations = new Map<string, AgentAdapter>();
-  for (const configuration of configurations) {
-    const adapter = configuration.provider === "codex"
-      ? new CodexAdapter(configuration.model)
-      : undefined;
-    if (adapter) {
-      registrations.set(
-        `${adapter.provider}\0${adapter.implementationId}\0${adapter.implementationVersion}\0${
-          adapter.model ?? ""
-        }`,
-        adapter,
-      );
-    }
-  }
-  return [...registrations.values()];
+  return profile.evaluators.map((configuration) =>
+    resolveAdapterRegistration([], configuration)
+  );
 }
 
 function assertProfileEvaluators(

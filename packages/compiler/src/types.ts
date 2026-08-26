@@ -10,7 +10,11 @@ import type { WritableEnvelopeSink } from "./event-writer.ts";
 export const COMPILATION_PROTOCOL_VERSION = 1;
 export const COMPILATION_REPORT_VERSION = 2;
 
-export type AgentProvider = "codex" | "claude" | "opencode" | "pi";
+/**
+ * An opaque provider identifier owned by the adapter package that declares it.
+ * The compiler compares and keys on this value and never interprets it.
+ */
+export type AgentProvider = string;
 export type TelemetryAvailability = "unavailable" | "partial" | "final";
 export type BudgetEnforcement =
   | "unavailable"
