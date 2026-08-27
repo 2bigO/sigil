@@ -391,6 +391,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (commandName !== "retrieve" && purpose) {
     return usage(`${commandName} does not accept --purpose.`, commandHelpTopic);
   }
+  if (commandName !== "retrieve" && maxEvidenceBytes !== undefined) {
+    return usage(
+      `${commandName} does not accept --max-evidence-bytes.`,
+      commandHelpTopic,
+    );
+  }
   if (commandName !== "compile" && position) {
     return usage(
       `${commandName} does not accept --position.`,

@@ -3478,8 +3478,16 @@ ${extra}}
   }
 `,
       ),
-    "one.sigil": component("One"),
-    "two.sigil": component("Two"),
+    // Multibyte text in a retrieved section makes encoded bytes exceed UTF-16
+    // code units, so a budget measured in the wrong unit overshoots.
+    "one.sigil": component("One").replace(
+      "Own the One",
+      `Own \u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680} the One`,
+    ),
+    "two.sigil": component("Two").replace(
+      "Own the Two",
+      `Own \u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680} the Two`,
+    ),
   });
   const resolved = resolveSigilWorkspace(
     await loadSigilWorkspace(fs, { startPath: "." }),
@@ -3547,4 +3555,53 @@ ${extra}}
   );
   assertEquals(generous.evidence.length, full.evidence.length);
   assertEquals(generous.budget?.withheldCount, 0);
+
+  // The budget is a byte budget, so multibyte text spends its encoded length
+  // rather than its UTF-16 code-unit count.
+  const encoded = (text: string) => new TextEncoder().encode(text).length;
+  const bounded = await retrievePurposeContext(
+    resolved,
+    target,
+    "architecture",
+    resolved.glossary,
+    null,
+    { maxEvidenceBytes: 200 },
+  );
+  const spent = bounded.evidence.reduce(
+    (sum, item) => sum + encoded(item.text),
+    0,
+  );
+  assertEquals(bounded.budget!.includedBytes, spent);
+  assertEquals(
+    bounded.budget!.withheldBytes,
+    full.evidence.filter((item) =>
+      !bounded.evidence.some((kept) => kept.identity === item.identity)
+    ).reduce((sum, item) => sum + encoded(item.text), 0),
+  );
+
+  // Optional selection stops at the first unit that does not fit, so a later
+  // smaller unit never displaces closer evidence.
+  const ordered = full.evidence.map((item) => item.identity);
+  assertEquals(
+    bounded.evidence.map((item) => item.identity).join(","),
+    ordered.slice(0, bounded.evidence.length).join(","),
+  );
+
+  // An unusable budget is rejected rather than silently withholding.
+  for (const invalid of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    let rejected = false;
+    try {
+      await retrievePurposeContext(
+        resolved,
+        target,
+        "architecture",
+        resolved.glossary,
+        null,
+        { maxEvidenceBytes: invalid },
+      );
+    } catch {
+      rejected = true;
+    }
+    assertEquals(rejected, true);
+  }
 });

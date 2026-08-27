@@ -599,6 +599,17 @@ Deno.test("--show-locations is rejected outside check", async () => {
   );
 });
 
+Deno.test("--max-evidence-bytes is rejected outside retrieve", async () => {
+  for (const command of ["version", "check", "graph"]) {
+    const result = await runCli([command, "--max-evidence-bytes", "0"]);
+    assertEquals(result.exitCode, EXIT_USAGE);
+    assert(
+      result.stderr.includes("does not accept --max-evidence-bytes"),
+      result.stderr,
+    );
+  }
+});
+
 // @sigil tests packages/cli/_module.sigil::SigilCli::CheckSourceLocations logic,constraints,cases
 Deno.test("check location rendering handles ranges, missing ranges, and path styles", async () => {
   const base = {

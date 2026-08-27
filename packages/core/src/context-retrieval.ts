@@ -295,6 +295,7 @@ export async function projectRetrieval(
  * silently.
  */
 export interface PurposeRetrievalOptions {
+  /** A finite, non-negative byte budget. Omit for unbounded retrieval. */
   readonly maxEvidenceBytes?: number;
 }
 
@@ -947,8 +948,26 @@ export async function retrievePurposeContext(
     evidence,
     diagnostics,
     unavailableImplementation,
-    options.maxEvidenceBytes,
+    assertEvidenceBudget(options.maxEvidenceBytes),
   );
+}
+
+/**
+ * A negative or non-finite budget would silently withhold every optional unit,
+ * or fail later inside canonical JSON, so it is rejected at the boundary.
+ */
+function assertEvidenceBudget(value: number | undefined): number | undefined {
+  if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+    throw new TypeError(
+      "maxEvidenceBytes must be a non-negative integer when provided.",
+    );
+  }
+  return value;
+}
+
+/** The budget is a byte budget, so text is measured as encoded UTF-8. */
+function utf8Length(text: string): number {
+  return new TextEncoder().encode(text).length;
 }
 
 function addContractEvidence(
@@ -1246,15 +1265,21 @@ async function materialize(
     const withheld = new Map<EvidenceKind, number>();
     let spent = 0;
     let withheldBytes = 0;
+    // The first optional unit that does not fit ends optional selection.
+    // Continuing would admit later, less relevant evidence over the closer
+    // evidence just withheld.
+    let exhausted = false;
     for (const unit of evidence) {
       const required = unit.kind === "selected-contract" ||
         unit.kind === "selected-expansion";
-      if (required || spent + unit.text.length <= maxEvidenceBytes) {
+      const size = utf8Length(unit.text);
+      if (required || (!exhausted && spent + size <= maxEvidenceBytes)) {
         budgeted.push(unit);
-        spent += unit.text.length;
+        spent += size;
         continue;
       }
-      withheldBytes += unit.text.length;
+      exhausted = true;
+      withheldBytes += size;
       withheld.set(unit.kind, (withheld.get(unit.kind) ?? 0) + 1);
     }
     budget = {
