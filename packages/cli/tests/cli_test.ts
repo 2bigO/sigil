@@ -261,7 +261,7 @@ Deno.test("two models of one provider bundle as distinct evaluators", async () =
     await Deno.writeTextFile(
       `${root}/.sigil/config.json`,
       JSON.stringify({
-        sigilVersion: "0.7.0",
+        sigilVersion: SIGIL_VERSION,
         workspace: { name: "codex-identities", members: [] },
         files: { include: ["**/*.sigil"], exclude: [] },
         tools: {
