@@ -2501,51 +2501,6 @@ function validSigil(name: string): string {
   return `component ${name} {\n  goal {\n    Test ${name}.\n  }\n\n  interface {\n    run()\n  }\n}\n`;
 }
 
-function greenCompilationReport(): CompilationReport {
-  return {
-    reportVersion: 3,
-    runId: "run-green",
-    workspaceRoot: "/workspace",
-    target: { kind: "workspace" },
-    requestedScope: { kind: "workspace" },
-    selection: {
-      strategy: "exact-target",
-      affectedSemanticUnits: [],
-      coveredSemanticUnits: [],
-      uncoveredSemanticUnits: [],
-    },
-    componentNames: ["Example"],
-    status: "green",
-    startedAt: "2026-01-01T00:00:00.000Z",
-    completedAt: "2026-01-01T00:00:01.000Z",
-    sourceFingerprint: "source",
-    focus: "design",
-    profile: {
-      name: "standard",
-      criticalSystem: false,
-      contextBudgetChars: 1,
-      agentInputBudgetChars: 1,
-      limits: {
-        maxCompilationRequestChars: 1,
-        maxAgentInputChars: 1,
-        sessionTtlMs: 86_400_000,
-        providerCleanupMs: 1,
-      },
-      executionBudgets: {
-        elapsedTimeMs: 1,
-        maxCommands: 1,
-        maxCommandOutputChars: 1,
-        maxInputTokens: 1,
-        maxOutputTokens: 1,
-      },
-      stages: [],
-      evaluators: [],
-      fingerprint: "profile",
-    },
-    stages: [],
-    diagnostics: [],
-  };
-}
 // deno-lint-ignore no-explicit-any
 function parseJson(source: string): any {
   return JSON.parse(source);
