@@ -7,7 +7,6 @@ import {
 import {
   type CompilationReport,
   type CompilationScopeSeed,
-  type CompilationTarget,
   type CompileOptions,
   renderCompilationReportMarkdown,
 } from "@qoherent/sigil-compiler";
