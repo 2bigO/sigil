@@ -457,6 +457,47 @@ Deno.test("config set-default switches the default and agent profile", async () 
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
+Deno.test("config set-default discovers an ancestor ConfigFile for descendant targets", async () => {
+  const root = await Deno.makeTempDir({
+    prefix: "sigil-config-default-ancestor-",
+  });
+  const descendant = `${root}/nested/workspace`;
+  try {
+    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
+    await Deno.mkdir(descendant, { recursive: true });
+
+    const fromCurrentDirectory = await runCli([
+      "config",
+      "set-default",
+      "--profile",
+      "claude",
+      "--format",
+      "json",
+    ], { core: new CoreAdapter({ currentDirectory: descendant }) });
+    assertEquals(fromCurrentDirectory.exitCode, EXIT_OK);
+
+    const fromDescendantPath = await runCli([
+      "config",
+      "set-default",
+      descendant,
+      "--profile",
+      "standard",
+      "--format",
+      "json",
+    ]);
+    assertEquals(fromDescendantPath.exitCode, EXIT_OK);
+
+    const config = JSON.parse(
+      await Deno.readTextFile(`${root}/.sigil/config.json`),
+    );
+    assertEquals(config.tools.compile.defaultProfile, "standard");
+    assertEquals(config.tools.agent.profile, "standard");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
 Deno.test("config set-default rejects an unknown profile and a missing ConfigFile", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-config-default-bad-" });
   try {

@@ -25,7 +25,6 @@ import {
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
   ownershipDiagnosticsFor as coreOwnershipDiagnosticsFor,
-  parseSigilConfig,
   parseSigilDocument,
   type PurposeRetrievalResult,
   type PurposeRetrievalTarget,
@@ -316,19 +315,18 @@ export class CoreAdapter {
     profileName: string,
     agentProfileName: string | undefined,
   ): Promise<ConfigAuthoringResult> {
-    const root = this.resolveTarget(path ?? this.#currentDirectory);
-    const configPath = joinPath(root, SIGIL_CONFIG_PATH);
-    const loaded = await this.#loadExistingConfig(configPath);
+    const loaded = await this.#discoverAuthoringConfig(path);
     if ("diagnostics" in loaded) {
       return {
-        root,
-        configPath,
+        root: loaded.root,
+        configPath: loaded.configPath,
         config: null,
         diagnostics: loaded.diagnostics,
       };
     }
+    const { root, configPath, config } = loaded;
     const outcome = applySetDefault(
-      loaded.config.tools,
+      config.tools,
       {
         profileName,
         agentProfileName,
@@ -338,7 +336,7 @@ export class CoreAdapter {
       return {
         root,
         configPath,
-        config: loaded.config,
+        config,
         diagnostics: [
           diagnostic(outcome.error.code, outcome.error.message, {
             filePath: configPath,
@@ -346,7 +344,7 @@ export class CoreAdapter {
         ],
       };
     }
-    const nextConfig: SigilConfig = { ...loaded.config, tools: outcome.tools };
+    const nextConfig: SigilConfig = { ...config, tools: outcome.tools };
     await this.#writeConfigAtomically(configPath, nextConfig);
     return { root, configPath, config: nextConfig, diagnostics: [] };
   }
@@ -361,23 +359,22 @@ export class CoreAdapter {
     path: string | undefined,
     input: SetProfileInput,
   ): Promise<ConfigAuthoringResult> {
-    const root = this.resolveTarget(path ?? this.#currentDirectory);
-    const configPath = joinPath(root, SIGIL_CONFIG_PATH);
-    const loaded = await this.#loadExistingConfig(configPath);
+    const loaded = await this.#discoverAuthoringConfig(path);
     if ("diagnostics" in loaded) {
       return {
-        root,
-        configPath,
+        root: loaded.root,
+        configPath: loaded.configPath,
         config: null,
         diagnostics: loaded.diagnostics,
       };
     }
-    const outcome = applySetProfile(loaded.config.tools, input);
+    const { root, configPath, config } = loaded;
+    const outcome = applySetProfile(config.tools, input);
     if ("error" in outcome) {
       return {
         root,
         configPath,
-        config: loaded.config,
+        config,
         diagnostics: [
           diagnostic(outcome.error.code, outcome.error.message, {
             filePath: configPath,
@@ -385,33 +382,38 @@ export class CoreAdapter {
         ],
       };
     }
-    const nextConfig: SigilConfig = { ...loaded.config, tools: outcome.tools };
+    const nextConfig: SigilConfig = { ...config, tools: outcome.tools };
     await this.#writeConfigAtomically(configPath, nextConfig);
     return { root, configPath, config: nextConfig, diagnostics: [] };
   }
 
-  async #loadExistingConfig(
-    configPath: string,
+  async #discoverAuthoringConfig(
+    path: string | undefined,
   ): Promise<
-    { readonly config: SigilConfig } | {
+    {
+      readonly root: string;
+      readonly configPath: string;
+      readonly config: SigilConfig;
+    } | {
+      readonly root: string;
+      readonly configPath: string;
       readonly diagnostics: readonly SigilDiagnostic[];
     }
   > {
-    if (!(await this.#fs.exists(configPath))) {
+    const discovery = await discoverSigilWorkspace(this.#fs, {
+      startPath: this.resolveTarget(path ?? this.#currentDirectory),
+      currentDirectory: this.#currentDirectory,
+    });
+    const configPath = discovery.configPath ??
+      joinPath(discovery.root, SIGIL_CONFIG_PATH);
+    if (!discovery.config) {
       return {
-        diagnostics: [
-          diagnostic(
-            "SIGIL_CONFIG_NOT_FOUND",
-            `No ConfigFile found at ${configPath}.`,
-            { filePath: configPath },
-          ),
-        ],
+        root: discovery.root,
+        configPath,
+        diagnostics: discovery.diagnostics,
       };
     }
-    const source = await this.#fs.readTextFile(configPath);
-    const parsed = parseSigilConfig(source, configPath);
-    if (!parsed.config) return { diagnostics: parsed.diagnostics };
-    return { config: parsed.config };
+    return { root: discovery.root, configPath, config: discovery.config };
   }
 
   async #writeConfigAtomically(
