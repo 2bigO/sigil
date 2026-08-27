@@ -260,7 +260,9 @@ export async function projectRetrieval(
   }
   const compare = (left: string, right: string) =>
     left < right ? -1 : left > right ? 1 : 0;
-  const components = [...entries.values()].map(({ concepts, ...entry }) => ({
+  const components = [...entries.values()].map((
+    { concepts: _concepts, ...entry },
+  ) => ({
     ...entry,
     links: entry.links.sort((left: any, right: any) =>
       compare(left.relation, right.relation) ||
