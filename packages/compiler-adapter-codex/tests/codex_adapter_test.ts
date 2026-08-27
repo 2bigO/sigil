@@ -1,6 +1,7 @@
 import { AdapterFailure, compile } from "@qoherent/sigil-compiler";
 import { CodexAdapter } from "../src/mod.ts";
 import { assertEquals, assertMatch, assertRejects } from "@std/assert";
+import { SIGIL_VERSION } from "@qoherent/sigil-core";
 
 async function workspace(
   source: string,
@@ -12,7 +13,7 @@ async function workspace(
   await Deno.writeTextFile(
     `${root}/.sigil/config.json`,
     JSON.stringify({
-      sigilVersion: "0.7.0",
+      sigilVersion: SIGIL_VERSION,
       workspace: { name: "test", members: [] },
       files: { include: ["**/*.sigil"], exclude: [] },
       tools: compileConfiguration === undefined
