@@ -31,6 +31,12 @@
 
 ## Unreleased
 
+- Make the coding-agent skill decide a project's module structure before
+  drafting contracts, deriving bounded areas from deployment units, technology
+  boundaries, independent reasons to change, shared ownership, and
+  reviewability. A small project stays one boundary, and an outgrown boundary
+  is proposed for splitting rather than accumulating every declaration at the
+  workspace root.
 - Extend implementation-ownership discovery to frontend surfaces. Markup
   (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
   single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry

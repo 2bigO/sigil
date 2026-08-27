@@ -668,6 +668,8 @@ const requiredGreenfieldBehaviors = [
   "build-questions-on-answers",
   "surface-weak-assumptions",
   "build-greenfield-design-context",
+  "decide-module-structure-first",
+  "keep-small-project-one-boundary",
   "assess-guidance-after-framing",
   "research-when-required-or-recommended",
   "match-guidance-to-environment",
@@ -699,6 +701,11 @@ requireText(
   greenfieldFixture,
   "asking one primary decision per turn",
   "greenfield iterative conversation",
+);
+requireText(
+  greenfieldFixture,
+  "Decide the module structure before drafting any contract",
+  "greenfield module structure decision",
 );
 requireText(
   greenfieldFixture,
@@ -1443,6 +1450,16 @@ requireText(
 
 const greenfield = await Deno.readTextFile(
   `${root}/references/greenfield-design.md`,
+);
+requireText(
+  greenfield,
+  "## 3. Decide The Module Structure",
+  "greenfield module structure step",
+);
+requireText(
+  greenfield,
+  "Do not split a small project",
+  "greenfield over-decomposition guard",
 );
 requireText(
   greenfield,
