@@ -8,6 +8,7 @@ import {
   type CompilationReport,
   type CompilationScopeSeed,
   type CompileOptions,
+  CompilerFailure,
   renderCompilationReportMarkdown,
 } from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
@@ -25,6 +26,27 @@ import {
   EXIT_RUNTIME,
   EXIT_USAGE,
 } from "../src/exit.ts";
+
+// @sigil tests packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
+Deno.test("a rejected selector exits as usage, not runtime", async () => {
+  const root = await makeWorkspace("exit-status");
+  try {
+    const run = (code: "COMPILER_INVALID_INVOCATION" | "COMPILER_FAILED") =>
+      runCli(["compile", root], {
+        compiler: () => Promise.reject(new CompilerFailure(code, "rejected")),
+      });
+    // A correctable selector is an invocation error the caller can fix.
+    const invalid = await run("COMPILER_INVALID_INVOCATION");
+    assert(invalid.stderr.includes("rejected"));
+    assertEquals(invalid.exitCode, EXIT_USAGE);
+    // Every other failure stays a runtime error.
+    const failed = await run("COMPILER_FAILED");
+    assert(failed.stderr.includes("rejected"));
+    assertEquals(failed.exitCode, EXIT_RUNTIME);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
 
 // @sigil tests packages/cli/src/retrieval-markdown.sigil::SigilRetrievalMarkdown::RetrievalMarkdownProjection interface,constraints,cases
 Deno.test("retrieve Markdown renders module context and escaped ownership links", () => {

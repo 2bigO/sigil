@@ -3592,6 +3592,18 @@ Deno.test("resolves a compilation seed into a covering boundary", async () => {
     "file:pkg-a/_module.sigil|nearest-covering-module-index",
   );
 
+  // A directory is not a compilable unit, so an exact request over one is
+  // rejected rather than silently widened to the whole workspace.
+  const exactDirectory = selectCompilationBoundary(resolved, {
+    kind: "directory",
+    directoryPath: "pkg-a/src",
+  }, { exactTarget: true });
+  assertEquals(exactDirectory.selection.strategy, "workspace-fallback");
+  assertEquals(
+    exactDirectory.diagnostics.map((item) => item.code).join(","),
+    "SIGIL_BOUNDARY_EXACT_TARGET_UNSUPPORTED",
+  );
+
   // Spanning both packages escalates to the nested-then-root module index.
   assertEquals(
     describe({ kind: "directory", directoryPath: "." }),

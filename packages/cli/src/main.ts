@@ -5,6 +5,7 @@ import {
   type CompilationHistoryStore,
   type CompilationReport,
   type compile,
+  CompilerFailure,
   FileCompilationHistoryStore,
   renderCompilationReportMarkdown,
   resolveCompilationProfile,
@@ -341,7 +342,12 @@ export async function runCli(
       };
     }
     return {
-      exitCode: EXIT_RUNTIME,
+      // A rejected selector is correctable input, not an infrastructure
+      // failure, so it exits as usage rather than runtime.
+      exitCode: error instanceof CompilerFailure &&
+          error.code === "COMPILER_INVALID_INVOCATION"
+        ? EXIT_USAGE
+        : EXIT_RUNTIME,
       stdout: bufferedJsonl,
       stderr: `${error instanceof Error ? error.message : String(error)}\n`,
     };

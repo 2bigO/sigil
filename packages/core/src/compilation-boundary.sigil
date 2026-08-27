@@ -95,7 +95,8 @@ expand SigilCompilationBoundary {
       the widest boundary.
 
       Return the seed unchanged when an exact target is requested, and record that
-      inference was skipped.
+      inference was skipped. Reject an exact request over a directory, because a
+      directory is not itself a compilable target.
 
       Prefer a covering module index; otherwise prefer a covering component;
       otherwise fall back to the workspace.
@@ -301,6 +302,9 @@ expand SigilCompilationBoundary {
 
       An exact-target request over the same component preserves the component as the
       final target.
+
+      An exact-target request over a directory is rejected rather than widened to
+      the workspace.
     }
 
     AffectedScope {

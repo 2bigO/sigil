@@ -126,6 +126,23 @@ export function selectCompilationBoundary(
   const scope = affectedScopeFor(resolved, seed);
   const affectedUnits = semanticUnits(scope);
 
+  if (options.exactTarget && seed.kind === "directory") {
+    return workspaceFallback(
+      seed,
+      affectedUnits,
+      "A directory cannot be an exact compilation target.",
+      [
+        diagnostic(
+          "SIGIL_BOUNDARY_EXACT_TARGET_UNSUPPORTED",
+          `An exact target cannot be a directory. Compile ${
+            normalizePath(seed.directoryPath).replace(/\/+$/, "")
+          } without an exact target, or name a component or file within it.`,
+          { filePath: seed.directoryPath },
+        ),
+      ],
+    );
+  }
+
   if (options.exactTarget) {
     return {
       requestedScope: seed,
@@ -523,8 +540,7 @@ function exactTargetFor(
   if (seed.kind === "file" || seed.kind === "location") {
     return { kind: "file", filePath: normalizePath(seed.filePath) };
   }
-  // A directory is not itself a compilable unit, so an exact request over one
-  // remains the workspace.
+  // Directory seeds are rejected before this point.
   return { kind: "workspace" };
 }
 
