@@ -82,11 +82,24 @@ export async function compileWithBundledAdapters(
       );
     }
   }
+  // Two models of one provider are distinct evaluators, so each configured
+  // model needs its own identity. The unconfigured default keeps the bare
+  // provider identity.
+  const identity = (provider: string, model?: string) =>
+    model === undefined ? provider : `${provider}:${model}`;
   const bundled = [
-    ...[...openCodeModels].map((model) => new OpenCodeAdapter(model)),
-    ...[...piModels].map((model) => new PiAdapter(model)),
-    ...[...claudeModels].map((model) => new ClaudeAdapter(model)),
-    ...[...codexModels].map((model) => new CodexAdapter(model)),
+    ...[...openCodeModels].map((model) =>
+      new OpenCodeAdapter(model, undefined, identity("opencode", model))
+    ),
+    ...[...piModels].map((model) =>
+      new PiAdapter(model, undefined, identity("pi", model))
+    ),
+    ...[...claudeModels].map((model) =>
+      new ClaudeAdapter(model, undefined, identity("claude", model))
+    ),
+    ...[...codexModels].map((model) =>
+      new CodexAdapter(model, undefined, identity("codex", model))
+    ),
   ];
   return await compile(
     workspacePath,
