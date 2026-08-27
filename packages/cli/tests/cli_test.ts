@@ -608,6 +608,53 @@ Deno.test("config set-profile overrides one stage and leaves other fields unchan
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
+Deno.test("config set-profile re-enables a stage across separate invocations", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-config-stage-rebind-" });
+  try {
+    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
+    const disabled = await runCli([
+      "config",
+      "set-profile",
+      "standard",
+      root,
+      "--disable-stage",
+      "architecture-design",
+      "--disable-stage",
+      "semantic-readiness",
+      "--format",
+      "json",
+    ]);
+    assertEquals(disabled.exitCode, EXIT_OK);
+
+    const rebound = await runCli([
+      "config",
+      "set-profile",
+      "standard",
+      root,
+      "--stage",
+      "architecture-design=claude",
+      "--format",
+      "json",
+    ]);
+    assertEquals(rebound.exitCode, EXIT_OK);
+
+    const config = JSON.parse(
+      await Deno.readTextFile(`${root}/.sigil/config.json`),
+    );
+    assertEquals(
+      config.tools.compile.profiles.standard.stages["architecture-design"][0],
+      "claude",
+    );
+    assertEquals(
+      config.tools.compile.profiles.standard.disabledStages.join(","),
+      "semantic-readiness",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
 Deno.test("config set-profile declares two new evaluators bound to different stages in one invocation", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-config-multi-" });
   try {

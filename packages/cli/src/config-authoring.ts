@@ -227,6 +227,13 @@ export function applySetProfile(
   }
 
   const existingProfile = compile.profiles?.[input.profileName] ?? {};
+  const stageIdsToEnable = new Set(Object.keys(input.stages ?? {}));
+  const disabledStages = [
+    ...(existingProfile.disabledStages ?? []).filter((stageId) =>
+      !stageIdsToEnable.has(stageId)
+    ),
+    ...(input.disabledStages ?? []),
+  ];
   const mergedProfile = {
     ...existingProfile,
     ...(input.extendsProfile !== undefined
@@ -236,14 +243,11 @@ export function applySetProfile(
     ...(input.stages !== undefined
       ? { stages: { ...existingProfile.stages, ...input.stages } }
       : {}),
-    ...(input.disabledStages !== undefined
+    ...(input.disabledStages !== undefined ||
+        (input.stages !== undefined &&
+          existingProfile.disabledStages !== undefined)
       ? {
-        disabledStages: [
-          ...new Set([
-            ...(existingProfile.disabledStages ?? []),
-            ...input.disabledStages,
-          ]),
-        ],
+        disabledStages: [...new Set(disabledStages)],
       }
       : {}),
   };
