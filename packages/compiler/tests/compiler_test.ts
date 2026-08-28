@@ -1509,6 +1509,54 @@ Deno.test("semantic-unit fingerprints survive formatting-only wrapping", async (
   }
 });
 
+/*
+ * @sigil tests packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::EvaluationContext constraints,cases
+ * @sigil tests packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::CompilationEvaluation interface
+ */
+Deno.test("a complete retrieval result is not bounded by the request limit", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Explain the example.
+  }
+
+  interface {
+    ExampleContract {
+      Provide the example contract.
+    }
+  }
+}
+`,
+    {},
+    {
+      // Far smaller than any real retrieval-bearing request. Previously this
+      // failed the whole run; the declared limit belongs to the adapter, where
+      // exceeding it leaves one evaluator incomplete instead.
+      limits: {
+        maxCompilationRequestChars: 1,
+        maxAgentInputChars: 1_250_000,
+        sessionTtlMs: 172_800_000,
+        providerCleanupMs: 5_000,
+      },
+    },
+  );
+  try {
+    let requestChars = 0;
+    const report = await compile(root, { kind: "workspace" }, "standard", {
+      requestedStage: "semantic-readiness",
+      adapter: new MockAdapter((request) => {
+        requestChars = JSON.stringify(request, (_key, value) =>
+          value instanceof AbortSignal ? undefined : value).length;
+        return [];
+      }),
+    });
+    assertEquals(report.status, "green");
+    assertEquals(requestChars > 1, true);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/compiler/src/profile.sigil::SigilCompilationProfile::CompilationProfile interface,logic
 Deno.test("workspace configuration overrides compiler execution budgets", async () => {
   const root = await workspace(

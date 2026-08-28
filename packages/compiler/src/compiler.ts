@@ -212,7 +212,14 @@ export async function validateCompilationProfile(
   assertProfileEvaluators(profile, adaptersFrom(profile, {}));
 }
 
-// @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation interface,logic,cases
+/*
+ * @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation interface,logic,cases
+ * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::CompilationEvaluation interface
+ * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::CompilationEvaluationResult interface
+ * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::PipelineExecution logic
+ * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::DeterministicFoundationGating logic,constraints,cases
+ * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::AgentFindingIdentityCollapse logic,constraints,cases
+ */
 export async function compile(
   workspacePath: string,
   target: CompilationTarget = { kind: "workspace" },
@@ -457,13 +464,6 @@ export async function compile(
               },
               signal: cancellationSignal,
             });
-            const requestSize = JSON.stringify(request, (_key, value) =>
-              value instanceof AbortSignal ? undefined : value).length;
-            if (requestSize > profile.contextBudgetChars) {
-              throw new Error(
-                `Evaluation request for ${component.name} is ${requestSize} characters, exceeding the ${profile.contextBudgetChars}-character budget.`,
-              );
-            }
             const componentDiagnostics: CompilerDiagnostic[][] = [];
             for (const adapter of stageAdapters) {
               const adapterRequest = buildAgentEvaluationRequest({
