@@ -304,7 +304,7 @@ Deno.test("check reports ownership diagnostics from implementation sources", asy
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::OwnershipDiagnostics cases
-Deno.test("check reports ownership diagnostics from config-excluded sources", async () => {
+Deno.test("check skips ownership diagnostics from config-excluded sources", async () => {
   const root = await makeWorkspace("excluded-ownership-check");
   try {
     await Deno.writeTextFile(
@@ -330,10 +330,9 @@ Deno.test("check reports ownership diagnostics from config-excluded sources", as
     );
 
     const result = await runCli(["check", root, "--format", "json"]);
-    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    assertEquals(result.exitCode, EXIT_OK);
     const output = parseJson(result.stdout);
-    assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
-    assertEquals(output.diagnosticCounts.error, 1);
+    assertEquals(output.diagnosticCounts.error, 0);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

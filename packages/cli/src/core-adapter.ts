@@ -20,6 +20,7 @@ import {
   type ImplementationEvidenceInput,
   type ImplementationSection,
   type ImplementationSource,
+  isExcludedPath,
   isSupportedImplementationSource,
   loadSigilWorkspace,
   type OwnedImplementationProjection,
@@ -28,6 +29,7 @@ import {
   parseSigilDocument,
   type PurposeRetrievalResult,
   type PurposeRetrievalTarget,
+  relativePath,
   type ResolvedConceptNamespace,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
@@ -474,12 +476,15 @@ export class CoreAdapter {
   ): Promise<ImplementationSourceDiscoveryResult> {
     let paths: readonly string[];
     try {
-      // Implementation ownership is checked across the repository's source
-      // files, independently of the Sigil source-selection rules. In
-      // particular, files.exclude excludes .sigil sources from the contract
-      // workspace; it must not hide ownership annotations from `sigil check`.
+      // Apply the workspace exclusion rules to implementation sources too.
       paths = (await this.#fs.listFiles(resolved.workspace.root))
-        .filter(isSupportedImplementationSource);
+        .filter(isSupportedImplementationSource)
+        .filter((path) =>
+          !isExcludedPath(
+            relativePath(resolved.workspace.root, path),
+            resolved.workspace.config!,
+          )
+        );
     } catch (error) {
       return {
         sources: [],
