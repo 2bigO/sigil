@@ -303,6 +303,42 @@ Deno.test("check reports ownership diagnostics from implementation sources", asy
   }
 });
 
+// @sigil tests packages/cli/_module.sigil::SigilCli::OwnershipDiagnostics cases
+Deno.test("check reports ownership diagnostics from config-excluded sources", async () => {
+  const root = await makeWorkspace("excluded-ownership-check");
+  try {
+    await Deno.writeTextFile(
+      `${root}/contract.sigil`,
+      validSigil("Feature"),
+    );
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "excluded-ownership-check", members: [] },
+        files: {
+          include: ["**/*.sigil"],
+          exclude: ["implementation.ts"],
+        },
+        tools: {},
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/implementation.ts`,
+      "// @sigil implements contract.sigil::Feature::Missing interface\n" +
+        "export function runFeature() {}\n",
+    );
+
+    const result = await runCli(["check", root, "--format", "json"]);
+    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
+    const output = parseJson(result.stdout);
+    assertHasCode(output.diagnostics, "SIGIL_PARSE_STRUCTURE");
+    assertEquals(output.diagnosticCounts.error, 1);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 // @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
 Deno.test("init creates defaults, accepts a custom name, and refuses overwrite", async () => {
   const root = await Deno.makeTempDir({ prefix: "sigil-init-" });

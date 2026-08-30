@@ -474,6 +474,10 @@ export class CoreAdapter {
   ): Promise<ImplementationSourceDiscoveryResult> {
     let paths: readonly string[];
     try {
+      // Implementation ownership is checked across the repository's source
+      // files, independently of the Sigil source-selection rules. In
+      // particular, files.exclude excludes .sigil sources from the contract
+      // workspace; it must not hide ownership annotations from `sigil check`.
       paths = (await this.#fs.listFiles(resolved.workspace.root))
         .filter(isSupportedImplementationSource);
     } catch (error) {
