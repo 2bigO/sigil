@@ -48,8 +48,8 @@
   ],
   "designCompilationReviewFixture": "design-compilation-review-fixture.md",
   "designCompilationReviewRequiredBehaviors": [
-    "resolve-nearest-importing-module-index",
-    "traverse-graph-context",
+    "seed-scope-and-delegate-boundary-selection",
+    "read-resolved-target-from-report",
     "reserve-fresh-markdown-report-path",
     "wait-for-process-exit",
     "avoid-jsonl-stream-listening",
