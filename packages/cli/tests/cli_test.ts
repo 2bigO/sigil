@@ -269,6 +269,54 @@ Deno.test("CLI bundle registers the standalone Claude adapter", async () => {
   }
 });
 
+// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
+Deno.test("two models of one provider bundle as distinct evaluators", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-codex-identities-" });
+  try {
+    const evaluator = (model: string) => ({
+      provider: "codex",
+      model,
+      implementationId: "builtin.codex-cli",
+      implementationVersion: "0.7.1",
+    });
+    await Deno.mkdir(`${root}/.sigil`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: SIGIL_VERSION,
+        workspace: { name: "codex-identities", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {
+          compile: {
+            evaluators: {
+              fast: evaluator("gpt-5-mini"),
+              deep: evaluator("gpt-5"),
+            },
+            profiles: { "critical-system": { evaluatorIds: ["fast", "deep"] } },
+          },
+        },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/main.sigil`,
+      `component Example {\n  goal {\n    Explain the example.\n  }\n}\n`,
+    );
+    // Sharing one identity would reject this before compilation starts.
+    const report = await compileWithBundledAdapters(
+      root,
+      { kind: "workspace" },
+      "critical-system",
+      { requestedStage: "deterministic-foundation", disableHistory: true },
+    );
+    assertEquals(
+      report.profile.evaluators.map((item) => item.model).join(","),
+      "gpt-5-mini,gpt-5",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints

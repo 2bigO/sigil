@@ -31,6 +31,26 @@
 
 ## Unreleased
 
+- Extract the Codex CLI adapter into `@qoherent/sigil-compiler-adapter-codex`,
+  registered from the CLI like its sibling adapter packages. The compiler is now
+  provider-neutral: it constructs no provider implementation, and an evaluator
+  provider is an opaque identifier owned by its adapter package rather than one
+  of four hardcoded names. A provider naming no registered adapter is reported
+  when registration resolves rather than when configuration parses.
+- Export the findings schema and shared adapter execution helpers from the
+  compiler as the one contract every adapter satisfies, replacing byte-identical
+  copies in provider packages.
+
+- Stop rejecting a compilation because its evaluator request carries a complete
+  retrieval result. The declared initial-request limit is enforced where the
+  request reaches its adapter, so exceeding it leaves that evaluator incomplete
+  instead of failing the run, matching a retrieval policy that declares no
+  budget in version 1.
+- Remove `evaluateCompilation` and `CompilationEvaluationRunner`, a
+  session-facing pass-through left with no consumer after the session boundary
+  was removed, and record one-shot compilation as the evaluation pipeline's
+  implementation owner.
+
 - Make compilation-boundary selection a compiler behavior. `--component`,
   `--file`, `--position`, and the new `--directory` are affected-scope seeds
   rather than final targets: the compiler resolves the nearest module index
