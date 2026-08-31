@@ -3,6 +3,7 @@ import { COMPILATION_STAGE_IDS } from "@qoherent/sigil-compiler";
 export type CommandName =
   | "skill"
   | "init"
+  | "config"
   | "version"
   | "parse"
   | "check"
@@ -17,7 +18,9 @@ export type HelpTopic =
   | CommandName
   | "root"
   | "skill-list"
-  | "skill-install";
+  | "skill-install"
+  | "config-set-default"
+  | "config-set-profile";
 export type OutputFormat = "json" | "jsonl" | "text" | "markdown";
 export type SkillAgent = "codex" | "claude" | "opencode" | "pi";
 
@@ -32,6 +35,8 @@ export type CommandRequest =
   | SkillListRequest
   | SkillInstallRequest
   | InitRequest
+  | ConfigSetDefaultRequest
+  | ConfigSetProfileRequest
   | VersionRequest
   | ParseRequest
   | CheckRequest
@@ -56,6 +61,25 @@ export interface InitRequest extends GlobalOptions {
   readonly name?: string;
   readonly include: readonly string[];
   readonly exclude: readonly string[];
+}
+export interface ConfigSetDefaultRequest extends GlobalOptions {
+  readonly command: "config-set-default";
+  readonly path?: string;
+  readonly profile: string;
+  readonly agentProfile?: string;
+}
+export interface ConfigSetProfileRequest extends GlobalOptions {
+  readonly command: "config-set-profile";
+  readonly path?: string;
+  readonly profileName: string;
+  readonly extendsProfile?: string;
+  readonly main?: readonly string[];
+  readonly stages: Readonly<Record<string, readonly string[]>>;
+  readonly disableStages: readonly string[];
+  readonly newEvaluators: Readonly<Record<string, string>>;
+  readonly models: Readonly<Record<string, string>>;
+  readonly implementationIds: Readonly<Record<string, string>>;
+  readonly implementationVersions: Readonly<Record<string, string>>;
 }
 export interface VersionRequest extends GlobalOptions {
   readonly command: "version";
@@ -95,6 +119,7 @@ export interface RetrieveRequest extends GlobalOptions {
   readonly component?: string;
   readonly file?: string;
   readonly purpose: "semantic" | "architecture" | "implementation";
+  readonly maxEvidenceBytes?: number;
   readonly path?: string;
 }
 export interface CompileRequest extends GlobalOptions {
@@ -103,6 +128,8 @@ export interface CompileRequest extends GlobalOptions {
   readonly focus?: "design" | "implementation";
   readonly component?: string;
   readonly file?: string;
+  readonly directory?: string;
+  readonly exactTarget?: boolean;
   readonly position?: {
     readonly line: number;
     readonly column: number;
@@ -135,6 +162,7 @@ export type ParseArgsResult = {
 /*
  * @sigil implements packages/cli/_module.sigil::SigilCli::CliInvocation interface,logic,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
  */
 export function parseArgs(argv: readonly string[]): ParseArgsResult {
   if (argv[0] === "--help") return { kind: "help", helpTopic: "root" };
@@ -145,7 +173,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(
       commandName
         ? `Unknown command "${commandName}".`
-        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, retrieve, compile, or render.",
+        : "Expected command: skill, init, config, version, parse, check, fmt, glossary, graph, context, retrieve, compile, or render.",
       "root",
     );
   }
@@ -169,6 +197,24 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         "skill",
       );
     }
+  } else if (commandName === "config") {
+    if (rest[0] === "--help") {
+      return { kind: "help", helpTopic: "config" };
+    }
+    if (
+      (rest[0] === "set-default" || rest[0] === "set-profile") &&
+      rest.includes("--help")
+    ) {
+      return { kind: "help", helpTopic: `config-${rest[0]}` };
+    }
+    if (rest.includes("--help")) {
+      return usage(
+        rest[0] && !rest[0].startsWith("-")
+          ? `Unknown config subcommand "${rest[0]}".`
+          : "config requires exactly one subcommand: set-default or set-profile.",
+        "config",
+      );
+    }
   } else if (rest.includes("--help")) {
     return {
       kind: "help",
@@ -184,6 +230,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let component: string | undefined;
   let file: string | undefined;
   let position: CompileRequest["position"];
+  let directory: string | undefined;
+  let exactTarget = false;
+  let maxEvidenceBytes: number | undefined;
   let includeDependents = false;
   let name: string | undefined;
   const include: string[] = [];
@@ -198,6 +247,15 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let output: string | undefined;
   let check = false;
   let purpose: RetrieveRequest["purpose"] | undefined;
+  let agentProfile: string | undefined;
+  let extendsProfile: string | undefined;
+  let main: string[] | undefined;
+  const stages: Record<string, string[]> = {};
+  const disableStages: string[] = [];
+  const newEvaluators: Record<string, string> = {};
+  const models: Record<string, string> = {};
+  const implementationIds: Record<string, string> = {};
+  const implementationVersions: Record<string, string> = {};
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -260,6 +318,16 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         component = value;
         break;
       }
+      case "--directory": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        directory = value;
+        break;
+      }
+      case "--exact-target": {
+        exactTarget = true;
+        break;
+      }
       case "--file": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -312,6 +380,19 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--include-dependents":
         includeDependents = true;
         break;
+      case "--max-evidence-bytes": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed < 0) {
+          return usage(
+            "--max-evidence-bytes must be a non-negative integer.",
+            commandHelpTopic,
+          );
+        }
+        maxEvidenceBytes = parsed;
+        break;
+      }
       case "--purpose": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -345,6 +426,92 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         exclude.push(value);
         break;
       }
+      case "--agent-profile": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        agentProfile = value;
+        break;
+      }
+      case "--extends": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        extendsProfile = value;
+        break;
+      }
+      case "--main": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        main = value.split(",").filter(Boolean);
+        break;
+      }
+      case "--stage": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const pair = splitKeyValue(value);
+        if (!pair) {
+          return usage(
+            "--stage requires stageId=evaluatorId[,evaluatorId ...].",
+            commandHelpTopic,
+          );
+        }
+        stages[pair[0]] = pair[1].split(",").filter(Boolean);
+        break;
+      }
+      case "--disable-stage": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        disableStages.push(value);
+        break;
+      }
+      case "--evaluator": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const pair = splitKeyValue(value);
+        if (!pair) {
+          return usage(
+            "--evaluator requires evaluatorId=provider.",
+            commandHelpTopic,
+          );
+        }
+        newEvaluators[pair[0]] = pair[1];
+        break;
+      }
+      case "--model": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const pair = splitKeyValue(value);
+        if (!pair) {
+          return usage("--model requires evaluatorId=model.", commandHelpTopic);
+        }
+        models[pair[0]] = pair[1];
+        break;
+      }
+      case "--implementation-id": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const pair = splitKeyValue(value);
+        if (!pair) {
+          return usage(
+            "--implementation-id requires evaluatorId=value.",
+            commandHelpTopic,
+          );
+        }
+        implementationIds[pair[0]] = pair[1];
+        break;
+      }
+      case "--implementation-version": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const pair = splitKeyValue(value);
+        if (!pair) {
+          return usage(
+            "--implementation-version requires evaluatorId=value.",
+            commandHelpTopic,
+          );
+        }
+        implementationVersions[pair[0]] = pair[1];
+        break;
+      }
       default:
         if (arg.startsWith("-")) {
           return usage(`Unsupported option ${arg}.`, commandHelpTopic);
@@ -367,6 +534,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       commandHelpTopic,
     );
   }
+  if (commandName !== "compile" && (directory || exactTarget)) {
+    return usage(
+      `${commandName} does not accept --directory or --exact-target.`,
+      commandHelpTopic,
+    );
+  }
   if (commandName !== "context" && includeDependents) {
     return usage(
       `${commandName} does not accept --include-dependents.`,
@@ -375,6 +548,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (commandName !== "retrieve" && purpose) {
     return usage(`${commandName} does not accept --purpose.`, commandHelpTopic);
+  }
+  if (commandName !== "retrieve" && maxEvidenceBytes !== undefined) {
+    return usage(
+      `${commandName} does not accept --max-evidence-bytes.`,
+      commandHelpTopic,
+    );
   }
   if (commandName !== "compile" && position) {
     return usage(
@@ -400,13 +579,27 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       commandHelpTopic,
     );
   }
+  if (commandName !== "compile" && commandName !== "config" && profile) {
+    return usage(`${commandName} does not accept --profile.`, commandHelpTopic);
+  }
   if (
     commandName !== "compile" &&
-    (profile || compileAgent || focus || noCache || output ||
-      format === "jsonl")
+    (compileAgent || focus || noCache || output || format === "jsonl")
   ) {
     return usage(
       `${commandName} does not accept compile options.`,
+      commandHelpTopic,
+    );
+  }
+  if (
+    commandName !== "config" &&
+    (agentProfile || extendsProfile || main || Object.keys(stages).length ||
+      disableStages.length || Object.keys(newEvaluators).length ||
+      Object.keys(models).length || Object.keys(implementationIds).length ||
+      Object.keys(implementationVersions).length)
+  ) {
+    return usage(
+      `${commandName} does not accept config options.`,
       commandHelpTopic,
     );
   }
@@ -471,6 +664,98 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         name,
         include,
         exclude,
+        ...base,
+      },
+    };
+  }
+  if (commandName === "config") {
+    if (root) {
+      return usage(
+        "config uses its path argument and does not accept --root.",
+        "config",
+      );
+    }
+    if (format && format !== "json") {
+      return usage("--format must be json for config.", "config");
+    }
+    if (positional.length === 0) {
+      return usage(
+        "config requires exactly one subcommand: set-default or set-profile.",
+        "config",
+      );
+    }
+    if (positional[0] !== "set-default" && positional[0] !== "set-profile") {
+      return usage(`Unknown config subcommand "${positional[0]}".`, "config");
+    }
+    const subcommandPositional = positional.slice(1);
+    if (positional[0] === "set-default") {
+      if (!profile) {
+        return usage(
+          "config set-default requires --profile.",
+          "config-set-default",
+        );
+      }
+      if (subcommandPositional.length > 1) {
+        return usage(
+          "config set-default accepts at most one path.",
+          "config-set-default",
+        );
+      }
+      if (
+        extendsProfile || main || Object.keys(stages).length ||
+        disableStages.length || Object.keys(newEvaluators).length ||
+        Object.keys(models).length || Object.keys(implementationIds).length ||
+        Object.keys(implementationVersions).length
+      ) {
+        return usage(
+          "config set-default does not accept set-profile options.",
+          "config-set-default",
+        );
+      }
+      return {
+        kind: "ok",
+        request: {
+          command: "config-set-default",
+          path: subcommandPositional[0],
+          profile,
+          agentProfile,
+          ...base,
+        },
+      };
+    }
+    const profileName = subcommandPositional[0];
+    if (!profileName) {
+      return usage(
+        "config set-profile requires a profile name.",
+        "config-set-profile",
+      );
+    }
+    if (subcommandPositional.length > 2) {
+      return usage(
+        "config set-profile accepts a name and at most one path.",
+        "config-set-profile",
+      );
+    }
+    if (profile || agentProfile) {
+      return usage(
+        "config set-profile does not accept --profile or --agent-profile.",
+        "config-set-profile",
+      );
+    }
+    return {
+      kind: "ok",
+      request: {
+        command: "config-set-profile",
+        path: subcommandPositional[1],
+        profileName,
+        extendsProfile,
+        main,
+        stages,
+        disableStages,
+        newEvaluators,
+        models,
+        implementationIds,
+        implementationVersions,
         ...base,
       },
     };
@@ -554,6 +839,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       request: {
         command: "retrieve",
         component,
+        maxEvidenceBytes,
         file,
         purpose,
         path: positional[0],
@@ -610,6 +896,26 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         "compile",
       );
     }
+    const selectors = [
+      component ? "--component" : undefined,
+      file ? "--file" : undefined,
+      directory ? "--directory" : undefined,
+    ].filter(Boolean);
+    if (selectors.length > 1) {
+      return usage(
+        `compile accepts only one of ${selectors.join(", ")}.`,
+        "compile",
+      );
+    }
+    if (position && !file) {
+      return usage("compile --position requires --file.", "compile");
+    }
+    if (exactTarget && selectors.length === 0) {
+      return usage(
+        "compile --exact-target requires a selector to preserve.",
+        "compile",
+      );
+    }
     return {
       kind: "ok",
       request: {
@@ -618,6 +924,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         focus,
         component,
         file,
+        directory,
+        exactTarget,
         position,
         path: paths[0],
         profile,
@@ -660,7 +968,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
 }
 
 function isCommand(value: string | undefined): value is CommandName {
-  return value === "skill" || value === "init" || value === "version" ||
+  return value === "skill" || value === "init" || value === "config" ||
+    value === "version" ||
     value === "parse" ||
     value === "check" || value === "fmt" || value === "glossary" ||
     value === "graph" ||
@@ -668,6 +977,11 @@ function isCommand(value: string | undefined): value is CommandName {
     value === "retrieve" ||
     value === "compile" ||
     value === "render";
+}
+function splitKeyValue(value: string): readonly [string, string] | undefined {
+  const index = value.indexOf("=");
+  if (index <= 0 || index === value.length - 1) return undefined;
+  return [value.slice(0, index), value.slice(index + 1)];
 }
 function isSkillAgent(value: string): value is SkillAgent {
   return value === "codex" || value === "claude" || value === "opencode" ||
@@ -686,6 +1000,12 @@ function helpTopicFor(
     (firstArgument === "list" || firstArgument === "install")
   ) {
     return `skill-${firstArgument}`;
+  }
+  if (
+    commandName === "config" &&
+    (firstArgument === "set-default" || firstArgument === "set-profile")
+  ) {
+    return `config-${firstArgument}`;
   }
   return commandName;
 }

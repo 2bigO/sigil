@@ -16,6 +16,7 @@ import type {
   InclusionReason,
   PurposeRetrievalResult,
   PurposeRetrievalTarget,
+  RetrievalBudgetReport,
   RetrievalEdge,
   RetrievalNode,
   RetrievalNodeKind,
@@ -34,6 +35,12 @@ import type {
   SourceLocation,
   SourceRange,
 } from "./model/language.ts";
+import type {
+  RetrievalProjectionComponent,
+  RetrievalProjectionItem,
+  RetrievalProjectionLink,
+  RetrievalProjectionOwnership,
+} from "./model/retrieval.ts";
 
 const RELATION_ORDER: readonly RetrievalRelation[] = [
   "selected-declaration",
@@ -113,11 +120,34 @@ interface EvidenceDraft {
   readonly edgeKeys: readonly string[];
 }
 
+interface ProjectionEntry {
+  readonly id: string;
+  readonly name: string;
+  readonly path: string;
+  role: RetrievalProjectionComponent["role"];
+  goal: RetrievalProjectionItem[];
+  interface: ProjectionConceptDraft[];
+  state: RetrievalProjectionItem[];
+  logic: RetrievalProjectionItem[];
+  constraints: RetrievalProjectionItem[];
+  decisions: RetrievalProjectionItem[];
+  cases: RetrievalProjectionItem[];
+  ownership: RetrievalProjectionOwnership[];
+  links: RetrievalProjectionLink[];
+  concepts: Map<string, ProjectionConceptDraft>;
+}
+
+interface ProjectionConceptDraft {
+  readonly name?: string;
+  readonly items: RetrievalProjectionItem[];
+  readonly ownership: RetrievalProjectionOwnership[];
+}
+
 // @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::RetrievalProjectionDerivation interface
 export async function projectRetrieval(
   result: PurposeRetrievalResult,
 ): Promise<RetrievalProjection> {
-  const entries = new Map<string, any>();
+  const entries = new Map<string, ProjectionEntry>();
   const roleFor = (kind: EvidenceKind) =>
     kind.startsWith("dependency")
       ? "dependency"
@@ -190,17 +220,20 @@ export async function projectRetrieval(
       const existing = entries.get(id);
       if (!existing) continue;
       existing.ownership.push({
-        relation: item.text.split(" ")[0],
+        relation: item.text.split(" ")[0] as RetrievalProjectionOwnership[
+          "relation"
+        ],
         path: item.path,
         location: item.location,
         symbol: item.text.match(/ at (.+?)(?: \[|$)/)?.[1],
         sections:
-          item.text.match(/\[([^\]]*)\]/)?.[1].split(",").filter(Boolean) ?? [],
+          (item.text.match(/\[([^\]]*)\]/)?.[1].split(",").filter(Boolean) ??
+            []) as RetrievalProjectionOwnership["sections"],
       });
       continue;
     }
     if (!nextRole) continue;
-    const entry = entries.get(id) ?? {
+    const entry: ProjectionEntry = entries.get(id) ?? {
       id,
       name: item.componentName,
       path: id.slice(0, id.lastIndexOf("::")),
@@ -212,7 +245,7 @@ export async function projectRetrieval(
       constraints: [],
       decisions: [],
       cases: [],
-      ownership: [],
+      ownership: [] as RetrievalProjectionOwnership[],
       links: [],
       concepts: new Map(),
     };
@@ -225,7 +258,11 @@ export async function projectRetrieval(
       item.sectionName !== "goal" &&
       item.sectionName !== "interface"
     ) continue;
-    const value = { text: item.text, path: item.path, range: item.range };
+    const value: RetrievalProjectionItem = {
+      text: item.text,
+      path: item.path,
+      range: item.range,
+    };
     if (item.sectionName === "interface") {
       const key = item.conceptIdentity ?? "";
       const concept = entry.concepts.get(key) ??
@@ -236,7 +273,28 @@ export async function projectRetrieval(
       ["goal", "state", "logic", "constraints", "decisions", "cases"].includes(
         String(item.sectionName),
       )
-    ) entry[item.sectionName!].push(value);
+    ) {
+      switch (item.sectionName) {
+        case "goal":
+          entry.goal.push(value);
+          break;
+        case "state":
+          entry.state.push(value);
+          break;
+        case "logic":
+          entry.logic.push(value);
+          break;
+        case "constraints":
+          entry.constraints.push(value);
+          break;
+        case "decisions":
+          entry.decisions.push(value);
+          break;
+        case "cases":
+          entry.cases.push(value);
+          break;
+      }
+    }
   }
   for (const entry of entries.values()) {
     entry.interface = [...entry.concepts.values()];
@@ -249,8 +307,9 @@ export async function projectRetrieval(
   for (const edge of result.graph.edges) {
     const source = nodeIds.get(edge.sourceIdentity);
     const target = nodeIds.get(edge.targetIdentity);
-    if (source && target && entries.has(source) && entries.has(target)) {
-      entries.get(source).links.push({
+    const sourceEntry = source ? entries.get(source) : undefined;
+    if (sourceEntry && target && entries.has(target)) {
+      sourceEntry.links.push({
         relation: edge.relation,
         target,
         location: { path: edge.originPath, range: edge.originRange },
@@ -259,9 +318,11 @@ export async function projectRetrieval(
   }
   const compare = (left: string, right: string) =>
     left < right ? -1 : left > right ? 1 : 0;
-  const components = [...entries.values()].map(({ concepts, ...entry }) => ({
+  const components = [...entries.values()].map((
+    { concepts: _concepts, ...entry },
+  ) => ({
     ...entry,
-    links: entry.links.sort((left: any, right: any) =>
+    links: entry.links.sort((left, right) =>
       compare(left.relation, right.relation) ||
       compare(left.target, right.target) ||
       compare(left.location?.path ?? "", right.location?.path ?? "") ||
@@ -285,6 +346,17 @@ export async function projectRetrieval(
   return { ...base, fingerprint: `sha256:${await sha256Canonical(base)}` };
 }
 
+/**
+ * A retrieval closure is bounded by relationship rules, not by size, so a broad
+ * boundary still returns everything one hop away. `maxEvidenceBytes` keeps the
+ * closest evidence and reports what was withheld instead of truncating
+ * silently.
+ */
+export interface PurposeRetrievalOptions {
+  /** A finite, non-negative byte budget. Omit for unbounded retrieval. */
+  readonly maxEvidenceBytes?: number;
+}
+
 /*
  * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::PurposeRetrievalRequest interface
  * @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval logic,constraints,cases
@@ -295,6 +367,7 @@ export async function retrievePurposeContext(
   purpose: RetrievalPurpose,
   glossaryEvidence: GlossaryProjection | null = resolved.glossary,
   implementationEvidence: ImplementationEvidenceInput | null = null,
+  options: PurposeRetrievalOptions = {},
 ): Promise<PurposeRetrievalResult> {
   const requestedPath = target.path;
   const acceptedPath = validateRelativePath(requestedPath);
@@ -933,7 +1006,26 @@ export async function retrievePurposeContext(
     evidence,
     diagnostics,
     unavailableImplementation,
+    assertEvidenceBudget(options.maxEvidenceBytes),
   );
+}
+
+/**
+ * A negative or non-finite budget would silently withhold every optional unit,
+ * or fail later inside canonical JSON, so it is rejected at the boundary.
+ */
+function assertEvidenceBudget(value: number | undefined): number | undefined {
+  if (value !== undefined && (!Number.isInteger(value) || value < 0)) {
+    throw new TypeError(
+      "maxEvidenceBytes must be a non-negative integer when provided.",
+    );
+  }
+  return value;
+}
+
+/** The budget is a byte budget, so text is measured as encoded UTF-8. */
+function utf8Length(text: string): number {
+  return new TextEncoder().encode(text).length;
 }
 
 function addContractEvidence(
@@ -1089,6 +1181,7 @@ async function materialize(
   evidenceDrafts: EvidenceDraft[],
   diagnostics: readonly SigilDiagnostic[],
   incomplete: boolean,
+  maxEvidenceBytes?: number,
 ): Promise<PurposeRetrievalResult> {
   const nodeEntries = await Promise.all(
     [...nodeDrafts].map(async ([key, draft]) =>
@@ -1218,11 +1311,60 @@ async function materialize(
     nodeEntries.map(([, node]) => node),
     edgeEntries.map(([, edge]) => edge),
   );
+  // Evidence is already ordered selected-first, then dependency, importer,
+  // cycle member, and module context, so spending the budget in order keeps
+  // the closest evidence. The selected contract is never dropped: a boundary
+  // returned without its own contract would be useless.
+  const budgeted: typeof evidence = [];
+  let budget: RetrievalBudgetReport | undefined;
+  if (maxEvidenceBytes === undefined) {
+    budgeted.push(...evidence);
+  } else {
+    const withheld = new Map<EvidenceKind, number>();
+    let spent = 0;
+    let withheldBytes = 0;
+    // The first optional unit that does not fit ends optional selection.
+    // Continuing would admit later, less relevant evidence over the closer
+    // evidence just withheld.
+    let exhausted = false;
+    for (const unit of evidence) {
+      const required = unit.kind === "selected-contract" ||
+        unit.kind === "selected-expansion";
+      const size = utf8Length(unit.text);
+      if (required || (!exhausted && spent + size <= maxEvidenceBytes)) {
+        budgeted.push(unit);
+        spent += size;
+        continue;
+      }
+      exhausted = true;
+      withheldBytes += size;
+      withheld.set(unit.kind, (withheld.get(unit.kind) ?? 0) + 1);
+    }
+    budget = {
+      maxEvidenceBytes,
+      includedBytes: spent,
+      withheldCount: evidence.length - budgeted.length,
+      withheldBytes,
+      withheldByKind: [...withheld]
+        .sort((left, right) =>
+          right[1] - left[1] || left[0].localeCompare(right[0])
+        )
+        .map(([kind, count]) => ({ kind, count })),
+    };
+  }
+  // A reason explains why an included unit was selected, so a reason for
+  // withheld evidence is noise rather than explanation.
+  const keptIdentities = new Set(budgeted.map((unit) => unit.identity));
+  const budgetedReasons = maxEvidenceBytes === undefined
+    ? uniqueReasons
+    : uniqueReasons.filter((reason) =>
+      keptIdentities.has(reason.selectedIdentity)
+    );
   const collision = hasIdentityCollision([
     ...nodeEntries.map(([, item]) => item),
     ...edgeEntries.map(([, item]) => item),
-    ...evidence,
-    ...uniqueReasons,
+    ...budgeted,
+    ...budgetedReasons,
     ...exclusions,
   ]);
   if (collision) {
@@ -1243,11 +1385,12 @@ async function materialize(
       nodes: nodeEntries.map(([, node]) => node),
       edges: edgeEntries.map(([, edge]) => edge),
     },
-    evidence,
-    inclusionReasons: uniqueReasons,
+    evidence: budgeted,
+    inclusionReasons: budgetedReasons,
     exclusions,
+    ...(budget ? { budget } : {}),
     context: {
-      sections: evidence.map((unit) => ({
+      sections: budgeted.map((unit) => ({
         kind: unit.kind,
         text: unit.text,
         evidenceIdentity: unit.identity,

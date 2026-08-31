@@ -31,6 +31,16 @@
 
 ## Unreleased
 
+- Extract the Codex CLI adapter into `@qoherent/sigil-compiler-adapter-codex`,
+  registered from the CLI like its sibling adapter packages. The compiler is now
+  provider-neutral: it constructs no provider implementation, and an evaluator
+  provider is an opaque identifier owned by its adapter package rather than one
+  of four hardcoded names. A provider naming no registered adapter is reported
+  when registration resolves rather than when configuration parses.
+- Export the findings schema and shared adapter execution helpers from the
+  compiler as the one contract every adapter satisfies, replacing byte-identical
+  copies in provider packages.
+
 - Stop rejecting a compilation because its evaluator request carries a complete
   retrieval result. The declared initial-request limit is enforced where the
   request reaches its adapter, so exceeding it leaves that evaluator incomplete
@@ -40,6 +50,40 @@
   session-facing pass-through left with no consumer after the session boundary
   was removed, and record one-shot compilation as the evaluation pipeline's
   implementation owner.
+
+- Make compilation-boundary selection a compiler behavior. `--component`,
+  `--file`, `--position`, and the new `--directory` are affected-scope seeds
+  rather than final targets: the compiler resolves the nearest module index
+  whose closure covers the affected scope, otherwise the nearest covering
+  component, otherwise the workspace. `--exact-target` preserves a deliberately
+  narrow selection.
+- Reject an unresolvable or invalid selector with a stable invocation
+  diagnostic instead of silently compiling the whole workspace.
+- Advance `CompilationReport` to `reportVersion` 3, adding `requestedScope`
+  and `selection` beside the existing `target`, so an exported report explains
+  which boundary was compiled, why, what it covered, and any uncovered evidence
+  without re-running graph analysis. `target` keeps its name and meaning as the
+  boundary that ran, so a consumer reading it needs no field migration.
+- Remove the duplicated target-selection policy from the coding-agent skill;
+  hosts now name the scope that changed and read the resolved boundary from the
+  report.
+
+- Add an optional evidence budget to purpose retrieval and
+  `sigil retrieve --max-evidence-bytes`. A retrieval closure is bounded by
+  relationship rules rather than size, so a broad boundary returned everything
+  one hop away regardless of how much a consumer could use.
+- Keep the closest evidence within the budget, always retain the selected
+  contract, and report what was withheld as a summary of counts and bytes by
+  evidence kind rather than one record per withheld unit.
+- Report inclusion reasons only for evidence the result still contains, so a
+  reason cannot outlive the evidence it explains.
+
+- Make the coding-agent skill decide a project's module structure before
+  drafting contracts, deriving bounded areas from deployment units, technology
+  boundaries, independent reasons to change, shared ownership, and
+  reviewability. A small project stays one boundary, and an outgrown boundary
+  is proposed for splitting rather than accumulating every declaration at the
+  workspace root.
 - Extend implementation-ownership discovery to frontend surfaces. Markup
   (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
   single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry

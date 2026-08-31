@@ -9,7 +9,7 @@ import {
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
-import { CodexAdapter, resolveAdapterRegistration } from "./adapters.ts";
+import { resolveAdapterRegistration } from "./adapters.ts";
 import {
   capabilitiesMatch,
   evaluationCapabilitiesFor,
@@ -22,6 +22,11 @@ import {
   canonicalWorkspacePath,
   resolveCompilationTarget,
 } from "./compilation-target.ts";
+import {
+  type CompilationBoundaryResult,
+  type CompilationScopeSeed,
+  selectCompilationBoundary,
+} from "@qoherent/sigil-core";
 import {
   type CompilationEventWriter,
   openCompilationEventWriter,
@@ -222,7 +227,7 @@ export async function validateCompilationProfile(
  */
 export async function compile(
   workspacePath: string,
-  target: CompilationTarget = { kind: "workspace" },
+  requestedScope: CompilationScopeSeed = { kind: "workspace" },
   profileName: string,
   options: CompileOptions = {},
 ): Promise<CompilationReport> {
@@ -261,6 +266,11 @@ export async function compile(
     profile = await bindSuppliedAdapter(profile, options.adapter);
     const adapters = adaptersFrom(profile, options);
     assertProfileEvaluators(profile, adapters);
+    const boundary = selectCompilationBoundary(resolved, requestedScope, {
+      exactTarget: options.exactTarget,
+    });
+    assertResolvableScope(boundary);
+    const target = compilationTargetFor(boundary);
     const components = resolveCompilationTarget(
       resolved,
       target,
@@ -593,6 +603,8 @@ export async function compile(
       runId,
       workspaceRoot: workspace.root,
       target,
+      requestedScope: boundary.requestedScope,
+      selection: boundary.selection,
       componentNames: components.map((item) => item.name),
       startedAt,
       completedAt: new Date().toISOString(),
@@ -968,12 +980,10 @@ function selectedEvaluators(
       .implementationId;
     const implementationVersion = (raw as Record<string, unknown>)
       .implementationVersion;
-    if (!["codex", "claude", "opencode", "pi"].includes(String(provider))) {
+    if (typeof provider !== "string" || provider.trim() === "") {
       throw evaluatorConfigurationError(
         base,
-        `Evaluator ${
-          JSON.stringify(id)
-        } must use provider codex, claude, opencode, or pi.`,
+        `Evaluator ${JSON.stringify(id)} must name a provider.`,
       );
     }
     if (model !== undefined && typeof model !== "string") {
@@ -1093,10 +1103,7 @@ function adaptersFrom(
   options: CompileOptions,
 ): readonly AgentAdapter[] {
   if (options.adapters) {
-    const registrations = [
-      ...compilerOwnedAdapters(profile.evaluators),
-      ...options.adapters,
-    ];
+    const registrations = options.adapters;
     return profile.evaluators.map((configuration) => {
       try {
         return resolveAdapterRegistration(registrations, configuration);
@@ -1117,31 +1124,9 @@ function adaptersFrom(
     }
     return [options.adapter];
   }
-  const builtins = compilerOwnedAdapters(profile.evaluators);
-  return profile.evaluators.map((configuration) => {
-    const implementation = resolveAdapterRegistration(builtins, configuration);
-    return implementation;
-  });
-}
-
-function compilerOwnedAdapters(
-  configurations: readonly EvaluatorConfiguration[],
-): readonly AgentAdapter[] {
-  const registrations = new Map<string, AgentAdapter>();
-  for (const configuration of configurations) {
-    const adapter = configuration.provider === "codex"
-      ? new CodexAdapter(configuration.model)
-      : undefined;
-    if (adapter) {
-      registrations.set(
-        `${adapter.provider}\0${adapter.implementationId}\0${adapter.implementationVersion}\0${
-          adapter.model ?? ""
-        }`,
-        adapter,
-      );
-    }
-  }
-  return [...registrations.values()];
+  return profile.evaluators.map((configuration) =>
+    resolveAdapterRegistration([], configuration)
+  );
 }
 
 function assertProfileEvaluators(
@@ -1430,4 +1415,37 @@ async function digest(value: string): Promise<string> {
   return [...new Uint8Array(bytes)].map((byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
+}
+
+/**
+ * An unresolvable selector is an invocation error. Compiling the workspace
+ * instead would silently widen a run the caller got wrong.
+ */
+// @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation logic,cases
+function assertResolvableScope(boundary: CompilationBoundaryResult): void {
+  const blocking = boundary.diagnostics.filter((item) =>
+    item.severity === "error"
+  );
+  if (blocking.length === 0) return;
+  throw new CompilerFailure(
+    "COMPILER_INVALID_INVOCATION",
+    blocking.map((item) => item.message).join(" "),
+  );
+}
+
+function compilationTargetFor(
+  boundary: CompilationBoundaryResult,
+): CompilationTarget {
+  const target = boundary.resolvedTarget;
+  if (target.kind === "file") {
+    return { kind: "file", filePath: target.filePath };
+  }
+  if (target.kind === "component") {
+    return {
+      kind: "component",
+      name: target.name,
+      declarationPath: target.declarationPath,
+    };
+  }
+  return { kind: "workspace" };
 }

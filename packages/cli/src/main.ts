@@ -5,6 +5,7 @@ import {
   type CompilationHistoryStore,
   type CompilationReport,
   type compile,
+  CompilerFailure,
   FileCompilationHistoryStore,
   renderCompilationReportMarkdown,
   resolveCompilationProfile,
@@ -27,6 +28,7 @@ const HELP: Readonly<Record<HelpTopic, string>> = {
 Commands:
   skill             List or install bundled agent skills
   init              Create a workspace configuration
+  config            Set the default profile or add or edit a compilation profile
   version           Report workspace and contract versions
   parse             Parse one Sigil file
   check             Report workspace diagnostics
@@ -79,6 +81,46 @@ Options:
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
   --help            Show this help
+`,
+  config: `Usage: sigil config <subcommand> [options]
+
+Subcommands:
+  set-default       Set the default and agent compilation profile
+  set-profile       Add or edit a compilation profile
+
+Options:
+  --help            Show this help
+`,
+  "config-set-default":
+    `Usage: sigil config set-default [path] --profile <name> [options]
+
+Options:
+  --profile <name>        Set tools.compile.defaultProfile
+  --agent-profile <name>  Set tools.agent.profile (default: same as --profile)
+  --format <value>        Output json
+  --pretty                Pretty-print JSON output
+  --quiet                 Suppress command output
+  --help                  Show this help
+`,
+  "config-set-profile": `Usage: sigil config set-profile <name> [path] [options]
+
+Options:
+  --extends <base>                    Base profile: standard or critical-system
+  --main <evaluatorId[,evaluatorId ...]>
+                                       Set the profile's main evaluator binding
+  --stage <stageId=evaluatorId[,evaluatorId ...]>
+                                       Bind one stage; may be repeated
+  --disable-stage <stageId>           Disable one stage; may be repeated
+  --evaluator <evaluatorId=provider>  Declare a new evaluator; may be repeated
+  --model <evaluatorId=model>         Set an evaluator's model; may be repeated
+  --implementation-id <evaluatorId=value>
+                                       Set an evaluator's implementation id; may be repeated
+  --implementation-version <evaluatorId=value>
+                                       Set an evaluator's implementation version; may be repeated
+  --format <value>                    Output json
+  --pretty                            Pretty-print JSON output
+  --quiet                             Suppress command output
+  --help                              Show this help
 `,
   version: `Usage: sigil version [path] [options]
 
@@ -157,6 +199,7 @@ Options:
   --component <name>  Select one exact component
   --file <file>       Select one Sigil file
   --purpose <value>   semantic, architecture, or implementation
+  --max-evidence-bytes <n>  Keep the closest evidence within a byte budget
   --root <path>       Use an explicit workspace root
   --format <value>    Output json or markdown
   --pretty            Pretty-print JSON output
@@ -164,7 +207,7 @@ Options:
   --help              Show this help
 `,
   compile:
-    `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>]] [options]
+    `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>] | --directory <dir>] [--exact-target] [options]
 
 Options:
   stage               Run one stage and its dependency closure
@@ -210,6 +253,7 @@ export interface CliRunOptions extends CommandHandlerOptions {
  * @sigil implements packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
  * @sigil implements packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
+ * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
  * @sigil uses packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface
  */
 export async function runCli(
@@ -237,8 +281,13 @@ export async function runCli(
       const events: CompilationEvent[] = [];
       compilationEvents = events;
       const compileWorkspace = options.compiler ?? compileWithBundledAdapters;
+      // Every selector is an affected-scope seed. The compiler resolves the
+      // boundary that actually covers it unless --exact-target is given.
       const target = parsed.request.component
-        ? { kind: "component" as const, name: parsed.request.component }
+        ? {
+          kind: "component" as const,
+          componentName: parsed.request.component,
+        }
         : parsed.request.file && parsed.request.position
         ? {
           kind: "location" as const,
@@ -247,6 +296,11 @@ export async function runCli(
         }
         : parsed.request.file
         ? { kind: "file" as const, filePath: parsed.request.file }
+        : parsed.request.directory
+        ? {
+          kind: "directory" as const,
+          directoryPath: parsed.request.directory,
+        }
         : { kind: "workspace" as const };
       const workspacePath = parsed.request.root ?? parsed.request.path ??
         Deno.cwd();
@@ -258,6 +312,7 @@ export async function runCli(
           parsed.request.agent,
         ),
         {
+          exactTarget: parsed.request.exactTarget,
           requestedStage: parsed.request.stage,
           focus: parsed.request.focus,
           noHistory: parsed.request.noCache,
@@ -330,7 +385,12 @@ export async function runCli(
       };
     }
     return {
-      exitCode: EXIT_RUNTIME,
+      // A rejected selector is correctable input, not an infrastructure
+      // failure, so it exits as usage rather than runtime.
+      exitCode: error instanceof CompilerFailure &&
+          error.code === "COMPILER_INVALID_INVOCATION"
+        ? EXIT_USAGE
+        : EXIT_RUNTIME,
       stdout: bufferedJsonl,
       stderr: `${error instanceof Error ? error.message : String(error)}\n`,
     };
