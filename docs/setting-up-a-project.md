@@ -36,11 +36,22 @@ Edit `files.exclude` in `.sigil/config.json`:
 `sigil init --exclude` **replaces** the default list rather than adding to it,
 so either pass every pattern you want or edit the file afterwards.
 
-## 3. Write the first component
+## 3. Install the agent skill
+
+```bash
+sigil skill install
+```
+
+No CLI command writes a contract. The skill teaches Codex, Claude Code,
+OpenCode, and Pi to author and revise Sigil, and the CLI checks what they write.
+Use `--project` for repository-local installation, or `--agent <name>` for one.
+
+## 4. Write the first component
 
 A component is a contract. `goal` says what it owns; `interface` is its public
-surface. Start with one boundary you understand well, in a `.sigil` file
-anywhere in the tree.
+surface. Ask your agent for one — "model the notification service as a Sigil
+component" — or write it yourself. Either way it lands in a `.sigil` file
+anywhere in the tree and looks like this.
 
 ```sigil
 component Notifier {
@@ -63,7 +74,7 @@ Check it:
 sigil check .
 ```
 
-## 4. Point the contract at the code
+## 5. Point the contract at the code
 
 Add an ownership annotation as a comment above the implementing symbol:
 
@@ -72,10 +83,12 @@ Add an ownership annotation as a comment above the implementing symbol:
 export function send(recipient: string, message: string): void {
 ```
 
-The form is `@sigil implements|uses|tests <file>::<Component>[::<Concept>]
-<sections>`. Sigil reads these from ordinary comments, including `.vue`,
-`.html`, `.css`, and Go templates. A component with no named symbol to hang the
-note on — most single-file frontend components — can carry it at file level.
+The form is
+`@sigil implements|uses|tests <file>::<Component>[::<Concept>]
+<sections>`.
+Sigil reads these from ordinary comments, including `.vue`, `.html`, `.css`, and
+Go templates. A component with no named symbol to hang the note on — most
+single-file frontend components — can carry it at file level.
 
 Confirm the link resolved:
 
@@ -83,14 +96,14 @@ Confirm the link resolved:
 sigil context . --component Notifier
 ```
 
-## 5. Use it
+## 6. Use it
 
-| Command | What it gives you |
-| --- | --- |
-| `sigil check .` | Validates every contract and annotation |
-| `sigil context . --component X` | One component with its dependencies and owning code |
-| `sigil retrieve . --component X --purpose architecture` | Assembled context for an agent |
-| `sigil compile .` | Runs the review stages and reports red/yellow/green |
+| Command                                                 | What it gives you                                   |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| `sigil check .`                                         | Validates every contract and annotation             |
+| `sigil context . --component X`                         | One component with its dependencies and owning code |
+| `sigil retrieve . --component X --purpose architecture` | Assembled context for an agent                      |
+| `sigil compile .`                                       | Runs the review stages and reports red/yellow/green |
 
 Two flags worth knowing early:
 
@@ -101,10 +114,10 @@ Two flags worth knowing early:
   works out how much to check from what you name. A directory selects the Sigil
   sources beneath it, not the implementation files.
 
-## 6. Choose which evaluator reviews your work
+## 7. Choose which evaluator reviews your work
 
 `compile` runs its review stages through an AI evaluator, selected by a
-*profile*. `sigil init` seeds profiles for each bundled provider and defaults to
+_profile_. `sigil init` seeds profiles for each bundled provider and defaults to
 `standard`, which uses Codex. To use a different one:
 
 ```bash
@@ -121,19 +134,37 @@ To build your own — say, a faster profile that skips the standards-risk stage:
 sigil config set-profile fast . --extends standard --main claude   --disable-stage standards-risk
 ```
 
-Repeating the command edits the same profile, and `--disable-stage`
-accumulates across invocations. Binding a stage again with
-`--stage <stage>=<evaluator>` re-enables it. `sigil config set-profile --help`
-lists the evaluator, model, and per-stage options.
+Repeating the command edits the same profile, and `--disable-stage` accumulates
+across invocations. Binding a stage again with `--stage <stage>=<evaluator>`
+re-enables it. `sigil config set-profile --help` lists the evaluator, model, and
+per-stage options.
 
-## 7. Install the agent skill
+## Adopting into an existing codebase
 
-```bash
-sigil skill install
-```
+The steps above work unchanged on a repository that already has code. Four
+things differ.
 
-Teaches Codex, Claude Code, OpenCode, and Pi to read and write Sigil. Use
-`--project` for repository-local installation, or `--agent <name>` for one.
+**Exclusions matter more.** Step 2 is the one that decides whether Sigil runs at
+all on a large repository, so do it before anything else.
+
+**Start with one boundary, not a survey.** Pick something with a clear entry
+point and few dependents. Not the largest area, and not the one you understand
+least. Model it, check it, then pick the next.
+
+**Record what the code does, not what it should do.** A contract for existing
+code describes current behaviour. Where the behaviour is wrong, say so in a
+`decisions` entry rather than quietly writing the fix into the contract — the
+contract stops matching the code otherwise.
+
+**Annotate as you go.** A boundary is only half done until
+`sigil context .
+--component <Name>` shows the contract and its implementing
+code together.
+
+Ask your agent to do this a boundary at a time: "adopt Sigil for the ingest
+module". It follows
+[brownfield-adoption.md](../integrations/skills/sigil/references/brownfield-adoption.md),
+which is the full procedure and is written for the agent rather than for you.
 
 ## Growing from here
 
@@ -142,7 +173,5 @@ the project earns it, split into areas with their own `_module.sigil` index and
 list them in `workspace.members`; see
 [greenfield-design.md](../integrations/skills/sigil/references/greenfield-design.md).
 
-For adopting Sigil across an existing codebase boundary by boundary, see
-[brownfield-adoption.md](../integrations/skills/sigil/references/brownfield-adoption.md).
-[The 0.1 pilot](pilots/0.1-brownfield.md) is a record of one such adoption
-rather than a procedure.
+[The 0.1 pilot](pilots/0.1-brownfield.md) records one adoption in full, as a
+worked example rather than a procedure.
