@@ -129,4 +129,6 @@ list them in `workspace.members`; see
 [greenfield-design.md](../integrations/skills/sigil/references/greenfield-design.md).
 
 For adopting Sigil across an existing codebase boundary by boundary, see
-[the brownfield pilot](pilots/0.1-brownfield.md).
+[brownfield-adoption.md](../integrations/skills/sigil/references/brownfield-adoption.md).
+[The 0.1 pilot](pilots/0.1-brownfield.md) is a record of one such adoption
+rather than a procedure.
