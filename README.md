@@ -55,6 +55,9 @@ sigil skill install
 Use `sigil skill install --project` for repository-local installation, or
 `--agent codex|claude|opencode|pi` to target one agent.
 
+To set Sigil up on a repository, see
+[Setting Up A Project](docs/setting-up-a-project.md).
+
 VS Code extension releases are currently available as manually installable
 `.vsix` files on the
 [GitHub Releases page](https://github.com/qoherent/sigil/releases). Marketplace
