@@ -29,7 +29,7 @@
   },
   "tools": {
     "agent": {
-      "profile": "codex"
+      "profile": "standard"
     },
     "compile": {
       "defaultProfile": "standard",
