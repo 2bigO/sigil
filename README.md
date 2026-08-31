@@ -65,15 +65,16 @@ publishing remains deferred.
 
 ## Where To Start
 
-| Your situation                  | Read                                                                                    |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Repository has no `.sigil/` yet | [Setting Up A Project](docs/setting-up-a-project.md)                                    |
-| Code exists, contracts do not   | [Setting Up A Project](docs/setting-up-a-project.md#adopting-into-an-existing-codebase) |
-| Designing something new         | [Greenfield Design](integrations/skills/sigil/references/greenfield-design.md)          |
-| Writing Sigil, need the syntax  | [Language Specification](spec/sigil-language.md)                                        |
-| Tuning `.sigil/config.json`     | [Config Reference](spec/sigil-config.md)                                                |
-| Upgrading an existing workspace | [Compatibility](COMPATIBILITY.md), then the `spec/migrating-to-*.md` for your target    |
-| Changing Sigil itself           | [CONTRIBUTING.md](CONTRIBUTING.md)                                                      |
+| Your situation                   | Read                                                                                    |
+| -------------------------------- | --------------------------------------------------------------------------------------- |
+| Trying Sigil for the first time  | [Quickstart](docs/quickstart.md)                                                        |
+| Setting up a repository properly | [Setting Up A Project](docs/setting-up-a-project.md)                                    |
+| Code exists, contracts do not    | [Setting Up A Project](docs/setting-up-a-project.md#adopting-into-an-existing-codebase) |
+| Designing something new          | [Greenfield Design](integrations/skills/sigil/references/greenfield-design.md)          |
+| Writing Sigil, need the syntax   | [Language Specification](spec/sigil-language.md)                                        |
+| Tuning `.sigil/config.json`      | [Config Reference](spec/sigil-config.md)                                                |
+| Upgrading an existing workspace  | [Compatibility](COMPATIBILITY.md), then the `spec/migrating-to-*.md` for your target    |
+| Changing Sigil itself            | [CONTRIBUTING.md](CONTRIBUTING.md)                                                      |
 
 The brownfield and greenfield procedures are written for a coding agent running
 the bundled skill. They are readable on their own, but you get them applied for
