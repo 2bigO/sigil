@@ -1,6 +1,6 @@
 import {
   type CompilationReport,
-  type CompilationTarget,
+  type CompilationScopeSeed,
   compile,
   type CompileOptions,
   loadCompilationConfiguration,
@@ -13,18 +13,18 @@ import { CodexAdapter } from "@qoherent/sigil-compiler-adapter-codex";
 // @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade logic
 export function compileWithBundledAdapters(
   workspacePath: string,
-  target: CompilationTarget | undefined,
+  target: CompilationScopeSeed | undefined,
   options?: CompileOptions & { readonly profile?: string },
 ): Promise<CompilationReport>;
 export function compileWithBundledAdapters(
   workspacePath: string,
-  target: CompilationTarget | undefined,
+  target: CompilationScopeSeed | undefined,
   profileName: string,
   options?: CompileOptions,
 ): Promise<CompilationReport>;
 export async function compileWithBundledAdapters(
   workspacePath: string,
-  target: CompilationTarget = { kind: "workspace" },
+  target: CompilationScopeSeed = { kind: "workspace" },
   profileOrOptions: string | (CompileOptions & { readonly profile?: string }) =
     {},
   suppliedOptions: CompileOptions = {},

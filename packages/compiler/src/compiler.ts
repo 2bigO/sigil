@@ -23,6 +23,11 @@ import {
   resolveCompilationTarget,
 } from "./compilation-target.ts";
 import {
+  type CompilationBoundaryResult,
+  type CompilationScopeSeed,
+  selectCompilationBoundary,
+} from "@qoherent/sigil-core";
+import {
   type CompilationEventWriter,
   openCompilationEventWriter,
   type WritableEnvelopeSink,
@@ -222,7 +227,7 @@ export async function validateCompilationProfile(
  */
 export async function compile(
   workspacePath: string,
-  target: CompilationTarget = { kind: "workspace" },
+  requestedScope: CompilationScopeSeed = { kind: "workspace" },
   profileName: string,
   options: CompileOptions = {},
 ): Promise<CompilationReport> {
@@ -261,6 +266,11 @@ export async function compile(
     profile = await bindSuppliedAdapter(profile, options.adapter);
     const adapters = adaptersFrom(profile, options);
     assertProfileEvaluators(profile, adapters);
+    const boundary = selectCompilationBoundary(resolved, requestedScope, {
+      exactTarget: options.exactTarget,
+    });
+    assertResolvableScope(boundary);
+    const target = compilationTargetFor(boundary);
     const components = resolveCompilationTarget(
       resolved,
       target,
@@ -593,6 +603,8 @@ export async function compile(
       runId,
       workspaceRoot: workspace.root,
       target,
+      requestedScope: boundary.requestedScope,
+      selection: boundary.selection,
       componentNames: components.map((item) => item.name),
       startedAt,
       completedAt: new Date().toISOString(),
@@ -1403,4 +1415,37 @@ async function digest(value: string): Promise<string> {
   return [...new Uint8Array(bytes)].map((byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
+}
+
+/**
+ * An unresolvable selector is an invocation error. Compiling the workspace
+ * instead would silently widen a run the caller got wrong.
+ */
+// @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation logic,cases
+function assertResolvableScope(boundary: CompilationBoundaryResult): void {
+  const blocking = boundary.diagnostics.filter((item) =>
+    item.severity === "error"
+  );
+  if (blocking.length === 0) return;
+  throw new CompilerFailure(
+    "COMPILER_INVALID_INVOCATION",
+    blocking.map((item) => item.message).join(" "),
+  );
+}
+
+function compilationTargetFor(
+  boundary: CompilationBoundaryResult,
+): CompilationTarget {
+  const target = boundary.resolvedTarget;
+  if (target.kind === "file") {
+    return { kind: "file", filePath: target.filePath };
+  }
+  if (target.kind === "component") {
+    return {
+      kind: "component",
+      name: target.name,
+      declarationPath: target.declarationPath,
+    };
+  }
+  return { kind: "workspace" };
 }

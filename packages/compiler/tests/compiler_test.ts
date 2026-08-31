@@ -751,14 +751,19 @@ Deno.test("invalid targets reject before binding an event writer", async () => {
     const events: CompilationEvent[] = [];
     await assertRejects(
       () =>
-        compile(root, { kind: "component", name: "Missing" }, "standard", {
-          adapter: new MockAdapter(),
-          onEvent: (event) => {
-            events.push(event);
+        compile(
+          root,
+          { kind: "component", componentName: "Missing" },
+          "standard",
+          {
+            adapter: new MockAdapter(),
+            onEvent: (event) => {
+              events.push(event);
+            },
           },
-        }),
+        ),
       Error,
-      "No component matched",
+      "No loaded component is named",
     );
     assertEquals(events, []);
   } finally {
@@ -1164,7 +1169,7 @@ Deno.test("corrupt compilation history is ignored", async () => {
     await Deno.writeTextFile(
       `${historyDirectory}/${key}.json`,
       JSON.stringify({
-        reportVersion: 2,
+        reportVersion: 3,
         runId: "prior",
         workspaceRoot: root,
         target: { kind: "workspace" },
@@ -1371,7 +1376,7 @@ Deno.test("diagnostics resolve direct units with concept and section fallbacks",
         finding("empty", "README.md", 1),
       ]),
     });
-    assertEquals(report.reportVersion, 2);
+    assertEquals(report.reportVersion, 3);
     const unit = report.diagnostics.find((item) => item.message === "unit")!;
     assertEquals(unit.semanticSubjects.length, 1);
     assertEquals(unit.semanticSubjects[0].relation, "direct");
@@ -1791,10 +1796,17 @@ Deno.test("report export is atomic and remains outside the selected workspace", 
 // @sigil tests packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface,logic,constraints,cases
 Deno.test("compilation report Markdown is compact, grouped, and deterministic", () => {
   const report: CompilationReport = {
-    reportVersion: 2,
+    reportVersion: 3,
     runId: "run-markdown",
     workspaceRoot: "/workspace",
     target: { kind: "component", name: "Example" },
+    requestedScope: { kind: "component", componentName: "Example" },
+    selection: {
+      strategy: "exact-target",
+      affectedSemanticUnits: [],
+      coveredSemanticUnits: [],
+      uncoveredSemanticUnits: [],
+    },
     componentNames: ["Example"],
     status: "yellow",
     startedAt: "2026-01-01T00:00:00.000Z",
