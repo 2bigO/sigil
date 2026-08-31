@@ -3842,3 +3842,159 @@ Deno.test("compilation boundary rejects unresolvable and invalid seeds", async (
     "component:Alpha@my dir/alpha.sigil|file:my dir/alpha.sigil",
   );
 });
+
+// @sigil tests packages/core/src/context-retrieval.sigil::SigilContextRetrieval::EvidenceBudget interface,constraints
+Deno.test("a retrieval budget keeps the closest evidence and reports the rest", async () => {
+  const component = (name: string, extra = "") =>
+    `component ${name} {
+  goal {
+    Own the ${name} responsibility for this workspace fixture.
+  }
+
+  interface {
+    ${name}Contract {
+      Expose the ${name} operations used by its dependents and collaborators.
+    }
+  }
+${extra}}
+`;
+  const fs = new InMemorySigilFileSystem({
+    ".sigil/config.json": configSource(),
+    "seed.sigil": `@one.sigil import { One }\n@two.sigil import { Two }\n\n` +
+      component(
+        "Seed",
+        `
+  logic {
+    SeedContract {
+      Assemble One and Two into one namespace for downstream consumers.
+    }
+  }
+`,
+      ),
+    // Multibyte text in a retrieved section makes encoded bytes exceed UTF-16
+    // code units, so a budget measured in the wrong unit overshoots.
+    "one.sigil": component("One").replace(
+      "Own the One",
+      `Own \u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680} the One`,
+    ),
+    "two.sigil": component("Two").replace(
+      "Own the Two",
+      `Own \u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680}\u{1F680} the Two`,
+    ),
+  });
+  const resolved = resolveSigilWorkspace(
+    await loadSigilWorkspace(fs, { startPath: "." }),
+  );
+  const target = {
+    kind: "component" as const,
+    componentName: "Seed",
+    path: "seed.sigil",
+  };
+
+  const full = await retrievePurposeContext(resolved, target, "architecture");
+  assertEquals(full.budget, undefined);
+  assert(full.evidence.length > 1);
+
+  // A budget of zero still returns the selected contract: a boundary without
+  // its own contract would be useless.
+  const minimal = await retrievePurposeContext(
+    resolved,
+    target,
+    "architecture",
+    resolved.glossary,
+    null,
+    { maxEvidenceBytes: 0 },
+  );
+  assert(minimal.evidence.length >= 1);
+  assert(
+    minimal.evidence.every((item) =>
+      item.kind === "selected-contract" || item.kind === "selected-expansion"
+    ),
+  );
+  assert(minimal.evidence.length < full.evidence.length);
+
+  // The withheld evidence is summarized, not itemized, and the summary adds up.
+  const budget = minimal.budget!;
+  assert(budget);
+  assertEquals(budget.maxEvidenceBytes, 0);
+  assertEquals(
+    budget.withheldCount,
+    full.evidence.length - minimal.evidence.length,
+  );
+  assert(budget.withheldBytes > 0);
+  assert(budget.withheldByKind.length > 0);
+  assertEquals(
+    budget.withheldByKind.reduce((sum, item) => sum + item.count, 0),
+    budget.withheldCount,
+  );
+
+  // A reason explains an included unit, so no reason may outlive its evidence.
+  const kept = new Set(minimal.evidence.map((item) => item.identity));
+  assert(minimal.inclusionReasons.length < full.inclusionReasons.length);
+  assert(
+    minimal.inclusionReasons.every((reason) =>
+      kept.has(reason.selectedIdentity)
+    ),
+  );
+
+  // A generous budget is indistinguishable from no budget.
+  const generous = await retrievePurposeContext(
+    resolved,
+    target,
+    "architecture",
+    resolved.glossary,
+    null,
+    { maxEvidenceBytes: 10_000_000 },
+  );
+  assertEquals(generous.evidence.length, full.evidence.length);
+  assertEquals(generous.budget?.withheldCount, 0);
+
+  // The budget is a byte budget, so multibyte text spends its encoded length
+  // rather than its UTF-16 code-unit count.
+  const encoded = (text: string) => new TextEncoder().encode(text).length;
+  const bounded = await retrievePurposeContext(
+    resolved,
+    target,
+    "architecture",
+    resolved.glossary,
+    null,
+    { maxEvidenceBytes: 200 },
+  );
+  const spent = bounded.evidence.reduce(
+    (sum, item) => sum + encoded(item.text),
+    0,
+  );
+  assertEquals(bounded.budget!.includedBytes, spent);
+  assertEquals(
+    bounded.budget!.withheldBytes,
+    full.evidence.filter((item) =>
+      !bounded.evidence.some((kept) => kept.identity === item.identity)
+    ).reduce((sum, item) => sum + encoded(item.text), 0),
+  );
+
+  // Optional selection stops at the first unit that does not fit, so a later
+  // smaller unit never displaces closer evidence.
+  const ordered = full.evidence.map((item) => item.identity);
+  assertEquals(
+    bounded.evidence.map((item) => item.identity).join(","),
+    ordered.slice(0, bounded.evidence.length).join(","),
+  );
+
+  // An unusable budget is rejected rather than silently withholding.
+  for (const invalid of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    let rejected = false;
+    try {
+      await retrievePurposeContext(
+        resolved,
+        target,
+        "architecture",
+        resolved.glossary,
+        null,
+        { maxEvidenceBytes: invalid },
+      );
+    } catch {
+      rejected = true;
+    }
+    assertEquals(rejected, true);
+  }
+});

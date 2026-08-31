@@ -67,6 +67,16 @@
 - Remove the duplicated target-selection policy from the coding-agent skill;
   hosts now name the scope that changed and read the resolved boundary from the
   report.
+
+- Add an optional evidence budget to purpose retrieval and
+  `sigil retrieve --max-evidence-bytes`. A retrieval closure is bounded by
+  relationship rules rather than size, so a broad boundary returned everything
+  one hop away regardless of how much a consumer could use.
+- Keep the closest evidence within the budget, always retain the selected
+  contract, and report what was withheld as a summary of counts and bytes by
+  evidence kind rather than one record per withheld unit.
+- Report inclusion reasons only for evidence the result still contains, so a
+  reason cannot outlive the evidence it explains.
 - Extend implementation-ownership discovery to frontend surfaces. Markup
   (`.html`, `.htm`), stylesheet (`.css`, `.scss`, `.sass`, `.less`), and
   single-file component (`.vue`, `.svelte`, `.astro`) sources may now carry

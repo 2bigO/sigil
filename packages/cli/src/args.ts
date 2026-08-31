@@ -95,6 +95,7 @@ export interface RetrieveRequest extends GlobalOptions {
   readonly component?: string;
   readonly file?: string;
   readonly purpose: "semantic" | "architecture" | "implementation";
+  readonly maxEvidenceBytes?: number;
   readonly path?: string;
 }
 export interface CompileRequest extends GlobalOptions {
@@ -188,6 +189,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let position: CompileRequest["position"];
   let directory: string | undefined;
   let exactTarget = false;
+  let maxEvidenceBytes: number | undefined;
   let includeDependents = false;
   let name: string | undefined;
   const include: string[] = [];
@@ -326,6 +328,19 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--include-dependents":
         includeDependents = true;
         break;
+      case "--max-evidence-bytes": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const parsed = Number(value);
+        if (!Number.isInteger(parsed) || parsed < 0) {
+          return usage(
+            "--max-evidence-bytes must be a non-negative integer.",
+            commandHelpTopic,
+          );
+        }
+        maxEvidenceBytes = parsed;
+        break;
+      }
       case "--purpose": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -395,6 +410,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (commandName !== "retrieve" && purpose) {
     return usage(`${commandName} does not accept --purpose.`, commandHelpTopic);
+  }
+  if (commandName !== "retrieve" && maxEvidenceBytes !== undefined) {
+    return usage(
+      `${commandName} does not accept --max-evidence-bytes.`,
+      commandHelpTopic,
+    );
   }
   if (commandName !== "compile" && position) {
     return usage(
@@ -574,6 +595,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       request: {
         command: "retrieve",
         component,
+        maxEvidenceBytes,
         file,
         purpose,
         path: positional[0],

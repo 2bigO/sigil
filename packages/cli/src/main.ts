@@ -158,6 +158,7 @@ Options:
   --component <name>  Select one exact component
   --file <file>       Select one Sigil file
   --purpose <value>   semantic, architecture, or implementation
+  --max-evidence-bytes <n>  Keep the closest evidence within a byte budget
   --root <path>       Use an explicit workspace root
   --format <value>    Output json or markdown
   --pretty            Pretty-print JSON output
