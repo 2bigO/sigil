@@ -104,6 +104,8 @@ export interface CompileRequest extends GlobalOptions {
   readonly focus?: "design" | "implementation";
   readonly component?: string;
   readonly file?: string;
+  readonly directory?: string;
+  readonly exactTarget?: boolean;
   readonly position?: {
     readonly line: number;
     readonly column: number;
@@ -185,6 +187,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let component: string | undefined;
   let file: string | undefined;
   let position: CompileRequest["position"];
+  let directory: string | undefined;
+  let exactTarget = false;
   let maxEvidenceBytes: number | undefined;
   let includeDependents = false;
   let name: string | undefined;
@@ -260,6 +264,16 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         const value = take(arg);
         if (typeof value !== "string") return value;
         component = value;
+        break;
+      }
+      case "--directory": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        directory = value;
+        break;
+      }
+      case "--exact-target": {
+        exactTarget = true;
         break;
       }
       case "--file": {
@@ -379,6 +393,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   ) {
     return usage(
       `${commandName} does not accept --component, --file, or --position.`,
+      commandHelpTopic,
+    );
+  }
+  if (commandName !== "compile" && (directory || exactTarget)) {
+    return usage(
+      `${commandName} does not accept --directory or --exact-target.`,
       commandHelpTopic,
     );
   }
@@ -632,6 +652,26 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         "compile",
       );
     }
+    const selectors = [
+      component ? "--component" : undefined,
+      file ? "--file" : undefined,
+      directory ? "--directory" : undefined,
+    ].filter(Boolean);
+    if (selectors.length > 1) {
+      return usage(
+        `compile accepts only one of ${selectors.join(", ")}.`,
+        "compile",
+      );
+    }
+    if (position && !file) {
+      return usage("compile --position requires --file.", "compile");
+    }
+    if (exactTarget && selectors.length === 0) {
+      return usage(
+        "compile --exact-target requires a selector to preserve.",
+        "compile",
+      );
+    }
     return {
       kind: "ok",
       request: {
@@ -640,6 +680,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         focus,
         component,
         file,
+        directory,
+        exactTarget,
         position,
         path: paths[0],
         profile,
