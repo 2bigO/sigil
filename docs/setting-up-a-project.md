@@ -54,19 +54,8 @@ component Notifier {
       caller.
     }
   }
-
-  scope {
-    Billing {
-      Excluded: Payment capture belongs to the finance service.
-    }
-  }
 }
 ```
-
-`scope` is optional and states what the component deliberately does not cover,
-labelled `Excluded:` (settled, belongs elsewhere) or `Deferred:` (yours, not
-modelled yet). Review treats a declared area as answered instead of missing, so
-you can model one slice without the rest looking forgotten.
 
 Check it:
 
@@ -112,7 +101,32 @@ Two flags worth knowing early:
   works out how much to check from what you name. A directory selects the Sigil
   sources beneath it, not the implementation files.
 
-## 6. Install the agent skill
+## 6. Choose which evaluator reviews your work
+
+`compile` runs its review stages through an AI evaluator, selected by a
+*profile*. `sigil init` seeds profiles for each bundled provider and defaults to
+`standard`, which uses Codex. To use a different one:
+
+```bash
+sigil config set-default . --profile claude
+```
+
+That sets the profile for both `compile` and the agent skill. An unknown name is
+rejected, so a typo cannot leave the workspace pointing at a profile that does
+not exist.
+
+To build your own — say, a faster profile that skips the standards-risk stage:
+
+```bash
+sigil config set-profile fast . --extends standard --main claude   --disable-stage standards-risk
+```
+
+Repeating the command edits the same profile, and `--disable-stage`
+accumulates across invocations. Binding a stage again with
+`--stage <stage>=<evaluator>` re-enables it. `sigil config set-profile --help`
+lists the evaluator, model, and per-stage options.
+
+## 7. Install the agent skill
 
 ```bash
 sigil skill install
