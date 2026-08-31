@@ -31,6 +31,16 @@
 
 ## Unreleased
 
+- Extract the Codex CLI adapter into `@qoherent/sigil-compiler-adapter-codex`,
+  registered from the CLI like its sibling adapter packages. The compiler is now
+  provider-neutral: it constructs no provider implementation, and an evaluator
+  provider is an opaque identifier owned by its adapter package rather than one
+  of four hardcoded names. A provider naming no registered adapter is reported
+  when registration resolves rather than when configuration parses.
+- Export the findings schema and shared adapter execution helpers from the
+  compiler as the one contract every adapter satisfies, replacing byte-identical
+  copies in provider packages.
+
 - Stop rejecting a compilation because its evaluator request carries a complete
   retrieval result. The declared initial-request limit is enforced where the
   request reaches its adapter, so exceeding it leaves that evaluator incomplete

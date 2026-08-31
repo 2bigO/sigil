@@ -1,6 +1,5 @@
 import {
   AdapterFailure,
-  CodexAdapter,
   compilationColor,
   type CompilationEvent,
   type CompilationHistoryStore,
@@ -74,19 +73,6 @@ function retrievalFixture(
     context: { sections: [] },
     diagnostics: [],
     fingerprint: "sha256:test-retrieval",
-  } as const;
-}
-
-function retrievalBriefFixture(
-  purpose: "semantic" | "architecture" | "implementation" = "semantic",
-) {
-  return {
-    purpose,
-    componentName: "Example",
-    sigilFile: "main.sigil",
-    retrievalFingerprint: "sha256:test-retrieval",
-    markdown: "Retrieval: sha256:test-retrieval\n\nTarget: Example (semantic)",
-    allowedDirectReadPaths: ["main.sigil"],
   } as const;
 }
 
@@ -313,11 +299,10 @@ Deno.test("evaluation skill loading returns closed tagged outcomes", async () =>
 
 // @sigil tests packages/compiler/src/adapters.sigil::SigilAgentAdapter::AgentAdapter logic,cases
 Deno.test("provider identities and exact adapter registrations are closed", () => {
-  assertEquals(new CodexAdapter().provider, "codex");
   const adapter = new MockAdapter([], "first");
   assertEquals(
     resolveAdapterRegistration([adapter], {
-      provider: "codex",
+      provider: "mock",
       implementationId: "test.mock.first",
       implementationVersion: "1.0.0",
     }),
@@ -327,7 +312,7 @@ Deno.test("provider identities and exact adapter registrations are closed", () =
     () =>
       Promise.resolve().then(() =>
         resolveAdapterRegistration([], {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.first",
           implementationVersion: "1.0.0",
         })
@@ -611,7 +596,7 @@ Deno.test("stage bindings resolve the default evaluator binding instead of adapt
     {},
     {
       adapter: {
-        provider: "codex",
+        provider: "mock",
         implementationId: "test.mock.default",
         implementationVersion: "1.0.0",
       },
@@ -627,7 +612,7 @@ Deno.test("stage bindings resolve the default evaluator binding instead of adapt
       "standard",
       {
         requestedStage: "semantic-readiness",
-        adapters: [new MockAdapter([], "codex", "test.mock.default")],
+        adapters: [new MockAdapter([], "mock", "test.mock.default")],
       },
     );
     assertEquals(report.status, "green");
@@ -659,12 +644,12 @@ Deno.test("critical-system adds risk evaluation without implementation stages", 
     {
       evaluators: {
         first: {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.first",
           implementationVersion: "1.0.0",
         },
         second: {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.second",
           implementationVersion: "1.0.0",
         },
@@ -831,7 +816,7 @@ Deno.test("standard evaluator binding failures use profile-evaluator failures", 
     {},
     {
       adapter: {
-        provider: "codex",
+        provider: "mock",
         implementationId: "configured.adapter",
         implementationVersion: "1.0.0",
       },
@@ -870,12 +855,12 @@ Deno.test("critical-system evaluator failure ends the run with the profile error
     {
       evaluators: {
         first: {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.first",
           implementationVersion: "1.0.0",
         },
         second: {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.second",
           implementationVersion: "1.0.0",
         },
@@ -980,12 +965,12 @@ Deno.test("independent evaluator disagreement is explicit", async () => {
     {
       evaluators: {
         first: {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.first",
           implementationVersion: "1.0.0",
         },
         second: {
-          provider: "codex",
+          provider: "mock",
           implementationId: "test.mock.second",
           implementationVersion: "1.0.0",
         },
@@ -1695,323 +1680,6 @@ Deno.test("undeclared evaluator rules fail the stage without affecting color dir
   }
 });
 
-// @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
-Deno.test("Codex adapter enforces direct-read invocation and records structured trace", async () => {
-  const root = await workspace(`component Example {
-  goal {
-    Explain the example.
-  }
-}
-`);
-  try {
-    let observedArgs: readonly string[] = [];
-    let observedPrompt = "";
-    const adapter = new CodexAdapter(
-      undefined,
-      (_command, args, input, onFrame) => {
-        observedArgs = args;
-        observedPrompt = input;
-        onFrame({
-          channel: "stdout",
-          text: [
-            JSON.stringify({
-              type: "item.completed",
-              item: {
-                type: "command_execution",
-                command:
-                  '/bin/zsh -lc "rg -n \\"SigilCompiler|sigil compile|compile\\\\(\\" packages/compiler packages/cli\nsed -n \\"1,240p\\" packages/compiler/src/compiler.sigil"',
-                status: "completed",
-                exit_code: 0,
-              },
-            }),
-            JSON.stringify({
-              type: "item.completed",
-              item: {
-                type: "agent_message",
-                text: JSON.stringify({ findings: [] }),
-              },
-            }),
-            JSON.stringify({
-              type: "turn.completed",
-              usage: { input_tokens: 100, output_tokens: 5 },
-            }),
-          ].join("\n"),
-        });
-        return Promise.resolve();
-      },
-    );
-    const result = await adapter.evaluate({
-      stage: "semantic-readiness",
-      purpose: "semantic",
-      skill: "Inspect files.",
-      allowedRules: ["SEMANTIC_AMBIGUITY"],
-      implementationEvidence: "context-only",
-      workspaceRoot: root,
-      workspaceSnapshotIdentity: "sha256:test-snapshot",
-      target: {
-        componentName: "Example",
-        sigilFile: "main.sigil",
-        initialPaths: ["main.sigil"],
-        retrieval: retrievalFixture(),
-        retrievalBrief: retrievalBriefFixture(),
-      },
-      capabilities: {
-        schemaVersion: 1,
-        workspaceAccess: "read-only",
-        agentToolNetwork: false,
-        approvalEscalation: false,
-        statePersistence: "ephemeral",
-      },
-      commandPolicy: {
-        allowedCommands: ["sigil check"],
-        forbiddenCommands: ["sigil compile"],
-      },
-      observability: adapter.observability,
-      limits: {
-        maxInitialRequestChars: 1_000_000,
-        maxProviderFrameChars: 1_000_000,
-        maxFinalResultChars: 1_000_000,
-        maxRetainedCommandOutputChars: 10_000,
-        providerCleanupMs: 5_000,
-      },
-      budgets: {
-        elapsedTimeMs: 30_000,
-        maxCommands: 10,
-        maxCommandOutputChars: 10_000,
-        maxInputTokens: 1_000,
-        maxOutputTokens: 100,
-      },
-    });
-    assertEquals(observedArgs.includes("--ephemeral"), true);
-    assertEquals(observedArgs.includes("read-only"), true);
-    assertEquals(observedArgs[observedArgs.indexOf("-C") + 1], root);
-    assertEquals(observedArgs.includes("--json"), true);
-    assertMatch(observedPrompt, /use selected evidence by default/);
-    assertMatch(
-      observedPrompt,
-      /Only when that evidence is insufficient\s+because an explicit evidence gap blocks evaluation/,
-    );
-    assertMatch(
-      observedPrompt,
-      /perform targeted graph or\s+context inspection/,
-    );
-    assertMatch(
-      observedPrompt,
-      /Do not broadly rediscover the repository or redefine the authoritative scope/,
-    );
-    assertMatch(
-      observedPrompt,
-      /point into the\s+smallest exact source statement/,
-    );
-    assertMatch(
-      observedPrompt,
-      /For a conflict, anchor the primary statement/,
-    );
-    assertMatch(
-      observedPrompt,
-      /compiler owns semantic identity; do not invent\s+semantic subjects/,
-    );
-    assertMatch(observedPrompt, /Implementation evidence policy: context-only/);
-    assertMatch(observedPrompt, /Retrieval: sha256:test-retrieval/);
-    assertEquals(observedPrompt.includes("sigil-purpose-retrieval\/v1"), false);
-    assertEquals(observedPrompt.includes('"inclusionReasons"'), false);
-    assertMatch(
-      observedPrompt,
-      /do not report a finding solely because current implementation/,
-    );
-    const emptyFindingsExample = observedPrompt.match(/\{"findings":\[\]\}/)
-      ?.[0];
-    assertEquals(JSON.parse(emptyFindingsExample ?? "{}").findings, []);
-    assertEquals(observedPrompt.includes('{"code":string'), false);
-    assertMatch(result.commands[0].command, /rg -n/);
-    assertEquals(result.usage?.inputTokens, 100);
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/compiler/src/adapter.sigil::SigilAgentAdapter::AgentAdapter interface,logic,cases
-Deno.test("Codex classifies initial request overflow as an operational limit", async () => {
-  let invoked = false;
-  const adapter = new CodexAdapter(undefined, async () => {
-    invoked = true;
-    await Promise.resolve();
-  });
-  const error = await assertRejects(
-    () =>
-      adapter.evaluate({
-        stage: "semantic-readiness",
-        purpose: "semantic",
-        skill: "Inspect files.",
-        allowedRules: ["SEMANTIC_AMBIGUITY"],
-        implementationEvidence: "context-only",
-        workspaceRoot: Deno.cwd(),
-        workspaceSnapshotIdentity: "sha256:test-snapshot",
-        target: {
-          componentName: "Example",
-          sigilFile: "main.sigil",
-          initialPaths: ["main.sigil"],
-          retrieval: retrievalFixture(),
-          retrievalBrief: retrievalBriefFixture(),
-        },
-        capabilities: adapter.capabilities,
-        commandPolicy: { allowedCommands: [], forbiddenCommands: [] },
-        observability: adapter.observability,
-        limits: {
-          maxInitialRequestChars: 1,
-          maxProviderFrameChars: 1_000,
-          maxFinalResultChars: 1_000,
-          maxRetainedCommandOutputChars: 1_000,
-          providerCleanupMs: 1_000,
-        },
-        budgets: {
-          elapsedTimeMs: 1_000,
-          maxCommands: 1,
-          maxCommandOutputChars: 1_000,
-          maxInputTokens: 1,
-          maxOutputTokens: 1,
-        },
-      }),
-    AdapterFailure,
-  );
-  assertEquals(error.kind, "operational-limit");
-  assertEquals(invoked, false);
-});
-
-Deno.test("Codex adapter rejects an actually invoked nested compilation", async () => {
-  const root = await workspace(`component Example {
-  goal {
-    Explain the example.
-  }
-}
-`);
-  try {
-    const adapter = new CodexAdapter(undefined, (
-      _command,
-      _args,
-      _input,
-      onFrame,
-    ) => {
-      onFrame({
-        channel: "stdout",
-        text: [
-          JSON.stringify({
-            type: "item.completed",
-            item: {
-              type: "command_execution",
-              command:
-                '/bin/zsh -lc "rg -n \\"compile\\" packages/compiler\nsigil compile ."',
-              status: "completed",
-              exit_code: 0,
-            },
-          }),
-          JSON.stringify({
-            type: "item.completed",
-            item: {
-              type: "agent_message",
-              text: JSON.stringify({ findings: [] }),
-            },
-          }),
-          JSON.stringify({
-            type: "turn.completed",
-            usage: { input_tokens: 100, output_tokens: 5 },
-          }),
-        ].join("\n"),
-      });
-      return Promise.resolve();
-    });
-    await assertRejects(
-      () =>
-        adapter.evaluate({
-          stage: "semantic-readiness",
-          purpose: "semantic",
-          skill: "Inspect files.",
-          allowedRules: ["SEMANTIC_AMBIGUITY"],
-          implementationEvidence: "context-only",
-          workspaceRoot: root,
-          workspaceSnapshotIdentity: "sha256:test-snapshot",
-          target: {
-            componentName: "Example",
-            sigilFile: "main.sigil",
-            initialPaths: ["main.sigil"],
-            retrieval: retrievalFixture(),
-            retrievalBrief: retrievalBriefFixture(),
-          },
-          capabilities: {
-            schemaVersion: 1,
-            workspaceAccess: "read-only",
-            agentToolNetwork: false,
-            approvalEscalation: false,
-            statePersistence: "ephemeral",
-          },
-          commandPolicy: {
-            allowedCommands: ["rg", "sigil check"],
-            forbiddenCommands: ["sigil compile"],
-          },
-          observability: adapter.observability,
-          limits: {
-            maxInitialRequestChars: 1_000_000,
-            maxProviderFrameChars: 1_000_000,
-            maxFinalResultChars: 1_000_000,
-            maxRetainedCommandOutputChars: 10_000,
-            providerCleanupMs: 5_000,
-          },
-          budgets: {
-            elapsedTimeMs: 30_000,
-            maxCommands: 10,
-            maxCommandOutputChars: 10_000,
-            maxInputTokens: 1_000,
-            maxOutputTokens: 100,
-          },
-        }),
-      Error,
-      "violated the read-only inspection contract",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AdapterSubprocess logic,cases
-Deno.test("Codex process failure preserves complete stderr in the compiler report", async () => {
-  const root = await workspace(`component Example {
-  goal {
-    Explain the example.
-  }
-
-  interface {
-    ExampleOperation {
-      run()
-    }
-  }
-}
-`);
-  try {
-    const stderr = "provider detail one\nprovider detail two\n";
-    const adapter = new CodexAdapter(undefined, async (
-      _command,
-      _args,
-      _input,
-      onFrame,
-    ) => {
-      await onFrame({ channel: "stderr", text: stderr });
-      throw new AdapterFailure("process", "codex exited with 1:");
-    });
-    const report = await compile(root, { kind: "workspace" }, "standard", {
-      requestedStage: "semantic-readiness",
-      adapter,
-    });
-    assertMatch(
-      report.diagnostics.find((item) =>
-        item.code === "COMPILER_EVALUATOR_INCOMPLETE"
-      )?.message ?? "",
-      /provider detail one\nprovider detail two/,
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
 /*
  * @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryWarning interface
  * @sigil tests packages/compiler/src/history-store.sigil::SigilCompilationHistoryStore::CompilationHistoryStore logic,constraints,cases
@@ -2158,7 +1826,7 @@ Deno.test("compilation report Markdown is compact, grouped, and deterministic", 
       id: "semantic-readiness",
       required: true,
       state: "completed",
-      evaluator: "codex",
+      evaluator: "mock",
       diagnosticCount: 1,
     }],
     diagnostics: [{
@@ -2185,7 +1853,7 @@ Deno.test("compilation report Markdown is compact, grouped, and deterministic", 
       evidence: "The contract has two meanings.",
       impact: "Callers cannot choose safely.",
       correction: "Choose one meaning.",
-      evaluator: "codex",
+      evaluator: "mock",
       lifecycle: "new",
     }],
   };
