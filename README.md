@@ -87,9 +87,12 @@ For Contributors using the codebase directly, use the following.
 1. Clone the repo:
 
 ```sh
-git clone git@github.com:qoherent/sigil.git
+git clone https://github.com/qoherent/sigil.git
 cd sigil
 ```
+
+Use `git@github.com:qoherent/sigil.git` instead if you have SSH keys set up for
+GitHub.
 
 2. Install [Deno](https://docs.deno.com/runtime/getting_started/installation/)
 

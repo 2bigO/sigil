@@ -10,11 +10,14 @@ No release is published yet, so install from source. Requires
 is not found after installing it, open a new terminal.
 
 ```sh
-git clone git@github.com:qoherent/sigil.git
+git clone https://github.com/qoherent/sigil.git
 cd sigil
 deno task --cwd packages/cli install
 sigil --version
 ```
+
+Use `git@github.com:qoherent/sigil.git` instead if you have SSH keys set up for
+GitHub.
 
 ## 2. Set up your repository
 
