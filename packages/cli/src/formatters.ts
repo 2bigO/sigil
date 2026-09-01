@@ -38,7 +38,10 @@ export async function formatResult(
     }
     return `${lines.join("\n")}\n`;
   }
-  if (request.format === "text" && result.command === "check") {
+  if (
+    result.command === "check" &&
+    (request.format === undefined || request.format === "text")
+  ) {
     const showLocations = request.command === "check" && request.showLocations;
     return formatCheckText(result, showLocations);
   }
@@ -59,6 +62,13 @@ export async function formatResult(
     (request.format === undefined || request.format === "text")
   ) {
     return formatGlossaryText(result);
+  }
+  if (
+    (result.command === "init" || result.command === "config-set-default" ||
+      result.command === "config-set-profile") &&
+    (request.format === undefined || request.format === "text")
+  ) {
+    return formatConfigWriteText(result, request);
   }
   return `${JSON.stringify(result, null, request.pretty ? 2 : 0)}\n`;
 }
@@ -129,6 +139,46 @@ function normalizePath(path: string): string {
 }
 function isAbsolute(path: string): boolean {
   return path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path);
+}
+
+/**
+ * These commands write one file, so the useful report is what changed rather
+ * than the resulting document, which the caller can read or request as JSON.
+ */
+function formatConfigWriteText(
+  result: Extract<
+    CommandResult,
+    { command: "init" | "config-set-default" | "config-set-profile" }
+  >,
+  request: CommandRequest,
+): string {
+  const lines: string[] = [];
+  const failed = result.diagnostics.some((item) => item.severity === "error");
+  if (!failed) {
+    const compile = result.config?.tools?.compile as
+      | { readonly defaultProfile?: string }
+      | undefined;
+    if (result.command === "init") {
+      lines.push(`Created ${result.configPath}`);
+      lines.push(
+        `Workspace ${result.workspaceName ?? "unnamed"} on Sigil ${
+          result.sigilVersion ?? "unresolved"
+        }`,
+      );
+    } else if (result.command === "config-set-default") {
+      lines.push(`Updated ${result.configPath}`);
+      lines.push(`Default profile ${compile?.defaultProfile ?? "unresolved"}`);
+    } else {
+      lines.push(`Updated ${result.configPath}`);
+      if (request.command === "config-set-profile") {
+        lines.push(`Profile ${request.profileName}`);
+      }
+    }
+  }
+  for (const item of result.diagnostics) {
+    lines.push(`${item.severity} ${item.code}: ${item.message}`);
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 function formatCheckText(

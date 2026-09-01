@@ -25,12 +25,12 @@ where they matter.
 
 ## Prerequisites
 
-| Tool | Version | Needed for |
-| --- | --- | --- |
-| [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2 | Everything. Core, CLI, and LSP are Deno TypeScript. |
-| [Node.js](https://nodejs.org/) | 24 | The VS Code extension only, including its share of `deno task check` and `deno task test`. |
-| Git | any recent | Cloning and contributing. |
-| [VS Code](https://code.visualstudio.com/) | `^1.91.0` | Optional. Only if you work on the extension or run its integration tests. |
+| Tool                                                                | Version    | Needed for                                                                                 |
+| ------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
+| [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2      | Everything. Core, CLI, and LSP are Deno TypeScript.                                        |
+| [Node.js](https://nodejs.org/)                                      | 24         | The VS Code extension only, including its share of `deno task check` and `deno task test`. |
+| Git                                                                 | any recent | Cloning and contributing.                                                                  |
+| [VS Code](https://code.visualstudio.com/)                           | `^1.91.0`  | Optional. Only if you work on the extension or run its integration tests.                  |
 
 The Deno and Node versions above are exactly what
 [CI pins](.github/workflows/ci.yml). Matching them locally is the cheapest way
@@ -53,10 +53,13 @@ runs its own CLI from source.
 ## Set up the repository
 
 ```sh
-git clone git@github.com:qoherent/sigil.git
+git clone https://github.com/qoherent/sigil.git
 cd sigil
 npm ci --prefix integrations/editor/vscode
 ```
+
+Clone with `git@github.com:qoherent/sigil.git` instead if you have SSH keys set
+up for GitHub; pushing a branch needs either SSH or an HTTPS credential helper.
 
 The `deno task package:vscode` task bootstraps these dependencies automatically
 when they are absent.
@@ -97,8 +100,8 @@ ignored; see [Troubleshooting](#troubleshooting).
 ## The validation workflow
 
 Run these four in order before you open a pull request. This is the same
-sequence, in the same order, that [CI](.github/workflows/ci.yml) runs on
-Ubuntu, macOS, and Windows.
+sequence, in the same order, that [CI](.github/workflows/ci.yml) runs on Ubuntu,
+macOS, and Windows.
 
 ```sh
 deno task fmt
@@ -107,12 +110,12 @@ deno task check
 deno task test
 ```
 
-| Task | What it does |
-| --- | --- |
-| `fmt` | Checks formatting of every tracked source, config, and schema path. **It does not reformat anything** — see below. |
-| `lint` | Runs `deno lint` across the workspace. |
-| `check` | Type-checks the three package entrypoints, then type-checks the extension with `tsc --noEmit`. |
-| `test` | Runs core, CLI, LSP, extension unit, extension integration, and skill-validation suites in sequence. |
+| Task    | What it does                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `fmt`   | Checks formatting of every tracked source, config, and schema path. **It does not reformat anything** — see below. |
+| `lint`  | Runs `deno lint` across the workspace.                                                                             |
+| `check` | Type-checks the three package entrypoints, then type-checks the extension with `tsc --noEmit`.                     |
+| `test`  | Runs core, CLI, LSP, extension unit, extension integration, and skill-validation suites in sequence.               |
 
 `deno task fmt` is a **check**, not a formatter: it runs `deno fmt --check`, so
 it reports unformatted files and fails without touching them. To actually
@@ -136,8 +139,8 @@ xvfb-run -a deno task test
 On a Linux desktop session, macOS, or Windows, run `deno task test` directly; a
 VS Code window appears briefly and closes itself.
 
-**First run downloads VS Code.** The integration suite fetches VS Code stable
-on its first run, so that run needs network access and takes noticeably longer.
+**First run downloads VS Code.** The integration suite fetches VS Code stable on
+its first run, so that run needs network access and takes noticeably longer.
 
 **Everything else is cross-platform.** All tasks are plain Deno and npm
 invocations with no shell-specific syntax, and CI proves them on all three
@@ -152,15 +155,15 @@ publish cleanly and that the extension packages.
 Running the whole suite for a one-line change is wasteful. Each package has its
 own task:
 
-| Task | Scope |
-| --- | --- |
-| `deno task test:core` | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics |
-| `deno task test:cli` | `@qoherent/sigil` — commands, argument parsing, output formatting, skill installer |
-| `deno task test:lsp` | `@qoherent/sigil-lsp` — lifecycle, diagnostics, symbols, hover, semantic tokens |
-| `deno task test:vscode` | Extension type-check and unit tests. No VS Code launch. |
-| `deno task test:vscode:extension` | Extension integration tests. Launches VS Code. |
-| `deno task test:skill` | Validates the bundled agent skill via [`scripts/validate-skill.ts`](scripts/validate-skill.ts) |
-| `deno task check:vscode` | Extension type-check alone |
+| Task                              | Scope                                                                                          |
+| --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `deno task test:core`             | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics                     |
+| `deno task test:cli`              | `@qoherent/sigil` — commands, argument parsing, output formatting, skill installer             |
+| `deno task test:lsp`              | `@qoherent/sigil-lsp` — lifecycle, diagnostics, symbols, hover, semantic tokens                |
+| `deno task test:vscode`           | Extension type-check and unit tests. No VS Code launch.                                        |
+| `deno task test:vscode:extension` | Extension integration tests. Launches VS Code.                                                 |
+| `deno task test:skill`            | Validates the bundled agent skill via [`scripts/validate-skill.ts`](scripts/validate-skill.ts) |
+| `deno task check:vscode`          | Extension type-check alone                                                                     |
 
 To narrow further, call `deno test` directly. Note that each package's task
 supplies its own permission flags, so reuse them:
@@ -184,30 +187,30 @@ deno test --allow-read --watch packages/core/tests/core_test.ts
 
 ## Repository boundaries
 
-The layout follows one rule: **deterministic language facts live in
-`packages/`, and model-assisted judgment lives in `integrations/`.** Keeping
-that line intact is the single most important architectural constraint in this
-repository.
+The layout follows one rule: **deterministic language facts live in `packages/`,
+and model-assisted judgment lives in `integrations/`.** Keeping that line intact
+is the single most important architectural constraint in this repository.
 
-| Directory | Owns | Notes |
-| --- | --- | --- |
-| `spec/` | The language, configuration, workflow, glossary, and platform-architecture specifications, plus [ADRs](spec/decisions) | The canonical definition is [`spec/sigil-language.md`](spec/sigil-language.md). [`spec/language.sigil`](spec/language.sigil) owns the single language-version literal. |
-| `packages/core/` | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics | Pure and deterministic. No semantic judgment, no network, no interactive behavior. |
-| `packages/cli/` | The `sigil` command: `init`, `version`, `parse`, `check`, `glossary`, `graph`, `context`, `render`, `skill` | Thin over core. Also owns skill installation, which is the one host-filesystem responsibility. |
-| `packages/lsp/` | The editor-neutral language server over core | LSP 3.18 on stdio. |
-| `integrations/skills/sigil/` | The host-neutral coding-agent skill: semantic review, design conversation, brownfield adoption, review gates | Markdown and Sigil only. No code dependency on `packages/`. |
-| `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview | The only Node.js code in the repository. |
-| `examples/` | `promise` and `slotted`, each an independently configured workspace | Design-pressure fixtures, excluded from the root workspace. Not products. |
-| `scripts/` | Release build and skill validation | |
-| `docs/` | Adoption pilots and images | |
+| Directory                     | Owns                                                                                                                   | Notes                                                                                                                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spec/`                       | The language, configuration, workflow, glossary, and platform-architecture specifications, plus [ADRs](spec/decisions) | The canonical definition is [`spec/sigil-language.md`](spec/sigil-language.md). [`spec/language.sigil`](spec/language.sigil) owns the single language-version literal. |
+| `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                     |
+| `packages/cli/`               | The `sigil` command: `init`, `version`, `parse`, `check`, `glossary`, `graph`, `context`, `render`, `skill`            | Thin over core. Also owns skill installation, which is the one host-filesystem responsibility.                                                                         |
+| `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
+| `integrations/skills/sigil/`  | The host-neutral coding-agent skill: semantic review, design conversation, brownfield adoption, review gates           | Markdown and Sigil only. No code dependency on `packages/`.                                                                                                            |
+| `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
+| `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
+| `scripts/`                    | Release build and skill validation                                                                                     |                                                                                                                                                                        |
+| `docs/`                       | Adoption pilots and images                                                                                             |                                                                                                                                                                        |
 
-Dependency direction is one-way: `cli` and `lsp` depend on `core`; the
-extension depends on `lsp`; nothing depends on the skill, and the skill depends
-on no package code. A change that inverts any of those arrows needs discussion
-before implementation.
+Dependency direction is one-way: `cli` and `lsp` depend on `core`; the extension
+depends on `lsp`; nothing depends on the skill, and the skill depends on no
+package code. A change that inverts any of those arrows needs discussion before
+implementation.
 
-For the fuller picture, read [`spec/sigil-platform-architecture.md`](spec/sigil-platform-architecture.md)
-and the repository's own boundary summary in [`#module.sigil`](%23module.sigil).
+For the fuller picture, read
+[`spec/sigil-platform-architecture.md`](spec/sigil-platform-architecture.md) and
+the repository's own boundary summary in [`_module.sigil`](_module.sigil).
 
 ## Where Sigil belongs
 
@@ -228,15 +231,17 @@ useful, and worth reading rather than ignoring. Exit codes are `0` clean, `1`
 error diagnostics, `2` bad arguments, `3` host failure.
 
 Placement rules, from [`spec/sigil-language.md`](spec/sigil-language.md) and the
-skill's [authoring conventions](integrations/skills/sigil/references/authoring-conventions.md):
+skill's
+[authoring conventions](integrations/skills/sigil/references/authoring-conventions.md):
 
-- **Boundary summaries** live in the `#module.sigil` of the workspace root and
-  of each declared member — [`#module.sigil`](%23module.sigil),
-  [`packages/core/#module.sigil`](packages/core/%23module.sigil), and so on.
-  Do not move these.
+- **Boundary summaries** live in the `_module.sigil` of the workspace root and
+  of each declared member — [`_module.sigil`](_module.sigil),
+  [`packages/core/_module.sigil`](packages/core/_module.sigil), and so on. Do
+  not move these.
 - **Internal contracts** use descriptive filenames beside the code they
-  describe, such as [`packages/core/src/parser.sigil`](packages/core/src/parser.sigil)
-  next to `parser.ts`.
+  describe, such as
+  [`packages/core/src/parser.sigil`](packages/core/src/parser.sigil) next to
+  `parser.ts`.
 - **`component`** holds the public half: `goal` and `interface`. Dependents see
   only this.
 - **`expand`** holds the private half: `state`, `logic`, `constraints`,
@@ -286,15 +291,15 @@ and go back to a Sigil proposal rather than encoding the decision in code.
 
 In practice:
 
-| Your change | Needs a Sigil proposal? |
-| --- | --- |
-| Fixing a typo, formatting, or a comment | No |
-| Adding a test for existing specified behavior | No |
-| Documentation that restates approved facts | No |
-| Adding a diagnostic code, CLI flag, or output field | **Yes** — it changes a public contract |
-| Changing resolution, parsing, or projection behavior | **Yes** |
-| Adding a component, or changing a `goal` or `interface` | **Yes** |
-| Recording rationale for a choice already made in code | **Yes** — it is a semantic change to an expand |
+| Your change                                             | Needs a Sigil proposal?                        |
+| ------------------------------------------------------- | ---------------------------------------------- |
+| Fixing a typo, formatting, or a comment                 | No                                             |
+| Adding a test for existing specified behavior           | No                                             |
+| Documentation that restates approved facts              | No                                             |
+| Adding a diagnostic code, CLI flag, or output field     | **Yes** — it changes a public contract         |
+| Changing resolution, parsing, or projection behavior    | **Yes**                                        |
+| Adding a component, or changing a `goal` or `interface` | **Yes**                                        |
+| Recording rationale for a choice already made in code   | **Yes** — it is a semantic change to an expand |
 
 Material decisions belong in a `decisions` block with `Decision:` and `Scope:`,
 alongside the binding outcome in `constraints`. Missing rationale for a material
@@ -317,10 +322,10 @@ deno task fmt && deno task lint && deno task check && deno task test:core
 sigil context . --component SigilCore --format markdown
 ```
 
-Read the contract's `cases` section. If the behavior you want to test is
-already described there, your test is mechanical and needs no proposal. If it
-is not described, stop — you have found either a coverage gap or undocumented
-behavior, and both need a Sigil proposal first.
+Read the contract's `cases` section. If the behavior you want to test is already
+described there, your test is mechanical and needs no proposal. If it is not
+described, stop — you have found either a coverage gap or undocumented behavior,
+and both need a Sigil proposal first.
 
 ```sh
 # 4. Add the test beside its peers.
@@ -343,13 +348,12 @@ ownership annotation.
 
 ## Versions and compatibility
 
-Four version lines move independently, and
-[COMPATIBILITY.md](COMPATIBILITY.md) is the authority on how they relate:
+Four version lines move independently, and [COMPATIBILITY.md](COMPATIBILITY.md)
+is the authority on how they relate:
 
-- **Sigil language and `.sigil/config.json` schema** — currently 0.5.0, owned
-  by the single literal in [`spec/language.sigil`](spec/language.sigil).
-- **Package artifacts** — currently 0.7.0, owned by each
-  `packages/*/deno.json`.
+- **Sigil language and `.sigil/config.json` schema** — currently 0.5.0, owned by
+  the single literal in [`spec/language.sigil`](spec/language.sigil).
+- **Package artifacts** — currently 0.7.0, owned by each `packages/*/deno.json`.
 - **VS Code extension** — owned by its `package.json`.
 - **Agent skill** — owned by `integrations/skills/sigil/VERSION` and
   `compatibility.json`.
