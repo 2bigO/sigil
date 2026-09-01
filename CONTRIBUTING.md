@@ -210,7 +210,7 @@ implementation.
 
 For the fuller picture, read
 [`spec/sigil-platform-architecture.md`](spec/sigil-platform-architecture.md) and
-the repository's own boundary summary in [`#module.sigil`](%23module.sigil).
+the repository's own boundary summary in [`_module.sigil`](_module.sigil).
 
 ## Where Sigil belongs
 
@@ -234,9 +234,9 @@ Placement rules, from [`spec/sigil-language.md`](spec/sigil-language.md) and the
 skill's
 [authoring conventions](integrations/skills/sigil/references/authoring-conventions.md):
 
-- **Boundary summaries** live in the `#module.sigil` of the workspace root and
-  of each declared member — [`#module.sigil`](%23module.sigil),
-  [`packages/core/#module.sigil`](packages/core/%23module.sigil), and so on. Do
+- **Boundary summaries** live in the `_module.sigil` of the workspace root and
+  of each declared member — [`_module.sigil`](_module.sigil),
+  [`packages/core/_module.sigil`](packages/core/_module.sigil), and so on. Do
   not move these.
 - **Internal contracts** use descriptive filenames beside the code they
   describe, such as
