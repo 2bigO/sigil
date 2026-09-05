@@ -127,7 +127,21 @@ function validate(
   if (
     range === "text" &&
     [XSD + "string", RDF_LANG_STRING].includes(object.datatype ?? "")
-  ) return object;
+  ) {
+    if (
+      name === "relation" &&
+      (object.language || !Object.hasOwn(SEMANTIC_PREDICATES, object.value) ||
+        SEMANTIC_PREDICATES[
+            object.value as keyof typeof SEMANTIC_PREDICATES
+          ] !== "entity")
+    ) {
+      throw new SemanticInputError(
+        "UNKNOWN_RELATION",
+        `Contract relation must name an entity predicate in the Sigil vocabulary: ${object.value}`,
+      );
+    }
+    return object;
+  }
   if (
     range === "boolean" && object.datatype === XSD + "boolean" &&
     /^(true|false|0|1)$/.test(object.value)

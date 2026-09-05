@@ -56,7 +56,6 @@ export const SEMANTIC_PREDICATES = {
   relation: "text",
   required: "boolean",
   exclusive: "boolean",
-  interpreted: "boolean",
   assumed: "boolean",
   expected: "boolean",
   passes: "boolean",

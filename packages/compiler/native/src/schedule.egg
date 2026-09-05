@@ -1,3 +1,4 @@
 
 (run-schedule (saturate (run closure)))
+(run-schedule (saturate (run evidence-closure)))
 (run-schedule (saturate (run diagnostics)))

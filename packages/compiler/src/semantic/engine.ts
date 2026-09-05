@@ -18,6 +18,20 @@ export interface SemanticEngineOptions {
   readonly binaryPath?: string;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
+  readonly focus?: "design" | "implementation";
+  /** Host-owned observations. Asserted Turtle never populates these tables. */
+  readonly observations?: readonly MechanicalObservation[];
+  readonly completeScopes?: readonly MechanicalScope[];
+}
+
+export interface MechanicalScope {
+  readonly subject: string;
+  readonly predicate: string;
+  readonly evidence: string;
+}
+
+export interface MechanicalObservation extends MechanicalScope {
+  readonly object: string;
 }
 
 export function lowerSemanticWorld(
@@ -91,7 +105,13 @@ export async function computeClosure(
     );
   }
   const input = new TextEncoder().encode(
-    JSON.stringify({ version: 1, facts: lowerSemanticWorld(world) }),
+    JSON.stringify({
+      version: 1,
+      facts: lowerSemanticWorld(world),
+      implementation: options.focus === "implementation",
+      observations: options.observations ?? [],
+      complete_scopes: options.completeScopes ?? [],
+    }),
   );
   const writer = child.stdin.getWriter();
   const [, output] = await Promise.all([

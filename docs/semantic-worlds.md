@@ -133,3 +133,26 @@ compiler validates the base fingerprint and reruns egglog and ranking. Persisted
 diagnostics or quality scores cannot establish correctness. Fifteen tests now
 cover the vertical kernel, persistence identity, candidate pruning/ranking,
 ambiguity resolution, patch integrity, and beam replay.
+
+## Executable contracts and coverage
+
+Required Goal, Interface, Logic, Constraint, Decision, Case, Contract, and
+Proposition entities derive interpretation obligations. Their executable shape
+uses `from`, a vocabulary-checked `relation` literal, `target`, and an
+`expected` boolean. A positive proposition must follow from the world; a
+negative one establishes a prohibition. Opposed required propositions are
+contradictory even before either behavior is observed. Missing structure remains
+YELLOW. There is no model-writable `interpreted` or verified-status property.
+
+The same kernel derives implementation obligations for propositions,
+capabilities, and exclusions. Specification facts cannot satisfy these
+obligations. Host observations enter separate typed tables and carry evidence
+identities. Positive obligations require a matching observation. Negative
+obligations require an explicitly complete subject/predicate scope and no
+contrary observation after closure. A matching prohibited observation is RED.
+Generated Evidence entities with `passes true` remain untrusted assertions.
+
+Nineteen tests exercise these boundaries. The native engine's observation input
+is the trusted host boundary; concrete source analyzers and execution receipts
+still need to be connected before the implementation-search workflow can claim
+mechanical end-to-end verification.

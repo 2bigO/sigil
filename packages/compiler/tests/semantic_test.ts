@@ -171,3 +171,115 @@ Deno.test("anonymous RDF entities keep document identity after repeated parses a
   assertEquals((await compileSemanticWorld(restored)).status, "green");
   await assertRejects(() => world(`:A s:cost 1.0e308 .`), SemanticInputError);
 });
+
+Deno.test("required prose needs an executable contract rather than a model verification flag", async () => {
+  const prose =
+    `:C a s:Constraint; s:required true; s:description "Calls cross the bridge" .`;
+  assertEquals(
+    (await compileSemanticWorld(await world(prose))).status,
+    "yellow",
+  );
+  const explicit = await world(
+    prose +
+      `:C s:from :A; s:relation "invokes"; s:target :Bridge; s:expected true . :A s:invokes :Bridge .`,
+  );
+  const result = await compileSemanticWorld(explicit);
+  assertEquals(result.status, "green");
+  assert(
+    result.closure.tables.coverage.some((row) =>
+      row[0] === "contract|urn:test:C"
+    ),
+  );
+  await assertRejects(
+    () => world(prose + `:C s:interpreted true .`),
+    SemanticInputError,
+  );
+  await assertRejects(
+    () => world(prose + `:C s:relation "inventedPredicate" .`),
+    SemanticInputError,
+  );
+});
+
+Deno.test("opposed required contracts contradict without waiting for code observations", async () => {
+  const result = await compileSemanticWorld(
+    await world(`
+    :Positive a s:Case; s:required true; s:from :A; s:relation "uses"; s:target :Disk; s:expected true .
+    :Negative a s:Constraint; s:required true; s:from :A; s:relation "uses"; s:target :Disk; s:expected false .
+  `),
+  );
+  assertEquals(result.status, "red");
+  assert(
+    result.diagnostics.some((d) =>
+      d.code === "contradictory-contracts" && d.derivation.length > 2
+    ),
+  );
+});
+
+Deno.test("same egglog engine requires mechanical positive implementation evidence", async () => {
+  const input = await world(`
+    :C a s:Contract; s:required true; s:from :A; s:relation "invokes"; s:target :Bridge; s:expected true .
+    :A s:invokes :Bridge . :Proposed a s:Evidence; s:evidenceFor :C; s:passes true .
+  `);
+  assertEquals((await compileSemanticWorld(input)).status, "green");
+  assertEquals(
+    (await compileSemanticWorld(input, { focus: "implementation" })).status,
+    "yellow",
+  );
+  const observed = await compileSemanticWorld(input, {
+    focus: "implementation",
+    observations: [{
+      subject: "urn:test:A",
+      predicate: "invokes",
+      object: "urn:test:Bridge",
+      evidence: "tool:ast-call:bridge.ts:12",
+    }],
+  });
+  assertEquals(observed.status, "green");
+  assertEquals(observed.closure.tables["implementation-satisfied"], [[
+    "contract|urn:test:C",
+    "tool:ast-call:bridge.ts:12",
+  ]]);
+});
+
+Deno.test("negative implementation obligations require complete scope and fail on observed violations", async () => {
+  const input = await world(
+    `:C a s:Constraint; s:required true; s:from :A; s:relation "writes"; s:target :Disk; s:expected false .`,
+  );
+  const focus = "implementation" as const;
+  assertEquals((await compileSemanticWorld(input)).status, "green");
+  assertEquals((await compileSemanticWorld(input, { focus })).status, "yellow");
+  assertEquals(
+    (await compileSemanticWorld(input, {
+      focus,
+      completeScopes: [{
+        subject: "urn:test:Other",
+        predicate: "writes",
+        evidence: "tool:unrelated",
+      }],
+    })).status,
+    "yellow",
+  );
+  const completeScopes = [{
+    subject: "urn:test:A",
+    predicate: "writes",
+    evidence: "tool:complete-static-scope",
+  }];
+  assertEquals(
+    (await compileSemanticWorld(input, { focus, completeScopes })).status,
+    "green",
+  );
+  const violated = await compileSemanticWorld(input, {
+    focus,
+    completeScopes,
+    observations: [{
+      subject: "urn:test:A",
+      predicate: "writes",
+      object: "urn:test:Disk",
+      evidence: "tool:write-call",
+    }],
+  });
+  assertEquals(violated.status, "red");
+  assert(
+    violated.diagnostics.some((d) => d.code === "implementation-prohibition"),
+  );
+});

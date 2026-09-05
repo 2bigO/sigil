@@ -11,6 +11,29 @@ use std::{
 struct Input {
     version: u32,
     facts: Vec<Fact>,
+    #[serde(default)]
+    implementation: bool,
+    #[serde(default)]
+    observations: Vec<Observation>,
+    #[serde(default)]
+    complete_scopes: Vec<CompleteScope>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Observation {
+    subject: String,
+    predicate: String,
+    object: String,
+    evidence: String,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CompleteScope {
+    subject: String,
+    predicate: String,
+    evidence: String,
 }
 
 #[derive(Deserialize)]
@@ -47,6 +70,26 @@ fn run(input: Input) -> Result<Value, String> {
         return Err("Unsupported protocol version".into());
     }
     let mut program = String::from(include_str!("kernel.egg"));
+    if input.implementation {
+        program.push_str("\n(implementation-mode)");
+    }
+    for observation in input.observations {
+        program.push_str(&format!(
+            "\n(observation {} {} {} {})",
+            egg_string(&observation.subject),
+            egg_string(&observation.predicate),
+            egg_string(&observation.object),
+            egg_string(&observation.evidence)
+        ));
+    }
+    for scope in input.complete_scopes {
+        program.push_str(&format!(
+            "\n(complete-scope {} {} {})",
+            egg_string(&scope.subject),
+            egg_string(&scope.predicate),
+            egg_string(&scope.evidence)
+        ));
+    }
     for fact in input.facts {
         let signature = match fact.relation.as_str() {
             "kind" | "boolean" | "text" => "ssss",
@@ -95,6 +138,9 @@ fn run(input: Input) -> Result<Value, String> {
         "because",
         "path-cost",
         "risk-score",
+        "proposition",
+        "coverage",
+        "implementation-satisfied",
     ] {
         let (terms, _, dag) = graph
             .function_to_dag(name, usize::MAX, false)
