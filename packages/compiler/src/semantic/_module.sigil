@@ -18,6 +18,9 @@ expand SigilSemanticKernel {
       invariants, and obligations. Unknown vocabulary, generated laws, named graphs,
       and RDF triple terms are rejected. Source metadata remains outside ontology.
       Derived consequences are never silently copied into asserted state.
+      Every native output table is required and checked for scalar type and arity.
+      IPC has a fixed byte limit. Timeout, cancellation, and I/O failure terminate
+      and reap the native process before returning.
 
       Implementation observation and completeness tables are populated by trusted
       host collectors. Model-proposed Evidence entities cannot establish coverage.
@@ -43,7 +46,9 @@ component SigilSemanticState {
       Store canonical Turtle by content fingerprint and atomically replace a receipt
       containing the world fingerprint, source fingerprint, and component bindings.
       Writes compare the expected previous fingerprint under a workspace lock.
-      Reads parse Turtle again and verify its fingerprint.
+      Reads parse Turtle again and verify its fingerprint. Existing content-addressed
+      snapshots are immutable. Prepare new snapshots before atomic publication and
+      release the write lock even when stale state or cleanup fails.
     }
   }
 }

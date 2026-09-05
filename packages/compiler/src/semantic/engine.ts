@@ -71,6 +71,97 @@ export function lowerSemanticWorld(
   });
 }
 
+const IPC_LIMIT = 16 * 1024 * 1024;
+const TABLE_SIGNATURES: Readonly<Record<string, string>> = {
+  known: "ssss",
+  reachable: "sss",
+  obligation: "ssss",
+  satisfied: "ss",
+  violation: "ssss",
+  unresolved: "ssss",
+  because: "ssss",
+  "path-cost": "ssn",
+  "risk-score": "sn",
+  proposition: "sssss",
+  coverage: "sssss",
+  "implementation-satisfied": "ss",
+};
+
+/** Validate every fixed table before any absence can be interpreted as success. */
+export function decodeClosureResponse(source: string): ClosureResult {
+  if (new TextEncoder().encode(source).length > IPC_LIMIT) {
+    throw new Error("Semantic engine response exceeds the 16 MiB limit.");
+  }
+  const raw: unknown = JSON.parse(source);
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Invalid egglog engine response.");
+  }
+  const value = raw as Record<string, unknown>;
+  if (
+    value.version !== 1 || value.kernelVersion !== "1" ||
+    !value.tables || typeof value.tables !== "object" ||
+    Array.isArray(value.tables) ||
+    Object.keys(value).some((key) =>
+      !["version", "kernelVersion", "tables"].includes(key)
+    )
+  ) {
+    throw new Error("Incompatible egglog engine response.");
+  }
+  const tables = value.tables as Record<string, unknown>;
+  if (
+    Object.keys(tables).length !== Object.keys(TABLE_SIGNATURES).length ||
+    Object.keys(tables).some((key) => !Object.hasOwn(TABLE_SIGNATURES, key))
+  ) {
+    throw new Error("Incomplete or unknown egglog output tables.");
+  }
+  for (const [name, signature] of Object.entries(TABLE_SIGNATURES)) {
+    const rows = tables[name];
+    if (
+      !Array.isArray(rows) || rows.some((row) =>
+        !Array.isArray(row) ||
+        row.length !== signature.length || row.some((cell, index) =>
+          signature[index] === "s"
+            ? typeof cell !== "string"
+            : typeof cell !== "number" || !Number.isFinite(cell) || cell < 0
+        )
+      )
+    ) {
+      throw new Error(`Invalid egglog output rows in ${name}.`);
+    }
+  }
+  return raw as ClosureResult;
+}
+
+async function boundedOutput(
+  stream: ReadableStream<Uint8Array>,
+  limit: number,
+): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.length;
+      if (length > limit) {
+        throw new Error("Semantic engine output limit exceeded.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+  const result = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return result;
+}
+
 export async function computeClosure(
   world: SemanticWorld,
   options: SemanticEngineOptions = {},
@@ -86,20 +177,30 @@ export async function computeClosure(
       ),
     );
   const timeoutMs = options.timeoutMs ?? 30_000;
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
-    throw new Error("Semantic engine timeout must be a positive safe integer.");
+  if (
+    !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 ||
+    timeoutMs > 2_147_483_647
+  ) {
+    throw new Error(
+      "Semantic engine timeout must be a positive integer of at most 2147483647 milliseconds.",
+    );
   }
-  const signal = AbortSignal.any([
-    ...(options.signal ? [options.signal] : []),
-    AbortSignal.timeout(timeoutMs),
-  ]);
+  const input = new TextEncoder().encode(JSON.stringify({
+    version: 1,
+    facts: lowerSemanticWorld(world),
+    implementation: options.focus === "implementation",
+    observations: options.observations ?? [],
+    complete_scopes: options.completeScopes ?? [],
+  }));
+  if (input.length > IPC_LIMIT) {
+    throw new Error("Semantic engine input exceeds the 16 MiB limit.");
+  }
   let child: Deno.ChildProcess;
   try {
     child = new Deno.Command(binary, {
       stdin: "piped",
       stdout: "piped",
       stderr: "piped",
-      signal,
     }).spawn();
   } catch (error) {
     throw new Error(
@@ -109,37 +210,69 @@ export async function computeClosure(
       { cause: error },
     );
   }
-  const input = new TextEncoder().encode(
-    JSON.stringify({
-      version: 1,
-      facts: lowerSemanticWorld(world),
-      implementation: options.focus === "implementation",
-      observations: options.observations ?? [],
-      complete_scopes: options.completeScopes ?? [],
-    }),
-  );
-  const writer = child.stdin.getWriter();
-  const [, output] = await Promise.all([
-    (async () => {
-      try {
-        await writer.write(input);
-      } finally {
-        await writer.close();
-      }
-    })(),
-    child.output(),
+  const timeout = new AbortController();
+  const timer = setTimeout(() =>
+    timeout.abort(
+      new DOMException("Semantic engine execution timed out.", "TimeoutError"),
+    ), timeoutMs);
+  const signal = AbortSignal.any([
+    timeout.signal,
+    ...(options.signal ? [options.signal] : []),
   ]);
-  signal.throwIfAborted();
-  if (!output.success) {
-    throw new Error(
-      `egglog failed: ${new TextDecoder().decode(output.stderr)}`,
+  // The native engine has no subprocesses. Kill it on every rejected I/O path and
+  // always reap it; returning early from Promise.all would leak a running engine.
+  const stop = () => {
+    try {
+      child.kill("SIGKILL");
+    } catch { /* already exited */ }
+  };
+  signal.addEventListener("abort", stop, { once: true });
+  if (signal.aborted) stop();
+  let failure: unknown;
+  let ioFailed = false;
+  const guard = <T>(operation: Promise<T>): Promise<T> =>
+    operation.catch((error) => {
+      if (!ioFailed) {
+        failure = error;
+        ioFailed = true;
+      }
+      stop();
+      throw error;
+    });
+  try {
+    const writer = child.stdin.getWriter();
+    const results = await Promise.allSettled(
+      [
+        guard((async () => {
+          try {
+            await writer.write(input);
+            await writer.close();
+          } finally {
+            writer.releaseLock();
+          }
+        })()),
+        guard(boundedOutput(child.stdout, IPC_LIMIT)),
+        guard(boundedOutput(child.stderr, 1024 * 1024)),
+        guard(child.status),
+      ] as const,
     );
+    signal.throwIfAborted();
+    if (ioFailed) throw failure;
+    const [, stdout, stderr, status] = results;
+    if (
+      stdout.status !== "fulfilled" || stderr.status !== "fulfilled" ||
+      status.status !== "fulfilled"
+    ) {
+      throw new Error("Semantic engine I/O did not settle.");
+    }
+    if (!status.value.success) {
+      throw new Error(
+        `egglog failed: ${new TextDecoder().decode(stderr.value)}`,
+      );
+    }
+    return decodeClosureResponse(new TextDecoder().decode(stdout.value));
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", stop);
   }
-  const result = JSON.parse(
-    new TextDecoder().decode(output.stdout),
-  ) as ClosureResult;
-  if (result.version !== 1 || result.kernelVersion !== "1" || !result.tables) {
-    throw new Error("Incompatible egglog engine response.");
-  }
-  return result;
 }

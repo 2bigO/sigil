@@ -195,3 +195,12 @@ receipt bound to the source intent fingerprint; source edits invalidate old
 interpretations. Every compile runs closure again. Component/source locations stay
 in sidecars. Implementation observations are a trusted host boundary; automatic
 collectors and the user-facing intent workflow remain subsequent work.
+
+The native boundary now checks every fixed output table and cell before
+interpreting absence as satisfaction. IPC is bounded at 16 MiB, stderr at 1 MiB;
+failed I/O, timeout and cancellation kill and reap the single engine process.
+Configured elapsed budgets cap native execution. Repeated identical source
+contracts preserve every physical origin. Immutable snapshots are published before
+the atomic head and are never rewritten merely to refresh a receipt. The compiler
+suite passes 55 tests, including malformed protocols, process cleanup, custom
+cancellation, budget exhaustion, and persistence failure paths on Linux.

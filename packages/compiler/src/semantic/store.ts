@@ -121,6 +121,7 @@ export async function writeSemanticState(
     throw error;
   }
   const temporary = `${directory}/semantic-${crypto.randomUUID()}.tmp`;
+  const worldTemporary = `${directory}/worlds/${crypto.randomUUID()}.tmp`;
   try {
     const current = await readSemanticState(root);
     if (current?.world.fingerprint !== expectedFingerprint) {
@@ -140,18 +141,49 @@ export async function writeSemanticState(
         "Semantic state is not stable under Turtle serialization.",
       );
     }
-    await Deno.writeTextFile(
-      `${directory}/worlds/${receipt.worldFingerprint}.ttl`,
-      turtle,
-    );
+    const destination = `${directory}/worlds/${receipt.worldFingerprint}.ttl`;
+    let existing: string | undefined;
+    try {
+      existing = await Deno.readTextFile(destination);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+    if (existing !== undefined) {
+      const snapshot = await parseSemanticWorld([{
+        sourceId: "canonical-semantic-state",
+        turtle: existing,
+      }]);
+      if (snapshot.fingerprint !== receipt.worldFingerprint) {
+        throw new SemanticInputError(
+          "INVALID_SEMANTIC_STATE",
+          "An existing immutable Turtle snapshot has different content.",
+        );
+      }
+    } else {
+      await Deno.writeTextFile(worldTemporary, turtle, { createNew: true });
+      await Deno.rename(worldTemporary, destination);
+    }
     await Deno.writeTextFile(temporary, JSON.stringify(receipt) + "\n", {
       createNew: true,
     });
     await Deno.rename(temporary, `${directory}/semantic.json`);
   } finally {
-    await Deno.remove(temporary).catch((error) => {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
-    });
-    await Deno.remove(lock);
+    try {
+      await cleanupTemporaryFiles([temporary, worldTemporary]);
+    } finally {
+      await Deno.remove(lock);
+    }
   }
+}
+
+async function cleanupTemporaryFiles(paths: readonly string[]): Promise<void> {
+  const results = await Promise.allSettled(paths.map(async (path) => {
+    try {
+      await Deno.remove(path);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.NotFound)) throw error;
+    }
+  }));
+  const failed = results.find((result) => result.status === "rejected");
+  if (failed?.status === "rejected") throw failed.reason;
 }

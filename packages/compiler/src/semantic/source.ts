@@ -17,6 +17,8 @@ export interface SemanticSourceBinding {
   readonly section?: SigilSectionName;
   readonly concept?: string;
   readonly unit?: SemanticUnit;
+  /** Repeated identical assertions share meaning without losing physical origins. */
+  readonly additionalLocations?: readonly SemanticSourceBinding[];
 }
 
 export interface SigilSemanticIntent {
@@ -81,7 +83,7 @@ export async function projectSigilIntent(
           if (unit.conceptIdentifier) {
             builder.value(contract, "label", unit.conceptIdentifier);
           }
-          bindings[contract] = {
+          const sourceBinding: SemanticSourceBinding = {
             ...binding,
             filePath: path,
             range: unit.range,
@@ -89,6 +91,16 @@ export async function projectSigilIntent(
             concept: unit.conceptIdentifier,
             unit,
           };
+          const prior = bindings[contract];
+          bindings[contract] = prior
+            ? {
+              ...prior,
+              additionalLocations: [
+                ...(prior.additionalLocations ?? []),
+                sourceBinding,
+              ],
+            }
+            : sourceBinding;
         }
       }
     }

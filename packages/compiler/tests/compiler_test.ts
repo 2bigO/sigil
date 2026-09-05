@@ -633,3 +633,82 @@ Deno.test("compiler budgets validate before stages and remain in the profile", a
     await Deno.remove(invalid, { recursive: true });
   }
 });
+
+Deno.test("repeated source requirements retain every physical origin", async () => {
+  const root = await workspace(
+    SOURCE.replace(
+      "    Avoid disk access.",
+      "    Avoid disk access.\n\n    Avoid disk access.",
+    ),
+  );
+  try {
+    const input = await interpretation(root);
+    const binding = Object.values(input.intent.bindings).find((b) =>
+      b.unit?.prose === "Avoid disk access."
+    );
+    assert(binding);
+    assert(binding.additionalLocations);
+    assertEquals(binding.additionalLocations.length, 1);
+    assert(
+      binding.additionalLocations[0].range.start.line >
+        binding.range.start.line,
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("custom cancellation reasons preserve the compiler cancellation contract", async () => {
+  const root = await workspace();
+  const cancellation = new AbortController();
+  const events: CompilationEvent[] = [];
+  try {
+    await assertRejects(
+      () =>
+        compile(root, { kind: "workspace" }, "standard", {
+          signal: cancellation.signal,
+          onEvent: (event) => {
+            events.push(event);
+            if (event.type === "stage-started") cancellation.abort("stop now");
+          },
+        }),
+      CompilerFailure,
+      "cancelled",
+    );
+    assertEquals(events.at(-1)?.type, "cancelled");
+    assert(!events.some((event) => event.type === "completed"));
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test({
+  name: "configured elapsed budget bounds native execution and emits failed",
+  ignore: Deno.build.os === "windows",
+  async fn() {
+    const root = await workspace(SOURCE, {}, {
+      budgets: { elapsedTimeMs: 100 },
+    });
+    const events: CompilationEvent[] = [];
+    try {
+      const executable = `${root}/engine`;
+      await Deno.writeTextFile(executable, "#!/bin/sh\nwhile :; do :; done\n", {
+        mode: 0o700,
+      });
+      await assertRejects(
+        () =>
+          compile(root, { kind: "workspace" }, "standard", {
+            semanticEngine: { binaryPath: executable, timeoutMs: 30_000 },
+            onEvent: (event) => {
+              events.push(event);
+            },
+          }),
+        DOMException,
+      );
+      assertEquals(events.at(-1)?.type, "failed");
+      assert(!events.some((event) => event.type === "completed"));
+    } finally {
+      await Deno.remove(root, { recursive: true });
+    }
+  },
+});

@@ -395,6 +395,8 @@ export async function compile(
     options.requestedStage ?? stageForCompilationFocus(options.focus),
   );
   const startedAt = new Date().toISOString();
+  const startedMonotonic = performance.now();
+  let successLinearized = false;
   let eventWriter: CompilationEventWriter | undefined;
   try {
     if (options.requestedStage && options.focus) {
@@ -417,6 +419,26 @@ export async function compile(
       parseCompilationConfiguration(workspace.config?.tools.compile),
       requestedStage,
     );
+    const engineOptions = () => {
+      const remaining = Math.floor(
+        profile.executionBudgets.elapsedTimeMs -
+          (performance.now() - startedMonotonic),
+      );
+      if (remaining <= 0) {
+        throw new DOMException(
+          "Compilation elapsed-time budget exhausted.",
+          "TimeoutError",
+        );
+      }
+      return {
+        ...options.semanticEngine,
+        timeoutMs: Math.min(
+          options.semanticEngine?.timeoutMs ?? 30_000,
+          remaining,
+        ),
+        signal: cancellationSignal,
+      };
+    };
     const boundary = selectCompilationBoundary(resolved, requestedScope, {
       exactTarget: options.exactTarget,
     });
@@ -558,9 +580,8 @@ export async function compile(
             );
           }
           design = await compileSemanticWorld(world, {
-            ...options.semanticEngine,
+            ...engineOptions(),
             focus: "design",
-            signal: cancellationSignal,
           });
           current.push(
             ...await Promise.all(
@@ -580,9 +601,8 @@ export async function compile(
         stage.id === "implementation-coverage" && design?.status === "green"
       ) {
         const implementation = await compileSemanticWorld(world, {
-          ...options.semanticEngine,
+          ...engineOptions(),
           focus: "implementation",
-          signal: cancellationSignal,
         });
         current.push(
           ...await Promise.all(
@@ -636,6 +656,7 @@ export async function compile(
       previous,
     });
     cancellationSignal?.throwIfAborted();
+    successLinearized = true;
     const destination = options.reportExport ?? options.output;
     if (destination) {
       await exportCompilationReport(
@@ -659,7 +680,14 @@ export async function compile(
       }
     }
     return report;
-  } catch (error) {
+  } catch (caught) {
+    const error = !successLinearized && cancellationSignal?.aborted
+      ? new CompilerFailure(
+        "COMPILER_CANCELLED",
+        "Compilation was cancelled.",
+        { cause: caught },
+      )
+      : caught;
     const code = stableCompilerFailureCode(error);
     if (eventWriter) {
       const message = error instanceof Error ? error.message : String(error);
@@ -716,11 +744,11 @@ async function fromSemanticDiagnostic(
   const binding = bindings[item.subject] ??
     facts.map((fact) => bindings[fact.subject.value]).find(Boolean);
   const subjects = binding
-    ? await resolver.resolve(
-      binding.filePath,
-      binding.range,
-      binding.componentName,
-    )
+    ? (await Promise.all(
+      [binding, ...(binding.additionalLocations ?? [])].map((origin) =>
+        resolver.resolve(origin.filePath, origin.range, origin.componentName)
+      ),
+    )).flat()
     : [];
   const message = item.code === "unresolved-obligation" && binding?.unit &&
       item.witness.startsWith("interpret|")
