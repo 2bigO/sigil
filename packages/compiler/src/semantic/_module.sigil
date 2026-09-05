@@ -32,7 +32,10 @@ expand SigilSemanticKernel {
       Closure derives delegated capabilities, dependency reachability, exclusive
       ownership conflicts, required contracts, minimum path cost, maximum reachable
       risk, and implementation coverage. Missing required information is yellow.
-      Contradictions and hard violations are red. Engine failure rejects.
+      Contradictions and hard violations are red. A structured contract has one
+      subject, relation and target; a dependency has one source and destination;
+      a numerical property has one value. A matching alternative cannot hide an
+      invalid multi-valued contract. Engine failure rejects.
     }
   }
 }

@@ -151,6 +151,28 @@
       ((violation "conflicting-boolean" a p f)
        (because (+ "violation|conflicting-boolean|" a "|" p) "functional-property" f g)) :ruleset closure)
 
+; Structured relationship entities have one subject, predicate and target. Without
+; these laws a single contract id could share a satisfaction lattice across two
+; different propositions, and one matching alternative could hide a missing one.
+(relation contract-endpoint (String))
+(contract-endpoint "from")
+(contract-endpoint "target")
+(rule ((contract-kind c) (contract-endpoint p) (edge c p a f) (edge c p b g) (!= a b))
+      ((violation "conflicting-contract-shape" c p f)
+       (because (+ "violation|conflicting-contract-shape|" c "|" p) "single-contract-endpoint" f g)) :ruleset closure)
+(rule ((contract-kind c) (text c "relation" a f) (text c "relation" b g) (!= a b))
+      ((violation "conflicting-contract-shape" c "relation" f)
+       (because (+ "violation|conflicting-contract-shape|" c "|relation") "single-contract-relation" f g)) :ruleset closure)
+(relation dependency-endpoint (String))
+(dependency-endpoint "from")
+(dependency-endpoint "to")
+(rule ((kind d "Dependency" _ k) (dependency-endpoint p) (edge d p a f) (edge d p b g) (!= a b))
+      ((violation "conflicting-dependency-shape" d p f)
+       (because (+ "violation|conflicting-dependency-shape|" d "|" p) "single-dependency-endpoint" f g)) :ruleset closure)
+(rule ((number s p a f) (number s p b g) (!= a b))
+      ((violation "conflicting-number" s p f)
+       (because (+ "violation|conflicting-number|" s "|" p) "single-numeric-property" f g)) :ruleset closure)
+
 ; Observe zero only after the satisfaction lattice has reached its fixed point.
 (rule ((obligation id s p o) (= (fulfilled id) 0))
       ((unresolved id s p o)) :ruleset diagnostics)

@@ -243,3 +243,10 @@ reaches green through ordinary design compilation, remains yellow in implementat
 focus without mechanical evidence, produces a parser-valid human projection, and
 returns a focused coding slice. Ambiguity, stale questions and source edits prevent
 premature acceptance. Compiler cancellation codes retain CLI exit 130.
+
+The kernel also rejects multi-valued contract endpoints and predicates, dependency
+endpoints, and numeric properties. This closes a satisfaction-lattice loophole:
+two propositions sharing one contract identity could previously close the same
+obligation when only one matched. These are fixed egglog laws with premise
+witnesses, including when assertions arrive in separate candidate patches. The
+compiler suite passes 61 tests after this change.

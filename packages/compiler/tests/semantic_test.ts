@@ -283,3 +283,41 @@ Deno.test("negative implementation obligations require complete scope and fail o
     violated.diagnostics.some((d) => d.code === "implementation-prohibition"),
   );
 });
+
+Deno.test("a matching alternative cannot hide an invalid multi-valued contract", async () => {
+  const base =
+    `:C a s:Contract; s:required true; s:from :A; s:relation "invokes"; s:target :B; s:expected true .
+:A s:invokes :B .`;
+  for (
+    const extra of [
+      ":C s:from :Other .",
+      ":C s:target :Missing .",
+      ':C s:relation "reads" .',
+    ]
+  ) {
+    const result = await compileSemanticWorld(await world(`${base}\n${extra}`));
+    assertEquals(result.status, "red");
+    const diagnostic = result.diagnostics.find((d) =>
+      d.code === "conflicting-contract-shape"
+    );
+    assert(
+      diagnostic?.derivation.some((row) =>
+        String(row[1]).startsWith("single-contract-")
+      ),
+    );
+  }
+  const cost = await compileSemanticWorld(
+    await world(":A s:latencyMs 5, 10 ."),
+  );
+  assertEquals(cost.status, "red");
+  assert(cost.diagnostics.some((d) => d.code === "conflicting-number"));
+  const dependency = await compileSemanticWorld(
+    await world(":D a s:Dependency; s:from :A, :B; s:to :C; s:cost 2 ."),
+  );
+  assertEquals(dependency.status, "red");
+  assert(
+    dependency.diagnostics.some((d) =>
+      d.code === "conflicting-dependency-shape"
+    ),
+  );
+});
