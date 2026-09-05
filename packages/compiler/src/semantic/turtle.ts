@@ -268,6 +268,54 @@ export async function worldFromFacts(
   };
 }
 
+/** Reuse the same ontology validation for native-parsed canonical assertions. */
+export async function worldFromAssertionTerms(
+  assertions: readonly {
+    readonly subject: RdfTerm;
+    readonly predicate: string;
+    readonly object: RdfTerm;
+  }[],
+  sourceId: string,
+): Promise<SemanticWorld> {
+  const facts: SemanticFact[] = [];
+  const provenance: Record<string, string[]> = {};
+  const iri = (value: string) =>
+    /^[A-Za-z][A-Za-z0-9+.-]*:[^\s<>"{}|^`\\]*$/.test(value);
+  for (const assertion of assertions) {
+    if (
+      assertion.subject.kind !== "iri" || !iri(assertion.subject.value) ||
+      !iri(assertion.predicate) ||
+      assertion.object.kind === "blank" ||
+      assertion.object.kind === "iri" && !iri(assertion.object.value)
+    ) {
+      throw new SemanticInputError(
+        "INVALID_ASSERTION_TERM",
+        "Canonical world resources must be normalized absolute IRIs.",
+      );
+    }
+    if (
+      assertion.object.kind === "literal" && (
+        !!assertion.object.language !==
+          (assertion.object.datatype === RDF_LANG_STRING) ||
+        assertion.object.language &&
+          !/^[a-z]+(?:-[a-z0-9]+)*$/.test(assertion.object.language)
+      )
+    ) {
+      throw new SemanticInputError(
+        "INVALID_ASSERTION_TERM",
+        "Literal datatype and normalized language tag disagree.",
+      );
+    }
+    const subject = { kind: "iri" as const, value: assertion.subject.value };
+    const object = validate(subject, assertion.predicate, assertion.object);
+    const id = "fact:" +
+      await digest(JSON.stringify([subject, assertion.predicate, object]));
+    facts.push({ id, subject, predicate: assertion.predicate, object });
+    provenance[id] = [sourceId];
+  }
+  return worldFromFacts(facts, provenance);
+}
+
 export function serializeSemanticWorld(world: SemanticWorld): string {
   function rdf(term: RdfTerm) {
     if (term.kind === "iri") return DataFactory.namedNode(term.value);

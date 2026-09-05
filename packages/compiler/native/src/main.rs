@@ -1,6 +1,10 @@
-use egglog::{EGraph, Term, ast::Literal};
+use egglog::{
+    EGraph, Term,
+    ast::{Action, Command, Expr, Literal},
+};
 use serde::Deserialize;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     io::{self, Read},
@@ -10,7 +14,10 @@ use std::{
 #[serde(deny_unknown_fields)]
 struct Input {
     version: u32,
+    #[serde(default)]
     facts: Vec<Fact>,
+    #[serde(default)]
+    assertions: Option<String>,
     #[serde(default)]
     implementation: bool,
     #[serde(default)]
@@ -82,6 +89,46 @@ fn egg_string(s: &str) -> String {
 fn run(input: Input) -> Result<Value, String> {
     if input.version != 1 {
         return Err("Unsupported protocol version".into());
+    }
+    if let Some(source) = input.assertions {
+        if !input.facts.is_empty()
+            || input.implementation
+            || !input.observations.is_empty()
+            || !input.complete_scopes.is_empty()
+            || !input.required_checks.is_empty()
+            || !input.checks.is_empty()
+        {
+            return Err("Assertion parsing cannot include execution inputs".into());
+        }
+        let mut parser = EGraph::default();
+        let commands = parser
+            .parse_program(None, &source)
+            .map_err(|error| error.to_string())?;
+        let mut rows = Vec::new();
+        for command in commands {
+            let Command::Action(Action::Expr(_, Expr::Call(_, name, args))) = command else {
+                return Err(
+                    "World files may contain only assertion data, never commands or rules".into(),
+                );
+            };
+            let arity = match name.as_str() {
+                "assert-iri" => 3,
+                "assert-literal" => 5,
+                _ => return Err("Unknown world assertion table".into()),
+            };
+            if args.len() != arity {
+                return Err("Invalid world assertion arity".into());
+            }
+            let mut row = vec![name];
+            for arg in args {
+                let Expr::Lit(_, Literal::String(value)) = arg else {
+                    return Err("World assertion arguments must be literal strings".into());
+                };
+                row.push(value);
+            }
+            rows.push(row);
+        }
+        return Ok(json!({"version": 1, "assertions": rows}));
     }
     let mut program = String::from(include_str!("kernel.egg"));
     if input.implementation {
@@ -186,7 +233,18 @@ fn run(input: Input) -> Result<Value, String> {
         rows.sort_by_cached_key(|row| serde_json::to_string(row).unwrap());
         tables.insert(name, rows);
     }
-    Ok(json!({"version": 1, "kernelVersion": "1", "tables": tables}))
+    let kernel_fingerprint = format!(
+        "{:x}",
+        Sha256::digest(concat!(
+            include_str!("kernel.egg"),
+            include_str!("main.rs"),
+            include_str!("../Cargo.toml"),
+            include_str!("../Cargo.lock")
+        ))
+    );
+    Ok(
+        json!({"version": 1, "kernelVersion": "1", "kernelFingerprint": kernel_fingerprint, "tables": tables}),
+    )
 }
 
 fn main() {

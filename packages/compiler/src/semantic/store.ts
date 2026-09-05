@@ -1,26 +1,33 @@
+import { resolve } from "node:path";
 import {
+  artifactJson,
+  atomicCompileFile,
+  initializeCompileArtifacts,
+  isFingerprint,
+  readCompileArtifact,
+  withCompileArtifactLock,
+  writeCompileArtifact,
+} from "./artifacts.ts";
+import { parseEggWorld, serializeEggWorld } from "./egg-world.ts";
+import {
+  digest,
   parseSemanticWorld,
   SemanticInputError,
   type SemanticWorld,
-  serializeSemanticWorld,
 } from "./turtle.ts";
 
 export interface SemanticStateReceipt {
   readonly version: 1;
   readonly worldFingerprint: string;
   readonly sourceFingerprint: string;
-  /** Maps source component identities to their canonical semantic entities. */
   readonly componentBindings: Readonly<Record<string, string>>;
 }
-
 export interface StoredSemanticState {
   readonly receipt: SemanticStateReceipt;
   readonly world: SemanticWorld;
+  /** Covers bindings/source metadata as well as the accepted assertion set. */
+  readonly revision: string;
 }
-
-const fingerprint = (value: unknown): value is string =>
-  typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
-
 function validateReceipt(value: unknown): SemanticStateReceipt {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new SemanticInputError(
@@ -30,12 +37,16 @@ function validateReceipt(value: unknown): SemanticStateReceipt {
   }
   const raw = value as Record<string, unknown>;
   if (
-    raw.version !== 1 || !fingerprint(raw.worldFingerprint) ||
-    !fingerprint(raw.sourceFingerprint) ||
+    raw.version !== 1 || !isFingerprint(raw.worldFingerprint) ||
+    !isFingerprint(raw.sourceFingerprint) ||
     !raw.componentBindings || typeof raw.componentBindings !== "object" ||
     Array.isArray(raw.componentBindings) ||
     Object.values(raw.componentBindings).some((id) =>
       typeof id !== "string" || !id
+    ) ||
+    Object.keys(raw).some((key) =>
+      !["version", "worldFingerprint", "sourceFingerprint", "componentBindings"]
+        .includes(key)
     )
   ) {
     throw new SemanticInputError(
@@ -45,31 +56,74 @@ function validateReceipt(value: unknown): SemanticStateReceipt {
   }
   return raw as unknown as SemanticStateReceipt;
 }
+async function readJson(path: string): Promise<unknown | undefined> {
+  try {
+    const stat = await Deno.lstat(path);
+    if (!stat.isFile || stat.isSymlink || stat.size > 1024 * 1024) {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "Semantic state metadata must be a bounded regular file.",
+      );
+    }
+    return JSON.parse(await Deno.readTextFile(path));
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return;
+    if (error instanceof SyntaxError) {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "Semantic state receipt is not valid JSON.",
+      );
+    }
+    throw error;
+  }
+}
 
 export async function readSemanticState(
   root: string,
 ): Promise<StoredSemanticState | undefined> {
-  let source: string;
-  try {
-    source = await Deno.readTextFile(`${root}/.sigil/semantic.json`);
-  } catch (error) {
-    if (error instanceof Deno.errors.NotFound) return undefined;
-    throw error;
+  const head = await readJson(resolve(root, ".sigil/world/current.json"));
+  if (head !== undefined) {
+    if (
+      !head || typeof head !== "object" || Array.isArray(head) ||
+      (head as Record<string, unknown>).version !== 1 ||
+      !isFingerprint((head as Record<string, unknown>).revision) ||
+      Object.keys(head).some((key) => !["version", "revision"].includes(key))
+    ) {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "Invalid canonical world revision pointer.",
+      );
+    }
+    const revision = (head as { revision: string }).revision;
+    const artifact = await readCompileArtifact(root, "world", revision);
+    if (!artifact || Object.keys(artifact.files).join() !== "assertions.egg") {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "The canonical assertion bundle is missing or malformed.",
+      );
+    }
+    const receipt = validateReceipt(artifact.manifest.metadata.receipt);
+    const world = await parseEggWorld(artifact.files["assertions.egg"]);
+    if (
+      world.fingerprint !== receipt.worldFingerprint ||
+      artifact.manifest.dependencies.world !== world.fingerprint ||
+      artifact.manifest.dependencies.source !== receipt.sourceFingerprint
+    ) {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "Canonical assertions differ from their recorded identity.",
+      );
+    }
+    return { world, receipt, revision };
   }
-  let raw;
-  try {
-    raw = JSON.parse(source);
-  } catch {
-    throw new SemanticInputError(
-      "INVALID_SEMANTIC_STATE",
-      "Semantic state receipt is not valid JSON.",
-    );
-  }
+  // Read old assertion-only state without modifying a checkout during inspection.
+  const raw = await readJson(resolve(root, ".sigil/semantic.json"));
+  if (raw === undefined) return;
   const receipt = validateReceipt(raw);
   let turtle: string;
   try {
     turtle = await Deno.readTextFile(
-      `${root}/.sigil/worlds/${receipt.worldFingerprint}.ttl`,
+      resolve(root, ".sigil/worlds", receipt.worldFingerprint + ".ttl"),
     );
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) {
@@ -90,100 +144,51 @@ export async function readSemanticState(
       "Canonical Turtle differs from its recorded fingerprint.",
     );
   }
-  return { world, receipt };
+  return { world, receipt, revision: await digest(artifactJson(receipt)) };
 }
 
-/** Content-addressed Turtle plus an atomic head; no cached proof is persisted. */
+/** Commit accepted assertions as a lossless data-only .egg bundle. CAS compares
+ * the whole revision, including metadata-only changes, and OS locks survive crashes. */
 export async function writeSemanticState(
   root: string,
-  state: StoredSemanticState,
-  expectedFingerprint?: string,
-): Promise<void> {
+  state: Omit<StoredSemanticState, "revision">,
+  expectedRevision?: string,
+): Promise<StoredSemanticState> {
   const receipt = validateReceipt(state.receipt);
-  if (receipt.worldFingerprint !== state.world.fingerprint) {
+  const assertions = serializeEggWorld(state.world);
+  const world = await parseEggWorld(assertions);
+  if (
+    receipt.worldFingerprint !== state.world.fingerprint ||
+    world.fingerprint !== state.world.fingerprint
+  ) {
     throw new SemanticInputError(
       "INVALID_SEMANTIC_STATE",
-      "Receipt and world fingerprints differ.",
+      "Receipt and world fingerprints differ, or assertions do not round-trip.",
     );
   }
-  const directory = `${root}/.sigil`;
-  await Deno.mkdir(`${directory}/worlds`, { recursive: true });
-  const lock = `${directory}/semantic-write.lock`;
-  try {
-    await Deno.mkdir(lock);
-  } catch (error) {
-    if (error instanceof Deno.errors.AlreadyExists) {
-      throw new SemanticInputError(
-        "SEMANTIC_STATE_BUSY",
-        "Another semantic state write owns the workspace lock.",
-      );
-    }
-    throw error;
-  }
-  const temporary = `${directory}/semantic-${crypto.randomUUID()}.tmp`;
-  const worldTemporary = `${directory}/worlds/${crypto.randomUUID()}.tmp`;
-  try {
+  await initializeCompileArtifacts(root);
+  return withCompileArtifactLock(root, "world", async () => {
     const current = await readSemanticState(root);
-    if (current?.world.fingerprint !== expectedFingerprint) {
+    if (current?.revision !== expectedRevision) {
       throw new SemanticInputError(
         "STALE_WORLD",
         "Semantic state changed before the write could commit.",
       );
     }
-    const turtle = serializeSemanticWorld(state.world);
-    const reparsed = await parseSemanticWorld([{
-      sourceId: "canonical-semantic-state",
-      turtle,
-    }]);
-    if (reparsed.fingerprint !== receipt.worldFingerprint) {
-      throw new SemanticInputError(
-        "INVALID_SEMANTIC_STATE",
-        "Semantic state is not stable under Turtle serialization.",
-      );
-    }
-    const destination = `${directory}/worlds/${receipt.worldFingerprint}.ttl`;
-    let existing: string | undefined;
-    try {
-      existing = await Deno.readTextFile(destination);
-    } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
-    }
-    if (existing !== undefined) {
-      const snapshot = await parseSemanticWorld([{
-        sourceId: "canonical-semantic-state",
-        turtle: existing,
-      }]);
-      if (snapshot.fingerprint !== receipt.worldFingerprint) {
-        throw new SemanticInputError(
-          "INVALID_SEMANTIC_STATE",
-          "An existing immutable Turtle snapshot has different content.",
-        );
-      }
-    } else {
-      await Deno.writeTextFile(worldTemporary, turtle, { createNew: true });
-      await Deno.rename(worldTemporary, destination);
-    }
-    await Deno.writeTextFile(temporary, JSON.stringify(receipt) + "\n", {
-      createNew: true,
+    const artifact = await writeCompileArtifact(root, {
+      kind: "world",
+      dependencies: {
+        world: world.fingerprint,
+        source: receipt.sourceFingerprint,
+      },
+      files: { "assertions.egg": assertions },
+      metadata: { receipt },
     });
-    await Deno.rename(temporary, `${directory}/semantic.json`);
-  } finally {
-    try {
-      await cleanupTemporaryFiles([temporary, worldTemporary]);
-    } finally {
-      await Deno.remove(lock);
-    }
-  }
-}
-
-async function cleanupTemporaryFiles(paths: readonly string[]): Promise<void> {
-  const results = await Promise.allSettled(paths.map(async (path) => {
-    try {
-      await Deno.remove(path);
-    } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) throw error;
-    }
-  }));
-  const failed = results.find((result) => result.status === "rejected");
-  if (failed?.status === "rejected") throw failed.reason;
+    await atomicCompileFile(
+      root,
+      resolve(root, ".sigil/world/current.json"),
+      artifactJson({ version: 1, revision: artifact.id }),
+    );
+    return { world, receipt, revision: artifact.id };
+  });
 }

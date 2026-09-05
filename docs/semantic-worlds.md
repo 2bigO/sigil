@@ -277,3 +277,13 @@ Existing core ownership anchors are exposed as claims without closing coverage.
 The collector certifies absent direct dependencies only for an explicitly
 exhaustive closed inventory. It leaves runtime behavior and API absence open.
 A mandatory failed typecheck is red independently of positive call coverage.
+
+Canonical persistence now uses lossless `.egg` assertions under
+`.sigil/world/<revision>/assertions.egg`. Real egglog parsing permits only the fixed
+assert-iri/assert-literal data forms; typed literals and language tags retain their
+RDF identities, and Turtle is available as interchange. Project files cannot define
+or execute rules. Content-addressed bundle manifests cover source and binding
+metadata, and atomic heads compare the complete revision under OS file locks.
+Legacy semantic.json/worlds state remains readable. Accepted world state and policy
+are tracked; handoffs, receipts, runs and caches have scoped ignore rules. Native
+responses include a fingerprint of the compiled kernel/bridge/dependency sources.

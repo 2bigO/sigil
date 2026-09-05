@@ -10,6 +10,7 @@ export interface LoweredFact {
 export interface ClosureResult {
   readonly version: 1;
   readonly kernelVersion: "1";
+  readonly kernelFingerprint: string;
   readonly tables: Readonly<
     Record<string, readonly (readonly (string | number | boolean)[])[]>
   >;
@@ -109,10 +110,12 @@ export function decodeClosureResponse(source: string): ClosureResult {
   const value = raw as Record<string, unknown>;
   if (
     value.version !== 1 || value.kernelVersion !== "1" ||
+    typeof value.kernelFingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/.test(value.kernelFingerprint) ||
     !value.tables || typeof value.tables !== "object" ||
     Array.isArray(value.tables) ||
     Object.keys(value).some((key) =>
-      !["version", "kernelVersion", "tables"].includes(key)
+      !["version", "kernelVersion", "kernelFingerprint", "tables"].includes(key)
     )
   ) {
     throw new Error("Incompatible egglog engine response.");
@@ -176,6 +179,24 @@ export async function computeClosure(
   world: SemanticWorld,
   options: SemanticEngineOptions = {},
 ): Promise<ClosureResult> {
+  return decodeClosureResponse(
+    await executeSemanticEngine({
+      version: 1,
+      facts: lowerSemanticWorld(world),
+      implementation: options.focus === "implementation",
+      observations: options.observations ?? [],
+      complete_scopes: options.completeScopes ?? [],
+      required_checks: options.requiredChecks ?? [],
+      checks: options.checks ?? [],
+    }, options),
+  );
+}
+
+/** Bounded native transport shared by closure execution and data-only parsing. */
+export async function executeSemanticEngine(
+  request: unknown,
+  options: SemanticEngineOptions = {},
+): Promise<string> {
   options.signal?.throwIfAborted();
   const binary = options.binaryPath ??
     fileURLToPath(
@@ -195,15 +216,7 @@ export async function computeClosure(
       "Semantic engine timeout must be a positive integer of at most 2147483647 milliseconds.",
     );
   }
-  const input = new TextEncoder().encode(JSON.stringify({
-    version: 1,
-    facts: lowerSemanticWorld(world),
-    implementation: options.focus === "implementation",
-    observations: options.observations ?? [],
-    complete_scopes: options.completeScopes ?? [],
-    required_checks: options.requiredChecks ?? [],
-    checks: options.checks ?? [],
-  }));
+  const input = new TextEncoder().encode(JSON.stringify(request));
   if (input.length > IPC_LIMIT) {
     throw new Error("Semantic engine input exceeds the 16 MiB limit.");
   }
@@ -282,7 +295,7 @@ export async function computeClosure(
         `egglog failed: ${new TextDecoder().decode(stderr.value)}`,
       );
     }
-    return decodeClosureResponse(new TextDecoder().decode(stdout.value));
+    return new TextDecoder().decode(stdout.value);
   } finally {
     clearTimeout(timer);
     signal.removeEventListener("abort", stop);

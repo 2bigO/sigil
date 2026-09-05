@@ -595,7 +595,7 @@ Deno.test("canonical state is recomputed and invalidated by changed source", asy
     });
     assertEquals(stale.status, "yellow");
     assert(stale.diagnostics.some((d) => d.code === "SEMANTIC_SOURCE_CHANGED"));
-    await Deno.writeTextFile(`${root}/.sigil/semantic.json`, "{bad");
+    await Deno.writeTextFile(`${root}/.sigil/world/current.json`, "{bad");
     const corrupt = await compile(root, { kind: "workspace" }, "standard");
     assertEquals(corrupt.status, "red");
     assert(

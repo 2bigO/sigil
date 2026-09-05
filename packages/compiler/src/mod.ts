@@ -32,3 +32,5 @@ export * from "./semantic/proposal.ts";
 export * from "./semantic/beam-store.ts";
 export * from "./semantic/typescript7.ts";
 export * from "./semantic/evidence.ts";
+export * from "./semantic/artifacts.ts";
+export * from "./semantic/egg-world.ts";

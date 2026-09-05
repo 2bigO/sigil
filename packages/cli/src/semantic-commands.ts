@@ -188,7 +188,7 @@ async function workspaceContext(path: string, core: CoreAdapter) {
     sourceChanged,
     receipt: {
       sourceFingerprint: source.world.fingerprint,
-      canonicalFingerprint: stored?.world.fingerprint,
+      canonicalFingerprint: stored?.revision,
     },
   };
 }
@@ -368,7 +368,7 @@ export async function runSemanticCommand(
               ).map(([id]) => [id, id]),
             ),
           },
-        }, refreshed.stored?.world.fingerprint);
+        }, refreshed.stored?.revision);
         return json({
           status: "green",
           accepted: values["--beam"],

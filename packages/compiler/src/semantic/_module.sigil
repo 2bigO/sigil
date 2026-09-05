@@ -52,6 +52,37 @@ component SigilSemanticState {
       Reads parse Turtle again and verify its fingerprint. Existing content-addressed
       snapshots are immutable. Prepare new snapshots before atomic publication and
       release the write lock even when stale state or cleanup fails.
+      New accepted state is a committed immutable bundle in .sigil/world, selected
+      by an atomic revision pointer. Store lossless canonical egglog assertions,
+      with Turtle available as interchange. Include source and binding metadata in the
+      revision identity. Read legacy semantic.json/worlds state during migration.
+    }
+  }
+}
+
+component SigilCompileArtifacts {
+  goal {
+    Retain incremental compilation inputs, completed stages and witnesses in the
+    target codebase without confusing persisted claims with verification authority.
+  }
+  interface {
+    ArtifactBundles {
+      Initialize .sigil/world, handoffs, receipts, runs and cache with scoped Git
+      ignore rules. Accepted world revisions and verifier policy are committed;
+      receipts and operational artifacts are ignored. Preserve existing ignore
+      entries. Each immutable bundle contains a versioned manifest, dependency
+      fingerprints and hashed payloads. Identical bundles reuse their identity.
+      Reject corrupt content and unsafe paths. Publish complete directories before
+      mutable heads and compare complete revisions under operating-system locks.
+
+      Compile records completed semantic stages and final reports independently.
+      Native closure identifies its actual compiled kernel and dependency revision.
+      Reopening an artifact verifies its bytes but never restores trusted evidence
+      or a proof status. Receipt ingestion and tool execution retain their separate
+      authority boundaries. Exclude generated artifacts from source discovery.
+      Native egglog parsing accepts only fixed assertion forms with literal string
+      arguments. Preserve resource identities, literal datatypes and language tags.
+      Project world files cannot define or execute rules, includes or schedules.
     }
   }
 }
@@ -140,6 +171,10 @@ component SigilImplementationEvidence {
       close a different target's negative obligation. Host-selected tool checks
       require actual host results; failed checks are hard implementation violations.
       Proposed Evidence assertions cannot stand in for these trusted tool results.
+      Bounded host compiler and test commands return actual exit codes and output
+      hashes. A failed tool command is evidence; launch, timeout, cancellation and
+      output-limit failures remain operational failures. Commands execute inside
+      disposable implementation snapshots with frozen policy and test oracles.
     }
   }
 }

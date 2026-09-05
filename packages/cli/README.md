@@ -138,8 +138,12 @@ question wording, allowing an existing agent harness to supply the hypotheses.
 Intent generation saves a named beam of assertions and answers in `.sigil/beams`.
 Status and answer replay the kernel. Acceptance requires a uniquely selected green
 world, unchanged source contracts, and an unchanged canonical-state receipt. It
-writes immutable Turtle under `.sigil/worlds` and atomically updates
-`.sigil/semantic.json`; it preserves existing source files. A later source edit
+writes immutable lossless `.egg` assertions under `.sigil/world/<revision>` and
+atomically updates `.sigil/world/current.json`; it preserves existing source files.
+Commit `.sigil/world` and the verifier policy. Receipt submissions, handoffs, runs
+and caches are ignored by the generated `.sigil/.gitignore`. Previous
+`semantic.json`/`worlds` state remains readable until the next acceptance migrates
+the active state. A later source edit
 invalidates the saved interpretation until new intent is accepted.
 
 `project` returns paired canonical Turtle and a parser-validated human Sigil view

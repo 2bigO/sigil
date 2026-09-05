@@ -16,6 +16,9 @@
 (function fulfilled (String) i64 :merge (max old new))
 (function distance (String String) f64 :merge (min old new))
 (function peak-risk (String) f64 :merge (max old new))
+; Lossless persisted assertion vocabulary; parsed as data, never project rules.
+(relation assert-iri (String String String))
+(relation assert-literal (String String String String String))
 (relation path-cost (String String f64))
 (relation risk-score (String f64))
 (relation contract-kind (String))

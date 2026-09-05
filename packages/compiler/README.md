@@ -21,8 +21,10 @@ profiles work without a model provider.
 
 Each existing source clause becomes a required contract and remains yellow until
 its meaning is supplied as structured assertions. Diagnostics retain source
-locations and rule/premise witnesses. Canonical state is assertion-only Turtle,
-with a source-bound atomic receipt; every compile recomputes closure.
+locations and rule/premise witnesses. Canonical state is lossless assertion-only egglog in `.sigil/world`,
+with a source-bound atomic revision; every compile recomputes closure. Turtle
+remains an import/export format. The native parser accepts only fixed assertion
+forms and cannot execute project rules from a stored world.
 
 `proposeSemanticIntent` records a new natural-language request as a protected
 required contract, calls a `SemanticProposalProvider`, then uses deterministic

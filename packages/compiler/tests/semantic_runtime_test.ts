@@ -3,10 +3,7 @@ import {
   computeClosure,
   decodeClosureResponse,
 } from "../src/semantic/engine.ts";
-import {
-  parseSemanticWorld,
-  serializeSemanticWorld,
-} from "../src/semantic/turtle.ts";
+import { parseSemanticWorld } from "../src/semantic/turtle.ts";
 import {
   readSemanticState,
   writeSemanticState,
@@ -79,7 +76,7 @@ Deno.test({
       }
       await Deno.writeTextFile(
         executable,
-        '#!/bin/sh\nprintf \'{"version":1,"kernelVersion":"1","tables":{}}\'\n',
+        '#!/bin/sh\nprintf \'{"version":1,"kernelVersion":"1","kernelFingerprint":"0000000000000000000000000000000000000000000000000000000000000000","tables":{}}\'\n',
       );
       await assertRejects(
         () => computeClosure(world, { binaryPath: executable }),
@@ -92,7 +89,7 @@ Deno.test({
   },
 });
 
-Deno.test("canonical writes retain immutable snapshots and release locks on stale or corrupt state", async () => {
+Deno.test("canonical world revisions include metadata and detect corrupt immutable payloads", async () => {
   const directory = await Deno.makeTempDir();
   try {
     const world = await parseSemanticWorld([]);
@@ -102,56 +99,49 @@ Deno.test("canonical writes retain immutable snapshots and release locks on stal
       sourceFingerprint: world.fingerprint,
       componentBindings: {},
     };
-    await writeSemanticState(directory, { world, receipt });
-    const path = `${directory}/.sigil/worlds/${world.fingerprint}.ttl`;
-    const commented = "# preserved snapshot bytes\n" +
-      serializeSemanticWorld(world);
-    await Deno.writeTextFile(path, commented);
-    await writeSemanticState(directory, { world, receipt }, world.fingerprint);
-    assertEquals(await Deno.readTextFile(path), commented);
+    const first = await writeSemanticState(directory, { world, receipt });
+    const path = `${directory}/.sigil/world/${first.revision}/assertions.egg`;
+    const original = await Deno.readTextFile(path);
+    const repeated = await writeSemanticState(
+      directory,
+      { world, receipt },
+      first.revision,
+    );
+    assertEquals(repeated.revision, first.revision);
     await assertRejects(
       () => writeSemanticState(directory, { world, receipt }),
       Error,
       "changed",
     );
-    await writeSemanticState(directory, { world, receipt }, world.fingerprint);
-    const next = await parseSemanticWorld([{
-      sourceId: "next",
-      turtle: "<urn:x> a <https://sigil.dev/ontology/1#Component> .",
-    }]);
-    const nextReceipt = { ...receipt, worldFingerprint: next.fingerprint };
-    const nextPath = `${directory}/.sigil/worlds/${next.fingerprint}.ttl`;
-    await Deno.writeTextFile(nextPath, commented);
+    const changed = await writeSemanticState(directory, {
+      world,
+      receipt: { ...receipt, componentBindings: { a: "urn:changed" } },
+    }, first.revision);
+    assertEquals(changed.world.fingerprint, first.world.fingerprint);
+    assertEquals(changed.revision === first.revision, false);
     await assertRejects(
-      () =>
-        writeSemanticState(
-          directory,
-          { world: next, receipt: nextReceipt },
-          world.fingerprint,
-        ),
+      () => writeSemanticState(directory, { world, receipt }, first.revision),
       Error,
-      "immutable",
+      "changed",
     );
-    assertEquals(
-      (await readSemanticState(directory))?.world.fingerprint,
-      world.fingerprint,
-    );
-    await Deno.remove(nextPath);
-    await writeSemanticState(
+    const restored = await writeSemanticState(
       directory,
-      { world: next, receipt: nextReceipt },
-      world.fingerprint,
+      { world, receipt },
+      changed.revision,
     );
+    assertEquals(restored.revision, first.revision);
+    await Deno.writeTextFile(path, original + "; altered bytes\n");
+    await assertRejects(() => readSemanticState(directory), Error, "hash");
+    await Deno.writeTextFile(path, original);
     assertEquals(
-      (await readSemanticState(directory))?.world.fingerprint,
-      next.fingerprint,
+      (await readSemanticState(directory))?.revision,
+      first.revision,
     );
-    assertEquals(await Deno.readTextFile(path), commented);
     const entries = [];
-    for await (const entry of Deno.readDir(`${directory}/.sigil`)) {
+    for await (const entry of Deno.readDir(`${directory}/.sigil/cache/tmp`)) {
       entries.push(entry.name);
     }
-    assertEquals(entries.sort(), ["semantic.json", "worlds"]);
+    assertEquals(entries, []);
   } finally {
     await Deno.remove(directory, { recursive: true });
   }
