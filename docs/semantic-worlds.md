@@ -250,3 +250,20 @@ two propositions sharing one contract identity could previously close the same
 obligation when only one matched. These are fixed egglog laws with premise
 witnesses, including when assertions arrive in separate candidate patches. The
 compiler suite passes 61 tests after this change.
+
+## TypeScript 7 evidence boundary
+
+The implementation analyzer pins TypeScript 7.0.2 and uses its shipped experimental
+async API and AST decoder. It obtains native syntax/type diagnostics, resolved
+imports and call declarations, distinguishes lexical shadows from global API
+references, and records computed imports/access and unresolved calls as incomplete
+analysis. Source content and effective compiler options identify the snapshot.
+The adapter owns timeout, cancellation and native-process cleanup; the rest of
+Sigil does not depend on the SDK's internal transport. Four native integration
+tests pass, including resource sanitization on cancellation and timeout.
+
+This uses TypeScript 7 as requested. The [TypeScript release guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/)
+notes that the API is still evolving, so the exact version and adapter tests are
+part of the compatibility boundary. Plain semantic compilation does not load the
+Node-based analysis SDK. The analyzer requires environment permission because the
+SDK spawns its native process through Node's child-process API.

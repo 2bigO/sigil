@@ -321,3 +321,56 @@ Deno.test("a matching alternative cannot hide an invalid multi-valued contract",
     ),
   );
 });
+
+Deno.test("mechanical completeness closes only the exact target analyzed", async () => {
+  const input = await world(
+    ':C a s:Contract; s:required true; s:from :A; s:relation "uses"; s:target :Disk; s:expected false .',
+  );
+  const scope = {
+    subject: "urn:test:A",
+    predicate: "uses",
+    object: "urn:test:Network",
+    evidence: "tool:network-scope",
+  };
+  assertEquals(
+    (await compileSemanticWorld(input, {
+      focus: "implementation",
+      completeScopes: [scope],
+    })).status,
+    "yellow",
+  );
+  assertEquals(
+    (await compileSemanticWorld(input, {
+      focus: "implementation",
+      completeScopes: [{ ...scope, object: "urn:test:Disk" }],
+    })).status,
+    "green",
+  );
+});
+
+Deno.test("required tool checks need host results and failed checks are hard violations", async () => {
+  const input = await world(":Proposed a s:Evidence; s:passes true .");
+  const options = {
+    focus: "implementation" as const,
+    requiredChecks: ["typecheck"],
+  };
+  assertEquals((await compileSemanticWorld(input, options)).status, "yellow");
+  assertEquals(
+    (await compileSemanticWorld(input, {
+      ...options,
+      checks: [{ id: "typecheck", passed: true, evidence: "tool:ts7-result" }],
+    })).status,
+    "green",
+  );
+  const failed = await compileSemanticWorld(input, {
+    ...options,
+    checks: [{ id: "typecheck", passed: false, evidence: "tool:ts7-result" }],
+  });
+  assertEquals(failed.status, "red");
+  assert(
+    failed.diagnostics.some((d) =>
+      d.code === "failed-mechanical-check" &&
+      d.derivation.some((row) => row.includes("tool:ts7-result"))
+    ),
+  );
+});

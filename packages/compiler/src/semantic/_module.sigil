@@ -104,3 +104,28 @@ component SigilSemanticIntentSearch {
     }
   }
 }
+
+component SigilImplementationEvidence {
+  goal {
+    Collect deterministic observations from implementation tools while preserving
+    the difference between observed source structure and behavioral proof.
+  }
+  interface {
+    TypeScriptAnalysis {
+      Use the pinned TypeScript 7 native compiler API to obtain syntax and type
+      diagnostics, AST import references, symbol-resolved call declarations,
+      lexical global references, and opaque dynamic behavior from one project
+      snapshot. Fingerprint source content and effective compiler options.
+
+      TypeScript analysis is read-only. Timeout, cancellation, or protocol failure
+      terminates and reaps the native process. Version-specific API and cleanup
+      details remain isolated in the TypeScript adapter.
+    }
+    MechanicalCoverage {
+      A collector's completeness scope may identify one semantic target. It cannot
+      close a different target's negative obligation. Host-selected tool checks
+      require actual host results; failed checks are hard implementation violations.
+      Proposed Evidence assertions cannot stand in for these trusted tool results.
+    }
+  }
+}

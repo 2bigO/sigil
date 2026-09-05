@@ -24,7 +24,9 @@
 (relation implementation-mode ())
 ; These tables come only from deterministic tool observations, never RDF input.
 (relation observation (String String String String))
-(relation complete-scope (String String String))
+(relation complete-scope (String String String String))
+(relation required-check (String))
+(relation check-result (String String String))
 (relation implementation-satisfied (String String))
 (function implementation-fulfilled (String) i64 :merge (max old new))
 (function observed-match (String) i64 :merge (max old new))
@@ -131,8 +133,21 @@
 (rule ((implementation-mode) (coverage id s p o "false") (observation s p o evidence))
       ((violation "implementation-prohibition" id s evidence)
        (because (+ "violation|implementation-prohibition|" id "|" s) "observed-prohibited-behavior" id evidence)) :ruleset closure)
-(rule ((coverage id s p o "false") (complete-scope s p evidence) (= (observed-match id) 0))
+(rule ((coverage id s p o "false") (complete-scope s p o evidence) (= (observed-match id) 0))
       ((set (implementation-fulfilled id) 1) (implementation-satisfied id evidence)) :ruleset evidence-closure)
+(rule ((coverage id s p o "false") (complete-scope s p "*" evidence) (= (observed-match id) 0))
+      ((set (implementation-fulfilled id) 1) (implementation-satisfied id evidence)) :ruleset evidence-closure)
+
+; Host-selected compiler/test checks are separate from model-authored Evidence.
+(rule ((implementation-mode) (required-check id))
+      ((obligation (+ "check|" id) id "check" id)
+       (set (fulfilled (+ "check|" id)) 0)
+       (because (+ "check|" id) "required-mechanical-check" id "")) :ruleset closure)
+(rule ((obligation (+ "check|" id) id "check" id) (check-result id "true" evidence))
+      ((set (fulfilled (+ "check|" id)) 1) (satisfied (+ "check|" id) evidence)) :ruleset closure)
+(rule ((implementation-mode) (required-check id) (check-result id "false" evidence))
+      ((violation "failed-mechanical-check" id id evidence)
+       (because (+ "violation|failed-mechanical-check|" id "|" id) "failed-mechanical-check" evidence "")) :ruleset closure)
 
 ; Relationship entities lower to n-ary weighted edges. Nonnegative costs are
 ; validated at ingestion; minimum merge makes positive dependency cycles finite.

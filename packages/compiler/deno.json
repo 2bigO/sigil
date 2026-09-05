@@ -5,7 +5,8 @@
   "imports": {
     "@std/assert": "jsr:@std/assert@1",
     "n3-types": "npm:@types/n3@1.26.0",
-    "n3": "npm:n3@1.26.0"
+    "n3": "npm:n3@1.26.0",
+    "typescript7": "npm:typescript@7.0.2"
   },
   "publish": {
     "include": [
@@ -20,7 +21,7 @@
     ]
   },
   "tasks": {
-    "test": "deno run --allow-env --allow-read --allow-run ../../scripts/build-semantic-engine.ts && deno test --allow-read --allow-write --allow-run",
+    "test": "deno run --allow-env --allow-read --allow-run ../../scripts/build-semantic-engine.ts && deno test --allow-env --allow-read --allow-write --allow-run",
     "publish:dry-run": "deno publish --dry-run"
   },
   "compilerOptions": {

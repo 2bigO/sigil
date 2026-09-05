@@ -23,10 +23,20 @@ export interface SemanticEngineOptions {
   /** Host-owned observations. Asserted Turtle never populates these tables. */
   readonly observations?: readonly MechanicalObservation[];
   readonly completeScopes?: readonly MechanicalScope[];
+  readonly requiredChecks?: readonly string[];
+  readonly checks?: readonly MechanicalCheck[];
+}
+
+export interface MechanicalCheck {
+  readonly id: string;
+  readonly passed: boolean;
+  readonly evidence: string;
 }
 
 export interface MechanicalScope {
   readonly subject: string;
+  /** Omission is an explicit host assertion of completeness for every target. */
+  readonly object?: string;
   readonly predicate: string;
   readonly evidence: string;
 }
@@ -191,6 +201,8 @@ export async function computeClosure(
     implementation: options.focus === "implementation",
     observations: options.observations ?? [],
     complete_scopes: options.completeScopes ?? [],
+    required_checks: options.requiredChecks ?? [],
+    checks: options.checks ?? [],
   }));
   if (input.length > IPC_LIMIT) {
     throw new Error("Semantic engine input exceeds the 16 MiB limit.");

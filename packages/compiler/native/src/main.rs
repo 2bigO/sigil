@@ -17,6 +17,18 @@ struct Input {
     observations: Vec<Observation>,
     #[serde(default)]
     complete_scopes: Vec<CompleteScope>,
+    #[serde(default)]
+    required_checks: Vec<String>,
+    #[serde(default)]
+    checks: Vec<CheckResult>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CheckResult {
+    id: String,
+    passed: bool,
+    evidence: String,
 }
 
 #[derive(Deserialize)]
@@ -33,6 +45,8 @@ struct Observation {
 struct CompleteScope {
     subject: String,
     predicate: String,
+    #[serde(default)]
+    object: Option<String>,
     evidence: String,
 }
 
@@ -84,10 +98,22 @@ fn run(input: Input) -> Result<Value, String> {
     }
     for scope in input.complete_scopes {
         program.push_str(&format!(
-            "\n(complete-scope {} {} {})",
+            "\n(complete-scope {} {} {} {})",
             egg_string(&scope.subject),
             egg_string(&scope.predicate),
+            egg_string(scope.object.as_deref().unwrap_or("*")),
             egg_string(&scope.evidence)
+        ));
+    }
+    for id in input.required_checks {
+        program.push_str(&format!("\n(required-check {})", egg_string(&id)));
+    }
+    for check in input.checks {
+        program.push_str(&format!(
+            "\n(check-result {} {} {})",
+            egg_string(&check.id),
+            egg_string(if check.passed { "true" } else { "false" }),
+            egg_string(&check.evidence)
         ));
     }
     for fact in input.facts {
