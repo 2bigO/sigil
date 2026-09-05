@@ -98,19 +98,75 @@ export function selectWorldBeamAnswer(
   };
 }
 
+/** Validate checkpoint transport before reading any cached hypothesis. */
+export function validateWorldBeam(
+  value: unknown,
+): asserts value is WorldBeamCheckpoint {
+  const object = (x: unknown): x is Record<string, unknown> =>
+    !!x && typeof x === "object" && !Array.isArray(x);
+  const fingerprint = (x: unknown): x is string =>
+    typeof x === "string" && /^[a-f0-9]{64}$/.test(x);
+  const factId = (x: unknown): x is string =>
+    typeof x === "string" && /^fact:[a-f0-9]{64}$/.test(x);
+  const invalid = () => {
+    throw new SemanticInputError(
+      "INVALID_BEAM",
+      "Malformed semantic world beam checkpoint.",
+    );
+  };
+  if (
+    !object(value) || value.version !== 1 || value.kernelVersion !== "1" ||
+    !object(value.base) ||
+    !fingerprint(value.base.fingerprint) ||
+    typeof value.base.turtle !== "string" ||
+    !Array.isArray(value.candidates) || value.candidates.length < 1 ||
+    value.candidates.length > 8 ||
+    !Array.isArray(value.mutableFactIds) ||
+    value.mutableFactIds.some((id) => !factId(id)) ||
+    !Array.isArray(value.answers) || value.answers.length > 1000 ||
+    Object.keys(value).some((key) =>
+      ![
+        "version",
+        "kernelVersion",
+        "base",
+        "candidates",
+        "mutableFactIds",
+        "answers",
+      ].includes(key)
+    )
+  ) return invalid();
+  if (JSON.stringify(value).length > 16 * 1024 * 1024) return invalid();
+  const names = new Set<string>();
+  for (const candidate of value.candidates) {
+    if (
+      !object(candidate) || typeof candidate.id !== "string" ||
+      !candidate.id.trim() || candidate.id.length > 128 ||
+      names.has(candidate.id) ||
+      !object(candidate.patch) ||
+      candidate.patch.baseFingerprint !== value.base.fingerprint ||
+      typeof candidate.patch.additions !== "string" ||
+      (candidate.patch.retractions !== undefined &&
+        typeof candidate.patch.retractions !== "string")
+    ) return invalid();
+    names.add(candidate.id);
+  }
+  const answers = new Map<string, boolean>();
+  for (const answer of value.answers) {
+    if (
+      !object(answer) || !factId(answer.factId) ||
+      typeof answer.value !== "boolean" ||
+      (answers.has(answer.factId) &&
+        answers.get(answer.factId) !== answer.value)
+    ) return invalid();
+    answers.set(answer.factId, answer.value);
+  }
+}
+
 export async function resumeWorldBeam(
   checkpoint: WorldBeamCheckpoint,
   options: SemanticEngineOptions = {},
 ): Promise<WorldSearchResult> {
-  if (
-    checkpoint.version !== 1 || checkpoint.kernelVersion !== "1" ||
-    !checkpoint.candidates.length
-  ) {
-    throw new SemanticInputError(
-      "INVALID_BEAM",
-      "Unsupported or empty semantic world beam.",
-    );
-  }
+  validateWorldBeam(checkpoint);
   const base = await parseSemanticWorld([{
     sourceId: "beam-base",
     turtle: checkpoint.base.turtle,
@@ -121,11 +177,33 @@ export async function resumeWorldBeam(
       "Semantic world beam base fingerprint does not match its Turtle.",
     );
   }
+  if (
+    checkpoint.mutableFactIds.some((id) =>
+      !base.facts.some((fact) => fact.id === id)
+    )
+  ) {
+    throw new SemanticInputError(
+      "INVALID_BEAM",
+      "A mutable fact is absent from the beam base.",
+    );
+  }
   let result = await searchSemanticWorlds(base, checkpoint.candidates, {
     ...options,
     mutableFactIds: checkpoint.mutableFactIds,
   });
   for (const answer of checkpoint.answers) {
+    if (
+      !result.survivors.some((candidate) =>
+        candidate.compilation.world.facts.some((fact) =>
+          fact.id === answer.factId
+        )
+      )
+    ) {
+      throw new SemanticInputError(
+        "INVALID_BEAM",
+        "An intent answer references a proposition absent from the surviving worlds.",
+      );
+    }
     const survivors = result.survivors.filter((c) =>
       c.compilation.world.facts.some((f) => f.id === answer.factId) ===
         answer.value

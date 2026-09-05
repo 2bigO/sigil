@@ -69,3 +69,35 @@ component SigilSemanticProfile {
     }
   }
 }
+
+component SigilSemanticIntentSearch {
+  goal {
+    Turn natural-language requests into candidate Turtle worlds and preserve
+    consequential ambiguity until an exact intent answer distinguishes the worlds.
+  }
+  interface {
+    IntentSearch {
+      Record each request as a protected required contract before generation.
+      A SemanticProposalProvider returns only untrusted Turtle candidate patches.
+      SigilSemanticKernel computes closure and deterministic ranking selects viable
+      worlds. Unambiguous intent requests one candidate; consequential ambiguity may
+      produce a bounded beam. Empty patches leave new required intent unresolved.
+
+      For tied worlds, compute the exact discriminating proposition and optionally
+      ask the provider to phrase it as a question. Always retain the exact proposition
+      alongside model wording; the renderer cannot choose a world or change fact identity.
+    }
+    BeamPersistence {
+      Store asserted base Turtle, candidate Turtle deltas, authorized mutable facts,
+      and exact intent answers. Validate the checkpoint schema and bound its size.
+      Atomic revision-checked writes preserve concurrent edits. Replay recomputes
+      closure and ranking and never accepts persisted proof or status.
+    }
+    CommandProposalProvider {
+      Send the proposal prompt over stdin to a caller-selected executable and accept
+      a JSON transport envelope containing ordinary Turtle patches on stdout.
+      Reuse bounded adapter lifecycle and cleanup. Run in a disposable directory;
+      provide the semantic context in the prompt instead of a writable checkout.
+    }
+  }
+}

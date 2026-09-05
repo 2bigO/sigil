@@ -204,3 +204,24 @@ contracts preserve every physical origin. Immutable snapshots are published befo
 the atomic head and are never rewritten merely to refresh a receipt. The compiler
 suite passes 55 tests, including malformed protocols, process cleanup, custom
 cancellation, budget exhaustion, and persistence failure paths on Linux.
+
+## Intent generation and durable ambiguity
+
+`proposeSemanticIntent` creates a required intent contract before calling a
+`SemanticProposalProvider`. A no-op proposal therefore remains yellow. Providers
+return a strict JSON transport envelope containing Turtle additions and
+retractions; verdicts, scores, extra fields and generated vocabulary are rejected.
+The generator is prompted to return one interpretation unless consequential
+ambiguity warrants more. The deterministic search prunes and ranks the candidates.
+An optional question-rendering call receives only the exact selected proposition
+and its context; the machine proposition remains visible beside the wording.
+
+`CommandSemanticProvider` uses a stdin-prompt/stdout-envelope executable protocol,
+with Sigil's existing adapter process coordinator and a disposable working
+directory. Applications can also implement the provider interface directly.
+Named beam checkpoints persist only asserted Turtle deltas and answers under
+`.sigil/beams`, with schema validation, atomic replacement and revision checks.
+Replay runs the real kernel again. The 60-test compiler suite includes a real
+command-provider exchange, durable yes/no selection, malformed envelopes and
+checkpoints, protected new intent, and hard-conflict pruning. Built-in provider
+CLI formats and user-facing intent commands are still integration work.
