@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { RDF_TYPE, SEMANTIC_PREDICATES, SIGIL_ONTOLOGY } from "./ontology.ts";
 import { resourceId, type SemanticWorld } from "./turtle.ts";
 
@@ -76,10 +77,14 @@ export async function computeClosure(
 ): Promise<ClosureResult> {
   options.signal?.throwIfAborted();
   const binary = options.binaryPath ??
-    new URL(
-      "../../native/target/release/sigil-semantic-engine",
-      import.meta.url,
-    ).pathname;
+    fileURLToPath(
+      new URL(
+        `../../native/target/release/sigil-semantic-engine${
+          Deno.build.os === "windows" ? ".exe" : ""
+        }`,
+        import.meta.url,
+      ),
+    );
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
     throw new Error("Semantic engine timeout must be a positive safe integer.");

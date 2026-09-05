@@ -20,7 +20,7 @@
     ]
   },
   "tasks": {
-    "test": "deno test --allow-read --allow-write --allow-run",
+    "test": "deno run --allow-env --allow-read --allow-run ../../scripts/build-semantic-engine.ts && deno test --allow-read --allow-write --allow-run",
     "publish:dry-run": "deno publish --dry-run"
   },
   "compilerOptions": {

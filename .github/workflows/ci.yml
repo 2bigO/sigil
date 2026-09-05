@@ -17,6 +17,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
+      - run: rustup toolchain install 1.91.0 --profile minimal --component rustfmt --component clippy
+      - run: rustup default 1.91.0
       - uses: actions/setup-node@v4
         with:
           node-version: 24

@@ -1,6 +1,8 @@
 /** Build the pinned native egglog bridge used by semantic compilation. */
-const manifest =
-  new URL("../packages/compiler/native/Cargo.toml", import.meta.url).pathname;
+import { fileURLToPath } from "node:url";
+const manifest = fileURLToPath(
+  new URL("../packages/compiler/native/Cargo.toml", import.meta.url),
+);
 let cargo = "cargo";
 try {
   const probe = await new Deno.Command(cargo, {
