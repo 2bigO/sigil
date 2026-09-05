@@ -110,3 +110,26 @@ contract. They demonstrate selected architectural propositions, not automatic
 translation or verification of every prose paragraph. At this checkpoint the
 ordinary compile entrypoint is unchanged. Candidate search, normal compilation,
 implementation evidence and projections remain subsequent delivery work.
+
+## Candidate-search decisions
+
+Candidate ranking measures satisfied obligations against the established intent
+world. Counting every obligation introduced by each candidate would let a model
+earn credit by adding easy requirements; the regression suite includes that
+attack. Contradictions are pruned before comparing lexicographic objectives.
+Established facts can be retracted only when the caller explicitly includes
+their identities in the mutable intent scope. All patch applications check the
+base fingerprint.
+
+Tied architectures remain a beam. A binary semantic proposition with maximum
+partition entropy identifies a precise intent difference; answering it filters
+the beam and yields a Turtle delta. Wording-only differences do not create extra
+worlds. Anonymous RDF entities are skolemized into document-scoped IRIs with
+deterministic local identifiers, preserving identity across Turtle saves.
+Sibling hypotheses share an ingestion scope while remaining isolated worlds.
+
+Beam checkpoints store asserted Turtle and intent answers. On resume, the
+compiler validates the base fingerprint and reruns egglog and ranking. Persisted
+diagnostics or quality scores cannot establish correctness. Fifteen tests now
+cover the vertical kernel, persistence identity, candidate pruning/ranking,
+ambiguity resolution, patch integrity, and beam replay.
