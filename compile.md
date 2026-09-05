@@ -22,8 +22,10 @@ Do not treat this as a conventional knowledge graph or retrieval system. The imp
 
 Use only two semantic technologies:
 
-1. **RDF Turtle** for facts / semantic state.
-2. **egglog** for inference, computation, constraints, closure, numerical analysis, and derived obligations.
+1. **RDF Turtle** for model-facing fact proposals and optional import/export.
+2. **egglog** for canonical persisted assertions and for compiler-owned inference, computation, constraints, closure, numerical analysis, and derived obligations.
+
+Persist the accepted merged world only as a lossless, data-only `.egg` assertion file. Turtle is an interchange format; there is no requirement to keep a second canonical Turtle copy. The compiler owns declarations and rules separately from each project world.
 
 Do not introduce JSON-LD, RDF 1.2 triple-term/reification machinery, N-Quads, TriG, OWL, SHACL, or another intermediate semantic language unless existing code creates a compelling technical requirement.
 
@@ -32,11 +34,11 @@ Use the mature ordinary Turtle subset. We deliberately want a representation tha
 The conceptual boundary is:
 
 ```text
-Turtle = What facts do we have?
-egglog = What follows from those facts?
+Turtle proposals/imports → normalized assertions → canonical .egg world
+compiler-owned egglog kernel + assertions → consequences and obligations
 ```
 
-The LLM should not normally write egglog. Sigil owns the egglog rules.
+LLMs propose assertions, typically in Turtle. Sigil deterministically encodes accepted assertions as `.egg` data. Sigil owns the egglog declarations and rules; the world file cannot define or override them.
 
 ## Sigil ontology
 
@@ -266,7 +268,7 @@ parse / normalize
   ↓
 validate Sigil ontology
   ↓
-lower to egglog
+normalize canonical .egg assertions / lower trusted tables
   ↓
 compute closure
   ↓
@@ -298,12 +300,13 @@ Once the semantic world is green, generate the human-readable Sigil representati
 The long-term direction is:
 
 ```text
-canonical semantic state
+canonical .egg assertions
         ├──→ .sigil
         ├──→ implementation projections
         ├──→ documentation
         ├──→ diagrams
-        └──→ tests/obligations
+        ├──→ tests/obligations
+        └──→ Turtle interchange
 ```
 
 The semantic state, not prose wording, becomes the source of meaning.
@@ -354,7 +357,7 @@ The projection should contain exactly the semantic context useful to a coding mo
 
 ### Handoff artifact
 
-Package the implementation slice as ordinary Turtle plus a readable work-unit summary. Preserve the normalized fact identities and derive a fixed list of implementation obligations from the green world. Include enough related assertions and boundary context to verify that slice without giving the coding agent the entire graph.
+Package the implementation slice with stable canonical assertion identities plus a readable work-unit summary. Offer ordinary Turtle as a model-facing export; retained handoff state can use the canonical `.egg` assertion representation. Preserve the normalized fact identities and derive a fixed list of implementation obligations from the green world. Include enough related assertions and boundary context to verify that slice without giving the coding agent the entire graph.
 
 A versioned sidecar manifest identifies:
 
@@ -552,8 +555,7 @@ Keep durable compilation artifacts inside the target codebase's `.sigil` directo
     current.json                     # atomic pointer to an immutable revision
     <revision>/
       manifest.json                  # hashes, source identity, component bindings
-      assertions.ttl                 # canonical merged ASSERTIONS
-      assertions.egg                 # deterministic lowering of those assertions
+      assertions.egg                 # sole canonical merged ASSERTIONS
   handoffs/<id>/                     # ignored: retained task/slice bundles
   receipts/<id>/                     # ignored: returned untrusted claim bundles
   runs/<id>/                         # ignored: reports, evidence and provenance
@@ -563,7 +565,24 @@ Keep durable compilation artifacts inside the target codebase's `.sigil` directo
   beams/                             # ignored: intent-search checkpoints
 ```
 
-**Commit the accepted world and authoritative verifier policy.** They are part of the codebase's specification and should travel with branches, reviews and checkouts. Commit the deterministic egglog lowering alongside Turtle for inspection and reproducibility. Turtle is the source of assertions; the `.egg` file is generated, validated against that source and never loaded as project-authored rules. Closure results, observed code facts and receipt claims do not become accepted assertions merely because compilation derived or received them.
+**Commit the accepted `.egg` world and authoritative verifier policy.** They are part of the codebase's specification and should travel with branches, reviews and checkouts. No parallel canonical `.ttl` file is needed. Turtle can always be imported or exported through deterministic conversion. Closure results, observed code facts and receipt claims do not become accepted assertions merely because compilation derived or received them.
+
+### Lossless canonical `.egg` assertions
+
+The reason `.egg` can replace persisted Turtle is that it can encode the complete accepted fact model. It is not a claim that egglog is a higher-order superset of the Turtle serialization format. The persisted representation must preserve information that execution-oriented lowering may discard: normalized resource identities, literal lexical values, datatypes, language tags and stable fact identities. Anonymous resources must have stable normalized identities. Source/producer provenance stays in the manifest or sidecars.
+
+Use a versioned restricted assertion vocabulary with fixed arities and literal arguments. An initial lossless encoding is:
+
+```lisp
+(assert-iri "urn:example:A" "https://sigil.dev/ontology/1#invokes" "urn:example:B")
+(assert-literal "urn:example:A" "https://sigil.dev/ontology/1#label" "Bridge" "http://www.w3.org/2001/XMLSchema#string" "")
+```
+
+These are data forms in compiler-owned tables. Use egglog's real parser, then allow only the specified assertion forms and literal arguments. Reject rule definitions, schedules, includes, arbitrary expressions and attempts to populate trusted observation or satisfied-obligation tables. Loading a project `.egg` world must never execute arbitrary project-authored code. Revalidate the ontology and recompute fact/world fingerprints after parsing.
+
+The execution representation can use smaller typed tables or discard irrelevant metadata for a particular analysis; that lowering is not automatically a lossless storage representation. Verify canonical `.egg` round trips across typed literals, language tags, anonymous identities, escaping and duplicate normalization. Check deterministic Turtle import/export against the same normalized fact identities.
+
+Keep three artifacts distinct: committed accepted assertions, compiler-owned versioned rules, and ignored derived closure/evidence caches. Recompute closure from assertions under the actual current kernel identity, and invalidate dependent artifacts when that identity changes. Persisting only a saturated e-graph would lose the asserted/derived distinction and is not the chosen design.
 
 The committed world directory contains immutable revisions selected by `current.json`. A revision covers metadata as well as assertions, so changing source bindings without changing the fact set still changes the revision identity. Readers resolve one published revision; they never combine files from partially written revisions. Previous accepted revisions remain available for handoffs and Git history. Existing `.sigil/semantic.json` plus `.sigil/worlds` state remains readable during migration; subsequent acceptance uses the new layout.
 
@@ -581,7 +600,7 @@ Report artifact identities in compiler/CLI output so an agent can inspect the re
 
 This plan replaces code-patch search and agent-loop work. Keep the existing intent-world search. Reuse the already implemented real Turtle parser, fixed egglog bridge, slice projection, native TypeScript 7 adapter, mechanical coverage rules, ownership-anchor resolver, compiler lifecycle and `semantic verify` command. The current collector provides useful observations; it does not yet implement the full handoff/receipt protocol below.
 
-1. **Create incremental artifacts and version the handoff.** Implement the target `.sigil` bundle store, committed world revisions and ignored operational directories described above.  Extend slice export with normalized fact/obligation identities, canonical Turtle, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification.
+1. **Create incremental artifacts and version the handoff.** Implement the target `.sigil` bundle store, committed world revisions and ignored operational directories described above.  Extend slice export with normalized fact/obligation identities, canonical `.egg` assertions with optional Turtle export, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification.
 
 2. **Define and ingest receipts.** Specify the strict ordinary-Turtle receipt profile and location sidecar. Resolve references against the retained handoff, reject invented or conflicting identities, and resolve existing Sigil anchors with file/symbol/hash checks. Keep receipt claims in separate tables from accepted assertions and trusted evidence. Do not add arbitrary project rules or a general proof language.
 
