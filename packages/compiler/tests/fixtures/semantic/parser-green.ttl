@@ -1,0 +1,19 @@
+# Model-authored interpretation of SourceDocumentParsing and DiagnosticConstruction
+# in packages/core/src/parser.sigil. This is a scoped experiment, not a claim that
+# all of the parser's prose or implementation is verified.
+@prefix sigil: <https://sigil.dev/ontology/1#> .
+@prefix : <urn:sigil:example:> .
+
+:SigilParser a sigil:Component ;
+    sigil:label "SigilParser" ;
+    sigil:owns :SourceDocumentParsing ;
+    sigil:provides :SourceDocumentParsing ;
+    sigil:requires :DiagnosticConstruction ;
+    sigil:delegates :SigilDiagnostics ;
+    sigil:dependsOn :SigilDiagnostics ;
+    sigil:excludes :FilesystemAccess .
+:SigilDiagnostics a sigil:Component ;
+    sigil:provides :DiagnosticConstruction .
+:SourceDocumentParsing a sigil:Capability ; sigil:exclusive true .
+:DiagnosticConstruction a sigil:Capability .
+:FilesystemAccess a sigil:Capability .

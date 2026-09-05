@@ -1,0 +1,5 @@
+@prefix sigil: <https://sigil.dev/ontology/1#> .
+@prefix : <urn:sigil:example:> .
+:SigilParser a sigil:Component ;
+    sigil:excludes :FilesystemAccess ; sigil:uses :FilesystemAccess .
+:FilesystemAccess a sigil:Capability .

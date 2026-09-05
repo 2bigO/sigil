@@ -1,0 +1,3 @@
+
+(run-schedule (saturate (run closure)))
+(run-schedule (saturate (run diagnostics)))

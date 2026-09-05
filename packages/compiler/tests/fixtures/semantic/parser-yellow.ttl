@@ -1,0 +1,4 @@
+@prefix sigil: <https://sigil.dev/ontology/1#> .
+@prefix : <urn:sigil:example:> .
+:SigilParser a sigil:Component ; sigil:requires :DiagnosticConstruction .
+:DiagnosticConstruction a sigil:Capability .
