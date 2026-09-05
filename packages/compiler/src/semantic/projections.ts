@@ -231,7 +231,9 @@ export function projectGreenSemanticWorld(
     const declaration = sections.filter((s) =>
       /^ {2}(goal|interface) \{/.test(s)
     );
-    const expansion = sections.filter((s) => !/^ {2}(goal|interface) \{/.test(s));
+    const expansion = sections.filter((s) =>
+      !/^ {2}(goal|interface) \{/.test(s)
+    );
     blocks.push(`component ${name} {\n${declaration.join("\n\n")}\n}`);
     if (expansion.length) {
       blocks.push(`expand ${name} {\n${expansion.join("\n\n")}\n}`);

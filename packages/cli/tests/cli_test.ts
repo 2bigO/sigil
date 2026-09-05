@@ -132,186 +132,75 @@ Deno.test("retrieve Markdown renders module context and escaped ownership links"
 });
 
 // @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-opencode-bundle-" });
+Deno.test("CLI compilation needs no provider and tolerates legacy provider configuration", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-semantic-facade-" });
   try {
     await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: "0.7.0",
-        workspace: { name: "opencode-bundle", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            adapter: {
-              provider: "opencode",
-              implementationId: "builtin.opencode-cli",
-              implementationVersion: "0.7.1",
-            },
-          },
-        },
-      }),
-    );
     await Deno.writeTextFile(
       `${root}/main.sigil`,
       `component Example {
   goal {
     Explain the example.
   }
-}
-`,
-    );
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(report.profile.evaluators[0].provider, "opencode");
-    assertEquals(
-      report.profile.evaluators[0].implementationId,
-      "builtin.opencode-cli",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("CLI bundle registers the standalone Pi adapter", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-pi-bundle-" });
-  try {
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: "0.7.0",
-        workspace: { name: "pi-bundle", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            adapter: {
-              provider: "pi",
-              implementationId: "builtin.pi-cli",
-              implementationVersion: "0.7.1",
-            },
-          },
-        },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {
-  goal {
-    Explain the example.
+  interface {
+    Explanation {
+      Return an explanation.
+    }
   }
 }
 `,
     );
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(report.profile.evaluators[0].provider, "pi");
-    assertEquals(
-      report.profile.evaluators[0].implementationId,
-      "builtin.pi-cli",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("CLI bundle registers the standalone Claude adapter", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-claude-bundle-" });
-  try {
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: "0.7.0",
-        workspace: { name: "claude-bundle", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            adapter: {
-              provider: "claude",
-              implementationId: "builtin.claude-cli",
-              implementationVersion: "0.7.1",
-            },
+    for (const provider of [undefined, "opencode", "pi", "claude", "codex"]) {
+      await Deno.writeTextFile(
+        `${root}/.sigil/config.json`,
+        JSON.stringify({
+          sigilVersion: SIGIL_VERSION,
+          workspace: { name: "semantic-facade", members: [] },
+          files: { include: ["**/*.sigil"], exclude: [] },
+          tools: {
+            compile: provider
+              ? {
+                adapter: {
+                  provider,
+                  implementationId: `builtin.${provider}-cli`,
+                  implementationVersion: "0.7.1",
+                },
+                evaluators: {
+                  legacy: {
+                    provider,
+                    implementationId: `builtin.${provider}-cli`,
+                    implementationVersion: "0.7.1",
+                  },
+                },
+                profiles: {
+                  "critical-system": { evaluatorIds: ["legacy"] },
+                },
+              }
+              : {},
           },
+        }),
+      );
+      const report = await compileWithBundledAdapters(
+        root,
+        { kind: "workspace" },
+        "critical-system",
+        {
+          focus: "design",
+          disableHistory: true,
         },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {
-  goal {
-    Explain the example.
-  }
-}
-`,
-    );
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(report.profile.evaluators[0].provider, "claude");
-    assertEquals(
-      report.profile.evaluators[0].implementationId,
-      "builtin.claude-cli",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("two models of one provider bundle as distinct evaluators", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-codex-identities-" });
-  try {
-    const evaluator = (model: string) => ({
-      provider: "codex",
-      model,
-      implementationId: "builtin.codex-cli",
-      implementationVersion: "0.7.1",
-    });
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: SIGIL_VERSION,
-        workspace: { name: "codex-identities", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            evaluators: {
-              fast: evaluator("gpt-5-mini"),
-              deep: evaluator("gpt-5"),
-            },
-            profiles: { "critical-system": { evaluatorIds: ["fast", "deep"] } },
-          },
-        },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {\n  goal {\n    Explain the example.\n  }\n}\n`,
-    );
-    // Sharing one identity would reject this before compilation starts.
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      "critical-system",
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(
-      report.profile.evaluators.map((item) => item.model).join(","),
-      "gpt-5-mini,gpt-5",
-    );
+      );
+      assertEquals(report.status, "yellow");
+      assertEquals(report.profile.evaluators.length, 0);
+      assertEquals(
+        report.stages.map((stage) => stage.id).join(","),
+        "deterministic-foundation,semantic-closure",
+      );
+      assert(
+        report.diagnostics.some((diagnostic) =>
+          diagnostic.code === "unresolved-obligation"
+        ),
+      );
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }

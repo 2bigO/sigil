@@ -10,15 +10,16 @@
 component SigilCompiler {
   goal {
     Give designers and architects a compiler-like improvement loop for high-level
-    Sigil contracts through profile-scoped deterministic and agentic evaluation.
+    Sigil contracts through deterministic semantic compilation.
 
-    Keep profile/stage selection, target scheduling, adapter binding,
+    Keep profile/stage selection, target scheduling, semantic closure,
     event/report/history protocols, and read-only evaluation coordination inside
     the compiler. SigilCore owns configuration discovery, source selection/loading,
     parsing, resolution, graph/context retrieval, and deterministic language
     diagnostics.
 
-    The compiler does not replace human design approval.
+    Models propose semantic possibilities; the fixed egglog kernel determines what
+    follows. Compilation status cannot be supplied by a model.
   }
 
   interface {
@@ -59,8 +60,7 @@ expand SigilCompiler {
   constraints {
     HumanAuthorityBoundary {
       Green status is evidence that every required stage of one exact source snapshot
-      and profile completed without current errors, warnings, or material
-      disagreement.
+      and profile completed without current hard violations or unresolved required propositions.
 
       Green status does not approve the design, authorize implementation, or replace
       an accountable human review.
@@ -73,17 +73,17 @@ expand SigilCompiler {
       SigilCompiler while delegating deterministic language and workspace semantics
       to SigilCore.
 
-      Scope: Governs compiler/Core ownership; excludes agentic evaluation outcomes.
+      Scope: Governs compiler/Core ownership and deterministic semantic evaluation.
 
       Consequences: Compiler hosts share one orchestration protocol without
       duplicating parsing, resolution, retrieval, or language-diagnostic semantics.
     }
 
     CompilerBoundary {
-      Decision: Place agent orchestration in a separate @qoherent/sigil-compiler
+      Decision: Place semantic compilation and proposal orchestration in a separate @qoherent/sigil-compiler
       package and expose it through thin host façades.
 
-      Scope: Governs agentic Sigil compilation; excludes deterministic language
+      Scope: Governs deterministic semantic compilation; excludes deterministic language
       interpretation owned by SigilCore.
 
       Trade-offs: Distribution gains another package and compatibility boundary.

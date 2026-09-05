@@ -1,32 +1,19 @@
 import {
-  type ImplementationEvidenceInput,
+  type CompilationBoundaryResult,
+  type CompilationScopeSeed,
   type ImplementationSource,
   isSupportedImplementationSource,
   loadSigilWorkspace,
   resolveSigilWorkspace,
-  retrievePurposeContext,
+  selectCompilationBoundary,
   type SigilDiagnostic,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
 import metadata from "../deno.json" with { type: "json" };
-import { resolveAdapterRegistration } from "./adapters.ts";
-import {
-  capabilitiesMatch,
-  evaluationCapabilitiesFor,
-} from "./evaluation-capabilities.ts";
-import {
-  buildAgentEvaluationRequest,
-  compilationEvaluationTarget,
-} from "./evaluation.ts";
 import {
   canonicalWorkspacePath,
   resolveCompilationTarget,
 } from "./compilation-target.ts";
-import {
-  type CompilationBoundaryResult,
-  type CompilationScopeSeed,
-  selectCompilationBoundary,
-} from "@qoherent/sigil-core";
 import {
   type CompilationEventWriter,
   openCompilationEventWriter,
@@ -38,7 +25,6 @@ import { exportCompilationReport } from "./report-export.ts";
 import { constructCompilationReport } from "./report-protocol.ts";
 import {
   parseCompilationConfiguration,
-  resolveCompilationSettings,
   stageForCompilationFocus,
 } from "./profile.ts";
 import {
@@ -46,63 +32,38 @@ import {
   compilerFailureCode as stableCompilerFailureCode,
 } from "./status.ts";
 import {
-  COMPILATION_STAGE_IDS,
-  type EvaluationSkillPackage,
-  loadEvaluationSkills,
-} from "./evaluation-skills.ts";
-import { validateAgentEvaluationResult } from "./evaluation-request.ts";
-import {
   createSemanticSubjectResolver,
   semanticSubjectIdentity,
   type SemanticSubjectResolver,
 } from "./semantic-subjects.ts";
+import {
+  compileSemanticWorld,
+  type SemanticCompilation,
+  type SemanticDiagnostic,
+} from "./semantic/compile.ts";
+import { semanticProfile, semanticStageAlias } from "./semantic/profile.ts";
+import {
+  projectSigilIntent,
+  semanticComponentId,
+  type SemanticSourceBinding,
+} from "./semantic/source.ts";
+import { scopeSemanticWorld } from "./semantic/scope.ts";
+import { readSemanticState } from "./semantic/store.ts";
+import {
+  digest,
+  parseSemanticWorld,
+  SemanticInputError,
+  worldFromFacts,
+} from "./semantic/turtle.ts";
 import type {
-  AgentAdapter,
-  AgentFinding,
   CompilationFocus,
   CompilationReport,
   CompilationTarget,
   CompileConfiguration,
   CompileOptions,
   CompilerDiagnostic,
-  EffectiveProfile,
-  EvaluatorConfiguration,
   StageReport,
 } from "./types.ts";
-
-interface StageDefinition {
-  readonly id: string;
-  readonly required: boolean;
-  readonly agentic: boolean;
-  readonly dependencies: readonly string[];
-  readonly skill?: EvaluationSkillPackage;
-}
-
-const INSPECTION_COMMAND_POLICY = {
-  allowedCommands: [
-    "sigil version",
-    "sigil parse",
-    "sigil check",
-    "sigil fmt --check",
-    "sigil glossary",
-    "sigil graph",
-    "sigil context",
-    "sigil render",
-    "rg",
-    "sed",
-    "git status/diff/show/log/grep/ls-files",
-  ],
-  forbiddenCommands: [
-    "sigil init",
-    "sigil fmt without --check",
-    "sigil compile",
-    "sigil skill install",
-    "network clients",
-    "file mutation",
-    "code generation",
-    "implementation execution or experiments",
-  ],
-};
 
 class DenoReadOnlyFileSystem implements SigilFileSystem {
   readTextFile(path: string): Promise<string> {
@@ -129,7 +90,16 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
       for await (const entry of Deno.readDir(path)) {
         if (
           entry.isSymlink ||
-          [".git", ".deno", ".vscode-test", "node_modules", "build", "coverage"]
+          [
+            ".git",
+            ".deno",
+            ".vscode-test",
+            "node_modules",
+            "build",
+            "coverage",
+            "repos",
+            "target",
+          ]
             .includes(entry.name)
         ) continue;
         await visit(`${path}/${entry.name}`);
@@ -202,465 +172,6 @@ export async function loadCompilationWorkspace(
   };
 }
 
-export async function validateCompilationProfile(
-  configuration: CompileConfiguration,
-  profileName: string,
-  focus: CompilationFocus,
-): Promise<void> {
-  const definitions = stageDefinitions(await loadEvaluationSkills());
-  const profile = await effectiveProfile(
-    profileName,
-    configuration,
-    definitions,
-    stageForCompilationFocus(focus),
-  );
-  assertProfileEvaluators(profile, adaptersFrom(profile, {}));
-}
-
-/*
- * @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation interface,logic,cases
- * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::CompilationEvaluation interface
- * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::CompilationEvaluationResult interface
- * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::PipelineExecution logic
- * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::DeterministicFoundationGating logic,constraints,cases
- * @sigil implements packages/compiler/src/evaluation.sigil::SigilCompilationEvaluation::AgentFindingIdentityCollapse logic,constraints,cases
- */
-export async function compile(
-  workspacePath: string,
-  requestedScope: CompilationScopeSeed = { kind: "workspace" },
-  profileName: string,
-  options: CompileOptions = {},
-): Promise<CompilationReport> {
-  const requestedStage = options.requestedStage ??
-    stageForCompilationFocus(options.focus);
-  const cancellationSignal = options.cancellationSignal ?? options.signal;
-  const startedAt = new Date().toISOString();
-  let eventWriter: CompilationEventWriter | undefined;
-
-  try {
-    if (options.requestedStage && options.focus) {
-      throw new CompilerFailure(
-        "COMPILER_INVALID_INVOCATION",
-        "requestedStage and focus are mutually exclusive.",
-      );
-    }
-    await assertWorkspacePath(workspacePath);
-    const fs = new DenoReadOnlyFileSystem();
-    const workspace = await loadSigilWorkspace(fs, {
-      startPath: workspacePath,
-      currentDirectory: Deno.cwd(),
-    });
-    assertLoadedWorkspace(workspace.diagnostics);
-    const resolved = resolveSigilWorkspace(workspace);
-    const configuration = parseCompilationConfiguration(
-      workspace.config?.tools.compile,
-    );
-    const skills = await loadEvaluationSkills();
-    const definitions = stageDefinitions(skills);
-    let profile = await effectiveProfile(
-      profileName,
-      configuration,
-      definitions,
-      requestedStage,
-    );
-    profile = await bindSuppliedAdapter(profile, options.adapter);
-    const adapters = adaptersFrom(profile, options);
-    assertProfileEvaluators(profile, adapters);
-    const boundary = selectCompilationBoundary(resolved, requestedScope, {
-      exactTarget: options.exactTarget,
-    });
-    assertResolvableScope(boundary);
-    const target = compilationTargetFor(boundary);
-    const components = resolveCompilationTarget(
-      resolved,
-      target,
-      workspace.root,
-    );
-    const openedWriter = await openCompilationEventWriter(
-      options.eventSink ?? callbackEventSink(options.onEvent),
-      {
-        operation: "one-shot-compilation",
-        stageIdentities: profile.stages.map((stage) => stage.id),
-      },
-    );
-    if (openedWriter.kind === "failure") {
-      throw new CompilerFailure(
-        "COMPILER_FAILED",
-        `Compilation event stream could not be established: ${openedWriter.result}.`,
-      );
-    }
-    eventWriter = openedWriter.writer;
-    const runId = openedWriter.runId;
-    const implementationSources = await loadImplementationSources(
-      fs,
-      workspace.root,
-    );
-    const sourceFingerprint = await workspaceEvidenceFingerprint(
-      workspace.root,
-      workspace.files.map((file) => file.document),
-      implementationSources,
-    );
-    const semanticSubjects = createSemanticSubjectResolver(
-      resolved,
-      implementationSources,
-      workspace.root,
-    );
-
-    const coreDiagnostics: CompilerDiagnostic[] = await Promise.all(
-      resolved.diagnostics.map((item) =>
-        fromCoreDiagnostic(item, semanticSubjects)
-      ),
-    );
-    const historyDisabled = options.disableHistory ?? options.noHistory ??
-      false;
-    const historyKey = options.history && !historyDisabled
-      ? await compilationHistoryKey(workspace.root, target, profile)
-      : undefined;
-    let previous: CompilationReport | undefined;
-    if (historyKey) {
-      try {
-        previous = await options.history!.read(historyKey);
-      } catch (error) {
-        await deliverHistoryWarning(options, {
-          code: "COMPILER_HISTORY_READ_FAILED",
-          operation: "read",
-          historyKey,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-    const diagnostics: CompilerDiagnostic[] = [];
-    const agentDiagnosticFingerprints = new Set<string>();
-    const stageReports: StageReport[] = [];
-    const failed = new Set<string>();
-    const adaptersByEvaluatorId = new Map(
-      profile.evaluators.map((evaluator, index) => [
-        evaluator.id,
-        adapters[index],
-      ]),
-    );
-
-    for (const stage of profile.stages) {
-      const definition = definitions.find((item) => item.id === stage.id)!;
-      const stageEvaluatorIds = stage.evaluatorIds;
-      const stageAdapters = stageEvaluatorIds
-        ? stageEvaluatorIds.map((id) => adaptersByEvaluatorId.get(id))
-          .filter((adapter): adapter is AgentAdapter => !!adapter)
-        : adapters;
-      const evaluatorLabel = stageAdapters.map((item) => item.id).join(",") ||
-        "unavailable";
-      if (!stage.enabled) {
-        failed.add(stage.id);
-        stageReports.push(stageReport(stage, "disabled", "none", 0));
-        continue;
-      }
-      if (stage.dependencies.some((dependency) => failed.has(dependency))) {
-        failed.add(stage.id);
-        stageReports.push(
-          stageReport(
-            stage,
-            "skipped-by-dependency",
-            evaluatorLabel,
-            0,
-          ),
-        );
-        continue;
-      }
-      if (cancellationSignal?.aborted) {
-        throw new DOMException("Compilation cancelled.", "AbortError");
-      }
-
-      const stageStartedAt = new Date().toISOString();
-      await requireEventDelivery(
-        await eventWriter.stageStarted(stage.id),
-        true,
-      );
-      const before = diagnostics.length;
-      const evaluations: NonNullable<StageReport["evaluations"]>[number][] = [];
-      let state: StageReport["state"] = "completed";
-      try {
-        if (!definition.agentic) {
-          for (const rawDiagnostic of coreDiagnostics) {
-            const diagnostic = currentLifecycle(rawDiagnostic, previous);
-            diagnostics.push(diagnostic);
-            await requireEventDelivery(
-              await eventWriter.diagnostic(diagnostic),
-              true,
-            );
-          }
-          if (
-            coreDiagnostics.some((diagnostic) =>
-              diagnostic.severity === "error"
-            )
-          ) {
-            state = "failed";
-            failed.add(stage.id);
-          }
-        } else {
-          if (
-            !stageAdapters.length ||
-            (stageEvaluatorIds &&
-              stageAdapters.length !== stageEvaluatorIds.length)
-          ) {
-            throw new Error(
-              "No compiler evaluator is configured for the selected profile.",
-            );
-          }
-          if (!definition.skill) {
-            throw new Error(`Evaluation skill ${stage.id} is unavailable.`);
-          }
-          for (const adapter of stageAdapters) {
-            assertAdapterCapabilities(adapter);
-          }
-          for (const component of components) {
-            const retrievalPurpose =
-              definition.skill.manifest.implementationEvidence === "compare"
-                ? "implementation"
-                : stage.id === "semantic-readiness"
-                ? "semantic"
-                : "architecture";
-            const implementationEvidence: ImplementationEvidenceInput = {
-              workspaceSnapshotIdentity:
-                resolved.workspace.workspaceSnapshotIdentity,
-              discoveryState: "complete",
-              sources: implementationSources,
-              diagnostics: [],
-            };
-            const retrieval = await retrievePurposeContext(
-              resolved,
-              {
-                kind: "component",
-                componentName: component.name,
-                path: canonicalWorkspacePath(
-                  component.filePath,
-                  workspace.root,
-                ),
-              },
-              retrievalPurpose,
-              resolved.glossary,
-              retrievalPurpose === "implementation"
-                ? implementationEvidence
-                : null,
-            );
-            const request = buildAgentEvaluationRequest({
-              stage: stage.id,
-              purpose: retrievalPurpose,
-              skill: definition.skill.guidance,
-              allowedRules: definition.skill.manifest.rules,
-              implementationEvidence:
-                definition.skill.manifest.implementationEvidence,
-              workspaceRoot: workspace.root,
-              workspaceSnapshotIdentity:
-                resolved.workspace.workspaceSnapshotIdentity,
-              target: await compilationEvaluationTarget(
-                component,
-                workspace.root,
-                retrieval,
-              ),
-              capabilities: evaluationCapabilitiesFor(
-                stageAdapters[0].capabilities,
-              ),
-              commandPolicy: INSPECTION_COMMAND_POLICY,
-              observability: stageAdapters[0].observability,
-              budgets: profile.executionBudgets,
-              limits: {
-                maxInitialRequestChars: profile.agentInputBudgetChars,
-                maxProviderFrameChars:
-                  profile.limits.maxCompilationRequestChars,
-                maxFinalResultChars: profile.limits.maxCompilationRequestChars,
-                maxRetainedCommandOutputChars:
-                  profile.executionBudgets.maxCommandOutputChars,
-                providerCleanupMs: profile.limits.providerCleanupMs,
-              },
-              signal: cancellationSignal,
-            });
-            const componentDiagnostics: CompilerDiagnostic[][] = [];
-            for (const adapter of stageAdapters) {
-              const adapterRequest = buildAgentEvaluationRequest({
-                ...request,
-                capabilities: evaluationCapabilitiesFor(adapter.capabilities),
-                observability: adapter.observability,
-              });
-              const result = validateAgentEvaluationResult(
-                adapterRequest,
-                await adapter.evaluate(adapterRequest),
-              );
-              if (
-                result.budgetOutcome?.token === "exceeded" ||
-                result.budgetOutcome?.cost === "exceeded"
-              ) {
-                throw new Error(
-                  `Evaluator ${adapter.id} exceeded a post-settlement execution budget.`,
-                );
-              }
-              evaluations.push({
-                evaluatorId: adapter.id,
-                componentName: component.name,
-                commands: result.commands,
-                usage: result.usage,
-                usageAvailability: result.usageAvailability ??
-                  (result.usage ? "final" : "unavailable"),
-                cost: result.cost,
-                costAvailability: result.costAvailability ??
-                  (result.cost ? "final" : "unavailable"),
-                budgetOutcome: result.budgetOutcome,
-              });
-              const evaluatorDiagnostics: CompilerDiagnostic[] = [];
-              const evaluatorFingerprints = new Set<string>();
-              for (const finding of result.findings) {
-                if (!definition.skill.manifest.rules.includes(finding.code)) {
-                  throw new Error(
-                    `Evaluator returned undeclared rule ${
-                      JSON.stringify(finding.code)
-                    } for stage ${stage.id}.`,
-                  );
-                }
-                const diagnostic = currentLifecycle(
-                  await fromAgentFinding(
-                    stage.id,
-                    definition.skill,
-                    adapter,
-                    finding,
-                    component.name,
-                    semanticSubjects,
-                  ),
-                  previous,
-                );
-                if (evaluatorFingerprints.has(diagnostic.fingerprint)) {
-                  continue;
-                }
-                evaluatorFingerprints.add(diagnostic.fingerprint);
-                evaluatorDiagnostics.push(diagnostic);
-              }
-              componentDiagnostics.push(evaluatorDiagnostics);
-              for (const diagnostic of evaluatorDiagnostics) {
-                if (agentDiagnosticFingerprints.has(diagnostic.fingerprint)) {
-                  continue;
-                }
-                agentDiagnosticFingerprints.add(diagnostic.fingerprint);
-                diagnostics.push(diagnostic);
-                await requireEventDelivery(
-                  await eventWriter.diagnostic(diagnostic, component.name),
-                  true,
-                );
-              }
-            }
-            for (
-              const rawDiagnostic of await disagreementDiagnostics(
-                stage.id,
-                component.name,
-                stageAdapters,
-                componentDiagnostics,
-              )
-            ) {
-              const diagnostic = currentLifecycle(rawDiagnostic, previous);
-              diagnostics.push(diagnostic);
-              await requireEventDelivery(
-                await eventWriter.diagnostic(diagnostic, component.name),
-                true,
-              );
-            }
-          }
-        }
-      } catch (error) {
-        if (profile.criticalSystem && definition.agentic) {
-          throw profileEvaluatorError(
-            `A required critical-system evaluator is unavailable or incomplete: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-        }
-        state = "failed";
-        failed.add(stage.id);
-        const diagnostic = currentLifecycle(
-          await stageFailure(stage.id, stageAdapters[0], error),
-          previous,
-        );
-        diagnostics.push(diagnostic);
-        await requireEventDelivery(
-          await eventWriter.diagnostic(diagnostic),
-          true,
-        );
-      }
-      const report: StageReport = {
-        id: stage.id,
-        required: stage.required,
-        state,
-        evaluator: stage.agentic ? evaluatorLabel : "sigil-core",
-        diagnosticCount: diagnostics.length - before,
-        startedAt: stageStartedAt,
-        completedAt: new Date().toISOString(),
-        ...(evaluations.length ? { evaluations } : {}),
-      };
-      stageReports.push(report);
-      await requireEventDelivery(
-        await eventWriter.stageCompleted(report),
-        true,
-      );
-    }
-
-    const report = constructCompilationReport({
-      runId,
-      workspaceRoot: workspace.root,
-      target,
-      requestedScope: boundary.requestedScope,
-      selection: boundary.selection,
-      componentNames: components.map((item) => item.name),
-      startedAt,
-      completedAt: new Date().toISOString(),
-      sourceFingerprint,
-      requestedStage,
-      focus: options.focus,
-      profile,
-      stages: stageReports,
-      diagnostics,
-      previous,
-    });
-    const exportDestination = options.reportExport ?? options.output;
-    if (cancellationSignal?.aborted) {
-      throw new DOMException("Compilation cancelled.", "AbortError");
-    }
-    if (exportDestination) {
-      await exportCompilationReport(
-        report,
-        exportDestination,
-        options.reportExportRepresentation ?? "json",
-        workspace.root,
-      );
-    }
-    await requireEventDelivery(await eventWriter.completed(report));
-    if (historyKey) {
-      try {
-        await options.history!.write(historyKey, report);
-      } catch (error) {
-        await deliverHistoryWarning(options, {
-          code: "COMPILER_HISTORY_WRITE_FAILED",
-          operation: "write",
-          historyKey,
-          message: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-    return report;
-  } catch (error) {
-    const code = stableCompilerFailureCode(error);
-    if (eventWriter) {
-      const message = error instanceof Error ? error.message : String(error);
-      const delivery = code === "COMPILER_CANCELLED"
-        ? await eventWriter.cancelled(message)
-        : await eventWriter.failed(code, message);
-      if (delivery !== "delivered") {
-        throw new CompilerFailure(
-          "COMPILER_FAILED",
-          `Required terminal compilation event was not delivered: ${delivery}.`,
-          { cause: error },
-        );
-      }
-    }
-    throw error;
-  }
-}
-
 async function assertWorkspacePath(workspacePath: string): Promise<void> {
   if (!workspacePath.trim()) {
     throw new CompilerFailure(
@@ -707,50 +218,6 @@ function assertLoadedWorkspace(
   );
 }
 
-async function bindSuppliedAdapter(
-  profile: EffectiveProfile,
-  adapter: AgentAdapter | undefined,
-): Promise<EffectiveProfile> {
-  if (!adapter) return profile;
-  const evaluator: EvaluatorConfiguration = {
-    id: adapter.id,
-    provider: adapter.provider,
-    ...(adapter.model ? { model: adapter.model } : {}),
-    implementationId: adapter.implementationId,
-    implementationVersion: adapter.implementationVersion,
-  };
-  if (profile.evaluators.length) {
-    const selected = profile.evaluators[0];
-    if (
-      selected.provider !== evaluator.provider ||
-      selected.implementationId !== evaluator.implementationId ||
-      selected.implementationVersion !== evaluator.implementationVersion ||
-      selected.model !== evaluator.model
-    ) {
-      throw new CompilerFailure(
-        "COMPILER_PROFILE_EVALUATORS_REQUIRED",
-        "The supplied adapter does not match the profile's exact implementation binding.",
-      );
-    }
-  }
-  const evaluators = profile.evaluators.length
-    ? profile.evaluators
-    : [evaluator];
-  const adapterBinding = {
-    provider: evaluator.provider,
-    ...(evaluator.model ? { model: evaluator.model } : {}),
-    implementationId: evaluator.implementationId,
-    implementationVersion: evaluator.implementationVersion,
-  };
-  const fingerprint = await digest(JSON.stringify({
-    ...profile,
-    fingerprint: undefined,
-    adapter: adapterBinding,
-    evaluators,
-  }));
-  return { ...profile, adapter: adapterBinding, evaluators, fingerprint };
-}
-
 function callbackEventSink(
   callback: CompileOptions["onEvent"],
 ): WritableEnvelopeSink {
@@ -784,405 +251,11 @@ async function deliverHistoryWarning(
   }
 }
 
-function stageDefinitions(
-  skills: ReadonlyMap<string, EvaluationSkillPackage>,
-): readonly StageDefinition[] {
-  return COMPILATION_STAGE_IDS.map((id) => {
-    if (id === "deterministic-foundation") {
-      return {
-        id,
-        required: true,
-        agentic: false,
-        dependencies: [],
-      };
-    }
-    const skill = skills.get(id);
-    if (!skill) throw new Error(`Required evaluation skill ${id} is missing.`);
-    return {
-      id,
-      required: true,
-      agentic: true,
-      dependencies: skill.manifest.dependencies,
-      skill,
-    };
-  });
-}
-
-function assertAdapterCapabilities(adapter: AgentAdapter): void {
-  if (
-    !capabilitiesMatch(
-      evaluationCapabilitiesFor(adapter.capabilities),
-      adapter.capabilities,
-    )
-  ) {
-    throw new Error(
-      `Adapter ${adapter.id} declares capabilities that do not match read-only, offline, approval-free inspection with its selected persistence mode.`,
-    );
-  }
-}
-
-function stageReport(
-  stage: EffectiveProfile["stages"][number],
-  state: StageReport["state"],
-  evaluator: string,
-  diagnosticCount: number,
-): StageReport {
-  return {
-    id: stage.id,
-    required: stage.required,
-    state,
-    evaluator,
-    diagnosticCount,
-  };
-}
-
 function currentLifecycle(
   diagnostic: CompilerDiagnostic,
   previous: CompilationReport | undefined,
 ): CompilerDiagnostic {
   return applyDiagnosticLifecycle([diagnostic], previous)[0];
-}
-
-async function effectiveProfile(
-  name: string,
-  configuration: CompileConfiguration,
-  definitions: readonly StageDefinition[],
-  requestedStage?: string,
-): Promise<EffectiveProfile> {
-  const custom = configuration.profiles?.[name];
-  const base = custom?.extends ?? name;
-  if (base !== "standard" && base !== "critical-system") {
-    throw new CompilerFailure(
-      "COMPILER_INVALID_INVOCATION",
-      `Unknown compilation profile ${JSON.stringify(name)}.`,
-    );
-  }
-  const included = base === "standard"
-    ? definitions.filter((stage) => stage.id !== "standards-risk")
-    : definitions;
-  const disabled = new Set(custom?.disabledStages ?? []);
-  const selected = requestedStage
-    ? stageClosure(requestedStage, included)
-    : included;
-  if (requestedStage && selected.some((stage) => disabled.has(stage.id))) {
-    throw new CompilerFailure(
-      "COMPILER_INVALID_INVOCATION",
-      `Requested stage ${
-        JSON.stringify(requestedStage)
-      } depends on a stage disabled by profile ${JSON.stringify(name)}.`,
-    );
-  }
-  const stages = selected.map((stage) => ({
-    id: stage.id,
-    required: stage.required,
-    enabled: !disabled.has(stage.id),
-    agentic: stage.agentic,
-    dependencies: stage.dependencies,
-    evaluatorIds: stage.agentic
-      ? evaluatorIdsForStage(name, base, custom, configuration, stage.id)
-      : [],
-  }));
-  const evaluatorIds = [
-    ...new Set(stages.flatMap((stage) => stage.evaluatorIds ?? [])),
-  ];
-  const evaluators = selectedEvaluators(
-    name,
-    base,
-    custom,
-    configuration,
-    evaluatorIds.length ? evaluatorIds : undefined,
-  );
-  const settings = resolveCompilationSettings(configuration);
-  const profileBase = {
-    name,
-    criticalSystem: base === "critical-system",
-    contextBudgetChars: settings.limits.maxCompilationRequestChars,
-    agentInputBudgetChars: settings.limits.maxAgentInputChars,
-    limits: settings.limits,
-    executionBudgets: settings.budgets,
-    stages,
-    adapter: configuration.adapter
-      ? normalizeEvaluator("default", configuration.adapter)
-      : undefined,
-    evaluators,
-    skills: selected.flatMap((stage) =>
-      stage.skill
-        ? [{
-          id: stage.skill.manifest.id,
-          version: stage.skill.manifest.version,
-          capabilities: stage.skill.manifest.capabilities,
-        }]
-        : []
-    ),
-  };
-  return {
-    name: profileBase.name,
-    criticalSystem: profileBase.criticalSystem,
-    contextBudgetChars: profileBase.contextBudgetChars,
-    agentInputBudgetChars: profileBase.agentInputBudgetChars,
-    limits: profileBase.limits,
-    executionBudgets: profileBase.executionBudgets,
-    stages: profileBase.stages,
-    adapter: profileBase.adapter,
-    evaluators: profileBase.evaluators,
-    fingerprint: await digest(JSON.stringify(profileBase)),
-  };
-}
-
-function selectedEvaluators(
-  name: string,
-  base: "standard" | "critical-system",
-  custom: CompileConfiguration["profiles"] extends
-    | Readonly<
-      Record<string, infer T>
-    >
-    | undefined ? T | undefined
-    : never,
-  configuration: CompileConfiguration,
-  selectedIds?: readonly string[],
-): readonly EvaluatorConfiguration[] {
-  const configuredIds = custom?.evaluatorIds as unknown;
-  if (
-    configuredIds !== undefined &&
-    (!Array.isArray(configuredIds) ||
-      configuredIds.some((id) => typeof id !== "string" || !id))
-  ) {
-    throw evaluatorConfigurationError(
-      base,
-      `Profile ${
-        JSON.stringify(name)
-      } evaluatorIds must contain non-empty strings.`,
-    );
-  }
-  const ids = selectedIds ?? (configuredIds as readonly string[] | undefined) ??
-    (base === "standard" && configuration.adapter ? ["default"] : []);
-  if (new Set(ids).size !== ids.length) {
-    throw evaluatorConfigurationError(
-      base,
-      `Profile ${JSON.stringify(name)} selects duplicate evaluator identities.`,
-    );
-  }
-  return ids.map((id) => {
-    const raw = id === "default"
-      ? configuration.adapter
-      : configuration.evaluators?.[id];
-    if (!raw || typeof raw !== "object") {
-      throw evaluatorConfigurationError(
-        base,
-        `Profile ${JSON.stringify(name)} references unavailable evaluator ${
-          JSON.stringify(id)
-        }.`,
-      );
-    }
-    const provider = (raw as Record<string, unknown>).provider;
-    const model = (raw as Record<string, unknown>).model;
-    const implementationId = (raw as Record<string, unknown>)
-      .implementationId;
-    const implementationVersion = (raw as Record<string, unknown>)
-      .implementationVersion;
-    if (typeof provider !== "string" || provider.trim() === "") {
-      throw evaluatorConfigurationError(
-        base,
-        `Evaluator ${JSON.stringify(id)} must name a provider.`,
-      );
-    }
-    if (model !== undefined && typeof model !== "string") {
-      throw evaluatorConfigurationError(
-        base,
-        `Evaluator ${JSON.stringify(id)} model must be a string.`,
-      );
-    }
-    if (
-      implementationId !== undefined &&
-      (typeof implementationId !== "string" || !implementationId)
-    ) {
-      throw evaluatorConfigurationError(
-        base,
-        `Evaluator ${
-          JSON.stringify(id)
-        } implementationId must be a non-empty string.`,
-      );
-    }
-    if (
-      implementationVersion !== undefined &&
-      (typeof implementationVersion !== "string" || !implementationVersion)
-    ) {
-      throw evaluatorConfigurationError(
-        base,
-        `Evaluator ${
-          JSON.stringify(id)
-        } implementationVersion must be a non-empty exact version.`,
-      );
-    }
-    return normalizeEvaluator(
-      id,
-      raw as NonNullable<CompileConfiguration["adapter"]>,
-    );
-  });
-}
-
-function evaluatorIdsForStage(
-  name: string,
-  base: "standard" | "critical-system",
-  custom: NonNullable<CompileConfiguration["profiles"]>[string] | undefined,
-  configuration: CompileConfiguration,
-  stage: string,
-): readonly string[] | undefined {
-  const stages = custom?.stages;
-  if (!stages) {
-    return custom?.main ?? custom?.evaluatorIds ??
-      (base === "standard" && configuration.adapter ? ["default"] : undefined);
-  }
-  const ids = stages[stage] ?? custom?.main;
-  if (
-    !Array.isArray(ids) || ids.length === 0 ||
-    ids.some((id) => typeof id !== "string" || !id) ||
-    new Set(ids).size !== ids.length
-  ) {
-    throw evaluatorConfigurationError(
-      base,
-      `Profile ${
-        JSON.stringify(name)
-      } must configure unique evaluator identities for agentic stage ${
-        JSON.stringify(stage)
-      }.`,
-    );
-  }
-  return ids;
-}
-
-function normalizeEvaluator(
-  id: string,
-  raw: NonNullable<CompileConfiguration["adapter"]>,
-): EvaluatorConfiguration {
-  const provider = raw.provider;
-  return {
-    id,
-    provider,
-    ...(raw.model ? { model: raw.model } : {}),
-    implementationId: raw.implementationId ?? `builtin.${provider}-cli`,
-    implementationVersion: raw.implementationVersion ?? metadata.version,
-  };
-}
-
-function stageClosure(
-  requestedStage: string,
-  available: readonly StageDefinition[],
-): readonly StageDefinition[] {
-  const requested = available.find((stage) => stage.id === requestedStage);
-  if (!requested) {
-    const known = COMPILATION_STAGE_IDS.includes(
-        requestedStage as typeof COMPILATION_STAGE_IDS[number],
-      )
-      ? `Stage ${
-        JSON.stringify(requestedStage)
-      } is not enabled by this profile.`
-      : `Unknown compilation stage ${JSON.stringify(requestedStage)}.`;
-    throw new CompilerFailure("COMPILER_INVALID_INVOCATION", known);
-  }
-  const selected = new Set<string>();
-  const visit = (stage: StageDefinition): void => {
-    for (const dependency of stage.dependencies) {
-      const definition = available.find((item) => item.id === dependency);
-      if (!definition) {
-        throw new CompilerFailure(
-          "COMPILER_INVALID_INVOCATION",
-          `Stage ${stage.id} requires unavailable dependency ${dependency}.`,
-        );
-      }
-      visit(definition);
-    }
-    selected.add(stage.id);
-  };
-  visit(requested);
-  return available.filter((stage) => selected.has(stage.id));
-}
-
-function adaptersFrom(
-  profile: EffectiveProfile,
-  options: CompileOptions,
-): readonly AgentAdapter[] {
-  if (options.adapters) {
-    const registrations = options.adapters;
-    return profile.evaluators.map((configuration) => {
-      try {
-        return resolveAdapterRegistration(registrations, configuration);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw profile.criticalSystem
-          ? profileEvaluatorError(message)
-          : new CompilerFailure(
-            "COMPILER_PROFILE_EVALUATORS_REQUIRED",
-            message,
-          );
-      }
-    });
-  }
-  if (options.adapter) {
-    if (profile.name === "critical-system") {
-      return [options.adapter];
-    }
-    return [options.adapter];
-  }
-  return profile.evaluators.map((configuration) =>
-    resolveAdapterRegistration([], configuration)
-  );
-}
-
-function assertProfileEvaluators(
-  profile: EffectiveProfile,
-  adapters: readonly AgentAdapter[],
-): void {
-  if (
-    adapters.length !== profile.evaluators.length ||
-    profile.evaluators.some((binding, index) => {
-      const adapter = adapters[index];
-      return !adapter || adapter.provider !== binding.provider ||
-        adapter.implementationId !== binding.implementationId ||
-        adapter.implementationVersion !== binding.implementationVersion ||
-        adapter.model !== binding.model;
-    })
-  ) {
-    throw profile.criticalSystem
-      ? profileEvaluatorError(
-        "The selected adapters do not exactly satisfy the effective profile bindings.",
-      )
-      : new CompilerFailure(
-        "COMPILER_PROFILE_EVALUATORS_REQUIRED",
-        "The selected adapters do not exactly satisfy the effective profile bindings.",
-      );
-  }
-  if (!profile.criticalSystem) return;
-  const identities = new Set(adapters.map((item) => item.id));
-  if (adapters.length < 2 || identities.size < 2) {
-    throw profileEvaluatorError(
-      "The critical-system profile requires at least two distinct available evaluator identities.",
-    );
-  }
-  for (const adapter of adapters) {
-    try {
-      assertAdapterCapabilities(adapter);
-    } catch (error) {
-      throw profileEvaluatorError(
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-  }
-}
-
-function profileEvaluatorError(message: string): Error {
-  return Object.assign(new Error(message), {
-    code: "COMPILER_PROFILE_EVALUATORS_REQUIRED",
-  });
-}
-
-function evaluatorConfigurationError(
-  base: "standard" | "critical-system",
-  message: string,
-): Error {
-  return base === "critical-system"
-    ? profileEvaluatorError(message)
-    : new CompilerFailure("COMPILER_PROFILE_EVALUATORS_REQUIRED", message);
 }
 
 async function fromCoreDiagnostic(
@@ -1217,143 +290,6 @@ async function fromCoreDiagnostic(
       : "The compiler recorded a deterministic finding.",
     correction: "Resolve the referenced Sigil diagnostic.",
     evaluator: `sigil-core@${metadata.version}`,
-    lifecycle: "new",
-  };
-}
-
-async function fromAgentFinding(
-  stage: string,
-  skill: EvaluationSkillPackage,
-  adapter: AgentAdapter,
-  finding: AgentFinding,
-  componentName: string,
-  resolver: SemanticSubjectResolver,
-): Promise<CompilerDiagnostic> {
-  const line = finding.line ?? undefined;
-  const column = finding.column ?? undefined;
-  const filePath = finding.filePath ?? undefined;
-  const range = line
-    ? {
-      start: { line, column: column ?? 1 },
-      end: { line, column: (column ?? 1) + 1 },
-    }
-    : undefined;
-  const semanticSubjects = await resolver.resolve(
-    filePath,
-    range,
-    componentName,
-  );
-  return {
-    code: finding.code,
-    fingerprint: await diagnosticFingerprint(
-      finding.code,
-      stage,
-      semanticSubjects,
-      filePath,
-      range,
-      componentName,
-    ),
-    severity: finding.severity,
-    stage,
-    skill: `${skill.manifest.id}@${skill.manifest.version}`,
-    message: finding.message,
-    filePath,
-    range,
-    semanticSubjects,
-    evidence: finding.evidence,
-    impact: finding.impact,
-    correction: finding.correction,
-    evaluator: adapter.id,
-    lifecycle: "new",
-  };
-}
-
-async function disagreementDiagnostics(
-  stage: string,
-  componentName: string,
-  adapters: readonly AgentAdapter[],
-  results: readonly (readonly CompilerDiagnostic[])[],
-): Promise<readonly CompilerDiagnostic[]> {
-  if (new Set(adapters.map((item) => item.id)).size < 2) return [];
-  const bySubject = new Map<
-    string,
-    { sample: CompilerDiagnostic; severities: Map<string, string> }
-  >();
-  for (let index = 0; index < adapters.length; index++) {
-    for (
-      const diagnostic of results[index].filter((item) =>
-        item.severity === "error" || item.severity === "warning"
-      )
-    ) {
-      const key = JSON.stringify({
-        code: diagnostic.code,
-        subjects: diagnostic.semanticSubjects.map(semanticSubjectIdentity),
-        fallback: diagnostic.semanticSubjects.length ? undefined : {
-          filePath: diagnostic.filePath,
-          line: diagnostic.range?.start.line,
-          column: diagnostic.range?.start.column,
-        },
-      });
-      const entry = bySubject.get(key) ?? {
-        sample: diagnostic,
-        severities: new Map<string, string>(),
-      };
-      entry.severities.set(adapters[index].id, diagnostic.severity);
-      bySubject.set(key, entry);
-    }
-  }
-  const findings: CompilerDiagnostic[] = [];
-  for (const [key, entry] of bySubject) {
-    const signatures = adapters.map((adapter) =>
-      entry.severities.get(adapter.id) ?? "absent"
-    );
-    if (new Set(signatures).size < 2) continue;
-    findings.push({
-      code: "COMPILER_EVALUATOR_DISAGREEMENT",
-      fingerprint: await digest(
-        `COMPILER_EVALUATOR_DISAGREEMENT:${stage}:${componentName}:${key}`,
-      ),
-      severity: "warning",
-      stage,
-      skill: "compiler-reconciliation",
-      message:
-        `Evaluators disagree on ${entry.sample.code} for ${componentName}.`,
-      filePath: entry.sample.filePath,
-      range: entry.sample.range,
-      semanticSubjects: entry.sample.semanticSubjects,
-      evidence: adapters.map((adapter, index) =>
-        `${adapter.id}: ${signatures[index]}`
-      ).join("; "),
-      impact:
-        "The critical-system evaluation does not provide independent agreement.",
-      correction:
-        "Review the cited semantic subject and reconcile evaluator evidence.",
-      evaluator: adapters.map((item) => item.id).join(","),
-      lifecycle: "new",
-    });
-  }
-  return findings;
-}
-
-async function stageFailure(
-  stage: string,
-  adapter: AgentAdapter | undefined,
-  error: unknown,
-): Promise<CompilerDiagnostic> {
-  return {
-    code: "COMPILER_EVALUATOR_INCOMPLETE",
-    fingerprint: await digest(`COMPILER_EVALUATOR_INCOMPLETE:${stage}`),
-    severity: "information",
-    stage,
-    skill: stage,
-    message: error instanceof Error ? error.message : String(error),
-    semanticSubjects: [],
-    evidence: "The required evaluator did not complete successfully.",
-    impact:
-      "This stage did not complete; a required stage prevents green, while an optional stage remains visible without changing required-stage status.",
-    correction:
-      "Configure an available read-only adapter or disable the stage in a project profile.",
-    evaluator: adapter?.id ?? "unavailable",
     lifecycle: "new",
   };
 }
@@ -1407,21 +343,6 @@ function diagnosticFingerprint(
   }));
 }
 
-async function digest(value: string): Promise<string> {
-  const bytes = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(bytes)].map((byte) =>
-    byte.toString(16).padStart(2, "0")
-  ).join("");
-}
-
-/**
- * An unresolvable selector is an invocation error. Compiling the workspace
- * instead would silently widen a run the caller got wrong.
- */
-// @sigil implements packages/compiler/src/compiler.sigil::SigilOneShotCompilation::OneShotCompilation logic,cases
 function assertResolvableScope(boundary: CompilationBoundaryResult): void {
   const blocking = boundary.diagnostics.filter((item) =>
     item.severity === "error"
@@ -1448,4 +369,387 @@ function compilationTargetFor(
     };
   }
   return { kind: "workspace" };
+}
+
+export async function validateCompilationProfile(
+  configuration: CompileConfiguration,
+  profileName: string,
+  focus: CompilationFocus,
+): Promise<void> {
+  await semanticProfile(
+    profileName,
+    configuration,
+    stageForCompilationFocus(focus),
+  );
+}
+
+/** Compile asserted semantic state with Sigil's fixed egglog kernel. */
+export async function compile(
+  workspacePath: string,
+  requestedScope: CompilationScopeSeed = { kind: "workspace" },
+  profileName: string,
+  options: CompileOptions = {},
+): Promise<CompilationReport> {
+  const cancellationSignal = options.cancellationSignal ?? options.signal;
+  const requestedStage = semanticStageAlias(
+    options.requestedStage ?? stageForCompilationFocus(options.focus),
+  );
+  const startedAt = new Date().toISOString();
+  let eventWriter: CompilationEventWriter | undefined;
+  try {
+    if (options.requestedStage && options.focus) {
+      throw new CompilerFailure(
+        "COMPILER_INVALID_INVOCATION",
+        "requestedStage and focus are mutually exclusive.",
+      );
+    }
+    cancellationSignal?.throwIfAborted();
+    await assertWorkspacePath(workspacePath);
+    const fs = new DenoReadOnlyFileSystem();
+    const workspace = await loadSigilWorkspace(fs, {
+      startPath: workspacePath,
+      currentDirectory: Deno.cwd(),
+    });
+    assertLoadedWorkspace(workspace.diagnostics);
+    const resolved = resolveSigilWorkspace(workspace);
+    const profile = await semanticProfile(
+      profileName,
+      parseCompilationConfiguration(workspace.config?.tools.compile),
+      requestedStage,
+    );
+    const boundary = selectCompilationBoundary(resolved, requestedScope, {
+      exactTarget: options.exactTarget,
+    });
+    assertResolvableScope(boundary);
+    const target = compilationTargetFor(boundary);
+    const components = resolveCompilationTarget(
+      resolved,
+      target,
+      workspace.root,
+    );
+    const opened = await openCompilationEventWriter(
+      options.eventSink ?? callbackEventSink(options.onEvent),
+      {
+        operation: "one-shot-compilation",
+        stageIdentities: profile.stages.map((s) => s.id),
+      },
+    );
+    if (opened.kind === "failure") {
+      throw new CompilerFailure(
+        "COMPILER_FAILED",
+        `Compilation event stream could not be established: ${opened.result}.`,
+      );
+    }
+    eventWriter = opened.writer;
+    const implementationSources = await loadImplementationSources(
+      fs,
+      workspace.root,
+    );
+    const resolver = createSemanticSubjectResolver(
+      resolved,
+      implementationSources,
+      workspace.root,
+    );
+    const sourceEvidenceFingerprint = await workspaceEvidenceFingerprint(
+      workspace.root,
+      workspace.files.map((f) => f.document),
+      implementationSources,
+    );
+    const sourceIntent = await projectSigilIntent(
+      resolved.components,
+      workspace.root,
+      resolved.imports,
+    );
+    const selectedIds = components.map((c) =>
+      semanticComponentId(c, workspace.root)
+    );
+    let world = sourceIntent.world;
+    let inputError: SemanticInputError | undefined;
+    let stale = false;
+    try {
+      const stored = await readSemanticState(workspace.root);
+      if (
+        stored &&
+        stored.receipt.sourceFingerprint !== sourceIntent.world.fingerprint
+      ) stale = true;
+      else if (stored) {
+        world = await worldFromFacts([...world.facts, ...stored.world.facts], {
+          ...world.provenance,
+          ...stored.world.provenance,
+        });
+      }
+      if (options.semanticDocuments?.length) {
+        const proposed = await parseSemanticWorld(options.semanticDocuments);
+        world = await worldFromFacts([...world.facts, ...proposed.facts], {
+          ...world.provenance,
+          ...proposed.provenance,
+        });
+      }
+      world = await scopeSemanticWorld(world, selectedIds);
+    } catch (error) {
+      if (!(error instanceof SemanticInputError)) throw error;
+      inputError = error;
+    }
+    const sourceFingerprint = await digest(
+      JSON.stringify([
+        sourceEvidenceFingerprint,
+        world.fingerprint,
+        stale,
+        inputError?.message,
+      ]),
+    );
+    const historyDisabled = options.disableHistory ?? options.noHistory ??
+      false;
+    const historyKey = options.history && !historyDisabled
+      ? await compilationHistoryKey(workspace.root, target, profile)
+      : undefined;
+    let previous: CompilationReport | undefined;
+    if (historyKey) {
+      try {
+        previous = await options.history!.read(historyKey);
+      } catch (error) {
+        await deliverHistoryWarning(options, {
+          code: "COMPILER_HISTORY_READ_FAILED",
+          operation: "read",
+          historyKey,
+          message: String(error),
+        });
+      }
+    }
+    const diagnostics: CompilerDiagnostic[] = [];
+    const stages: StageReport[] = [];
+    let failed = false;
+    let design: SemanticCompilation | undefined;
+    for (const stage of profile.stages) {
+      cancellationSignal?.throwIfAborted();
+      if (failed) {
+        stages.push({
+          id: stage.id,
+          required: true,
+          state: "skipped-by-dependency",
+          evaluator: "sigil-egglog@1",
+          diagnosticCount: 0,
+        });
+        continue;
+      }
+      const stageStartedAt = new Date().toISOString();
+      requireEventDelivery(await eventWriter.stageStarted(stage.id), true);
+      const current: CompilerDiagnostic[] = [];
+      if (stage.id === "deterministic-foundation") {
+        current.push(
+          ...await Promise.all(
+            resolved.diagnostics.map((d) => fromCoreDiagnostic(d, resolver)),
+          ),
+        );
+      } else if (stage.id === "semantic-closure") {
+        if (inputError) {
+          current.push(await semanticInputDiagnostic(inputError, stage.id));
+        } else {
+          if (stale) {
+            current.push(
+              await semanticInputDiagnostic(
+                new SemanticInputError(
+                  "SEMANTIC_SOURCE_CHANGED",
+                  "Saved semantic interpretations describe an older Sigil source. Interpret the current required contracts before replacing the canonical world.",
+                ),
+                stage.id,
+                "warning",
+              ),
+            );
+          }
+          design = await compileSemanticWorld(world, {
+            ...options.semanticEngine,
+            focus: "design",
+            signal: cancellationSignal,
+          });
+          current.push(
+            ...await Promise.all(
+              design.diagnostics.map((d) =>
+                fromSemanticDiagnostic(
+                  d,
+                  design!,
+                  sourceIntent.bindings,
+                  resolver,
+                  stage.id,
+                )
+              ),
+            ),
+          );
+        }
+      } else if (
+        stage.id === "implementation-coverage" && design?.status === "green"
+      ) {
+        const implementation = await compileSemanticWorld(world, {
+          ...options.semanticEngine,
+          focus: "implementation",
+          signal: cancellationSignal,
+        });
+        current.push(
+          ...await Promise.all(
+            implementation.diagnostics.map((d) =>
+              fromSemanticDiagnostic(
+                d,
+                implementation,
+                sourceIntent.bindings,
+                resolver,
+                stage.id,
+              )
+            ),
+          ),
+        );
+      }
+      for (const raw of current) {
+        const diagnostic = currentLifecycle(raw, previous);
+        diagnostics.push(diagnostic);
+        requireEventDelivery(await eventWriter.diagnostic(diagnostic), true);
+      }
+      failed = current.some((d) => d.severity === "error");
+      const report: StageReport = {
+        id: stage.id,
+        required: true,
+        state: "completed",
+        evaluator: stage.id === "deterministic-foundation"
+          ? "sigil-core"
+          : "sigil-egglog@1",
+        diagnosticCount: current.length,
+        startedAt: stageStartedAt,
+        completedAt: new Date().toISOString(),
+      };
+      stages.push(report);
+      requireEventDelivery(await eventWriter.stageCompleted(report), true);
+    }
+    const report = constructCompilationReport({
+      runId: opened.runId,
+      workspaceRoot: workspace.root,
+      target,
+      requestedScope: boundary.requestedScope,
+      selection: boundary.selection,
+      componentNames: components.map((c) => c.name),
+      startedAt,
+      completedAt: new Date().toISOString(),
+      sourceFingerprint,
+      requestedStage,
+      focus: options.focus,
+      profile,
+      stages,
+      diagnostics,
+      previous,
+    });
+    cancellationSignal?.throwIfAborted();
+    const destination = options.reportExport ?? options.output;
+    if (destination) {
+      await exportCompilationReport(
+        report,
+        destination,
+        options.reportExportRepresentation ?? "json",
+        workspace.root,
+      );
+    }
+    requireEventDelivery(await eventWriter.completed(report));
+    if (historyKey) {
+      try {
+        await options.history!.write(historyKey, report);
+      } catch (error) {
+        await deliverHistoryWarning(options, {
+          code: "COMPILER_HISTORY_WRITE_FAILED",
+          operation: "write",
+          historyKey,
+          message: String(error),
+        });
+      }
+    }
+    return report;
+  } catch (error) {
+    const code = stableCompilerFailureCode(error);
+    if (eventWriter) {
+      const message = error instanceof Error ? error.message : String(error);
+      const delivery = code === "COMPILER_CANCELLED"
+        ? await eventWriter.cancelled(message)
+        : await eventWriter.failed(code, message);
+      if (delivery !== "delivered") {
+        throw new CompilerFailure(
+          "COMPILER_FAILED",
+          `Required terminal compilation event was not delivered: ${delivery}.`,
+          { cause: error },
+        );
+      }
+    }
+    throw error;
+  }
+}
+
+async function semanticInputDiagnostic(
+  error: SemanticInputError,
+  stage: string,
+  severity: "error" | "warning" = "error",
+): Promise<CompilerDiagnostic> {
+  return {
+    code: error.code,
+    fingerprint: await digest(JSON.stringify([error.code, stage])),
+    severity,
+    stage,
+    skill: "sigil-semantic-kernel@1",
+    message: error.message,
+    semanticSubjects: [],
+    evidence: error.message,
+    impact: "The semantic state cannot establish all required contracts.",
+    correction:
+      "Repair the referenced semantic input or update its source interpretation.",
+    evaluator: "sigil-egglog@1",
+    lifecycle: "new",
+  };
+}
+
+async function fromSemanticDiagnostic(
+  item: SemanticDiagnostic,
+  compilation: SemanticCompilation,
+  bindings: Readonly<Record<string, SemanticSourceBinding>>,
+  resolver: SemanticSubjectResolver,
+  stage: string,
+): Promise<CompilerDiagnostic> {
+  const premiseIds = new Set(
+    item.derivation.flatMap((row) => row.slice(2).map(String)),
+  );
+  const facts = compilation.world.facts.filter((fact) =>
+    premiseIds.has(fact.id)
+  );
+  const binding = bindings[item.subject] ??
+    facts.map((fact) => bindings[fact.subject.value]).find(Boolean);
+  const subjects = binding
+    ? await resolver.resolve(
+      binding.filePath,
+      binding.range,
+      binding.componentName,
+    )
+    : [];
+  const message = item.code === "unresolved-obligation" && binding?.unit &&
+      item.witness.startsWith("interpret|")
+    ? `${binding.componentName} ${binding.section}${
+      binding.concept ? " (" + binding.concept + ")" : ""
+    } needs a semantic interpretation: ${binding.unit.prose}`
+    : item.message;
+  return {
+    code: item.code,
+    fingerprint: await digest(JSON.stringify([stage, item.code, item.witness])),
+    severity: item.severity,
+    stage,
+    skill: "sigil-semantic-kernel@1",
+    message,
+    filePath: binding?.filePath,
+    range: binding?.range,
+    semanticSubjects: subjects,
+    evidence: JSON.stringify({
+      witness: item.witness,
+      derivation: item.derivation,
+      facts,
+      sources: facts.map((f) => compilation.world.provenance[f.id] ?? []),
+    }),
+    impact: item.severity === "error"
+      ? "A hard semantic invariant is violated."
+      : "A required semantic proposition or implementation observation remains unresolved.",
+    correction:
+      "Resolve the referenced proposition or provide mechanically established implementation evidence.",
+    evaluator: "sigil-egglog@1",
+    lifecycle: "new",
+  };
 }

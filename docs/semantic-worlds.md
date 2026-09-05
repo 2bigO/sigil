@@ -10,8 +10,8 @@ expansions, public concept identities, imports, and dependency boundaries.
 comments to actual declarations and contract sections. These are reusable
 structural observations, not proofs of the prose they reference.
 
-The compiler currently resolves a workspace and covering boundary, executes a
-structural stage, and calls `AgentAdapter.evaluate` for semantic readiness,
+Before migration, the compiler resolved a workspace and covering boundary, executes a
+structural stage, and called `AgentAdapter.evaluate` for semantic readiness,
 architecture, standards, and compatibility. Agent findings determine the report
 color. Reports, history, cancellation, export, and event settlement are useful
 host infrastructure; the evaluator pipeline and judge prompts must be replaced.
@@ -178,3 +178,20 @@ coverage obligations. They omit unrelated components and RDF syntax.
 Twenty-three tests now cover these projection and source-binding properties in
 addition to the kernel and search behavior. Persisting paired artifacts and
 connecting the source bridge to ordinary compilation remain integration work.
+
+## Ordinary compiler migration
+
+The default compile API and CLI now execute structural validation, semantic
+closure, and implementation coverage without invoking an evaluator. Existing
+target selection, events, reports, exports, source subjects, and diagnostic history
+remain in use. Old stage names resolve to the deterministic stage dependency
+closures. Legacy provider configuration is tolerated but contributes no verdict.
+
+A source prose unit becomes a required contract with a stable content identity.
+This deliberately leaves arbitrary prose yellow until a proposal supplies its
+structured meaning. Current source requirements are always retained when loading
+Turtle. Canonical assertions use a content-addressed Turtle snapshot and an atomic
+receipt bound to the source intent fingerprint; source edits invalidate old
+interpretations. Every compile runs closure again. Component/source locations stay
+in sidecars. Implementation observations are a trusted host boundary; automatic
+collectors and the user-facing intent workflow remain subsequent work.

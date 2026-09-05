@@ -1,0 +1,66 @@
+component SigilSemanticKernel {
+  goal {
+    Compute consequences of asserted Sigil facts with a stable egglog kernel.
+  }
+  interface {
+    SemanticCompilation {
+      Parse ordinary Turtle using N3, normalize RDF terms, validate the versioned
+      ontology, lower typed fixed tables, and execute real egglog to closure.
+      Return deterministic red, yellow, or green with derivation witnesses.
+    }
+  }
+}
+
+expand SigilSemanticKernel {
+  constraints {
+    SemanticAuthority {
+      Turtle stores assertions. Egglog owns inference, numerical computation,
+      invariants, and obligations. Unknown vocabulary, generated laws, named graphs,
+      and RDF triple terms are rejected. Source metadata remains outside ontology.
+      Derived consequences are never silently copied into asserted state.
+
+      Implementation observation and completeness tables are populated by trusted
+      host collectors. Model-proposed Evidence entities cannot establish coverage.
+      Negative obligations require a complete observation scope.
+    }
+  }
+  cases {
+    SemanticCompilation {
+      Closure derives delegated capabilities, dependency reachability, exclusive
+      ownership conflicts, required contracts, minimum path cost, maximum reachable
+      risk, and implementation coverage. Missing required information is yellow.
+      Contradictions and hard violations are red. Engine failure rejects.
+    }
+  }
+}
+
+component SigilSemanticState {
+  goal {
+    Persist asserted semantic worlds without treating cached results as proof.
+  }
+  interface {
+    SemanticState {
+      Store canonical Turtle by content fingerprint and atomically replace a receipt
+      containing the world fingerprint, source fingerprint, and component bindings.
+      Writes compare the expected previous fingerprint under a workspace lock.
+      Reads parse Turtle again and verify its fingerprint.
+    }
+  }
+}
+
+component SigilSemanticProfile {
+  goal {
+    Select deterministic stage dependency closures and validated execution budgets.
+  }
+  interface {
+    SemanticProfile {
+      standard and critical-system run deterministic-foundation, semantic-closure,
+      and implementation-coverage. Custom profiles may extend either base.
+      Selected required laws cannot be disabled. No evaluator binding is required.
+
+      Legacy semantic-readiness, architecture-design, and standards-risk stage names
+      alias semantic-closure. current-code-compatibility aliases implementation-coverage.
+      The effective-profile fingerprint includes the semantic kernel version.
+    }
+  }
+}

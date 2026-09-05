@@ -227,6 +227,13 @@ export interface CompilationEvent {
 export type CompilationReportRepresentation = "json" | "markdown";
 
 export interface CompileOptions {
+  /** Additional asserted Turtle interpretations, never evaluator judgments. */
+  readonly semanticDocuments?:
+    readonly import("./semantic/turtle.ts").TurtleDocument[];
+  readonly semanticEngine?: Omit<
+    import("./semantic/engine.ts").SemanticEngineOptions,
+    "signal" | "focus"
+  >;
   /** Preserve the selector as the final target and skip boundary inference. */
   readonly exactTarget?: boolean;
   readonly requestedStage?: string;

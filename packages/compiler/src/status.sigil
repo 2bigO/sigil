@@ -6,7 +6,7 @@ component SigilCompilationStatus {
 
   interface {
     CompilationStatus {
-      derive(diagnostics, requiredEvaluatorOutcomes) returns red, yellow, or green
+      derive(diagnostics, requiredStageOutcomes) returns red, yellow, or green
     }
   }
 }
@@ -15,14 +15,12 @@ expand SigilCompilationStatus {
   logic {
     CompilationStatus {
       Produce red for any error or incomplete, unavailable, failed, or invalid-output
-      required evaluator.
+      required stage.
 
       Produce yellow when no error exists and at least one warning exists.
 
-      Produce a compiler-owned warning for material required-evaluator disagreement.
-
-      Produce green only when every required evaluator completes and no error,
-      warning, or material disagreement remains.
+      Produce green only when every required stage completes and no error,
+      warning, or unresolved required proposition remains.
     }
   }
 

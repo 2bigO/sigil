@@ -57,6 +57,8 @@ export const AGENTIC_STAGE_IDS = [
 
 export const COMPILATION_STAGE_IDS = [
   "deterministic-foundation",
+  "semantic-closure",
+  "implementation-coverage",
   ...AGENTIC_STAGE_IDS,
 ] as const;
 

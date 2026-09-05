@@ -11,7 +11,7 @@
 component SigilCli {
   goal {
     Expose deterministic Sigil language and workspace operations plus
-    profile-scoped agentic compilation to agents, CI, scripts, debugging, and
+    deterministic semantic compilation to agents, CI, scripts, debugging, and
     review workflows through a non-interactive command line.
 
     Keep deterministic workspace commands thin over SigilCore, keep compilation
@@ -615,17 +615,12 @@ expand SigilCli {
     }
 
     CompilationFacade {
-      compile is a thin agentic façade and is excluded from the deterministic
-      workspace-inspection guarantee.
+      compile is a thin deterministic facade over SigilCompiler.
 
       compile does not modify selected workspace content.
 
-      The CLI distribution bundles and registers SigilOpenCodeCompilerAdapter and
-      SigilPiCompilerAdapter while each adapter remains an independently versioned
-      package.
-
-      Each configured model of one provider registers under its own evaluator
-      identity so separately configured models participate as distinct evaluators.
+      Compilation requires no model provider. Existing evaluator configuration is
+      tolerated for compatibility and does not select semantic authority.
 
       --output delegates format-selected compilation export to SigilCompiler,
       requires a destination outside the selected workspace, and does not emit or
@@ -647,9 +642,6 @@ expand SigilCli {
       supersedes the pending compiler outcome with COMPILER_FAILED, returns no
       report, and exits with code 3.
 
-      COMPILER_PROFILE_EVALUATORS_REQUIRED from a selected critical-system run is
-      emitted through a failed terminal event and exits with code 3.
-
       A compilation cancelled after invocation begins exits with code 130.
 
       An exact known stage identifier is a reserved first compile operand; a
@@ -661,7 +653,7 @@ expand SigilCli {
       Omitting --focus and a positional stage preserves complete selected-profile
       compilation.
 
-      --profile continues to select evaluators, budgets, capabilities, and profile
+      --profile selects validated budgets and deterministic stage
       configuration while --focus selects a stage closure within that profile.
 
       --profile is optional only at the CLI boundary. SigilCompiler receives one
@@ -928,49 +920,11 @@ expand SigilCli {
       runtime and report contract.
     }
 
-    BundledOpenCodeCompilerAdapter {
-      Decision: Bundle and register the separately packaged OpenCode compiler adapter
-      in the Sigil CLI distribution.
 
-      Scope: Governs CLI-hosted compiler runs and release assembly; excludes direct
-      compiler consumers and third-party adapter registration.
 
-      Trade-offs: The CLI release coordinates one additional package version while
-      the compiler avoids a provider-specific dependency cycle.
 
-      Consequences: CLI runs resolve builtin.opencode-cli by exact version, while
-      direct compiler consumers register adapters explicitly.
-    }
 
-    BundledPiCompilerAdapter {
-      Decision: Bundle and register the separately packaged Pi compiler adapter in
-      the Sigil CLI distribution.
 
-      Scope: Governs CLI-hosted compiler runs and release assembly; excludes direct
-      compiler consumers and third-party adapter registration.
-
-      Trade-offs: The CLI release coordinates one additional package version while
-      the compiler avoids a provider-specific dependency cycle.
-
-      Consequences: CLI runs resolve builtin.pi-cli by exact version, while direct
-      compiler consumers register adapters explicitly. The compiler does not own a
-      colliding Pi stub registration for the same identity.
-    }
-
-    BundledClaudeCompilerAdapter {
-      Decision: Bundle and register the separately packaged Claude compiler adapter
-      in the Sigil CLI distribution.
-
-      Scope: Governs CLI-hosted compiler runs and release assembly; excludes direct
-      compiler consumers and third-party adapter registration.
-
-      Trade-offs: The CLI release coordinates one additional package version while
-      the compiler avoids a provider-specific dependency cycle.
-
-      Consequences: CLI runs resolve builtin.claude-cli by exact version, while
-      direct compiler consumers register adapters explicitly. The compiler does not
-      own a colliding Claude stub registration for the same identity.
-    }
 
     StageOperandDisambiguation {
       Decision: Interpret an exact known stage identifier as the first compile
@@ -1218,11 +1172,10 @@ expand SigilCli {
 
       Running sigil compile ./semantic-readiness treats the operand as a path.
 
-      Running sigil compile with --focus design requests architecture-design and
-      excludes current-code-compatibility.
+      Running sigil compile with --focus design requests semantic-closure.
 
       Running sigil compile with --focus implementation requests
-      current-code-compatibility and its complete dependency closure.
+      implementation-coverage and its complete dependency closure.
 
       Combining --focus with a positional stage or supplying an unknown focus exits
       with invalid usage.

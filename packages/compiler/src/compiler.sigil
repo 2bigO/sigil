@@ -1,7 +1,6 @@
-@packages/core import { SigilCore, SigilContextRetrieval }
+@packages/core import { SigilCore }
 @packages/compiler/src/compilation-target.sigil import { SigilCompilationTarget }
-@packages/compiler/src/profile.sigil import { SigilCompilationProfile }
-@packages/compiler/src/evaluation.sigil import { SigilCompilationEvaluation }
+@packages/compiler/src/semantic/_module.sigil import { SigilSemanticKernel, SigilSemanticState, SigilSemanticProfile }
 @packages/compiler/src/event-writer.sigil import { SigilCompilationEventWriter }
 @packages/compiler/src/report-protocol.sigil import { SigilCompilationReportProtocol }
 @packages/compiler/src/history-store.sigil import { SigilCompilationHistoryStore }
@@ -9,342 +8,103 @@
 
 component SigilOneShotCompilation {
   goal {
-    Own one-shot compilation invocation, option validation, workspace acquisition,
-    target and profile resolution, evaluation dispatch, report construction,
-    export, terminal settlement, and optional history coordination.
+    Compile the selected current Sigil contracts and asserted semantic state with
+    deterministic structural validation and Sigil's fixed egglog laws. Coordinate
+    target resolution, event settlement, report construction, export, and history.
   }
 
   interface {
     OneShotCompilation {
-      compile(workspacePath, CompilationTarget, profileName, CompilationOptions?)
-      streams CompilationEvent and returns CompilationReport only after successful
-      completed-event settlement once the event writer is bound
+      compile(workspacePath, target, profileName, options?) returns the authoritative
+      CompilationReport after completed-event delivery.
 
-      cancellation rejects with COMPILER_CANCELLED; an unknown or conflicting target,
-      profile, stage, or focus rejects with COMPILER_INVALID_INVOCATION; unavailable
-      required evaluators reject with COMPILER_PROFILE_EVALUATORS_REQUIRED; host or
-      protocol failure rejects with COMPILER_FAILED
-
-      an invalid, missing, or unconfigured workspacePath rejects with
-      COMPILER_INVALID_INVOCATION before event-writer binding. An inaccessible path
-      or workspace that SigilCore cannot load cleanly rejects with COMPILER_FAILED
-      before event-writer binding.
-
-      every rejection after event-writer binding returns no CompilationReport and
-      emits its corresponding terminal event whenever a compatible
-      CompilationEventWriter remains open; pre-binding invocation rejection returns
-      no report without an event
-
-      failure writing any required terminal event supersedes the pending outcome with
-      COMPILER_FAILED and returns no CompilationReport
+      Invalid target, workspace path, profile, stage, or conflicting focus options
+      reject before event binding. Operational failure returns no semantic report.
+      Every post-binding rejection emits its terminal event when transport permits.
+      Required terminal delivery failure rejects with COMPILER_FAILED.
     }
 
     CompilationOptions {
-      requestedStage optionally selects one exact stage and its dependency closure;
-      focus optionally maps design to architecture-design or implementation to
-      current-code-compatibility and its dependency closure
+      requestedStage selects an exact stage and its dependency closure. focus design
+      selects semantic-closure; focus implementation selects implementation-coverage.
+      The options are mutually exclusive. Omitting both runs the complete profile.
 
-      requestedStage and focus are mutually exclusive; omitting both executes the
-      complete selected profile; an unknown or conflicting selection rejects with
-      COMPILER_INVALID_INVOCATION
+      semanticDocuments supplies ordinary Turtle assertions that augment current
+      source contracts. semanticEngine selects the native executable, operational
+      timeout, and host-owned implementation observations.
 
-      disableHistory defaults to false and, when true, disables both
-      CompilationHistoryStore lookup and replacement
-
-      cancellationSignal is optional; reportExport optionally requests
-      CompilationReportExport
-
-      eventSink is an optional caller-owned WritableEnvelopeSink used only for this
-      invocation; omission binds an internal always-delivered discard sink so method
-      settlement still uses the same event protocol without exposing progress
-
-      hostWarningSink is an optional callback receiving each non-authoritative
-      CompilationHistoryWarning; when omitted or when the callback throws or rejects,
-      compilation settlement remains unchanged
+      disableHistory disables history reads and writes. cancellationSignal cancels
+      before success linearization. reportExport requests atomic report export.
+      eventSink and hostWarningSink are optional caller-owned delivery capabilities.
     }
   }
 }
 
 expand SigilOneShotCompilation {
   logic {
-    CompilationInvocation {
-      Unless history is disabled, ask SigilCompilationHistoryStore for its
-      CompilationHistoryLookupResult and supply optional prior evidence to
-      SigilCompilationReportProtocol without treating it as authority. Forward its
-      optional CompilationHistoryWarning to hostWarningSink when configured; ignore
-      callback failure because warning delivery is non-authoritative.
+    OneShotCompilation {
+      Delegate workspace loading and resolution to SigilCore, target selection to
+      SigilCompilationTarget, and stage resolution to SigilSemanticProfile.
+      Each source prose unit becomes a required semantic contract with its physical
+      source location kept in a sidecar. Prose is unresolved until interpreted.
 
-      Observe cancellation through evaluation and report construction. Immediately
-      before requested export begins, or immediately before completed-event
-      settlement when export is absent, cross one success linearization point after
-      which cancellation no longer changes this invocation's outcome.
+      Read canonical assertions through SigilSemanticState. Reuse them only when the
+      receipt matches the current source intent fingerprint. Otherwise report stale
+      interpretation and retain current source requirements. Union valid explicit
+      assertions with protected source contracts, then select the dependency scope.
 
-      When export is requested, delegate destination validation and atomic writing to
-      SigilCompilationReportExporter after the authoritative CompilationReport is
-      constructed and before completed settlement. Export rejection returns no report
-      and emits a failed terminal event when transport remains writable.
+      Execute structural validation before semantic closure. Hard errors skip
+      dependent stages. SigilSemanticKernel derives deterministic diagnostics and
+      premise witnesses. Implementation coverage requires a green design and
+      mechanically established observations. No model evaluator is invoked.
 
-      Cancellation observed before that point rejects with COMPILER_CANCELLED and
-      performs no export. Cancellation observed after export begins is ignored for
-      settlement: successful export completes, while export failure rejects with
-      COMPILER_FAILED. A completed export never coexists with COMPILER_CANCELLED.
+      Preserve source subjects, diagnostic lifecycle, profile, target, and snapshot
+      identity in SigilCompilationReportProtocol. History is optional prior evidence
+      and cannot establish current semantic truth.
     }
 
-    OneShotCompilation {
-      Validate CompilationOptions, then acquire the selected configured workspace
-      through SigilCore read-only semantics before asking SigilCompilationTarget to
-      resolve the target against that exact loaded workspace. Resolve the profile,
-      evaluator availability, and target before event-writer binding.
+    CompilationInvocation {
+      Observe cancellation until immediately before export begins, or immediately
+      before completed-event delivery when export is absent. After this success
+      linearization point, cancellation cannot change settlement. Export failure
+      rejects and emits failed. Export success proceeds to completed delivery.
 
-      Delegate profile, requested-stage, focus mapping, dependency closure, evaluator
-      availability, budgets, and capabilities to SigilCompilationProfile.
-
-      Bind eventSink or the internal discard sink to one per-invocation
-      CompilationEventWriter and pass that writer to SigilCompilationEvaluation.
-      Never share a writer or sink binding across invocations.
-
-      Dispatch the resolved workspace, target, stages, capabilities, and optional
-      prior report to SigilCompilationEvaluation. Never construct a writable selected
-      workspace capability.
-
-      Supply SigilCompilationEvaluation with the resolved workspace and complete
-      glossary and implementation-discovery evidence required by
-      SigilContextRetrieval. Do not assemble graph or context evidence here.
-
-      Delegate diagnostic identity, lifecycle comparison, trace schema, and
-      authoritative report construction to SigilCompilationReportProtocol using the
-      internal CompilationEvaluationResult and optional prior evidence.
-
-      After report construction, cross the CompilationInvocation cancellation
-      boundary and delegate requested export to SigilCompilationReportExporter.
-
-      Delegate the required completed terminal event to SigilCompilationEventWriter.
-      Terminal transport failure rejects with COMPILER_FAILED, returns no report, and
-      performs no history replacement.
-
-      After completed is delivered and before returning, when history is enabled, ask
-      SigilCompilationHistoryStore to replace history. Forward a returned
-      CompilationHistoryWarning to hostWarningSink when configured. Replacement or
-      warning-callback failure does not change the already completed settlement or
-      returned report. When history is disabled, perform neither history operation.
-      Preserve other dependency-owned failure codes without reconstructing dependency
-      policy.
+      Delegate event delivery to SigilCompilationEventWriter, history access to
+      SigilCompilationHistoryStore, and requested export to
+      SigilCompilationReportExporter. Replace history only after completed delivery. History read, write, and
+      host-warning delivery failures are non-authoritative. Terminal delivery
+      failure returns no report and performs no history replacement.
     }
   }
 
   constraints {
-    DependencyDirection {
-      SigilOneShotCompilation depends on SigilCore for deterministic workspace
-      semantics and on SigilCompilationTarget for target resolution.
-
-      SigilCompilationEvaluation depends on SigilContextRetrieval for authoritative
-      purpose evidence; one-shot orchestration does not duplicate retrieval policy.
-
-      SigilCore does not depend on compiler evaluation, skills, adapters, CLI
-      behavior, or editor behavior.
-    }
-
     ReadOnlyCompilation {
-      Protected source-workspace content, including Sigil source, implementation
-      source, configuration, tests, documentation, and selected repository evidence,
-      remains read-only during compilation.
-
-      Compiler-owned compilation may write only its explicitly owned event, report,
-      history, and requested-export state.
-
-      Evaluators receive the selected workspace as read-only evidence.
-
-      An externally supplied CLI adapter or provider is user-selected and
-      self-declared. The compiler requests its declared restrictions but cannot
-      verify or guarantee that its process, tools, plugins, or provider preserve the
-      read-only boundary.
-
-      Compilation does not generate code, execute implementation experiments, or
-      claim general proof of implementation feasibility. Context-only stages may cite
-      concrete repository evidence demonstrating a constraint on the proposed design.
-    }
-  }
-
-  decisions {
-    EventSettlementBoundary {
-      Decision: Guarantee terminal event delivery only after an invocation has bound
-      a compatible event writer; pre-binding validation failures return their stable
-      error without an event.
-
-      Scope: Governs one-shot invocation rejection and terminal event settlement;
-      excludes event-writer construction failure and reusable compilation sessions.
-
-      Trade-offs: Callers must distinguish pre-binding rejection from rejection after
-      event transport is established.
-
-      Design issues addressed: The compiler module contract must not promise an event
-      for validation failures that occur before a writer exists.
-
-      Consequences: Event-driven hosts receive deterministic terminal settlement for
-      every rejection covered by an established writer without requiring impossible
-      pre-writer delivery.
+      Compilation reads selected source and canonical semantic state. Only event,
+      report, history, and explicit export state may be written. Intent generation,
+      canonical-state acceptance, and code candidate execution have separate APIs.
     }
 
-    InvalidCompilationInvocation {
-      Decision: Reject an unknown or conflicting target, profile, stage, focus, or
-      invalid, missing, or unconfigured workspacePath through one stable
-      COMPILER_INVALID_INVOCATION caller error.
-
-      Scope: Governs one-shot invocation validation; excludes inaccessible or invalid
-      workspace loading, evaluator availability, cancellation, and host or protocol
-      failure.
-
-      Trade-offs: One code covers several caller-correctable input categories.
-
-      Consequences: Hosts receive one predictable no-report failure contract without
-      multiplying public error identities.
-    }
-
-    ReadOnlyCompilation {
-      Decision: Keep compiler-owned compilation processing read-only, exclude general
-      feasibility proof, code generation, and implementation experiments, and permit
-      repository-demonstrated feasibility constraints as design evidence while
-      treating external adapter restrictions as unverified declarations.
-
-      Scope: Governs compiler-owned behavior at every compilation stage and the
-      restrictions requested from adapters; it does not guarantee external adapter or
-      provider behavior.
-
-      Trade-offs: The compiler cannot empirically validate whether a proposed
-      contract can be implemented, but may report a concrete constraint already
-      demonstrated by accessible repository evidence.
-
-      Consequences: Compilation evaluates contracts and repository evidence while
-      implementation validation remains a downstream team responsibility;
-      context-only evidence never becomes a general feasibility attestation, and a
-      user accepts external adapter risk by selecting its exact binding.
-    }
-
-    WorkspaceBeforeTargetResolution {
-      Decision: Acquire and deterministically load the selected configured workspace
-      before resolving any component, file, location, or workspace target.
-
-      Scope: Governs one-shot invocation preparation.
-
-      Trade-offs: Invalid target selectors are rejected only after workspace loading
-      succeeds.
-
-      Design issues addressed: Target containment, declaration identity, and source
-      position cannot be resolved before the configured workspace and loaded source
-      selection exist.
-
-      Discarded alternatives: Resolving targets directly from the raw workspace path
-      was rejected as contradictory and duplicative of SigilCore semantics.
-
-      Consequences: Every target is resolved against one exact loaded workspace
-      snapshot.
-    }
-
-    CompilationCancellationBoundary {
-      Decision: Linearize successful compilation immediately before optional export,
-      or immediately before completed-event settlement when export is absent.
-
-      Scope: Governs cancellation races with evaluation, report construction,
-      explicit export, and completed settlement.
-
-      Trade-offs: Cancellation arriving after export begins cannot stop that export
-      or replace its eventual success or failure.
-
-      Design issues addressed: One invocation must not expose a completed export and
-      COMPILER_CANCELLED for the same run.
-
-      Discarded alternatives: Allowing cancellation throughout atomic replacement was
-      rejected because destination state and method settlement could diverge.
-
-      Consequences: Pre-linearization cancellation performs no export;
-      post-linearization cancellation leaves export and completion deterministic.
-    }
-
-    OneShotCompilationOrchestration {
-      Decision: Coordinate one-shot compilation through a single ordered component
-      while delegating semantic, target, protocol, report, export, and storage policy
-      to their owners.
-
-      Scope: Governs invocation validation, workspace access, evaluation dispatch,
-      report construction, optional history and export, and terminal settlement;
-      excludes reusable compilation sessions.
-
-      Trade-offs: One component owns an explicit sequence across several cohesive
-      collaborators.
-
-      Design issues addressed: Hosts need one authoritative invocation owner without
-      moving operational policy into the compiler module index.
-
-      Discarded alternatives: CLI-owned orchestration and implicit coordination
-      spread across dependencies were rejected.
-
-      Consequences: Every host invokes the same sequence while dependency policy
-      remains independently changeable.
-    }
-
-    PostTerminalHistoryReplacement {
-      Decision: Replace optional compilation history only after the completed
-      terminal event is delivered and before the invocation returns.
-
-      Scope: Governs one-shot history replacement ordering; excludes history storage
-      policy and reusable compilation sessions.
-
-      Trade-offs: Process exit after terminal delivery can leave optional history
-      stale even though the caller received the authoritative report.
-
-      Design issues addressed: A failed or undeliverable invocation must not become
-      prior evidence for a later compilation.
-
-      Discarded alternatives: Pre-terminal history replacement and compensating
-      rollback were rejected because terminal delivery can still fail and rollback
-      adds another fallible state transition.
-
-      Consequences: Completed delivery is the success linearization for history;
-      history-write and warning-callback failure do not change the returned report.
+    SemanticAuthority {
+      An LLM may propose Turtle assertions but cannot supply compiler findings,
+      laws, quality scores, or trusted implementation observations. Native failure
+      cannot produce a green report. Persisted state contains assertions, not proof.
     }
   }
 
   cases {
     CompilationInvocation {
-      Cancellation during evaluation or report construction returns
-      COMPILER_CANCELLED and performs no export.
-
-      Cancellation after export begins does not alter settlement. Successful export
-      completes; failed export rejects with COMPILER_FAILED; neither returns
-      COMPILER_CANCELLED.
-
-      A hostWarningSink callback that throws or rejects does not change compilation
-      status, terminal events, returned report, or another warning delivery.
+      Cancellation before success linearization prevents export and history
+      replacement. History failure after completed delivery leaves the report intact.
     }
 
     OneShotCompilation {
-      Omitting requestedStage and focus evaluates the complete selected profile.
-      Selecting design evaluates architecture-design and its dependency closure;
-      selecting implementation evaluates current-code-compatibility and its
-      dependency closure.
+      Uninterpreted prose is yellow. Violated invariants are red. A design with no
+      unresolved required obligations is green. The same design in implementation
+      focus is yellow until its derived coverage obligations are established.
 
-      Supplying both requestedStage and focus rejects with
-      COMPILER_INVALID_INVOCATION before workspace access or evaluation.
-
-      A syntactically valid target is resolved only after the configured workspace is
-      loaded; target resolution uses that workspace's selected sources.
-
-      Unavailable required evaluators reject with
-      COMPILER_PROFILE_EVALUATORS_REQUIRED before event-writer binding, return no
-      report, and emit no event.
-
-      disableHistory performs no history read or replacement. Successful one-shot
-      evaluation returns an internal result, constructs one authoritative report,
-      performs requested export, emits the same report in completed, attempts
-      non-authoritative history replacement, and returns it.
-
-      Cancellation before linearization, evaluation rejection, report-construction
-      rejection, or export rejection performs no history replacement. History-write
-      failure after completed delivery warns but does not change the returned report.
-
-      Failure writing the completed terminal event rejects with COMPILER_FAILED and
-      returns no report even when report construction and export succeeded; history
-      replacement is not attempted.
+      Source edits invalidate saved interpretation. Formatting-only prose wrapping
+      retains semantic contract identities. Legacy evaluator configuration is not
+      required for standard or critical-system compilation.
     }
   }
 }
