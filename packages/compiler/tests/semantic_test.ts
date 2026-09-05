@@ -157,3 +157,17 @@ Deno.test("operational failures cannot produce a green semantic report", async (
     "Cannot start",
   );
 });
+
+Deno.test("anonymous RDF entities keep document identity after repeated parses and persistence", async () => {
+  const turtle =
+    `:A s:owns [ a s:State; s:required true ] . _:named a s:Capability .`;
+  const first = await world(turtle);
+  assertEquals((await world(turtle)).fingerprint, first.fingerprint);
+  const restored = await parseSemanticWorld([{
+    sourceId: "saved-world",
+    turtle: serializeSemanticWorld(first),
+  }]);
+  assertEquals(restored.fingerprint, first.fingerprint);
+  assertEquals((await compileSemanticWorld(restored)).status, "green");
+  await assertRejects(() => world(`:A s:cost 1.0e308 .`), SemanticInputError);
+});

@@ -65,7 +65,12 @@ export function resourceId(term: RdfTerm): string {
 function convertTerm(term: Term, scope: string): RdfTerm {
   if (term.termType === "NamedNode") return { kind: "iri", value: term.value };
   if (term.termType === "BlankNode") {
-    return { kind: "blank", value: `${scope}_${term.value}` };
+    // RDF 1.1 skolemization gives anonymous entities stable identities across
+    // Turtle persistence without importing a dataset/reification language.
+    return {
+      kind: "iri",
+      value: `urn:sigil:node:${scope}:${encodeURIComponent(term.value)}`,
+    };
   }
   if (term.termType === "Literal") {
     return {
@@ -144,6 +149,7 @@ function validate(
     const value = Number(lexical);
     if (
       valid && Number.isFinite(value) && value >= 0 &&
+      value <= Number.MAX_SAFE_INTEGER &&
       (name !== "risk" || value <= 1)
     ) {
       if (object.datatype === XSD + "integer" && !Number.isSafeInteger(value)) {
@@ -182,12 +188,20 @@ export async function parseSemanticWorld(
       );
     }
     const scope = (await digest(document.sourceId)).slice(0, 24);
+    let anonymous = 0;
     let quads;
     try {
       quads = new Parser({
         format: "text/turtle",
         baseIRI: "urn:sigil:world:",
         blankNodePrefix: "",
+        factory: {
+          ...DataFactory,
+          blankNode: (name?: string) =>
+            DataFactory.blankNode(
+              name === undefined ? `anonymous_${anonymous++}` : `named_${name}`,
+            ),
+        },
       }).parse(document.turtle);
     } catch (error) {
       throw new SemanticInputError(
