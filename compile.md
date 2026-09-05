@@ -430,6 +430,44 @@ Evidence requirements belong to Sigil's stable kernel and host verifier policy. 
 * Agent-added tests and suggested commands remain proposals. They cannot replace the protected oracle or lower an obligation's evidence requirements. Record changes to protected test/policy inputs and withhold affected certification.
 * Negative or universal obligations require an independently established complete scope for the exact subject, relation and target, including relevant transitive behavior when the obligation requires it. Missing receipts or absent matches do not prove absence. Dynamic dispatch, opaque effects and unmodeled dependencies keep that scope open.
 
+### From receipt locations to checkable witnesses
+
+A receipt proposes a witness for a particular obligation. The compiler defines what would establish that obligation before inspecting any receipts.
+
+| Obligation | Evidence required by a fixed Sigil rule |
+|---|---|
+| A statically invokes B | A native-resolved direct call between symbols belonging to A and B |
+| A depends on B | A resolved dependency matching the obligation's dependency semantics |
+| A never accesses a forbidden API | Complete relevant effect analysis with no prohibited access |
+| A passes designated case T | Independent execution of the designated host check |
+| A correctly implements a parser | An executable specification or another explicitly supported stronger analysis; an AST location is insufficient |
+
+For Receipt17 pointing to `diagnostics.ts::compile`, first resolve the actual symbol in the returned snapshot and check its ownership and handoff binding. Resolving a location establishes where the claim points, not that the claim is true. Agent-proposed ownership mappings are not automatically authoritative bindings.
+
+TypeScript 7 and other host tools then emit primitive observations. For example, these illustrative rows all belong to one independently identified code snapshot:
+
+```text
+obligation(O72, A, invokes, B)             // from the retained handoff
+receipt(R17, O72)                         // untrusted submitted claim
+located(R17, CallerSymbol)                // independently resolved location
+ownedSymbol(A, CallerSymbol)              // validated governing binding
+ownedSymbol(B, CalleeSymbol)              // validated governing binding
+directCall(CallerSymbol, CalleeSymbol, CallSite42) // native observation
+```
+
+A fixed egglog rule joins the exact obligation, receipt, resolved location, symbol bindings and call observation to derive:
+
+```text
+supportedReceipt(R17, O72, CallSite42)
+covered(O72, CallSite42)
+```
+
+A call elsewhere in the file cannot automatically validate the claimed symbol. Each derived result retains the primitive observations and source locations that support it. A wrong receipt location can coexist with independent coverage found elsewhere; report both accurately.
+
+For negative obligations, compute observation/effect closure before evaluating absence. Only then combine an exact complete-scope certificate with the absence of a prohibited observation. Unknown call targets or effects prevent completeness. A possible runtime violation is not a proven execution counterexample unless the obligation itself prohibits that static possibility.
+
+Egglog verifies consequences of established observations. It does not infer arbitrary program correctness from a code pointer. The implementation work is to build sound extractors and sufficiency rules for supported properties, leaving everything beyond their demonstrated scope unresolved.
+
 ## Phase 11: egglog receipt checking and coverage closure
 
 Derive the full required obligation set from the retained green slice before considering any receipts. The returned receipt list never defines the work to be checked. Receipts are proposed witnesses, not additional behavioral obligations: an omitted or unsupported receipt leaves its obligation open unless sufficient independent evidence establishes it. Report receipt quality separately from implementation coverage.
@@ -501,11 +539,49 @@ green world → versioned Turtle slice + obligations + handoff manifest
           → scoped GREEN / YELLOW / RED report with witnesses
 ```
 
+## Incremental compile artifacts in the target codebase
+
+Keep durable compilation artifacts inside the target codebase's `.sigil` directory. Separate accepted meaning from submitted claims and recomputable operational state:
+
+```text
+.sigil/
+  .gitignore                         # committed ignore policy
+  config.json                        # committed workspace configuration
+  implementation.json                # committed host verifier bindings/policy
+  world/                             # COMMIT: accepted semantic state
+    current.json                     # atomic pointer to an immutable revision
+    <revision>/
+      manifest.json                  # hashes, source identity, component bindings
+      assertions.ttl                 # canonical merged ASSERTIONS
+      assertions.egg                 # deterministic lowering of those assertions
+  handoffs/<id>/                     # ignored: retained task/slice bundles
+  receipts/<id>/                     # ignored: returned untrusted claim bundles
+  runs/<id>/                         # ignored: reports, evidence and provenance
+  cache/<id>/                        # ignored: completed stage artifacts
+  cache/locks/                       # ignored: writer coordination
+  cache/tmp/                         # ignored: unpublished temporary bundles
+  beams/                             # ignored: intent-search checkpoints
+```
+
+**Commit the accepted world and authoritative verifier policy.** They are part of the codebase's specification and should travel with branches, reviews and checkouts. Commit the deterministic egglog lowering alongside Turtle for inspection and reproducibility. Turtle is the source of assertions; the `.egg` file is generated, validated against that source and never loaded as project-authored rules. Closure results, observed code facts and receipt claims do not become accepted assertions merely because compilation derived or received them.
+
+The committed world directory contains immutable revisions selected by `current.json`. A revision covers metadata as well as assertions, so changing source bindings without changing the fact set still changes the revision identity. Readers resolve one published revision; they never combine files from partially written revisions. Previous accepted revisions remain available for handoffs and Git history. Existing `.sigil/semantic.json` plus `.sigil/worlds` state remains readable during migration; subsequent acceptance uses the new layout.
+
+Handoffs retain the original task authority, while receipts store the agent's returned claims. Both are bundles that can be explicitly exported or transferred without committing them. Receipt bundles may contain `claims.ttl` and a location sidecar, but cannot contain authoritative proof. Run bundles contain reports and documentary evidence. The layout creates directories and a scoped `.sigil/.gitignore` without overwriting existing ignore entries or ignoring accepted world state.
+
+Every bundle has a versioned manifest with its kind, explicit dependency fingerprints, payload hashes and a content-derived identity. Dependencies identify the world/slice, source snapshot, receipts, kernel, analyzer/configuration and verifier policy as appropriate. Identical inputs and payloads reuse the same immutable artifact. Publish a fully written bundle atomically, then advance any current pointer with a revision comparison. Interrupted writes do not publish incomplete bundles, and a failed later stage does not erase completed earlier stages.
+
+Record completed parsing/lowering/closure/evidence stages independently so work and provenance survive interruption. Changes invalidate artifacts whose declared dependencies changed; context-dependent analyses must include the complete relevant source inventory, imports, configuration and tool identities rather than just the referenced file. Whole-snapshot invalidation is the safe starting point where narrower dependencies are not yet established.
+
+**A hash is an integrity/freshness check, not evidence authority.** Returned receipts and workspace caches are writable data. Reading a matching bundle must never populate trusted observation tables or restore an old green verdict on its own. Recompute semantic closure and independently establish the evidence required for current verification. Initial incremental storage reuses immutable input/representation artifacts and records completed work; skipping tool execution would additionally require a trustworthy result provenance mechanism and is not implied by cache presence.
+
+Report artifact identities in compiler/CLI output so an agent can inspect the relevant completed stages, handoff, receipts and witnesses after compaction or interruption. Product artifacts belong in the target `.sigil`; this coding session's private progress tracker remains separate and uncommitted.
+
 ## Implementation plan for the revised flow
 
 This plan replaces code-patch search and agent-loop work. Keep the existing intent-world search. Reuse the already implemented real Turtle parser, fixed egglog bridge, slice projection, native TypeScript 7 adapter, mechanical coverage rules, ownership-anchor resolver, compiler lifecycle and `semantic verify` command. The current collector provides useful observations; it does not yet implement the full handoff/receipt protocol below.
 
-1. **Version the handoff.** Extend slice export with normalized fact/obligation identities, canonical Turtle, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification.
+1. **Create incremental artifacts and version the handoff.** Implement the target `.sigil` bundle store, committed world revisions and ignored operational directories described above.  Extend slice export with normalized fact/obligation identities, canonical Turtle, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification.
 
 2. **Define and ingest receipts.** Specify the strict ordinary-Turtle receipt profile and location sidecar. Resolve references against the retained handoff, reject invented or conflicting identities, and resolve existing Sigil anchors with file/symbol/hash checks. Keep receipt claims in separate tables from accepted assertions and trusted evidence. Do not add arbitrary project rules or a general proof language.
 
