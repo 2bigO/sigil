@@ -12,7 +12,9 @@ The central model is:
 
 **LLMs propose semantic worlds. Turtle stores facts. egglog computes what follows. Deterministic evaluation selects valid worlds. Humans are asked only about genuine unresolved intent.**
 
-The same mechanism should later verify whether code actually implements a green Sigil specification.
+The same engine verifies a returned codebase against the green Turtle world slice handed to a coding agent. The agent returns receipts claiming which triples or obligations are implemented at which code locations. Sigil checks those claims using independent observations and egglog coverage closure.
+
+**Implementation scope:** Sigil prepares the handoff and verifies the returned implementation. The coding agent owns writing and repairing code. Generating, ranking, applying or merging multiple code patches, scheduling coding agents, and owning their implementation/repair loop are out of scope. Intent-world candidate search in phases 1–5 remains in scope.
 
 Do not treat this as a conventional knowledge graph or retrieval system. The important property is computational closure: asserted facts enter the system, rules derive new facts/properties/obligations, and those consequences drive compilation.
 
@@ -350,144 +352,174 @@ C4 C11 C17
 
 The projection should contain exactly the semantic context useful to a coding model, rather than RDF syntax for its own sake.
 
-## Phase 9: implementation search
+### Handoff artifact
 
-Apply the same candidate-search architecture to coding.
+Package the implementation slice as ordinary Turtle plus a readable work-unit summary. Preserve the normalized fact identities and derive a fixed list of implementation obligations from the green world. Include enough related assertions and boundary context to verify that slice without giving the coding agent the entire graph.
 
-Given a semantic slice, the LLM may generate multiple materially different code patches.
+A versioned sidecar manifest identifies:
 
-Evaluate them using real tools:
+* the canonical world fingerprint and exact slice fingerprint;
+* the selected components, exported fact and obligation identities, and verification boundary;
+* the semantic kernel and verifier-policy identities;
+* host-owned component inventories, API bindings and required compiler/test checks;
+* the baseline code identity and protected specification, policy and test-oracle fingerprints.
 
-* compiler/typechecker
-* tests
-* AST analysis
-* dependency analysis
-* call graph where feasible
-* filesystem/API access analysis where feasible
-* existing Sigil implementation anchors
-* other deterministic evidence already available in the repository
+This manifest is transport and provenance metadata, not a third semantic language. Sigil retains the original handoff. A returned manifest cannot replace its authority.
 
-The purpose is again:
+## Phase 9: coding-agent handoff and returned receipts
 
-```text
-LLM proposes
-machines execute
-egglog evaluates
-```
+Hand the slice to a coding agent with this task:
 
-not:
+> Implement this Turtle world slice in the codebase. Return the code and receipts identifying the exact handed-off facts or obligations you claim to implement, together with their code anchors and suggested supporting tests. Report work you could not establish. Do not return a verification verdict.
 
-```text
-LLM writes
-another LLM judges
-```
+The agent owns implementation. Sigil resumes when the codebase is handed back with the claim that the work is complete. Verification does not require knowing how many edits the agent made, which model it used, or how it organized its work.
 
-## Phase 10: implementation → Turtle evidence
-
-Convert deterministic observations about the implementation into the same semantic vocabulary.
-
-Conceptually:
+A receipt is an untrusted claim connecting a handed-off proposition to implementation locations. Use ordinary Turtle and existing `Evidence`, `covers`, `from`, `relation` and `target` vocabulary where possible. For example, if the handoff exports O72 as the obligation that CompilationDiagnostics invokes SigilSemanticBridge:
 
 ```turtle
-:CompilationDiagnostics :calls :SigilSemanticBridge .
+@prefix s: <https://sigil.dev/ontology/1#> .
+@prefix ex: <urn:example:> .
 
-:SigilSemanticBridge
-    :delegates :Compilation ;
-    :implementedBy :BridgeTs .
-
-:BridgeTest
-    :covers :O18 ;
-    :passes true .
+ex:Receipt17
+    a s:Evidence ;
+    s:covers ex:O72 ;
+    s:from ex:CompilationDiagnostics ;
+    s:relation "invokes" ;
+    s:target ex:SigilSemanticBridge .
 ```
 
-Static analyzers and other tooling can therefore act as additional producers of Turtle/RDF facts.
+`ex:O72` stands for an identity exported by the handoff, not an identifier the agent may invent. If a receipt names a normalized fact instead, Sigil resolves it to the associated implementation obligations. An asserted design triple can require multiple implementation obligations; claiming the triple does not bypass any of them.
 
-Where semantic implementation properties cannot be established mechanically, an LLM may propose evidence, but distinguish this from mechanically established evidence. Do not silently turn "the LLM thinks C17 is implemented" into a proven fact.
+Keep paths, symbol selectors, source ranges, file-content hashes, test selectors and producer details in a sidecar keyed by the receipt identity. Reuse existing Sigil implementation anchors when they resolve the claimed locations. Allow one proposition to have several receipts and one receipt to name several obligations only when its exact proposition and evidence scope match each obligation.
 
-Reuse Sigil's existing mechanism that anchors code to the contracts it claims to implement.
+Validate receipt syntax, identifiers, proposition shape and handoff identity before checking evidence. Reject unknown obligation references, conflicting duplicate receipt identities and attempts to change the handed-off world or verifier policy. Missing or stale code anchors cannot establish coverage. A source range alone is insufficient if it no longer identifies the expected symbol and file content.
 
-## Phase 11: implementation verification through the same egglog engine
+Do not merge returned receipts into canonical design assertions. Agent-written `passes true`, `covers`, an implementation annotation, or a claimed code location is never a trusted observation. The agent may suggest where to look; it cannot choose what counts as sufficient proof.
 
-Green semantic specifications should derive explicit implementation obligations.
+## Phase 10: returned code and receipts → independent evidence
+
+Capture the returned codebase as a verification snapshot. Bind every result to that code identity, the retained handoff and the verifier policy. Detect changes during verification and invalidate affected results. Disposable copies may be used to run tools without modifying the returned codebase; this is verification isolation, not code-candidate search.
+
+Use receipts to locate claimed implementations and provide useful provenance. Independently discover and analyze the governing component inventory and relevant dependencies. Do not restrict analysis to files the agent chose to mention: an omitted file or prohibited call must not disappear from verification. Use the existing ownership/boundary machinery to identify affected components and required context; if the verification boundary is incomplete, keep coverage unresolved.
+
+Collect evidence using real tools:
+
+* **TypeScript 7** compiler diagnostics, ASTs and resolved symbols;
+* imports, dependency edges and direct call sites;
+* call paths and filesystem/API access where the analyzer can establish them;
+* independently executed host-required tests and compiler checks;
+* existing Sigil anchors as location/ownership claims;
+* other deterministic, explicitly supported repository checks.
+
+Preserve three separate inputs to the fixed egglog kernel:
+
+| Input | Authority and role |
+|---|---|
+| Handed-off semantic world and obligations | Accepted meaning and the work that must be verified |
+| Returned receipts | Untrusted claims about where that meaning is implemented |
+| Host-produced observations, check results and scope certificates | Mechanically established evidence about the returned snapshot |
+
+Document observed semantic relationships in Turtle. Keep tool versions, commands, exit codes, source spans, input/output hashes and receipt-resolution details outside the ontology. Deterministic lowering alone can populate trusted observation/check/scope tables. Re-reading an exported evidence file as an agent submission must not restore that trust.
+
+Evidence requirements belong to Sigil's stable kernel and host verifier policy. Start with supported, precise properties and leave the rest unresolved:
+
+* A matching resolved call or dependency can establish its corresponding static relation. A function name or nearby text match cannot.
+* A call to a bridge alone does not prove delegation or that every route crosses the bridge. Those require explicit composition/path rules and adequate path coverage.
+* The existence of a function or an `implements` anchor does not prove a capability's behavior.
+* A passing command satisfies that mandatory check. It satisfies a behavioral obligation only where a fixed evidence rule explicitly connects that independently trusted check to that obligation, with its actual scope.
+* Agent-added tests and suggested commands remain proposals. They cannot replace the protected oracle or lower an obligation's evidence requirements. Record changes to protected test/policy inputs and withhold affected certification.
+* Negative or universal obligations require an independently established complete scope for the exact subject, relation and target, including relevant transitive behavior when the obligation requires it. Missing receipts or absent matches do not prove absence. Dynamic dispatch, opaque effects and unmodeled dependencies keep that scope open.
+
+## Phase 11: egglog receipt checking and coverage closure
+
+Derive the full required obligation set from the retained green slice before considering any receipts. The returned receipt list never defines the work to be checked. Receipts are proposed witnesses, not additional behavioral obligations: an omitted or unsupported receipt leaves its obligation open unless sufficient independent evidence establishes it. Report receipt quality separately from implementation coverage.
+
+The kernel joins claims to exact obligations, independently resolved source anchors, trusted observations and evidence-sufficiency rules. It should derive at least:
+
+* which receipt claims are supported, contradicted or unresolved;
+* which required obligations have sufficient evidence;
+* which required obligations remain uncovered, including obligations omitted from all receipts;
+* violations found anywhere in the relevant verification scope, even without a receipt;
+* stale/mismatched evidence dependencies and the specific additional evidence needed.
+
+Supporting an individual receipt is not the same as closing the whole slice. Duplicate receipts do not increase coverage. Evidence for one proposition, target, snapshot or analysis scope cannot discharge a different one. A positive observation of prohibited behavior is a violation even when another receipt claims that behavior is absent.
 
 For example:
 
 ```text
-C17
-  ↓
-O71: no SigilDX component implements CompilationSemantics
-O72: Compilation calls route through SigilSemanticBridge
-O73: SigilSemanticBridge delegates Compilation to InstalledSigil
+Handed-off O72: CompilationDiagnostics invokes SigilSemanticBridge
+    + Receipt17 points to diagnostics.ts::compile
+    + host resolves that symbol in the returned snapshot
+    + TypeScript 7 resolves its call to the bound bridge implementation
+    → O72 covered, with Receipt17 and the observed call as provenance
+
+Handed-off O73: no relevant component uses the forbidden API
+    + receipts mention no such API
+    + analyzer cannot close the relevant effect scope
+    → O73 unresolved, not proven
 ```
 
-Implementation analysis supplies evidence.
+The verification result describes the declared slice and verification boundary:
 
-Egglog determines whether the evidence satisfies the obligations or proves violations.
+* **GREEN:** every required implementation obligation and mandatory check is satisfied by sufficient current evidence, with no hard violation or unresolved required scope.
+* **YELLOW:** required evidence, interpretation, receipt resolution needed for proof, or scope completeness remains unresolved. Unsupported behavior stays yellow even if the agent claims completion.
+* **RED:** independent evidence establishes a violated prohibition, contradictory implementation property or failed mandatory check.
+* **Invalid submission / operational failure:** malformed receipt protocol or failed tool execution is reported distinctly; neither can produce a green verdict. A test executing and failing is a check failure; a tool that could not run has not supplied a result.
 
-Thus the final sanity check becomes **coverage closure**, rather than an adversarial LLM rereading everything:
+Expose a navigable provenance chain:
 
 ```text
-for every required obligation:
-    is sufficient implementation evidence derivable?
+user intent → canonical fact → slice obligation
+                                   ↓
+                         receipt claim and code anchor
+                                   ↓
+                       independent source/test observation
+                                   ↓
+                        egglog rule and coverage result
 ```
 
-The ideal provenance chain should eventually be inspectable:
+Return the report and unresolved obligations to the caller. A coding agent may use them in its own repair loop, but Sigil does not generate or apply repairs, select code candidates, or orchestrate that loop.
 
-```text
-user intent
-   ↓
-contract/fact
-   ↓
-derived obligation
-   ↓
-implementation evidence
-   ↓
-source code / test
-```
-
-## Symmetry of the final architecture
-
-The design should reduce to two similar loops.
+## Final architecture
 
 ### Intent search
 
 ```text
-human
-  ↓
-LLM
-  ↓
-Turtle candidate worlds
-  ↓
-egglog
-  ↓
-select / clarify / repair
-  ↺
-  ↓
-GREEN SEMANTIC WORLD
+human intent → LLM → Turtle candidate worlds → egglog
+                                         → select / clarify / repair
+                                         → GREEN SEMANTIC WORLD
 ```
 
-### Implementation search
+### Implementation handoff and verification
 
 ```text
-green semantic world
-  ↓
-semantic slice
-  ↓
-LLM
-  ↓
-code candidates
-  ↓
-execute + analyze
-  ↓
-Turtle evidence
-  ↓
-egglog
-  ↓
-select / repair
-  ↺
-  ↓
-GREEN IMPLEMENTATION
+green world → versioned Turtle slice + obligations + handoff manifest
+          → external coding agent owns implementation
+          → returned codebase + untrusted receipt claims
+          → independent analysis, checks and scope certificates
+          → fixed egglog receipt checking + coverage closure
+          → scoped GREEN / YELLOW / RED report with witnesses
 ```
+
+## Implementation plan for the revised flow
+
+This plan replaces code-patch search and agent-loop work. Keep the existing intent-world search. Reuse the already implemented real Turtle parser, fixed egglog bridge, slice projection, native TypeScript 7 adapter, mechanical coverage rules, ownership-anchor resolver, compiler lifecycle and `semantic verify` command. The current collector provides useful observations; it does not yet implement the full handoff/receipt protocol below.
+
+1. **Version the handoff.** Extend slice export with normalized fact/obligation identities, canonical Turtle, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification.
+
+2. **Define and ingest receipts.** Specify the strict ordinary-Turtle receipt profile and location sidecar. Resolve references against the retained handoff, reject invented or conflicting identities, and resolve existing Sigil anchors with file/symbol/hash checks. Keep receipt claims in separate tables from accepted assertions and trusted evidence. Do not add arbitrary project rules or a general proof language.
+
+3. **Verify the returned snapshot.** Extend the current TypeScript 7 collector to associate native observations with resolved receipt anchors while scanning the full required component boundary. Add bounded host compiler/test execution with input and output receipts. Freeze authoritative policy/test inputs, check snapshot consistency, and issue precise scope certificates only for supported analyses. Preserve partial observations and explicit unknowns.
+
+4. **Implement receipt and coverage rules in egglog.** Add fixed relations for receipt targets, independently resolved locations, evidence scope and claim results. Match exact propositions and derive both per-receipt results and coverage over the complete handoff obligation set. Add supported composition rules deliberately; leave non-mechanical behavioral claims yellow. Ensure unclaimed violations, failed checks and contradictions dominate all claimed coverage.
+
+5. **Integrate the handoff/return workflow.** Extend `semantic slice` to export the handoff bundle and `semantic verify` to consume the retained handoff, returned codebase and receipt bundle. Reuse this path for implementation-focused `compile`. Report scope, covered/uncovered obligations, receipt results, check outcomes and source/rule witnesses in JSON and readable output. Preserve cancellation, event delivery and diagnostic lifecycle behavior. Persist claims and evidence provenance when useful, but recompute proof for the current snapshot.
+
+6. **Exercise the trust boundary end to end.** Verify a small real component handed to an external-agent fixture and returned with receipts. Cover a supported green implementation; omitted receipts without independent supporting evidence and opaque behavior remaining yellow; a prohibited call or failed required check turning red; stale world/slice/code identities; incorrect symbol anchors; duplicate or invented claims; forged passing evidence; changed protected oracles; and violations in relevant files absent from all receipts. Verify that replaying receipt Turtle alone cannot close coverage and that tool failures never fabricate a verdict.
+
+7. **Finish migration and documentation.** Update architecture docs, CLI help, editor/skill workflows and packaging to describe slice handoff and returned-code verification. Remove code-candidate ranking, patch application and agent-loop orchestration from the planned product scope. Keep any in-progress utility only where it serves verification of one returned snapshot. Commit the work in these semantic groups and maintain the uncommitted operational progress record.
+
+The first implementation milestone is one complete handoff → returned receipts → independent TypeScript 7 observations → egglog coverage report, with green, yellow and red cases. Broaden supported evidence and composed obligations only after that path is tested.
 
 ## Important architectural principles
 
@@ -509,7 +541,7 @@ Keep compiler/source-location metadata outside the semantic ontology unless ther
 
 Prefer deterministic transformations between representations wherever possible.
 
-## First task
+## Original first task: architecture inspection and vertical prototype
 
 Do **not** immediately attempt a repository-wide implementation.
 
