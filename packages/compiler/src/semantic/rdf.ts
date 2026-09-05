@@ -7,4 +7,4 @@ import type * as N3 from "n3-types";
 export const Parser: typeof N3.Parser = ParserModule.default;
 export const Writer: typeof N3.Writer = WriterModule.default;
 export const DataFactory: typeof N3.DataFactory = FactoryModule.default;
-export type { Term } from "n3-types";
+export type { Quad, Term } from "n3-types";

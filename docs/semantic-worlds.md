@@ -156,3 +156,25 @@ Nineteen tests exercise these boundaries. The native engine's observation input
 is the trusted host boundary; concrete source analyzers and execution receipts
 still need to be connected before the implementation-search workflow can claim
 mechanical end-to-end verification.
+
+## Source bridge and projections
+
+`projectSigilIntent` reuses resolved component/expansion/import identities and
+extracts every prose unit as a required Contract. Its source-binding sidecar
+retains component, section, concept, physical range, and original literal
+blocks. It deliberately does not guess executable predicates from prose. The
+actual `SigilParser` file now exercises this bridge in a test: every prose unit
+is represented and remains unresolved until interpreted.
+
+Green worlds project to a human `.sigil` view paired with canonical Turtle and
+an entity/component mapping. The existing parser and formatter validate the
+generated view. Text containing braces, long tokens, or fences uses Sigil's
+existing literal blocks, preserving the value without permitting source
+injection. The Turtle companion retains complete semantic fidelity.
+
+Implementation slices select one component's capabilities, delegation,
+exclusions, dependencies, routing invariants, related contracts, and explicit
+coverage obligations. They omit unrelated components and RDF syntax.
+Twenty-three tests now cover these projection and source-binding properties in
+addition to the kernel and search behavior. Persisting paired artifacts and
+connecting the source bridge to ordinary compilation remain integration work.
