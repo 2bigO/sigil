@@ -1198,3 +1198,42 @@ expand SigilCli {
     }
   }
 }
+
+
+expand SigilCli {
+  interface {
+    SemanticWorldCommand {
+      sigil semantic intent accepts natural-language text and a generator executable
+      or prepared proposal envelope. It saves viable candidates as a named beam.
+      sigil semantic status recomputes the canonical world or a named beam.
+      sigil semantic answer records yes or no for the exact current fact identity.
+      sigil semantic accept commits one selected green world as canonical assertions.
+      sigil semantic project prints paired Turtle and human Sigil views.
+      sigil semantic slice prints the selected component's implementation obligations.
+    }
+  }
+  logic {
+    SemanticWorldCommand {
+      Reuse SigilCore source resolution and SigilCompiler proposal, beam, kernel,
+      persistence, projection and slice APIs. Keep this mutating intent workflow
+      separate from read-only one-shot compile. Record the source and canonical
+      fingerprints at generation; check them again before answering or accepting.
+    }
+  }
+  constraints {
+    SemanticWorldCommand {
+      Model output cannot select green, author rules, or establish mechanical proof.
+      Acceptance requires a single green world and unchanged input receipts.
+      Source files remain intact. Status, project and slice do not mutate state.
+    }
+  }
+  cases {
+    SemanticWorldCommand {
+      Ambiguous candidates persist until an exact answer distinguishes them.
+      A stale question, source edit, concurrent receipt change, malformed candidate,
+      or unresolved selected world prevents acceptance.
+      Accepted assertions are recomputed by ordinary compile and generate valid
+      human Sigil and focused implementation slices without raw RDF context dumps.
+    }
+  }
+}

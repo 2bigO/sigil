@@ -82,222 +82,79 @@ Commands:
   `--format markdown` for a readable context pack;
 - `sigil compile [stage] [path] [--component name | --file file
   [--position line:column]]`
-  runs profile-scoped deterministic and direct-read agent evaluation. A stage
-  operand such as `semantic-readiness` runs that stage and its dependency
+  runs deterministic structural and semantic evaluation. A stage
+  operand such as `semantic-closure` runs that stage and its dependency
   closure. Prefix a colliding path with `./`. Use `--format jsonl` for the
   versioned event stream;
 - `sigil render ...` returns Markdown.
 
-Configure agentic compilation under `tools.compile`:
+Compilation uses a fixed egglog kernel. Source clauses without a semantic
+interpretation remain yellow. Red means a hard violation; green means the modeled
+required obligations are closed. Model providers do not participate in compilation.
+Use `--focus design` for semantic closure and `--focus implementation` for coverage
+obligations. The legacy stage names remain aliases for these deterministic stages.
 
-```json
-{
-  "tools": {
-    "compile": {
-      "defaultProfile": "standard",
-      "adapter": {
-        "provider": "codex"
-      },
-      "budgets": {
-        "elapsedTimeMs": 1800000,
-        "maxCommands": 512,
-        "maxCommandOutputChars": 3000000,
-        "maxInputTokens": 1000000,
-        "maxOutputTokens": 1000000
-      },
-      "limits": {
-        "maxCompilationRequestChars": 1000000,
-        "maxAgentInputChars": 1000000,
-        "sessionTtlMs": 86400000
-      }
-    }
-  }
-}
-```
+In a source checkout, build the native engine with `deno task build:semantic` before
+compiling. Standard and critical-system profiles need no evaluator configuration.
+`tools.compile.budgets.elapsedTimeMs` bounds native execution; the engine also has
+its own timeout and fixed IPC limits. Existing evaluator configuration remains
+readable for compatibility but cannot provide a compilation verdict.
 
-Each developer may create ignored `.sigil/local.json` containing
-`{ "tools": ... }`. It recursively overrides the tracked `tools` object only.
-Use `sigil compile --agent` to select `tools.agent.profile`, falling back to
-`tools.compile.defaultProfile`.
-
-Profiles may select a fallback evaluator list and stage-specific overrides:
-
-```json
-{
-  "tools": {
-    "compile": {
-      "profiles": {
-        "standard": {
-          "main": ["default"],
-          "stages": { "architecture-design": ["deep"] }
-        }
-      },
-      "evaluators": { "deep": { "provider": "codex", "model": "gpt-5.2" } }
-    }
-  }
-}
-```
-
-The compiler's Codex adapter runs ephemerally at the workspace root with
-read-only filesystem access, disabled network and approval escalation, and
-structured output. A configured provider that cannot enforce the same contract
-fails closed. Compilation does not generate code or execute implementation
-experiments.
-
-### Available adapters
-
-| Provider   | Built-in implementation ID | Version | Model setting    | Availability                                                                                                       |
-| ---------- | -------------------------- | ------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `codex`    | `builtin.codex-cli`        | `0.7.1` | Optional `model` | Bundled and available through the Codex CLI.                                                                       |
-| `claude`   | `builtin.claude-cli`       | `0.7.1` | Optional `model` | Recognized, but the bundled placeholder rejects evaluation; install a compatible adapter implementation to use it. |
-| `opencode` | `builtin.opencode-cli`     | `0.7.1` | Optional `model` | Bundled by the Sigil CLI.                                                                                          |
-| `pi`       | `builtin.pi-cli`           | `0.7.1` | Optional `model` | Bundled by the Sigil CLI.                                                                                          |
-
-Set `provider`, optional `model`, and, when required, the exact
-`implementationId` and `implementationVersion` on `adapter` or a named entry in
-`evaluators`. A named evaluator can then be selected by a profile's `main` or
-`stages` mapping.
-
-Copy-paste example:
-
-```json
-{
-  "tools": {
-    "agent": {
-      "profile": "developer"
-    },
-    "compile": {
-      "defaultProfile": "standard",
-      "adapter": {
-        "provider": "codex",
-        "implementationId": "builtin.codex-cli",
-        "implementationVersion": "0.7.1",
-        "model": "gpt-5"
-      },
-      "evaluators": {
-        "codex-deep": {
-          "provider": "codex",
-          "implementationId": "builtin.codex-cli",
-          "implementationVersion": "0.7.1",
-          "model": "gpt-5.2"
-        },
-        "opencode-review": {
-          "provider": "opencode",
-          "implementationId": "builtin.opencode-cli",
-          "implementationVersion": "0.7.1",
-          "model": "your-opencode-model"
-        },
-        "pi-review": {
-          "provider": "pi",
-          "implementationId": "builtin.pi-cli",
-          "implementationVersion": "0.7.1",
-          "model": "your-pi-model"
-        }
-      },
-      "profiles": {
-        "developer": {
-          "extends": "standard",
-          "main": ["default"],
-          "stages": {
-            "semantic-readiness": ["codex-deep"],
-            "architecture-design": ["opencode-review"],
-            "current-code-compatibility": ["pi-review"]
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-Put personal provider, model, or profile choices in `.sigil/local.json`; its
-`tools` object merges over the tracked configuration. Run
-`sigil compile --agent` to use `tools.agent.profile`.
-
-### Compiler configuration reference
-
-`tools.compile.adapter` is the legacy default evaluator. When it is present, it
-is exposed to profiles as the evaluator ID `default`; therefore
-`"main": ["default"]` uses this adapter for every agentic stage not named in
-`stages`. `adapter` accepts `provider`, optional `model`, optional
-`implementationId`, and optional `implementationVersion`. Omitting its ID and
-version selects the provider's built-in CLI adapter and this Sigil release's
-version.
-
-`tools.compile.evaluators` is a map of named bindings with the same fields as
-`adapter`. Use these names in `profiles.<name>.main` or
-`profiles.<name>.stages.<stage>`. `main` is required when a `stages` map omits
-an agentic stage. `evaluatorIds` remains supported for older configurations and
-applies to every agentic stage when `main` and `stages` are absent.
-
-`tools.compile.defaultProfile` selects the profile used by ordinary
-`sigil compile` commands. `tools.agent.profile` selects the profile used by
-`sigil compile --agent`. A profile may use `extends: "standard"` or
-`extends: "critical-system"`; `standard` runs deterministic foundation plus the
-normal design stages, while `critical-system` also includes `standards-risk` and
-requires independent evaluators. A custom profile name must declare one of those
-bases with `extends`. `disabledStages` disables optional stages, but cannot
-bypass required dependencies.
-
-The valid agentic `stages` keys are `semantic-readiness`, `architecture-design`,
-`current-code-compatibility`, and `standards-risk`. `deterministic-foundation`
-is built in and does not accept an evaluator binding.
-
-`tools.compile.budgets` contains positive integer limits:
-
-| Field                   |   Default | Purpose                                             |
-| ----------------------- | --------: | --------------------------------------------------- |
-| `elapsedTimeMs`         | `1800000` | Maximum elapsed evaluator time (30 minutes).        |
-| `maxCommands`           |     `512` | Maximum inspection commands an evaluator may issue. |
-| `maxCommandOutputChars` | `3000000` | Maximum retained nonessential command output.       |
-| `maxInputTokens`        | `1000000` | Maximum configured input-token budget.              |
-| `maxOutputTokens`       | `1000000` | Maximum configured output-token budget.             |
-
-`tools.compile.limits` also contains positive integer limits:
-
-| Field                        |    Default | Purpose                                                       |
-| ---------------------------- | ---------: | ------------------------------------------------------------- |
-| `maxCompilationRequestChars` |  `1000000` | Maximum compiler evaluation request and provider result size. |
-| `maxAgentInputChars`         |  `1000000` | Maximum initial agent request size.                           |
-| `sessionTtlMs`               | `86400000` | Proposal-compilation session lifetime (24 hours).             |
-| `providerCleanupMs`          |     `5000` | Deadline for graceful and forced provider cleanup.            |
-
-The CLI also bundles and registers the independently packaged OpenCode and Pi
-compiler adapters. OpenCode evaluation uses `opencode run --format json`,
-standard-input guidance, the selected workspace and model, and restrictive
-inline permissions. Because OpenCode exposes no ephemeral CLI mode, that adapter
-declares persistent state. Pi evaluation uses
-`pi --print --mode json
---no-session` with a read-only tool allowlist that
-includes bash for inspection commands, and disables Pi skill, context-file, and
-extension discovery so compiler focus skills arrive only through the evaluation
-prompt. The compiler derives the request persistence requirement from the
-exactly selected adapter while keeping read-only, no agent-tool network, and no
-approval escalation requirements fixed.
-
-Unless `--no-cache` is set, completed compilation reports are atomically stored
-under the operating system's user cache directory and used to derive diagnostic
-lifecycle. The cache is never written inside the workspace. JSONL compilation
-emits one terminal `completed`, `failed`, or `cancelled` event; profile
-configuration failures return exit code `3`.
-
-Empty, unknown, incomplete, and invalid invocations report the problem together
-with help for the longest recognized command path.
-
-The deterministic commands return exit code `0` for success or warnings, `1` for
-error diagnostics, `2` for usage errors, and `3` for host/runtime failures.
-Compilation returns `0` only for green, `1` for red or yellow, and `130` when
-cancelled. Use JSON or JSON Lines output for automation; human text and Markdown
-are convenience projections. Context output includes resolved concept
-namespaces, bounded `agentDependencyContexts`, and a scoped `glossaryContext`;
-Markdown render output preserves concept grouping.
-
-Versioned binary distributions place assets at `<version>/integrations/skills`
-beside `<version>/bin/sigil`. This keeps each binary paired with the language
-semantics and skills shipped for that version.
-
-Run the package tests with:
+The semantic workflow accepts natural-language intent and generated Turtle patches:
 
 ```bash
-deno task test
+sigil semantic intent . --text "The parser must not access disk." --generator /path/to/generator --beam parser
+sigil semantic status . --beam parser
+sigil semantic answer . --beam parser --fact 'fact:the-returned-id' --value no
+sigil semantic accept . --beam parser
+sigil compile . --focus design
+sigil semantic project . --format sigil
+sigil semantic project . --format turtle
+sigil semantic slice . --component Parser --format text
 ```
+
+`--generator-arg` supplies repeatable executable arguments. The generator reads a
+prompt from stdin and returns a JSON envelope on stdout. The envelope is transport;
+all semantic additions and retractions are ordinary Turtle:
+
+```json
+{
+  "version": 1,
+  "candidates": [
+    { "id": "one-interpretation", "additions": "Turtle assertions", "retractions": "" }
+  ]
+}
+```
+
+A generator should return one candidate for clear intent, and several materially
+different candidates for consequential ambiguity. Sigil validates the ontology,
+computes closure, prunes violations, and ranks the candidates. If an exact
+proposition remains unresolved, a second generator call asks for
+`{"version":1,"factId":"supplied-id","question":"natural question"}`.
+The exact machine proposition remains visible beside the rendered question.
+`--proposals path.json` imports a prepared candidate envelope and uses deterministic
+question wording, allowing an existing agent harness to supply the hypotheses.
+
+Intent generation saves a named beam of assertions and answers in `.sigil/beams`.
+Status and answer replay the kernel. Acceptance requires a uniquely selected green
+world, unchanged source contracts, and an unchanged canonical-state receipt. It
+writes immutable Turtle under `.sigil/worlds` and atomically updates
+`.sigil/semantic.json`; it preserves existing source files. A later source edit
+invalidates the saved interpretation until new intent is accepted.
+
+`project` returns paired canonical Turtle and a parser-validated human Sigil view
+as JSON by default; `--format sigil` and `--format turtle` select one view.
+`slice` returns only the selected component's implementation duties, exclusions,
+related contracts and coverage obligations. These commands write to stdout.
+Implementation green still requires mechanically established coverage; a passing
+model judgment or an implementation anchor does not establish it.
+
+Unless `--no-cache` is set, completed compile reports are cached outside the
+workspace for diagnostic lifecycle comparisons. JSONL compilation emits one
+terminal completed, failed, or cancelled event. Compilation and semantic search
+return 0 only for green, 1 for unresolved intent or semantic errors, 2 for invalid
+usage, 3 for operational failures, and 130 for cancellation.
+
+Run package tests with `deno task test`. Native binary release packaging and
+bundled provider protocol adapters are being migrated; the source workflow above
+uses the local native build and the provider-neutral executable protocol.

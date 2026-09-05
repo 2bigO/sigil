@@ -24,6 +24,11 @@ export interface WorldBeamCheckpoint {
     readonly patch: TurtlePatch;
   }[];
   readonly mutableFactIds: readonly string[];
+  /** Workspace receipt context is operational metadata, never semantic proof. */
+  readonly context?: {
+    readonly sourceFingerprint: string;
+    readonly canonicalFingerprint?: string;
+  };
   readonly answers: readonly {
     readonly factId: string;
     readonly value: boolean;
@@ -132,8 +137,15 @@ export function validateWorldBeam(
         "candidates",
         "mutableFactIds",
         "answers",
+        "context",
       ].includes(key)
     )
+  ) return invalid();
+  if (
+    value.context !== undefined &&
+    (!object(value.context) || !fingerprint(value.context.sourceFingerprint) ||
+      (value.context.canonicalFingerprint !== undefined &&
+        !fingerprint(value.context.canonicalFingerprint)))
   ) return invalid();
   if (JSON.stringify(value).length > 16 * 1024 * 1024) return invalid();
   const names = new Set<string>();

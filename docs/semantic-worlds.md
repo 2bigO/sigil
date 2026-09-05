@@ -225,3 +225,21 @@ Replay runs the real kernel again. The 60-test compiler suite includes a real
 command-provider exchange, durable yes/no selection, malformed envelopes and
 checkpoints, protected new intent, and hard-conflict pruning. Built-in provider
 CLI formats and user-facing intent commands are still integration work.
+
+## CLI intent workflow
+
+`sigil semantic intent/status/answer/accept/project/slice` now connects the proposal,
+beam, persistence and projection APIs. A prepared candidate-envelope file or a
+generator executable supplies hypotheses. Viable beams carry source and canonical
+fingerprints; acceptance refreshes both receipts and requires a uniquely selected
+green world. Answering uses the exact currently discriminating fact identity and
+keeps the original candidate set for reproducible replay. Canonical acceptance
+preserves existing source files. Projection prints a paired human Sigil/Turtle
+artifact; installing generated views as new authoritative workspace files remains
+separate work.
+
+The integration passes 73 CLI tests and 60 compiler tests. An accepted interpretation
+reaches green through ordinary design compilation, remains yellow in implementation
+focus without mechanical evidence, produces a parser-valid human projection, and
+returns a focused coding slice. Ambiguity, stale questions and source edits prevent
+premature acceptance. Compiler cancellation codes retain CLI exit 130.

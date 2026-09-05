@@ -1,0 +1,427 @@
+import { resolve } from "node:path";
+import {
+  CommandSemanticProvider,
+  compileSemanticWorld,
+  implementationSlice,
+  projectGreenSemanticWorld,
+  projectSigilIntent,
+  proposeSemanticIntent,
+  readSemanticState,
+  readWorldBeam,
+  renderImplementationSlice,
+  resumeWorldBeam,
+  SemanticInputError,
+  type SemanticProposalProvider,
+  type StoredWorldBeam,
+  type WorldBeamCheckpoint,
+  worldFromFacts,
+  type WorldSearchResult,
+  writeSemanticState,
+  writeWorldBeam,
+} from "@qoherent/sigil-compiler";
+import { CoreAdapter } from "./core-adapter.ts";
+import type { CliRunResult } from "./main.ts";
+
+export const SEMANTIC_HELP = `Usage: sigil semantic <command> [path] [options]
+
+Commands:
+  intent     Interpret --text using --generator or --proposals; save a viable beam
+  status     Recompute the canonical world or a saved --beam
+  answer     Answer --fact with --value yes|no in a saved --beam
+  accept     Accept a uniquely selected green --beam as canonical assertions
+  project    Project the canonical green world as paired Turtle and Sigil
+  slice      Return a focused implementation slice for --component
+
+Options:
+  --text <intent>          Natural-language intent
+  --generator <program>   Executable reading a prompt on stdin and writing proposal JSON
+  --generator-arg <value>  Argument to the executable; repeatable
+  --proposals <file>      Read a generated candidate envelope instead of invoking a provider
+  --beam <name>           Named checkpoint (intent defaults to a fresh name)
+  --fact <id>             Exact current question's fact identity
+  --value <yes|no>        Answer to that exact proposition
+  --component <name|iri>  Component for an implementation slice
+  --format <value>        json (default), sigil or turtle for project, text for slice
+  --help                  Show this help
+
+A candidate envelope is {"version":1,"candidates":[{"id":"name","additions":"Turtle","retractions":""}]}.
+Only acceptance replaces canonical meaning. Status, project and slice are read-only.
+`;
+
+type Action = "intent" | "status" | "answer" | "accept" | "project" | "slice";
+interface Arguments {
+  action: Action;
+  path: string;
+  values: Record<string, string>;
+  generatorArgs: string[];
+}
+class UsageError extends Error {}
+
+function parse(argv: readonly string[]): Arguments {
+  const action = argv[0];
+  if (
+    !["intent", "status", "answer", "accept", "project", "slice"].includes(
+      action,
+    )
+  ) throw new UsageError("Choose a semantic command.");
+  const values: Record<string, string> = {};
+  const generatorArgs: string[] = [];
+  let path: string | undefined;
+  for (let index = 1; index < argv.length; index++) {
+    const arg = argv[index];
+    if (!arg.startsWith("--")) {
+      if (path !== undefined) {
+        throw new UsageError("Only one workspace path is allowed.");
+      }
+      path = arg;
+      continue;
+    }
+    if (
+      ![
+        "--text",
+        "--generator",
+        "--generator-arg",
+        "--proposals",
+        "--beam",
+        "--fact",
+        "--value",
+        "--component",
+        "--format",
+      ].includes(arg)
+    ) throw new UsageError(`Unknown option ${arg}.`);
+    const value = argv[++index];
+    if (value === undefined) throw new UsageError(`${arg} requires a value.`);
+    if (arg === "--generator-arg") generatorArgs.push(value);
+    else {
+      if (Object.hasOwn(values, arg)) {
+        throw new UsageError(`${arg} may only be supplied once.`);
+      }
+      values[arg] = value;
+    }
+  }
+  const allowed: Record<string, readonly string[]> = {
+    intent: ["--text", "--generator", "--proposals", "--beam", "--format"],
+    status: ["--beam", "--format"],
+    answer: ["--beam", "--fact", "--value", "--format"],
+    accept: ["--beam", "--format"],
+    project: ["--format"],
+    slice: ["--component", "--format"],
+  };
+  for (const key of Object.keys(values)) {
+    if (!allowed[action].includes(key)) {
+      throw new UsageError(`${key} is not valid for ${action}.`);
+    }
+  }
+  const format = values["--format"] ?? "json";
+  if (
+    format !== "json" &&
+    !(action === "project" && ["sigil", "turtle"].includes(format)) &&
+    !(action === "slice" && format === "text")
+  ) throw new UsageError(`Unsupported ${action} format ${format}.`);
+  if (
+    action === "intent" &&
+    (!values["--text"] ||
+      Number(!!values["--generator"]) + Number(!!values["--proposals"]) !== 1)
+  ) {
+    throw new UsageError(
+      "intent requires --text and exactly one of --generator or --proposals.",
+    );
+  }
+  if (generatorArgs.length && (action !== "intent" || !values["--generator"])) {
+    throw new UsageError("--generator-arg requires an intent generator.");
+  }
+  if (["answer", "accept"].includes(action) && !values["--beam"]) {
+    throw new UsageError(`${action} requires --beam.`);
+  }
+  if (
+    action === "answer" &&
+    (!values["--fact"] || !["yes", "no"].includes(values["--value"]))
+  ) throw new UsageError("answer requires --fact and --value yes|no.");
+  if (action === "slice" && !values["--component"]) {
+    throw new UsageError("slice requires --component.");
+  }
+  return { action: action as Action, path: path ?? ".", values, generatorArgs };
+}
+
+async function workspaceContext(path: string, core: CoreAdapter) {
+  const resolved = await core.resolveWorkspace(path);
+  const errors = resolved.diagnostics.filter((d) => d.severity === "error");
+  if (errors.length) {
+    throw new SemanticInputError(
+      "INVALID_SOURCE",
+      errors.map((d) => d.message).join("\n"),
+    );
+  }
+  const root = resolve(resolved.workspace.root);
+  const source = await projectSigilIntent(
+    resolved.components,
+    root,
+    resolved.imports,
+  );
+  const stored = await readSemanticState(root);
+  const sourceChanged = !!stored &&
+    stored.receipt.sourceFingerprint !== source.world.fingerprint;
+  const world = !stored || sourceChanged ? source.world : await worldFromFacts(
+    [...source.world.facts, ...stored.world.facts],
+    { ...source.world.provenance, ...stored.world.provenance },
+  );
+  return {
+    root,
+    source,
+    stored,
+    world,
+    sourceChanged,
+    receipt: {
+      sourceFingerprint: source.world.fingerprint,
+      canonicalFingerprint: stored?.world.fingerprint,
+    },
+  };
+}
+
+function current(
+  checkpoint: WorldBeamCheckpoint,
+  context: Awaited<ReturnType<typeof workspaceContext>>,
+): void {
+  if (
+    !checkpoint.context ||
+    checkpoint.context.sourceFingerprint !==
+      context.receipt.sourceFingerprint ||
+    checkpoint.context.canonicalFingerprint !==
+      context.receipt.canonicalFingerprint
+  ) {
+    throw new SemanticInputError(
+      "STALE_INTENT",
+      "Source contracts or canonical assertions changed since this intent was generated. Generate a new beam against the current state.",
+    );
+  }
+}
+
+function searchSummary(search: WorldSearchResult) {
+  return {
+    result: search.status,
+    status: search.status === "rejected"
+      ? "red"
+      : search.status === "ambiguous"
+      ? "yellow"
+      : search.selected!.compilation.status,
+    candidates: search.survivors.map((candidate) => ({
+      id: candidate.id,
+      status: candidate.compilation.status,
+      worldFingerprint: candidate.compilation.world.fingerprint,
+      objective: candidate.objective,
+      diagnostics: candidate.compilation.diagnostics,
+    })),
+    rejected: search.rejected,
+    question: search.proposition
+      ? {
+        factId: search.proposition.fact.id,
+        text: search.proposition.question,
+        fact: search.proposition.fact,
+        informationGainBits: search.proposition.informationGainBits,
+      }
+      : undefined,
+  };
+}
+
+export interface SemanticCommandOptions {
+  readonly core?: CoreAdapter;
+  readonly signal?: AbortSignal;
+  /** Hosts may inject a provider while preserving the normal command invocation. */
+  readonly proposalProvider?: SemanticProposalProvider;
+}
+
+/** Semantic workflow stays separate from one-shot read-only compilation. */
+// @sigil implements packages/cli/_module.sigil::SigilCli::SemanticWorldCommand interface,logic,constraints,cases
+export async function runSemanticCommand(
+  argv: readonly string[],
+  options: SemanticCommandOptions = {},
+): Promise<CliRunResult> {
+  if (argv.includes("--help")) {
+    return { exitCode: 0, stdout: SEMANTIC_HELP, stderr: "" };
+  }
+  try {
+    const { action, path, values, generatorArgs } = parse(argv);
+    options.signal?.throwIfAborted();
+    const context = await workspaceContext(
+      path,
+      options.core ?? new CoreAdapter(),
+    );
+    const engine = { signal: options.signal };
+    const json = (value: unknown, exitCode = 0): CliRunResult => ({
+      exitCode,
+      stdout: JSON.stringify(value, null, 2) + "\n",
+      stderr: "",
+    });
+    if (action === "intent") {
+      const file = values["--proposals"];
+      const command = values["--generator"];
+      const provider = options.proposalProvider ?? (file
+        ? {
+          identity: `file:${resolve(file)}`,
+          generate: () => Deno.readTextFile(resolve(file)),
+        }
+        : new CommandSemanticProvider({
+          command: /[/\\]/.test(command) ? resolve(command) : command,
+          args: generatorArgs,
+        }));
+      const result = await proposeSemanticIntent(
+        context.world,
+        values["--text"],
+        provider,
+        { ...engine, renderQuestion: !file },
+      );
+      const beam = values["--beam"] ?? `intent-${crypto.randomUUID()}`;
+      if (result.checkpoint) {
+        options.signal?.throwIfAborted();
+        await writeWorldBeam(context.root, beam, {
+          ...result.checkpoint,
+          context: context.receipt,
+        });
+      }
+      const summary = searchSummary(result.search);
+      return json({
+        ...summary,
+        beam: result.checkpoint ? beam : undefined,
+        question: result.question ?? summary.question,
+        provenance: result.provenance,
+      }, summary.status === "green" ? 0 : 1);
+    }
+    let saved: StoredWorldBeam | undefined;
+    if (values["--beam"]) {
+      saved = await readWorldBeam(context.root, values["--beam"]);
+      if (!saved) {
+        throw new SemanticInputError(
+          "BEAM_NOT_FOUND",
+          "The named semantic beam does not exist.",
+        );
+      }
+    }
+    if (saved) {
+      let search = await resumeWorldBeam(saved.checkpoint, engine);
+      if (action === "answer") {
+        current(saved.checkpoint, context);
+        if (search.proposition?.fact.id !== values["--fact"]) {
+          throw new SemanticInputError(
+            "STALE_QUESTION",
+            "The supplied fact is not the beam's current discriminating proposition.",
+          );
+        }
+        const checkpoint = {
+          ...saved.checkpoint,
+          answers: [...saved.checkpoint.answers, {
+            factId: values["--fact"],
+            value: values["--value"] === "yes",
+          }],
+        };
+        search = await resumeWorldBeam(checkpoint, engine);
+        options.signal?.throwIfAborted();
+        await writeWorldBeam(
+          context.root,
+          values["--beam"],
+          checkpoint,
+          saved.revision,
+        );
+      }
+      if (action === "accept") {
+        current(saved.checkpoint, context);
+        if (
+          search.status !== "selected" ||
+          search.selected?.compilation.status !== "green"
+        ) {
+          throw new SemanticInputError(
+            "GREEN_WORLD_REQUIRED",
+            "Acceptance requires one selected green semantic world.",
+          );
+        }
+        // Refresh source and canonical receipts immediately before the storage CAS.
+        const refreshed = await workspaceContext(
+          path,
+          options.core ?? new CoreAdapter(),
+        );
+        current(saved.checkpoint, refreshed);
+        const world = search.selected.compilation.world;
+        options.signal?.throwIfAborted();
+        await writeSemanticState(context.root, {
+          world,
+          receipt: {
+            version: 1,
+            worldFingerprint: world.fingerprint,
+            sourceFingerprint: refreshed.source.world.fingerprint,
+            componentBindings: Object.fromEntries(
+              Object.entries(refreshed.source.bindings).filter(([, binding]) =>
+                !binding.unit
+              ).map(([id]) => [id, id]),
+            ),
+          },
+        }, refreshed.stored?.world.fingerprint);
+        return json({
+          status: "green",
+          accepted: values["--beam"],
+          worldFingerprint: world.fingerprint,
+        });
+      }
+      const summary = searchSummary(search);
+      const stale = !saved.checkpoint.context ||
+        saved.checkpoint.context.sourceFingerprint !==
+          context.receipt.sourceFingerprint ||
+        saved.checkpoint.context.canonicalFingerprint !==
+          context.receipt.canonicalFingerprint;
+      return json(
+        { ...summary, beam: values["--beam"], stale },
+        summary.status === "green" && !stale ? 0 : 1,
+      );
+    }
+    const compilation = await compileSemanticWorld(context.world, engine);
+    if (action === "status") {
+      return json({
+        status: context.sourceChanged && compilation.status === "green"
+          ? "yellow"
+          : compilation.status,
+        sourceChanged: context.sourceChanged,
+        worldFingerprint: context.world.fingerprint,
+        diagnostics: compilation.diagnostics,
+      }, compilation.status === "green" && !context.sourceChanged ? 0 : 1);
+    }
+    if (action === "project") {
+      const projection = projectGreenSemanticWorld(compilation);
+      if (values["--format"] === "sigil" || values["--format"] === "turtle") {
+        return {
+          exitCode: 0,
+          stdout: projection[values["--format"] as "sigil" | "turtle"],
+          stderr: "",
+        };
+      }
+      return json(projection);
+    }
+    if (action === "slice") {
+      const projection = projectGreenSemanticWorld(compilation);
+      const component = values["--component"];
+      const subject = projection.componentIds[component] ?? component;
+      const slice = implementationSlice(compilation, subject);
+      return values["--format"] === "text"
+        ? { exitCode: 0, stdout: renderImplementationSlice(slice), stderr: "" }
+        : json(slice);
+    }
+    throw new UsageError("Choose a valid semantic command.");
+  } catch (error) {
+    if (options.signal?.aborted) {
+      return {
+        exitCode: 130,
+        stdout: "",
+        stderr: "Semantic operation cancelled.\n",
+      };
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      exitCode: error instanceof UsageError
+        ? 2
+        : error instanceof SemanticInputError
+        ? 1
+        : 3,
+      stdout: "",
+      stderr: `${message}\n${
+        error instanceof UsageError ? "\n" + SEMANTIC_HELP : ""
+      }`,
+    };
+  }
+}

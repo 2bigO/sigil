@@ -1,5 +1,6 @@
 /** Command-line interface for versioned Sigil 0.7 workspaces. @module */
 import { type HelpTopic, parseArgs } from "./args.ts";
+import { runSemanticCommand } from "./semantic-commands.ts";
 import {
   type CompilationEvent,
   type CompilationHistoryStore,
@@ -37,7 +38,8 @@ Commands:
   graph             Report the component and import graph
   context           Return context for a component or file
   retrieve          Select deterministic purpose-specific context
-  compile           Evaluate Sigil until red, yellow, or green
+  compile           Compute deterministic semantic status and diagnostics
+  semantic          Interpret intent, answer beams, accept and project worlds
   render            Render workspace documentation
 
 Options:
@@ -260,6 +262,9 @@ export async function runCli(
   argv: readonly string[],
   options: CliRunOptions = {},
 ): Promise<CliRunResult> {
+  if (argv[0] === "semantic") {
+    return await runSemanticCommand(argv.slice(1), options);
+  }
   const parsed = parseArgs(argv);
   let compilationEvents: CompilationEvent[] | undefined;
   if (parsed.kind === "help") {
@@ -377,7 +382,10 @@ export async function runCli(
       ? compilationEvents.map((event) => JSON.stringify(event)).join("\n") +
         (compilationEvents.length ? "\n" : "")
       : "";
-    if (error instanceof DOMException && error.name === "AbortError") {
+    if (
+      (error instanceof DOMException && error.name === "AbortError") ||
+      (error instanceof CompilerFailure && error.code === "COMPILER_CANCELLED")
+    ) {
       return {
         exitCode: EXIT_CANCELLED,
         stdout: bufferedJsonl,

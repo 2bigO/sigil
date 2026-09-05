@@ -31,7 +31,12 @@ import {
 Deno.test("a rejected selector exits as usage, not runtime", async () => {
   const root = await makeWorkspace("exit-status");
   try {
-    const run = (code: "COMPILER_INVALID_INVOCATION" | "COMPILER_FAILED") =>
+    const run = (
+      code:
+        | "COMPILER_INVALID_INVOCATION"
+        | "COMPILER_FAILED"
+        | "COMPILER_CANCELLED",
+    ) =>
       runCli(["compile", root], {
         compiler: () => Promise.reject(new CompilerFailure(code, "rejected")),
       });
@@ -39,7 +44,8 @@ Deno.test("a rejected selector exits as usage, not runtime", async () => {
     const invalid = await run("COMPILER_INVALID_INVOCATION");
     assert(invalid.stderr.includes("rejected"));
     assertEquals(invalid.exitCode, EXIT_USAGE);
-    // Every other failure stays a runtime error.
+    assertEquals((await run("COMPILER_CANCELLED")).exitCode, 130);
+    // Operational failures remain runtime errors.
     const failed = await run("COMPILER_FAILED");
     assert(failed.stderr.includes("rejected"));
     assertEquals(failed.exitCode, EXIT_RUNTIME);
