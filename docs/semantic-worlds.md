@@ -267,3 +267,13 @@ notes that the API is still evolving, so the exact version and adapter tests are
 part of the compatibility boundary. Plain semantic compilation does not load the
 Node-based analysis SDK. The analyzer requires environment permission because the
 SDK spawns its native process through Node's child-process API.
+
+The first implementation collector is now wired into ordinary compile and
+`semantic verify`. Host-owned code bindings select exact component inventories,
+module names, resolved declaration symbols and ambient global API paths. Native
+TypeScript observations become ordinary documentary RDF plus separate trusted
+observation/check inputs; code locations and hashes remain in sidecar receipts.
+Existing core ownership anchors are exposed as claims without closing coverage.
+The collector certifies absent direct dependencies only for an explicitly
+exhaustive closed inventory. It leaves runtime behavior and API absence open.
+A mandatory failed typecheck is red independently of positive call coverage.

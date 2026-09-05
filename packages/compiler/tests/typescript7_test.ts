@@ -73,6 +73,7 @@ Deno.test("TypeScript 7 distinguishes lexical shadowing and records opaque dynam
     `export function local(Deno: {readTextFile(x:string):string}) { return Deno.readTextFile("local"); }
 export const actual = Deno.readTextFile("global");
 export async function dynamic(name: string, object: any) { await import(name); return object[name](); }
+export function shadowed(require: (name:string) => string) { return require("not-a-module"); }
 `,
   );
   try {
@@ -87,6 +88,11 @@ export async function dynamic(name: string, object: any) { await import(name); r
     assert(result.issues.some((issue) => issue.reason === "computed-access"));
     assert(result.issues.some((issue) => issue.reason === "unresolved-call"));
     assert(result.diagnostics.some((d) => d.text.includes("Deno")));
+    assert(
+      !result.dependencies.some((dependency) =>
+        dependency.specifier === "not-a-module"
+      ),
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

@@ -48,6 +48,11 @@ import {
   type SemanticSourceBinding,
 } from "./semantic/source.ts";
 import { scopeSemanticWorld } from "./semantic/scope.ts";
+import {
+  collectImplementationEvidence,
+  type ImplementationEvidence,
+  readImplementationPolicy,
+} from "./semantic/evidence.ts";
 import { readSemanticState } from "./semantic/store.ts";
 import {
   digest,
@@ -600,8 +605,33 @@ export async function compile(
       } else if (
         stage.id === "implementation-coverage" && design?.status === "green"
       ) {
+        const policy = options.implementationPolicy ??
+          await readImplementationPolicy(workspace.root);
+        const evidence = policy
+          ? await collectImplementationEvidence({
+            root: workspace.root,
+            policy,
+            resolved,
+            signal: cancellationSignal,
+            timeoutMs: engineOptions().timeoutMs,
+          })
+          : undefined;
+        const mechanical = engineOptions();
         const implementation = await compileSemanticWorld(world, {
-          ...engineOptions(),
+          ...mechanical,
+          observations: [
+            ...mechanical.observations ?? [],
+            ...evidence?.observations ?? [],
+          ],
+          completeScopes: [
+            ...mechanical.completeScopes ?? [],
+            ...evidence?.completeScopes ?? [],
+          ],
+          requiredChecks: [
+            ...mechanical.requiredChecks ?? [],
+            ...evidence?.requiredChecks ?? [],
+          ],
+          checks: [...mechanical.checks ?? [], ...evidence?.checks ?? []],
           focus: "implementation",
         });
         current.push(
@@ -613,6 +643,7 @@ export async function compile(
                 sourceIntent.bindings,
                 resolver,
                 stage.id,
+                evidence,
               )
             ),
           ),
@@ -734,6 +765,7 @@ async function fromSemanticDiagnostic(
   bindings: Readonly<Record<string, SemanticSourceBinding>>,
   resolver: SemanticSubjectResolver,
   stage: string,
+  evidence?: ImplementationEvidence,
 ): Promise<CompilerDiagnostic> {
   const premiseIds = new Set(
     item.derivation.flatMap((row) => row.slice(2).map(String)),
@@ -771,6 +803,14 @@ async function fromSemanticDiagnostic(
       derivation: item.derivation,
       facts,
       sources: facts.map((f) => compilation.world.provenance[f.id] ?? []),
+      mechanical: evidence
+        ? Object.fromEntries(
+          Object.entries(evidence.receipts).filter(([id]) =>
+            premiseIds.has(id)
+          ),
+        )
+        : undefined,
+      incomplete: evidence?.incomplete,
     }),
     impact: item.severity === "error"
       ? "A hard semantic invariant is violated."

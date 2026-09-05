@@ -712,3 +712,112 @@ Deno.test({
     }
   },
 });
+
+Deno.test("ordinary implementation compilation collects native evidence from host policy", async () => {
+  const root = await workspace(
+    `component Example {
+  goal {
+    Call the bridge.
+  }
+  interface {
+    Bridge {
+      Call the bridge.
+    }
+  }
+}
+`,
+    {
+      "app.ts":
+        '// @sigil implements main.sigil::Example logic\nimport { bridge } from "./bridge.ts"; export const value = bridge(5);',
+      "bridge.ts":
+        "export function bridge(value: number): number { return value; }",
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          strict: true,
+          noEmit: true,
+          module: "nodenext",
+          target: "es2022",
+          allowImportingTsExtensions: true,
+        },
+        files: ["app.ts", "bridge.ts"],
+      }),
+    },
+  );
+  try {
+    const resolved = resolveSigilWorkspace(
+      await loadSigilWorkspace(fs, { startPath: root }),
+    );
+    const projected = await projectSigilIntent(
+      resolved.components,
+      root,
+      resolved.imports,
+    );
+    const component = Object.values(projected.bindings).find((binding) =>
+      !binding.unit
+    )!.componentId;
+    const builder = new TurtleBuilder().edge(
+      component,
+      "invokes",
+      "urn:test:Bridge",
+    );
+    for (const [id, binding] of Object.entries(projected.bindings)) {
+      if (binding.unit) {
+        builder.edge(id, "from", component).value(id, "relation", "invokes")
+          .edge(id, "target", "urn:test:Bridge").value(id, "expected", true);
+      }
+    }
+    await Deno.writeTextFile(
+      `${root}/.sigil/implementation.json`,
+      JSON.stringify({
+        version: 1,
+        project: "tsconfig.json",
+        components: [{ entity: component, files: ["app.ts"] }],
+        targets: [{
+          entity: "urn:test:Bridge",
+          declarations: [{ file: "bridge.ts", symbol: "bridge" }],
+        }],
+      }),
+    );
+    const options = {
+      focus: "implementation" as const,
+      disableHistory: true,
+      semanticDocuments: [{
+        sourceId: "interpretation",
+        turtle: builder.toString(),
+      }],
+    };
+    const events: CompilationEvent[] = [];
+    const green = await compile(root, { kind: "workspace" }, "standard", {
+      ...options,
+      onEvent: (event) => {
+        events.push(event);
+      },
+    });
+    assertEquals(green.status, "green");
+    assertEquals(events.at(-1)?.type, "completed");
+    await Deno.writeTextFile(
+      `${root}/app.ts`,
+      'import { bridge } from "./bridge.ts"; export const value = bridge("wrong");',
+    );
+    const failed = await compile(
+      root,
+      { kind: "workspace" },
+      "standard",
+      options,
+    );
+    assertEquals(failed.status, "red");
+    assert(
+      failed.diagnostics.some((diagnostic) =>
+        diagnostic.code === "failed-mechanical-check" &&
+        diagnostic.evidence.includes("2345")
+      ),
+    );
+    await Deno.writeTextFile(`${root}/app.ts`, "export const value = 5;");
+    assertEquals(
+      (await compile(root, { kind: "workspace" }, "standard", options)).status,
+      "yellow",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

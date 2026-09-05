@@ -56,7 +56,24 @@ engine. `tools.compile.budgets.elapsedTimeMs` caps execution. Source metadata st
 outside the ontology, and derived facts are never silently reasserted.
 
 See [the architecture and migration record](../../docs/semantic-worlds.md) and
-[CLI usage](../cli/README.md). Automatic implementation collectors, code candidate
+[CLI usage](../cli/README.md). Code candidate
 execution, bundled proposal formats and native release packaging remain migration
 work. Legacy evaluator APIs remain available to existing adapter packages, but
 ordinary compilation never invokes them.
+
+Implementation analysis uses the pinned native TypeScript 7.0.2 API. Supply
+`CompileOptions.implementationPolicy` or `.sigil/implementation.json` to select a
+TypeScript project, exact component file inventories and semantic API bindings.
+`collectImplementationEvidence` returns documentary Turtle, trusted observations,
+typecheck results, existing ownership claims and source/hash receipts. Ordinary
+implementation compilation feeds those observations to the same egglog kernel.
+`sigil semantic verify` exposes the full evidence bundle for inspection.
+
+A native type error is a failed mandatory check, even if every call obligation is
+covered. Passing the typecheck proves only that check. Direct imports and resolved
+call sites can establish `dependsOn`, `invokes` and `uses`; explicit API catalog
+bindings can also classify `reads` or `writes`. These describe static code
+relationships, not execution of every path. Negative dependency coverage requires
+an exhaustive host inventory with no missing files, compiler errors, opaque calls
+or unresolved imports. Other behavioral absence remains unresolved. Ownership
+annotations remain claims and never become blanket implementation proof.

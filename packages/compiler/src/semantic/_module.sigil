@@ -111,6 +111,20 @@ component SigilImplementationEvidence {
     the difference between observed source structure and behavioral proof.
   }
   interface {
+    EvidenceCollection {
+      A host-owned implementation policy selects a TypeScript project, exact
+      component file inventories and bindings to modules, declarations or globals.
+      TypeScript 7 resolves static direct dependencies and call targets. Each
+      observation produces ordinary Turtle plus a source-range and input-hash
+      receipt outside the semantic ontology. Evidence stays separate from design
+      assertions. Aliases resolve to their exported symbols and indirect callable
+      parameters remain opaque. Inventories never imply runtime execution.
+
+      A passing native typecheck satisfies only its mandatory tool check. Complete
+      negative dependency scopes require an explicit exhaustive inventory, every
+      file present, no errors and no opaque calls or unresolved imports. Calls,
+      arbitrary behavior and API effects do not receive absence certificates.
+    }
     TypeScriptAnalysis {
       Use the pinned TypeScript 7 native compiler API to obtain syntax and type
       diagnostics, AST import references, symbol-resolved call declarations,

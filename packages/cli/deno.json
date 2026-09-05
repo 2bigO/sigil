@@ -15,8 +15,8 @@
     ]
   },
   "tasks": {
-    "install": "deno install --global --force --config ../../deno.json --allow-read --allow-write --allow-run --allow-env=HOME,USERPROFILE --name sigil src/main.ts",
-    "test": "deno test --allow-read --allow-write --allow-run",
+    "install": "deno install --global --force --config ../../deno.json --allow-read --allow-write --allow-run --allow-env --name sigil src/main.ts",
+    "test": "deno test --allow-env --allow-read --allow-write --allow-run",
     "publish:dry-run": "deno publish --dry-run"
   },
   "compilerOptions": {

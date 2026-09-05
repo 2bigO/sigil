@@ -275,3 +275,81 @@ Deno.test("semantic CLI rejects invalid usage before executing or mutating a wor
   assert((await runCli(["semantic", "--help"])).stdout.includes("accept"));
   assert((await runCli(["--help"])).stdout.includes("semantic"));
 });
+
+Deno.test("semantic verify exposes native evidence and source receipts without persisting a verdict", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/.sigil`);
+    await Deno.writeTextFile(
+      `${root}/.sigil/config.json`,
+      JSON.stringify({
+        sigilVersion: "0.7.0",
+        workspace: { name: "verify", members: [] },
+        files: { include: ["**/*.sigil"], exclude: [] },
+        tools: {},
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/main.sigil`,
+      "component Application {\n  goal {\n  }\n  interface {\n  }\n}\n",
+    );
+    await Deno.writeTextFile(
+      `${root}/app.ts`,
+      "// @sigil implements main.sigil::Application interface\nexport function run() { return 5; }",
+    );
+    await Deno.writeTextFile(
+      `${root}/tsconfig.json`,
+      JSON.stringify({
+        compilerOptions: { strict: true, noEmit: true },
+        files: ["app.ts"],
+      }),
+    );
+    const resolved = await new CoreAdapter().resolveWorkspace(root);
+    const projected = await projectSigilIntent(
+      resolved.components,
+      root,
+      resolved.imports,
+    );
+    const component = Object.keys(projected.bindings)[0];
+    await Deno.writeTextFile(
+      `${root}/.sigil/implementation.json`,
+      JSON.stringify({
+        version: 1,
+        project: "tsconfig.json",
+        components: [{
+          entity: component,
+          files: ["app.ts"],
+          exhaustive: true,
+        }],
+        targets: [],
+      }),
+    );
+    const result = await runCli(["semantic", "verify", root]);
+    assert(result.exitCode === 0, result.stderr || result.stdout);
+    const report = JSON.parse(result.stdout);
+    assert(report.status === "green");
+    assert(report.evidence.analysis.analyzer === "typescript@7.0.2");
+    assert(Object.values(report.evidence.receipts).length === 1);
+    assert(report.evidence.anchors.length === 1);
+    assert(report.evidence.anchors[0].component === component);
+    assert(report.evidence.observations.length === 0);
+    assert(report.evidence.turtle.includes("Evidence"));
+    assert(!await readSemanticState(root));
+    const turtle = await runCli([
+      "semantic",
+      "verify",
+      root,
+      "--format",
+      "turtle",
+    ]);
+    assert(turtle.exitCode === 0 && turtle.stdout.includes("Evidence"));
+    await Deno.writeTextFile(
+      `${root}/app.ts`,
+      'export const value: number = "wrong";',
+    );
+    const red = await runCli(["semantic", "verify", root]);
+    assert(red.exitCode === 1 && JSON.parse(red.stdout).status === "red");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});

@@ -158,3 +158,39 @@ usage, 3 for operational failures, and 130 for cancellation.
 Run package tests with `deno task test`. Native binary release packaging and
 bundled provider protocol adapters are being migrated; the source workflow above
 uses the local native build and the provider-neutral executable protocol.
+
+For TypeScript implementation verification, create `.sigil/implementation.json`
+with host-owned code bindings. For example:
+
+```json
+{
+  "version": 1,
+  "project": "tsconfig.json",
+  "components": [
+    {
+      "entity": "urn:sigil:component:main.sigil:Application",
+      "files": ["src/application.ts"],
+      "exhaustive": true
+    }
+  ],
+  "targets": [
+    {
+      "entity": "urn:example:Bridge",
+      "declarations": [{ "file": "src/bridge.ts", "symbol": "bridge" }]
+    }
+  ]
+}
+```
+
+Use the actual entity identifiers from `semantic project`. Files are exact paths
+relative to the workspace; `exhaustive` is a host assertion that the inventory
+contains the component's entire implementation. Target selectors can also use
+`modules` (literal module names) or `globals` (unshadowed global API paths), with
+optional `access: "reads"` or `"writes"` for a host API catalog.
+
+`sigil semantic verify .` runs native TypeScript 7 and egglog and returns JSON with
+status, coverage derivations, documentary Turtle and source receipts.
+`--format turtle` exports just the evidence RDF; the exit code still reflects
+verification status. No verdict is persisted. Ordinary `sigil compile` uses the
+same collector for implementation focus when the policy exists. Keep this policy
+and test oracles fixed while generating code candidates.

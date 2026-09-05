@@ -1,17 +1,20 @@
 import { resolve } from "node:path";
 import {
+  collectImplementationEvidence,
   CommandSemanticProvider,
   compileSemanticWorld,
   implementationSlice,
   projectGreenSemanticWorld,
   projectSigilIntent,
   proposeSemanticIntent,
+  readImplementationPolicy,
   readSemanticState,
   readWorldBeam,
   renderImplementationSlice,
   resumeWorldBeam,
   SemanticInputError,
   type SemanticProposalProvider,
+  serializeSemanticWorld,
   type StoredWorldBeam,
   type WorldBeamCheckpoint,
   worldFromFacts,
@@ -31,6 +34,7 @@ Commands:
   accept     Accept a uniquely selected green --beam as canonical assertions
   project    Project the canonical green world as paired Turtle and Sigil
   slice      Return a focused implementation slice for --component
+  verify     Analyze implementation with TypeScript 7 and recompute evidence coverage
 
 Options:
   --text <intent>          Natural-language intent
@@ -48,7 +52,14 @@ A candidate envelope is {"version":1,"candidates":[{"id":"name","additions":"Tur
 Only acceptance replaces canonical meaning. Status, project and slice are read-only.
 `;
 
-type Action = "intent" | "status" | "answer" | "accept" | "project" | "slice";
+type Action =
+  | "intent"
+  | "status"
+  | "answer"
+  | "accept"
+  | "project"
+  | "slice"
+  | "verify";
 interface Arguments {
   action: Action;
   path: string;
@@ -60,9 +71,10 @@ class UsageError extends Error {}
 function parse(argv: readonly string[]): Arguments {
   const action = argv[0];
   if (
-    !["intent", "status", "answer", "accept", "project", "slice"].includes(
-      action,
-    )
+    !["intent", "status", "answer", "accept", "project", "slice", "verify"]
+      .includes(
+        action,
+      )
   ) throw new UsageError("Choose a semantic command.");
   const values: Record<string, string> = {};
   const generatorArgs: string[] = [];
@@ -106,6 +118,7 @@ function parse(argv: readonly string[]): Arguments {
     accept: ["--beam", "--format"],
     project: ["--format"],
     slice: ["--component", "--format"],
+    verify: ["--format"],
   };
   for (const key of Object.keys(values)) {
     if (!allowed[action].includes(key)) {
@@ -116,7 +129,8 @@ function parse(argv: readonly string[]): Arguments {
   if (
     format !== "json" &&
     !(action === "project" && ["sigil", "turtle"].includes(format)) &&
-    !(action === "slice" && format === "text")
+    !(action === "slice" && format === "text") &&
+    !(action === "verify" && format === "turtle")
   ) throw new UsageError(`Unsupported ${action} format ${format}.`);
   if (
     action === "intent" &&
@@ -167,6 +181,7 @@ async function workspaceContext(path: string, core: CoreAdapter) {
   );
   return {
     root,
+    resolved,
     source,
     stored,
     world,
@@ -372,6 +387,42 @@ export async function runSemanticCommand(
       );
     }
     const compilation = await compileSemanticWorld(context.world, engine);
+    if (action === "verify") {
+      if (compilation.status !== "green" || context.sourceChanged) {
+        throw new SemanticInputError(
+          "GREEN_WORLD_REQUIRED",
+          "Implementation verification requires current green semantic contracts.",
+        );
+      }
+      const policy = await readImplementationPolicy(context.root);
+      if (!policy) {
+        throw new UsageError(
+          "verify requires host code bindings in .sigil/implementation.json.",
+        );
+      }
+      const evidence = await collectImplementationEvidence({
+        root: context.root,
+        policy,
+        resolved: context.resolved,
+        signal: options.signal,
+      });
+      const implementation = await compileSemanticWorld(context.world, {
+        ...engine,
+        ...evidence,
+        focus: "implementation",
+      });
+      const turtle = serializeSemanticWorld(evidence.world);
+      const exitCode = implementation.status === "green" ? 0 : 1;
+      return values["--format"] === "turtle"
+        ? { exitCode, stdout: turtle, stderr: "" }
+        : json({
+          status: implementation.status,
+          worldFingerprint: context.world.fingerprint,
+          diagnostics: implementation.diagnostics,
+          closure: implementation.closure,
+          evidence: { ...evidence, world: undefined, turtle },
+        }, exitCode);
+    }
     if (action === "status") {
       return json({
         status: context.sourceChanged && compilation.status === "green"

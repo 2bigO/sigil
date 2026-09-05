@@ -227,6 +227,9 @@ export interface CompilationEvent {
 export type CompilationReportRepresentation = "json" | "markdown";
 
 export interface CompileOptions {
+  /** Host-owned code bindings. Defaults to .sigil/implementation.json when present. */
+  readonly implementationPolicy?:
+    import("./semantic/evidence.ts").ImplementationPolicy;
   /** Additional asserted Turtle interpretations, never evaluator judgments. */
   readonly semanticDocuments?:
     readonly import("./semantic/turtle.ts").TurtleDocument[];

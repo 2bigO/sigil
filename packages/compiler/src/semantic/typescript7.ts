@@ -45,7 +45,9 @@ export interface TypeScriptCall extends CodeLocation {
   readonly declaration?: CodeLocation;
   readonly declarationKind?: number;
   readonly symbol?: string;
-  /** A bare global path only when its root has no lexical declaration. */
+  /** Export identity after native alias resolution. */
+  readonly targetSymbol?: string;
+  /** A global path with no local declaration (ambient declarations are allowed). */
   readonly global?: string;
 }
 export interface TypeScriptIssue extends CodeLocation {
@@ -53,6 +55,7 @@ export interface TypeScriptIssue extends CodeLocation {
     | "computed-import"
     | "computed-access"
     | "unresolved-call"
+    | "indirect-call"
     | "external-call";
 }
 export interface TypeScriptAnalysis {
@@ -76,11 +79,13 @@ export interface TypeScriptAnalysisOptions {
 }
 
 function pathIn(root: string, file: string): string {
-  const path = relative(root, file);
-  return (path.startsWith("..") || isAbsolute(path) ? file : path).replaceAll(
-    "\\",
-    "/",
-  );
+  const path = relative(root, file).replaceAll("\\", "/");
+  return (path === ".." || path.startsWith("../") || isAbsolute(path)
+    ? file
+    : path).replaceAll(
+      "\\",
+      "/",
+    );
 }
 function location(root: string, node: Node): CodeLocation {
   const source = node.getSourceFile();
@@ -116,6 +121,7 @@ async function inspectProject(
   root: string,
   project: Project,
   check: () => void,
+  aliasFlag: number,
 ): Promise<TypeScriptAnalysis> {
   const files: TypeScriptAnalysis["files"][number][] = [];
   const dependencies: TypeScriptDependency[] = [];
@@ -123,6 +129,7 @@ async function inspectProject(
   const issues: TypeScriptIssue[] = [];
   const inputs: { file: string; text: string }[] = [];
   const sourceFiles: SourceFile[] = [];
+  let inputChars = 0;
   for (const name of [...await project.program.getSourceFileNames()].sort()) {
     check();
     const metadata = await project.program.getSourceFileMetadata(name);
@@ -130,6 +137,12 @@ async function inspectProject(
     const source = await project.program.getSourceFile(name);
     if (!source) throw new Error(`TypeScript snapshot omitted ${name}.`);
     const file = pathIn(root, source.fileName);
+    inputChars += source.text.length;
+    if (files.length >= 10_000 || inputChars > 32 * 1024 * 1024) {
+      throw new Error(
+        "TypeScript analysis exceeds its file or source size limit.",
+      );
+    }
     inputs.push({ file, text: source.text });
     files.push({
       file,
@@ -147,9 +160,13 @@ async function inspectProject(
     project.program.getSemanticDiagnostics(),
   ])).flat();
   for (const source of sourceFiles) {
-    const imports: { node: Node; typeOnly: boolean }[] = [];
+    const imports: { node: Node; typeOnly: boolean; loader?: Node }[] = [];
     const callNodes: Node[] = [];
+    let nodeCount = 0;
     const visit = (node: Node): void => {
+      if (++nodeCount > 200_000) {
+        throw new Error("TypeScript source exceeds its AST node limit.");
+      }
       if (isImportDeclaration(node)) {
         imports.push({
           node: node.moduleSpecifier,
@@ -183,12 +200,11 @@ async function inspectProject(
           isIdentifier(node.expression) && node.expression.text === "require"
         ) {
           const target = node.arguments?.[0];
-          if (target && isStringLiteralLike(target)) {
-            imports.push({ node: target, typeOnly: false });
-          } else {issues.push({
-              ...location(root, node),
-              reason: "computed-import",
-            });}
+          imports.push({
+            node: target ?? node,
+            typeOnly: false,
+            loader: isIdentifier(node.expression) ? node.expression : undefined,
+          });
         }
       }
       if (isElementAccessExpression(node)) {
@@ -199,6 +215,18 @@ async function inspectProject(
     visit(source);
     for (const imported of imports) {
       check();
+      if (imported.loader) {
+        const loader = await project.checker.getSymbolAtLocation(
+          imported.loader,
+        );
+        if (
+          loader?.declarations.some((declaration) =>
+            files.some((file) =>
+              file.file === pathIn(root, declaration.path) && !file.declaration
+            )
+          )
+        ) continue;
+      }
       if (!isStringLiteralLike(imported.node)) {
         issues.push({
           ...location(root, imported.node),
@@ -219,12 +247,21 @@ async function inspectProject(
       check();
       if (!isCallExpression(node) && !isNewExpression(node)) continue;
       const symbol = await project.checker.getSymbolAtLocation(node.expression);
+      const targetSymbol = symbol && (symbol.flags & aliasFlag)
+        ? await project.checker.getAliasedSymbol(symbol)
+        : symbol;
       const signature = await project.checker.getResolvedSignature(node);
       const declaration = await resolveHandle(root, signature?.declaration);
       const path = globalPath(node.expression);
       const rootSymbol = path &&
         await project.checker.getSymbolAtLocation(path.root);
-      const global = path && !rootSymbol ? path.text : undefined;
+      const global =
+        path && (!rootSymbol || rootSymbol.declarations.length > 0 &&
+              rootSymbol.declarations.every((declaration) =>
+                /\.d\.[cm]?ts$/.test(declaration.path)
+              ))
+          ? path.text
+          : undefined;
       calls.push({
         ...location(root, node),
         expression: node.expression.getText(source),
@@ -232,10 +269,20 @@ async function inspectProject(
         declaration,
         declarationKind: signature?.declaration?.kind,
         symbol: symbol?.name,
+        targetSymbol: targetSymbol?.name,
         global,
       });
       if (!declaration) {
         issues.push({ ...location(root, node), reason: "unresolved-call" });
+      } else if (
+        [
+          SyntaxKind.FunctionType,
+          SyntaxKind.ConstructorType,
+          SyntaxKind.CallSignature,
+          SyntaxKind.ConstructSignature,
+        ].includes(signature!.declaration!.kind)
+      ) {
+        issues.push({ ...location(root, node), reason: "indirect-call" });
       } else if (
         !files.some((file) =>
           file.file === declaration.file && !file.declaration
@@ -300,7 +347,7 @@ export async function analyzeTypeScript7(
   ) throw new Error("Invalid TypeScript analysis timeout.");
   // Lazy loading keeps plain Turtle compilation independent of the SDK's Node
   // environment access. Preload the process module before installing cancellation.
-  const [{ API }] = await Promise.all([
+  const [{ API, SymbolFlags }] = await Promise.all([
     import("typescript7/unstable/async"),
     import("node:child_process"),
   ]);
@@ -342,6 +389,7 @@ export async function analyzeTypeScript7(
       root,
       project,
       () => signal.throwIfAborted(),
+      SymbolFlags.Alias,
     );
     signal.throwIfAborted();
     succeeded = true;
@@ -357,18 +405,14 @@ export async function analyzeTypeScript7(
       ? new Promise<void>((resolve) => child.once("close", () => resolve()))
       : Promise.resolve();
     if (!succeeded) stop();
+    const killTimer = setTimeout(stop, 1000);
     try {
-      await api.close();
-    } catch {
-      stop();
-      await client.close();
-    }
-    const killTimer = setTimeout(() => {
       try {
-        child?.kill("SIGKILL");
-      } catch { /* exited */ }
-    }, 1000);
-    try {
+        await api.close();
+      } catch {
+        stop();
+        await client.close();
+      }
       await closed;
     } finally {
       clearTimeout(killTimer);
