@@ -1,4 +1,4 @@
-import { basename, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 
 const args = parseArgs(Deno.args);
 const repository = resolve(import.meta.dirname!, "..");
