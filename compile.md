@@ -91,6 +91,54 @@ completion criterion for this plan.
 | Runtime bundle         | Sigil's native egglog executable, TypeScript native executable and standard libraries, and a versioned file manifest.  |
 | Successful command     | A process completed according to its protocol. This alone does not mean a semantic result is green.                    |
 
+### 1.3 `.sigil` artifact retention and Git policy
+
+Every target workspace has one `.sigil/` directory at its repository root. The
+compiler creates missing subdirectories through `initializeCompileArtifacts`; it
+must never create a second state directory, scan an installed dependency tree, or
+write semantic state outside this root. Use this exact retention policy:
+
+```text
+.sigil/
+  world/
+    <revision>/
+      assertions.egg       # lossless accepted assertions; committed
+      manifest.json         # content/dependency/receipt identity; committed
+    current.json            # selected accepted revision pointer; committed
+  implementation.json       # verifier policy; committed
+  views/                    # generated human views and current.json; committed
+  receipts/                 # returned claims and locations; ignored
+    <receipt-id>/
+      assertions.egg       # untrusted claim facts
+      locations.json        # untrusted source locations
+      manifest.json         # artifact identity
+  handoffs/                 # retained assignments; ignored
+  runs/                     # execution results and reports; ignored
+  cache/                    # locks and derived caches; ignored
+  beams/                    # resumable proposal state; ignored
+```
+
+The accepted world is the only canonical semantic store. Commit the complete
+`.sigil/world/` revision selected by `current.json`, its manifest, the committed
+verifier policy, and published managed views. `.sigil/receipts/` is an
+untrusted interchange cache: add it to the workspace's Git excludes, never stage
+it, and never let its presence or hash alone change a verdict. Receipt ingestion
+may preserve normalized `.egg` claims plus location metadata, while the original
+Turtle input is optional and can be deleted after ingestion. Handoffs, runs,
+beams, locks, transactions, and derived caches follow the same ignored policy.
+
+Do not write new `.sigil/worlds/*.ttl` files. A read-only compatibility path may
+load the legacy v1 state described in section 8.2, then an explicit migration
+rewrites it as a tracked `.sigil/world/<revision>/assertions.egg` bundle. No
+legacy read is allowed to mutate the checkout during inspection.
+
+The implementation must test this policy: a fresh accepted world survives
+removal of Turtle, receipts, handoffs, runs, views, and caches; a receipt can be
+re-imported but cannot select a world or establish coverage; and `git
+check-ignore` reports `.sigil/receipts/`, `.sigil/handoffs/`, `.sigil/runs/`,
+`.sigil/cache/`, and `.sigil/beams/` while `git ls-files` reports the accepted
+world and policy.
+
 ## 2. Repository map and dependency direction
 
 Read these files before changing their corresponding workstream:
