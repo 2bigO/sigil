@@ -197,7 +197,16 @@ jobs:
           test -n "$archive"
           mkdir -p "$extracted"
           if [[ "$archive" = *.zip ]]; then
-            tar -xf "$archive" -C "$extracted"
+            if [[ "${RUNNER_OS}" = Windows ]]; then
+              archive_native="$(cygpath -w "$archive")"
+              extracted_native="$(cygpath -w "$extracted")"
+              SIGIL_ARCHIVE_NATIVE="$archive_native" \
+                SIGIL_EXTRACTED_NATIVE="$extracted_native" \
+                powershell.exe -NoProfile -NonInteractive -Command \
+                '$ErrorActionPreference = "Stop"; Expand-Archive -LiteralPath $env:SIGIL_ARCHIVE_NATIVE -DestinationPath $env:SIGIL_EXTRACTED_NATIVE -Force'
+            else
+              unzip -q "$archive" -d "$extracted"
+            fi
           else
             tar -xzf "$archive" -C "$extracted"
           fi
