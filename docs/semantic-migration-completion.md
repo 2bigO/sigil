@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `bc7da66`:
+`ff82926` and currently ends at `bf2ab6e`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -30,10 +30,10 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430` | Native distribution builder, smoke seam, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e` | Native distribution builder, smoke seam, offline Linux archive gate, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting, strict checkpoint parsing, and the completion report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting, strict checkpoint parsing, offline release enforcement, and the completion report |
 
 ## Versions and reproducibility
 
@@ -118,7 +118,7 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | E06 | `integrations/editor/vscode/tests/` | Linux source | PASS (Linux) |
 | E07 | `integrations/editor/vscode/tests/`; `packages/compiler/tests/verification_test.ts` | Linux source | PASS (Linux) |
 | E08 | `packages/lsp/tests/`; `packages/compiler/tests/managed_views_test.ts` | Linux source | PASS (Linux) |
-| E09 | `packages/lsp/tests/`; `integrations/editor/vscode/tests/` | Linux source | PASS (Linux) |
+| E09 | `packages/lsp/tests/`; `integrations/editor/vscode/tests/`; Xvfb-backed extension-host run | Linux source | PASS (Linux) |
 | E10 | `scripts/validate-skill.ts`; `packages/compiler/skills/`; adapter suites | Linux source | PASS (Linux) |
 | E11 | `packages/cli/tests/semantic_commands_test.ts`; `packages/cli/tests/returned_implementation_test.ts` | Linux source | PASS (Linux) |
 
@@ -128,7 +128,7 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | --- | --- | --- | --- |
 | R01 | `scripts/test-cli-release.ts`; staged archive smoke run from an unrelated cwd after relocation to a path containing spaces and Unicode | Linux x86_64 | PARTIAL (local archive; target matrix required) |
 | R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency | Linux x86_64 | PASS (local archive) |
-| R03 | `scripts/test-cli-release.ts` validates doctor; offline matrix job is defined in `.github/workflows/native-release.yml` | Linux x86_64 offline container | CI required |
+| R03 | `scripts/test-cli-release.ts` validates doctor/design with isolated caches; `native-release.yml` enforces the Linux x64 `--network none` container smoke | Linux x86_64 offline container | PARTIAL (Linux x64 pass; all-target matrix required) |
 | R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R06 | Handoff/receipt fixtures pass in compiler and CLI suites | Linux source | PASS (Linux); archive matrix still required |
@@ -174,8 +174,8 @@ metadata migration and beam recovery. The CLI semantic-flow test also asserts
 that migration preview is a no-op for an already-v2 receipt. The exact
 single-fixture sequence in `compile.md` section 11.1, including the packaged
 archive variant and editor extension-host run, has not been executed as one
-test. It is therefore **PARTIAL** until the release matrix and an Xvfb-backed
-extension-host run complete.
+test. It is therefore **PARTIAL** until the release matrix and one combined
+fixture run complete; its packaged-archive and Xvfb subchecks pass separately.
 
 ## Validation commands and results
 
@@ -184,7 +184,8 @@ The following final commands were executed after the S11 changes:
 | Command | Result |
 | --- | --- |
 | `deno check packages/compiler/src/mod.ts packages/cli/src/main.ts` | Pass |
-| `deno lint` | Pass, 188 files checked |
+| `deno task fmt` | Pass |
+| `deno lint` | Pass, 169 files checked |
 | `deno task check` | Pass, including VS Code TypeScript check |
 | `deno task test:compiler` | Pass, 106 tests |
 | `deno task test:cli` | Pass, 81 tests |
@@ -197,8 +198,11 @@ The following final commands were executed after the S11 changes:
 | `deno task test:vscode` | Pass |
 | `deno task test:skill` | Pass |
 | focused beam, migration and returned-verification tests | Pass, 11 tests |
-| `deno task test:vscode:extension` | Environment blocked: downloaded VS Code requires an X server/DISPLAY |
+| `DISPLAY=:99 deno task test:vscode:extension` under Xvfb | Pass |
+| `cargo fmt --check` (Rust 1.91, `packages/compiler/native`) | Pass |
+| `cargo clippy --locked -- -D warnings` (Rust 1.91, `packages/compiler/native`) | Pass |
 | staged `x86_64-unknown-linux-gnu` archive: version, doctor, relocation/isolation, semantic fixture, tamper and missing-runtime/library rejection | Pass |
+| extracted `x86_64-unknown-linux-gnu` archive in Docker with `--network none`: version, doctor and semantic-design fixture | Pass (Linux x86_64) |
 | local `install.sh` checksum/doctor/selection seam | Pass |
 
 Raw outputs remain in the private `.codex-progress/logs/` folder and are not
@@ -293,8 +297,7 @@ wording; they never supply laws, verdicts or trusted evidence. Optional
 external providers and check tools remain caller-owned.
 
 The implementation is ready for source-checkout use on Linux. The remaining
-release gate is operational evidence: run the five native target jobs and the
-Linux offline container job from `.github/workflows/native-release.yml`, run
-the Xvfb-backed extension-host suite, and record their artifacts before
-publishing. No target dependency tree is scanned, copied or frozen by these
-operations.
+release gate is operational evidence from the five native target jobs and the
+complete single-fixture sequence described in `compile.md`; the Linux x64
+offline container and Xvfb-backed extension-host checks now pass locally. No
+target dependency tree is scanned, copied or frozen by these operations.
