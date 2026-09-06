@@ -1,0 +1,41 @@
+component SigilSourceIdentity {
+  goal {
+    Capture language-neutral source identity with snapdir walking and BLAKE3.
+  }
+
+  interface {
+    SourceSelection {
+      Select normalized workspace-relative paths and directories using Sigil
+      include and exclude globs. Support arbitrary source extensions. Exclude
+      generated internal trees and configured vendor directories.
+      Refuse accidental empty selections and make intentional empty scope explicit.
+    }
+
+    SourceIdentity {
+      Use snapdir manifests and BLAKE3 content hashes. Hash a versioned encoding
+      of sorted path, file type, and content checksum rows for selected scope.
+      Capture exact bounded source bytes and compare their checksum with a fresh
+      snapdir file hash. Reject paths crossing symlinks or workspace boundaries.
+    }
+  }
+}
+
+expand SigilSourceIdentity {
+  constraints {
+    SourceIdentity {
+      Permission changes preserve semantic identity. Renames and duplicate-file
+      additions change selected-scope identity. A file's identity depends on its
+      own normalized path and bytes, never on neighboring source or model data.
+      Disable snapdir symlink following and object-store checksum recovery.
+      Reject explicitly selected symlinks and non-regular files.
+    }
+  }
+
+  cases {
+    SourceIdentity {
+      Editing an imported file changes only that file's content row. The union
+      identity changes, while the unchanged importer's source identity survives.
+      Retained captured bytes do not change when the live file is edited later.
+    }
+  }
+}
