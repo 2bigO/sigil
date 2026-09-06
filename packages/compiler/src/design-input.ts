@@ -3,12 +3,12 @@ import {
   normalizePath,
   relativePath,
   resolveSigilWorkspace,
+  SIGIL_CORE_VERSION,
   type SigilDiagnostic,
   type SigilFileSystem,
   type SourceRange,
   type WorkspaceLoadOptions,
 } from "@qoherent/sigil-core";
-import frontend from "../../core/deno.json" with { type: "json" };
 
 /** Structural transport only. sigilc owns hashing, schema checks and meaning. */
 export interface DesignInput {
@@ -144,7 +144,7 @@ export async function loadDesignInput(
     root: workspace.root,
     bundle: {
       schemaVersion: 1,
-      frontendVersion: frontend.version,
+      frontendVersion: SIGIL_CORE_VERSION,
       sources,
       context: contextPaths.sort().map((file) => ({
         path: file,
