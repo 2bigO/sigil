@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `5217035`:
+`ff82926` and currently ends at `1ddccc1`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31`, `9da0997`, `81fa824`, `73bbb66`, `be5f258`, `5121766`, `84ffcc9`, `5fbff41`, `7c773bb` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, per-target installer consumer, per-target published-runtime consumer, native Windows archive creation, pre-pulled offline smoke image, checksum-retention installer checks, machine-readable consumer summaries, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31`, `9da0997`, `81fa824`, `73bbb66`, `be5f258`, `5121766`, `84ffcc9`, `5fbff41`, `7c773bb`, `1ddccc1` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, per-target installer consumer, per-target published-runtime consumer, native Windows archive creation, pre-pulled offline smoke image, checksum-retention installer checks, machine-readable consumer summaries, cross-platform cancellation fixture, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
 | S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2`, `f86f88f`, `e53f3e3` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, packaged public-flow validation, editor fake-CLI validation, published-consumer validation, the combined semantic-flow fixture, and the completion report |
@@ -133,7 +133,7 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R06 | Handoff/receipt fixtures pass in compiler and CLI suites; packaged archive runs the public handoff/receipt flow | Linux source + x86_64 archive | PASS (local); archive matrix still required |
 | R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks remain matrix checks | Linux x86_64 | PARTIAL (local archive; tamper and missing-library branches pass) |
-| R08 | Cancellation cleanup passes in native source tests; all target process-cleanup runs remain required | Linux source | CI required |
+| R08 | Cross-platform Rust cancellation fixture runs the timeout/caller-abort test against the native bridge; target process-cleanup runs remain required | Linux source + target matrix | PARTIAL (Linux source and configured helper pass; target matrix remains required) |
 | R09 | `install.sh`/PowerShell local archive consumers exercise checksum/doctor/selection and same-version reinstall; the source-independent matrix also rejects a corrupt existing manifest | Linux x86_64 + target matrix | PARTIAL (Linux consumer pass; all-target matrix remains required) |
 | R10 | Immutable version/manifest installation logic is implemented; reinstall/conflict matrix is not run here | All release targets | CI required |
 | R11 | Relocatable archive layout is implemented; copy-only-bin negative test remains in the release matrix | All release targets | CI required |

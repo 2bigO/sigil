@@ -1549,6 +1549,16 @@ previous wrapper remains usable. Unix targets execute install.sh; Windows
 executes install.ps1 through PowerShell. These installer checks use explicit
 temporary install/bin roots and never contact a release service.
 
+For R08, use scripts/fixtures/uncooperative-engine/main.rs as the native
+child. Compile it with the same pinned Rust toolchain and target as the release
+archive, pass its absolute path as SIGIL_UNCOOPERATIVE_ENGINE, and run the
+existing semantic_runtime_test.ts timeout/cancellation case with write/read/run
+permissions. The helper consumes the request and remains alive until the
+bridge terminates it; the test must observe both the timeout and caller abort,
+reap the child, and remove its temporary directory. On a normal Linux source
+test without that variable, retain the shell fallback. On Windows the matrix
+must set the variable so the test is not skipped.
+
 The additional Linux x64 offline job runs the same archive/harness/fixtures in
 an Ubuntu 24.04 container using `--network none`, without mounting the checkout
 or host caches. Build/pull the container image before disabling network.
