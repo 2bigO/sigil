@@ -30,6 +30,8 @@ impl Default for Limits {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SaturatedWorld {
+    #[serde(skip)]
+    pub(crate) is_design: bool,
     pub kernel_fingerprint: String,
     pub iterations: usize,
     pub tables: BTreeMap<String, Vec<Vec<Value>>>,
@@ -134,27 +136,14 @@ fn saturate_world(
     graph
         .parse_and_run_program(Some("sigil-world".into()), &program)
         .map_err(|e| e.to_string())?;
-    let mut iterations = 0;
-    for ruleset in ["closure", "diagnostics"] {
-        loop {
-            check_limits(&graph, limits, started)?;
-            if iterations >= limits.max_iterations {
-                return Err("closure iteration limit exceeded".into());
-            }
-            iterations += 1;
-            let report = graph.step_rules(ruleset).map_err(|e| e.to_string())?;
-            check_limits(&graph, limits, started)?;
-            if !report.updated {
-                break;
-            }
-        }
-    }
+    let iterations = fixedpoint(&mut graph, limits, started)?;
     if graph.get_size("arithmetic-limit") != 0 {
         return Err("path arithmetic exceeds supported numeric range".into());
     }
     let mut tables = BTreeMap::new();
     let mut exported = vec![
         ("known", 3),
+        ("number", 4),
         ("reachable", 2),
         ("because", 5),
         ("violation", 4),
@@ -171,40 +160,73 @@ fn saturate_world(
         ]);
     }
     for (name, arity) in exported {
-        let (terms, _, dag) = graph
-            .function_to_dag(name, limits.max_rows.saturating_add(1), false)
-            .map_err(|e| e.to_string())?;
-        let mut rows = Vec::new();
-        for term in terms {
-            let Term::App(_, children) = dag.get(term) else {
-                return Err("invalid native row".into());
-            };
-            if children.len() != arity {
-                return Err(format!("invalid native {name} arity"));
-            }
-            rows.push(
-                children
-                    .iter()
-                    .map(|id| match dag.get(*id) {
-                        Term::Lit(Literal::String(s)) => Ok(json!(s)),
-                        Term::Lit(Literal::Float(n)) if n.0.is_finite() => Ok(json!(n.0)),
-                        _ => Err("invalid native scalar".to_string()),
-                    })
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
-        }
-        rows.sort_by_cached_key(|row| serde_json::to_string(row).expect("scalar rows"));
-        tables.insert(name.into(), rows);
+        tables.insert(name.into(), rows(&graph, name, arity, limits)?);
     }
     check_limits(&graph, limits, started)?;
     Ok(SaturatedWorld {
+        is_design: required_units.is_some(),
         kernel_fingerprint: fingerprint(),
         iterations,
         tables,
     })
 }
 
-fn check_limits(graph: &EGraph, limits: Limits, started: Instant) -> Result<(), String> {
+pub(crate) fn fixedpoint(
+    graph: &mut EGraph,
+    limits: Limits,
+    started: Instant,
+) -> Result<usize, String> {
+    let mut iterations = 0;
+    for ruleset in ["closure", "diagnostics"] {
+        loop {
+            check_limits(graph, limits, started)?;
+            if iterations >= limits.max_iterations {
+                return Err("closure iteration limit exceeded".into());
+            }
+            iterations += 1;
+            let report = graph.step_rules(ruleset).map_err(|e| e.to_string())?;
+            check_limits(graph, limits, started)?;
+            if !report.updated {
+                break;
+            }
+        }
+    }
+    Ok(iterations)
+}
+
+pub(crate) fn rows(
+    graph: &EGraph,
+    name: &str,
+    arity: usize,
+    limits: Limits,
+) -> Result<Vec<Vec<Value>>, String> {
+    let (terms, _, dag) = graph
+        .function_to_dag(name, limits.max_rows.saturating_add(1), false)
+        .map_err(|e| e.to_string())?;
+    let mut rows = Vec::new();
+    for term in terms {
+        let Term::App(_, children) = dag.get(term) else {
+            return Err("invalid native row".into());
+        };
+        if children.len() != arity {
+            return Err(format!("invalid native {name} arity"));
+        }
+        rows.push(
+            children
+                .iter()
+                .map(|id| match dag.get(*id) {
+                    Term::Lit(Literal::String(s)) => Ok(json!(s)),
+                    Term::Lit(Literal::Float(n)) if n.0.is_finite() => Ok(json!(n.0)),
+                    _ => Err("invalid native scalar".to_string()),
+                })
+                .collect::<Result<Vec<_>, _>>()?,
+        );
+    }
+    rows.sort_by_cached_key(|row| serde_json::to_string(row).expect("scalar rows"));
+    Ok(rows)
+}
+
+pub(crate) fn check_limits(graph: &EGraph, limits: Limits, started: Instant) -> Result<(), String> {
     if graph.num_tuples() > limits.max_rows {
         return Err("closure row limit exceeded".into());
     }
@@ -220,6 +242,8 @@ pub fn fingerprint() -> String {
         concat!(
             include_str!("kernel.egg"),
             include_str!("design.egg"),
+            include_str!("comparison.egg"),
+            include_str!("comparison.rs"),
             include_str!("kernel.rs"),
             include_str!("turtle.rs"),
             include_str!("assertions.rs"),

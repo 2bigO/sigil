@@ -4,6 +4,19 @@ component SigilWorldClosure {
   }
 
   interface {
+    IndependentComparison {
+      Compare finite Design obligations with independently saturated
+      Implementation facts in a third fixed kernel instance. Design facts never
+      enter Implementation closure or its matching tables. A missing positive
+      relation cannot satisfy a prohibition.
+      Return Drift for positive disagreement, Converged for unresolved evidence,
+      and Closed only for Coherent Design, fresh complete selected inputs and
+      satisfied obligations. Disjoint Design leaves Implementation state unset.
+      A current contradiction takes precedence over unrelated missing inputs.
+      Reject attempts to compare a Design closure as Implementation or to reuse
+      closure from a different compiled runtime.
+    }
+
     DesignObligations {
       Derive required interpretation from the frontend's physical unit inventory.
       A complete structured proposition can interpret a unit; a model assertion
@@ -15,7 +28,10 @@ component SigilWorldClosure {
       Lower provides to a positive provides obligation, requires to availability
       of provides, excludes to a uses prohibition, and required propositions to
       their exact predicate and expected value. Latency budgets require bounded
-      Implementation latency. Other descriptive relations and metadata do not
+      Implementation latency. Required states need an owner, and exclusive
+      ownership prohibits multiple independently observed owners. Missing extra
+      owners cannot prove exclusive ownership complete. Other descriptive metadata
+      and relations do not
       automatically impose code obligations.
     }
 
