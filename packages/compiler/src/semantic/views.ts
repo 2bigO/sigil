@@ -240,8 +240,7 @@ export async function readManagedViewReceipt(
 ): Promise<ViewReceiptV1 | undefined> {
   const source = await readText(resolve(root, ".sigil/views/current.json"));
   if (source === undefined) return undefined;
-  let value: unknown;
-  value = parseStrictJson(source, "Managed view receipt");
+  const value = parseStrictJson(source, "Managed view receipt");
   return await receipt(value);
 }
 

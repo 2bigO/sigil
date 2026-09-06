@@ -9,6 +9,8 @@ import {
   implementationSlice,
   initializeCompileArtifacts,
   inspectManagedViews,
+  listSemanticComponents,
+  listSemanticInventory,
   loadCompilationWorkspace,
   migrateSemanticState,
   projectGreenSemanticWorld,
@@ -23,7 +25,9 @@ import {
   renderManagedViewSet,
   renderReturnedImplementationMarkdown,
   resumeWorldBeam,
+  SEMANTIC_LISTING_KINDS,
   SemanticInputError,
+  type SemanticListingKind,
   type SemanticProposalProvider,
   serializeEggWorld,
   serializeSemanticWorld,
@@ -63,6 +67,7 @@ Options:
   --proposals <file>      Read a generated candidate envelope instead of invoking a provider
   --provider <name>       Use the named configured semantic provider
   --beam <name>           Named checkpoint (intent defaults to a fresh name)
+  --list <kind>           List components, beams, handoffs, or receipts
   --fact <id>             Exact current question's fact identity
   --value <yes|no>        Answer to that exact proposition
   --component <name|iri>  Component for an implementation slice
@@ -142,6 +147,7 @@ function parse(argv: readonly string[]): Arguments {
         "--proposals",
         "--provider",
         "--beam",
+        "--list",
         "--fact",
         "--value",
         "--component",
@@ -178,7 +184,7 @@ function parse(argv: readonly string[]): Arguments {
       "--beam",
       "--format",
     ],
-    status: ["--beam", "--format"],
+    status: ["--beam", "--list", "--format"],
     answer: ["--beam", "--fact", "--value", "--format"],
     accept: ["--beam", "--format"],
     project: [
@@ -235,6 +241,22 @@ function parse(argv: readonly string[]): Arguments {
   ) throw new UsageError("answer requires --fact and --value yes|no.");
   if (action === "slice" && !values["--component"]) {
     throw new UsageError("slice requires --component.");
+  }
+  if (values["--list"] && action !== "status") {
+    throw new UsageError("--list is valid only for semantic status.");
+  }
+  if (
+    values["--list"] &&
+    !SEMANTIC_LISTING_KINDS.includes(values["--list"] as SemanticListingKind)
+  ) {
+    throw new UsageError(
+      "--list must be components, beams, handoffs, or receipts.",
+    );
+  }
+  if (values["--list"] && values["--beam"]) {
+    throw new UsageError(
+      "semantic status --list cannot be combined with --beam.",
+    );
   }
   const projectMutations = ["--write", "--check", "--recover"].filter((flag) =>
     values[flag]
@@ -492,6 +514,27 @@ export async function runSemanticCommand(
       return json(verified.report, exitCode);
     }
     const core = options.core ?? new CoreAdapter();
+    if (action === "status" && values["--list"]) {
+      const kind = values["--list"] as SemanticListingKind;
+      const { root } = await loadCompilationWorkspace(path);
+      if (kind === "components") {
+        const context = await workspaceContext(path, core);
+        return json({
+          version: 1,
+          kind,
+          items: listSemanticComponents(context.registry, context.root),
+        });
+      }
+      return json({
+        version: 1,
+        kind,
+        items: await listSemanticInventory({
+          root,
+          kind,
+          engine: { signal: options.signal },
+        }),
+      });
+    }
     const context = await workspaceContext(path, core);
     const engine = { signal: options.signal };
     if (action === "intent") {

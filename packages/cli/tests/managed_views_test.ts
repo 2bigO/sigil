@@ -80,6 +80,15 @@ Deno.test("CLI installs canonical views and targets an unbound entity", async ()
       0,
       intentResult.stderr + intentResult.stdout,
     );
+    const beams = await runCli([
+      "semantic",
+      "status",
+      root,
+      "--list",
+      "beams",
+    ]);
+    assertEquals(beams.exitCode, 0, beams.stderr);
+    assertEquals(JSON.parse(beams.stdout).items[0].id, "accepted");
     const accepted = await runCli([
       "semantic",
       "accept",
@@ -122,6 +131,22 @@ Deno.test("CLI installs canonical views and targets an unbound entity", async ()
       "json",
     ]);
     assertEquals(checked.exitCode, 0, checked.stderr);
+    const components = await runCli([
+      "semantic",
+      "status",
+      root,
+      "--list",
+      "components",
+    ]);
+    assertEquals(components.exitCode, 0, components.stderr);
+    const listed = JSON.parse(components.stdout) as {
+      items: readonly { id: string; viewPath: string }[];
+    };
+    assert(listed.items.some((item) => item.id === "urn:Extra"));
+    assert(
+      listed.items.find((item) => item.id === "urn:Extra")!.viewPath ===
+        extra.path,
+    );
     const report = await compile(
       root,
       { kind: "component", componentName: "urn:Extra" },

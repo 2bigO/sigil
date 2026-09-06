@@ -261,6 +261,10 @@ async function run(
 async function writeFixture(root: string): Promise<void> {
   const source = join(import.meta.dirname!, "fixtures/release/project");
   await copyDirectory(source, root);
+  const config = await Deno.readTextFile(join(root, "fixture-config.json"));
+  await Deno.mkdir(join(root, ".sigil"), { recursive: true });
+  await Deno.writeTextFile(join(root, ".sigil/config.json"), config);
+  await Deno.remove(join(root, "fixture-config.json"));
 }
 
 async function copyDirectory(source: string, target: string): Promise<void> {
