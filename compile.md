@@ -3,6 +3,14 @@
 
 The goal of this refactor is a **large net deletion of code and concepts**.
 
+Delete the entire TypeScript `@qoherent/sigil-compiler` package, including its
+adapters and callers. Do not replace it with a thin TypeScript wrapper around
+`sigilc`, a forwarding `sigil compile` command, or legacy compatibility exports.
+The frontend instructs the model/operator to invoke `sigilc` directly. Preserve
+only actual language functionality in the existing core/frontend, including the
+minimal structural Design export; it must not launch or wrap the native compiler.
+Code removal is a delivery requirement, not a final optional cleanup.
+
 Backward compatibility and migration are explicitly out of scope. Sigil has no external users yet. Prefer deleting obsolete systems and restoring known-good pre-semantic-compiler code over preserving transitional abstractions.
 
 Use commit:
@@ -118,7 +126,7 @@ deletion in CLI/config/release callers. These are estimates, not additive quotas
 
 The estimate assumes roughly 18,000–23,000 old lines disappear or are replaced
 across affected source/tests/callers, offset by roughly 7,000–11,000 lines of
-Rust, thin frontend integration, and new tests. Those independent ranges are
+Rust, structural frontend export, and new tests. Those independent ranges are
 uncertain; the net range above is a central planning expectation, not a bound.
 A larger platform effort or richer diagnostics could lower the reduction.
 Do not count moved native code, dependency code, or avoided unwritten features as
@@ -229,7 +237,7 @@ Use this ownership boundary:
 
 | Owner | Responsibilities |
 | --- | --- |
-| TypeScript `sigil` / `packages/core` | Workspace/config discovery, parsing, imports, expands, Concept/glossary resolution, authored-unit inventory, deterministic export context, formatting, retrieval, LSP/editor integration. A thin compile command may prepare frontend inputs and invoke `sigilc`. |
+| TypeScript `sigil` / `packages/core` | Workspace/config discovery, parsing, imports, expands, Concept/glossary resolution, authored-unit inventory, deterministic export context, formatting, retrieval, LSP/editor integration. Export structural Design inputs and instruct models/operators to invoke `sigilc` directly; no compiler wrapper or forwarding command. |
 | Rust `sigilc` | Snapdir-backed input identity, immutable input preparation support, Turtle validation, assertion encoding, projection metadata/publication, catalog freezing, isolated egglog closure, comparison, freshness, and deterministic reports. |
 | External harness / coding environment (outside this repository's implementation scope) | Whole-spec coding context, model calls, reconstruction isolation, scheduling, retries, and implementation/repair work. |
 
@@ -264,15 +272,16 @@ resolver in Rust.
 
 Define the bundle as an explicit input to `sigilc` preparation/Design operations.
 Rust can operate directly on prepared inputs without invoking TypeScript or a
-model. User-facing `sigil compile` can prepare the bundle automatically using
-the existing frontend. Do not advertise `sigilc` as a second parser for arbitrary
+model. The existing language frontend exports this bundle; models/operators pass
+it directly to `sigilc`. Delete `sigil compile` rather than retain a forwarding
+command. Do not advertise `sigilc` as a second parser for arbitrary
 `.sigil` text. Reusing the TypeScript frontend is the deliberate language/compiler
 boundary, not an unfinished Rust port.
 
 `sigilc` is the single owner of content hashing and artifact freshness. The
 frontend passes the exact source buffers it parsed to preparation; a source edit
 between frontend reading and preparation invalidates that attempt. Retain only
-the transport needed to invoke these new Rust commands and decode their results.
+the language-owned structural export, with no TypeScript compiler transport.
 Do not port all of `packages/compiler` to Rust merely because it has that name.
 
 The surrounding skill/harness treats `sigilc` like any other command-line tool.
@@ -1692,6 +1701,21 @@ I/O failure, cancellation, or exhausted closure limits are operational outcomes
 with no completed status. An intentionally empty scope must be explicit and
 visible in the report; accidental empty selection must not pass vacuously.
 
+Completed semantic gates use the frontend's green/yellow/red vocabulary:
+
+| Native command | Green, exit 0 | Yellow with warnings, exit 0 | Red, exit 1 |
+| --- | --- | --- | --- |
+| `sigilc compile design` | `Coherent` | `Loose` | `Disjoint` |
+| `sigilc compile implementation` / `sigilc compare` | `Closed` | `Converged` | `Drift` |
+
+Read the named state and diagnostics to distinguish green from yellow; exit zero
+does not mean warning-free or fully implemented. Invalid usage exits 2 and
+operational failure exits 3. An unavailable Implementation comparison, including
+a missing current Design catalog, exits 3 with Implementation status unset; it is
+never `Drift`. Inspection commands have their own meanings: `stale` exits 1 for
+nonfresh sources and `entities` exits 1 when a current catalog is unavailable.
+Do not apply semantic gate colors to those inspection or operational exit codes.
+
 ---
 
 # 31. Snapdir-driven compile freshness
@@ -1834,8 +1858,9 @@ or prompt alone never marks it stale and requires no compiler option or field.
 projections. Give `entities` a machine-readable catalog/fingerprint result with
 provisional status for Loose Design and authoritative status for Coherent Design;
 reject Disjoint or stale Design. `clean` targets generated worlds only. Keep
-JSON output versioned, sort diagnostics deterministically, and distinguish
-completed yellow/red from usage and runtime failure in exit codes.
+JSON output versioned and sort diagnostics deterministically. Completed green
+and yellow gates exit 0; red gates exit 1. Distinguish named warning states in the
+report and preserve the command-specific inspection and failure meanings above.
 
 No provider/model flags belong in sigilc.
 
@@ -1899,7 +1924,7 @@ Expected result: **large net code deletion**.
    catalogs for Coherent Design; reject Disjoint Design. Invalidate all I
    projections when the supplied full identity catalog changes. Preserve reuse
    for relationship/status-only changes with identical identity content.
-8. Wire deterministic statuses and reports into existing CLI/editor surfaces.
+8. Direct models/operators from frontend guidance to `sigilc` commands and reports.
    Preserve ordinary language tooling without worlds or model configuration.
 9. Delete obsolete receipt, TS7 verifier, accepted-world, managed-view,
    semantic-slice, beam, provider/evaluator orchestration, and migration systems,
@@ -1912,7 +1937,9 @@ Expected result: **large net code deletion**.
     Verify `sigil` and `sigilc` from a clean checkout without `repos/`. Temporary
     development scaffolding must be gone in the completed refactor.
 
-Use this concrete audit list rather than directory-wide restoration/deletion:
+Use this audit list to remove subsystems and their callers together. Delete the
+whole compiler and adapter packages; extract only retained language functionality
+into the existing frontend first. Do not preserve a package skeleton or old API.
 
 ## Mandatory removals
 
@@ -1924,14 +1951,14 @@ the old subsystem callable, renamed, dormant, or behind a compatibility alias.
 | Remove completely | Concrete current targets |
 | --- | --- |
 | Provider/evaluator packages | `packages/compiler-adapter-claude/`, `packages/compiler-adapter-codex/`, `packages/compiler-adapter-opencode/`, `packages/compiler-adapter-pi/`; remove their workspace/build/test/publish entries. |
-| Compiler orchestration | Under `packages/compiler/src/`: `adapters.ts`, `adapter-execution-coordinator.ts`, `adapter-subprocess.ts`, `evaluation.ts`, `evaluation-capabilities.ts`, `evaluation-execution.ts`, `evaluation-request.ts`, `evaluation-skills.ts`, `evaluator-retrieval.ts`; remove old exports from `mod.ts`. |
+| Entire TypeScript compiler package | Delete `packages/compiler/` and the `@qoherent/sigil-compiler` package identity, exports, imports, workspace/build/test/publish entries and release staging. Move only the minimal language-owned structural Design export to the existing core/frontend. Native retained behavior belongs in `packages/sigilc`; no TS wrapper, replacement facade, package skeleton, or compatibility alias. The subsystem rows below are deletion checks, not permission to keep the rest of the package. |
 | Bundled evaluator-stage skills | `packages/compiler/skills/semantic-readiness/`, `architecture-design/`, `current-code-compatibility/`, `standards-risk/`, including `compile.json` registration. Useful general instructions may survive only as lightweight docs without an evaluator runtime. |
 | Model proposals and beams | Under `packages/compiler/src/semantic/`: `proposal.ts`, `proposal-protocol.ts`, `provider-config.ts`, `search.ts`, `beam.ts`, `beam-store.ts`. |
 | Receipts, handoffs and mechanical verification | Under that semantic directory: `handoff.ts`, `receipts.ts`, `receipt-locations.ts`, `receipt-witnesses.ts`, `verify-return.ts`, `verification.ts`, `typescript7.ts`, `implementation-workspace.ts`, `evidence.ts`, `checks.ts`; remove the TS7 analyzer dependency and installed-package verification staging. Ordinary external project tests remain useful. |
 | Accepted-world and managed-view workflows | `semantic/store.ts`, `views.ts`, `view-model.ts`, `projections.ts`; remove accepted-state migration, managed-view editing/recovery, and generated `.sigil/views` authority. |
 | Retained semantic artifact framework | `semantic/artifact-recording.ts` and the retained-bundle machinery in `artifacts.ts`; replace only the necessary path/hash/atomic publication behavior with the small disposable world store. No retained runs, receipt bundles, or stage-result database. |
-| Legacy compiler profiles/history/events | Remove the old profile inheritance/stage aliases in `profile.ts` and `semantic/profile.ts`, persisted diagnostic history in `history.ts`, and old stage-event protocol/reader/writer infrastructure in `event-protocol.ts`, `event-reader.ts`, `event-writer.ts`. Keep only concrete limits, current diagnostics, and thin reporting needed by the new commands. |
-| Old CLI semantic surface | Replace `packages/cli/src/semantic-commands.ts` with only any needed thin new-command routing; remove old intent/answer/accept/beam/slice/receipt/verify/project/migrate routes. Delete `semantic-providers.ts` and the compatibility facade `compiler-adapters.ts`; update callers directly. Remove provider/evaluator/migration authoring branches, not generic config functionality. |
+| Legacy compiler profiles/history/events | Delete `profile.ts`, `semantic/profile.ts`, `history.ts`, `event-protocol.ts`, `event-reader.ts`, and `event-writer.ts` with their callers and exports. Concrete limits, current diagnostics, and reports belong directly to native sigilc commands; no TS reporting adapter or legacy event translation. |
+| Old CLI semantic surface | Delete `sigil compile`, `packages/cli/src/semantic-commands.ts`, `semantic-providers.ts`, and `compiler-adapters.ts`, including old intent/answer/accept/beam/slice/receipt/verify/project/migrate routes. Frontend guidance tells models/operators to use `sigilc` directly; add no routing or subprocess wrapper. Remove provider/evaluator/migration authoring branches, not generic config functionality. |
 | Old native bridge and duplicate semantic pipeline | Remove `packages/compiler/native/` after moving useful engine code into `packages/sigilc`. Remove the old `sigil-semantic-engine` protocol, runtime lookup/staging and TS ingestion/lowering/closure copies after Rust replaces them. No third binary or duplicate ontology authority. |
 
 Do not delete language semantic tokens, authored semantic units, Concept
@@ -2004,7 +2031,7 @@ features to manufacture a lower line count is not acceptance.
   code between D and I. Explicit side-specific validation preserves catalog and
   trust boundaries; avoid language/provider plugins or generic pipeline stages.
 * Use separate D/I instances of the existing egglog embedding and one comparison
-  path. `sigil compile` delegates to it; CLI/editor surfaces do not each compute
+  path in `sigilc`, invoked directly by the model/operator. CLI/editor surfaces do not each compute
   their own semantic statuses. Recompute closure from fresh projections; no
   persistent saturated graph or retained stage-result framework in v1.
 * Use source-local Implementation objects with only target bytes, ontology, and

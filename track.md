@@ -8,6 +8,10 @@ tracking mechanisms, that folder is the resumable operational state.
 The objective is to implement the entire agreed refactor, use each usable new
 capability on subsequent real work, retire the temporary tracking mechanisms,
 and finish with at least `Converged` Implementation across the complete scope.
+Large net code removal is an explicit delivery goal. Delete the entire
+TypeScript compiler package and its adapters; do not substitute a thin native
+compiler wrapper or compatibility layer. Frontend guidance directs the model
+to invoke `sigilc` itself.
 `Closed` is welcome but not required. Do not expand proof or language-analysis
 scope just to obtain it.
 
@@ -21,6 +25,12 @@ questions visible throughout the loop:
   cases are implemented and checked against the current sources?
 * Semantics: what do independently reconstructed current worlds establish,
   contradict, or leave unknown under the fixed kernel?
+
+Gate exits are specific to the command: Design Coherent/Loose and Implementation
+Closed/Converged exit 0; Design Disjoint and Implementation Drift exit 1. Green
+and yellow share success; preserve the named state and warnings in observations.
+Usage (2), operational or unavailable comparison (3), and inspection exits do not
+represent semantic colors. Exit zero alone never verifies delivery or deletion.
 
 Complete the loop only when the final gate below passes. An ordinary iteration
 may finish with unfinished work; that is a checkpoint, not completion.
@@ -78,6 +88,8 @@ Minimum state fields:
 | `replacements` | Temporary mechanism, intended Sigil replacement, adoption state and real-use evidence. |
 | `tools` | Last usable local compiler/frontend executable paths and build/source identities. |
 | `checkpoint` | Last completed action, next useful action, blockers and artifact paths. |
+| `deletion_policy`, `deletion_queue` | Prioritized concrete files/packages/callers to remove, retained behavior if any, direct native replacement, and evidence that deletion happened. No adapter creation as a completion criterion. |
+| `primitive_observations` | Actual refactor task, direct `sigilc` command/function, input/tool identity, result, friction or defect, and next action. Distinguish exercised, failed, and unavailable from untried. |
 
 Use delivery states `pending`, `active`, `verified`, `blocked`. A checked
 requirement becomes pending again when a relevant change invalidates its evidence.
@@ -117,9 +129,17 @@ completeness. Report additions/removals since baseline alongside it.
    whole current human-readable specification, plus the immediate task and
    observations from completed previous cycles. Scope selection does not turn
    coding into semantic-slice or receipt-driven implementation.
+   Prefer an actionable deletion over another abstraction. For each obsolete
+   subsystem ask what can disappear now, including its callers, tests, exports,
+   config and release wiring. Obsolete behavior needs no replacement. If a
+   retained behavior prevents deletion, record that specific dependency and
+   implement only that behavior in its intended owner; never create an adapter
+   to keep the old surface callable.
 3. Implement the increment, including governing `.sigil`, focused tests and
-   callers. Use the mandatory-removal list to delete obsolete machinery when its
-   retained behavior has a replacement. Do not carry a compatibility framework.
+   callers. Use the mandatory-removal list to delete obsolete machinery in the
+   same increment. Remove `packages/compiler/` completely after extracting only
+   retained language functionality. Do not create a `sigil compile` forwarding
+   command, TS compiler package skeleton, or compatibility framework.
 4. Run checks appropriate to the change. Use fixed Turtle fixtures to test the
    compiler; distinguish those from independent reconstruction of actual code.
    Record exact commands, exits, source identity, and meaningful evidence.
@@ -128,6 +148,12 @@ completeness. Report additions/removals since baseline alongside it.
    making it the default in the next applicable iteration. A passing toy fixture
    alone is not successful dogfooding. Record what it replaced and what real
    question it answered.
+   Invoke `sigilc` directly. Observe each applicable primitive/function while
+   carrying out this refactor: what it makes easy, what is awkward, what fails,
+   and what remains unavailable. Record real inputs and outcomes in
+   `primitive_observations`; improve the primitive itself when evidence warrants
+   it instead of hiding friction behind a TypeScript adapter. A fixture pass is
+   not an observation of current repository semantics.
 6. Prepare independent reconstruction when the needed pipeline exists. Refresh
    Design, expose the current Loose/Coherent catalog, prepare target files,
    obtain independent Turtle externally, ingest, and compare. Before the full
@@ -141,6 +167,11 @@ completeness. Report additions/removals since baseline alongside it.
 8. Update the checkpoint and journal, then continue. Do not stop merely because
    one component, milestone or iteration passed. Pause only on a real external
    blocker or a user decision that prevents useful authorized progress.
+   Keep the next actionable deletion at the front of the temporary catalog.
+   Record gross removals, additions and net change separately, excluding moved
+   code, copied dependencies and abandoned uncommitted code from claimed net
+   deletion. Require absence of removed packages/routes/imports at delivery;
+   marking a replacement available does not mean the old code was deleted.
 
 Commit completed coherent increments throughout these steps, not at the end of
 the refactor. An iteration can contain several commits; a cycle boundary is not
