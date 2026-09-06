@@ -799,7 +799,16 @@ export async function runSemanticCommand(
               path: canonicalWorkspacePath(form.filePath, context.root),
               componentName: form.declaration.name,
               range: form.declaration.range,
-            })),
+            })).sort((a, b) =>
+              a.path < b.path
+                ? -1
+                : a.path > b.path
+                ? 1
+                : a.range.start.line - b.range.start.line ||
+                  a.range.start.column - b.range.start.column ||
+                  a.range.end.line - b.range.end.line ||
+                  a.range.end.column - b.range.end.column
+            ),
           ];
         }),
       );

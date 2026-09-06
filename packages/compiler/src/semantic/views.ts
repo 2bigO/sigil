@@ -59,6 +59,19 @@ function validRange(value: unknown): boolean {
     end.line === start.line && end.column >= start.column;
 }
 
+function rangeKey(
+  value: {
+    readonly start: { readonly line: number; readonly column: number };
+    readonly end: { readonly line: number; readonly column: number };
+  },
+): string {
+  return `${String(value.start.line).padStart(8, "0")}:${
+    String(value.start.column).padStart(8, "0")
+  }:${String(value.end.line).padStart(8, "0")}:${
+    String(value.end.column).padStart(8, "0")
+  }`;
+}
+
 async function receipt(value: unknown): Promise<ViewReceiptV1> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     invalid("Managed view receipt must be an object.");
@@ -137,6 +150,18 @@ async function receipt(value: unknown): Promise<ViewReceiptV1> {
         )
       ) invalid("Managed view receipt contains an invalid authored location.");
     }
+    let previousAuthored = "";
+    const authoredKeys = new Set<string>();
+    for (
+      const authored of file.authoredLocations as ViewReceiptAuthoredLocation[]
+    ) {
+      const key = `${authored.path}\0${rangeKey(authored.range)}`;
+      if (authoredKeys.has(key) || key < previousAuthored) {
+        invalid("Managed view authored locations are not unique and sorted.");
+      }
+      authoredKeys.add(key);
+      previousAuthored = key;
+    }
     for (const location of file.locations as unknown[]) {
       if (
         !location || typeof location !== "object" || Array.isArray(location)
@@ -158,6 +183,14 @@ async function receipt(value: unknown): Promise<ViewReceiptV1> {
           !["factIds", "contractIds", "range"].includes(key)
         )
       ) invalid("Managed view receipt contains an invalid generated location.");
+    }
+    let previousGenerated = "";
+    for (const location of file.locations as ViewReceiptFile["locations"]) {
+      const key = rangeKey(location.range);
+      if (key < previousGenerated) {
+        invalid("Managed view generated locations are not sorted.");
+      }
+      previousGenerated = key;
     }
     paths.add(file.path);
     entities.add(file.entity);
