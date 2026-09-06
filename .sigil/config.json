@@ -24,6 +24,9 @@
       "node_modules/**",
       "build/**",
       "coverage/**",
+      ".codex-progress/**",
+      "repos/**",
+      "**/target/**",
       "examples/**"
     ]
   },

@@ -1,0 +1,45 @@
+component SigilDesignInput {
+  goal {
+    Preserve resolved authored language structure at the TypeScript to sigilc
+    boundary without precomputing semantic meaning.
+  }
+
+  interface {
+    ResolvedDesignInput {
+      Load the existing Sigil workspace through its parser and resolver. Return
+      a versioned bundle of exact source buffers, input context, diagnostics,
+      resolved imports, canonical component and Concept identities, and physical
+      authored interpretation units.
+
+      Record config and glossary buffers used during loading, including absent
+      optional inputs. Rust validates current bytes and owns their fingerprints.
+      Keep expansions attributed to their physical file and canonical owner.
+      Preserve units even when owner resolution fails, alongside diagnostics.
+    }
+  }
+}
+
+expand SigilDesignInput {
+  constraints {
+    StructuralBoundary {
+      The bundle contains no Turtle, semantic laws, inferred relationships,
+      obligations, implementation requirements, ranking, or semantic verdicts.
+      Imports provide language visibility, never automatic runtime dependencies.
+      Source ranges identify authored units, not evidence of implementation.
+      Input capture invokes no model and selects no external workflow.
+    }
+  }
+
+  cases {
+    PhysicalInventory {
+      A component and its expansion in different files produce separate source
+      inventories with shared owner identity. Prose and literal blocks remain
+      present in the captured source even when no model interprets them.
+    }
+
+    SourceCapture {
+      A config or source changing after loading cannot change the captured
+      bundle. Rust rejects publication against mismatching current inputs.
+    }
+  }
+}
