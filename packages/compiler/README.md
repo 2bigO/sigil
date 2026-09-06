@@ -58,10 +58,12 @@ engine. `tools.compile.budgets.elapsedTimeMs` caps execution. Source metadata st
 outside the ontology, and derived facts are never silently reasserted.
 
 See [the architecture and migration record](../../docs/semantic-worlds.md) and
-[CLI usage](../cli/README.md). Retained receipt verification, bundled proposal
-formats and native release packaging remain migration work. The external coding
-agent owns implementation and repairs. Legacy evaluator APIs remain available to
-existing adapter packages, but ordinary compilation never invokes them.
+[CLI usage](../cli/README.md). Retained receipt verification and bundled
+proposal formats use strict compiler-owned transports. Native release packaging
+ships the pinned runtime separately from target projects. The external coding
+agent owns implementation and repairs. Legacy evaluator APIs remain available
+to existing adapter packages for compatibility, but ordinary compilation and
+retained verification never invoke them.
 
 Implementation analysis uses the pinned native TypeScript 7.0.2 API. Supply
 `CompileOptions.implementationPolicy` or `.sigil/implementation.json` to select a

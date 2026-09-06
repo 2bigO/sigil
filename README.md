@@ -325,6 +325,15 @@ is a concise agent-facing guide. The
 references define the corresponding host-side workflows. The canonical language
 specification remains [spec/sigil-language.md](spec/sigil-language.md).
 
+The semantic-world handoff workflow is explicit: inspect `semantic status` and
+`semantic project --check`, submit or import deterministic intent proposals,
+accept a uniquely green world, and commit `.sigil/world` plus `.sigil/views`.
+Create an exact external assignment with `semantic slice`; Sigil does not own
+the coding or repair loop. Import returned receipt claims and run
+`semantic verify --handoff` so the fixed egglog kernel can compare them with
+fresh independent host observations. Receipt claims never become proof merely
+because they name a source location.
+
 ## Current Status
 
 The core, CLI, LSP, VS Code extension, and Sigil skill are pre-production

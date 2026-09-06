@@ -176,8 +176,16 @@ Implementation slices select one component's capabilities, delegation,
 exclusions, dependencies, routing invariants, related contracts, and explicit
 coverage obligations. They omit unrelated components and RDF syntax.
 Projection and source-binding tests cover these properties alongside the kernel
-and search behavior. Installing generated views and tracking their drift remain
-integration work; ordinary compilation already uses the source bridge.
+and search behavior. Generated companion views are installed under
+`.sigil/views/`, one stable hashed file per canonical Component/System entity.
+`views/current.json` is a tracked renderer receipt; ignored transaction
+manifests live under `.sigil/cache/view-transactions/`. Run
+`sigil semantic project --check` to inspect missing, edited, stale, or
+incomplete files, then write only with the exact accepted world revision.
+Generated views are excluded from authored intent and implementation discovery,
+while the LSP can open one as a read-only generated document. The canonical
+accepted meaning remains the lossless `.egg` assertions under `.sigil/world`;
+paired Turtle is interchange.
 
 ## Ordinary compiler migration
 
@@ -376,14 +384,16 @@ optional Turtle files and derived caches are removed.
 
 The current snapshot copier excludes generated directories and `node_modules`.
 Installed-package worlds and installed-dependency capture, freezing and staging
-are outside the implementation scope. Host checks must work with captured project
+are outside the implementation scope. Host checks must work with project
 inputs and available host tools; checks requiring a copied local dependency
 installation are unsupported. The disposable copy is filesystem work isolation,
 not an operating-system sandbox.
 
-The handoff/receipt verifier is usable from source on Linux with explicit host
-policy and supported static evidence. Human `.sigil` view installation and drift
-handling, provider/editor/skill migration, native release packaging and the final
-requirement audit remain. Additional behavioral proof rules are deliberate future
-extensions; unsupported behavior remains yellow. Following removal of the
-uncommitted dependency-capture changes, 94 compiler tests and 77 CLI tests pass.
+The handoff/receipt verifier, generated-view publication, provider transport,
+editor commands, and LSP exclusion are usable from source on Linux with
+explicit host policy and supported static evidence. Native release archives and
+the final cross-platform smoke matrix are maintained separately from target
+project state. Additional behavioral proof rules are deliberate future
+extensions; unsupported behavior remains yellow. Installed-package world
+capture is deliberately absent. The remaining release work packages Sigil's
+pinned egglog and TypeScript 7 runtime without scanning a target dependency tree.

@@ -167,9 +167,11 @@ terminal completed, failed, or cancelled event. Compilation and semantic search
 return 0 only for green, 1 for unresolved intent or semantic errors, 2 for invalid
 usage, 3 for operational failures, and 130 for cancellation.
 
-Run package tests with `deno task test`. Native binary release packaging and
-bundled provider protocol adapters are being migrated; the source workflow above
-uses the local native build and the provider-neutral executable protocol.
+Run package tests with `deno task test`. Native release packaging uses the
+repository's pinned egglog and TypeScript 7 runtime bundle; target projects do
+not need Deno or Node when using a packaged CLI. Proposal adapters use the same
+strict provider-neutral envelope protocol and never participate in ordinary
+compilation.
 
 For TypeScript implementation verification, create `.sigil/implementation.json`
 with host-owned code bindings. For example:
@@ -214,7 +216,11 @@ coding agent's implementation.
 Run `sigil semantic artifacts .` to initialize artifact directories and the scoped
 `.sigil/.gitignore` before accepting a world. Acceptance, slice export and compile
 also initialize them when needed. Commit accepted `.sigil/world` revisions and
-authoritative policy; keep submitted receipts and operational artifacts ignored.
+authoritative policy, and generated `.sigil/views` plus `views/current.json`.
+Keep submitted receipts, beam/handoff/run data, view transactions, and other
+operational artifacts ignored. `semantic project --check` is read-only; use
+`--write --expected-revision` for publication and `--recover --transaction` for
+an explicitly validated interrupted transaction.
 `--no-cache` controls diagnostic history outside the workspace; it does not
 disable target-codebase artifact recording.
 

@@ -1,5 +1,8 @@
 {
   "cliVersion": "^0.7.0",
   "coreVersion": "^0.7.0",
-  "sigilVersion": "0.7.0"
+  "sigilVersion": "0.8.0",
+  "semanticWorldVersion": 1,
+  "managedViews": true,
+  "installedPackageWorldCapture": false
 }
