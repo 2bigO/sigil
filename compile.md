@@ -10,9 +10,9 @@ Replace Sigil's current LLM-as-a-judge compilation/review loops with a determini
 
 The central model is:
 
-**LLMs propose semantic worlds. Turtle stores facts. egglog computes what follows. Deterministic evaluation selects valid worlds. Humans are asked only about genuine unresolved intent.**
+**LLMs propose semantic worlds. Lossless `.egg` assertions store accepted facts. Compiler-owned egglog rules compute what follows. Deterministic evaluation selects valid worlds. Humans are asked only about genuine unresolved intent.**
 
-The same engine verifies a returned codebase against the green Turtle world slice handed to a coding agent. The agent returns receipts claiming which triples or obligations are implemented at which code locations. Sigil checks those claims using independent observations and egglog coverage closure.
+The same engine verifies a returned codebase against the green semantic world slice handed to a coding agent, optionally exported as Turtle. The agent returns receipts claiming which triples or obligations are implemented at which code locations. Sigil checks those claims using independent observations and egglog coverage closure.
 
 **Implementation scope:** Sigil prepares the handoff and verifies the returned implementation. The coding agent owns writing and repairing code. Generating, ranking, applying or merging multiple code patches, scheduling coding agents, and owning their implementation/repair loop are out of scope. Intent-world candidate search in phases 1–5 remains in scope.
 
@@ -422,7 +422,7 @@ Preserve three separate inputs to the fixed egglog kernel:
 | Returned receipts | Untrusted claims about where that meaning is implemented |
 | Host-produced observations, check results and scope certificates | Mechanically established evidence about the returned snapshot |
 
-Document observed semantic relationships in Turtle. Keep tool versions, commands, exit codes, source spans, input/output hashes and receipt-resolution details outside the ontology. Deterministic lowering alone can populate trusted observation/check/scope tables. Re-reading an exported evidence file as an agent submission must not restore that trust.
+Record observed semantic relationships separately from accepted assertions, using the lossless `.egg` encoding with optional Turtle export. Keep tool versions, commands, exit codes, source spans, input/output hashes and receipt-resolution details outside the ontology. Only independently collected host evidence may populate trusted observation/check/scope tables through deterministic lowering. Re-reading an exported evidence file as an agent submission must not restore that trust.
 
 Evidence requirements belong to Sigil's stable kernel and host verifier policy. Start with supported, precise properties and leave the rest unresolved:
 
@@ -534,7 +534,8 @@ human intent → LLM → Turtle candidate worlds → egglog
 ### Implementation handoff and verification
 
 ```text
-green world → versioned Turtle slice + obligations + handoff manifest
+green world → versioned .egg slice + obligations + handoff manifest
+          → optional Turtle export for the coding agent
           → external coding agent owns implementation
           → returned codebase + untrusted receipt claims
           → independent analysis, checks and scope certificates
@@ -620,7 +621,7 @@ The first implementation milestone is one complete handoff → returned receipts
 
 Keep these boundaries hard:
 
-**Turtle stores facts. Egglog owns laws and computation. LLMs propose possibilities.**
+**Lossless `.egg` stores accepted assertions. Turtle provides interchange. Compiler-owned egglog rules own laws and computation. LLMs propose possibilities.**
 
 Do not put inference rules into generated Turtle.
 
@@ -686,4 +687,3 @@ Before broad implementation, report:
 * important limitations or places where deterministic semantics cannot yet replace LLM judgment.
 
 Optimize for a **small semantic kernel with strong composability**, not a huge ontology attempting to formalize all software engineering at once.
-
