@@ -126,15 +126,15 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 
 | ID | Test/evidence | Platform | Result |
 | --- | --- | --- | --- |
-| R01 | `scripts/test-cli-release.ts`; staged archive smoke run from unrelated temporary cwd | Linux x86_64 | PASS (local archive) |
+| R01 | `scripts/test-cli-release.ts`; staged archive smoke run from unrelated temporary cwd (space/Unicode relocation not exercised) | Linux x86_64 | PARTIAL (local archive) |
 | R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency | Linux x86_64 | PASS (local archive) |
 | R03 | `scripts/test-cli-release.ts` validates doctor; offline matrix job is defined in `.github/workflows/native-release.yml` | Linux x86_64 offline container | CI required |
 | R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R06 | Handoff/receipt fixtures pass in compiler and CLI suites | Linux source | PASS (Linux); archive matrix still required |
-| R07 | Runtime manifest tamper rejection in `packages/compiler/tests/runtime_test.ts` and archive smoke | Linux x86_64 | PASS (local archive) |
+| R07 | Runtime manifest tamper rejection in `packages/compiler/tests/runtime_test.ts` and archive smoke; missing-library and wrong-target branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
 | R08 | Cancellation cleanup passes in native source tests; all target process-cleanup runs remain required | Linux source | CI required |
-| R09 | `install.sh` local checksum/doctor/selection seam | Linux x86_64 | PASS (local archive) |
+| R09 | `install.sh` successful checksum/doctor/selection seam; bad-checksum and doctor-failure retention branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
 | R10 | Immutable version/manifest installation logic is implemented; reinstall/conflict matrix is not run here | All release targets | CI required |
 | R11 | Relocatable archive layout is implemented; copy-only-bin negative test remains in the release matrix | All release targets | CI required |
 | R12 | Explicit `SIGIL_RUNTIME_DIR` library seam is implemented; published-library fixture remains a release check | All release targets | CI required |
