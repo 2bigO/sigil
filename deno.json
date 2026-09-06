@@ -10,6 +10,12 @@
     "./packages/lsp"
   ],
   "lock": true,
+  "imports": {
+    "n3": "npm:n3@1.26.0",
+    "n3/lib/N3Parser.js": "npm:n3@1.26.0/lib/N3Parser.js",
+    "n3/lib/N3Writer.js": "npm:n3@1.26.0/lib/N3Writer.js",
+    "n3/lib/N3DataFactory.js": "npm:n3@1.26.0/lib/N3DataFactory.js"
+  },
   "tasks": {
     "build:semantic": "deno run --allow-env --allow-read --allow-run scripts/build-semantic-engine.ts",
     "test:semantic": "deno task build:semantic && deno test --allow-read --allow-run packages/compiler/tests/semantic_test.ts packages/compiler/tests/semantic_search_test.ts packages/compiler/tests/semantic_projection_test.ts",

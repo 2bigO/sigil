@@ -245,6 +245,9 @@
     }
   },
   "workspace": {
+    "dependencies": [
+      "npm:n3@1.26.0"
+    ],
     "members": {
       "packages/cli": {
         "dependencies": [
