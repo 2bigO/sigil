@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `7c773bb`:
+`ff82926` and currently ends at `5217035`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
