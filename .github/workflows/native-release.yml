@@ -226,6 +226,19 @@ jobs:
             run_install
             version_two="$(pwsh -NoProfile -Command "& '$wrapper' --version")"
             test "$version_one" = "$version_two"
+            bad_checksums="$artifact/checksums-invalid.txt"
+            archive_name="$(basename "$archive")"
+            awk -v name="$archive_name" '{ if ($2 == name) { $1 = "0" substr($1, 2) } print }' "$checksums" > "$bad_checksums"
+            bad_checksums_native="$(cygpath -w "$bad_checksums")"
+            if SIGIL_ARCHIVE_PATH="$archive_native" \
+              SIGIL_CHECKSUMS_PATH="$bad_checksums_native" \
+              SIGIL_INSTALL_DIR="$install_root_native" \
+              SIGIL_BIN_DIR="$bin_root_native" \
+              pwsh -NoProfile -ExecutionPolicy Bypass -File "$installer_native"; then
+              echo "invalid checksum was silently accepted" >&2
+              exit 1
+            fi
+            test "$(pwsh -NoProfile -Command "& '$wrapper' --version")" = "$version_one"
             manifest="$(pwsh -NoProfile -Command "(Get-ChildItem -LiteralPath '$install_root_native' -Filter manifest.json -Recurse | Select-Object -First 1).FullName")"
             test -n "$manifest"
             pwsh -NoProfile -Command "Add-Content -LiteralPath '$manifest' -Value 'tampered'"
@@ -249,6 +262,18 @@ jobs:
             run_install
             version_two="$("$bin_root/sigil" --version)"
             test "$version_one" = "$version_two"
+            bad_checksums="$artifact/checksums-invalid.txt"
+            archive_name="$(basename "$archive")"
+            awk -v name="$archive_name" '{ if ($2 == name) { $1 = "0" substr($1, 2) } print }' "$checksums" > "$bad_checksums"
+            if SIGIL_ARCHIVE_PATH="$archive" \
+              SIGIL_CHECKSUMS_PATH="$bad_checksums" \
+              SIGIL_INSTALL_DIR="$install_root" \
+              SIGIL_BIN_DIR="$bin_root" \
+              "$installer"; then
+              echo "invalid checksum was silently accepted" >&2
+              exit 1
+            fi
+            test "$("$bin_root/sigil" --version)" = "$version_one"
             manifest="$(find "$install_root/versions" -name manifest.json -print -quit)"
             test -n "$manifest"
             printf '%s\n' tampered >> "$manifest"
