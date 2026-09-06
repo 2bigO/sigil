@@ -205,7 +205,20 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       `${target.asset}${engineSuffix ? ".zip" : ".tar.gz"}`,
     );
     if (engineSuffix) {
-      await run(["zip", "-qr", archive, `sigil-${version}`], dirname(stage));
+      const source = join(dirname(stage), `sigil-${version}`);
+      const command = [
+        "$ErrorActionPreference = 'Stop';",
+        `Compress-Archive -Path ${powershellLiteral(source)} -DestinationPath ${
+          powershellLiteral(archive)
+        } -Force`,
+      ].join(" ");
+      await run([
+        "powershell.exe",
+        "-NoProfile",
+        "-NonInteractive",
+        "-Command",
+        command,
+      ]);
     } else {await run(
         ["tar", "-czf", archive, `sigil-${version}`],
         dirname(stage),
@@ -216,6 +229,10 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       await Deno.remove(stageParent, { recursive: true }).catch(() => {});
     }
   }
+}
+
+function powershellLiteral(path: string): string {
+  return `'${path.replaceAll("'", "''")}'`;
 }
 
 async function locateEngine(target: ReleaseTarget): Promise<string> {
