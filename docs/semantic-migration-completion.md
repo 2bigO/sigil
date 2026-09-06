@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `a1b54b2`:
+`ff82926` and currently ends at `e53f3e3`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ The implementation range starts at the remaining-scope specification commit
 | S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, published-consumer validation, the combined semantic-flow fixture, and the completion report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2`, `f86f88f`, `e53f3e3` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, packaged public-flow validation, editor fake-CLI validation, published-consumer validation, the combined semantic-flow fixture, and the completion report |
 
 ## Versions and reproducibility
 
@@ -113,7 +113,7 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | E01 | `integrations/editor/vscode/tests/`; `packages/lsp/tests/` | Linux source | PASS (Linux) |
 | E02 | `integrations/editor/vscode/tests/` | Linux source | PASS (Linux) |
 | E03 | `integrations/editor/vscode/tests/` | Linux source | PASS (Linux) |
-| E04 | `integrations/editor/vscode/tests/` | Linux source | PASS (Linux) |
+| E04 | `integrations/editor/vscode/tests/`, including the fake-CLI semantic handoff sequence | Linux source | PASS (Linux) |
 | E05 | `integrations/editor/vscode/tests/`; `packages/cli/tests/returned_implementation_test.ts` | Linux source | PASS (Linux) |
 | E06 | `integrations/editor/vscode/tests/` | Linux source | PASS (Linux) |
 | E07 | `integrations/editor/vscode/tests/`; `packages/compiler/tests/verification_test.ts` | Linux source | PASS (Linux) |
@@ -127,11 +127,11 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | ID | Test/evidence | Platform | Result |
 | --- | --- | --- | --- |
 | R01 | `scripts/test-cli-release.ts`; staged archive smoke run from an unrelated cwd after relocation to a path containing spaces and Unicode | Linux x86_64 | PARTIAL (local archive; target matrix required) |
-| R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency | Linux x86_64 | PASS (local archive) |
+| R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency; packaged public intent/accept/project/slice/receipt/verify flow | Linux x86_64 | PASS (local archive) |
 | R03 | `scripts/test-cli-release.ts` validates doctor/design with isolated caches; `native-release.yml` enforces the Linux x64 `--network none` container smoke | Linux x86_64 offline container | PARTIAL (Linux x64 pass; all-target matrix required) |
 | R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
-| R06 | Handoff/receipt fixtures pass in compiler and CLI suites | Linux source | PASS (Linux); archive matrix still required |
+| R06 | Handoff/receipt fixtures pass in compiler and CLI suites; packaged archive runs the public handoff/receipt flow | Linux source + x86_64 archive | PASS (local); archive matrix still required |
 | R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks remain matrix checks | Linux x86_64 | PARTIAL (local archive; tamper and missing-library branches pass) |
 | R08 | Cancellation cleanup passes in native source tests; all target process-cleanup runs remain required | Linux source | CI required |
 | R09 | `install.sh` successful checksum/doctor/selection seam plus bad-checksum and checksum-valid doctor-failure retention | Linux x86_64 | PARTIAL (local archive; all-target matrix remains required) |
@@ -172,10 +172,12 @@ through intent, ambiguity, exact answer, acceptance, projection and recovery,
 provider-config migration and beam invalidation, canonical component slices,
 handoff, receipt import, supported and decoy returned receipts, prohibited and
 opaque code outcomes, a failed mandatory check, orphan-beam handling and
-forged-view drift. Existing compiler tests add the v1 accepted-state preview
-and CAS migration coverage. The fixture's packaged archive and editor fake-CLI
-variants are still separate checks, and the five-target release matrix remains
-CI-required, so the complete section 11.1 gate is **PARTIAL**.
+forged-view drift. `scripts/test-cli-release.ts` runs the packaged archive
+through intent, acceptance, managed projection, canonical slice, receipt import
+and verification; the VS Code unit suite runs the equivalent fake-CLI transport
+sequence. Existing compiler tests add the v1 accepted-state preview and CAS
+migration coverage. The five-target release matrix remains CI-required, so the
+complete section 11.1 gate is **PARTIAL** only for that external matrix.
 
 ## Validation commands and results
 
@@ -195,10 +197,11 @@ The following final commands were executed after the S11 changes:
 | `deno task test:compiler-adapter-claude` | Pass |
 | `deno task test:compiler-adapter-codex` | Pass |
 | `deno task test:lsp` | Pass |
-| `deno task test:vscode` | Pass |
+| `deno task test:vscode` | Pass, 21 tests |
 | `deno task test:skill` | Pass |
 | focused beam, migration and returned-verification tests | Pass, 11 tests |
 | `deno test --allow-env --allow-read --allow-write --allow-run packages/cli/tests/semantic_commands_test.ts --filter 'public semantic flow'` | Pass |
+| `scripts/test-cli-release.ts --distribution /tmp/sigil-extracted-final23/sigil-0.7.1` | Pass; packaged public flow and runtime-failure branches |
 | `DISPLAY=:99 deno task test:vscode:extension` under Xvfb | Pass |
 | `deno task test:published-runtime --runtime /tmp/sigil-extracted-final21/sigil-0.7.1/lib/sigil/runtime` | Pass; staged Compiler consumer rejects missing runtime and passes explicit-runtime doctor |
 | `cargo fmt --check` (Rust 1.91, `packages/compiler/native`) | Pass |
