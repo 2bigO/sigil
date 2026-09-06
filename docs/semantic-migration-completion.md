@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `5121766`:
+`ff82926` and currently ends at `84ffcc9`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -30,7 +30,7 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31`, `9da0997`, `81fa824`, `73bbb66`, `be5f258`, `5121766` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, per-target installer consumer, per-target published-runtime consumer, native Windows archive creation, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31`, `9da0997`, `81fa824`, `73bbb66`, `be5f258`, `5121766`, `84ffcc9` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, per-target installer consumer, per-target published-runtime consumer, native Windows archive creation, pre-pulled offline smoke image, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
 | S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2`, `f86f88f`, `e53f3e3` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, packaged public-flow validation, editor fake-CLI validation, published-consumer validation, the combined semantic-flow fixture, and the completion report |
