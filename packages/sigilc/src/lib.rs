@@ -5,6 +5,7 @@ pub mod cli;
 pub mod comparison;
 pub mod design;
 pub mod frontend;
+pub mod implementation;
 pub mod inputs;
 pub mod kernel;
 pub mod sources;

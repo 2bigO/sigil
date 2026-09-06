@@ -5,6 +5,16 @@ component SigilProjectionStore {
   }
 
   interface {
+    CurrentImplementation {
+      Select arbitrary-language source files and assemble only fresh indexed
+      assertions against the current frozen Design catalog. Validate resource
+      identity again on reading and enforce aggregate assertion limits before
+      closure. Keep the catalog out of Implementation evidence.
+      Saturate in an independent EGraph and identify the captured selection,
+      catalog and assertion contents. Missing sources and completed empty facts
+      remain distinct. Explicit empty selection is visible in the report.
+    }
+
     DesignCommands {
       Expose prepare, ingest, stale and compile for Design and entities for its
       catalog. Accept an explicit frontend bundle and workspace root. Preparation

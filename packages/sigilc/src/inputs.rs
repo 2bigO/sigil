@@ -57,8 +57,12 @@ impl Binding {
 
 // @sigil implements packages/sigilc/sources.sigil::SigilSourceIdentity::SemanticInputs interface
 pub fn implementation(source: &CapturedSource, catalog: &Catalog) -> Binding {
+    implementation_identity(&source.identity, catalog)
+}
+
+pub fn implementation_identity(source: &SourceIdentity, catalog: &Catalog) -> Binding {
     Binding {
-        source: source.identity.clone(),
+        source: source.clone(),
         ontology: ontology_fingerprint(),
         projection_format: PROJECTION_FORMAT,
         semantic: SemanticInput::Implementation {
