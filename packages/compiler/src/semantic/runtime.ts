@@ -13,6 +13,7 @@ export interface SemanticRuntime {
   readonly mode: SemanticRuntimeMode;
   readonly root?: string;
   readonly manifest?: NativeRuntimeManifestV1;
+  readonly manifestHash?: string;
   readonly engineExecutable: string;
   readonly typescriptExecutable?: string;
 }
@@ -145,8 +146,9 @@ async function loadRuntime(
   if (sigilVersion && manifest.sigilVersion !== sigilVersion) {
     throw new Error("Native runtime Sigil version does not match the CLI.");
   }
+  const manifestHash = await sha256(source);
   if (identity) {
-    const hash = await sha256(source);
+    const hash = manifestHash;
     if (hash !== identity.manifestHash) {
       throw new Error("Native runtime manifest hash does not match the CLI.");
     }
@@ -179,7 +181,14 @@ async function loadRuntime(
     root,
     ...manifest.typescriptPath.split("/"),
   );
-  return { mode, root, manifest, engineExecutable, typescriptExecutable };
+  return {
+    mode,
+    root,
+    manifest,
+    manifestHash,
+    engineExecutable,
+    typescriptExecutable,
+  };
 }
 
 async function sha256(value: string | Uint8Array): Promise<string> {

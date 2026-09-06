@@ -85,6 +85,7 @@ export interface ImplementationEvidence {
     readonly subject: string;
     readonly reason: string;
   }[];
+  readonly runtimeManifestHash?: string;
 }
 
 export interface ImplementationAnchorClaim {
@@ -503,6 +504,7 @@ export async function collectImplementationEvidence(
     checks,
     receipts,
     analysis,
+    runtimeManifestHash: analysis.runtimeManifestHash,
     incomplete,
     anchors,
   };

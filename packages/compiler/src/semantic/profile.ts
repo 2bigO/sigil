@@ -22,6 +22,7 @@ export async function semanticProfile(
   name: string,
   configuration: CompileConfiguration,
   requestedStage?: string,
+  kernelFingerprint = "source-runtime",
 ): Promise<EffectiveProfile> {
   const custom = configuration.profiles?.[name];
   const base = custom?.extends ?? name;
@@ -74,6 +75,8 @@ export async function semanticProfile(
   };
   return {
     ...profile,
-    fingerprint: await digest(JSON.stringify({ ...profile, kernel: "1" })),
+    fingerprint: await digest(
+      JSON.stringify({ ...profile, kernelFingerprint }),
+    ),
   };
 }

@@ -17,19 +17,33 @@ import {
   type SemanticWorld,
 } from "./turtle.ts";
 
-export interface SemanticStateReceipt {
+export interface SemanticStateReceiptV1 {
   readonly version: 1;
   readonly worldFingerprint: string;
   readonly sourceFingerprint: string;
   readonly componentBindings: Readonly<Record<string, string>>;
 }
+export interface SemanticStateReceiptV2 {
+  readonly version: 2;
+  readonly assertionFormatVersion: 1;
+  readonly identityVersion: 1;
+  readonly ontologyVersion: 1;
+  readonly worldFingerprint: string;
+  readonly sourceFingerprint: string;
+  readonly componentBindings: Readonly<Record<string, string>>;
+}
+export type SemanticStateReceipt =
+  | SemanticStateReceiptV1
+  | SemanticStateReceiptV2;
 export interface StoredSemanticState {
   readonly receipt: SemanticStateReceipt;
   readonly world: SemanticWorld;
   /** Covers bindings/source metadata as well as the accepted assertion set. */
   readonly revision: string;
 }
-function validateReceipt(value: unknown): SemanticStateReceipt {
+export function validateSemanticStateReceipt(
+  value: unknown,
+): SemanticStateReceipt {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new SemanticInputError(
       "INVALID_SEMANTIC_STATE",
@@ -38,7 +52,8 @@ function validateReceipt(value: unknown): SemanticStateReceipt {
   }
   const raw = value as Record<string, unknown>;
   if (
-    raw.version !== 1 || !isFingerprint(raw.worldFingerprint) ||
+    ![1, 2].includes(raw.version as number) ||
+    !isFingerprint(raw.worldFingerprint) ||
     !isFingerprint(raw.sourceFingerprint) ||
     !raw.componentBindings || typeof raw.componentBindings !== "object" ||
     Array.isArray(raw.componentBindings) ||
@@ -46,16 +61,38 @@ function validateReceipt(value: unknown): SemanticStateReceipt {
       typeof id !== "string" || !id
     ) ||
     Object.keys(raw).some((key) =>
-      !["version", "worldFingerprint", "sourceFingerprint", "componentBindings"]
-        .includes(key)
-    )
+      ![
+        "version",
+        "assertionFormatVersion",
+        "identityVersion",
+        "ontologyVersion",
+        "worldFingerprint",
+        "sourceFingerprint",
+        "componentBindings",
+      ].includes(key)
+    ) || raw.version === 2 &&
+      (raw.assertionFormatVersion !== 1 || raw.identityVersion !== 1 ||
+        raw.ontologyVersion !== 1)
   ) {
     throw new SemanticInputError(
       "INVALID_SEMANTIC_STATE",
-      "Semantic state receipt has an invalid version, fingerprint, or component binding.",
+      "Semantic state receipt has an unsupported version, fingerprint, or component binding.",
     );
   }
   return raw as unknown as SemanticStateReceipt;
+}
+const validateReceipt = validateSemanticStateReceipt;
+
+function receiptV2(receipt: SemanticStateReceipt): SemanticStateReceiptV2 {
+  return receipt.version === 2 ? receipt : {
+    version: 2,
+    assertionFormatVersion: 1,
+    identityVersion: 1,
+    ontologyVersion: 1,
+    worldFingerprint: receipt.worldFingerprint,
+    sourceFingerprint: receipt.sourceFingerprint,
+    componentBindings: receipt.componentBindings,
+  };
 }
 async function readJson(path: string): Promise<unknown | undefined> {
   try {
@@ -157,7 +194,7 @@ export async function writeSemanticState(
   state: Omit<StoredSemanticState, "revision">,
   expectedRevision?: string,
 ): Promise<StoredSemanticState> {
-  const receipt = validateReceipt(state.receipt);
+  const receipt = receiptV2(validateReceipt(state.receipt));
   const assertions = serializeEggWorld(state.world);
   const world = await parseEggWorld(assertions);
   if (
@@ -194,4 +231,80 @@ export async function writeSemanticState(
     );
     return { world, receipt, revision: artifact.id };
   });
+}
+
+export interface SemanticStateMigrationResult {
+  readonly changed: boolean;
+  readonly fromVersion: 1 | 2;
+  readonly toVersion: 2;
+  readonly beforeRevision: string;
+  readonly afterRevision: string;
+  readonly worldFingerprint: string;
+  readonly assertionFingerprint: string;
+}
+
+/** Migrate receipt metadata only; assertions and their normalized identity are
+ * reconstructed and compared before an optional atomic publication. */
+export async function migrateSemanticState(
+  root: string,
+  options: {
+    readonly write?: boolean;
+    readonly expectedRevision?: string;
+    readonly engine?: SemanticEngineOptions;
+  } = {},
+): Promise<SemanticStateMigrationResult> {
+  const current = await readSemanticState(root, options.engine);
+  if (!current) {
+    throw new SemanticInputError(
+      "SEMANTIC_STATE_NOT_FOUND",
+      "No accepted semantic state exists to migrate.",
+    );
+  }
+  const beforeAssertions = serializeEggWorld(current.world);
+  const migratedReceipt = receiptV2(current.receipt);
+  const assertionHash = await digest(beforeAssertions);
+  const candidateRevision = await digest(artifactJson({
+    version: 1,
+    kind: "world",
+    dependencies: {
+      source: migratedReceipt.sourceFingerprint,
+      world: current.world.fingerprint,
+    },
+    files: { "assertions.egg": assertionHash },
+    metadata: { receipt: migratedReceipt },
+  }));
+  if (!options.write) {
+    return {
+      changed: current.receipt.version !== 2,
+      fromVersion: current.receipt.version,
+      toVersion: 2,
+      beforeRevision: current.revision,
+      afterRevision: candidateRevision,
+      worldFingerprint: current.world.fingerprint,
+      assertionFingerprint: assertionHash,
+    };
+  }
+  const candidate = await writeSemanticState(root, {
+    world: current.world,
+    receipt: migratedReceipt,
+  }, options.expectedRevision);
+  const afterAssertions = serializeEggWorld(candidate.world);
+  if (
+    afterAssertions !== beforeAssertions ||
+    candidate.world.fingerprint !== current.world.fingerprint
+  ) {
+    throw new SemanticInputError(
+      "INVALID_SEMANTIC_STATE",
+      "Metadata migration changed canonical assertions.",
+    );
+  }
+  return {
+    changed: candidate.revision !== current.revision,
+    fromVersion: current.receipt.version,
+    toVersion: 2,
+    beforeRevision: current.revision,
+    afterRevision: candidate.revision,
+    worldFingerprint: candidate.world.fingerprint,
+    assertionFingerprint: await digest(afterAssertions),
+  };
 }

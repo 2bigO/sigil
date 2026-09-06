@@ -89,6 +89,7 @@ export interface TypeScriptAnalysis {
   readonly symbols: readonly TypeScriptSymbol[];
   readonly issues: readonly TypeScriptIssue[];
   readonly diagnostics: readonly Diagnostic[];
+  readonly runtimeManifestHash?: string;
 }
 export interface TypeScriptAnalysisOptions {
   readonly root: string;
@@ -523,7 +524,10 @@ export async function analyzeTypeScript7(
     );
     signal.throwIfAborted();
     succeeded = true;
-    return result;
+    return {
+      ...result,
+      runtimeManifestHash: runtime.manifestHash,
+    };
   } catch (error) {
     signal.throwIfAborted();
     throw error;

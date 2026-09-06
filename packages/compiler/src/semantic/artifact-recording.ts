@@ -19,7 +19,13 @@ export async function recordImplementationEvidence(
 ): Promise<string> {
   return (await writeCompileArtifact(root, {
     kind: "cache",
-    dependencies: { snapshot, analysis: evidence.inputFingerprint },
+    dependencies: {
+      snapshot,
+      analysis: evidence.inputFingerprint,
+      ...(evidence.runtimeManifestHash
+        ? { runtime: evidence.runtimeManifestHash }
+        : {}),
+    },
     files: {
       "observations.egg": serializeEggWorld(evidence.world),
       "evidence.json": artifactPayload({ ...evidence, world: undefined }),

@@ -61,6 +61,7 @@ import {
   readImplementationPolicy,
 } from "./semantic/evidence.ts";
 import { readSemanticState } from "./semantic/store.ts";
+import { resolveSemanticRuntime } from "./semantic/runtime.ts";
 import { AdapterFailure } from "./adapter-execution-coordinator.ts";
 import {
   createExecutionBudget,
@@ -440,10 +441,15 @@ export async function compile(
     });
     assertLoadedWorkspace(workspace.diagnostics);
     const resolved = resolveSigilWorkspace(workspace);
+    const runtime = await resolveSemanticRuntime({
+      binaryPath: options.semanticEngine?.binaryPath,
+      runtimeDirectory: options.semanticEngine?.runtimeDirectory,
+    });
     const profile = await semanticProfile(
       profileName,
       parseCompilationConfiguration(workspace.config?.tools.compile),
       requestedStage,
+      runtime.manifest?.kernelFingerprint ?? "source-runtime",
     );
     const initialRemaining = Math.floor(
       profile.executionBudgets.elapsedTimeMs -

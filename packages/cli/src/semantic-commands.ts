@@ -10,6 +10,7 @@ import {
   initializeCompileArtifacts,
   inspectManagedViews,
   loadCompilationWorkspace,
+  migrateSemanticState,
   projectGreenSemanticWorld,
   proposeSemanticIntent,
   readImplementationHandoff,
@@ -52,6 +53,7 @@ Commands:
   slice      Return a focused implementation slice for --component
   verify     Check current code or a retained --handoff with optional --receipts
   artifacts  Initialize .sigil artifact directories and Git ignore policy
+  migrate    Migrate accepted-state metadata to receipt version 2
   receipts   Import --claims Turtle and --locations JSON against a retained --handoff
 
 Options:
@@ -70,7 +72,7 @@ Options:
   --claims <file>         Returned untrusted Turtle receipt claims
   --locations <file>      Matching receipt source-location sidecar
   --format <value>        json (default); project: sigil|turtle; slice: text|egg|turtle; verify: turtle|markdown
-  --write                 Install managed project views (project only)
+  --write                 Install managed project views, or write metadata migration
   --check                 Inspect managed project views without writing (project only)
   --recover               Recover a prepared managed-view transaction (project only)
   --expected-revision <revision>  Expected accepted world revision for --write
@@ -91,6 +93,7 @@ type Action =
   | "slice"
   | "verify"
   | "artifacts"
+  | "migrate"
   | "receipts";
 interface Arguments {
   action: Action;
@@ -112,6 +115,7 @@ function parse(argv: readonly string[]): Arguments {
       "slice",
       "verify",
       "artifacts",
+      "migrate",
       "receipts",
     ]
       .includes(
@@ -188,6 +192,7 @@ function parse(argv: readonly string[]): Arguments {
     slice: ["--component", "--format"],
     verify: ["--format", "--handoff", "--handoff-root", "--receipts"],
     artifacts: ["--format"],
+    migrate: ["--format", "--write", "--expected-revision"],
     receipts: [
       "--handoff",
       "--handoff-root",
@@ -235,7 +240,7 @@ function parse(argv: readonly string[]): Arguments {
     values[flag]
   );
   if (
-    action !== "project" &&
+    !["project", "migrate"].includes(action) &&
     (projectMutations.length || values["--expected-revision"] ||
       values["--transaction"])
   ) {
@@ -247,7 +252,7 @@ function parse(argv: readonly string[]): Arguments {
     );
   }
   if (values["--write"] && !values["--expected-revision"]) {
-    throw new UsageError("project --write requires --expected-revision.");
+    throw new UsageError(`${action} --write requires --expected-revision.`);
   }
   if (values["--recover"] && !values["--transaction"]) {
     throw new UsageError("project --recover requires --transaction.");
@@ -256,7 +261,7 @@ function parse(argv: readonly string[]): Arguments {
     throw new UsageError("--transaction requires project --recover.");
   }
   if (!values["--write"] && values["--expected-revision"]) {
-    throw new UsageError("--expected-revision requires project --write.");
+    throw new UsageError("--expected-revision requires --write.");
   }
   if (projectMutations.length && format !== "json") {
     throw new UsageError(
@@ -413,6 +418,16 @@ export async function runSemanticCommand(
         root,
         directories: await initializeCompileArtifacts(root),
       });
+    }
+    if (action === "migrate") {
+      const { root } = await loadCompilationWorkspace(path);
+      return json(
+        await migrateSemanticState(root, {
+          write: values["--write"] === "true",
+          expectedRevision: values["--expected-revision"],
+          engine: { signal: options.signal },
+        }),
+      );
     }
     if (action === "receipts") {
       const { root } = await loadCompilationWorkspace(path);
