@@ -283,6 +283,18 @@ jobs:
             fi
             test "$("$bin_root/sigil" --version)" = "$version_one"
           fi
+      - name: Write consumer summary
+        shell: bash
+        run: |
+          summary="$RUNNER_TEMP/consumer-summary.json"
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            summary="$(cygpath -u "$summary")"
+          fi
+          printf '%s\n' '{"target":"${{ matrix.target }}","artifactConsumer":true,"installerConsumer":true,"status":"passed"}' > "$summary"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigil-consumer-${{ matrix.target }}
+          path: ${{ runner.temp }}/consumer-summary.json
 
   publish:
     needs: [build, artifact-consumer]
