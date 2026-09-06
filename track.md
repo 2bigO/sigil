@@ -63,8 +63,9 @@ on stored observations. Preserve unrelated changes. The current run uses
 Resume in the order of the active `work` list, with explicit priorities taking
 precedence over historical checkpoints and deletion queues. Ordered native scope
 is implemented and used on this refactor. Use it on subsequent work; do not
-reimplement it from the earlier scope-first checkpoint. Continue with the
-information/evidence parity review and its concrete missing-capability tasks.
+reimplement it from the earlier scope-first checkpoint. The initial parity review
+is complete; continue its concrete improvement, integration and reconstruction
+tasks. Repeat the review when new observations change the available evidence.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
@@ -159,7 +160,7 @@ audit, an external work queue or independent reconstruction.
    First use an already implemented Sigil capability and incorporate its actual
    invocation here. If temporary state supplies necessary information the stack
    cannot supply, turn that observed gap into authored Design and implementation
-   work. Respect the explicit resumption order above until it is satisfied.
+   work. Use active priorities and observed gaps to select the next action.
    Delete UI dedicated to intentionally removed backend concepts together with
    those concepts: beams, receipts, accepted worlds and evaluator profiles need
    no replacement. Retain the VS Code language and compilation/status frontend
