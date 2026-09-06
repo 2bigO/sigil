@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "@std/assert";
+import { assert, assertEquals, assertRejects } from "@std/assert";
 import { runImplementationChecks } from "../src/semantic/checks.ts";
 import { captureImplementationSnapshot } from "../src/semantic/implementation-workspace.ts";
 import { AdapterFailure } from "../src/adapter-execution-coordinator.ts";
@@ -21,17 +21,20 @@ Deno.test("host checks bound timeout, cancellation and output without certifying
       );
     const timeout = await assertRejects(
       () => run("setInterval(() => {}, 1000)", { timeoutMs: 200 }),
-      AdapterFailure,
+      Error,
     );
-    assertEquals(timeout.kind, "elapsed-time");
+    assert(
+      timeout.name === "TimeoutError" ||
+        timeout instanceof AdapterFailure && timeout.kind === "elapsed-time",
+    );
     const controller = new AbortController();
     const pending = run("setInterval(() => {}, 1000)", {
       signal: controller.signal,
     });
     const timer = setTimeout(() => controller.abort(), 200);
     try {
-      const cancelled = await assertRejects(() => pending, AdapterFailure);
-      assertEquals(cancelled.kind, "cancelled");
+      const cancelled = await assertRejects(() => pending, DOMException);
+      assertEquals(cancelled.name, "AbortError");
     } finally {
       clearTimeout(timer);
     }
@@ -109,6 +112,48 @@ Deno.test("checks preserve input bytes and modes and each receives a fresh snaps
       () => Deno.stat(`${root}/generated.txt`),
       Deno.errors.NotFound,
     );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("sequential checks share one deadline and preserve earlier completed artifacts", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const snapshot = await captureImplementationSnapshot(root);
+    const command = (id: string) => ({
+      id,
+      command: Deno.execPath(),
+      args: ["eval", "await new Promise(r=>setTimeout(r,300));"],
+      files: [],
+    });
+    const start = performance.now();
+    const error = await assertRejects(
+      () =>
+        runImplementationChecks(
+          root,
+          [command("first"), command("second")],
+          snapshot.fingerprint,
+          { snapshot, timeoutMs: 500 },
+        ),
+      Error,
+    );
+    assert(
+      error.name === "TimeoutError" ||
+        error instanceof AdapterFailure && error.kind === "elapsed-time",
+    );
+    assert(performance.now() - start < 1500);
+    const completed = [];
+    for await (const entry of Deno.readDir(`${root}/.sigil/cache`)) {
+      if (!/^[a-f0-9]{64}$/.test(entry.name)) continue;
+      const manifest = JSON.parse(
+        await Deno.readTextFile(
+          `${root}/.sigil/cache/${entry.name}/manifest.json`,
+        ),
+      );
+      completed.push(manifest.metadata.check);
+    }
+    assertEquals(completed, ["first"]);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

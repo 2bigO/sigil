@@ -128,6 +128,13 @@ Deno.test("ordinary compilation uses egglog and never invokes an LLM judge", asy
     });
     assertEquals(calls, 0);
     assertEquals(report.status, "yellow");
+    assertEquals(report.stages.at(-1)?.state, "skipped-by-dependency");
+    assert(
+      !events.some((event) =>
+        event.type === "stage-started" &&
+        event.payload.stage === "implementation-coverage"
+      ),
+    );
     assertEquals(report.profile.evaluators, []);
     assert(report.profile.stages.every((s) => !s.agentic));
     assertEquals(report.stages.map((s) => s.id), [

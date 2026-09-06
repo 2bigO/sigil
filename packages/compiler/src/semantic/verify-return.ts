@@ -6,21 +6,20 @@ import {
   recordSemanticStage,
 } from "./artifact-recording.ts";
 import { artifactJson } from "./artifacts.ts";
-import { runImplementationChecks } from "./checks.ts";
 import { compileSemanticWorld } from "./compile.ts";
 import type { SemanticEngineOptions } from "./engine.ts";
-import { collectImplementationEvidence } from "./evidence.ts";
+import {
+  type ExecutionBudget,
+  withExecutionBudget,
+} from "./execution-budget.ts";
+import { collectVerificationEvidence } from "./verification.ts";
 import {
   readImplementationHandoff,
   validateHandoffSnapshot,
 } from "./handoff.ts";
 import { receiptWitnessInputs } from "./receipt-witnesses.ts";
 import { parseReceiptSubmission, readReceiptSubmission } from "./receipts.ts";
-import {
-  digest,
-  SemanticInputError,
-  serializeSemanticWorld,
-} from "./turtle.ts";
+import { SemanticInputError, serializeSemanticWorld } from "./turtle.ts";
 
 export interface ReturnedImplementationOptions {
   readonly root: string;
@@ -28,6 +27,8 @@ export interface ReturnedImplementationOptions {
   readonly receipts?: string;
   readonly handoffRoot?: string;
   readonly resolved?: ResolvedSigilWorkspace;
+  /** Total verification time; individual engine and command limits also apply. */
+  readonly timeoutMs?: number;
   readonly engine?: Pick<
     SemanticEngineOptions,
     "binaryPath" | "signal" | "timeoutMs"
@@ -39,11 +40,24 @@ export interface ReturnedImplementationOptions {
 export async function verifyReturnedImplementation(
   options: ReturnedImplementationOptions,
 ) {
+  return await withExecutionBudget(
+    { timeoutMs: options.timeoutMs, signal: options.engine?.signal },
+    (budget) => verifyReturnedSnapshot(options, budget),
+  );
+}
+
+async function verifyReturnedSnapshot(
+  options: ReturnedImplementationOptions,
+  budget: ExecutionBudget,
+) {
   const root = resolve(options.root);
   const engine = {
     binaryPath: options.engine?.binaryPath,
-    signal: options.engine?.signal,
-    timeoutMs: options.engine?.timeoutMs,
+    signal: budget.signal,
+    timeoutMs: Math.min(
+      options.engine?.timeoutMs ?? 30_000,
+      budget.remainingMs(),
+    ),
   };
   const handoff = await readImplementationHandoff(
     options.handoffRoot ?? root,
@@ -58,20 +72,16 @@ export async function verifyReturnedImplementation(
       receipts: {},
     });
   const before = await validateHandoffSnapshot(root, handoff, engine.signal);
-  const evidence = await collectImplementationEvidence({
+  const collected = await collectVerificationEvidence({
     root,
     policy: handoff.manifest.policy,
     resolved: options.resolved,
-    signal: engine.signal,
-    timeoutMs: engine.timeoutMs,
-  });
+    engine,
+    snapshot: before,
+  }, budget);
+  const evidence = collected.evidence!;
+  const commands = collected.commands;
   const witnesses = receiptWitnessInputs(handoff, submission, evidence);
-  const commands = await runImplementationChecks(
-    root,
-    handoff.manifest.policy.checks ?? [],
-    before.fingerprint,
-    { signal: engine.signal, timeoutMs: engine.timeoutMs, snapshot: before },
-  );
   const mechanical = {
     ...engine,
     ...witnesses.mechanical,
@@ -80,6 +90,7 @@ export async function verifyReturnedImplementation(
     requiredChecks: handoff.manifest.requiredChecks,
     checks: [...evidence.checks, ...commands.checks],
     focus: "implementation" as const,
+    timeoutMs: Math.min(engine.timeoutMs, budget.remainingMs()),
   };
   const compilation = await compileSemanticWorld(handoff.slice, mechanical);
   if (
@@ -96,17 +107,7 @@ export async function verifyReturnedImplementation(
   if (after.fingerprint !== before.fingerprint) {
     throw new Error("Returned implementation changed during verification.");
   }
-  for (const file of evidence.analysis.files) {
-    engine.signal?.throwIfAborted();
-    if (
-      await digest(await Deno.readTextFile(resolve(root, file.file))) !==
-        file.fingerprint
-    ) {
-      throw new Error(
-        `TypeScript input changed during verification: ${file.file}.`,
-      );
-    }
-  }
+  await collected.assertCurrent();
   const obligations = handoff.manifest.obligations.map((obligation) => {
     const violations = compilation.closure.tables.violation.filter((row) =>
       row[1] === obligation.kernelId
@@ -195,7 +196,12 @@ export async function verifyReturnedImplementation(
       turtle: serializeSemanticWorld(commands.world),
     },
     artifacts: {
-      stages: { "returned-implementation": stage },
+      stages: {
+        "returned-implementation": stage,
+        ...(collected.nativeArtifact
+          ? { "native-evidence": collected.nativeArtifact }
+          : {}),
+      },
       checks: commands.artifacts,
     },
   };

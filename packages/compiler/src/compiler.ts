@@ -50,15 +50,21 @@ import {
 import { scopeSemanticWorld } from "./semantic/scope.ts";
 import { isCompileArtifactDirectory } from "./semantic/artifacts.ts";
 import {
+  artifactPayload,
   recordCompilationRun,
   recordSemanticStage,
 } from "./semantic/artifact-recording.ts";
 import {
-  collectImplementationEvidence,
   type ImplementationEvidence,
   readImplementationPolicy,
 } from "./semantic/evidence.ts";
 import { readSemanticState } from "./semantic/store.ts";
+import { AdapterFailure } from "./adapter-execution-coordinator.ts";
+import {
+  createExecutionBudget,
+  type ExecutionBudgetHandle,
+} from "./semantic/execution-budget.ts";
+import { verifyImplementationWorld } from "./semantic/verification.ts";
 import { readImplementationHandoff } from "./semantic/handoff.ts";
 import {
   summarizeReturnedImplementation,
@@ -406,7 +412,9 @@ export async function compile(
   profileName: string,
   options: CompileOptions = {},
 ): Promise<CompilationReport> {
-  const cancellationSignal = options.cancellationSignal ?? options.signal;
+  const callerSignal = options.cancellationSignal ?? options.signal;
+  let cancellationSignal = callerSignal;
+  let executionBudget: ExecutionBudgetHandle | undefined;
   const requestedStage = semanticStageAlias(
     options.requestedStage ?? stageForCompilationFocus(options.focus),
   );
@@ -435,17 +443,23 @@ export async function compile(
       parseCompilationConfiguration(workspace.config?.tools.compile),
       requestedStage,
     );
-    const engineOptions = () => {
-      const remaining = Math.floor(
-        profile.executionBudgets.elapsedTimeMs -
-          (performance.now() - startedMonotonic),
+    const initialRemaining = Math.floor(
+      profile.executionBudgets.elapsedTimeMs -
+        (performance.now() - startedMonotonic),
+    );
+    if (initialRemaining <= 0) {
+      throw new DOMException(
+        "Compilation elapsed-time budget exhausted.",
+        "TimeoutError",
       );
-      if (remaining <= 0) {
-        throw new DOMException(
-          "Compilation elapsed-time budget exhausted.",
-          "TimeoutError",
-        );
-      }
+    }
+    executionBudget = createExecutionBudget({
+      signal: callerSignal,
+      timeoutMs: initialRemaining,
+    });
+    cancellationSignal = executionBudget.signal;
+    const engineOptions = () => {
+      const remaining = executionBudget!.remainingMs();
       return {
         ...options.semanticEngine,
         timeoutMs: Math.min(
@@ -540,9 +554,11 @@ export async function compile(
     let world = handoff?.slice ?? sourceIntent.world;
     let inputError: SemanticInputError | undefined;
     let stale = false;
+    let canonicalRevision: string | null = null;
     try {
       if (!handoff) {
-        const stored = await readSemanticState(workspace.root);
+        const stored = await readSemanticState(workspace.root, engineOptions());
+        canonicalRevision = stored?.revision ?? null;
         if (
           stored &&
           stored.receipt.sourceFingerprint !== sourceIntent.world.fingerprint
@@ -604,7 +620,10 @@ export async function compile(
     let design: SemanticCompilation | undefined;
     for (const stage of profile.stages) {
       cancellationSignal?.throwIfAborted();
-      if (failed) {
+      if (
+        failed || stage.id === "implementation-coverage" &&
+          (design?.status !== "green" || stale)
+      ) {
         stages.push({
           id: stage.id,
           required: true,
@@ -674,6 +693,7 @@ export async function compile(
             root: workspace.root,
             ...returned,
             resolved,
+            timeoutMs: executionBudget.remainingMs(),
             engine: engineOptions(),
           });
           returnedImplementation = summarizeReturnedImplementation(
@@ -681,6 +701,10 @@ export async function compile(
           );
           stageArtifacts[stage.id] =
             verified.report.artifacts.stages["returned-implementation"];
+          if (verified.report.artifacts.stages["native-evidence"]) {
+            stageArtifacts["native-evidence"] =
+              verified.report.artifacts.stages["native-evidence"];
+          }
           current.push(
             ...await Promise.all(
               verified.compilation.diagnostics.map((d) =>
@@ -698,37 +722,23 @@ export async function compile(
         } else {
           const policy = options.implementationPolicy ??
             await readImplementationPolicy(workspace.root);
-          const evidence = policy
-            ? await collectImplementationEvidence({
-              root: workspace.root,
-              policy,
-              resolved,
-              signal: cancellationSignal,
-              timeoutMs: engineOptions().timeoutMs,
-            })
-            : undefined;
-          const mechanical = engineOptions();
-          const implementationOptions = {
-            ...mechanical,
-            observations: [
-              ...mechanical.observations ?? [],
-              ...evidence?.observations ?? [],
-            ],
-            completeScopes: [
-              ...mechanical.completeScopes ?? [],
-              ...evidence?.completeScopes ?? [],
-            ],
-            requiredChecks: [
-              ...mechanical.requiredChecks ?? [],
-              ...evidence?.requiredChecks ?? [],
-            ],
-            checks: [...mechanical.checks ?? [], ...evidence?.checks ?? []],
-            focus: "implementation" as const,
-          };
-          const implementation = await compileSemanticWorld(
+          const verified = await verifyImplementationWorld({
+            root: workspace.root,
             world,
-            implementationOptions,
-          );
+            policy,
+            resolved,
+            canonicalRevision,
+            engine: engineOptions(),
+            timeoutMs: executionBudget.remainingMs(),
+          });
+          const {
+            compilation: implementation,
+            evidence,
+            mechanical: implementationOptions,
+          } = verified;
+          if (verified.nativeArtifact) {
+            stageArtifacts["native-evidence"] = verified.nativeArtifact;
+          }
           stageArtifacts[stage.id] = await recordSemanticStage(
             workspace.root,
             implementation,
@@ -737,6 +747,12 @@ export async function compile(
               sourceFingerprint,
               evidence,
               mechanical: implementationOptions,
+              extraFiles: {
+                "command-checks.json": artifactPayload({
+                  ...verified.commands,
+                  world: undefined,
+                }),
+              },
             },
           );
           current.push(
@@ -809,8 +825,9 @@ export async function compile(
       ...report,
       artifacts: { stages: stageArtifacts, run: runArtifact },
     };
-    cancellationSignal?.throwIfAborted();
+    executionBudget.remainingMs();
     successLinearized = true;
+    executionBudget.dispose();
     const destination = options.reportExport ?? options.output;
     if (destination) {
       await exportCompilationReport(
@@ -835,12 +852,16 @@ export async function compile(
     }
     return report;
   } catch (caught) {
-    const error = !successLinearized && cancellationSignal?.aborted
+    const cleanupFailed = caught instanceof AdapterFailure &&
+      caught.kind === "cleanup";
+    const error = !successLinearized && !cleanupFailed && callerSignal?.aborted
       ? new CompilerFailure(
         "COMPILER_CANCELLED",
         "Compilation was cancelled.",
         { cause: caught },
       )
+      : !successLinearized && !cleanupFailed && executionBudget?.signal.aborted
+      ? executionBudget.signal.reason
       : caught;
     const code = stableCompilerFailureCode(error);
     if (eventWriter) {
@@ -857,6 +878,8 @@ export async function compile(
       }
     }
     throw error;
+  } finally {
+    executionBudget?.dispose();
   }
 }
 

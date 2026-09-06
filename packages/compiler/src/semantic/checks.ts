@@ -19,6 +19,10 @@ import {
   withImplementationSnapshot,
 } from "./implementation-workspace.ts";
 import { resolve } from "node:path";
+import {
+  type ExecutionBudget,
+  withExecutionBudget,
+} from "./execution-budget.ts";
 
 export interface CommandCheckReceipt {
   readonly producer: "command";
@@ -50,6 +54,20 @@ export async function runImplementationChecks(
     readonly snapshot?: ImplementationSnapshot;
   } = {},
 ): Promise<CommandCheckEvidence> {
+  return await withExecutionBudget(
+    options,
+    (budget) =>
+      runCheckBatch(root, commands, inputFingerprint, options.snapshot, budget),
+  );
+}
+
+async function runCheckBatch(
+  root: string,
+  commands: readonly ImplementationCheckCommand[],
+  inputFingerprint: string,
+  suppliedSnapshot: ImplementationSnapshot | undefined,
+  budget: ExecutionBudget,
+): Promise<CommandCheckEvidence> {
   if (
     commands.length > 32 ||
     new Set(commands.map((command) => command.id)).size !== commands.length
@@ -62,16 +80,16 @@ export async function runImplementationChecks(
   const checks: MechanicalCheck[] = [];
   const receipts: Record<string, CommandCheckReceipt> = {};
   const artifacts: Record<string, string> = {};
-  const snapshot = options.snapshot ??
-    await captureImplementationSnapshot(root, options.signal);
+  const snapshot = suppliedSnapshot ??
+    await captureImplementationSnapshot(root, budget.signal);
   if (inputFingerprint !== snapshot.fingerprint) {
     throw new Error("Check input fingerprint does not match its snapshot.");
   }
   for (const command of commands) {
-    options.signal?.throwIfAborted();
+    budget.remainingMs();
     const timeoutMs = Math.min(
       command.timeoutMs ?? 120_000,
-      options.timeoutMs ?? 120_000,
+      budget.remainingMs(),
     );
     if (
       !command.id || !command.command || !Array.isArray(command.args) ||
@@ -92,7 +110,7 @@ export async function runImplementationChecks(
         providerCleanupMs: 3000,
         implementationIdentity: identity,
         handle,
-        signal: options.signal,
+        signal: budget.signal,
         invoke: (signal, resources, terminationControl) =>
           runAdapterSubprocess({
             implementationIdentity: identity,
@@ -120,7 +138,7 @@ export async function runImplementationChecks(
           }),
       });
       for (const file of snapshot.files) {
-        options.signal?.throwIfAborted();
+        budget.remainingMs();
         const path = resolve(copy, file.path);
         const stat = await Deno.lstat(path);
         const hash = file.symlink
@@ -137,7 +155,7 @@ export async function runImplementationChecks(
         }
       }
       return result;
-    });
+    }, budget.signal);
     const receipt: CommandCheckReceipt = {
       producer: "command",
       inputFingerprint,

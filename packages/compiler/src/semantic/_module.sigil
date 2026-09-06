@@ -154,6 +154,9 @@ component SigilImplementationHandoff {
       validates protected inputs, analyzes the returned snapshot and rechecks source
       identity after tools. Store provenance and completed artifacts, never reusable
       proof. Preserve operational failures and cancellation separately from verdicts.
+      One monotonic deadline bounds the whole verification, including handoff reads,
+      source analysis, sequential checks and final validation. Every subprocess
+      receives the same cancellation signal and remaining time; cleanup still runs.
     }
   }
 }
@@ -197,6 +200,10 @@ component SigilImplementationEvidence {
   }
   interface {
     EvidenceCollection {
+      Current-world and retained-handoff verification share snapshot-bound evidence
+      collection. Freeze host policy, execute every declared required check, and
+      reject changed workspace, canonical revision or analyzer inputs before using
+      the results. Recomputable files never establish proof through cache replay.
       A host-owned implementation policy selects a TypeScript project, exact
       component file inventories and bindings to modules, declarations or globals.
       TypeScript 7 resolves static direct dependencies and call targets. Each

@@ -10,19 +10,19 @@ export function compilationColor(
   diagnostics: readonly CompilerDiagnostic[],
   stages: readonly StageReport[],
 ): CompilationColor {
+  const unresolved = diagnostics.some((item) =>
+    item.lifecycle !== "resolved" && item.severity === "warning"
+  );
   if (
     diagnostics.some((item) =>
       item.lifecycle !== "resolved" && item.severity === "error"
     ) ||
     stages.some((stage) =>
-      stage.required && !["completed", "disabled"].includes(stage.state)
+      stage.required && !["completed", "disabled"].includes(stage.state) &&
+      !(unresolved && stage.state === "skipped-by-dependency")
     )
   ) return "red";
-  if (
-    diagnostics.some((item) =>
-      item.lifecycle !== "resolved" && item.severity === "warning"
-    )
-  ) return "yellow";
+  if (unresolved) return "yellow";
   return "green";
 }
 

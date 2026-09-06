@@ -186,6 +186,9 @@ closure, and implementation coverage without invoking an evaluator. Existing
 target selection, events, reports, exports, source subjects, and diagnostic history
 remain in use. Old stage names resolve to the deterministic stage dependency
 closures. Legacy provider configuration is tolerated but contributes no verdict.
+An unresolved or stale design leaves implementation coverage
+`skipped-by-dependency`, with no implementation execution interval. The final
+status remains yellow unless an error or failed execution makes it red.
 
 A source prose unit becomes a required contract with a stable content identity.
 This deliberately leaves arbitrary prose yellow until a proposal supplies its
@@ -341,6 +344,21 @@ modifying existing input bytes, file kinds or executable modes invalidates its
 result. Actual nonzero exit codes are failed checks. Cancellation, timeout,
 launch failure and output-limit failure return no completed verdict. Native input
 hashes and the returned snapshot are checked again after tool execution.
+
+Current-world `semantic verify` and ordinary compile use the same snapshot-bound
+evidence collection and execute declared host checks even without `--handoff`.
+They also reject canonical revision changes during verification. API policy
+objects are cloned before execution so caller mutations cannot change a running
+check's requirements. Accepted handoffs continue to impose their additional
+original-assignment and protected-oracle checks.
+
+One elapsed deadline spans each verification and its sequential checks. Ordinary
+compile supplies the remaining overall profile budget; standalone verification
+defaults to 120 seconds and exposes a total `timeoutMs` API option. Individual
+engine and command limits can shorten that budget. Expiry cancels active tools
+and awaits cleanup without returning a verdict. Completed native extraction and
+individual checks retain separate ignored artifacts even when a later check or
+freshness validation fails.
 
 Fixed egglog rules report supported, contradicted or unresolved claims separately
 from covered, violated or unresolved obligations. A wrong-function receipt can

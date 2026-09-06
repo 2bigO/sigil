@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import {
-  collectImplementationEvidence,
+  artifactPayload,
   CommandSemanticProvider,
   compileSemanticWorld,
   createImplementationHandoff,
@@ -25,6 +25,7 @@ import {
   serializeSemanticWorld,
   type StoredWorldBeam,
   summarizeReturnedImplementation,
+  verifyImplementationWorld,
   verifyReturnedImplementation,
   type WorldBeamCheckpoint,
   worldFromFacts,
@@ -531,32 +532,55 @@ export async function runSemanticCommand(
           "verify requires host code bindings in .sigil/implementation.json.",
         );
       }
-      const evidence = await collectImplementationEvidence({
+      const verified = await verifyImplementationWorld({
         root: context.root,
+        world: context.world,
         policy,
         resolved: context.resolved,
-        signal: options.signal,
+        canonicalRevision: context.stored?.revision ?? null,
+        engine,
       });
-      const implementation = await compileSemanticWorld(context.world, {
-        ...engine,
-        ...evidence,
-        focus: "implementation",
-      });
-      const turtle = serializeSemanticWorld(evidence.world);
+      const { compilation: implementation, commands } = verified;
+      const evidence = verified.evidence!;
+      const turtle = serializeSemanticWorld(evidence.world) + "\n" +
+        serializeSemanticWorld(commands.world);
       const exitCode = implementation.status === "green" ? 0 : 1;
       options.signal?.throwIfAborted();
       const stage = await recordSemanticStage(context.root, implementation, {
         stage: "implementation-coverage",
         sourceFingerprint: context.source.world.fingerprint,
         evidence,
+        mechanical: verified.mechanical,
+        extraFiles: {
+          "command-checks.json": artifactPayload({
+            ...commands,
+            world: undefined,
+          }),
+        },
       });
       const report = {
         status: implementation.status,
         worldFingerprint: context.world.fingerprint,
+        codeFingerprint: verified.snapshot.fingerprint,
+        checks: verified.mechanical.checks,
+        requiredChecks: verified.mechanical.requiredChecks,
         diagnostics: implementation.diagnostics,
         closure: implementation.closure,
         evidence: { ...evidence, world: undefined, turtle },
-        artifacts: { stages: { "implementation-coverage": stage } },
+        commandEvidence: {
+          ...commands,
+          world: undefined,
+          turtle: serializeSemanticWorld(commands.world),
+        },
+        artifacts: {
+          stages: {
+            "implementation-coverage": stage,
+            ...(verified.nativeArtifact
+              ? { "native-evidence": verified.nativeArtifact }
+              : {}),
+          },
+          checks: commands.artifacts,
+        },
       };
       const run = await recordCompilationRun(context.root, report, {
         world: context.world.fingerprint,

@@ -64,6 +64,11 @@ expand SigilOneShotCompilation {
       dependent stages. SigilSemanticKernel derives deterministic diagnostics and
       premise witnesses. Implementation coverage requires a green design and
       mechanically established observations. No model evaluator is invoked.
+      Use the shared snapshot verifier for current-world implementation coverage,
+      including declared host checks and final source/canonical freshness checks.
+      When design is unresolved or its interpretation is stale, mark implementation
+      coverage skipped-by-dependency without emitting a stage execution interval.
+      Its unresolved prerequisites retain yellow status unless an error exists.
 
       Preserve source subjects, diagnostic lifecycle, profile, target, and snapshot
       identity in SigilCompilationReportProtocol. History is optional prior evidence
@@ -71,6 +76,9 @@ expand SigilOneShotCompilation {
     }
 
     CompilationInvocation {
+      One elapsed deadline spans all stages and sequential host tools. Abort active
+      work when it expires, await owned cleanup, and report operational failure.
+      Preserve unverified cleanup evidence even when cancellation also occurs.
       Observe cancellation until immediately before export begins, or immediately
       before completed-event delivery when export is absent. After this success
       linearization point, cancellation cannot change settlement. Export failure

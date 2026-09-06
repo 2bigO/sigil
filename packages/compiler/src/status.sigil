@@ -14,10 +14,12 @@ component SigilCompilationStatus {
 expand SigilCompilationStatus {
   logic {
     CompilationStatus {
-      Produce red for any error or incomplete, unavailable, failed, or invalid-output
-      required stage.
+      Produce red for any error or pending, running, unavailable, failed, cancelled,
+      or invalid-output required stage. A dependency skip without any unresolved
+      diagnostic also remains red because its reason is unestablished.
 
-      Produce yellow when no error exists and at least one warning exists.
+      Produce yellow when no error or failed execution exists and at least one
+      warning exists, including implementation skipped because design is unresolved.
 
       Produce green only when every required stage completes and no error,
       warning, or unresolved required proposition remains.
@@ -26,9 +28,9 @@ expand SigilCompilationStatus {
 
   decisions {
     CompilationColor {
-      Decision: Use red for errors or incomplete required evaluation, yellow for
-      warnings without errors, and green only for complete warning-free required
-      evaluation.
+      Decision: Use red for errors or failed required execution, yellow for
+      unresolved prerequisites and their dependency skips, and green only for
+      complete warning-free required evaluation.
 
       Scope: Governs every compiler status presentation.
 

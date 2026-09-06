@@ -133,13 +133,16 @@ export async function captureImplementationSnapshot(
 export async function withImplementationSnapshot<T>(
   snapshot: ImplementationSnapshot,
   operation: (root: string) => Promise<T>,
+  signal?: AbortSignal,
 ): Promise<T> {
+  signal?.throwIfAborted();
   if (
     (await snapshotFromFiles(snapshot.files)).fingerprint !==
       snapshot.fingerprint ||
     new Set(snapshot.files.map((f) => f.path)).size !== snapshot.files.length
   ) throw new Error("Invalid implementation snapshot identity.");
   for (const file of snapshot.files) {
+    signal?.throwIfAborted();
     if (
       !implementationPath(file.path) ||
       snapshot.files.some((parent) =>
@@ -165,6 +168,7 @@ export async function withImplementationSnapshot<T>(
   const root = await Deno.makeTempDir({ prefix: "sigil-implementation-" });
   try {
     for (const file of snapshot.files.filter((file) => !file.symlink)) {
+      signal?.throwIfAborted();
       const path = resolve(root, file.path);
       await Deno.mkdir(dirname(path), { recursive: true });
       await Deno.writeFile(path, file.bytes!, {
@@ -172,10 +176,12 @@ export async function withImplementationSnapshot<T>(
       });
     }
     for (const file of snapshot.files.filter((file) => file.symlink)) {
+      signal?.throwIfAborted();
       const path = resolve(root, file.path);
       await Deno.mkdir(dirname(path), { recursive: true });
       await Deno.symlink(file.symlink!, path);
     }
+    signal?.throwIfAborted();
     return await operation(root);
   } finally {
     await Deno.remove(root, { recursive: true });

@@ -10,6 +10,24 @@ export function artifactPayload(value: unknown): string {
   return JSON.stringify(value, null, 2) + "\n";
 }
 
+/** Retain completed extraction even when later commands or freshness checks fail. */
+// @sigil implements packages/compiler/src/semantic/_module.sigil::SigilCompileArtifacts::ArtifactBundles interface
+export async function recordImplementationEvidence(
+  root: string,
+  snapshot: string,
+  evidence: ImplementationEvidence,
+): Promise<string> {
+  return (await writeCompileArtifact(root, {
+    kind: "cache",
+    dependencies: { snapshot, analysis: evidence.inputFingerprint },
+    files: {
+      "observations.egg": serializeEggWorld(evidence.world),
+      "evidence.json": artifactPayload({ ...evidence, world: undefined }),
+    },
+    metadata: { stage: "native-evidence", role: "documentary-observations" },
+  })).id;
+}
+
 // @sigil implements packages/compiler/src/semantic/_module.sigil::SigilCompileArtifacts::ArtifactBundles interface
 export async function recordSemanticStage(
   root: string,

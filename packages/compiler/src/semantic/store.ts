@@ -9,6 +9,7 @@ import {
   writeCompileArtifact,
 } from "./artifacts.ts";
 import { parseEggWorld, serializeEggWorld } from "./egg-world.ts";
+import type { SemanticEngineOptions } from "./engine.ts";
 import {
   digest,
   parseSemanticWorld,
@@ -80,7 +81,9 @@ async function readJson(path: string): Promise<unknown | undefined> {
 
 export async function readSemanticState(
   root: string,
+  engine: SemanticEngineOptions = {},
 ): Promise<StoredSemanticState | undefined> {
+  engine.signal?.throwIfAborted();
   const head = await readJson(resolve(root, ".sigil/world/current.json"));
   if (head !== undefined) {
     if (
@@ -103,7 +106,7 @@ export async function readSemanticState(
       );
     }
     const receipt = validateReceipt(artifact.manifest.metadata.receipt);
-    const world = await parseEggWorld(artifact.files["assertions.egg"]);
+    const world = await parseEggWorld(artifact.files["assertions.egg"], engine);
     if (
       world.fingerprint !== receipt.worldFingerprint ||
       artifact.manifest.dependencies.world !== world.fingerprint ||

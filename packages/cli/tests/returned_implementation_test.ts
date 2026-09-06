@@ -198,6 +198,20 @@ Deno.test("CLI handoff and receipt verification share scoped outcomes with ordin
   const f = await fixture();
   try {
     await Deno.writeTextFile(`${f.root}/app.ts`, f.implemented);
+    const current = await runCli(["semantic", "verify", f.root]);
+    assertEquals(current.exitCode, 0, current.stderr);
+    assert(
+      JSON.parse(current.stdout).checks.some((
+        c: { id: string; passed: boolean },
+      ) => c.id === "host-case" && c.passed),
+    );
+    const currentCompile = await compile(
+      f.root,
+      { kind: "component", componentName: "Application" },
+      "standard",
+      { exactTarget: true, focus: "implementation" },
+    );
+    assertEquals(currentCompile.status, "green");
     const receipts = await f.claim("decoy");
     const verified = await runCli([
       "semantic",
@@ -341,6 +355,16 @@ Deno.test("CLI handoff and receipt verification share scoped outcomes with ordin
     assertEquals(red.status, "red");
     assert(red.checks.some((c: { passed: boolean }) => !c.passed));
     assertEquals(red.receiptResults[0].locations[0].status, "stale-file");
+    const currentFailure = await runCli(["semantic", "verify", f.root]);
+    assertEquals(currentFailure.exitCode, 1, currentFailure.stderr);
+    assertEquals(JSON.parse(currentFailure.stdout).status, "red");
+    const currentFailedCompile = await compile(
+      f.root,
+      { kind: "component", componentName: "Application" },
+      "standard",
+      { exactTarget: true, focus: "implementation" },
+    );
+    assertEquals(currentFailedCompile.status, "red");
     const redCompile = await compile(
       f.root,
       { kind: "component", componentName: "Application" },
