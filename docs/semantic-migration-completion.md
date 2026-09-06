@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and ends at `5d95205`:
+`ff82926` and currently ends at `a2d46d9`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ The implementation range starts at the remaining-scope specification commit
 | S08 | `3fb4430` | Native distribution builder, smoke seam, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205`, `21dc1dd`, `10fb394` | Public-interface integration assertions, explicit API types and the completion report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, and the completion report |
 
 ## Versions and reproducibility
 
@@ -126,15 +126,15 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 
 | ID | Test/evidence | Platform | Result |
 | --- | --- | --- | --- |
-| R01 | `scripts/test-cli-release.ts`; staged archive smoke run from unrelated temporary cwd (space/Unicode relocation not exercised) | Linux x86_64 | PARTIAL (local archive) |
+| R01 | `scripts/test-cli-release.ts`; staged archive smoke run from an unrelated cwd after relocation to a path containing spaces and Unicode | Linux x86_64 | PARTIAL (local archive; target matrix required) |
 | R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency | Linux x86_64 | PASS (local archive) |
 | R03 | `scripts/test-cli-release.ts` validates doctor; offline matrix job is defined in `.github/workflows/native-release.yml` | Linux x86_64 offline container | CI required |
 | R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R06 | Handoff/receipt fixtures pass in compiler and CLI suites | Linux source | PASS (Linux); archive matrix still required |
-| R07 | Runtime manifest tamper rejection in `packages/compiler/tests/runtime_test.ts` and archive smoke; missing-library and wrong-target branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
+| R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
 | R08 | Cancellation cleanup passes in native source tests; all target process-cleanup runs remain required | Linux source | CI required |
-| R09 | `install.sh` successful checksum/doctor/selection seam; bad-checksum and doctor-failure retention branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
+| R09 | `install.sh` successful checksum/doctor/selection seam against the staged archive; bad-checksum and doctor-failure retention branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
 | R10 | Immutable version/manifest installation logic is implemented; reinstall/conflict matrix is not run here | All release targets | CI required |
 | R11 | Relocatable archive layout is implemented; copy-only-bin negative test remains in the release matrix | All release targets | CI required |
 | R12 | Explicit `SIGIL_RUNTIME_DIR` library seam is implemented; published-library fixture remains a release check | All release targets | CI required |
@@ -184,10 +184,10 @@ The following final commands were executed after the S11 changes:
 | Command | Result |
 | --- | --- |
 | `deno check packages/compiler/src/mod.ts packages/cli/src/main.ts` | Pass |
-| `deno lint` | Pass, 167 files checked |
+| `deno lint` | Pass, 188 files checked |
 | `deno task check` | Pass, including VS Code TypeScript check |
 | `deno task test:compiler` | Pass, 106 tests |
-| `deno task test:cli` | Pass, 80 tests |
+| `deno task test:cli` | Pass, 81 tests |
 | `deno task test:core` | Pass |
 | `deno task test:compiler-adapter-opencode` | Pass |
 | `deno task test:compiler-adapter-pi` | Pass |
@@ -198,7 +198,7 @@ The following final commands were executed after the S11 changes:
 | `deno task test:skill` | Pass |
 | focused beam, migration and returned-verification tests | Pass, 11 tests |
 | `deno task test:vscode:extension` | Environment blocked: downloaded VS Code requires an X server/DISPLAY |
-| staged `x86_64-unknown-linux-gnu` archive: version, doctor, tamper rejection | Pass |
+| staged `x86_64-unknown-linux-gnu` archive: version, doctor, relocation/isolation, semantic fixture, tamper and missing-runtime/library rejection | Pass |
 | local `install.sh` checksum/doctor/selection seam | Pass |
 
 Raw outputs remain in the private `.codex-progress/logs/` folder and are not
@@ -240,14 +240,14 @@ Configure semantic providers in the separate semantic provider namespace, then
 run the deterministic intent flow:
 
 ```sh
-sigil semantic intent . --request "Add a parser component" --format json
+sigil semantic intent . --text "Add a parser component" --proposals proposals.json --format json
 sigil semantic status . --beam parser --format json
-sigil semantic answer . --beam parser --question <fact-id> --answer yes
+sigil semantic answer . --beam parser --fact <fact-id> --value yes
 sigil semantic accept . --beam parser --format json
 sigil semantic project . --format sigil
 sigil semantic project . --write --expected-revision <revision>
 sigil semantic project . --check --format json
-sigil semantic project . --recover <transaction> --format json
+sigil semantic project . --recover --transaction <transaction> --format json
 sigil semantic slice . --component Parser --format text
 ```
 
@@ -261,6 +261,15 @@ Check the installed runtime from any directory:
 
 ```sh
 sigil doctor --format json
+```
+
+List validated documentary inventory without selecting or mutating it:
+
+```sh
+sigil semantic status . --list components --format json
+sigil semantic status . --list beams --format json
+sigil semantic status . --list handoffs --format json
+sigil semantic status . --list receipts --format json
 ```
 
 For compiler-library use, select the compatible runtime explicitly:
