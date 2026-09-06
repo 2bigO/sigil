@@ -308,6 +308,11 @@ receipt artifacts. Successful ingestion does not establish implementation
 coverage. Empty receipt submissions do not remove any required obligations.
 A documentary `passes true` cannot populate trusted tool tables.
 
-The next stage resolves receipt locations to native TypeScript symbols and joins
-independently observed primitives with exact obligations in fixed egglog rules.
+Native receipt-location resolution now checks exact source hashes, callable
+selectors, optional ranges and frozen component ownership. TypeScript 7 indexes
+native symbols and each call's actual enclosing callable; sibling and nested
+functions cannot establish evidence for another receipt location. The handoff
+records the extractor version alongside the native compiler identity. The next
+stage joins these independently observed primitives with exact obligations in
+fixed egglog rules.
 Per-receipt outcomes remain distinct from coverage found independently elsewhere.

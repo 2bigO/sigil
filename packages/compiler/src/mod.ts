@@ -38,3 +38,4 @@ export * from "./semantic/artifact-recording.ts";
 export * from "./semantic/scope.ts";
 export * from "./semantic/handoff.ts";
 export * from "./semantic/receipts.ts";
+export * from "./semantic/receipt-locations.ts";

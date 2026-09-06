@@ -22,6 +22,7 @@ import {
 import { RDF_TYPE, SIGIL_ONTOLOGY } from "./ontology.ts";
 import { scopeSemanticWorld } from "./scope.ts";
 import { digest, SemanticInputError, type SemanticWorld } from "./turtle.ts";
+import { TYPESCRIPT_EXTRACTOR_VERSION } from "./typescript7.ts";
 
 export interface HandoffObligation {
   readonly id: string;
@@ -39,6 +40,7 @@ export interface HandoffManifest {
   readonly sourceFingerprint: string;
   readonly kernelFingerprint: string;
   readonly analyzer: "typescript@7.0.2";
+  readonly extractorVersion: typeof TYPESCRIPT_EXTRACTOR_VERSION;
   readonly subjects: readonly string[];
   readonly boundary: readonly string[];
   readonly obligations: readonly HandoffObligation[];
@@ -262,6 +264,7 @@ export async function createImplementationHandoff(options: {
     sourceFingerprint: options.sourceFingerprint,
     kernelFingerprint: compilation.closure.kernelFingerprint,
     analyzer: "typescript@7.0.2",
+    extractorVersion: TYPESCRIPT_EXTRACTOR_VERSION,
     subjects,
     boundary: componentIds(slice),
     obligations: required,
@@ -325,6 +328,7 @@ export async function readImplementationHandoff(
   const raw = JSON.parse(artifact.files["handoff.json"]) as HandoffManifest;
   if (
     !raw || raw.version !== 1 || raw.analyzer !== "typescript@7.0.2" ||
+    raw.extractorVersion !== TYPESCRIPT_EXTRACTOR_VERSION ||
     Object.keys(raw).some((key) =>
       ![
         "version",
@@ -333,6 +337,7 @@ export async function readImplementationHandoff(
         "sourceFingerprint",
         "kernelFingerprint",
         "analyzer",
+        "extractorVersion",
         "subjects",
         "boundary",
         "obligations",

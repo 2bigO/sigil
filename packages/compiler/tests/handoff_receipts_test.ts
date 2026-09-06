@@ -6,9 +6,11 @@ import {
 } from "../src/semantic/artifacts.ts";
 import { compileSemanticWorld } from "../src/semantic/compile.ts";
 import {
+  collectImplementationEvidence,
   type ImplementationPolicy,
   parseImplementationPolicy,
 } from "../src/semantic/evidence.ts";
+import { resolveReceiptLocations } from "../src/semantic/receipt-locations.ts";
 import {
   createImplementationHandoff,
   readImplementationHandoff,
@@ -283,6 +285,101 @@ Deno.test("receipt claims bind exact obligation or fact identities without becom
           },
         },
       })
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("native receipt resolution distinguishes exact callers, nested callbacks, stale pointers and host ownership", async () => {
+  const { root, handoff, policy } = await fixture();
+  try {
+    const app = `import { bridge } from "./bridge";
+export function decoy() { return 0; }
+export function actual() { return bridge(); }
+export function outer() { function inner() { return bridge(); } return () => bridge(); }
+export const arrow = () => bridge();
+export class Example { constructor() { bridge(); } run() { return bridge(); } }
+export default function() { bridge(); }
+`;
+    await Deno.writeTextFile(`${root}/app.ts`, app);
+    const evidence = await collectImplementationEvidence({ root, policy });
+    assertEquals(evidence.analysis.extractorVersion, 2);
+    const symbols = evidence.analysis.symbols;
+    const actual = symbols.find((s) => s.selector === "actual")!;
+    const decoy = symbols.find((s) => s.selector === "decoy")!;
+    const outer = symbols.find((s) => s.selector === "outer")!;
+    const inner = symbols.find((s) => s.selector === "outer.inner")!;
+    const arrow = symbols.find((s) => s.selector === "arrow")!;
+    const method = symbols.find((s) => s.selector === "Example.run")!;
+    const module = symbols.find((s) =>
+      s.file === "app.ts" && s.selector === "$module"
+    )!;
+    assert(actual && decoy && outer && inner && arrow && method && module);
+    for (const sym of [actual, inner, arrow, method]) {
+      assertEquals(
+        evidence.analysis.calls.filter((c) => c.caller === sym.id).length,
+        1,
+      );
+    }
+    for (const sym of [decoy, outer, module]) {
+      assertEquals(
+        evidence.analysis.calls.filter((c) => c.caller === sym.id).length,
+        0,
+      );
+    }
+    const obligation = handoff.manifest.obligations[0];
+    const loc = {
+      file: "app.ts",
+      fingerprint: await digest(app),
+      symbol: "actual",
+    };
+    const submission = await parseReceiptSubmission(
+      handoff,
+      `@prefix s: <https://sigil.dev/ontology/1#> .
+<urn:receipt:R> a s:Evidence; s:covers <${obligation.id}>; s:from <urn:A>; s:relation "invokes"; s:target <urn:B> .`,
+      {
+        version: 1,
+        handoff: handoff.id,
+        receipts: {
+          "urn:receipt:R": {
+            locations: [
+              loc,
+              { ...loc, symbol: "decoy" },
+              { ...loc, fingerprint: "0".repeat(64) },
+              { ...loc, symbol: "missing" },
+              { ...loc, start: actual.start + 1, end: actual.end },
+              { ...loc, file: "missing.ts" },
+              {
+                ...loc,
+                file: "bridge.ts",
+                fingerprint: evidence.analysis.files.find((f) =>
+                  f.file === "bridge.ts"
+                )!.fingerprint,
+                symbol: "bridge",
+              },
+            ],
+          },
+        },
+      },
+    );
+    const resolved = resolveReceiptLocations(handoff, submission, evidence);
+    assertEquals(resolved.map((r) => r.status), [
+      "located",
+      "located",
+      "stale-file",
+      "unresolved-symbol",
+      "stale-range",
+      "missing-file",
+      "unbound-owner",
+    ]);
+    assertEquals(resolved[0].symbol?.id, actual.id);
+    // A valid pointer to the wrong function still lacks a witness for that claim.
+    assertEquals(resolved[1].symbol?.id, decoy.id);
+    assert(
+      !evidence.analysis.calls.some((call) =>
+        call.caller === resolved[1].symbol?.id
+      ),
     );
   } finally {
     await Deno.remove(root, { recursive: true });

@@ -96,5 +96,9 @@ receipt ingestion are available through `createImplementationHandoff`,
 Handoff reads reparse assertions and recompute the complete boundary obligations;
 `validateHandoffSnapshot` checks protected specification/configuration/oracle
 fingerprints while allowing implementation changes. Raw receipt claims remain
-separate from host observations. Native symbol resolution and fixed egglog
-receipt-support joins remain the next implementation step.
+separate from host observations. `resolveReceiptLocations` checks file hashes, frozen component inventories,
+native callable selectors and optional exact ranges. The TypeScript snapshot
+records each call's enclosing callable, separating sibling functions, nested
+functions and anonymous callbacks. A located pointer alone proves no behavior.
+Fixed egglog receipt-support joins and verification-command integration remain
+the next implementation step.

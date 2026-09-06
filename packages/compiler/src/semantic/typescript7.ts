@@ -7,17 +7,24 @@ import type {
   Project,
 } from "typescript7/unstable/async";
 import {
+  isArrowFunction,
   isCallExpression,
+  isClassDeclaration,
+  isClassExpression,
   isElementAccessExpression,
   isExportDeclaration,
   isExternalModuleReference,
+  isFunctionDeclaration,
+  isFunctionExpression,
   isIdentifier,
   isImportDeclaration,
   isImportEqualsDeclaration,
+  isMethodDeclaration,
   isNewExpression,
   isNoSubstitutionTemplateLiteral,
   isPropertyAccessExpression,
   isStringLiteral,
+  isVariableDeclaration,
   type Node,
   type SourceFile,
   SyntaxKind,
@@ -26,6 +33,7 @@ import { digest } from "./turtle.ts";
 
 const isStringLiteralLike = (node: Node) =>
   isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
+export const TYPESCRIPT_EXTRACTOR_VERSION = 2 as const;
 
 export interface CodeLocation {
   readonly file: string;
@@ -42,6 +50,7 @@ export interface TypeScriptDependency extends CodeLocation {
 export interface TypeScriptCall extends CodeLocation {
   readonly expression: string;
   readonly kind: "call" | "construct";
+  readonly caller: string;
   readonly declaration?: CodeLocation;
   readonly declarationKind?: number;
   readonly symbol?: string;
@@ -49,6 +58,12 @@ export interface TypeScriptCall extends CodeLocation {
   readonly targetSymbol?: string;
   /** A global path with no local declaration (ambient declarations are allowed). */
   readonly global?: string;
+}
+export interface TypeScriptSymbol extends CodeLocation {
+  readonly id: string;
+  readonly selector: string;
+  readonly name: string;
+  readonly kind: "module" | "function";
 }
 export interface TypeScriptIssue extends CodeLocation {
   readonly reason:
@@ -60,6 +75,7 @@ export interface TypeScriptIssue extends CodeLocation {
 }
 export interface TypeScriptAnalysis {
   readonly analyzer: "typescript@7.0.2";
+  readonly extractorVersion: 2;
   readonly fingerprint: string;
   readonly files: readonly {
     readonly file: string;
@@ -68,6 +84,7 @@ export interface TypeScriptAnalysis {
   }[];
   readonly dependencies: readonly TypeScriptDependency[];
   readonly calls: readonly TypeScriptCall[];
+  readonly symbols: readonly TypeScriptSymbol[];
   readonly issues: readonly TypeScriptIssue[];
   readonly diagnostics: readonly Diagnostic[];
 }
@@ -126,6 +143,7 @@ async function inspectProject(
   const files: TypeScriptAnalysis["files"][number][] = [];
   const dependencies: TypeScriptDependency[] = [];
   const calls: TypeScriptCall[] = [];
+  const symbols: TypeScriptSymbol[] = [];
   const issues: TypeScriptIssue[] = [];
   const inputs: { file: string; text: string }[] = [];
   const sourceFiles: SourceFile[] = [];
@@ -162,10 +180,80 @@ async function inspectProject(
   for (const source of sourceFiles) {
     const imports: { node: Node; typeOnly: boolean; loader?: Node }[] = [];
     const callNodes: Node[] = [];
+    const callers = new Map<Node, string>();
+    const functionScopes = new Map<Node, string>();
+    const candidates: {
+      node: Node;
+      name: Node;
+      selector: string;
+      id: string;
+    }[] = [];
+    const sourcePath = pathIn(root, source.fileName);
+    const sourceHash = files.find((f) => f.file === sourcePath)!.fingerprint;
+    const symbolId = (node: Node) =>
+      `urn:sigil:code:${encodeURIComponent(sourcePath)}:${sourceHash}:${
+        node.getStart(source)
+      }:${node.end}`;
+    const moduleId = symbolId(source);
+    symbols.push({
+      ...location(root, source),
+      id: moduleId,
+      selector: "$module",
+      name: sourcePath,
+      kind: "module",
+    });
     let nodeCount = 0;
-    const visit = (node: Node): void => {
+    const visit = (
+      node: Node,
+      caller = moduleId,
+      qualifier: readonly string[] = [],
+    ): void => {
       if (++nodeCount > 200_000) {
         throw new Error("TypeScript source exceeds its AST node limit.");
+      }
+      if ((isClassDeclaration(node) || isClassExpression(node)) && node.name) {
+        qualifier = [...qualifier, node.name.text];
+      }
+      const named =
+        ((isFunctionDeclaration(node) || isMethodDeclaration(node)) &&
+            node.body) ||
+          (isVariableDeclaration(node) && node.initializer &&
+            (isArrowFunction(node.initializer) ||
+              isFunctionExpression(node.initializer)))
+          ? node
+          : undefined;
+      if (
+        named &&
+        (isFunctionDeclaration(named) || isMethodDeclaration(named) ||
+          isVariableDeclaration(named)) &&
+        named.name && isIdentifier(named.name)
+      ) {
+        caller = symbolId(named);
+        qualifier = [...qualifier, named.name.text];
+        candidates.push({
+          node: named,
+          name: named.name,
+          selector: qualifier.join("."),
+          id: caller,
+        });
+        if (isVariableDeclaration(named) && named.initializer) {
+          functionScopes.set(named.initializer, caller);
+        }
+      } else if (isArrowFunction(node) || isFunctionExpression(node)) {
+        // Anonymous callbacks are distinct callers; their bodies cannot support
+        // a receipt naming an enclosing function merely by range containment.
+        caller = functionScopes.get(node) ?? symbolId(node);
+      } else if (
+        [
+          SyntaxKind.FunctionDeclaration,
+          SyntaxKind.MethodDeclaration,
+          SyntaxKind.Constructor,
+          SyntaxKind.GetAccessor,
+          SyntaxKind.SetAccessor,
+        ].includes(node.kind)
+      ) {
+        // Unsupported or unnamed callable selectors still form separate scopes.
+        caller = symbolId(node);
       }
       if (isImportDeclaration(node)) {
         imports.push({
@@ -195,6 +283,7 @@ async function inspectProject(
       }
       if (isCallExpression(node) || isNewExpression(node)) {
         callNodes.push(node);
+        callers.set(node, caller);
         if (
           node.expression.kind === SyntaxKind.ImportKeyword ||
           isIdentifier(node.expression) && node.expression.text === "require"
@@ -210,9 +299,22 @@ async function inspectProject(
       if (isElementAccessExpression(node)) {
         issues.push({ ...location(root, node), reason: "computed-access" });
       }
-      node.forEachChild(visit);
+      node.forEachChild((child) => visit(child, caller, qualifier));
     };
     visit(source);
+    for (const candidate of candidates) {
+      check();
+      const native = await project.checker.getSymbolAtLocation(candidate.name);
+      if (native) {
+        symbols.push({
+          ...location(root, candidate.node),
+          id: candidate.id,
+          selector: candidate.selector,
+          name: native.name,
+          kind: "function",
+        });
+      }
+    }
     for (const imported of imports) {
       check();
       if (imported.loader) {
@@ -266,6 +368,7 @@ async function inspectProject(
         ...location(root, node),
         expression: node.expression.getText(source),
         kind: isNewExpression(node) ? "construct" : "call",
+        caller: callers.get(node)!,
         declaration,
         declarationKind: signature?.declaration?.kind,
         symbol: symbol?.name,
@@ -303,16 +406,19 @@ async function inspectProject(
   );
   return {
     analyzer: "typescript@7.0.2",
+    extractorVersion: TYPESCRIPT_EXTRACTOR_VERSION,
     fingerprint: await digest(
       JSON.stringify({
         inputs,
         options: project.compilerOptions,
         analyzer: "typescript@7.0.2",
+        extractorVersion: TYPESCRIPT_EXTRACTOR_VERSION,
       }),
     ),
     files,
     dependencies,
     calls,
+    symbols,
     issues,
     diagnostics: uniqueDiagnostics,
   };

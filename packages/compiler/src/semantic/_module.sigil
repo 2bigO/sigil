@@ -196,6 +196,11 @@ component SigilImplementationEvidence {
       diagnostics, AST import references, symbol-resolved call declarations,
       lexical global references, and opaque dynamic behavior from one project
       snapshot. Fingerprint source content and effective compiler options.
+      Index callable declarations through native symbols and lexical selectors.
+      Record each call's exact enclosing callable, isolating nested functions and
+      callbacks from their parent. Receipt source hashes, selectors and optional
+      ranges resolve against this independent index and frozen component bindings.
+      A source pointer or wrong-function match never establishes receipt support.
 
       TypeScript analysis is read-only. Timeout, cancellation, or protocol failure
       terminates and reaps the native process. Version-specific API and cleanup
