@@ -150,10 +150,14 @@ invalidates the saved interpretation until new intent is accepted.
 as JSON by default; `--format sigil` and `--format turtle` select one view.
 `slice` returns only the selected component's implementation duties, exclusions,
 related contracts and coverage obligations. It retains an ignored
-`.sigil/handoffs/<id>` bundle with focused `assertions.egg`, `slice.json` and a
-dependency manifest. JSON includes `artifacts.handoff`; text includes its path.
-These slice exports do not yet implement the complete protected-policy handoff
-and returned-receipt protocol. `project` writes only to stdout.
+`.sigil/handoffs/<id>` bundle with the retained `world.egg`, focused
+`assertions.egg` and `handoff.json`. Slice export requires host bindings in
+`.sigil/implementation.json`. The handoff records the complete boundary obligation
+set, fact identities, baseline code, protected inputs and verifier identities.
+JSON includes `artifacts.handoff` and the handoff manifest; text includes the
+bundle path. `--format egg` or `--format turtle` exports scoped assertions.
+Retain the handoff ID independently of the coding agent's returned files.
+`project` writes only to stdout.
 Implementation green still requires mechanically established coverage; a passing
 model judgment or an implementation anchor does not establish it.
 
@@ -213,3 +217,56 @@ also initialize them when needed. Commit accepted `.sigil/world` revisions and
 authoritative policy; keep submitted receipts and operational artifacts ignored.
 `--no-cache` controls diagnostic history outside the workspace; it does not
 disable target-codebase artifact recording.
+
+
+The implementation policy may also contain `protectedFiles` and `checks`:
+
+```json
+{
+  "protectedFiles": ["tests/oracles.txt"],
+  "checks": [
+    {"id": "parser-cases", "command": "deno", "args": ["test", "tests/parser.ts"], "files": ["tests/parser.ts", "tests/oracles.txt"]}
+  ]
+}
+```
+
+These fields extend the policy shown above. Checks need unique IDs and exact
+protected oracle files. Their declaration adds a mandatory obligation; until the
+host check runner is integrated, ordinary verification leaves these checks yellow.
+A declaration is never a passing result. Handoffs protect Sigil specifications,
+configuration and lock files, plus explicit oracles. Data files explicitly bound
+as component implementation may change; known configuration remains protected.
+
+Import returned receipts with:
+
+```bash
+sigil semantic receipts . --handoff <retained-id> --claims /tmp/claims.ttl --locations /tmp/locations.json
+```
+
+Use `--handoff-root <original-workspace>` when the returned checkout is elsewhere.
+Claims use `Evidence`, `covers`, `from`, `relation`, `target` and optional `expected`
+(default true). `covers` names an exported obligation URN or a fact ID associated
+with that exact proposition. A negative claim must specify `expected false`.
+The location sidecar has this shape:
+
+```json
+{
+  "version": 1,
+  "handoff": "<retained-id>",
+  "receipts": {
+    "urn:receipt:one": {
+      "locations": [
+        {"file": "src/parser.ts", "fingerprint": "<file-sha256>", "symbol": "parse"}
+      ],
+      "tests": ["parser-cases"]
+    }
+  }
+}
+```
+
+Receipt import rejects invented references, mismatched propositions, conflicting
+claims, duplicate sidecar keys and unsafe paths. It stores assertion-only `.egg`
+and location metadata in ignored `.sigil/receipts/<id>`. Its successful output
+marks the claims `untrusted` and contains no verification verdict. Suggested
+symbols and tests still require independent resolution and execution; receipt
+witness matching in egglog is the next implementation step.

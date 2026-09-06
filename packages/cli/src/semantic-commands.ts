@@ -1,15 +1,16 @@
 import { resolve } from "node:path";
 import {
-  artifactPayload,
   collectImplementationEvidence,
   CommandSemanticProvider,
   compileSemanticWorld,
+  createImplementationHandoff,
   implementationSlice,
   initializeCompileArtifacts,
   loadCompilationWorkspace,
   projectGreenSemanticWorld,
   projectSigilIntent,
   proposeSemanticIntent,
+  readImplementationHandoff,
   readImplementationPolicy,
   readSemanticState,
   readWorldBeam,
@@ -17,7 +18,6 @@ import {
   recordSemanticStage,
   renderImplementationSlice,
   resumeWorldBeam,
-  scopeSemanticWorld,
   SemanticInputError,
   type SemanticProposalProvider,
   serializeEggWorld,
@@ -26,7 +26,7 @@ import {
   type WorldBeamCheckpoint,
   worldFromFacts,
   type WorldSearchResult,
-  writeCompileArtifact,
+  writeReceiptSubmission,
   writeSemanticState,
   writeWorldBeam,
 } from "@qoherent/sigil-compiler";
@@ -44,6 +44,7 @@ Commands:
   slice      Return a focused implementation slice for --component
   verify     Analyze implementation with TypeScript 7 and recompute evidence coverage
   artifacts  Initialize .sigil artifact directories and Git ignore policy
+  receipts   Import --claims Turtle and --locations JSON against a retained --handoff
 
 Options:
   --text <intent>          Natural-language intent
@@ -54,7 +55,11 @@ Options:
   --fact <id>             Exact current question's fact identity
   --value <yes|no>        Answer to that exact proposition
   --component <name|iri>  Component for an implementation slice
-  --format <value>        json (default), sigil or turtle for project, text for slice
+  --handoff <id>          Exact retained assignment identity
+  --handoff-root <path>   Original workspace retaining that assignment (defaults to path)
+  --claims <file>         Returned untrusted Turtle receipt claims
+  --locations <file>      Matching receipt source-location sidecar
+  --format <value>        json (default); project: sigil|turtle; slice: text|egg|turtle
   --help                  Show this help
 
 A candidate envelope is {"version":1,"candidates":[{"id":"name","additions":"Turtle","retractions":""}]}.
@@ -70,7 +75,8 @@ type Action =
   | "project"
   | "slice"
   | "verify"
-  | "artifacts";
+  | "artifacts"
+  | "receipts";
 interface Arguments {
   action: Action;
   path: string;
@@ -91,6 +97,7 @@ function parse(argv: readonly string[]): Arguments {
       "slice",
       "verify",
       "artifacts",
+      "receipts",
     ]
       .includes(
         action,
@@ -119,6 +126,10 @@ function parse(argv: readonly string[]): Arguments {
         "--value",
         "--component",
         "--format",
+        "--handoff",
+        "--handoff-root",
+        "--claims",
+        "--locations",
       ].includes(arg)
     ) throw new UsageError(`Unknown option ${arg}.`);
     const value = argv[++index];
@@ -140,6 +151,13 @@ function parse(argv: readonly string[]): Arguments {
     slice: ["--component", "--format"],
     verify: ["--format"],
     artifacts: ["--format"],
+    receipts: [
+      "--handoff",
+      "--handoff-root",
+      "--claims",
+      "--locations",
+      "--format",
+    ],
   };
   for (const key of Object.keys(values)) {
     if (!allowed[action].includes(key)) {
@@ -150,7 +168,7 @@ function parse(argv: readonly string[]): Arguments {
   if (
     format !== "json" &&
     !(action === "project" && ["sigil", "turtle"].includes(format)) &&
-    !(action === "slice" && format === "text") &&
+    !(action === "slice" && ["text", "turtle", "egg"].includes(format)) &&
     !(action === "verify" && format === "turtle")
   ) throw new UsageError(`Unsupported ${action} format ${format}.`);
   if (
@@ -174,6 +192,14 @@ function parse(argv: readonly string[]): Arguments {
   ) throw new UsageError("answer requires --fact and --value yes|no.");
   if (action === "slice" && !values["--component"]) {
     throw new UsageError("slice requires --component.");
+  }
+  if (
+    action === "receipts" &&
+    (!values["--handoff"] || !values["--claims"] || !values["--locations"])
+  ) {
+    throw new UsageError(
+      "receipts requires --handoff, --claims and --locations.",
+    );
   }
   return { action: action as Action, path: path ?? ".", values, generatorArgs };
 }
@@ -289,6 +315,34 @@ export async function runSemanticCommand(
       return json({
         root,
         directories: await initializeCompileArtifacts(root),
+      });
+    }
+    if (action === "receipts") {
+      const { root } = await loadCompilationWorkspace(path);
+      const retainedRoot = values["--handoff-root"]
+        ? resolve(values["--handoff-root"])
+        : root;
+      const handoff = await readImplementationHandoff(
+        retainedRoot,
+        values["--handoff"],
+        { signal: options.signal },
+      );
+      const [claims, locations] = await Promise.all([
+        Deno.readTextFile(resolve(values["--claims"])),
+        Deno.readTextFile(resolve(values["--locations"])),
+      ]);
+      options.signal?.throwIfAborted();
+      const imported = await writeReceiptSubmission(
+        root,
+        handoff,
+        claims,
+        locations,
+      );
+      return json({
+        handoff: handoff.id,
+        untrusted: true,
+        claims: imported.submission.claims,
+        artifacts: { receipts: imported.id },
       });
     }
     const context = await workspaceContext(
@@ -501,34 +555,49 @@ export async function runSemanticCommand(
       const projection = projectGreenSemanticWorld(compilation);
       const component = values["--component"];
       const subject = projection.componentIds[component] ?? component;
-      const slice = implementationSlice(compilation, subject);
-      const scoped = await scopeSemanticWorld(context.world, [subject]);
+      const policy = await readImplementationPolicy(context.root);
+      if (!policy) {
+        throw new UsageError(
+          "slice requires host verifier bindings in .sigil/implementation.json before handoff.",
+        );
+      }
       options.signal?.throwIfAborted();
-      const artifact = await writeCompileArtifact(context.root, {
-        kind: "handoffs",
-        dependencies: {
-          world: context.world.fingerprint,
-          slice: scoped.fingerprint,
-          source: context.source.world.fingerprint,
-          kernel: compilation.closure.kernelFingerprint,
-          ...(context.stored
-            ? { canonicalRevision: context.stored.revision }
-            : {}),
-        },
-        files: {
-          "assertions.egg": serializeEggWorld(scoped),
-          "slice.json": artifactPayload(slice),
-        },
-        metadata: { role: "slice-export", subject },
+      const handoff = await createImplementationHandoff({
+        root: context.root,
+        world: context.world,
+        subjects: [subject],
+        sourceFingerprint: context.source.world.fingerprint,
+        policy,
+        canonicalRevision: context.stored?.revision,
+        engine,
       });
+      const slice = {
+        ...implementationSlice(handoff.compilation, subject),
+        obligations: handoff.manifest.obligations.filter((o) =>
+          o.subject === subject
+        ),
+      };
+      if (values["--format"] === "egg" || values["--format"] === "turtle") {
+        return {
+          exitCode: 0,
+          stderr: "",
+          stdout: values["--format"] === "egg"
+            ? serializeEggWorld(handoff.slice)
+            : serializeSemanticWorld(handoff.slice),
+        };
+      }
       return values["--format"] === "text"
         ? {
           exitCode: 0,
           stdout: renderImplementationSlice(slice) +
-            `\nARTIFACT\n.sigil/handoffs/${artifact.id}\n`,
+            `\nARTIFACT\n.sigil/handoffs/${handoff.id}\n`,
           stderr: "",
         }
-        : json({ ...slice, artifacts: { handoff: artifact.id } });
+        : json({
+          ...slice,
+          handoff: handoff.manifest,
+          artifacts: { handoff: handoff.id },
+        });
     }
     throw new UsageError("Choose a valid semantic command.");
   } catch (error) {

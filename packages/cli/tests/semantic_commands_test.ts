@@ -47,6 +47,23 @@ async function fixture(ambiguous = false) {
   const prepared = await intentBase(projected.world, intent);
   const component =
     Object.values(projected.bindings).find((b) => !b.unit)!.componentId;
+  await Deno.writeTextFile(
+    `${root}/app.ts`,
+    "export function run() { return 1; }",
+  );
+  await Deno.writeTextFile(
+    `${root}/tsconfig.json`,
+    '{"compilerOptions":{"strict":true,"noEmit":true},"files":["app.ts"]}',
+  );
+  await Deno.writeTextFile(
+    `${root}/.sigil/implementation.json`,
+    JSON.stringify({
+      version: 1,
+      project: "tsconfig.json",
+      components: [{ entity: component, files: ["app.ts"], exhaustive: true }],
+      targets: [{ entity: "urn:Disk", globals: ["Deno.readTextFile"] }],
+    }),
+  );
   const builder = () => {
     const turtle = new TurtleBuilder().type("urn:Disk", "Capability");
     const contracts = [
@@ -187,11 +204,52 @@ Deno.test("semantic CLI interprets, accepts and projects canonical meaning throu
     const retained = await readCompileArtifact(root, "handoffs", bundleId);
     assert(retained);
     assert(retained?.files["assertions.egg"].includes("assert-iri"));
-    assert(JSON.parse(retained.files["slice.json"]).obligations.length > 0);
+    const manifest = JSON.parse(retained.files["handoff.json"]);
+    assert(manifest.obligations.length > 0);
     assert(
-      retained.manifest.dependencies.canonicalRevision ===
+      manifest.canonicalRevision ===
         JSON.parse(accepted.stdout).revision,
     );
+
+    const claimed = manifest.obligations[0];
+    const submissionRoot = await Deno.makeTempDir();
+    try {
+      const claimFile = `${submissionRoot}/receipts.ttl`;
+      const locationsFile = `${submissionRoot}/locations.json`;
+      await Deno.writeTextFile(
+        claimFile,
+        `@prefix s: <https://sigil.dev/ontology/1#> .
+<urn:receipt:one> a s:Evidence; s:covers <${claimed.id}>; s:from <${claimed.subject}>; s:relation "${claimed.relation}"; s:target <${claimed.target}>; s:expected ${claimed.expected} .`,
+      );
+      await Deno.writeTextFile(
+        locationsFile,
+        JSON.stringify({
+          version: 1,
+          handoff: bundleId,
+          receipts: { "urn:receipt:one": { locations: [] } },
+        }),
+      );
+      const imported = await runCli([
+        "semantic",
+        "receipts",
+        root,
+        "--handoff",
+        bundleId,
+        "--claims",
+        claimFile,
+        "--locations",
+        locationsFile,
+      ]);
+      assert(imported.exitCode === 0, imported.stderr);
+      const data = JSON.parse(imported.stdout);
+      assert(data.untrusted === true && data.status === undefined);
+      assert(data.claims.length === 1);
+      assert(
+        await readCompileArtifact(root, "receipts", data.artifacts.receipts),
+      );
+    } finally {
+      await Deno.remove(submissionRoot, { recursive: true });
+    }
 
     await Deno.writeTextFile(
       `${root}/.sigil/handoffs/${bundleId}/generated.sigil`,
