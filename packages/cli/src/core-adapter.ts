@@ -61,6 +61,7 @@ import {
   type SetProviderInput,
 } from "./config-authoring.ts";
 import { digest } from "@qoherent/sigil-compiler";
+import { runtimeDoctor } from "@qoherent/sigil-compiler";
 
 export const SIGIL_CLI_VERSION = metadata.version;
 
@@ -654,6 +655,12 @@ export class CoreAdapter {
       cliVersion: SIGIL_CLI_VERSION,
       coreVersion: SIGIL_CORE_VERSION,
     };
+  }
+
+  async doctor(): Promise<
+    import("@qoherent/sigil-compiler").RuntimeDoctorResultV1
+  > {
+    return await runtimeDoctor({ sigilVersion: SIGIL_CLI_VERSION });
   }
   // @sigil uses packages/core/src/projections.sigil::SigilProjections::ContractProjection interface,logic,cases
   componentContracts(

@@ -1,6 +1,6 @@
-import { fileURLToPath } from "node:url";
 import { RDF_TYPE, SEMANTIC_PREDICATES, SIGIL_ONTOLOGY } from "./ontology.ts";
 import { resourceId, type SemanticWorld } from "./turtle.ts";
+import { resolveSemanticRuntime, validateRuntimeHandshake } from "./runtime.ts";
 
 export interface LoweredFact {
   readonly relation: "kind" | "edge" | "boolean" | "number" | "text";
@@ -18,6 +18,7 @@ export interface ClosureResult {
 
 export interface SemanticEngineOptions {
   readonly binaryPath?: string;
+  readonly runtimeDirectory?: string;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
   readonly focus?: "design" | "implementation";
@@ -114,6 +115,42 @@ const TABLE_SIGNATURES: Readonly<Record<string, string>> = {
   "implementation-satisfied": "ss",
   "receipt-result": "ssss",
 };
+
+async function verifyRuntimeHandshake(
+  binary: string,
+  kernelFingerprint: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  signal?.throwIfAborted();
+  const child = new Deno.Command(binary, {
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  }).spawn();
+  const input = new TextEncoder().encode('{"version":1,"runtime_info":true}');
+  const writer = child.stdin.getWriter();
+  try {
+    await writer.write(input);
+    await writer.close();
+  } finally {
+    writer.releaseLock();
+  }
+  const [stdout, stderr, status] = await Promise.all([
+    boundedOutput(child.stdout, 1024 * 1024),
+    boundedOutput(child.stderr, 1024 * 1024),
+    child.status,
+  ]);
+  signal?.throwIfAborted();
+  if (!status.success) {
+    throw new Error(
+      `Native runtime handshake failed: ${new TextDecoder().decode(stderr)}`,
+    );
+  }
+  validateRuntimeHandshake(new TextDecoder().decode(stdout), {
+    engineProtocolVersion: 1,
+    kernelFingerprint,
+  });
+}
 
 /** Validate every fixed table before any absence can be interpreted as success. */
 export function decodeClosureResponse(source: string): ClosureResult {
@@ -224,15 +261,11 @@ export async function executeSemanticEngine(
   options: SemanticEngineOptions = {},
 ): Promise<string> {
   options.signal?.throwIfAborted();
-  const binary = options.binaryPath ??
-    fileURLToPath(
-      new URL(
-        `../../native/target/release/sigil-semantic-engine${
-          Deno.build.os === "windows" ? ".exe" : ""
-        }`,
-        import.meta.url,
-      ),
-    );
+  const runtime = await resolveSemanticRuntime({
+    binaryPath: options.binaryPath,
+    runtimeDirectory: options.runtimeDirectory,
+  });
+  const binary = runtime.engineExecutable;
   const timeoutMs = options.timeoutMs ?? 30_000;
   if (
     !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 ||
@@ -245,6 +278,13 @@ export async function executeSemanticEngine(
   const input = new TextEncoder().encode(JSON.stringify(request));
   if (input.length > IPC_LIMIT) {
     throw new Error("Semantic engine input exceeds the 16 MiB limit.");
+  }
+  if (runtime.manifest) {
+    await verifyRuntimeHandshake(
+      binary,
+      runtime.manifest.kernelFingerprint,
+      options.signal,
+    );
   }
   let child: Deno.ChildProcess;
   try {

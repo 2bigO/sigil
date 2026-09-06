@@ -13,7 +13,9 @@ export type CommandName =
   | "context"
   | "retrieve"
   | "compile"
-  | "render";
+  | "render"
+  | "doctor";
+
 export type HelpTopic =
   | CommandName
   | "root"
@@ -43,6 +45,7 @@ export type CommandRequest =
   | ConfigSetProviderRequest
   | ConfigSetProviderDefaultRequest
   | ConfigMigrateRequest
+  | DoctorRequest
   | VersionRequest
   | ParseRequest
   | CheckRequest
@@ -106,6 +109,9 @@ export interface ConfigMigrateRequest extends GlobalOptions {
   readonly path?: string;
   readonly write: boolean;
   readonly expectedHash?: string;
+}
+export interface DoctorRequest extends GlobalOptions {
+  readonly command: "doctor";
 }
 export interface VersionRequest extends GlobalOptions {
   readonly command: "version";
@@ -1006,6 +1012,12 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       },
     };
   }
+  if (commandName === "doctor") {
+    if (positional.length > 0 || format && format !== "json") {
+      return usage("doctor accepts no path and only --format json.", "doctor");
+    }
+    return { kind: "ok", request: { command: "doctor", ...base } };
+  }
   if (commandName === "version") {
     if (positional.length > 1) {
       return usage("version accepts at most one path.", "version");
@@ -1234,7 +1246,8 @@ function isCommand(value: string | undefined): value is CommandName {
     value === "context" ||
     value === "retrieve" ||
     value === "compile" ||
-    value === "render";
+    value === "render" ||
+    value === "doctor";
 }
 function splitKeyValue(value: string): readonly [string, string] | undefined {
   const index = value.indexOf("=");

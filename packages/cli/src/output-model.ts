@@ -27,6 +27,7 @@ export type CommandResult =
   | ConfigSetProviderCommandResult
   | ConfigSetProviderDefaultCommandResult
   | ConfigMigrateCommandResult
+  | DoctorCommandResult
   | VersionCommandResult
   | ParseCommandResult
   | CheckCommandResult
@@ -104,6 +105,11 @@ export interface ConfigMigrateCommandResult extends WorkspaceMetadata {
   readonly originalHash: string | null;
   readonly proposed: unknown;
   readonly changes: readonly string[];
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
+export interface DoctorCommandResult {
+  readonly command: "doctor";
+  readonly result: import("@qoherent/sigil-compiler").RuntimeDoctorResultV1;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 export interface VersionCommandResult extends WorkspaceMetadata {

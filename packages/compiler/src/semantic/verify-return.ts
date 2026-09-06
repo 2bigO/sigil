@@ -31,7 +31,7 @@ export interface ReturnedImplementationOptions {
   readonly timeoutMs?: number;
   readonly engine?: Pick<
     SemanticEngineOptions,
-    "binaryPath" | "signal" | "timeoutMs"
+    "binaryPath" | "runtimeDirectory" | "signal" | "timeoutMs"
   >;
 }
 
@@ -53,6 +53,7 @@ async function verifyReturnedSnapshot(
   const root = resolve(options.root);
   const engine = {
     binaryPath: options.engine?.binaryPath,
+    runtimeDirectory: options.engine?.runtimeDirectory,
     signal: budget.signal,
     timeoutMs: Math.min(
       options.engine?.timeoutMs ?? 30_000,

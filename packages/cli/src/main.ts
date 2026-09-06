@@ -41,6 +41,7 @@ Commands:
   compile           Compute deterministic semantic status and diagnostics
   semantic          Interpret intent, answer beams, accept and project worlds
   render            Render workspace documentation
+  doctor            Validate the packaged native runtime
 
 Options:
   --help            Show this help
@@ -254,6 +255,10 @@ Options:
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
   --help            Show this help
+`,
+  doctor: `Usage: sigil doctor --format json
+
+Validates the pinned egglog and TypeScript 7 runtime without requiring a project.
 `,
 };
 

@@ -528,7 +528,7 @@ export async function compile(
         options.semanticDocuments !== undefined ||
         options.implementationPolicy !== undefined ||
         Object.keys(options.semanticEngine ?? {}).some((key) =>
-          !["binaryPath", "timeoutMs"].includes(key)
+          !["binaryPath", "runtimeDirectory", "timeoutMs"].includes(key)
         )
       )
     ) {

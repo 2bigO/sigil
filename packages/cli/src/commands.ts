@@ -41,6 +41,10 @@ export async function runCommand(
   request: CommandRequest,
   options: CommandHandlerOptions = {},
 ): Promise<CommandResult> {
+  const core = options.core ?? new CoreAdapter();
+  if (request.command === "doctor") {
+    return { command: "doctor", result: await core.doctor(), diagnostics: [] };
+  }
   if (request.command === "skill-list") {
     const result = await listInstalledSkills(options.install?.sourceDirectory);
     return {
@@ -58,7 +62,6 @@ export async function runCommand(
     });
     return { command: "skill-install", ...result, diagnostics: [] };
   }
-  const core = options.core ?? new CoreAdapter();
   if (request.command === "init") {
     const result = await core.initConfig(
       request.path,

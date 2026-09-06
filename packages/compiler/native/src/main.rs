@@ -15,6 +15,8 @@ use std::{
 struct Input {
     version: u32,
     #[serde(default)]
+    runtime_info: bool,
+    #[serde(default)]
     facts: Vec<Fact>,
     #[serde(default)]
     assertions: Option<String>,
@@ -108,6 +110,28 @@ fn egg_string(s: &str) -> String {
 fn run(input: Input) -> Result<Value, String> {
     if input.version != 1 {
         return Err("Unsupported protocol version".into());
+    }
+    if input.runtime_info {
+        if !input.facts.is_empty()
+            || input.assertions.is_some()
+            || input.implementation
+            || !input.observations.is_empty()
+            || !input.complete_scopes.is_empty()
+            || !input.required_checks.is_empty()
+            || !input.checks.is_empty()
+            || !input.receipt_claims.is_empty()
+            || !input.receipt_locations.is_empty()
+            || !input.symbol_owners.is_empty()
+            || !input.scoped_observations.is_empty()
+        {
+            return Err("Runtime handshake cannot include project inputs".into());
+        }
+        return Ok(json!({
+            "version": 1,
+            "engineProtocolVersion": 1,
+            "kernelFingerprint": kernel_fingerprint(),
+            "bridgeVersion": env!("CARGO_PKG_VERSION"),
+        }));
     }
     if let Some(source) = input.assertions {
         if !input.facts.is_empty()
@@ -289,7 +313,14 @@ fn run(input: Input) -> Result<Value, String> {
         rows.sort_by_cached_key(|row| serde_json::to_string(row).unwrap());
         tables.insert(name, rows);
     }
-    let kernel_fingerprint = format!(
+    let kernel_fingerprint = kernel_fingerprint();
+    Ok(
+        json!({"version": 1, "kernelVersion": "1", "kernelFingerprint": kernel_fingerprint, "tables": tables}),
+    )
+}
+
+fn kernel_fingerprint() -> String {
+    format!(
         "{:x}",
         Sha256::digest(concat!(
             include_str!("kernel.egg"),
@@ -298,9 +329,6 @@ fn run(input: Input) -> Result<Value, String> {
             include_str!("../Cargo.toml"),
             include_str!("../Cargo.lock")
         ))
-    );
-    Ok(
-        json!({"version": 1, "kernelVersion": "1", "kernelFingerprint": kernel_fingerprint, "tables": tables}),
     )
 }
 

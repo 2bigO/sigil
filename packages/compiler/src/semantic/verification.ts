@@ -37,6 +37,7 @@ export async function collectVerificationEvidence(
 ) {
   const engine = () => ({
     binaryPath: options.engine?.binaryPath,
+    runtimeDirectory: options.engine?.runtimeDirectory,
     signal: budget.signal,
     timeoutMs: Math.min(
       options.engine?.timeoutMs ?? 30_000,
@@ -78,6 +79,7 @@ export async function collectVerificationEvidence(
       resolved: options.resolved,
       signal: budget.signal,
       timeoutMs: engine().timeoutMs,
+      runtimeDirectory: engine().runtimeDirectory,
     })
     : undefined;
   const nativeArtifact = evidence

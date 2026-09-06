@@ -30,6 +30,7 @@ import {
   SyntaxKind,
 } from "typescript7/unstable/ast";
 import { digest } from "./turtle.ts";
+import { resolveSemanticRuntime } from "./runtime.ts";
 
 const isStringLiteralLike = (node: Node) =>
   isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
@@ -94,6 +95,7 @@ export interface TypeScriptAnalysisOptions {
   readonly project: string;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
+  readonly runtimeDirectory?: string;
 }
 
 function pathIn(root: string, file: string): string {
@@ -473,7 +475,15 @@ export async function analyzeTypeScript7(
   ]);
   options.signal?.throwIfAborted();
   const root = resolve(options.root);
-  const api = new API({ cwd: root });
+  const runtime = await resolveSemanticRuntime({
+    runtimeDirectory: options.runtimeDirectory,
+  });
+  const api = new API({
+    cwd: root,
+    ...(runtime.typescriptExecutable
+      ? { tsserverPath: runtime.typescriptExecutable }
+      : {}),
+  });
   const client = transport(api);
   const timeout = new AbortController();
   const timer = setTimeout(
