@@ -1528,6 +1528,27 @@ called. Packaged TypeScript is invoked by its explicit absolute runtime path, so
 this does not block the required native compiler. This prevents a hosted
 runner's preinstalled developer tools from accidentally satisfying the test.
 
+The repository implementation of this contract is
+scripts/fixtures/release-consumer/main.rs. Compile it with the pinned Rust
+toolchain on the same runner and target as the archive. When invoked under its
+normal name it accepts --distribution and --fixture, creates the isolated
+home/cache and hostile PATH, runs version/doctor/semantic-design checks, and
+reports a machine-readable result. It copies itself to each forbidden tool name
+(deno, node, npm, npx, cargo, rustc, tsc, and tsgo, with the platform
+executable suffix when required). It detects that invocation name, records it
+through SIGIL_SHIM_MARKER, and exits 97. The build artifact stores the compiled
+executable under consumer/ and the two fixture files under fixture/project/.
+The consumer job downloads those paths, extracts the archive, and invokes the
+executable without a checkout.
+
+The same consumer job runs the matching local installer with
+SIGIL_ARCHIVE_PATH and SIGIL_CHECKSUMS_PATH, checks a successful doctor and
+wrapper selection, reinstalls the identical manifest, then corrupts the
+installed manifest and asserts that a subsequent install fails while the
+previous wrapper remains usable. Unix targets execute install.sh; Windows
+executes install.ps1 through PowerShell. These installer checks use explicit
+temporary install/bin roots and never contact a release service.
+
 The additional Linux x64 offline job runs the same archive/harness/fixtures in
 an Ubuntu 24.04 container using `--network none`, without mounting the checkout
 or host caches. Build/pull the container image before disabling network.

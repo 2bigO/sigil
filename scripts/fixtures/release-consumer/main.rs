@@ -7,7 +7,7 @@
 
 use std::env;
 use std::ffi::{OsStr, OsString};
-use std::fs;
+use std::fs::{self, OpenOptions};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -22,6 +22,9 @@ impl Drop for RemoveOnDrop {
 }
 
 fn main() {
+    if is_hostile_shim() {
+        std::process::exit(97);
+    }
     if let Err(error) = run() {
         eprintln!("release artifact consumer failed: {error}");
         std::process::exit(1);
@@ -52,11 +55,11 @@ fn run() -> Result<(), String> {
     for path in [&unrelated, &home, &cache, &shims, &target] {
         fs::create_dir_all(path).map_err(io_error)?;
     }
-    install_hostile_shims(&shims, &marker)?;
+    install_hostile_shims(&shims)?;
     install_fixture(&fixture, &target)?;
 
     let path = isolated_path(&shims);
-    let environment = isolated_environment(&path, &home, &cache);
+    let environment = isolated_environment(&path, &home, &cache, &marker);
 
     let version = run_cli(&cli, &["--version"], &unrelated, &environment)?;
     if !version.status.success() {
@@ -158,31 +161,45 @@ fn install_fixture(source: &Path, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn install_hostile_shims(shims: &Path, marker: &Path) -> Result<(), String> {
+fn install_hostile_shims(shims: &Path) -> Result<(), String> {
+    let consumer = env::current_exe().map_err(io_error)?;
     for name in [
         "deno", "node", "npm", "npx", "cargo", "rustc", "tsc", "tsgo",
     ] {
         let filename = if cfg!(windows) {
-            format!("{name}.cmd")
+            format!("{name}.exe")
         } else {
             name.to_owned()
         };
         let path = shims.join(filename);
-        let script = if cfg!(windows) {
-            format!(
-                "@echo off\necho {name}>>\"{}\"\nexit /b 97\n",
-                marker.display()
-            )
-        } else {
-            format!(
-                "#!/bin/sh\nprintf '%s\\n' '{name}' >> {}\nexit 97\n",
-                shell_quote(marker)
-            )
-        };
-        fs::write(&path, script).map_err(io_error)?;
+        fs::copy(&consumer, &path).map_err(io_error)?;
         make_executable(&path)?;
     }
     Ok(())
+}
+
+fn is_hostile_shim() -> bool {
+    let Some(name) = env::current_exe()
+        .ok()
+        .and_then(|path| path.file_stem().map(|value| value.to_owned()))
+        .and_then(|value| value.into_string().ok())
+    else {
+        return false;
+    };
+    let name = name.to_ascii_lowercase();
+    let forbidden = [
+        "deno", "node", "npm", "npx", "cargo", "rustc", "tsc", "tsgo",
+    ];
+    if !forbidden.contains(&name.as_str()) {
+        return false;
+    }
+    if let Some(marker) = env::var_os("SIGIL_SHIM_MARKER") {
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(marker) {
+            use std::io::Write;
+            let _ = writeln!(file, "{name}");
+        }
+    }
+    true
 }
 
 fn make_executable(path: &Path) -> Result<(), String> {
@@ -214,7 +231,12 @@ fn isolated_path(shims: &Path) -> OsString {
     }
 }
 
-fn isolated_environment(path: &OsStr, home: &Path, cache: &Path) -> Vec<(OsString, OsString)> {
+fn isolated_environment(
+    path: &OsStr,
+    home: &Path,
+    cache: &Path,
+    marker: &Path,
+) -> Vec<(OsString, OsString)> {
     let mut values = vec![
         (OsString::from("PATH"), path.to_os_string()),
         (OsString::from("HOME"), home.as_os_str().to_os_string()),
@@ -226,6 +248,10 @@ fn isolated_environment(path: &OsStr, home: &Path, cache: &Path) -> Vec<(OsStrin
         (OsString::from("TMPDIR"), cache.as_os_str().to_os_string()),
         (OsString::from("TEMP"), cache.as_os_str().to_os_string()),
         (OsString::from("TMP"), cache.as_os_str().to_os_string()),
+        (
+            OsString::from("SIGIL_SHIM_MARKER"),
+            marker.as_os_str().to_os_string(),
+        ),
     ];
     if cfg!(windows) {
         for name in ["SystemRoot", "WINDIR", "ComSpec"] {
@@ -294,10 +320,6 @@ fn is_semver(value: &str) -> bool {
 
 fn path_string(path: &Path) -> String {
     path.to_string_lossy().into_owned()
-}
-
-fn shell_quote(path: &Path) -> String {
-    format!("'{}'", path.to_string_lossy().replace('\'', "'\\''"))
 }
 
 fn io_error(error: io::Error) -> String {
