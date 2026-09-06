@@ -48,6 +48,7 @@ import {
   type SemanticSourceBinding,
 } from "./semantic/source.ts";
 import { createSemanticComponentRegistry } from "./semantic/component-registry.ts";
+import { createSemanticWorkspaceContext } from "./semantic/workspace-context.ts";
 import { scopeSemanticWorld } from "./semantic/scope.ts";
 import { isCompileArtifactDirectory } from "./semantic/artifacts.ts";
 import {
@@ -470,7 +471,45 @@ export async function compile(
         signal: cancellationSignal,
       };
     };
-    const boundary = selectCompilationBoundary(resolved, requestedScope, {
+    let boundaryScope = requestedScope;
+    let canonicalScopeEntity: string | undefined;
+    if (requestedScope.kind === "component") {
+      try {
+        const semanticContext = await createSemanticWorkspaceContext({
+          root: workspace.root,
+          resolved,
+          engine: engineOptions(),
+        });
+        const matches = semanticContext.registry.resolve(
+          requestedScope.componentName,
+        );
+        if (matches.length > 1) {
+          throw new CompilerFailure(
+            "COMPILER_INVALID_INVOCATION",
+            `Semantic component ${
+              JSON.stringify(requestedScope.componentName)
+            } is ambiguous: ${
+              matches.map((entry) => entry.entity).join(", ")
+            }.`,
+          );
+        }
+        if (matches.length === 1) {
+          canonicalScopeEntity = matches[0].entity;
+          boundaryScope = matches[0].authored
+            ? {
+              kind: "component",
+              componentName: matches[0].authored.name,
+              declarationPath: requestedScope.declarationPath,
+            }
+            : { kind: "workspace" };
+        }
+      } catch (error) {
+        if (error instanceof CompilerFailure) throw error;
+        // The ordinary boundary diagnostics remain authoritative when there
+        // is no accepted state from which a semantic alias can be resolved.
+      }
+    }
+    const boundary = selectCompilationBoundary(resolved, boundaryScope, {
       exactTarget: options.exactTarget,
     });
     assertResolvableScope(boundary);
@@ -588,7 +627,11 @@ export async function compile(
           bindings: sourceIntent.bindings,
           componentBindings: storedState?.receipt.componentBindings,
         });
-        selectedIds = [...registry.entitiesFor(components)];
+        selectedIds = canonicalScopeEntity
+          ? registry.entryForEntity(canonicalScopeEntity)?.authored
+            ? [...registry.entitiesFor(components)]
+            : [canonicalScopeEntity]
+          : [...registry.entitiesFor(components)];
         if (
           handoff && (
             selectedIds.length !== handoff.manifest.subjects.length ||

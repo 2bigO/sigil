@@ -1,12 +1,14 @@
 import { resolve } from "node:path";
 import {
   artifactPayload,
+  canonicalWorkspacePath,
   CommandSemanticProvider,
   compileSemanticWorld,
   createImplementationHandoff,
   createSemanticWorkspaceContext,
   implementationSlice,
   initializeCompileArtifacts,
+  inspectManagedViews,
   loadCompilationWorkspace,
   projectGreenSemanticWorld,
   proposeSemanticIntent,
@@ -15,7 +17,9 @@ import {
   readWorldBeam,
   recordCompilationRun,
   recordSemanticStage,
+  recoverManagedViews,
   renderImplementationSlice,
+  renderManagedViewSet,
   renderReturnedImplementationMarkdown,
   resumeWorldBeam,
   SemanticInputError,
@@ -28,6 +32,7 @@ import {
   verifyReturnedImplementation,
   type WorldBeamCheckpoint,
   type WorldSearchResult,
+  writeManagedViews,
   writeReceiptSubmission,
   writeSemanticState,
   writeWorldBeam,
@@ -63,6 +68,11 @@ Options:
   --claims <file>         Returned untrusted Turtle receipt claims
   --locations <file>      Matching receipt source-location sidecar
   --format <value>        json (default); project: sigil|turtle; slice: text|egg|turtle; verify: turtle|markdown
+  --write                 Install managed project views (project only)
+  --check                 Inspect managed project views without writing (project only)
+  --recover               Recover a prepared managed-view transaction (project only)
+  --expected-revision <revision>  Expected accepted world revision for --write
+  --transaction <id>      Managed-view transaction identity for --recover
   --help                  Show this help
 
 A candidate envelope is {"version":1,"candidates":[{"id":"name","additions":"Turtle","retractions":""}]}.
@@ -134,9 +144,15 @@ function parse(argv: readonly string[]): Arguments {
         "--receipts",
         "--claims",
         "--locations",
+        "--write",
+        "--check",
+        "--recover",
+        "--expected-revision",
+        "--transaction",
       ].includes(arg)
     ) throw new UsageError(`Unknown option ${arg}.`);
-    const value = argv[++index];
+    const booleanFlag = ["--write", "--check", "--recover"].includes(arg);
+    const value = booleanFlag ? "true" : argv[++index];
     if (value === undefined) throw new UsageError(`${arg} requires a value.`);
     if (arg === "--generator-arg") generatorArgs.push(value);
     else {
@@ -151,7 +167,14 @@ function parse(argv: readonly string[]): Arguments {
     status: ["--beam", "--format"],
     answer: ["--beam", "--fact", "--value", "--format"],
     accept: ["--beam", "--format"],
-    project: ["--format"],
+    project: [
+      "--format",
+      "--write",
+      "--check",
+      "--recover",
+      "--expected-revision",
+      "--transaction",
+    ],
     slice: ["--component", "--format"],
     verify: ["--format", "--handoff", "--handoff-root", "--receipts"],
     artifacts: ["--format"],
@@ -196,6 +219,38 @@ function parse(argv: readonly string[]): Arguments {
   ) throw new UsageError("answer requires --fact and --value yes|no.");
   if (action === "slice" && !values["--component"]) {
     throw new UsageError("slice requires --component.");
+  }
+  const projectMutations = ["--write", "--check", "--recover"].filter((flag) =>
+    values[flag]
+  );
+  if (
+    action !== "project" &&
+    (projectMutations.length || values["--expected-revision"] ||
+      values["--transaction"])
+  ) {
+    throw new UsageError("Managed-view flags are valid only for project.");
+  }
+  if (projectMutations.length > 1) {
+    throw new UsageError(
+      "project --write, --check and --recover are mutually exclusive.",
+    );
+  }
+  if (values["--write"] && !values["--expected-revision"]) {
+    throw new UsageError("project --write requires --expected-revision.");
+  }
+  if (values["--recover"] && !values["--transaction"]) {
+    throw new UsageError("project --recover requires --transaction.");
+  }
+  if (!values["--recover"] && values["--transaction"]) {
+    throw new UsageError("--transaction requires project --recover.");
+  }
+  if (!values["--write"] && values["--expected-revision"]) {
+    throw new UsageError("--expected-revision requires project --write.");
+  }
+  if (projectMutations.length && format !== "json") {
+    throw new UsageError(
+      "Managed-view project mutations require --format json.",
+    );
   }
   if (
     action === "receipts" &&
@@ -573,17 +628,102 @@ export async function runSemanticCommand(
         }, exitCode);
     }
     if (action === "status") {
+      let views: unknown;
+      if (compilation.status === "green") {
+        try {
+          const managed = await renderManagedViewSet(compilation);
+          views = await inspectManagedViews(
+            context.root,
+            managed,
+            context.stored?.revision ?? null,
+          );
+        } catch (error) {
+          if (!(error instanceof SemanticInputError)) throw error;
+        }
+      }
+      const viewDrift = !!views &&
+        ["stale", "edited", "incomplete", "unsupported-version"].includes(
+          (views as { state: string }).state,
+        );
+      const status = context.sourceChanged || viewDrift
+        ? compilation.status === "green" ? "yellow" : compilation.status
+        : compilation.status;
       return json({
-        status: context.sourceChanged && compilation.status === "green"
-          ? "yellow"
-          : compilation.status,
+        status,
         sourceChanged: context.sourceChanged,
         worldFingerprint: context.world.fingerprint,
         diagnostics: compilation.diagnostics,
-      }, compilation.status === "green" && !context.sourceChanged ? 0 : 1);
+        ...(views ? { views } : {}),
+      }, status === "green" ? 0 : 1);
     }
     if (action === "project") {
       const projection = projectGreenSemanticWorld(compilation);
+      const managed = await renderManagedViewSet(compilation);
+      const worldRevision = context.stored?.revision ?? null;
+      const authoredLocations = Object.fromEntries(
+        managed.files.map((file) => {
+          const authored = context.registry.entryForEntity(file.entity)
+            ?.authored;
+          if (!authored) return [file.entity, []];
+          const forms = [
+            { filePath: authored.filePath, declaration: authored.declaration },
+            ...authored.expansions.expands,
+          ];
+          return [
+            file.entity,
+            forms.map((form) => ({
+              path: canonicalWorkspacePath(form.filePath, context.root),
+              componentName: form.declaration.name,
+              range: form.declaration.range,
+            })),
+          ];
+        }),
+      );
+      if (values["--write"] || values["--recover"]) {
+        if (!worldRevision) {
+          throw new SemanticInputError(
+            "WORLD_REQUIRED",
+            "Managed view publication requires an accepted canonical world.",
+          );
+        }
+        if (
+          values["--write"] && values["--expected-revision"] !== worldRevision
+        ) {
+          throw new SemanticInputError(
+            "STALE_WORLD",
+            "--expected-revision does not match the currently accepted world.",
+          );
+        }
+        const published = values["--write"]
+          ? await writeManagedViews(
+            context.root,
+            managed,
+            worldRevision,
+            authoredLocations,
+          )
+          : await recoverManagedViews(
+            context.root,
+            values["--transaction"],
+            worldRevision,
+            managed,
+            authoredLocations,
+          );
+        return json({
+          status: "current",
+          transaction: published.transaction,
+          receipt: published.receipt,
+          inspection: await inspectManagedViews(
+            context.root,
+            managed,
+            worldRevision,
+          ),
+        });
+      }
+      const views = await inspectManagedViews(
+        context.root,
+        managed,
+        worldRevision,
+      );
       if (values["--format"] === "sigil" || values["--format"] === "turtle") {
         return {
           exitCode: 0,
@@ -591,7 +731,10 @@ export async function runSemanticCommand(
           stderr: "",
         };
       }
-      return json(projection);
+      return json(
+        { ...projection, views },
+        values["--check"] && views.state !== "current" ? 1 : 0,
+      );
     }
     if (action === "slice") {
       if (context.sourceChanged) {

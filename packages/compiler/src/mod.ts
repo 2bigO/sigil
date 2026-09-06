@@ -44,3 +44,5 @@ export * from "./semantic/verify-return.ts";
 export * from "./semantic/verification.ts";
 export * from "./semantic/component-registry.ts";
 export * from "./semantic/workspace-context.ts";
+export * from "./semantic/view-model.ts";
+export * from "./semantic/views.ts";

@@ -5,7 +5,7 @@ import type {
   SigilConfigParseResult,
 } from "./model/configuration.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
-import { globMatches } from "./path.ts";
+import { globMatches, isManagedSigilViewPath } from "./path.ts";
 
 export const DEFAULT_SIGIL_INCLUDES = ["**/*.sigil"] as const;
 export const DEFAULT_SIGIL_EXCLUDES = [
@@ -154,6 +154,7 @@ function mergeJson(shared: unknown, local: unknown): unknown {
 // @sigil implements spec/language.sigil::SigilWorkspaceConfig::SourceSelection interface,state,logic,constraints,cases
 export function matchesSigilFile(path: string, config: SigilConfig): boolean {
   const normalized = path.replaceAll("\\", "/").replace(/^\.\//, "");
+  if (isManagedSigilViewPath(normalized)) return false;
   return config.files.include.some((pattern) =>
     globMatches(pattern, normalized)
   ) &&

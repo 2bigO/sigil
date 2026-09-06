@@ -72,6 +72,13 @@ export function isSigilFile(path: string): boolean {
   return normalizePath(path).endsWith(".sigil");
 }
 
+/** Generated companion views are explicit editor targets, never authored input. */
+export function isManagedSigilViewPath(path: string): boolean {
+  const normalized = normalizePath(path).replace(/^\.\//, "");
+  return normalized === ".sigil/views" ||
+    normalized.startsWith(".sigil/views/");
+}
+
 export function isModuleFile(path: string): boolean {
   return basename(path) === "_module.sigil";
 }

@@ -12,6 +12,9 @@ export interface SemanticComponentEntry {
   readonly entity: string;
   readonly authored?: ResolvedComponent;
   readonly authoredStructuralId?: string;
+  /** Generated companion representation used only for explicit view targets. */
+  readonly projected: ResolvedComponent;
+  readonly projectedPath: string;
   readonly projectedName: string;
   readonly label?: string;
 }
@@ -20,6 +23,8 @@ export interface SemanticComponentRegistry {
   readonly entries: readonly SemanticComponentEntry[];
   /** Resolve a canonical IRI, authored name, generated name, or unique label. */
   resolve(selector: string): readonly SemanticComponentEntry[];
+  /** Resolve a semantic selector only when it identifies exactly one entity. */
+  entityForTarget(selector: string): string;
   /** Convert the selected authored components to their canonical entity IDs. */
   entitiesFor(components: readonly ResolvedComponent[]): readonly string[];
   entryForEntity(entity: string): SemanticComponentEntry | undefined;
@@ -67,6 +72,34 @@ function componentKey(
   }\0${component.name}`;
 }
 
+function generatedComponent(
+  name: string,
+  path: string,
+): ResolvedComponent {
+  const range = {
+    start: { line: 1, column: 1 },
+    end: { line: 1, column: name.length + 1 },
+  };
+  return {
+    name,
+    filePath: path,
+    declaration: {
+      kind: "component",
+      name,
+      range,
+      sections: [],
+    },
+    expansions: { componentName: name, expands: [] },
+    conceptNamespace: {
+      componentName: name,
+      concepts: [],
+      accessibleConcepts: [],
+      publicConcepts: [],
+      references: [],
+    },
+  };
+}
+
 /**
  * Build canonical target aliases from accepted facts and validated authored
  * bindings. This function is the only place that interprets componentBindings.
@@ -100,8 +133,9 @@ export async function createSemanticComponentRegistry(options: {
   const configured = options.componentBindings ?? {};
   const authoredByName = new Map<string, string>();
   for (const component of sourceComponents) {
-    const structural = sourceBindingIds.get(componentKey(component, options.root)) ??
-      sourceIds.get(componentKey(component, options.root));
+    const structural =
+      sourceBindingIds.get(componentKey(component, options.root)) ??
+        sourceIds.get(componentKey(component, options.root));
     if (structural) authoredByName.set(component.name, structural);
   }
   const used = new Map<string, string>();
@@ -182,7 +216,14 @@ export async function createSemanticComponentRegistry(options: {
     const projectedName = `${
       prefix.slice(0, Math.max(1, 75 - suffix.length - 1))
     }_${suffix}`;
-    entries.push({ ...row, projectedName });
+    const projectedPath = `.sigil/views/${hash}.sigil`;
+    entries.push({
+      ...row,
+      projectedName,
+      projectedPath,
+      projected: row.authored ??
+        generatedComponent(projectedName, projectedPath),
+    });
   }
   const byAlias = new Map<string, SemanticComponentEntry[]>();
   const add = (alias: string, entry: SemanticComponentEntry) => {
@@ -200,6 +241,20 @@ export async function createSemanticComponentRegistry(options: {
     entries,
     resolve(selector) {
       return byAlias.get(selector) ?? [];
+    },
+    entityForTarget(selector) {
+      const matches = byAlias.get(selector) ?? [];
+      if (matches.length === 0) {
+        invalid(`no component matches ${JSON.stringify(selector)}`);
+      }
+      if (matches.length > 1) {
+        invalid(
+          `component ${JSON.stringify(selector)} is ambiguous: ${
+            matches.map((entry) => entry.entity).join(", ")
+          }`,
+        );
+      }
+      return matches[0].entity;
     },
     entitiesFor(components) {
       const wanted = new Set(

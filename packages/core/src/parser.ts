@@ -300,6 +300,10 @@ export function parseSigilDocument(
     }
 
     if (trimmed.length === 0) continue;
+    // Managed companion views carry documentary metadata in a line comment.
+    // Comments are ignored by the parser and therefore cannot become semantic
+    // intent or executable directives.
+    if (trimmed.startsWith("//")) continue;
     const importMatch = trimmed.match(
       /^@(.+?)\s+import\s+\{\s*([^}]+?)\s*\}\s*$/,
     );
