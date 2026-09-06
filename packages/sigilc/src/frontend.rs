@@ -291,7 +291,7 @@ fn validate_range(range: &Range) -> Result<(), String> {
 }
 
 // Match the frontend's encodeURIComponent for path-qualified structural IDs.
-fn encode_identifier(value: &str) -> String {
+pub(crate) fn encode_identifier(value: &str) -> String {
     let mut encoded = String::new();
     for byte in value.bytes() {
         if byte.is_ascii_alphanumeric() || b"-_.!~*'()".contains(&byte) {
