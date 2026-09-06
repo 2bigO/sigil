@@ -127,8 +127,8 @@ pub struct Position {
     pub column: u32,
 }
 
-// @sigil implements packages/sigilc/_module.sigil::SigilSemanticCompiler::FrontendBoundary interface
 impl DesignInput {
+    // @sigil implements packages/sigilc/_module.sigil::SigilSemanticCompiler::FrontendBoundary interface
     pub fn parse(bytes: &[u8]) -> Result<Self, String> {
         let input: Self = serde_json::from_slice(bytes).map_err(|e| e.to_string())?;
         input.validate()?;
