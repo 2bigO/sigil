@@ -75,6 +75,29 @@ jobs:
           mkdir -p "release-${{ matrix.target }}"
           cp "$RUNNER_TEMP/release"/* "release-${{ matrix.target }}/"
           printf '%s\n' '{"target":"${{ matrix.target }}","status":"smoke-tested"}' > "release-${{ matrix.target }}/test-summary.json"
+      - name: Offline Linux x64 archive smoke
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="$INPUT_VERSION"
+          if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
+          docker run --rm --network none \
+            -e "SIGIL_RELEASE_VERSION=$version" \
+            -v "$RUNNER_TEMP/release:/release:ro" \
+            -v "$GITHUB_WORKSPACE/scripts/fixtures/release:/fixtures:ro" \
+            ubuntu:24.04 bash -eu -o pipefail -s <<'EOF'
+          mkdir -p /tmp/sigil /tmp/fixture/.sigil
+          tar -xzf /release/sigil-x86_64-unknown-linux-gnu.tar.gz -C /tmp/sigil
+          cli="/tmp/sigil/sigil-$SIGIL_RELEASE_VERSION/bin/sigil"
+          test -x "$cli"
+          test "$("$cli" --version)" = "$SIGIL_RELEASE_VERSION"
+          "$cli" doctor --format json | grep -q '"ok":true'
+          cp /fixtures/project/main.sigil /tmp/fixture/main.sigil
+          cp /fixtures/project/fixture-config.json /tmp/fixture/.sigil/config.json
+          "$cli" semantic status /tmp/fixture --format json | grep -q '"status":"yellow"'
+          EOF
       - uses: actions/upload-artifact@v4
         with:
           name: sigil-release-${{ matrix.target }}
