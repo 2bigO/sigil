@@ -203,7 +203,7 @@ The following final commands were executed after the S11 changes:
 | `deno test --allow-env --allow-read --allow-write --allow-run packages/cli/tests/semantic_commands_test.ts --filter 'public semantic flow'` | Pass |
 | `scripts/test-cli-release.ts --distribution /tmp/sigil-extracted-final23/sigil-0.7.1` | Pass; packaged public flow and runtime-failure branches |
 | `DISPLAY=:99 deno task test:vscode:extension` under Xvfb | Pass |
-| `deno task test:published-runtime --runtime /tmp/sigil-extracted-final21/sigil-0.7.1/lib/sigil/runtime` | Pass; staged Compiler consumer rejects missing runtime and passes explicit-runtime doctor |
+| `deno task test:published-runtime --runtime /tmp/sigil-extracted-final23/sigil-0.7.1/lib/sigil/runtime` | Pass; staged Compiler consumer rejects missing runtime and passes explicit-runtime doctor |
 | `cargo fmt --check` (Rust 1.91, `packages/compiler/native`) | Pass |
 | `cargo clippy --locked -- -D warnings` (Rust 1.91, `packages/compiler/native`) | Pass |
 | staged `x86_64-unknown-linux-gnu` archive: version, doctor, relocation/isolation, semantic fixture, tamper and missing-runtime/library rejection | Pass |
