@@ -30,7 +30,7 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
 | S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2`, `f86f88f`, `e53f3e3` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, packaged public-flow validation, editor fake-CLI validation, published-consumer validation, the combined semantic-flow fixture, and the completion report |
@@ -176,8 +176,10 @@ forged-view drift. `scripts/test-cli-release.ts` runs the packaged archive
 through intent, acceptance, managed projection, canonical slice, receipt import
 and verification; the VS Code unit suite runs the equivalent fake-CLI transport
 sequence. Existing compiler tests add the v1 accepted-state preview and CAS
-migration coverage. The five-target release matrix remains CI-required, so the
-complete section 11.1 gate is **PARTIAL** only for that external matrix.
+migration coverage. The five-target release matrix now includes a
+source-independent artifact-consumer job for every target. Those runners still
+must execute before the complete section 11.1 gate can be marked green, so the
+gate is **PARTIAL** only for that external matrix.
 
 ## Validation commands and results
 
@@ -206,6 +208,7 @@ The following final commands were executed after the S11 changes:
 | `deno task test:published-runtime --runtime /tmp/sigil-extracted-final23/sigil-0.7.1/lib/sigil/runtime` | Pass; staged Compiler consumer rejects missing runtime and passes explicit-runtime doctor |
 | `cargo fmt --check` (Rust 1.91, `packages/compiler/native`) | Pass |
 | `cargo clippy --locked -- -D warnings` (Rust 1.91, `packages/compiler/native`) | Pass |
+| Rust 1.91 source-independent release consumer against final23 archive | Pass; version, doctor, isolated semantic fixture and hostile-tool PATH checks |
 | staged `x86_64-unknown-linux-gnu` archive: version, doctor, relocation/isolation, semantic fixture, tamper and missing-runtime/library rejection | Pass |
 | extracted `x86_64-unknown-linux-gnu` archive in Docker with `--network none`: version, doctor and semantic-design fixture | Pass (Linux x86_64) |
 | local `install.sh` checksum/doctor/selection seam | Pass |
