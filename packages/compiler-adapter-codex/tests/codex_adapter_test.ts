@@ -1,4 +1,4 @@
-import { AdapterFailure, compile } from "@qoherent/sigil-compiler";
+import { AdapterFailure } from "@qoherent/sigil-compiler";
 import { CodexAdapter } from "../src/mod.ts";
 import { assertEquals, assertMatch, assertRejects } from "@std/assert";
 import { SIGIL_VERSION } from "@qoherent/sigil-core";
@@ -343,7 +343,7 @@ Deno.test("Codex adapter rejects an actually invoked nested compilation", async 
 });
 
 // @sigil tests packages/compiler/src/adapter-subprocess.sigil::SigilAgentAdapterSubprocess::AdapterSubprocess logic,cases
-Deno.test("Codex process failure preserves complete stderr in the compiler report", async () => {
+Deno.test("Codex process failure preserves complete stderr for its caller", async () => {
   const root = await workspace(`component Example {
   goal {
     Explain the example.
@@ -367,16 +367,51 @@ Deno.test("Codex process failure preserves complete stderr in the compiler repor
       await onFrame({ channel: "stderr", text: stderr });
       throw new AdapterFailure("process", "codex exited with 1:");
     });
-    const report = await compile(root, { kind: "workspace" }, "standard", {
-      requestedStage: "semantic-readiness",
-      adapter,
-    });
-    assertMatch(
-      report.diagnostics.find((item) =>
-        item.code === "COMPILER_EVALUATOR_INCOMPLETE"
-      )?.message ?? "",
-      /provider detail one\nprovider detail two/,
-    );
+    const error = await assertRejects(() =>
+      adapter.evaluate({
+        stage: "semantic-readiness",
+        purpose: "semantic",
+        skill: "Inspect files.",
+        allowedRules: ["SEMANTIC_AMBIGUITY"],
+        implementationEvidence: "context-only",
+        workspaceRoot: root,
+        workspaceSnapshotIdentity: "sha256:test-snapshot",
+        target: {
+          componentName: "Example",
+          sigilFile: "main.sigil",
+          initialPaths: ["main.sigil"],
+          retrieval: retrievalFixture(),
+          retrievalBrief: retrievalBriefFixture(),
+        },
+        capabilities: {
+          schemaVersion: 1,
+          workspaceAccess: "read-only",
+          agentToolNetwork: false,
+          approvalEscalation: false,
+          statePersistence: "ephemeral",
+        },
+        commandPolicy: {
+          allowedCommands: ["sigil check"],
+          forbiddenCommands: ["sigil compile"],
+        },
+        observability: adapter.observability,
+        limits: {
+          maxInitialRequestChars: 1_000_000,
+          maxProviderFrameChars: 1_000_000,
+          maxFinalResultChars: 1_000_000,
+          maxRetainedCommandOutputChars: 10_000,
+          providerCleanupMs: 5_000,
+        },
+        budgets: {
+          elapsedTimeMs: 30_000,
+          maxCommands: 10,
+          maxCommandOutputChars: 10_000,
+          maxInputTokens: 1_000,
+          maxOutputTokens: 100,
+        },
+      }), AdapterFailure);
+    assertEquals(error.kind, "process");
+    assertMatch(error.message, /provider detail one\nprovider detail two/);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

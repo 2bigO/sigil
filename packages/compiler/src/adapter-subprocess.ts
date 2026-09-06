@@ -6,6 +6,7 @@ import {
 import type { AdapterFailureKind } from "./types.ts";
 
 export interface AdapterSubprocessInvocation {
+  readonly acceptNonzeroExit?: boolean;
   readonly implementationIdentity: string;
   readonly command: string;
   readonly args: readonly string[];
@@ -67,6 +68,7 @@ interface AttachedSubprocess {
 
 interface ChannelOutput {
   readonly promise: Promise<string>;
+  readonly settlement?: Promise<void>;
   readonly cancel: () => Promise<void>;
 }
 
@@ -288,7 +290,7 @@ export async function runAdapterSubprocess(
     resources.observeResource(resourceIdentity, "released");
     resources.observeResultInput(identities[1], "closed");
     resources.observeResultInput(identities[2], "closed");
-    if (!settled.value.success) {
+    if (!settled.value.success && !invocation.acceptNonzeroExit) {
       throw new AdapterFailure(
         "process",
         `${invocation.command} exited with ${settled.value.code}: ${stderrText}`,
@@ -315,11 +317,12 @@ async function settleBeforeDeadline(
 ): Promise<boolean> {
   const remaining = Math.max(0, cleanupDeadline - performance.now());
   const timeout = Symbol("deadline");
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const settled = await Promise.race([
     Promise.all([
       attached.status,
-      attached.stdout.promise,
-      attached.stderr.promise,
+      attached.stdout.settlement ?? attached.stdout.promise,
+      attached.stderr.settlement ?? attached.stderr.promise,
     ]).then(
       () => true,
       (error) => {
@@ -333,10 +336,11 @@ async function settleBeforeDeadline(
         return false;
       },
     ),
-    new Promise<typeof timeout>((resolve) =>
-      setTimeout(() => resolve(timeout), remaining)
-    ),
+    new Promise<typeof timeout>((resolve) => {
+      timer = setTimeout(() => resolve(timeout), remaining);
+    }),
   ]);
+  clearTimeout(timer);
   return settled !== timeout && settled;
 }
 
@@ -364,17 +368,22 @@ function readOutput(
       );
       openFrame = lastBreak < 0 ? openFrame + text : text.slice(lastBreak + 1);
       if (onFrame) await onFrame({ channel, text });
-      else retained += text;
+      if (!onFrame || channel === "stderr") retained += text;
     }
     const tail = decoder.decode();
     if (tail) {
       assertFrameLimit(tail, maxFrameChars, openFrame);
       if (onFrame) await onFrame({ channel, text: tail });
-      else retained += tail;
+      if (!onFrame || channel === "stderr") retained += tail;
     }
     return retained;
   })();
-  return { promise, cancel: () => reader.cancel() };
+  // Result failure and verified stream closure are distinct observations.
+  // Keep the original error for the caller, but close the reader so cleanup can
+  // establish settlement even after a frame consumer or output bound rejects.
+  const settlement = promise.then(() => {}, () => reader.cancel());
+  void settlement.catch(() => {}); // Cleanup observes any cancellation failure.
+  return { promise, settlement, cancel: () => reader.cancel() };
 }
 
 function assertFrameLimit(

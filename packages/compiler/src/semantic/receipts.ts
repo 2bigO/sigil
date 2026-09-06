@@ -5,6 +5,7 @@ import {
   writeCompileArtifact,
 } from "./artifacts.ts";
 import { parseEggWorld, serializeEggWorld } from "./egg-world.ts";
+import type { SemanticEngineOptions } from "./engine.ts";
 import type { ImplementationHandoff } from "./handoff.ts";
 import { implementationPath } from "./implementation-workspace.ts";
 import { RDF_TYPE, SIGIL_ONTOLOGY, XSD } from "./ontology.ts";
@@ -297,6 +298,7 @@ export async function readReceiptSubmission(
   root: string,
   handoff: ImplementationHandoff,
   id: string,
+  engine: SemanticEngineOptions = {},
 ): Promise<ReceiptSubmission> {
   const artifact = await readCompileArtifact(root, "receipts", id);
   if (
@@ -306,7 +308,7 @@ export async function readReceiptSubmission(
     artifactJson(Object.keys(artifact.files).sort()) !==
       artifactJson(["assertions.egg", "locations.json"])
   ) invalid("Receipt bundle does not match the retained handoff.");
-  const world = await parseEggWorld(artifact.files["assertions.egg"]);
+  const world = await parseEggWorld(artifact.files["assertions.egg"], engine);
   return parseReceiptSubmission(
     handoff,
     serializeSemanticWorld(world),

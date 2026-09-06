@@ -26,6 +26,22 @@ export interface SemanticEngineOptions {
   readonly completeScopes?: readonly MechanicalScope[];
   readonly requiredChecks?: readonly string[];
   readonly checks?: readonly MechanicalCheck[];
+  /** Claims are untrusted even though the host validates their protocol shape. */
+  readonly receiptClaims?: readonly MechanicalReceiptClaim[];
+  /** The remaining receipt inputs are independently established by the host. */
+  readonly receiptLocations?: readonly (readonly [string, string])[];
+  readonly symbolOwners?: readonly (readonly [string, string])[];
+  readonly scopedObservations?:
+    readonly (readonly [string, string, string, string])[];
+}
+
+export interface MechanicalReceiptClaim {
+  readonly receipt: string;
+  readonly obligation: string;
+  readonly subject: string;
+  readonly predicate: string;
+  readonly object: string;
+  readonly expected: boolean;
 }
 
 export interface MechanicalCheck {
@@ -96,6 +112,7 @@ const TABLE_SIGNATURES: Readonly<Record<string, string>> = {
   proposition: "sssss",
   coverage: "sssss",
   "implementation-satisfied": "ss",
+  "receipt-result": "ssss",
 };
 
 /** Validate every fixed table before any absence can be interpreted as success. */
@@ -142,6 +159,11 @@ export function decodeClosureResponse(source: string): ClosureResult {
       throw new Error(`Invalid egglog output rows in ${name}.`);
     }
   }
+  if (
+    (tables["receipt-result"] as string[][]).some((row) =>
+      !["supported", "contradicted", "unresolved"].includes(row[2])
+    )
+  ) throw new Error("Invalid receipt outcome from egglog.");
   return raw as ClosureResult;
 }
 
@@ -188,6 +210,10 @@ export async function computeClosure(
       complete_scopes: options.completeScopes ?? [],
       required_checks: options.requiredChecks ?? [],
       checks: options.checks ?? [],
+      receipt_claims: options.receiptClaims ?? [],
+      receipt_locations: options.receiptLocations ?? [],
+      symbol_owners: options.symbolOwners ?? [],
+      scoped_observations: options.scopedObservations ?? [],
     }, options),
   );
 }

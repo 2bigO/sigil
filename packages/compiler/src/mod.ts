@@ -39,3 +39,5 @@ export * from "./semantic/scope.ts";
 export * from "./semantic/handoff.ts";
 export * from "./semantic/receipts.ts";
 export * from "./semantic/receipt-locations.ts";
+export * from "./semantic/receipt-witnesses.ts";
+export * from "./semantic/verify-return.ts";

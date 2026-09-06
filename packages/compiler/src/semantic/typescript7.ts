@@ -33,7 +33,7 @@ import { digest } from "./turtle.ts";
 
 const isStringLiteralLike = (node: Node) =>
   isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
-export const TYPESCRIPT_EXTRACTOR_VERSION = 2 as const;
+export const TYPESCRIPT_EXTRACTOR_VERSION = 3 as const;
 
 export interface CodeLocation {
   readonly file: string;
@@ -43,6 +43,7 @@ export interface CodeLocation {
   readonly column: number;
 }
 export interface TypeScriptDependency extends CodeLocation {
+  readonly caller: string;
   readonly specifier: string;
   readonly resolvedFile?: string;
   readonly typeOnly: boolean;
@@ -75,7 +76,7 @@ export interface TypeScriptIssue extends CodeLocation {
 }
 export interface TypeScriptAnalysis {
   readonly analyzer: "typescript@7.0.2";
-  readonly extractorVersion: 2;
+  readonly extractorVersion: typeof TYPESCRIPT_EXTRACTOR_VERSION;
   readonly fingerprint: string;
   readonly files: readonly {
     readonly file: string;
@@ -178,7 +179,12 @@ async function inspectProject(
     project.program.getSemanticDiagnostics(),
   ])).flat();
   for (const source of sourceFiles) {
-    const imports: { node: Node; typeOnly: boolean; loader?: Node }[] = [];
+    const imports: {
+      node: Node;
+      typeOnly: boolean;
+      caller: string;
+      loader?: Node;
+    }[] = [];
     const callNodes: Node[] = [];
     const callers = new Map<Node, string>();
     const functionScopes = new Map<Node, string>();
@@ -258,6 +264,7 @@ async function inspectProject(
       if (isImportDeclaration(node)) {
         imports.push({
           node: node.moduleSpecifier,
+          caller,
           typeOnly:
             node.importClause?.phaseModifier === SyntaxKind.TypeKeyword ||
             !!node.importClause?.namedBindings &&
@@ -270,7 +277,11 @@ async function inspectProject(
         });
       }
       if (isExportDeclaration(node) && node.moduleSpecifier) {
-        imports.push({ node: node.moduleSpecifier, typeOnly: node.isTypeOnly });
+        imports.push({
+          node: node.moduleSpecifier,
+          typeOnly: node.isTypeOnly,
+          caller,
+        });
       }
       if (
         isImportEqualsDeclaration(node) &&
@@ -278,6 +289,7 @@ async function inspectProject(
       ) {
         imports.push({
           node: node.moduleReference.expression,
+          caller,
           typeOnly: node.isTypeOnly,
         });
       }
@@ -291,6 +303,7 @@ async function inspectProject(
           const target = node.arguments?.[0];
           imports.push({
             node: target ?? node,
+            caller,
             typeOnly: false,
             loader: isIdentifier(node.expression) ? node.expression : undefined,
           });
@@ -340,6 +353,7 @@ async function inspectProject(
       const declaration = symbol?.declarations[0];
       dependencies.push({
         ...location(root, imported.node),
+        caller: imported.caller,
         specifier: imported.node.text,
         resolvedFile: declaration ? pathIn(root, declaration.path) : undefined,
         typeOnly: imported.typeOnly,

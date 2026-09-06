@@ -19,14 +19,20 @@ export async function recordSemanticStage(
     readonly sourceFingerprint: string;
     readonly evidence?: ImplementationEvidence;
     readonly mechanical?: SemanticEngineOptions;
+    readonly extraFiles?: Readonly<Record<string, string>>;
   },
 ): Promise<string> {
-  const mechanical = options.mechanical ?? options.evidence ?? {};
+  const mechanical: SemanticEngineOptions = options.mechanical ??
+    options.evidence ?? {};
   const inputs = {
     observations: mechanical.observations ?? [],
     completeScopes: mechanical.completeScopes ?? [],
     requiredChecks: mechanical.requiredChecks ?? [],
     checks: mechanical.checks ?? [],
+    receiptClaims: mechanical.receiptClaims ?? [],
+    receiptLocations: mechanical.receiptLocations ?? [],
+    symbolOwners: mechanical.symbolOwners ?? [],
+    scopedObservations: mechanical.scopedObservations ?? [],
   };
   const files: Record<string, string> = {
     "assertions.egg": serializeEggWorld(compilation.world),
@@ -40,6 +46,12 @@ export async function recordSemanticStage(
       ...options.evidence,
       world: undefined,
     });
+  }
+  for (const [name, text] of Object.entries(options.extraFiles ?? {})) {
+    if (Object.hasOwn(files, name)) {
+      throw new Error("Duplicate semantic stage payload name.");
+    }
+    files[name] = text;
   }
   const artifact = await writeCompileArtifact(root, {
     kind: "cache",

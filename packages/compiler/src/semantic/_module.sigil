@@ -56,6 +56,9 @@ component SigilSemanticState {
       by an atomic revision pointer. Store lossless canonical egglog assertions,
       with Turtle available as interchange. Include source and binding metadata in the
       revision identity. Read legacy semantic.json/worlds state during migration.
+      Loading accepted state and recomputing its slices and closure require no
+      original Turtle or derived cache. Canonical round trips preserve normalized
+      facts, literal lexical forms, identities and bytes under the same format.
     }
   }
 }
@@ -135,6 +138,22 @@ component SigilImplementationHandoff {
       Require exact proposition agreement and reject unknown or conflicting claims.
       Keep submitted assertions and source selectors untrusted. File hashes and
       native symbol resolution must be checked independently before witness joins.
+    }
+    ReceiptVerification {
+      Fixed egglog rules join exact retained obligations, untrusted claims, resolved
+      callable locations, host ownership and independently observed scoped evidence.
+      Report each claim as supported, contradicted or unresolved. A call in another
+      callable cannot support that location. Negative support requires a complete
+      exact scope after observation closure; contradictory observations dominate.
+      Complete-scope absence of a required positive relation is a hard violation;
+      incomplete evidence alone leaves coverage unresolved.
+      Receipt outcomes never reduce required work or add artificial obligations.
+      Independent evidence may cover an obligation despite an incorrect receipt.
+
+      Verification reloads the caller-retained handoff and untrusted receipt bundle,
+      validates protected inputs, analyzes the returned snapshot and rechecks source
+      identity after tools. Store provenance and completed artifacts, never reusable
+      proof. Preserve operational failures and cancellation separately from verdicts.
     }
   }
 }

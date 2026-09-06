@@ -8,6 +8,12 @@ component SigilAgentAdapterSubprocess {
   }
 
   interface {
+    MechanicalCommandResult {
+      A host mechanical check runner may request the actual nonzero exit result.
+      Default provider invocations still reject nonzero exits. Launch, timeout,
+      cancellation, output and cleanup failures remain operational failures in
+      both modes; a failed command is never converted into a passing result.
+    }
     AdapterSubprocessFailure {
       contains a machine-readable kind that is cancelled, elapsed-time,
       preventive-budget, operational-limit, process, or process-cleanup
@@ -41,6 +47,10 @@ component SigilAgentAdapterSubprocess {
 
       successful settlement occurs only after process exit and designated stdout and
       stderr end-of-stream
+
+      Output decoding or frame-consumer failure preserves its initiating failure
+      while independently cancelling and observing the affected stream. A rejected
+      result is not itself evidence that process cleanup failed.
     }
   }
 }

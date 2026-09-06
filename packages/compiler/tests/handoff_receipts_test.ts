@@ -304,7 +304,7 @@ export default function() { bridge(); }
 `;
     await Deno.writeTextFile(`${root}/app.ts`, app);
     const evidence = await collectImplementationEvidence({ root, policy });
-    assertEquals(evidence.analysis.extractorVersion, 2);
+    assertEquals(evidence.analysis.extractorVersion, 3);
     const symbols = evidence.analysis.symbols;
     const actual = symbols.find((s) => s.selector === "actual")!;
     const decoy = symbols.find((s) => s.selector === "decoy")!;

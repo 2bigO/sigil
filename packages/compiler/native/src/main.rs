@@ -28,6 +28,25 @@ struct Input {
     required_checks: Vec<String>,
     #[serde(default)]
     checks: Vec<CheckResult>,
+    #[serde(default)]
+    receipt_claims: Vec<ReceiptClaim>,
+    #[serde(default)]
+    receipt_locations: Vec<[String; 2]>,
+    #[serde(default)]
+    symbol_owners: Vec<[String; 2]>,
+    #[serde(default)]
+    scoped_observations: Vec<[String; 4]>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReceiptClaim {
+    receipt: String,
+    obligation: String,
+    subject: String,
+    predicate: String,
+    object: String,
+    expected: bool,
 }
 
 #[derive(Deserialize)]
@@ -97,6 +116,10 @@ fn run(input: Input) -> Result<Value, String> {
             || !input.complete_scopes.is_empty()
             || !input.required_checks.is_empty()
             || !input.checks.is_empty()
+            || !input.receipt_claims.is_empty()
+            || !input.receipt_locations.is_empty()
+            || !input.symbol_owners.is_empty()
+            || !input.scoped_observations.is_empty()
         {
             return Err("Assertion parsing cannot include execution inputs".into());
         }
@@ -133,6 +156,38 @@ fn run(input: Input) -> Result<Value, String> {
     let mut program = String::from(include_str!("kernel.egg"));
     if input.implementation {
         program.push_str("\n(implementation-mode)");
+    }
+    for claim in input.receipt_claims {
+        program.push_str(&format!(
+            "\n(receipt-claim {} {} {} {} {} {})",
+            egg_string(&claim.receipt),
+            egg_string(&claim.obligation),
+            egg_string(&claim.subject),
+            egg_string(&claim.predicate),
+            egg_string(&claim.object),
+            egg_string(if claim.expected { "true" } else { "false" })
+        ));
+    }
+    for (table, rows) in [
+        ("receipt-location", input.receipt_locations),
+        ("symbol-owner", input.symbol_owners),
+    ] {
+        for row in rows {
+            program.push_str(&format!(
+                "\n({table} {} {})",
+                egg_string(&row[0]),
+                egg_string(&row[1])
+            ));
+        }
+    }
+    for row in input.scoped_observations {
+        program.push_str(&format!(
+            "\n(scoped-observation {} {} {} {})",
+            egg_string(&row[0]),
+            egg_string(&row[1]),
+            egg_string(&row[2]),
+            egg_string(&row[3])
+        ));
     }
     for observation in input.observations {
         program.push_str(&format!(
@@ -214,6 +269,7 @@ fn run(input: Input) -> Result<Value, String> {
         "proposition",
         "coverage",
         "implementation-satisfied",
+        "receipt-result",
     ] {
         let (terms, _, dag) = graph
             .function_to_dag(name, usize::MAX, false)
@@ -237,6 +293,7 @@ fn run(input: Input) -> Result<Value, String> {
         "{:x}",
         Sha256::digest(concat!(
             include_str!("kernel.egg"),
+            include_str!("schedule.egg"),
             include_str!("main.rs"),
             include_str!("../Cargo.toml"),
             include_str!("../Cargo.lock")

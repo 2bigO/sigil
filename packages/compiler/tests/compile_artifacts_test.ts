@@ -6,6 +6,8 @@ import {
   writeCompileArtifact,
 } from "../src/semantic/artifacts.ts";
 import { parseEggWorld, serializeEggWorld } from "../src/semantic/egg-world.ts";
+import { compileSemanticWorld } from "../src/semantic/compile.ts";
+import { scopeSemanticWorld } from "../src/semantic/scope.ts";
 import {
   readSemanticState,
   writeSemanticState,
@@ -180,6 +182,49 @@ Deno.test("legacy canonical state migrates on acceptance and concurrent stale wr
       "bad legacy state",
     );
     assertEquals((await readSemanticState(root))?.revision, stored.revision);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("accepted egg world reconstructs slices and semantic closure without Turtle or derived caches", async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    const turtle =
+      '@prefix s: <https://sigil.dev/ontology/1#> . <urn:A> a s:Component; s:dependsOn <urn:B> . <urn:B> a s:Component . <urn:C> a s:Contract; s:required true; s:from <urn:A>; s:relation "dependsOn"; s:target <urn:B> .';
+    await Deno.writeTextFile(`${root}/original.ttl`, turtle);
+    const world = await parseSemanticWorld([{ sourceId: "original", turtle }]);
+    const before = await compileSemanticWorld(world);
+    const slice = await scopeSemanticWorld(world, ["urn:A"]);
+    await writeSemanticState(root, {
+      world,
+      receipt: {
+        version: 1,
+        worldFingerprint: world.fingerprint,
+        sourceFingerprint: world.fingerprint,
+        componentBindings: {},
+      },
+    });
+    await writeCompileArtifact(root, {
+      kind: "cache",
+      dependencies: { world: world.fingerprint },
+      files: { "closure.json": artifactJson(before.closure) },
+    });
+    await Deno.remove(`${root}/original.ttl`);
+    await Deno.remove(`${root}/.sigil/cache`, { recursive: true });
+    const restored = await readSemanticState(root);
+    assert(restored);
+    assertEquals(restored.world.facts, world.facts);
+    assertEquals(restored.world.fingerprint, world.fingerprint);
+    assertEquals(serializeEggWorld(restored.world), serializeEggWorld(world));
+    assertEquals(
+      (await scopeSemanticWorld(restored.world, ["urn:A"])).facts,
+      slice.facts,
+    );
+    const after = await compileSemanticWorld(restored.world);
+    assertEquals(after.status, before.status);
+    assertEquals(after.closure, before.closure);
+    assertEquals(after.diagnostics, before.diagnostics);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
