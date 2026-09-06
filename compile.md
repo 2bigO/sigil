@@ -1,2189 +1,2630 @@
-# Implementation specification: finish the semantic-world migration
 
-This is the replacement implementation plan. It covers **only work remaining
-after commit `5438fc1`**. It does not ask the implementer to rebuild the
-existing semantic kernel, receipt verifier, handoff protocol, candidate search,
-or artifact store.
+# Task: Radically simplify Sigil around independent Semantic Worlds verification
 
-Decisions in this document are requirements, not a menu of options. Follow the
-order, use the specified ownership boundaries, and satisfy the named acceptance
-cases. If an acceptance case fails, fix the responsible layer; do not change the
-case to fit an easier architecture. If an external tool cannot execute the
-specified protocol, report that concrete incompatibility. Do not substitute a
-judge, weaken verification, or silently drop a platform.
+The goal of this refactor is a **large net deletion of code and concepts**.
 
-## 1. Exact deliverables and exclusions
+Backward compatibility and migration are explicitly out of scope. Sigil has no external users yet. Prefer deleting obsolete systems and restoring known-good pre-semantic-compiler code over preserving transitional abstractions.
 
-Deliver four workstreams:
+Use commit:
 
-1. Install generated human-readable `.sigil` views in the target project,
-   preserve canonical component identity across those views, and detect
-   view/source drift.
-2. Adapt bundled proposal providers and migrate CLI configuration, editor/LSP
-   integration, skills, and documentation to the semantic-world workflow.
-3. Distribute the CLI with the native egglog engine and TypeScript 7 runtime,
-   with working installers and tested platform archives.
-4. Finish version/invalidation checks, interrupted beam-write recovery,
-   integration tests, and a requirement-by-requirement completion report.
+`08c22e0a088407f94b1dd6999c044334b0190552`
 
-Do not implement any of the following:
+as the known-good reference point for the old whole-spec coding-agent handoff and related flows. When current files were changed only to support semantic compiler architecture that this plan removes, prefer restoring the relevant implementation from that commit instead of rewriting equivalent behavior. Removing parts of older implementation prior to that commit is also okay, e.g. needing to configure harnesses may become completely obsolote and that whole code can be removed if so.
 
-- Capturing semantic worlds from installed packages.
-- Crawling, copying, freezing, or staging a target project's installed
-  dependencies or `node_modules` for verification.
-- Generating, ranking, applying, merging, or repairing implementation patches.
-- Starting coding agents to implement slices or managing their
-  implementation/repair loops.
-- New behavioral-proof families, a larger ontology, or arbitrary
-  project-authored egglog rules.
-- A new specification language, a second canonical Turtle store, a general proof
-  language, or a new database.
-- A browser editor, an editor webview application, automatic model selection, or
-  automatic provider fallback.
-- Automatic publishing, tagging, signing, or uploading as part of local
-  development or tests.
+Do not mechanically reset unrelated improvements.
 
-Packaging **Sigil's own pinned compiler runtime** is required. This is distinct
-from capturing packages installed in a target codebase. Runtime packaging must
-never scan the target project's dependency tree.
+## Codebase findings informing this plan
 
-### 1.1 Existing behavior that must survive
+Reviewed against the working tree on 2026-09-06. This document describes the
+target refactor; the existing authored contracts still describe the previous
+architecture and must be updated during implementation.
 
-These are compatibility constraints, not new implementation assignments:
+| Area | Actual implementation | Consequence for this refactor |
+| --- | --- | --- |
+| Native engine | `packages/compiler/native/src/main.rs` is a JSON-stdin bridge around egglog, named `sigil-semantic-engine` in `Cargo.toml`. | A standalone `sigilc` needs command parsing, RDF ingestion, source identity, projection storage, and comparison; renaming alone does not implement it. |
+| Language frontend | `packages/core/src/resolver.ts` owns imports, module reexports, expands, and public Concept identities. | Preserve this implementation and its tests. Explicitly define the frontend-to-Rust boundary instead of quietly duplicating the parser/resolver. |
+| Structural Design | `packages/compiler/src/semantic/source.ts::projectSigilIntent` already creates component identities and required interpretation units from prose and literal blocks. | Retain this coverage principle. A model must not omit a difficult contract and thereby make Design green. Partition units by physical source, including expands. |
+| RDF and assertion files | `semantic/turtle.ts`, `ontology.ts`, and `egg-world.ts` implement validation and serialization in TypeScript. Native `main.rs` restricts assertion ASTs to `assert-iri` and `assert-literal` with string arguments. | Port the relevant behavior and fixtures to Rust; retain the restricted data reader. Never execute cached `.egg` as arbitrary egglog programs. |
+| Kernel | `native/src/kernel.egg` already implements reachability, delegated capabilities, required interpretation, contradictory propositions, minimum distance, and maximum risk. `schedule.egg` stages closure, evidence, and diagnostics. | Reuse suitable laws, but split Design and Implementation execution and remove receipt-specific rules. Missing-row diagnostics must run after closure. |
+| Current verification | `semantic/typescript7.ts`, `verification.ts`, `verify-return.ts`, `implementation-workspace.ts`, `handoff.ts`, and `receipt*.ts` implement the architecture being replaced. | Delete their obsolete callers, protocols, config, tests, and release dependencies together. |
+| Current persistence | `semantic/store.ts`, `views.ts`, `projections.ts`, `beam*.ts`, and `artifacts.ts` support accepted worlds, managed views, and retained workflows. | Disposable worlds change authority as well as storage. Remove generated-view authoring and accepted-world workflows across CLI, editor, docs, and skills. |
+| Historical baseline | The referenced commit has implementation coverage/retrieval and ownership-comment guidance in `integrations/skills/sigil/`, plus evaluator adapters. Inspection did not identify a dedicated whole-spec coding-agent launcher. | Restore useful behavior selectively. Whole-spec delivery is a harness requirement; do not promise a simple restoration of a launcher or restore the old evaluator architecture wholesale. |
+| Snapdir | `repos/snapdir/crates/snapdir-core` at `5fef1d97e0cbf073fb5b443f8e7e26d147625e98` exposes `walk`, `WalkOptions`, `Manifest`, `Blake3Hasher`, and `HashFile`. | Use these APIs, subject to the identity, filtering, and portability details in section 10. `repos/` is ignored and is not a distributable dependency path. |
+| Egglog reference | `repos/egglog` is at `90635860397ce710f8c0a4eeb04154a8ebc3ac05`, the same revision pinned by the native crate. | `egg.md` applies to this checkout. Its relative source links resolve under `repos/egglog/`. No egglog upgrade is needed for this refactor. |
+| Distribution | `scripts/build-cli-release.ts` ships the bridge and TypeScript analyzer, including a Windows target. | Update runtime lookup, release staging, installers, and smoke tests. Snapdir's current walker imports `std::os::unix` unconditionally; Windows needs an explicit portability solution. |
 
-- Accepted meaning is the lossless, data-only
-  `.sigil/world/<revision>/assertions.egg` plus its manifest. Compiler-owned
-  declarations, rules, and schedules remain outside project worlds.
-- Turtle remains proposal/interchange input. Original Turtle and derived caches
-  are unnecessary to reconstruct accepted meaning.
-- Only independent host observations and fixed sufficiency rules can establish
-  implementation coverage. Receipts are claims and locations, not proof.
-- Full retained obligations remain required even when receipts omit them.
-  Per-receipt results remain separate from independent overall coverage.
-- Unsupported behavior remains yellow. Operational failure produces no completed
-  semantic verdict. A failed mandatory check remains red.
-- Current-world and retained-handoff verification retain their shared deadline,
-  cancellation, cleanup, snapshots, freshness checks, and stage artifacts.
-- Ordinary compilation remains deterministic and invokes no evaluator or
-  proposal provider.
-- Existing source-based targets, report/history/event interfaces, and handoffs
-  remain supported according to the explicit compatibility rules below.
-- TypeScript stays pinned to **7.0.2**, including the existing native API. Do
-  not downgrade to TypeScript 6 or replace native observations with textual
-  searches.
+Baseline inspection: `sigil check . --format json` reported zero errors,
+one warning and eleven informational diagnostics. Both `semantic status` and
+`semantic project --check` failed with “Turtle document exceeds 1,000,000
+characters.” This is an existing inspection limitation, not evidence of a green
+accepted world. Per-file ingestion needs separate per-document and aggregate
+limits so assembling a large workspace does not recreate that failure.
 
-The last executed baseline was 94 passing compiler tests and 77 passing CLI
-tests on Linux. Those counts describe the starting point; they are not the
-completion criterion for this plan.
+## Correctness decisions
 
-### 1.2 Terms used below
+1. Implementation freshness binds only the target source, ontology/schema and
+   projection format, and frozen Design
+   catalog. Design separately binds its resolved import/frontend inputs.
+   Neither side binds the process that produced Turtle.
+2. Missing behavior is unknown. Removing mechanical completeness evidence does
+   not make absence a negative fact. Unsupported negative obligations remain
+   `Converged`; section 27 defines the initial conservative policy.
+3. All required authored units must be inventoried independently of model output.
+   All selected source files must be inventoried independently of coder triggers.
+4. Current `Loose` Design permits a provisional frozen catalog and implementation
+   work. `Disjoint` Design permits neither a coding catalog nor implementation
+   comparison. `Closed` requires `Coherent` Design, fresh complete selected
+   inputs, completed closure, and satisfied implementation obligations. An operational failure has
+   no completed semantic verdict.
+5. Determinism starts at fixed validated assertions. A new model reconstruction
+   of unchanged source can differ; deleting the cache is safe but is not a promise
+   of identical model output.
 
-| Term                   | Exact meaning                                                                                                          |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Accepted world         | Normalized asserted facts loaded from the published canonical world revision.                                          |
-| World fingerprint      | Identity of the normalized fact set. It excludes renderer bytes and transient results.                                 |
-| World revision         | Identity of the complete accepted bundle, including metadata. Metadata-only changes can change this identity.          |
-| Canonical component ID | The Component/System entity IRI in the accepted world. File names and labels are not this identity.                    |
-| Authored source        | Existing project `.sigil` files outside the managed view directory. They remain intact.                                |
-| Managed view           | A generated `.sigil` document that displays accepted meaning. It is never fed back into intent extraction.             |
-| View receipt           | Recomputable metadata describing generated files, hashes, aliases, and source ranges. It is not verification evidence. |
-| Proposal provider      | A process that returns untrusted candidate assertions or wording for an exact question.                                |
-| Runtime bundle         | Sigil's native egglog executable, TypeScript native executable and standard libraries, and a versioned file manifest.  |
-| Successful command     | A process completed according to its protocol. This alone does not mean a semantic result is green.                    |
+## Refactor assessment and size estimate
 
-### 1.3 `.sigil` artifact retention and Git policy
+The architecture is ready to implement as a bounded refactor, not as a claim
+that semantic reconstruction will be complete. Its strengths are the two
+separate worlds, local Implementation objects, explicit unknowns, and removal
+of orchestration. The principal remaining risk is implementation scope leaking
+back through adapters, runtime packaging, or generic compiler infrastructure.
 
-Every target workspace has one `.sigil/` directory at its repository root. The
-compiler creates missing subdirectories through `initializeCompileArtifacts`; it
-must never create a second state directory, scan an installed dependency tree, or
-write semantic state outside this root. Use this exact retention policy:
+Keep the platform feasibility check early:
+
+* Snapdir's Unix-specific filesystem code is a real packaging constraint.
+  Verify the required surface on retained platforms before building on it.
+  Limit changes to the necessary library surface; a broad snapdir port/fork is
+  outside this refactor. If the bounded approach cannot preserve the release
+  matrix, report that concrete blocker rather than silently expanding scope or
+  removing a platform.
+
+Expect many real projects with prohibitions or dynamic wiring to remain
+`Converged`. That is the intended conservative result, not an acceptance failure
+to solve by adding whole-program analysis or negative-proof infrastructure.
+Structural unit coverage does not prove faithful interpretation of every sentence.
+Implementation name-to-catalog mapping is also model judgment, not a compiler
+guarantee. Ambiguous local references remain unknown. Do not add a language
+resolver to improve that mapping or force a green result.
+
+Current-code audit: the proposed Implementation identity-table mechanism has
+not been implemented. The current native binary is still
+`sigil-semantic-engine`; TS7 symbol analysis serves the old mechanical verifier.
+Delete that verifier during the refactor, with no exception for supplying
+Implementation mappings. No new symbol-map schema or resolver subsystem needs
+to be retained from the proposal.
+
+Measured from tracked working-tree `.ts`, `.tsx`, `.js`, `.mjs`, `.rs`, and `.egg`
+files on 2026-09-06, counting physical lines including comments and blanks:
+
+| Current area | Lines |
+| --- | ---: |
+| Compiler semantic TypeScript source | 9,517 |
+| Other compiler TypeScript source | 6,508 |
+| Native Rust/egglog engine | 607 |
+| Four provider-adapter packages, source | 1,513 |
+| Compiler and adapter tests | 6,515 |
+| Compiler/adapter subtotal | 24,660 |
+| Entire repository, same tracked code extensions | 58,609 |
+
+The repository total comprises 39,631 production/tooling lines and 18,978 lines
+under test/fixture/eval directories. This excludes `.sigil` contracts, Markdown,
+JSON, lockfiles, ignored `repos/`, and other extensions; it is a reproducible
+size baseline, not a count of executable statements.
+
+Planning estimate: **10,000–16,000 net code/test lines removed**, about **17–27%**
+of that repository baseline. Approximately 7,000–11,000 of the reduction should
+be production/tooling lines; the rest comes from replacing obsolete tests.
+The compiler/adapter footprint should shrink roughly 40–60%, with some extra
+deletion in CLI/config/release callers. These are estimates, not additive quotas.
+
+The estimate assumes roughly 18,000–23,000 old lines disappear or are replaced
+across affected source/tests/callers, offset by roughly 7,000–11,000 lines of
+Rust, thin frontend integration, and new tests. Those independent ranges are
+uncertain; the net range above is a central planning expectation, not a bound.
+A larger platform effort or richer diagnostics could lower the reduction.
+Do not count moved native code, dependency code, or avoided unwritten features as
+deletions. Preserve useful language tooling and correctness tests regardless of
+the estimate.
+
+---
+
+# 1. Final conceptual architecture
+
+Sigil has two real sources of truth:
+
+```text
+DESIGN SOURCE OF TRUTH
+*.sigil files
+
+IMPLEMENTATION SOURCE OF TRUTH
+actual source code
+```
+
+Semantic worlds are **derived, disposable projections**:
+
+```text
+.sigil source
+     ↓ semantic reconstruction
+Design graph D
+
+source code
+     ↓ independent semantic reconstruction
+Implementation graph I
+```
+
+Both are stored as data-only `.egg` assertions under `.sigil/worlds/`.
+
+The semantic compiler performs:
+
+```text
+D* = saturate(D)
+I* = saturate(I)
+
+O = obligations(D*)
+
+compare O against I*
+```
+
+Where **saturate** means:
+
+> Repeatedly apply Sigil's compiler-owned egglog laws until no new semantic facts, consequences, obligations, violations, numerical properties, or other derived relations can be produced.
+
+This is the central Semantic Worlds model:
+
+```text
+sparse asserted graph
+        ↓
+fixed semantic laws
+        ↓
+richer graph
+```
+
+Examples:
+
+```text
+A dependsOn B
+B dependsOn C
+→ A reachable C
+```
+
+```text
+A requires X
+→ obligation that X be available to A
+```
+
+```text
+A excludes X
+A uses X
+→ violation
+```
+
+```text
+A → B cost 4
+B → C cost 6
+→ distance(A,C) = 10
+```
+
+LLMs propose semantic facts.
+
+The compiler owns semantic laws.
+
+---
+
+# 2. Compiler and harness are completely separate
+
+Keep the TypeScript `sigil` CLI and the existing TypeScript language frontend.
+Create the standalone Rust crate/binary at `packages/sigilc`, named `sigilc`.
+Move useful native implementation from `packages/compiler/native` into that
+crate, then delete the old `sigil-semantic-engine` binary, its JSON bridge
+protocol, and its obsolete TypeScript wrappers. There is no permanent third
+binary and no compatibility bridge.
+
+The current bridge is useful as implementation material, not as an enduring
+interface. Preserve its egglog embedding, restricted assertion AST reader,
+correct string escaping, useful kernel laws, and actual-runtime fingerprint
+checks. Replace receipt/observation inputs and output tables with the new
+Design/Implementation interfaces. JSON remains appropriate for machine-readable
+commands; that does not require retaining the old JSON protocol.
+
+Use this ownership boundary:
+
+| Owner | Responsibilities |
+| --- | --- |
+| TypeScript `sigil` / `packages/core` | Workspace/config discovery, parsing, imports, expands, Concept/glossary resolution, authored-unit inventory, deterministic export context, formatting, retrieval, LSP/editor integration. A thin compile command may prepare frontend inputs and invoke `sigilc`. |
+| Rust `sigilc` | Snapdir-backed input identity, immutable input preparation support, Turtle validation, assertion encoding, projection metadata/publication, catalog freezing, isolated egglog closure, comparison, freshness, and deterministic reports. |
+| External harness / coding environment (outside this repository's implementation scope) | Whole-spec coding context, model calls, reconstruction isolation, scheduling, retries, and implementation/repair work. |
+
+The frontend emits a small versioned resolved Design input bundle containing only
+structural information Rust cannot recover without understanding Sigil syntax:
+
+* selected source files and exact source bytes/identities;
+* parser/resolution diagnostics and resolved imports/reexports;
+* canonical Component/System/Concept identities supported by language resolution;
+* ownership/source bindings needed for those identities;
+* the required authored interpretation-unit inventory;
+* public/exported identity and authored context needed by importers;
+* relevant glossary/config inputs that affect interpretation.
+
+Bind the bundle to the exact source/config/glossary bytes and frontend version.
+`sigilc` validates its schema and input fingerprints. These structural records
+are compiler-frontend output, never model-authored Turtle or trusted model claims.
+
+Hard architectural rule: **If a field can be deterministically derived by
+`sigilc` from normalized semantic assertions or belongs to Sigil's semantic laws,
+it does not belong in the frontend bundle.**
+
+Exclude semantic closure, derived facts, egglog obligations, implementation
+requirements/results, inference results, semantic validation laws, candidate
+ranking, and Design-vs-Implementation comparison logic. The authored-unit
+inventory identifies source that needs interpretation; Rust derives obligations
+from it under fixed laws. Do not send precomputed obligations from TypeScript.
+Use a closed schema that rejects unknown fields. Keep it easy to replace/delete;
+do not grow a shadow AST, second compiler IR, extension framework, or rule
+transport. Do not port the full TypeScript compiler or duplicate its parser and
+resolver in Rust.
+
+Define the bundle as an explicit input to `sigilc` preparation/Design operations.
+Rust can operate directly on prepared inputs without invoking TypeScript or a
+model. User-facing `sigil compile` can prepare the bundle automatically using
+the existing frontend. Do not advertise `sigilc` as a second parser for arbitrary
+`.sigil` text. Reusing the TypeScript frontend is the deliberate language/compiler
+boundary, not an unfinished Rust port.
+
+`sigilc` is the single owner of content hashing and artifact freshness. The
+frontend passes the exact source buffers it parsed to preparation; a source edit
+between frontend reading and preparation invalidates that attempt. Retain only
+the transport needed to invoke these new Rust commands and decode their results.
+Do not port all of `packages/compiler` to Rust merely because it has that name.
+
+The surrounding skill/harness treats `sigilc` like any other command-line tool.
+
+**`sigilc` validates semantic assertions, not their author. It binds a projection
+to the source world it describes, not to the process that produced it.**
+
+Model, provider, prompt, conversation, temperature, producer, agent identity,
+and semanticizer recipe are not compiler freshness or provenance fields. Do not
+persist them in projection metadata or require them in preparation/ingestion.
+An improved external model or prompt does not invalidate valid projections.
+An external caller may explicitly reconstruct unchanged inputs and submit new
+Turtle under the same semantic input identity and atomic-publication rules.
+
+## Hard boundary
+
+`sigilc` must not know how to invoke:
+
+* Claude
+* Codex
+* OpenCode
+* Pi
+* any other model
+* any agent harness
+
+It must not:
+
+* select models
+* start agents
+* manage conversations
+* perform model fallback
+* schedule semanticization agents
+* schedule coding agents
+* own prompt retry loops
+* own implementation/repair loops
+
+Conceptually:
+
+```text
+external harness / coding environment
+        │
+        ▼
+prepared semanticization inputs
+        │
+        ▼
+model produces Turtle
+        │
+        ▼
+      sigilc
+        │
+        │ deterministic
+        ▼
+validated semantic world
+        ↓
+egglog closure / comparison
+```
+
+Model orchestration remains outside Sigil, not merely outside `sigilc`.
+
+This refactor does not implement a generic harness adapter, independent
+semanticizer launcher, whole-spec coding workflow, background-agent runtime,
+model scheduler, provider abstraction, evaluator framework, or orchestration
+layer anywhere in the repository. Document the external protocol and keep
+lightweight skill instructions where useful. Implement only deterministic
+preparation/ingestion and compiler behavior at that boundary.
+
+Sections describing agents, concurrency, isolation, and retries specify external
+environment responsibilities; they are not Sigil implementation milestones.
+Fixed Turtle fixtures or simple test doubles exercise the model boundary in CI.
+No live agents or repository-owned orchestration are needed for acceptance.
+
+Delete provider/orchestration machinery whose only purpose was allowing the semantic compiler itself to invoke models.
+
+---
+
+# 3. Restore whole-spec coding
+
+This section specifies guidance for external coding environments. Implementing
+the delivery workflow or a coding-agent launcher is out of scope for Sigil.
+
+Restore the implementation handoff behavior used around:
+
+`08c22e0a088407f94b1dd6999c044334b0190552`
+
+The coding agent receives the **whole human-readable Sigil specification**.
+
+Do not hand it:
+
+* one component at a time
+* one contract at a time
+* semantic slices
+* obligation bundles
+* RDF fragments
+* verifier work packets
+* receipt protocols
+
+We have empirically found that coding agents implement better when they can reason globally over the complete specification.
+
+Reuse known-green old code where appropriate.
+
+The coding agent owns:
+
+```text
+implementation
+repair
+refactoring
+its own work sequencing
+```
+
+Sigil does not own:
+
+```text
+code candidate generation
+code candidate ranking
+patch merging
+repair orchestration
+coding-agent scheduling
+```
+
+---
+
+# 4. Pointer comments may remain, but they are not evidence
+
+Restore or retain lightweight comments identifying which Sigil component/section/contract a code entry corresponds to.
+
+These are for:
+
+* navigation
+* debugging
+* editor integration
+* helping the coding agent maintain context
+
+They are **not implementation proof**.
+
+The independent semantic reconstruction pass must not trust or derive facts merely from these comments.
+
+Keep the captured target bytes exact. The worker instructions explicitly exclude
+pointer comments as evidence; do not introduce a source-rewriting/sanitizer
+identity into compiler freshness.
+
+---
+
+# 5. Independent implementation semanticization runs alongside coding
+
+The following is an external protocol, not a repository-owned background runtime.
+
+This is the key verification design.
+
+The coding agent does **not** author Implementation Turtle itself.
+
+Instead, when the coding agent judges that a coherent piece of code is finalized, it triggers an **independent background semanticization agent** and immediately continues its own work.
+
+The reconstruction result is none of the coding agent's concern.
+
+Conceptually:
+
+```text
+CODING AGENT
+    │
+    │ "src/foo.ts is ready for semanticization"
+    ▼
+HARNESS
+    │
+    ├── captures exact current source snapshot
+    ├── identifies the target source file
+    ├── supplies fixed Sigil ontology
+    ├── supplies frozen Design entity catalog
+    ├── supplies only the exact target implementation file bytes
+    └── launches independent semanticizer
+                │
+                ▼
+        Implementation Turtle
+                │
+                ▼
+             sigilc
+                │
+        validate + normalize
+                │
+                ▼
+ .sigil/worlds/implementation/src/foo.ts.egg
+```
+
+Meanwhile:
+
+```text
+coding agent → continues implementing other work
+```
+
+The coding agent must not see or influence the reconstruction result.
+
+Treat this as an enforced harness boundary: use a separate conversation and an
+isolated read-only set of the three inputs in section 6, with results outside the coder's readable
+workspace while coding is active. A prompt instruction or ordinary read-only
+access to the same checkout does not hide `.sigil`, `.sigil/worlds`, `AGENTS.md`,
+Git history, or design copied into documentation. Do not fork the coding
+conversation into the semanticizer. Disable unrelated filesystem, shell, and
+network access in that worker.
+
+The `semanticize` response acknowledges job scheduling only. The final report
+can go to the human or a later repair session; that ends the current blind
+evaluation. A later repair gets a new independent reconstruction. This boundary
+reduces answer leakage; code names, comments, and catalog labels can still convey
+intent, so it is not a guarantee of unbiased observation.
+
+---
+
+# 6. Independent semanticizer context
+
+The implementation reconstruction agent receives:
+
+1. the exact target source file bytes
+2. Sigil's fixed ontology
+3. the frozen Design entity catalog
+
+It must **not** receive:
+
+* `.sigil` source
+* Design Turtle
+* D
+* D*
+* Design obligations
+* intended relationships
+* coding-agent explanations of what should be implemented
+* previous implementation semantic results
+* receipt claims
+* neighboring implementation files, imported module bodies, or repository browsing access
+
+Its job is only:
+
+> Describe only semantic relationships directly evidenced by this source file.
+> You are given this file, Sigil's fixed ontology, and the frozen Design catalog.
+> Use your knowledge of the local programming language, including import/export
+> and module syntax, to map local names or external references onto catalog
+> entities. Name similarity is supporting evidence only, never sufficient
+> evidence by itself. Map only when usage and context in this source file make
+> the identity semantically credible. Do not map by lexical similarity alone.
+> Refer only to entities already in that catalog. Do not invent aliases,
+> substitute names, or new semantic entities. Do not inspect neighboring files
+> or infer or summarize the behavior of imported modules. If this file clearly
+> imports or references a known Design entity, use its canonical identity. If
+> the mapping is ambiguous from this file alone, omit the relation rather than
+> guessing. Emit only direct facts attributable to this file. Cross-file and
+> transitive consequences are computed later by sigilc/egglog.
+
+This is a hard semantic boundary, not an optional context optimization.
+
+The coding agent writes code from Design.
+
+The semanticizer independently reconstructs Implementation.
+
+Those are separate model calls with different information.
+
+---
+
+# 7. Implementation projections are local semantic object files
+
+Use strictly one Implementation source file → one mirrored `.egg`:
+
+```text
+src/foo.ts
+→ .sigil/worlds/implementation/src/foo.ts.egg
+```
+
+Each semantic object describes only direct facts attributable to its source.
+For `a.ts` importing `compile` from `b.ts` and calling it from `run`, A may assert
+`A invokes B` and `A provides Run`. It must not assert `A invokes InstalledSigil`
+merely because B calls InstalledSigil. That direct fact belongs to `b.ts.egg`.
+Only compiler-owned laws may derive further consequences after linking.
+
+The model understands the local programming language. The frozen Design catalog
+supplies the shared semantic identities. For example:
+
+```ts
+import { Foo as Bar } from "./foo";
+export function run() {
+  Bar.compile();
+}
+```
+
+If the catalog contains canonical Foo and this file justifies the mapping, the
+model may emit a direct relationship to Foo. It must not invent a Bar semantic
+entity or inspect `foo.ts` to learn what Foo does. Name similarity alone is never
+sufficient; source usage/context must make the mapping semantically credible.
+Omit an uncertain relationship.
+
+There is no compiler/host-generated Implementation identity table, symbol map,
+module resolver output, resolver callback, resolution cache, or language plugin.
+Do not substitute another abstraction or preserve TS7 machinery for this purpose.
+The identical three-input protocol applies to TypeScript, JavaScript, Python,
+Rust, Go, Java, C/C++, shell, mixed-language repositories and other languages.
+Neither `sigil` nor `sigilc` resolves Implementation programming-language symbols.
+
+```text
+source files → independently semanticized local .egg objects
+            → union/link using shared identities → I → saturate → I*
+
+a.ts.egg: A dependsOn B
+b.ts.egg: B dependsOn C
+I*:       A reachable C
+```
+
+Reflection, dynamic imports, dependency injection, plugin registries,
+configuration-driven wiring, monkey patching, global registration, generated
+code, and runtime lookup by string may hide relationships from this boundary.
+Do not sacrifice simple local objects for fuzzy whole-program LLM analysis.
+Relationships unsupported by local bytes plus the frozen catalog remain unknown;
+unestablished obligations produce `Converged`, not fabricated certainty.
+
+This restriction is Implementation-specific. Design retains Sigil frontend
+context and conservative transitive importer invalidation from section 14.
+
+---
+
+# 8. Snapshot binding prevents races
+
+Because the coding agent continues working while reconstruction runs, every semanticization job must be bound to the exact source snapshot it read.
+
+Use `snapdir-core` inside `sigilc` for deterministic source hashing and manifests.
+External environments consume its deterministic preparation results.
+
+At semanticization start:
+
+```text
+foo.ts hash = H1
+```
+
+The independent agent reconstructs H1.
+
+Capture immutable target bytes, fixed ontology/schema, projection format, and
+frozen Design catalog. Hash the copied
+source bytes; do not substitute a live checkout after hashing. No neighboring
+implementation bodies or arbitrary repository-context snapshot are involved.
+
+Use deterministic versioned encoding of the complete Implementation input key:
+
+```text
+hash(target normalized path + source bytes,
+     ontology/schema version,
+     projection-format version,
+     frozen Design entity-catalog fingerprint)
+```
+
+Before publication, compare each of those inputs with its current counterpart.
+Any change to another Implementation source file leaves this projection fresh,
+including changes to that neighbor's imports, exports, or implementation. That
+file's own semantic object must be refreshed. Only this target's path/bytes,
+the frozen Design catalog, or incompatible ontology/schema/projection format
+changes invalidate this projection. There is no Implementation dependency graph.
+Selection controls world membership and report scope, not the reusable per-file
+projection key. An unrelated selected-source change may change the assembled
+world and comparison result without invalidating this projection.
+
+If yes:
+
+```text
+publish foo.ts.egg
+```
+
+If the coder edited the file meanwhile and it is now H2:
+
+```text
+discard or mark result stale
+```
+
+Never publish semantic results for an outdated source snapshot as current.
+
+Design uses its own deterministic key: target Design source identity, resolved
+import/export identity context and source dependencies, relevant frontend
+structural/config/glossary input identity, ontology/schema and projection-format
+versions. Preserve conservative Design importer invalidation. Neither key contains
+LLM-production metadata.
+
+Under a writer lock, compare the expected projection generation, publish assertions and
+metadata, then commit their index entry atomically. Older duplicate jobs must not
+overwrite a newer accepted result for the same inputs. The lock serializes
+compiler writers; it cannot prevent the coding agent from editing source.
+Therefore compile validates freshness again and labels every report with its
+captured input identity. A report never claims to describe an indefinitely live
+working tree.
+
+---
+
+# 9. Semantic worlds are disposable projections
+
+Use this layout:
 
 ```text
 .sigil/
-  world/
-    <revision>/
-      assertions.egg       # lossless accepted assertions; committed
-      manifest.json         # content/dependency/receipt identity; committed
-    current.json            # selected accepted revision pointer; committed
-  implementation.json       # verifier policy; committed
-  views/                    # generated human views and current.json; committed
-  receipts/                 # returned claims and locations; ignored
-    <receipt-id>/
-      assertions.egg       # untrusted claim facts
-      locations.json        # untrusted source locations
-      manifest.json         # artifact identity
-  handoffs/                 # retained assignments; ignored
-  runs/                     # execution results and reports; ignored
-  cache/                    # locks and derived caches; ignored
-  beams/                    # resumable proposal state; ignored
+  worlds/
+    design/
+      _module.sigil.egg
+      folder/
+        file.sigil.egg
+
+    implementation/
+      __init__.py.egg
+      folder/
+        another_file.py.egg
 ```
 
-The accepted world is the only canonical semantic store. Commit the complete
-`.sigil/world/` revision selected by `current.json`, its manifest, the committed
-verifier policy, and published managed views. `.sigil/receipts/` is an
-untrusted interchange cache: add it to the workspace's Git excludes, never stage
-it, and never let its presence or hash alone change a verdict. Receipt ingestion
-may preserve normalized `.egg` claims plus location metadata, while the original
-Turtle input is optional and can be deleted after ingestion. Handoffs, runs,
-beams, locks, transactions, and derived caches follow the same ignored policy.
+Mirror source paths and append `.egg`.
 
-Do not write new `.sigil/worlds/*.ttl` files. A read-only compatibility path may
-load the legacy v1 state described in section 8.2, then an explicit migration
-rewrites it as a tracked `.sigil/world/<revision>/assertions.egg` bundle. No
-legacy read is allowed to mutate the checkout during inspection.
+Examples:
 
-The implementation must test this policy: a fresh accepted world survives
-removal of Turtle, receipts, handoffs, runs, views, and caches; a receipt can be
-re-imported but cannot select a world or establish coverage; and `git
-check-ignore` reports `.sigil/receipts/`, `.sigil/handoffs/`, `.sigil/runs/`,
-`.sigil/cache/`, and `.sigil/beams/` while `git ls-files` reports the accepted
-world and policy.
+```text
+_module.sigil
+→ .sigil/worlds/design/_module.sigil.egg
 
-## 2. Repository map and dependency direction
+architecture/foo.sigil
+→ .sigil/worlds/design/architecture/foo.sigil.egg
 
-Read these files before changing their corresponding workstream:
+src/__init__.py
+→ .sigil/worlds/implementation/src/__init__.py.egg
 
-| Area                       | Existing implementation                                                                                       |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Accepted state             | `packages/compiler/src/semantic/store.ts`, `egg-world.ts`, `artifacts.ts`                                     |
-| Source identity            | `packages/compiler/src/semantic/source.ts`, especially `semanticComponentId` and `projectSigilIntent`         |
-| Human views                | `packages/compiler/src/semantic/projections.ts`                                                               |
-| CLI context and acceptance | `packages/cli/src/semantic-commands.ts`, especially `workspaceContext` and the `accept` branch                |
-| Ordinary compilation       | `packages/compiler/src/compiler.ts`, `compilation-target.ts`, `semantic-subjects.ts`                          |
-| Proposal transport         | `packages/compiler/src/semantic/proposal.ts`, `adapter-subprocess.ts`, `adapter-execution-coordinator.ts`     |
-| Bundled providers          | `packages/compiler-adapter-{codex,claude,pi,opencode}/src/`                                                   |
-| Configuration              | `packages/cli/src/config-authoring.ts`, `packages/compiler/src/profile.ts`, `semantic/profile.ts`, `types.ts` |
-| Configuration contracts    | `packages/core/src/config.ts`, `spec/sigil-config.schema.json`, `spec/sigil-config.md`                        |
-| Editor                     | `integrations/editor/vscode/src/extension.ts`, `compilation.ts`, `node-server.ts`, `package.json`             |
-| LSP                        | `packages/lsp/src/server.ts`, `features.ts`, `filesystem.ts`, `protocol.ts`                                   |
-| Native execution           | `packages/compiler/src/semantic/engine.ts`, `typescript7.ts`, `packages/compiler/native/`                     |
-| Build and installation     | `scripts/build-semantic-engine.ts`, `scripts/build-cli-release.ts`, `install.sh`, `install.ps1`               |
-| Release automation         | `.github/workflows/native-release.yml`, `release.yml`, `vscode-release.yml`, `ci.yml`                         |
-| Beam storage               | `packages/compiler/src/semantic/beam-store.ts`, `beam.ts`                                                     |
-| Skills                     | `integrations/skills/sigil/` and `scripts/validate-skill.ts`                                                  |
+src/client.ts
+→ .sigil/worlds/implementation/src/client.ts.egg
+```
 
-Dependency rules:
+Retain original source extensions to avoid collisions in heterogeneous repositories.
 
-1. `packages/core` remains a platform-neutral syntax, workspace, and resolution
-   library. Do not import Deno, the compiler, providers, or egglog into it.
-2. Semantic authority, projection recomputation, canonical identity, and native
-   runtime resolution belong in `packages/compiler`.
-3. Provider-specific process framing belongs in the existing adapter packages.
-   Semantic candidate validation belongs in the compiler.
-4. The CLI selects configuration and invokes compiler/provider APIs. It must not
-   implement another world-merging, proof, or identity algorithm.
-5. VS Code launches the external CLI for semantic mutations and verification.
-   The Node-hosted LSP remains a syntax/navigation service and does not embed
-   the native verifier.
-6. Share pure parsers and transport types where both Node and Deno need them. Do
-   not copy a schema into the extension and let it evolve independently.
+Keep a small disposable `worlds/index.json` alongside the mirrored assertions.
+An Implementation entry contains only:
 
-New file names specified below are the intended module boundaries. Small private
-helper files may be added to keep a module readable, but responsibilities must
-stay in the assigned package.
+```text
+side = implementation
+normalized source path
+source checksum
+ontology/schema version
+projection-format version
+Design entity-catalog fingerprint
+assertion checksum
+minimal index/publication generation metadata
+```
 
-## 3. Managed human `.sigil` views
+Design entries retain resolved Design import/frontend source dependencies and
+authored-unit coverage instead of the Implementation catalog field.
+Keep source attribution outside the domain ontology. No model, provider, prompt,
+temperature, conversation ID, producer, agent identity, or equivalent production
+metadata belongs in the index. No arbitrary Implementation context manifest or
+semanticizer read dependencies, neighbor hashes, symbol maps, resolver versions,
+or other language-resolution metadata belong there either. Source binding and publication
+metadata are not a coding receipt protocol.
 
-### 3.1 Storage and authority decision
+Readers use only entries whose assertion hash and full input binding validate.
+An interrupted assertion/index update must be rejected as incomplete, never
+accepted using mismatched metadata. Use a temporary file and atomic replacement
+under the writer lock; a crash may require regeneration, which is acceptable for
+a disposable cache. Assembly follows the index, not a recursive union of every
+`.egg` found on disk. Corrupt, stale, deleted, and unindexed files contribute no
+current facts.
 
-Use **companion views**. Do not replace, rename, delete, or rewrite any authored
-`.sigil` file during projection installation. This preserves existing source
-locations, imports, and implementation ownership annotations.
+## Git policy
 
-Install one generated file per accepted Component/System entity:
+Ignore:
+
+```text
+.sigil/worlds/
+```
+
+These are cache/build artifacts.
+
+Sources of truth remain:
+
+```text
+*.sigil      → Design
+source code  → Implementation
+```
+
+Deleting `.sigil/worlds/` must always be safe.
+
+A fresh checkout can reconstruct it.
+
+Delete the architecture where generated `.egg` assertions were committed as canonical meaning.
+
+No migration is required.
+
+---
+
+# 10. Use snapdir-core for source identity and incremental invalidation
+
+Do not invent another filesystem hashing system.
+
+Add Rust dependency on `snapdir-core`.
+
+Use its directory walking / manifest / BLAKE3 machinery for deterministic source identity.
+
+Do not shell out to Git.
+
+Do not assume the repository uses Git.
+
+For selected source scope track at least:
+
+```text
+relative path
+file type
+BLAKE3 checksum
+size where useful
+```
+
+Use normalized path + content checksum to decide freshness.
+
+File permission-only changes do not need to invalidate semantic projections unless existing Sigil semantics require them.
+
+Concrete integration details from the checkout:
+
+* `snapdir_core::walk(root, &options, &Blake3Hasher)` supplies sorted manifest
+  entries; `hash_file::HashFile` also exposes per-file hashing. Reuse the library
+  for content hashes and directory discovery. Do not adopt its backup/catalog,
+  cloud-store, or SSH layers.
+* `directory_checksum` sorts and deduplicates child checksums without names. It
+  is not a source-tree identity: rename and duplicate-file changes can preserve
+  it. `snapshot_id` hashes full manifest text, including permissions. Retain that
+  raw identity if useful, but derive Sigil's semantic input key from a versioned,
+  unambiguous encoding of selected `(path, type, checksum)` rows using the same
+  BLAKE3 implementation. This is application identity, not another file hasher.
+* Snapdir excludes are regex matches on absolute paths, not Sigil globs. Define
+  Sigil selection once, normalize to workspace-relative paths, and apply its
+  documented glob rules; do not pass globs directly to `ExcludeMatcher`.
+* Set `FollowMode::NoFollow` explicitly. Snapdir otherwise follows symlinks;
+  no-follow drops them entirely. Diagnose explicitly selected symlinks and
+  unsupported special files rather than silently claiming they were analyzed.
+  Reject escaping paths and symlinked artifact parents. Keep object-store hash
+  recovery disabled for source identity.
+* The local dependency path is useful for a development spike only. Pin a
+  distributable Git revision or a verified published version in the final
+  manifest and lockfile. Snapdir's workspace requires Rust 1.91.1; Sigil currently
+  declares 1.91. Align the declared MSRV and build environment.
+* Preserve existing release platforms. First isolate/port the small required
+  snapdir-core filesystem surface for Windows and verify it on the release
+  matrix. Do not silently remove Windows support or ship a release dependent on
+  the ignored `repos/` checkout. This is an early feasibility milestone.
+
+---
+
+# 11. Incremental Design and Implementation worlds
+
+Do not regenerate every projection after every edit.
+
+Conceptually:
+
+```text
+previous source manifest
+        Δ
+current source manifest
+        ↓
+Added
+Deleted
+Modified
+Unchanged
+```
+
+For each source file:
+
+## Added
+
+No projection exists.
+
+Semanticization required.
+
+## Modified
+
+Existing projection becomes stale.
+
+It must not participate in current compilation.
+
+After fresh Turtle is validated, atomically replace only that file's `.egg`.
+
+## Deleted
+
+Delete the mirrored `.egg`.
+
+Its semantic facts disappear from the world.
+
+## Unchanged
+
+Reuse the current `.egg`.
+
+No new model call.
+
+The main optimization is avoiding unnecessary LLM semanticization.
+
+It is acceptable initially to recompute egglog closure from the union of all fresh projections.
+
+Do not introduce a persistent saturated e-graph cache unless later profiling justifies it.
+
+---
+
+# 12. Sigil imports already provide Design context
+
+Per-file Design projection does not mean isolated Design semanticization.
+
+Sigil already has imports.
+
+Reuse existing import resolution.
+
+A selected `.sigil` file may refer to exported entities from imported files.
+
+The semanticization harness should provide:
+
+```text
+current .sigil file
+resolved imports
+canonical IDs/types/labels of imported exported entities
+fixed Sigil ontology
+```
+
+The resulting Turtle may reference entities defined in imported files.
+
+Thus:
+
+```text
+one source file → one .egg projection
+```
+
+while the union of all projections forms Design graph D.
+
+---
+
+# 13. Reuse existing export semantics
+
+Do not invent a new semantic export mechanism.
+
+Reuse the current Sigil language semantics around:
+
+* `Concept` grouping
+* contract glossaries
+* interface exports
+* imports
+* existing resolver behavior
+
+Concepts/glossary terms exposed through a component `interface` are part of that component's semantic export surface according to the existing language.
+
+Use parser/resolver behavior rather than textual grep.
+
+Specifically, `resolver.ts::localConceptGroups` groups component and expand
+occurrences by normalized identifier, and marks a Concept public when an
+occurrence is in `interface`. `publicConcepts` and resolved import identities
+provide the reusable export mechanism. The resolver's internal
+`namespaceFingerprint` contains occurrence paths/line numbers and is a convergence
+aid, not a semantic-export checksum; do not reuse it as one.
+
+`packages/core/src/glossary.ts` separately resolves configured glossary context.
+Do not assume every glossary term is an interface export. Include applicable
+glossary/config bytes in Design context identity when they affect interpretation.
+
+---
+
+# 14. Design dependency invalidation
+
+For v1, use the existing resolved Sigil import/reexport graph and a conservative
+reverse-reachability walk:
+
+```text
+Design source changes
+→ invalidate its own projection
+→ invalidate every transitive importer
+
+Design source added/deleted/renamed
+→ invalidate the affected import closure
+```
+
+Use the old and newly resolved graphs when membership changes so deleted edges
+do not erase knowledge of affected importers. Treat rename as deletion plus
+addition. If unresolved imports prevent identifying the affected closure safely,
+invalidate the selected Design set. A visited set handles cycles; reuse the
+existing resolver's language-resolution behavior without adding semantic SCC
+stabilization. Applicable glossary/config changes invalidate their consumers
+and transitive importers; conservatively invalidate all Design if uncertain.
+
+Do not distinguish private edits from public edits. Do not compute semantic
+export diffs, model-output-dependent export fingerprints, special public-expand
+semantic checks, or selective importer reuse. Public identity/context extraction
+in the frontend supports language resolution and interpretation, not an export
+optimization engine. Design frontend/config/glossary inputs outside the import
+graph remain bound under section 8; a changed input invalidates its consuming
+Design projection. This does not introduce extra Implementation context.
+
+This may regenerate more Design projections than necessary. One source file
+still maps to one `.egg`, and Implementation source/catalog freshness remains
+unchanged. Finer Design invalidation is future work only if profiling shows that
+conservative import-closure invalidation is materially expensive.
+
+---
+
+# 15. Turtle remains the model-facing language
+
+Use ordinary RDF 1.1 Turtle and Sigil's fixed ontology.
+
+Do not introduce:
+
+* JSON-LD
+* RDF 1.2 triple terms
+* N-Quads
+* TriG
+* OWL
+* SHACL
+* another semantic DSL
+
+Models emit facts only.
+
+Example:
+
+```turtle
+@prefix sigil: <https://sigil.dev/ontology/1#> .
+@prefix ex: <urn:sigil:project:> .
+
+ex:SigilDX
+    a sigil:Component ;
+    sigil:dependsOn ex:InstalledSigil .
+
+ex:InstalledSigil
+    sigil:provides ex:Compilation .
+```
+
+Models may not emit egglog rules.
+
+---
+
+# 16. sigilc owns deterministic Turtle ingestion
+
+`sigilc` receives Turtle produced externally.
+
+It performs:
+
+```text
+Turtle
+  ↓
+real RDF parser
+  ↓
+validate fixed Sigil ontology
+  ↓
+normalize assertions
+  ↓
+deterministically encode data-only .egg
+  ↓
+atomically replace mirrored projection
+```
+
+Use a mature Rust RDF/Turtle parser.
+
+Do not parse Turtle manually.
+
+Reject:
+
+* unknown Sigil predicates
+* unknown classes
+* named graphs
+* RDF-star/triple terms
+* malformed literals
+* project-authored rules
+* attempts to populate compiler-owned relations
+
+Do not implement `--fix`/`--autofix` in v1. Reject malformed input with precise
+diagnostics. Wrapper cleanup, such as removing Markdown fences, and semantic
+repair belong to the external environment. No facts, predicates, or entities
+may be invented by ingestion.
+
+---
+
+# 17. sigilc never launches semanticizer agents
+
+Keep orchestration outside Sigil entirely.
+
+`sigilc` may report stale work:
+
+```text
+sigilc stale design
+sigilc stale implementation
+```
+
+with reasons such as:
+
+```text
+missing
+modified
+deleted
+dependency-invalidated
+entity-catalog-invalidated
+```
+
+The external environment may respond by launching semanticizer agents.
+
+Parallelism belongs to that environment; no launcher is implemented in Sigil.
+
+---
+
+# 18. Design semanticization is open-world over entities
+
+During Design semanticization, models may introduce semantic entities using the fixed Sigil ontology.
+
+This is where the entity universe is created.
+
+Across files, identity must remain consistent.
+
+Use imports/exports to preserve canonical identity.
+
+The frontend reserves component and Concept IDs deterministically from resolved
+owner/path/name identities. Retain the path-qualified approach of
+`semanticComponentId`; examples using short `ex:` names are illustrative, not an
+identity allocation algorithm. New model-created domain entities must be owned
+by the current Design source and explicitly named. Reject collisions and
+conflicting declarations; another file references the owning identity instead
+of redeclaring a synonym. Avoid anonymous entities in the initial accepted
+profile so blank-node relabeling does not destabilize catalog identity.
+
+Preserve a compiler-generated inventory of required authored interpretation units
+using the existing `projectSigilIntent` behavior as the starting point. Empty or
+partially interpreted model output leaves inventoried units unresolved. Separate
+interpretation obligations from obligations on code; satisfying the former does
+not satisfy the latter. Structural coverage still cannot prove that a model
+faithfully captured every sentence; reports must retain that limitation.
+
+The full Design graph is:
+
+```text
+D =
+union of every fresh
+.sigil/worlds/design/**/*.egg
+```
+
+---
+
+# 19. Freeze the Design entity universe
+
+Once Design graph D is current, derive a deterministic frozen entity catalog.
+
+It contains identity information only:
+
+```text
+canonical IRI
+type
+label
+language-defined exported aliases/names where applicable
+```
+
+Example:
+
+```text
+urn:sigil:project:SigilDX
+  type: Component
+  label: SigilDX
+
+urn:sigil:project:SigilSemanticBridge
+  type: Boundary
+  label: SigilSemanticBridge
+
+urn:sigil:project:Compilation
+  type: Capability
+  label: Compilation
+```
+
+Fingerprint this catalog deterministically.
+
+Implementation projections are valid only against the exact Design entity catalog fingerprint they were generated with.
+
+Initially any catalog change invalidates all Implementation projections, because
+each worker receives the entire catalog. Selective invalidation requires scoped
+catalog inputs and their own fingerprints; do not claim it for the initial design.
+
+Freeze identity from current, non-`Disjoint` Design:
+
+| Design state | Catalog / implementation behavior |
+| --- | --- |
+| `Disjoint` | No catalog suitable for coding; no implementation comparison. |
+| `Loose` | Provisional frozen catalog; coding and Implementation semanticization/comparison allowed; `Closed` impossible. |
+| `Coherent` | Authoritative current catalog; Implementation may become `Closed` when all remaining conditions hold. |
+
+“Frozen” means immutable for that captured identity set, not permanently complete
+Design. Unresolved semantic meaning does not prevent a provisional catalog;
+malformed or ambiguous entity identities are not exposed as validated identities.
+Missing/stale Design inputs must first be refreshed; provisional does not mean
+that stale assertions can supply a current catalog.
+
+Keep provisional/authoritative status and the current Design fingerprint in the
+catalog response metadata, outside the identity catalog fingerprint. The identity
+fingerprint hashes only the sorted identity/type/label/exported-alias content.
+Thus a transition from Loose to Coherent with identical catalog content can reuse
+I and recompute comparison; it does not require new semanticizer calls merely
+because the catalog's status changed.
+
+Catalog output excludes Design relationships, contract propositions, obligations,
+expected values, intended endpoints, descriptions revealing relationships, and
+other relationship-bearing records. Keep domain identities distinct from internal
+interpretation/provenance IDs. Validate every domain resource reference in
+Implementation against the catalog; ontology class IRIs and datatype IRIs are
+vocabulary, not missing project entities. Do not feed the catalog wholesale into
+I as evidence that its entities are implemented.
+
+A Design relationship change that preserves catalog bytes still invalidates the
+comparison result and regenerates obligations, but can reuse Implementation
+projections whose other inputs remain unchanged.
+
+---
+
+# 20. Implementation semanticization is closed-world over semantic identity
+
+This is a hard rule.
+
+The independent implementation semanticizer may use **only entities already present in the frozen Design entity catalog**.
+
+It may not invent new semantic entities or aliases.
+
+If Design defines:
+
+```text
+urn:sigil:project:SigilSemanticBridge
+```
+
+Implementation Turtle may not create:
+
+```text
+SemanticBridge
+sigil-semantic-bridge
+MyBridge
+BridgeV2
+```
+
+as substitutes.
+
+The Implementation graph is deliberately:
+
+> a projection of actual code behavior onto the semantic identity universe defined by Design.
+
+It is not a complete ontology of every helper function or internal class.
+
+If a code concept does not map confidently to a Design semantic entity, omit it rather than inventing a new semantic identity.
+
+Record that omission as an unresolved reconstruction diagnostic outside the
+domain assertions. A valid empty Turtle document distinguishes a completed
+zero-fact reconstruction from a missing job, but cannot establish total semantic
+coverage. Out-of-catalog behavior is a deliberate blind spot; `Closed` speaks only
+about the selected scope and modeled obligations, not every behavior in the code.
+
+This gives D and I deterministic identity alignment.
+
+---
+
+# 21. The independent semanticizer must not see Design relationships
+
+Passing the frozen entity catalog is allowed.
+
+Passing Design relationships is not.
+
+Allowed:
+
+```text
+SigilSemanticBridge
+  type: Boundary
+  label: SigilSemanticBridge
+```
+
+Forbidden:
+
+```text
+SigilDX routesThrough SigilSemanticBridge
+```
+
+because that is the answer the independent semanticizer is supposed to reconstruct from code.
+
+The only intentional information shared from Design into implementation reconstruction is:
+
+```text
+fixed ontology
+frozen identity/type/label catalog
+```
+
+---
+
+# 22. Implementation output is locally attributable
+
+For target source file:
+
+```text
+src/a.py
+```
+
+the resulting:
+
+```text
+src/a.py.egg
+```
+
+should contain assertions attributable to that file.
+
+It may reference Design entities implemented elsewhere.
+
+For example:
+
+```text
+A invokes B
+A provides X
+```
+
+where B may live in another source file.
+
+Do not copy arbitrary downstream facts about B into `a.py.egg`.
+
+Cross-file consequences emerge from the union of all fresh projections and egglog closure.
+
+Its source attribution and facts remain local. Changed neighboring behavior is
+represented in the neighbor's own object, not copied into or used to invalidate
+this one, even when the neighbor's exported names change. A later change to this
+target or the frozen Design catalog is a separate invalidating input.
+
+```text
+I = union of every fresh .sigil/worlds/implementation/**/*.egg
+I* = saturate(I)
+```
+
+The union includes only validated current index entries as specified in section 9.
+It links local semantic objects; closure creates global/transitive meaning.
+
+---
+
+# 23. Independent background semanticization workflow
+
+An external coding environment may expose an action conceptually like:
+
+```text
+semanticize src/foo.ts
+```
+
+The coding agent invokes this when it judges a file/piece is stable.
+
+That action:
+
+1. captures the exact target source path and file bytes
+2. records the snapdir source checksum
+3. determines the frozen Design entity catalog fingerprint
+4. launches an independent semanticizer agent
+5. gives it only target file bytes as implementation context
+6. gives it the fixed ontology and frozen identity-only Design catalog
+7. receives Turtle
+8. invokes `sigilc ingest implementation --source ...`
+9. publishes the `.egg` only if the full job input identity and expected projection generation still match
+10. otherwise discards/marks the result stale
+
+The coding agent immediately continues work after triggering semanticization.
+
+It does not wait for, review, repair, or approve the semanticizer's result.
+
+Coder triggers are latency hints, not the source inventory. At completion the
+harness enumerates all stale/missing selected files, schedules any the coder did
+not trigger, waits for its jobs, then runs comparison against a fresh captured
+manifest. Bounded parallelism, deduplication, cancellation, and retry are harness
+responsibilities. A failed or omitted job cannot disappear from coverage.
+Sigil implements no part of that scheduling runtime. Its deterministic stale,
+preparation, ingestion, and comparison commands are sufficient to exercise this
+protocol with fixed fixtures.
+
+---
+
+# 24. Delete language-specific verification
+
+Remove the TypeScript 7-specific semantic verifier and other programming-language-specific proof machinery introduced by the previous design.
+
+Sigil no longer operates at programming-language semantic level.
+
+It operates at Semantic Worlds level.
+
+Delete architecture centered around:
+
+* TypeScript 7 semantic observations
+* TS AST proof machinery
+* TS-specific call graph verification
+* symbol ownership proof tables
+* source-location sufficiency rules
+* implementation receipt verification
+* installed-dependency capture/staging
+* language-specific implementation adapters
+
+Retain generic source discovery and filtering where useful.
+
+Keep ordinary project build/test/lint checks in the external implementation
+workflow and report them separately from semantic status. Removing the TS7 proof
+adapter does not establish that the new worlds comparison detects syntax errors,
+type errors, or failing tests.
+
+Implementation source selection must support heterogeneous repositories without adding language adapters to `sigilc`.
+
+---
+
+# 25. Delete receipt verification
+
+Remove the implementation receipt protocol as a verifier architecture.
+
+The coding agent no longer says:
+
+```text
+O72 is implemented at symbol X
+```
+
+Instead:
+
+```text
+independent semanticizer reads code
+→ produces I
+```
+
+Then:
+
+```text
+D* = saturate(D)
+I* = saturate(I)
+
+O = obligations(D*)
+
+check O against I*
+```
+
+No receipt layer is needed.
+
+---
+
+# 26. Never merge D and I before comparison
+
+This is a hard correctness invariant.
+
+Wrong:
+
+```text
+saturate(D ∪ I)
+```
+
+because intended Design assertions could satisfy their own implementation obligations.
+
+Correct:
+
+```text
+D* = saturate(D)
+
+I* = saturate(I)
+
+O = obligations(D*)
+
+compare(O, I*)
+```
+
+Keep Design and Implementation graphs separate through saturation.
+
+Use separate `EGraph` instances. Export only the finite obligation table from D*
+to a comparison phase alongside I* results. Design facts must never populate
+Implementation `known`, satisfaction, or evidence tables. The comparison may
+use a third fixed ruleset/instance with distinct input relations; host code handles
+freshness, operational errors, and final status reduction. Add a regression where
+Design states a positive fact and I is empty: it must not satisfy itself.
+
+---
+
+# 27. Keep the egglog kernel small and compiler-owned
+
+Retain useful fixed-point laws from `kernel.egg`.
+
+Delete old receipt/mechanical verifier machinery that no longer serves D-vs-I comparison.
+
+The kernel exists to perform:
+
+```text
+graph → richer graph
+```
+
+Important rule families include:
+
+## Relation closure
+
+```text
+A dependsOn B
+B dependsOn C
+→ A reachable C
+```
+
+## Obligation generation
+
+```text
+A requires X
+→ obligation that X be available to A
+```
+
+## Satisfaction
+
+```text
+obligation R
++
+matching semantic fact in closure
+→ R satisfied
+```
+
+## Contradiction
+
+```text
+A excludes X
+A uses X
+→ violation
+```
+
+## Required positive and negative propositions
+
+```text
+Contract says:
+A invokes B = true
+→ obligation
+```
+
+```text
+Contract says:
+A uses X = false
+→ prohibition
+```
+
+## Numerical propagation
+
+```text
+A → B cost 4
+B → C cost 5
+→ distance(A,C)=9
+```
+
+Competing candidates may merge under appropriate algebra:
+
+```text
+distance → min
+risk → max
+```
+
+Models never define these laws.
+
+### Absence, negation, and numerical bounds
+
+As `egg.md` explains, a missing row is not a negative fact. Fresh source coverage
+also does not prove that an LLM enumerated every behavior. The old kernel's
+`complete-scope` mechanism supported negative checks; deleting it removes that
+capability and requires an explicit replacement policy.
+
+Initial policy: a prohibited positive behavior in I* produces `Drift`; its absence
+alone leaves the prohibition unresolved and therefore `Converged`. Negative
+satisfaction requires a compiler-owned rule deriving a negative proposition from
+explicit supported facts, with a precisely defined scope. Until such a law is
+implemented for a predicate, that negative obligation cannot contribute to
+`Closed`. Never let a worker declare an entire repository complete, or reuse a
+Design `expected false` declaration as an Implementation witness. Do not re-create
+the old receipt protocol to hide this limitation.
+
+Define one fixed obligation-lowering table for predicates. Reuse current
+`requires -> provides`, `provides -> positive implementation obligation`, and
+`excludes -> uses prohibition` semantics where intended. Distinguish structural
+metadata, descriptive relations, and required propositions. An ontology entry
+alone does not specify whether an edge is required or which evidence satisfies
+it; acceptance tests must cover that mapping.
+
+Keep fixed-point rules finite and monotone. Reuse minimum-distance functions with
+finite nonnegative costs, not a relation enumerating all path sums through cycles.
+Retain conflicting raw observations rather than hiding them with `min`/`max`.
+Reject non-finite numbers and define numeric ranges/units; arithmetic overflow or
+undefined arithmetic cannot silently establish a result. Bound input size,
+iterations, rows, elapsed time, and memory as supported by the runtime. Hitting a
+bound produces an incomplete operational result, never a green fixed point.
+
+Run missing-obligation checks only after saturation. Do not assert permanent
+absence facts during a growing closure. Use stable collision-resistant tuple IDs
+for facts/obligations and bounded provenance; avoid delimiter-concatenated IDs
+whose input strings can collide and recursively expanding proof-path strings.
+
+---
+
+# 28. Aggressively remove obsolete kernel relations
+
+Review and delete old relations whose purpose was the discarded mechanical verifier, including where obsolete:
+
+```text
+observation
+complete-scope
+required-check
+check-result
+receipt-claim
+receipt-location
+symbol-owner
+scoped-observation
+receipt-result
+implementation-mode
+```
+
+Retain only what is needed to:
+
+```text
+build D*
+build I*
+derive obligations from D*
+compare obligations against I*
+produce diagnostics/provenance
+```
+
+The desired outcome is major net deletion.
+
+---
+
+# 29. Design states
+
+Use these exact Design states.
+
+## `Disjoint` — RED
+
+Design closure contains a hard contradiction or impossible set of required semantic propositions.
+
+Example:
+
+```text
+A invokes B = true
+A invokes B = false
+```
+
+both required.
+
+## `Loose` — YELLOW
+
+No hard Design contradiction exists, but required Design meaning remains unresolved or underspecified.
+
+This is a usable working state. Current Loose Design may expose a provisional
+frozen entity catalog, and implementation coding, semanticization, and comparison
+may proceed. Implementation can be `Drift` or `Converged`, never `Closed`.
+
+## `Coherent` — GREEN
+
+Design closure has:
+
+```text
+no hard contradiction
+no unresolved required Design obligations
+semantic closure under the current kernel
+```
+
+The status is deterministic.
+
+No LLM chooses it.
+
+---
+
+# 30. Implementation states
+
+Use these exact names.
+
+## `Drift` — RED
+
+Implementation closure positively disagrees with Design.
+
+Examples:
+
+```text
+Design:
+A excludes X
+
+Implementation:
+A uses X
+```
+
+or another directly contradictory semantic relation.
+
+Drift requires actual disagreement, not merely missing information.
+
+## `Converged` — YELLOW
+
+Implementation closure contains **no known contradiction with Design**, but total semantic closure has not been established.
+
+Examples:
+
+* one or more Design obligations are not established by I*
+* a selected implementation file has stale/missing semanticization
+* implementation semanticization is incomplete
+* the reconstructed world lacks enough information to decide an obligation
+
+Converged is deliberately positive.
+
+It means:
+
+> The implementation is semantically moving with Design and currently shows no known disagreement, but full synchronization has not been established.
+
+It is an acceptable working state.
+
+## `Closed` — GREEN
+
+All of the following hold:
+
+```text
+all required implementation projections are fresh
+Design is Coherent and all selected Design projections are fresh
+all obligations derived from D* are satisfied by I*
+no Design prohibition is contradicted by I*
+no hard implementation semantic contradiction exists
+```
+
+Closed means:
+
+> Design and independently reconstructed Implementation worlds are synchronized under the current ontology and kernel.
+
+It does not mean arbitrary runtime behavior has been formally proven.
+
+Return Design and Implementation statuses separately. If Design is `Loose`,
+Implementation cannot be `Closed`. If Design is `Disjoint`, comparison reports
+Design as the blocker and leaves Implementation status unset rather than blaming
+code for impossible intent. A completed current contradiction takes precedence
+over unknowns, but stale facts cannot establish that contradiction. Invalid input,
+I/O failure, cancellation, or exhausted closure limits are operational outcomes
+with no completed status. An intentionally empty scope must be explicit and
+visible in the report; accidental empty selection must not pass vacuously.
+
+---
+
+# 31. Snapdir-driven compile freshness
+
+Before compile/compare, use snapdir-derived manifests to classify source projections.
+
+Example:
+
+```text
+source              status
+─────────────────────────────
+a.py                fresh
+b.py                modified
+c.py                deleted
+new.py              missing
+```
+
+For Design additionally support:
+
+```text
+dependency-invalidated
+```
+
+For Implementation additionally support:
+
+```text
+entity-catalog-invalidated
+```
+
+`Closed` is impossible while required selected implementation source projections are stale or missing.
+
+A known contradiction may still produce `Drift` even if unrelated files are stale.
+
+Otherwise incomplete semanticization contributes to `Converged`.
+
+---
+
+# 32. Source filtering
+
+Do not assume implementation file extensions.
+
+Provide deterministic configurable selection such as:
+
+```text
+--path <file>
+--dir <directory>
+--include <glob>
+--exclude <glob>
+```
+
+Exact syntax should follow existing CLI conventions.
+
+Always exclude generated/internal trees such as:
 
 ```text
 .sigil/
-  world/...                         # existing, tracked canonical assertions
-  implementation.json              # existing, tracked verifier policy
-  views/                            # NEW, tracked generated companion views
-    current.json                    # published view receipt
-    <full-sha256-of-entity-IRI>.sigil # one stable path per canonical component
-  cache/
-    locks/views.lock                # ignored, permanent OS-lock file
-    view-transactions/<id>/         # ignored, pending/completed write transactions
+.git/
+node_modules/
+build output
+configured vendor trees
 ```
 
-The hash used in a view filename is SHA-256 of the entity IRI's UTF-8 bytes,
-rendered as 64 lowercase hexadecimal characters. It does not include the label,
-file path of authored source, current world revision, or renderer version.
-Renaming a label must not move the view file or change the canonical component
-ID.
+Design naturally targets `.sigil`.
 
-Commit `views/current.json` and the generated `.sigil` files. Do not ignore
-`views/`. Keep transaction files under ignored `cache/`. Do not change the
-established Git policy for world, policy, receipts, handoffs, runs, or caches.
+Implementation may contain arbitrary languages.
 
-All normal source/implementation discovery must exclude `.sigil/views/`. Extend
-the existing exclusion logic and add a pure shared path predicate where core/LSP
-filesystem adapters need the same exclusion. Do not import compiler code into
-core to obtain that predicate.
+---
 
-Exclusion here means **do not treat a view as authored source or
-implementation**. Explicitly opening a managed view in the editor, parsing it
-for syntax, or selecting it as a compilation target is supported through the
-explicit view path described below.
+# 33. Minimal sigilc CLI
 
-### 3.2 Pure renderer contract
+Keep the binary focused.
 
-Extend `projections.ts` and add `semantic/view-model.ts` for pure types and
-rendering metadata. Keep filesystem mutation in `semantic/views.ts`.
-
-The renderer consumes a fresh green semantic compilation. It returns:
-
-```ts
-interface ManagedViewFile {
-  entity: string;
-  path: string; // .sigil/views/<full entity hash>.sigil
-  componentName: string; // generated identifier, not the entity identity
-  content: string;
-  contentHash: string;
-  locations: readonly {
-    factIds: readonly string[];
-    contractIds: readonly string[];
-    range: SourceRange;
-  }[];
-}
-
-interface ManagedViewSet {
-  rendererVersion: 1;
-  worldFingerprint: string;
-  files: readonly ManagedViewFile[];
-}
-```
-
-Rules for rendering:
-
-1. Sort entities by canonical IRI using code-unit comparison, not
-   locale-dependent collation.
-2. Deduplicate entities typed as both Component and System; emit one file.
-3. Keep labels and human prose in the output. Display labels do not identify
-   entities.
-4. Derive a legal identifier from the label using the existing identifier
-   sanitization. Append an underscore and the first 12 hex characters of the
-   entity hash to every generated identifier. Cap the sanitized prefix at 40
-   characters. If two identifiers still collide, extend both colliding hash
-   suffixes by four characters until unique. Shorten the human prefix as
-   necessary to keep the total identifier at most 75 characters. A full-hash
-   collision is an explicit error, never an overwrite.
-5. Use the existing `component` plus `expand` shape, section rules, escaping,
-   and formatter. Do not invent grammar extensions or insert executable
-   directives.
-6. Add a comment containing the canonical entity IRI, renderer version, and the
-   instruction to change intent through `semantic intent`. Do not put a mutable
-   current revision in the body solely to force every file to change on
-   metadata-only acceptance.
-7. Emit deterministic UTF-8, LF line endings, and one final newline. No
-   timestamps, absolute paths, random IDs, machine names, or provider names in
-   view bytes.
-8. Construct text and provenance together. Do not reconstruct fact associations
-   by grepping rendered prose. After formatting, use the real Sigil parser to
-   obtain final ranges and associate the stable emitted units with their
-   original fact/contract lists.
-9. A renderer failure or parser error prevents installation. Never write
-   malformed partial output and call it a view.
-10. The renderer may display derived obligations and consequences, but those
-    sections must say they are derived. No displayed consequence is added to
-    accepted assertions.
-
-Keep `projectGreenSemanticWorld` as a compatible read-only export. Its paired
-Turtle remains interchange, not canonical storage. Correct the stale comment
-currently claiming that paired Turtle is canonical meaning.
-
-### 3.3 Published view receipt
-
-`views/current.json` uses this exact top-level schema:
-
-```ts
-interface ViewReceiptV1 {
-  version: 1;
-  rendererVersion: 1;
-  worldRevision: string;
-  worldFingerprint: string;
-  files: readonly {
-    entity: string;
-    path: string;
-    componentName: string;
-    contentHash: string;
-    authoredLocations: readonly {
-      path: string;
-      componentName: string;
-      range: SourceRange;
-    }[];
-    locations: readonly {
-      factIds: readonly string[];
-      contractIds: readonly string[];
-      range: SourceRange;
-    }[];
-  }[];
-}
-```
-
-Use `artifactJson` for canonical JSON. Reject unknown fields, duplicate JSON
-object keys, duplicate entity/path entries, invalid hashes, unsafe paths,
-invalid ranges, and unknown versions. Limit the receipt to 8 MiB and the view
-set to 4,096 files and 32 MiB of combined UTF-8 document bytes. Exceeding a
-bound is a clear operational error; do not truncate the world or omit
-components.
-
-A view receipt is documentary. Compiler operations independently load accepted
-assertions, recompute the renderer output and metadata, and compare them. A user
-editing the receipt to match an edited file cannot make it an authentic
-projection or establish a green verdict.
-
-`authoredLocations` is populated from the validated component registry and
-current authored declarations/expansions, in path/range order. It is empty for a
-purely canonical component. This navigation field is assembled by the
-workspace/view service after pure rendering; it does not make the pure renderer
-depend on filesystem source. Validate normalized in-workspace paths and
-recompute these associations before compiler use. The LSP may display them as
-documentary links, never as evidence.
-
-Paths in the receipt must equal the entity-hash path prescribed above. They are
-not arbitrary write destinations. Reject symlinks in the destination directory
-chain and existing managed files. Validate the real workspace root once and keep
-writes within it.
-
-### 3.4 One shared semantic workspace context
-
-Add `semantic/workspace-context.ts` and `semantic/component-registry.ts`. Both
-the CLI and ordinary compiler must use them. Replace the duplicated source/world
-combination logic in `semantic-commands.ts::workspaceContext` and `compiler.ts`.
-
-The context performs these steps in this order:
-
-1. Resolve the authored workspace using existing core behavior, with managed
-   views excluded from discovery.
-2. Extract authored intent with `projectSigilIntent` from that authored
-   component set only.
-3. Load and validate accepted state through `readSemanticState`.
-4. Compute authored-source drift using the existing source-intent fingerprint
-   contract. Generated view bytes, view receipts, and view transaction files
-   never enter that fingerprint.
-5. Preserve existing semantics for a missing accepted world or changed authored
-   source. Do not silently accept changed prose. Current-world implementation
-   work remains blocked until fresh intent is accepted.
-6. When authored source matches accepted state, combine assertions using the
-   existing normalized fact union, then derive the requested scope. Do not union
-   rendered view prose into the world.
-7. Build the component registry below from accepted facts, validated source
-   bindings, and a recomputed virtual view set.
-8. Inspect an installed view receipt only to report its publication/drift state.
-   Logical component identity and targeting must work even when no view files
-   have been installed.
-
-The context must accept the caller's engine options, cancellation signal, and
-remaining execution budget. Do not create a fresh independent deadline around
-each helper.
-
-### 3.5 Component registry and targeting
-
-Canonical entity identity must no longer be obtained by calling
-`semanticComponentId` indiscriminately for every selected document.
-
-The registry has one entry per canonical Component/System entity:
-
-```ts
-interface SemanticComponentEntry {
-  entity: string;
-  authored?: ResolvedComponent;
-  authoredStructuralId?: string;
-  projected: ResolvedComponent;
-  projectedPath: string;
-  projectedName: string;
-  label?: string;
-}
-```
-
-Build `projected` by parsing and resolving generated documents in a **separate
-in-memory projection workspace**. Do not append all companion documents to the
-ordinary authored resolver and create duplicate declarations.
-
-Use the existing accepted receipt's `componentBindings` as a mapping from
-authored structural component ID to canonical entity ID. The current acceptance
-path commonly stores identity mappings. Validate every binding used for
-targeting: the source key must identify an actual authored component, the value
-must identify a Component/System in the accepted world, and two authored
-components must not claim the same canonical entity. An invalid or ambiguous
-binding is a diagnostic, never an arbitrary winner.
-
-For an old state with an empty bindings map, an authored component may match
-only when its exact structural ID is itself a Component/System entity in the
-accepted world. Do not match by equal labels. When the next explicit acceptance
-writes state, record the actual validated mappings.
-
-Unbound accepted components get their generated component representation as the
-logical target. Bound components retain their authored representation for
-existing ownership and source diagnostics. The registry's projected path is an
-additional target alias for the same entity, never a second component.
-
-Apply this policy in `compilation-target.ts` and the compiler's scope
-preparation:
-
-- Workspace selection yields each logical entity once. Newly authored components
-  not yet accepted remain visible as pending source intent and make the
-  appropriate design work unresolved.
-- A component selector may match an authored name, generated name, or exact
-  canonical entity IRI. A label may be accepted only when it identifies exactly
-  one entry. Multiple matches are a usage error listing exact alternatives.
-- Existing authored file/position/directory targeting keeps its existing
-  behavior.
-- A managed view file selector maps to that file's entity. A view position
-  selector first validates that the position lies in that entity's parsed
-  declaration or expansion; it does not interpret the position as authored
-  intent.
-- A `.sigil/views` directory selector selects the corresponding view entities,
-  once each.
-- Target expansion and semantic boundary obligations still use existing boundary
-  selection plus `scopeSemanticWorld`; receipts never select the required
-  boundary.
-- Handoff subject matching uses registry entity IDs, not generated or authored
-  path-derived IDs. Preserve rejection of a narrow handoff used to certify a
-  wider selection.
-- Reports retain the requested physical view location for navigation and
-  separately identify the canonical entity. Existing authored ownership
-  annotations continue resolving through authored components.
-
-Keep the source-based `semanticComponentId` function for extraction and legacy
-structural keys. Introduce an explicit `entityForTarget` registry operation for
-semantic selection. Review every existing call site; do not silently redefine
-the old function to depend on global filesystem state.
-
-This work does not automatically relocate authored declarations or rewrite their
-ownership annotations. Source moves/renames follow the existing stale-source and
-fresh-intent workflow. Stable canonical IDs for generated companions do not
-authorize guessing that two changed authored declarations are the same
-component.
-
-### 3.6 CLI commands and drift results
-
-Extend the existing command without changing its read-only default:
+Conceptually:
 
 ```text
-sigil semantic project <root> --format sigil|turtle|json
-sigil semantic project <root> --write --expected-revision <revision>
-sigil semantic project <root> --check --format json
-sigil semantic project <root> --recover --transaction <id>
+sigilc ontology
+
+sigilc stale design [selection]
+sigilc stale implementation [selection]
+
+sigilc entities
+
+sigilc ingest design \
+  --source architecture/foo.sigil \
+  --job <captured-input-id> \
+  --turtle -
+
+sigilc ingest implementation \
+  --source src/foo.py \
+  --job <captured-input-id> \
+  --turtle -
+
+sigilc compile design
+
+sigilc compile implementation
+
+sigilc compare
+
+sigilc clean
 ```
 
-`--write`, `--check`, and `--recover` are mutually exclusive. `--write` requires
-the exact currently published world revision. `--recover` uses the transaction's
-retained revision; it cannot be combined with a replacement revision. Do not add
-a force flag.
+`sigilc ingest implementation` must reject publication if:
 
-The existing `--format sigil` remains concatenated human output for
-compatibility. Managed installation always writes the per-entity files described
-above. `--check` is read-only and does not create layout, locks, caches, or
-repair files.
+```text
+current source hash != expected source hash
+```
 
-Return a structured view inspection result with:
+or:
+
+```text
+current Design entity catalog fingerprint != expected fingerprint
+```
+
+This prevents stale asynchronous semanticization results from becoming current.
+
+Implementation preparation produces exactly the target source snapshot,
+frozen Design catalog, fixed ontology/schema and
+projection format, and captured semantic input identity. `--job` names that
+immutable descriptor, not a model invocation or scheduler record. Publication
+also rejects incompatible ontology/schema or projection format. No language
+resolution or Implementation context fields/options exist. Conceptually,
+`sigilc prepare implementation --source src/foo.ts` produces those inputs; use
+the preparation surface already required by this plan, not an extra subsystem.
+
+The descriptor binds only the side-specific source-semantic inputs in section 8.
+It is created before reconstruction; ingestion must not
+invent expected hashes from the current filesystem after receiving Turtle.
+Expose a deterministic `sigilc` preparation operation, with TypeScript frontend
+input where needed, to create these descriptors and immutable inputs. Descriptors
+contain no coding-agent claims or LLM-production metadata. No arbitrary
+Implementation context bundle is prepared. Design preparation retains its
+resolved Sigil frontend/import inputs.
+
+An external caller may prepare and reconstruct an already-fresh projection;
+`stale` need not list it first. Ingestion replaces it only with the matching
+semantic input identity and expected publication generation. A different model
+or prompt alone never marks it stale and requires no compiler option or field.
+
+`stale` and compile are inspections; neither invokes models or silently refreshes
+projections. Give `entities` a machine-readable catalog/fingerprint result with
+provisional status for Loose Design and authoritative status for Coherent Design;
+reject Disjoint or stale Design. `clean` targets generated worlds only. Keep
+JSON output versioned, sort diagnostics deterministically, and distinguish
+completed yellow/red from usage and runtime failure in exit codes.
+
+No provider/model flags belong in sigilc.
+
+Preparation additionally accepts the resolved Design bundle from `sigil`; define
+the exact flag schema when implementing the small frontend protocol in section 2.
+The job descriptor pins its identity. CLI examples above assume that preparation
+has completed. The TypeScript CLI remains separately useful for parse/check/fmt,
+context/retrieval, graph/glossary, and editor services when no semantic world exists.
+
+---
+
+# 34. Candidate search is outside scope
+
+Implement no candidate search, ranking, beam store, or semantic-diff UI. External
+callers may evaluate separate disposable inputs with ordinary commands. An intent
+choice must be recorded in authored `.sigil` before publishing current Design;
+never make a disposable world its only record or overwrite live projections
+during speculation.
+
+---
+
+# 35. Restore old code aggressively
+
+Before reimplementing behavior that the final architecture retains:
+
+1. inspect current code
+2. inspect the same file at `08c22e0a088407f94b1dd6999c044334b0190552`
+3. determine whether current complexity exists solely for the architecture being removed
+4. restore/reuse old known-good behavior where appropriate
+
+Do not rewrite old functionality merely because it is easy to regenerate.
+
+For a subsystem being deleted outright, inspect its current callers and remove
+it; a historical restoration exercise is unnecessary. The old commit is a reuse
+reference, not a requirement to resurrect old code before deleting it again.
+
+Expected result: **large net code deletion**.
+
+## Implementation order and deletion map
+
+1. Establish the TypeScript frontend → standalone Rust `sigilc` boundary at
+   `packages/sigilc`. Preserve the TypeScript CLI and parser/resolver. Sketch the
+   minimal versioned input schema; do not create another compiler IR. Check
+   snapdir dependency distribution and platform feasibility early.
+2. Move/reuse the native egglog engine and restricted assertion handling. Preserve
+   useful laws and fixtures; remove the old JSON bridge protocol.
+3. Implement Turtle ingestion, canonical per-source `.egg` projections,
+   deterministic input preparation, snapdir-backed source/catalog freshness for
+   Implementation, separate Design frontend inputs,
+   atomic publication, and disposable world assembly. Exercise races and corrupt
+   inputs with fixtures, not agents.
+4. Implement isolated D and I closure and deterministic obligation comparison.
+   Prove positive satisfaction, contradictions, unresolved negatives, and failure
+   behavior using fixed assertions.
+5. Add the minimal resolved Design frontend bundle from existing TypeScript
+   language APIs. Enforce its closed schema and forbidden semantic fields.
+6. Implement conservative Design import-closure invalidation from the existing
+   resolved import/reexport graph, including membership changes. No semantic
+   export analysis or new SCC stabilization.
+7. Implement provisional catalogs for current Loose Design and authoritative
+   catalogs for Coherent Design; reject Disjoint Design. Invalidate all I
+   projections when the supplied full identity catalog changes. Preserve reuse
+   for relationship/status-only changes with identical identity content.
+8. Wire deterministic statuses and reports into existing CLI/editor surfaces.
+   Preserve ordinary language tooling without worlds or model configuration.
+9. Delete obsolete receipt, TS7 verifier, accepted-world, managed-view,
+   semantic-slice, beam, provider/evaluator orchestration, and migration systems,
+   including their protocols, configuration, callers, tests, and dependencies.
+10. Update authored contracts, docs and lightweight skills to describe the external
+    harness protocol and allowed/forbidden context. Implement no harness adapter,
+    coding workflow, launcher, scheduler, or background runtime. CI uses fixed
+    Turtle fixtures or simple model-boundary test doubles.
+11. Finish packaging, installers, platform validation, and the net-deletion audit.
+    Verify `sigil` and `sigilc` from a clean checkout without `repos/`. Temporary
+    development scaffolding must be gone in the completed refactor.
+
+Use this concrete audit list rather than directory-wide restoration/deletion:
+
+## Mandatory removals
+
+These systems must be absent at completion, including public exports, command
+routes, schemas/config keys, manifests, packaging, docs and obsolete tests.
+Extract a small useful deterministic helper first if necessary, but do not leave
+the old subsystem callable, renamed, dormant, or behind a compatibility alias.
+
+| Remove completely | Concrete current targets |
+| --- | --- |
+| Provider/evaluator packages | `packages/compiler-adapter-claude/`, `packages/compiler-adapter-codex/`, `packages/compiler-adapter-opencode/`, `packages/compiler-adapter-pi/`; remove their workspace/build/test/publish entries. |
+| Compiler orchestration | Under `packages/compiler/src/`: `adapters.ts`, `adapter-execution-coordinator.ts`, `adapter-subprocess.ts`, `evaluation.ts`, `evaluation-capabilities.ts`, `evaluation-execution.ts`, `evaluation-request.ts`, `evaluation-skills.ts`, `evaluator-retrieval.ts`; remove old exports from `mod.ts`. |
+| Bundled evaluator-stage skills | `packages/compiler/skills/semantic-readiness/`, `architecture-design/`, `current-code-compatibility/`, `standards-risk/`, including `compile.json` registration. Useful general instructions may survive only as lightweight docs without an evaluator runtime. |
+| Model proposals and beams | Under `packages/compiler/src/semantic/`: `proposal.ts`, `proposal-protocol.ts`, `provider-config.ts`, `search.ts`, `beam.ts`, `beam-store.ts`. |
+| Receipts, handoffs and mechanical verification | Under that semantic directory: `handoff.ts`, `receipts.ts`, `receipt-locations.ts`, `receipt-witnesses.ts`, `verify-return.ts`, `verification.ts`, `typescript7.ts`, `implementation-workspace.ts`, `evidence.ts`, `checks.ts`; remove the TS7 analyzer dependency and installed-package verification staging. Ordinary external project tests remain useful. |
+| Accepted-world and managed-view workflows | `semantic/store.ts`, `views.ts`, `view-model.ts`, `projections.ts`; remove accepted-state migration, managed-view editing/recovery, and generated `.sigil/views` authority. |
+| Retained semantic artifact framework | `semantic/artifact-recording.ts` and the retained-bundle machinery in `artifacts.ts`; replace only the necessary path/hash/atomic publication behavior with the small disposable world store. No retained runs, receipt bundles, or stage-result database. |
+| Legacy compiler profiles/history/events | Remove the old profile inheritance/stage aliases in `profile.ts` and `semantic/profile.ts`, persisted diagnostic history in `history.ts`, and old stage-event protocol/reader/writer infrastructure in `event-protocol.ts`, `event-reader.ts`, `event-writer.ts`. Keep only concrete limits, current diagnostics, and thin reporting needed by the new commands. |
+| Old CLI semantic surface | Replace `packages/cli/src/semantic-commands.ts` with only any needed thin new-command routing; remove old intent/answer/accept/beam/slice/receipt/verify/project/migrate routes. Delete `semantic-providers.ts` and the compatibility facade `compiler-adapters.ts`; update callers directly. Remove provider/evaluator/migration authoring branches, not generic config functionality. |
+| Old native bridge and duplicate semantic pipeline | Remove `packages/compiler/native/` after moving useful engine code into `packages/sigilc`. Remove the old `sigil-semantic-engine` protocol, runtime lookup/staging and TS ingestion/lowering/closure copies after Rust replaces them. No third binary or duplicate ontology authority. |
+
+Do not delete language semantic tokens, authored semantic units, Concept
+resolution, generic ownership/navigation links, normal CLI config, or report
+formatting merely because their names contain “semantic”, “profile”, or
+“implementation”. The table names obsolete systems, not a keyword-based purge.
+
+No new resolved Implementation identity tables, symbol-map protocols,
+module-resolution caches, resolver callbacks/plugins, or Implementation dependency
+tracking are allowed. None is currently implemented for the new architecture;
+remove any introduced scaffolding and do not salvage the old TS7 verifier for
+mappings. Preserve Sigil Design-language resolution.
+
+## Preserve or replace narrowly
+
+* Preserve `packages/core` parser/resolver, source ranges, import/Concept/export
+  tests, generic navigation/ownership comments, and useful CLI/LSP/editor behavior.
+  Remove only semantic-view and proof-specific coupling from those surfaces.
+* Move useful behavior from `native/src/main.rs`, `kernel.egg`, and `schedule.egg`
+  to `packages/sigilc`. Delete the old bridge `Input` protocol and receipt tables.
+* Port relevant validation cases from `semantic/turtle.ts`, `ontology.ts`, and
+  `egg-world.ts`, then delete duplicate TypeScript ingestion/lowering and native
+  bridge plumbing in `engine.ts` and obsolete runtime/protocol code. Export the
+  ontology from Rust for prompts so TypeScript does not maintain another copy.
+* Reuse the structural inventory/identity behavior in `semantic/source.ts`, but
+  separate frontend structure from semantic assertions. Review its automatic
+  import-to-`dependsOn` lowering: a language import establishes name visibility,
+  not necessarily an architectural runtime dependency. Keep that distinction in
+  the frontend bundle and require explicit domain semantics for obligations.
+* Remove obsolete `typescript7.ts`, `verification.ts`, `verify-return.ts`,
+  `implementation-workspace.ts`, `handoff.ts`, `receipts.ts`, `receipt-*.ts`, and
+  mechanical evidence/check adapters after auditing any generic helpers they hold.
+* Remove accepted-world store/migrations, managed-view authoring/projection,
+  semantic slices, beams, proposal-provider orchestration and their retained
+  artifact layers. Replace the useful path/checksum/atomic-write principles with
+  the small disposable store; do not carry the generic receipt bundle framework.
+* Audit `evaluation*.ts`, `adapter*.ts`, `packages/compiler-adapter-*`, provider
+  configuration, and evaluation skills. Delete obsolete execution machinery and
+  its Deno workspace/task/import/lock entries. Do not relocate it to a new Sigil
+  harness package. Preserve only useful deterministic helpers with identified
+  final callers; lightweight instructions are not a reason to keep a runtime.
+* Avoid/delete semantic export-fingerprint caches, private/public edit analysis,
+  model-derived export transport, and semantic SCC stabilization. Use the
+  resolved graph plus a visited-set traversal. Record avoided planned work
+  separately from code actually deleted; do not claim unimplemented systems as
+  deletions.
+* Keep the frontend bundle restricted to the structural allowlist in section 2.
+  Avoid duplicated inferred-fact, obligation, rule, ranking, and implementation
+  result fields/modules. Rust owns their derivation and interpretation.
+* Update `scripts/build-semantic-engine.ts`, `build-cli-release.ts`, published
+  runtime tests, CLI config/schema, install scripts, CI, editor tests and docs.
+  Stop packaging TS7 and `sigil-semantic-engine`; ship `sigil` and `sigilc`.
+* Update root/compiler/core/CLI/editor `.sigil` contracts where ownership changes,
+  `integrations/skills/sigil/` guidance, compatibility metadata, and skill evals.
+  The globally installed skill still describes accepted worlds and receipts;
+  change the repository-owned sources, not the global copy.
+
+Count net changes against the refactor's starting revision, including Rust,
+TypeScript, tests, and workflow code. Report moved files separately so moving the
+bridge into `sigilc` is not presented as deletion. Removing useful language
+features to manufacture a lower line count is not acceptance.
+
+## Additional v1 simplifications
+
+* Use one preparation descriptor shape for both sides, with only necessary
+  side-specific fields. Preparation is deterministic data capture, not a job
+  database: no queued/running/retry states, worker registry, daemon, polling,
+  callbacks, or scheduler. External callers retain descriptors until ingestion.
+* Share ingestion, assertion encoding, input validation and disposable storage
+  code between D and I. Explicit side-specific validation preserves catalog and
+  trust boundaries; avoid language/provider plugins or generic pipeline stages.
+* Use separate D/I instances of the existing egglog embedding and one comparison
+  path. `sigil compile` delegates to it; CLI/editor surfaces do not each compute
+  their own semantic statuses. Recompute closure from fresh projections; no
+  persistent saturated graph or retained stage-result framework in v1.
+* Use source-local Implementation objects with only target bytes, ontology, and
+  the frozen Design catalog supplied to the model. Keep whole-catalog invalidation
+  because the full catalog is supplied. Neighbor changes invalidate only their
+  own projections. No Implementation dependency tracking, language resolution,
+  repository-context machinery or selective catalog dependency system is needed.
+* Keep strict Turtle input and precise diagnostics; omit autofix, built-in
+  candidate search, ranking, beams and candidate stores. External callers can
+  evaluate fixtures or candidates in disposable separate directories using the
+  ordinary commands. No special speculative compilation protocol is required.
+* Use one fixed compiler pipeline and a small limits configuration. Drop legacy
+  profile inheritance, evaluator-stage aliases, configurable stage DAGs, persisted
+  diagnostic history, and replayable stage-event machinery. Emit one versioned
+  final JSON result plus human-readable formatting; ordinary process progress
+  and cancellation need no retained event framework. Update existing consumers
+  to this final result rather than preserving the old report protocol.
+* Preserve useful existing reachability, obligation, contradiction and numerical
+  laws with their regression cases. Do not add a generic numerical analysis
+  framework, new proof mode, all-derivations explorer, or new negative-proof
+  system. Retain bounded fact/source and rule witnesses sufficient to explain
+  diagnostics; an elaborate provenance UI is outside this refactor.
+* Use the current runtime's practical bounds and reliable process termination.
+  Do not create a resource-governance framework, custom egglog scheduler, or
+  cross-platform accounting service. Limits and cancellation remain failures
+  rather than completed green results.
+
+These reduce implementation surface without removing source freshness,
+provenance, atomic publication, isolation, or conservative unknown handling.
+
+---
+
+# 36. No migration or compatibility layer
+
+There are no external users.
+
+Therefore:
+
+* no dual stores
+* no legacy world reader
+* no old receipt support
+* no old handoff support
+* no TypeScript verifier compatibility
+* no installed-package semantic capture
+* no semantic-format migration
+* no feature flag preserving both architectures
+
+Delete obsolete tests together with obsolete code.
+
+---
+
+# 37. Acceptance cases
+
+The refactor is incomplete until these pass.
+
+## A. Graph enrichment
+
+Given:
+
+```text
+A dependsOn B
+B dependsOn C
+```
+
+derive:
+
+```text
+A reachable C
+```
+
+## B. Disjoint Design
+
+Required:
+
+```text
+A invokes B = true
+A invokes B = false
+```
+
+Result:
+
+```text
+DesignResult = Disjoint
+```
+
+## C. Loose Design
+
+Required Design obligation unresolved, with no contradiction:
+
+```text
+DesignResult = Loose
+```
+
+For current valid inputs, `entities` returns a provisional frozen identity
+catalog. Fixed Implementation Turtle using that catalog can be ingested and
+compared. The result may be `Drift` or `Converged`, but never `Closed`, even if
+all currently known implementation obligations are satisfied.
+
+## D. Coherent Design
+
+All required Design obligations satisfied and no contradiction:
+
+```text
+DesignResult = Coherent
+```
+
+The catalog is authoritative for the current Design. If the preceding Loose
+Design becomes Coherent without changing catalog identities or Implementation
+inputs, reuse its I projections and recompute D*, obligations, and comparison.
+Implementation may now become `Closed` when all remaining conditions hold.
+Disjoint Design exposes no catalog suitable for coding and no Implementation
+comparison status.
+
+## E. Frozen semantic identity
+
+If Design contains:
+
+```text
+urn:sigil:project:SigilSemanticBridge
+```
+
+the implementation semanticizer may not introduce:
+
+```text
+SemanticBridge
+sigil-semantic-bridge
+MyBridge
+```
+
+as substitutes.
+
+## F. Independent implementation reconstruction
+
+The implementation semanticizer must not receive Design relationships or obligations.
+
+It receives only:
+
+```text
+exact target source file bytes
+ontology
+frozen Design entity catalog
+```
+
+A preparation fixture verifies that no Design relationships or neighboring
+implementation bodies are included. Only the three inputs from section 6 are
+exposed to the external worker.
+
+## G. Asynchronous source race
+
+Start semanticization of:
+
+```text
+foo.py @ H1
+```
+
+Edit the file to H2 before the result returns.
+
+The H1 reconstruction must not publish as current.
+
+## H. Incremental implementation
+
+Given fresh:
+
+```text
+a.py
+b.py
+c.py
+```
+
+Modify only `b.py`. This holds even when A imports B, and even when B changes
+its exported names. A and C remain bound to their own unchanged source files.
+
+Then:
+
+```text
+a.py.egg reusable
+c.py.egg reusable
+b.py.egg stale
+```
+
+After fresh independent semanticization:
+
+```text
+only b.py.egg replaced
+```
+
+Recompute global egglog closure. A and C are invalidated only if their own
+source path/bytes, the frozen Design catalog, or compatible-format requirements
+change; no neighboring source dependency is part of their freshness keys.
+
+## I. Deleted source
+
+Delete `c.py`.
+
+Its `c.py.egg` must disappear from I.
+
+## J. Design import invalidation
+
+Given:
+
+```text
+a.sigil imports b.sigil
+c.sigil imports a.sigil
+```
+
+Any source change to B, including private content, produces:
+
+```text
+b.sigil.egg stale
+a.sigil.egg dependency-invalidated
+c.sigil.egg dependency-invalidated
+```
+
+No semantic export-diff analysis is required. Addition, deletion, rename,
+reexports, and cycles invalidate affected import closure using resolved graphs.
+
+## K. No Design leakage
+
+Never use:
+
+```text
+saturate(D ∪ I)
+```
+
+for implementation evaluation.
+
+Always use:
+
+```text
+D* = saturate(D)
+I* = saturate(I)
+O = obligations(D*)
+compare(O, I*)
+```
+
+## L. Drift
+
+Design:
+
+```text
+A excludes X
+```
+
+Implementation:
+
+```text
+A uses X
+```
+
+Result:
+
+```text
+ImplementationResult = Drift
+```
+
+## M. Converged
+
+Design requires:
+
+```text
+A provides X
+```
+
+I* does not contradict it but does not establish it.
+
+Result:
+
+```text
+ImplementationResult = Converged
+```
+
+## N. Closed
+
+All Design obligations are satisfied by fresh independently reconstructed I*, with no contradiction.
+
+Result:
+
+```text
+ImplementationResult = Closed
+```
+
+## O. Entity catalog drift
+
+Implementation projection generated against Design entity catalog fingerprint X.
+
+Design entity universe changes to Y.
+
+Old implementation projection must become stale.
+
+## P. Heterogeneous repository
+
+A project containing at least two implementation languages must work without adding language adapters to sigilc.
+
+## Q. Disposable worlds
+
+Delete:
+
+```text
+.sigil/worlds/
+```
+
+Reconstruct worlds.
+
+Equivalent input semantics must produce equivalent results.
+This assertion uses fixed normalized Turtle fixtures. A fresh model run is not
+required to reproduce the same interpretation. Compiler determinism and model
+repeatability are separate claims.
+
+## R. Pointer comments are not proof
+
+A code comment claiming implementation of a contract must not independently satisfy any Design obligation.
+
+## S. Semanticizer isolation
+
+The coding agent must not be asked to approve or edit independent semanticizer output.
+
+The independent semanticizer must not receive coding-agent reasoning beyond actual source code.
+
+## T. Major net deletion
+
+Completion report must show:
+
+```text
+files deleted
+files restored from 08c22...
+files added
+lines added
+lines deleted
+obsolete subsystems removed
+```
+
+A roughly neutral line-count refactor has missed the goal.
+
+Treat that as a scope warning to investigate, not permission to remove useful
+features or tests. Use the measured baseline and estimated range near the start
+of this plan; explain deviations. A deletion number alone is not correctness.
+The mandatory-removal table must be checked against public exports, dependencies,
+CLI help/routes, release payloads and tests, not just against missing filenames.
+
+## U. Source/catalog and publication races
+
+Change the target bytes or frozen Design catalog while a job is outstanding.
+The old job cannot publish as fresh. Change only an imported module while
+target bytes/catalog remain unchanged: the target projection remains fresh.
+Two results for the same source cannot overwrite out of generation order.
+A crash between assertion
+and index publication leaves an incomplete cache entry, not a current world.
+
+## V. Missing information cannot manufacture green
+
+Empty Design Turtle leaves required authored units unresolved. Empty I does not
+satisfy a Design prohibition. A model's complete-scope claim is rejected. Loose
+Design, skipped source files, and exhausted closure limits cannot yield `Closed`.
+
+## W. Input and platform boundaries
+
+Reject `.egg` rules/includes, catalog mutations, path traversal, symlink escapes,
+non-finite arithmetic input, and wrong-side assertion forms. Build distribution
+artifacts without `repos/` on every retained release platform. Permission-only
+changes preserve semantic identity; a rename or added duplicate file changes it.
+
+## X. Catalog and import boundaries
+
+A relationship-only Design change with identical catalog leaves I reusable but
+recomputes D*, obligations, and comparison. Any Design source change invalidates
+transitive importers regardless of unchanged exported names. Reexports, cyclic
+imports, and relevant glossary changes participate in graph/context dependency
+tests without semantic export checks. Catalog context contains no proposition
+endpoints, expected values, or copied Design descriptions.
+
+## Y. Minimal frontend bundle
+
+Check the closed frontend schema against the section 2 structural allowlist.
+Reject semantic closure, obligations, inferred facts, implementation requirements
+or results, semantic laws, comparison/ranking fields, and egglog rule output.
+Inventory entries bind authored units only; they do not encode obligations.
+
+## Z. No repository-owned orchestration
+
+Acceptance completes using fixed Turtle fixtures or simple test doubles, with no
+live/background semanticizer implementation in Sigil. Inspect final runtime
+dependencies and command paths: there is no provider/evaluator framework, model
+launcher, scheduler, or generic harness adapter relocated into another package.
+Context tests inspect deterministic preparation output; asynchronous race tests
+edit fixture files between preparation and ingestion without starting agents.
+
+## AA. Local semantic object and cross-file closure
+
+Given target `a.ts`:
 
 ```ts
-interface ViewInspection {
-  version: 1;
-  state:
-    | "not-installed"
-    | "current"
-    | "stale"
-    | "edited"
-    | "incomplete"
-    | "unsupported-version";
-  worldRevision: string | null;
-  recordedWorldRevision: string | null;
-  transactions: readonly string[]; // validated pending transaction IDs, sorted
-  differences: readonly {
-    path: string;
-    kind: "missing" | "changed" | "unexpected" | "metadata";
-  }[];
-}
+import { B } from "./b";
+B.run();
 ```
 
-Classify in this precedence: malformed/unknown version; pending/incomplete
-publication; edited bytes relative to the previously recorded generation; stale
-world or renderer; current. Missing installation is its own state. Report all
-path differences in stable path order even when a higher-priority state
-determines the result.
+With canonical B in the frozen Design catalog, the expected local Turtle fixture
+may assert `A invokes B` where the source justifies that mapping. No host symbol
+table is involved. It must not summarize what B invokes/provides from B's
+implementation. Preparation includes only A's bytes, ontology and catalog, never
+B's body merely because A imports B. Check the
+documented worker instructions as well as the preparation allowlist. Compiler
+schema/identity validation does not prove that a model faithfully described code;
+do not add a language-specific behavioral verifier to enforce this fixture.
 
-- `current`: inspection exit 0.
-- `not-installed`, `stale`, `edited`, `incomplete`: inspection exit 1 with
-  structured results.
-- `unsupported-version` or corrupt metadata: exit 1 with a specific semantic
-  input diagnostic and no fabricated expected file list.
-- Invalid flags/unsafe user path: exit 2.
-- I/O, lock timeout, or native failure: exit 3.
-- Cancellation: exit 130.
+Link fixed objects `a.ts.egg: A dependsOn B` and `b.ts.egg: B dependsOn C`.
+Closure derives `A reachable C` without modifying/regenerating `a.ts.egg`.
+Replace only B's direct assertions after an internal edit and verify that the
+global closure changes while A's object remains byte-identical and reusable.
 
-`semantic status` includes this view inspection alongside its existing semantic
-result. An absent optional projection does not change a green semantic result.
-An installed edited/stale/incomplete projection is reported as workspace drift
-and makes ordinary current-world compilation yellow; implementation is skipped
-by dependency. A fresh semantic contradiction still dominates red. Do not encode
-view drift as a new egglog fact or alter the accepted world fingerprint.
+## AB. Semantic inputs alone control freshness
 
-Retained-handoff verification is different: `semantic verify --handoff`
-certifies the retained assignment and current code under its frozen policy. It
-must work without installed views and must not treat view publication state as
-implementation evidence. For ordinary `compile --handoff`, resolve requested
-aliases against the retained world and authored targets, preserve exact subject
-matching, and report any current-view drift separately without replacing the
-retained assignment.
+After generating a projection, change the external model/prompt with compiler
+inputs unchanged. The projection remains fresh; explicit reconstruction may
+replace it using ordinary ingestion. No model-production fields appear in the
+index or preparation protocol.
 
-Add two optional, backward-compatible fields to report version 3 and update all
-report validators/readers together:
+Independently change target path/bytes, incompatible
+ontology/schema or projection format, or the Design entity catalog: each makes
+the Implementation projection stale. Another source file's change never
+invalidates this projection, even when imported. Test schema rejection of
+production metadata, language-resolution metadata, and arbitrary Implementation
+source-context fields.
 
-```ts
-interface SemanticReportContext {
-  semanticScope?: { entities: readonly string[] };
-  workspaceDrift?: {
-    authoredSourceChanged: boolean;
-    views: ViewInspection;
-  };
-}
-```
+## AC. Ambiguous local reference and no language-resolution subsystem
 
-Emit sorted canonical IDs in `semanticScope`. Emit `workspaceDrift` whenever
-accepted-state context was inspected. Old reports without these fields remain
-readable; absence is not a current drift inspection. These fields are report
-metadata, never trusted egglog input. Retained reports keep their existing
-assignment identity and per-receipt/coverage summary unchanged.
+A source reference ambiguous against the frozen catalog is omitted in the
+expected Turtle fixture and leaves any affected obligation unresolved. Unknown
+entities are rejected; no aliases are invented to manufacture satisfaction.
+Include a misleading-name fixture: a local `semantic_bridge` variable with an
+unrelated purpose must not map to catalog entity `SigilSemanticBridge` merely
+because the names resemble each other. Expected Turtle omits that mapping;
+source usage/context must support identity beyond lexical similarity. This is
+a semanticizer instruction/fixture expectation, not a new compiler name-matching
+heuristic or language-analysis subsystem.
+This tests protocol expectations and deterministic ingestion, not live model
+accuracy. The completion audit confirms no Implementation-language resolver,
+symbol-map protocol, module-resolution cache, identity-table mechanism, callback
+or language-adapter system survives in either CLI/compiler. Sigil Design-language
+parsing, imports/reexports, expands, Concept identities, glossary context and
+authored-unit inventory remain intact.
 
-### 3.7 Installation transaction and recovery algorithm
+---
 
-Use the existing permanent OS-lock mechanism. Do not introduce lock directories,
-PID guessing, a database, or a second locking library.
+# 38. Tests
 
-Acquire locks in the order `world`, then `views`. Never call an API that
-reacquires `world` from inside that lock; factor locked/unlocked private helpers
-where necessary. Keep the order identical in acceptance, installation,
-migration, and recovery.
+Keep/add tests for:
 
-Installation is a recoverable multi-file operation. Do not claim that multiple
-filesystem renames are one atomic write.
+* ontology validation
+* Turtle parsing/normalization
+* restricted `.egg` encoding
+* kernel closure
+* Design states
+* Implementation states
+* D-vs-I separation
+* frozen entity enforcement
+* semanticizer context isolation
+* snapdir source hashing
+* async stale-result rejection
+* added/modified/deleted source handling
+* incremental projection replacement
+* Design import invalidation
+* conservative transitive importer invalidation, including private edits
+* entity-catalog invalidation
+* heterogeneous source selection
+* world deletion/reconstruction
+* CLI behavior
+* cancellation/error handling where still relevant
+* the resolved TypeScript frontend bundle and Rust command boundary
+* immutable target/catalog inputs and stale source/catalog publication rejection
+* local semantic objects linked by global closure without importer regeneration
+* internal imported-file changes preserving importer freshness
+* neighbor export-name changes also preserving importer freshness
+* local import/alias interpretation fixtures without symbol maps
+* ambiguous-reference omission and absence of Implementation-language resolution
+* model/prompt changes preserving freshness and explicit fresh-input reconstruction
+* interrupted publication, duplicate jobs, and assertion/index mismatch
+* missing authored interpretation units and unsupported negative obligations
+* ordinary TypeScript CLI functionality without worlds or model configuration
+* two-binary distribution without the old bridge or ignored local dependencies
+* provisional Loose catalogs, Coherent catalog status, and Disjoint rejection
+* identical-catalog reuse across Loose-to-Coherent transitions
+* frontend schema rejection of semantic fields and absence of model orchestration
+* absence of every mandatory-removed command, package and runtime dependency
+* one final-report path working for CLI/editor without legacy profiles or history
 
-1. Before locking, read the requested accepted world and compute a candidate
-   view set.
-2. Under the locks, reread the current world and authored source identity.
-   Reject a different expected revision or stale authored source.
-3. Recompute/validate the prior published view receipt. A stale but unedited old
-   generation may be updated. An edited file, unexpected file, unknown receipt,
-   or unsafe path stops before any product file is changed.
-4. For first installation, require `views/` to be absent or empty. An unowned
-   existing file is not overwritten because it resembles generated output.
-5. Create an ignored transaction directory containing a bounded canonical
-   manifest and before/after payloads. Each changed path records its expected
-   old hash or `null` for absence, and its new hash or `null` for deletion.
-   Record the exact old/new view receipts and expected world revision.
-   Content-hash the transaction manifest and payloads. The transaction ID is
-   their content-derived ID.
-6. Flush and publish the complete transaction manifest before changing managed
-   view files. A partially prepared transaction cannot be recovered as an
-   authorized write.
-7. For every affected path in stable order, verify its current state equals the
-   recorded before state, then install the after bytes through a same-filesystem
-   temporary file and atomic rename. For removals, delete only a file whose
-   bytes match the recorded old generated hash. No recursive deletion of
-   arbitrary directories.
-8. Check canonical revision and authored source identity again. If either
-   changed, leave the previous published receipt and an incomplete transaction;
-   do not claim success.
-9. Publish `views/current.json` last through atomic replacement. A reader can
-   therefore see either the prior receipt with detected mismatched files, or the
-   complete new receipt. Readers must validate hashes rather than assume the old
-   receipt proves consistency during the write.
-10. Mark the transaction complete. Retain its documentary manifest/payloads in
-    ignored cache until normal manual cleanup; completion does not grant proof
-    authority.
+Delete tests whose only purpose was:
 
-Recovery is explicit through `--recover`. Acquire the same locks; validate
-transaction hashes and schema against the supplied transaction ID; require the
-expected world revision still current; independently render that world again and
-require the transaction's complete after-generation and receipt to equal the
-recomputed result. A cache transaction cannot authorize arbitrary generated
-bytes. Require every affected file to equal either its recorded before or after
-state. Any third state is a conflict and stops recovery. Roll forward
-idempotently to the recorded after states and publish the new receipt last.
-Never guess whether an edited file should be discarded. If the world advanced,
-recovery rejects; the user can preserve/revert the affected generated files with
-Git and run a fresh projection write. No auto-rollback that can erase later
-edits.
+* receipt verification
+* TypeScript 7 proof observations
+* installed-package snapshots
+* old canonical world persistence
+* old handoff bundles
+* removed migrations
 
-An interrupted process must release OS locks automatically. An incomplete
-transaction remains visible through read-only inspection. New projection writes
-reject while an unresolved transaction for this view set exists.
+---
 
-### 3.8 Managed-view acceptance cases
+# 39. Completion report
 
-Add `packages/compiler/tests/managed_views_test.ts`,
-`packages/compiler/tests/component_registry_test.ts`, and
-`packages/cli/tests/managed_views_test.ts`.
+At completion report:
 
-Required cases:
-
-| ID  | Fixture and expected result                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| V01 | Green accepted world generates parser-valid, deterministic per-entity files. Repeat render gives identical bytes and metadata.                                |
-| V02 | Label change preserves entity and filename; authored source anchors are untouched.                                                                            |
-| V03 | Two equal labels produce distinct legal generated names; ambiguous user labels never select arbitrarily.                                                      |
-| V04 | A freshly installed view does not add authored contracts, change source fingerprint, or make its own world stale.                                             |
-| V05 | World contains a component with no authored `.sigil`; CLI can target its canonical IRI and installed view.                                                    |
-| V06 | Authored and projected aliases select the same entity once; returned-handoff scope checks still reject a wider target.                                        |
-| V07 | Edited view bytes plus a forged matching view receipt fail independent recomputation.                                                                         |
-| V08 | Current generation updates to a new world only if old managed bytes remain unchanged.                                                                         |
-| V09 | Existing unowned file, symlink, traversal, duplicate entry, unknown version, or bound violation causes no overwrite.                                          |
-| V10 | Crash before any file, midway through files, and after receipt publication produces detectable state and idempotent explicit recovery.                        |
-| V11 | A third-state edit, world change, or forged noncanonical after-generation rejects recovery without changing files.                                            |
-| V12 | Two concurrent writers cannot publish a mixed generation.                                                                                                     |
-| V13 | Authored source changes remain stale; generated views never suppress real source drift.                                                                       |
-| V14 | No installed views are required for retained verification or canonical reconstruction.                                                                        |
-| V15 | Core, CLI, compiler, Deno LSP, and Node extension discovery all exclude view documents from authored intent. Explicit view navigation still works.            |
-| V16 | No-op write makes no new revision or rewritten document bytes. Stale metadata-only world revisions update the receipt without changing identical view bodies. |
-
-## 4. Bundled semantic proposal providers
-
-### 4.1 API and ownership
-
-Keep `SemanticProposalProvider.generate(ProposalRequest): Promise<string>` as
-the compiler-facing interface. Add these exports in the existing adapter
-packages:
-
-- `CodexSemanticProvider`
-- `ClaudeSemanticProvider`
-- `PiSemanticProvider`
-- `OpenCodeSemanticProvider`
-
-Each implements that interface. Add `packages/cli/src/semantic-providers.ts` as
-the sole CLI factory that resolves a configured provider into one of these
-implementations or the existing `CommandSemanticProvider`.
-
-Do not implement semantic proposals by constructing a fake
-`AgentEvaluationRequest`, asking for findings, or translating findings into
-Turtle. Extract reusable process/framing code from the current adapters into
-private provider transport modules. Keep legacy evaluator classes as deprecated
-compatibility exports for this release; they must not be reachable from ordinary
-compile, intent, editor commands, or seeded configuration.
-
-The adapter transport returns one terminal assistant payload as text. The
-existing compiler proposal decoder validates the candidate envelope and parses
-Turtle. The transport cannot choose a candidate, decide its status, supply
-trusted observations, or repair malformed Turtle.
-
-### 4.2 Exact output protocols
-
-For `purpose: "interpret-intent"`, the terminal payload is JSON with exactly
-this structure:
-
-```json
-{
-  "version": 1,
-  "candidates": [
-    {
-      "id": "candidate-a",
-      "additions": "<ordinary Turtle text>",
-      "retractions": "<ordinary Turtle text>"
-    }
-  ]
-}
-```
-
-For `purpose: "render-question"`, use the existing exact-proposition protocol:
-
-```json
-{
-  "version": 1,
-  "factId": "<the supplied fact ID>",
-  "question": "<human wording of that exact proposition>"
-}
-```
-
-Use a compiler-owned JSON Schema for each purpose when a provider supports an
-output-schema argument. These schemas are transport contracts and do not replace
-the real Turtle parser. Add `semantic/proposal-protocol.ts` for the schemas,
-duplicate-key-rejecting JSON decoding, and transport types shared with provider
-packages.
-
-Only JSON whitespace may surround the terminal object. Reject Markdown fences,
-explanatory prefixes/suffixes, multiple objects, duplicate keys, unknown
-properties, missing fields, duplicate candidate IDs, and invalid field types. Do
-not use the old `extractResultObject` heuristic on proposals. A syntactically
-valid but semantically invalid candidate remains the semantic search engine's
-responsibility.
-
-Retain the existing bounded candidate count, protected intent contracts, exact
-question ID checks, deterministic pruning, and answer replay. No
-adapter-specific relaxation of those rules is permitted.
-
-### 4.3 Provider execution lifecycle
-
-Every generate call:
-
-1. Creates a new disposable working directory outside the target codebase.
-   Include the complete required semantic context in the supplied prompt. Do not
-   give the generator a writable target checkout.
-2. Runs exactly one provider invocation, with prompt input over stdin. Do not
-   interpolate prompt text into shell code or put it in argv.
-3. Reuses `coordinateAdapterExecution` and `runAdapterSubprocess`. Preserve the
-   existing process-group/cleanup behavior rather than writing another
-   subprocess wrapper.
-4. Uses an overall intent-operation deadline, default 120,000 ms. If question
-   rendering follows candidate generation, it receives the remaining budget, not
-   a new 120 seconds. API and CLI cancellation flow through both invocations.
-5. Limits encoded initial input and retained combined stdout/stderr to 4 MiB
-   each. Limit each protocol frame and the terminal payload to 4 MiB. Count
-   UTF-8 bytes for these new protocol bounds; use explicit encoding when an
-   existing helper counts characters. Abort before unbounded accumulation.
-6. Preserves stderr for actionable failure reporting without treating it as a
-   terminal candidate payload.
-7. Waits for successful process completion and a valid terminal framing event
-   before returning text. A JSON-looking checkpoint from a process that later
-   fails is not a proposal result.
-8. Rejects timeout, cancellation, output overflow, malformed framing, or nonzero
-   exit as an operational error. No candidate is accepted and no green verdict
-   is synthesized.
-9. Awaits cleanup and removes only its own temporary directory. Cleanup failure
-   remains visible.
-10. Does not automatically retry, switch providers, or choose another model. The
-    user can explicitly issue a fresh intent command.
-
-Provider tool-use events are not implementation observations. Preserve
-documented current provider restrictions, use the disposable directory, and
-reject a proposal invocation that emits a tool-execution event. Do not advertise
-the directory as an OS security sandbox. The provider's existing authentication
-environment is allowed; never copy credentials into project configuration,
-prompts, receipts, or logs.
-
-### 4.4 Provider-specific framing decisions
-
-Start with the invocation switches and event parsers already tested in each
-adapter. Refactor their terminal text extraction; do not redesign their CLI
-integration around unverified flags. The required changes are:
-
-| Provider | Invocation and terminal rule                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Codex    | Reuse existing `exec`, ephemeral/read-only invocation, JSON event stream, stdin prompt, disabled search, and disposable `-C`. Replace `FINDINGS_SCHEMA` with the purpose schema. Collect the latest completed `agent_message` checkpoint as raw text and release it only after successful `turn.completed`. Reject failed turns, trailing contradictory terminal events, and tool execution.                                    |
-| Claude   | Reuse print/stream-json input/output and no-session invocation. Replace the findings schema. Decode the single successful terminal result event. When `structured_output` is present, serialize that object as the payload; otherwise require `result` text. If both are present, they must decode to the same canonical JSON object. Reject disagreement, unsuccessful result, duplicate terminal results, and tool execution. |
-| Pi       | Reuse print/JSON/no-session invocation and existing context/extension restrictions. Extract raw assistant text from the completed assistant turn with the existing terminal stop reasons. Keep the existing single-assistant-message fallback only when there is exactly one assistant message, no tool activity, and successful process exit. Do not parse findings.                                                           |
-| OpenCode | Reuse `run --format json`, disposable `--dir`, and existing restrictive environment. Assemble text by the existing message/turn key. Require exactly one successful terminal turn, or the existing unambiguous single-turn/no-finish-marker fallback with successful process exit and no tool activity. Do not parse findings.                                                                                                  |
-
-Move framing into helpers that accept the result schema/decoder as a parameter
-where sharing is useful. Legacy evaluator adapters may keep their historical
-findings decoder; proposal adapters must use only the new strict payload
-contract.
-
-Do not change provider models automatically. A configured `model` is passed
-exactly as provided. Missing executable, expired login, unsupported CLI
-argument, or provider protocol change yields an actionable error naming the
-provider and failed invocation. It must not fall back to evaluator execution.
-
-### 4.5 CLI provider selection
-
-Extend intent selection to:
+1. final architecture
+2. final `sigilc` crate/binary location
+3. systems deleted
+4. files restored from `08c22e0a088407f94b1dd6999c044334b0190552`
+5. net lines/files removed
+6. final `.sigil/worlds/` layout
+7. exact `snapdir-core` usage
+8. how Design incremental invalidation works
+9. how imports/exports affect invalidation
+10. how D is assembled
+11. how the frozen Design entity universe is produced
+12. the documented external semanticizer protocol and deterministic compiler
+    commands it consumes; explicitly confirm no Sigil-owned launcher/runtime
+13. exactly what context they receive and are forbidden to receive
+14. exact deterministic source-semantic keys: Implementation target path/bytes,
+    ontology/schema, projection format and catalog; Design import/frontend input
+    dependencies separately; publication generations and no LLM-production metadata
+15. how I is assembled
+16. exact computation:
 
 ```text
-sigil semantic intent <root> --text <intent> --provider <configured-name>
-sigil semantic intent <root> --text <intent> --generator <executable> [--generator-arg <arg> ...]
-sigil semantic intent <root> --text <intent> --proposals <file>
-sigil semantic intent <root> --text <intent>                 # configured default only
+D* = saturate(D)
+I* = saturate(I)
+O = obligations(D*)
+compare(O, I*)
 ```
 
-Exactly one explicit selector may be supplied. With none, use
-`tools.semantic.defaultProvider`. If there is no default, return exit 2 with the
-explicit ways to select a provider. Do not probe installed executables and
-silently choose one. A test-injected `proposalProvider` remains available at the
-API seam, but it must not make an otherwise invalid CLI invocation valid.
-
-File proposals do not invoke a model for question wording; use the existing
-deterministic exact question. Bundled/command providers may render wording under
-the same remaining operation budget. Keep the exact machine proposition in every
-response even when human wording exists.
-
-### 4.6 Provider tests
-
-Use injectable runners and disposable fake executables. No paid or authenticated
-live model invocation is required by CI.
-
-- P01: each bundled provider returns the same compiler-accepted candidate
-  envelope through its native event framing.
-- P02: each renders the exact question protocol and rejects a changed fact ID.
-- P03: valid-looking intermediate JSON followed by process/terminal failure is
-  rejected.
-- P04: duplicate keys, fenced output, unknown fields, multiple terminal objects,
-  truncated frames, and unsupported output versions reject.
-- P05: tool events cannot supply evidence and cause proposal execution failure.
-- P06: timeout/cancellation/output limits kill/reap and remove temporary
-  workspaces.
-- P07: candidate generation plus question rendering share one deadline.
-- P08: explicit/default provider selection, conflicts, unknown names, missing
-  executables, and provider errors have deterministic exit behavior.
-- P09: ordinary compile and retained verification invoke neither proposal nor
-  evaluator adapters, even when all providers are configured.
-- P10: deprecated evaluator exports still pass their existing compatibility
-  tests, while proposal adapters never call `evaluationPrompt`,
-  `validateAgentEvaluationResult`, or `parseFindingsObject`.
-
-## 5. Configuration and compatibility migration
-
-### 5.1 Configuration namespace
-
-Keep deterministic compilation settings in `tools.compile`. Add a separate
-`tools.semantic` namespace for proposal generation. Do not put providers back
-into compile stages.
-
-The new configuration contract is:
-
-```ts
-interface SemanticToolsConfigurationV1 {
-  version: 1;
-  defaultProvider?: string;
-  proposalTimeoutMs?: number; // positive integer, default 120000, maximum 2147483647
-  providers?: Readonly<
-    Record<string, {
-      kind: "codex" | "claude" | "pi" | "opencode" | "command";
-      model?: string; // bundled providers only
-      command?: string; // required for command kind only
-      args?: readonly string[]; // command kind only
-    }>
-  >;
-}
-```
-
-Names use 1–64 characters matching `[a-z][a-z0-9_-]*`. Validate unknown fields
-and kind-specific combinations. `defaultProvider` must name a configured
-provider. Blank model/command strings reject. Arguments are literal strings,
-never a shell command. Do not add API keys, environment-variable maps, arbitrary
-JavaScript, per-project schemas, or rule configuration.
-
-New initialization seeds:
-
-```json
-{
-  "compile": { "defaultProfile": "standard" },
-  "semantic": { "version": 1, "providers": {} },
-  "agent": { "profile": "standard" }
-}
-```
-
-Keep existing compiler defaults in the compiler; do not duplicate large budget
-defaults into every newly initialized project. No default model/provider is
-selected on the user's behalf.
-
-Add typed validation in `semantic/provider-config.ts`. Keep `tools` extensible
-at the core level; do not reject unrelated tool namespaces. Add schema
-documentation for the known compile and semantic namespaces using the
-repository's existing configuration-schema conventions, and test schema/runtime
-parity. Preserve local configuration merging semantics and ensure the CLI uses
-the effective merged configuration.
-
-### 5.2 Authoring commands
-
-Retain `config set-default --profile` for deterministic compilation profiles.
-Retain custom profile names and their `standard`/`critical-system` base
-selection. Legacy semantic stage aliases remain read-compatible. Required
-deterministic stages still cannot be disabled.
-
-Add:
+17. precise definitions of:
 
 ```text
-sigil config set-provider <name> <root> --kind codex|claude|pi|opencode [--model <model>]
-sigil config set-provider <name> <root> --kind command --command <program> [--arg <value> ...]
-sigil config set-provider-default <name> <root>
-sigil config migrate <root> --format json
-sigil config migrate <root> --write --expected-hash <config-hash>
+Disjoint
+Loose
+Coherent
+
+Drift
+Converged
+Closed
 ```
 
-`config migrate` is a preview by default. Return the original committed-config
-hash, the exact proposed object, and a list of changes. `--write` requires that
-original hash and uses atomic compare-and-swap under a `config` OS lock. It
-edits the committed config only. Never absorb local secrets/overrides into the
-committed file.
+18. test results
+19. any remaining architecture that exists solely because of the discarded receipt/language-specific verifier design
+20. code deleted because harness orchestration was removed, plus planned runtime
+    work avoided (reported separately, not counted as deleted code)
+21. code deleted because Design export-surface invalidation was simplified, plus
+    avoided planned modules reported separately
+22. fields/modules avoided in the frontend bundle
+23. remaining model-boundary code, limited to deterministic preparation/ingestion,
+    fixture/test-double support, and lightweight protocol documentation/skills
+24. how source-local Implementation objects share frozen catalog identities,
+    how the model interprets local names conservatively, how closure derives
+    cross-file consequences, and why every neighboring source change preserves
+    importer freshness; confirm no Implementation-language resolution subsystem
+25. measured source/test reduction against the same tracked-extension baseline,
+    new replacement code, moved code, and deviations from the planning estimate
+26. mandatory-removal checklist results, including commands, public exports,
+    configuration, dependencies, and release payloads
 
-Existing `set-profile` evaluator arguments (`--main`, evaluator stage lists,
-provider/implementation identity assignments) become explicit deprecated usage
-errors with the corresponding `set-provider` command in the message. Do not
-accept an argument that has no effect. Keep the exported old configuration
-authoring helpers as deprecated library compatibility where required by
-published APIs; new CLI paths must not call them.
+If dead architecture remains, explain exactly why.
 
-### 5.3 Deterministic migration algorithm
+---
 
-For a legacy committed config:
+# North-star principles
 
-1. Preserve workspace, file discovery, glossary-related settings, unrelated tool
-   namespaces, existing deterministic limits/budgets, valid profile names, and
-   profile base selection.
-2. Convert each recognized legacy evaluator record with provider `codex`,
-   `claude`, `pi`, or `opencode` into a named semantic provider of the same name
-   and model. Drop evaluator implementation ID/version fields from the proposed
-   new provider entry; record that change in the preview.
-3. Convert the legacy single `compile.adapter` into a provider named
-   `legacy-adapter` only when there are no named evaluator records. A name
-   conflict with a nonidentical existing semantic provider stops migration
-   before writing.
-4. Existing semantic providers take precedence only if the converted entry is
-   identical. Never overwrite a different existing provider definition.
-5. Choose a proposed `defaultProvider` only if the old effective default profile
-   selected exactly one recognized main evaluator. Multiple evaluators do not
-   imply voting or fallback; leave the default unset and report that explicit
-   provider selection is required. Preserve an already valid semantic default.
-6. Remove `compile.adapter`, `compile.evaluators`, and evaluator assignment
-   arrays (`main`, `evaluatorIds`, and provider-stage assignments) from the
-   migrated committed object. Preserve custom profiles as deterministic aliases
-   with their validated `extends` base. An evaluator-only profile with no
-   explicit base becomes an alias of `standard`.
-7. Preserve an existing disabled-stage list only if valid under deterministic
-   semantics. A list disabling required semantic stages blocks migration with
-   the exact offending entries. Do not silently remove a user's requested
-   restriction.
-8. Unknown providers, malformed records, contradictory profile settings, or
-   ambiguous field conversions block the write and are fully listed in the
-   preview. Do not discard unknown data to make validation pass.
-9. Validate the entire proposed config with the actual runtime validators before
-   returning a writeable preview.
-10. Reread the exact source bytes under the lock and compare the expected hash
-    before atomic replacement. Preserve a versioned ignored before/after
-    migration artifact under `.sigil/cache`; it is documentary, not a semantic
-    authority.
-
-Legacy configuration continues loading for one compatibility release. The loader
-returns one structured deprecation warning when ignored evaluator fields exist;
-CLI/editor expose it once per operation. It never runs those evaluators. Legacy
-library exports are marked `@deprecated` and documented as diagnostic
-compatibility only. Removing those APIs entirely is not part of this remaining
-scope.
-
-### 5.4 Configuration tests
-
-- C01: a fresh `init` creates no evaluator defaults and no implicit proposal
-  provider.
-- C02: compiler operation succeeds with empty semantic providers and never
-  accesses a provider executable.
-- C03: semantic config schema and runtime validation agree for valid and invalid
-  fixtures.
-- C04: each supported legacy provider converts with its model intact.
-- C05: multiple old evaluators produce no inferred fallback/default.
-- C06: unknown providers, conflicting new entries, invalid profiles, or changed
-  config bytes prevent writes.
-- C07: migration preview writes nothing; repeated migration is a no-op; write
-  changes only committed config.
-- C08: local overrides remain local and effective provider selection honors the
-  existing merge rules.
-- C09: legacy stage aliases/report/history interfaces continue working without
-  judge invocation.
-
-## 6. Editor, LSP, skills, and documentation
-
-### 6.1 Editor process boundary
-
-Keep VS Code's external CLI architecture. `sigil.compile.executable` remains the
-single executable setting used by both compilation and new semantic commands.
-The extension must not import the compiler's Deno runtime modules, instantiate a
-provider, execute egglog itself, or accept a receipt as proof.
-
-Add `integrations/editor/vscode/src/semantic.ts` for bounded one-shot JSON
-command execution and response validation. Reuse the existing compilation
-process lifecycle where possible, but do not feed a one-shot JSON response into
-the JSONL event parser.
-
-All editor commands operate on the selected trusted, file-backed workspace
-folder. In multi-root workspaces, use the active document's owning root or ask
-the user to select one. Never use process cwd as an implicit fallback to another
-project.
-
-Before an operation that reads project state, prompt to save dirty documents in
-the selected workspace. Cancellation aborts the command. No silent save of
-unrelated workspace documents. Verification results describe saved filesystem
-bytes, not unsaved editor overlays.
-
-Continue using JSONL for ordinary compilation. Extend its report validator to
-preserve the existing returned-implementation summary, artifact IDs, deferred
-stages, and additive view/configuration diagnostics. Unknown report major
-versions reject instead of being shown as green.
-
-### 6.2 Exact editor commands
-
-Register the following commands in `package.json` and `extension.ts`. Use native
-QuickPick/InputBox/OpenDialog APIs and Markdown documents. Do not add a webview.
-
-| Command ID                     | Title                                 | Exact operation                                                                                                                                                                                 |
-| ------------------------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sigil.semanticIntent`         | Sigil: Propose Semantic Intent        | Ask for intent text; use configured default provider or select a configured name; call `semantic intent --provider ... --format json`; show candidates, exact unresolved question, and beam ID. |
-| `sigil.semanticAnswer`         | Sigil: Answer Semantic Question       | Load current status for the selected beam; display exact proposition and optional model wording; offer Yes/No/Cancel; submit exact fact ID and answer.                                          |
-| `sigil.semanticAccept`         | Sigil: Accept Semantic World          | Load current beam status; show selected candidate and semantic changes; on the explicit Accept action call `semantic accept`. Disable when selection is not uniquely green.                     |
-| `sigil.semanticProject`        | Sigil: Update Generated Sigil Views   | Inspect current world/views; show affected paths; call project `--write --expected-revision` on the explicit Update action; open resulting files or drift report.                               |
-| `sigil.semanticCheckViews`     | Sigil: Check Generated Sigil Views    | Run read-only project `--check`; display path-specific drift and the relevant update/recovery command.                                                                                          |
-| `sigil.semanticHandoff`        | Sigil: Export Implementation Handoff  | Select an exact logical component; call `semantic slice`; show the handoff ID and retained path. Do not start a coding agent.                                                                   |
-| `sigil.semanticImportReceipts` | Sigil: Import Returned Receipts       | Select the original handoff ID/root and the claims/locations files; call `semantic receipts`; show imported receipt ID labeled as unverified claims.                                            |
-| `sigil.semanticVerifyReturn`   | Sigil: Verify Returned Implementation | Select retained handoff/root and optional receipt ID; call `semantic verify --handoff ...`; show scoped coverage, each claim outcome, checks, and witness links.                                |
-
-Keep existing compile workspace/component, focus selection, and preview
-commands. Their implementation-focused path without a selected handoff remains
-current-world verification; it must not silently choose the last editor handoff.
-
-Use `workspaceState` only for convenience IDs keyed by real workspace root: last
-beam ID, last handoff ID/root, last receipt ID. Never store a trusted verdict
-there. Reload and validate those IDs through the CLI each time. Do not write
-these editor conveniences into committed project configuration.
-
-Add the following exact read-only listing interface for editor selection:
+Keep these boundaries hard:
 
 ```text
-sigil semantic status <root> --list components|beams|handoffs|receipts --format json
+.sigil files
+    = Design source of truth
+
+source code
+    = Implementation source of truth
+
+Turtle
+    = model-facing semantic interchange
+
+per-source .egg files
+    = disposable normalized semantic projections
+
+snapdir-core
+    = source identity and incremental invalidation substrate
+
+egglog kernel
+    = compiler-owned semantic laws
+
+coding agent
+    = implementation author
+
+independent semanticizer agent
+    = implementation-world observer
+
+sigilc
+    = deterministic semantic compiler
+
+external harness / coding environment (not implemented by Sigil)
+    = model interaction, scheduling, and orchestration
 ```
 
-`--list` is mutually exclusive with `--beam` and mutation flags. Its response is
-`{ "version": 1, "kind": "<requested kind>", "items": [...] }`. Sort items by
-ID. Limit a listing to 1,000 entries; a larger inventory returns an explicit
-limit error rather than silently hiding entries. Component items contain
-`{id, label, authoredPath: string|null, viewPath: string}` and use the canonical
-registry. Beam items contain `{id, revision}`. Handoff items contain
-`{id, subjects: string[], worldFingerprint}`. Receipt items contain
-`{id, handoff}`. For retained artifacts, validate bounded bundle metadata and
-payload integrity through existing readers before listing; no item contains a
-trusted verdict. Invalid entries return an explicit input error naming the entry
-instead of being offered as valid selections. The command's root is the selected
-original root when listing retained handoffs in another checkout. Every selected
-item is fully revalidated by its consuming command.
-
-Keep existing `status --beam` and extend candidate summaries with normalized
-`additions` and `retractions` fact lists for the acceptance preview. This is a
-deterministic diff against the retained base, not model-written rationale or a
-second choice of candidate.
-
-Execution rules:
-
-- Spawn argv arrays with `shell: false`; spaces in executable and workspace
-  paths must work.
-- Bound terminal JSON output to 16 MiB and retained stderr to 1 MiB. Bounds
-  terminate execution and show an operational failure, not a partial result.
-- Cancellation terminates the spawned CLI and waits for close using the tested
-  platform-specific lifecycle. The CLI must propagate cancellation to its
-  subprocesses.
-- Exit 0 is successful completion; exit 1 can contain a completed yellow/red
-  result or a structured input/drift error. Inspect the response schema before
-  rendering a status. Exit 2/3/130 cannot produce a green badge.
-- If any relevant workspace, canonical pointer, policy, receipt selection, or
-  managed-view publication changes during/after the operation, mark displayed
-  results stale until rerun. Ignore run/cache writes for this watcher to avoid
-  self-invalidating every compile.
-- Witness links resolve normalized in-workspace files or validated retained-root
-  files. Do not open arbitrary URLs/commands from receipt text.
-
-### 6.3 LSP responsibility
-
-Keep existing syntax diagnostics, semantic tokens, symbols, hover, definitions,
-and preview rendering for authored documents. Do not add
-provider/model/native-engine execution to `packages/lsp`.
-
-Managed documents need an explicit document-view path because normal workspace
-discovery excludes them:
-
-1. A document opened under `.sigil/views/` is parsed with the ordinary Sigil
-   parser as a generated view document.
-2. Read bounded view receipt metadata through the LSP filesystem port, including
-   overlay bytes for the open document. Validate paths/schema/hashes before
-   using navigation metadata.
-3. Resolve that document in a separate projection-only context for
-   syntax/navigation. Do not merge it into the authored workspace or ownership
-   index.
-4. Label hover/preview content as generated from a canonical entity. Link to
-   available authored source bindings when present and include the canonical
-   entity ID as text.
-5. A changed overlay is displayed as an edited generated view. LSP hash
-   validation is documentary and never displayed as semantic verification.
-6. Watch `.sigil/views/current.json`, managed files, canonical
-   `world/current.json`, and relevant config alongside existing watched files.
-   Invalidate document/navigation caches on changes. Never watch all run/cache
-   artifacts as authored inputs.
-7. Keep the Node-hosted `node-server.ts` path and standalone Deno LSP behavior
-   equivalent using the filesystem abstraction. No Node-only or Deno-only
-   dependency in the shared feature code.
-
-No new LSP mutation command is required. VS Code's semantic commands own the CLI
-calls. Other LSP clients retain language/navigation features and can invoke the
-public CLI themselves.
-
-### 6.4 Skill and documentation migration
-
-Update the repository-owned skill under `integrations/skills/sigil/`. Do not
-edit globally installed copies under a user's home directory. Installation is
-tested using a temporary destination.
-
-Update `SKILL.md`, its referenced workflow documents, compatibility metadata,
-version, and eval fixtures together. Replace ordinary LLM-judge/evaluator
-instructions with this exact normal sequence:
-
-1. Discover workspace and inspect existing accepted state, authored source
-   drift, and view drift.
-2. For intent changes, submit assertions through a configured proposal provider
-   or proposal file, inspect deterministic candidates, answer exact ambiguity
-   questions, and explicitly accept a uniquely green world.
-3. Generate/update human views through `semantic project`; never edit a
-   generated view to change meaning.
-4. Prepare a scoped handoff using explicit host verifier policy; retain its ID
-   independently.
-5. Give the handoff to the external implementation workflow. Sigil does not own
-   that coding loop.
-6. Import returned receipts as claims and verify the returned snapshot against
-   the retained assignment.
-7. Report claim outcomes separately from obligation coverage, including
-   unsupported/opaque behavior and actual command failures.
-
-Remove mandatory calls to legacy evaluator stages, generic model review scores,
-session-driven normal authoring, and gate text that treats an LLM report as
-proof. Do not claim that deterministic green provides user authorization to
-deploy, send messages, or alter unrelated code. Existing domain-specific prose
-guidance may remain where it does not introduce another verification authority
-or require excluded work.
-
-Keep syntax authoring guidance for genuinely authored legacy documents,
-annotated as that compatibility workflow. Distinguish those files from managed
-projections. Examples must use current commands and literal real output shapes;
-no hypothetical `--judge`, patch-search, or package-world commands.
-
-Update at least:
-
-- Root `README.md` and `docs/semantic-worlds.md`.
-- Compiler and CLI README/architecture/spec documents.
-- All four adapter README files and public export comments.
-- `spec/sigil-config.md` and schema examples.
-- VS Code README, contributed settings/commands, package description, and test
-  fixtures.
-- Relevant `.sigil` contracts in the touched compiler, CLI, adapter, editor/LSP,
-  release, and skill boundaries.
-- The four old compiler evaluator skill documents: retain only as clearly marked
-  legacy diagnostic compatibility resources; remove them from normal
-  discovery/default workflow documentation.
-
-Bump skill compatibility/version metadata according to the existing
-compatibility mechanism. Do not invent a new product language version merely
-because a tool workflow changed. Keep package and extension version changes
-synchronized only when preparing the existing release mechanism.
-
-### 6.5 Editor/workflow tests
-
-- E01: every contributed command is registered, with no duplicate IDs and no
-  missing activation/command-palette entry.
-- E02: argument construction covers spaces, Unicode, multi-root selection,
-  explicit provider/handoff selection, and no shell interpolation.
-- E03: dirty-document cancellation launches no process; completed verification
-  refers to saved bytes.
-- E04: fake CLI returns green/yellow/red, usage/operational errors, malformed
-  JSON, unknown versions, output overflow, and cancellation; badges and messages
-  are correct.
-- E05: imported receipts are never displayed as verified before verification
-  runs.
-- E06: cached editor IDs cannot restore a green result or replace current CLI
-  validation.
-- E07: source/policy/world/view edits invalidate displayed results; ignored
-  run/cache writes do not.
-- E08: managed documents have parser diagnostics/navigation without feeding back
-  into authored workspace semantics.
-- E09: Node extension LSP and standalone Deno LSP pass equivalent view/document
-  fixtures.
-- E10: skill validation and revised eval fixtures exercise the exact
-  proposal/accept/project/handoff/import/verify flow with fake providers.
-- E11: ordinary compile still uses the existing event lifecycle, including
-  skipped implementation stages and returned-implementation summaries.
-
-## 7. Native runtime packaging and installation
-
-### 7.1 Release artifact decision
-
-Produce one archive per existing supported target. Each archive is
-self-contained for deterministic semantic compilation and supported TypeScript
-analysis. Users do not need a source checkout, Rust, Cargo, Node, Deno, npm, or
-an installed TypeScript package to run that archive's verifier.
-
-External proposal-provider executables and host-selected test commands remain
-external prerequisites when the user explicitly chooses them. Do not bundle
-coding agents or arbitrary test runners. Self-contained verification does not
-imply the excluded ability to stage project dependencies.
-
-Archive layout:
+And the central trust model is:
 
 ```text
-sigil-<version>/
-  bin/
-    sigil[.exe]
-  lib/sigil/runtime/
-    manifest.json
-    egglog/
-      sigil-semantic-engine[.exe]
-    typescript/
-      tsc[.exe]
-      lib.d.ts
-      lib.*.d.ts
-      ...other files from the platform package's lib directory...
-    licenses/
-      ...licenses/notices for the shipped runtime...
-  integrations/skills/
-    sigil/...
-  LICENSE
+Design says what should be true.
+
+The coding agent writes code from that Design.
+
+A separate semanticizer, deprived of Design relationships,
+describes direct facts from one source file using frozen Design catalog identities.
+Linking and egglog closure compute the cross-file consequences.
+
+Design and Implementation graphs are independently saturated.
+
+Design closure generates obligations.
+
+Implementation closure is checked against those obligations.
+
+Positive disagreement = Drift.
+No disagreement but incomplete closure = Converged.
+Complete obligation closure = Closed.
 ```
 
-Copy the **entire `lib` directory of the exact TypeScript platform package**
-into `runtime/typescript/`, preserving the executable's adjacent
-standard-library layout. Do not guess a minimal list of `lib.*.d.ts` files. The
-local 7.0.2 package uses a native executable named `tsc`; the async API option
-is still named `tsserverPath`.
+The implementation should become dramatically simpler because of this architecture, not merely different.
 
-The TypeScript JavaScript SDK and Sigil's JavaScript/TypeScript module graph
-belong in the compiled Deno CLI. The native subprocess executables and their
-required disk assets live beside it as above. Do not attempt to execute a
-subprocess directly from Deno's embedded virtual filesystem.
-
-Build with pinned Deno 2.9.2, Rust 1.91.0, the existing Cargo lockfile and
-egglog revision `90635860397ce710f8c0a4eeb04154a8ebc3ac05`, and TypeScript
-7.0.2. Use locked/frozen dependency resolution. Do not use `latest` dependencies
-or update pins as a side effect of packaging.
-
-Deno supports including runtime files and statically discoverable dynamic
-imports in compiled programs; the smoke tests below must establish that this
-particular SDK/module graph works with the pinned Deno version. Do not equate a
-successful `deno compile` with a working native subprocess bundle. See the
-[official Deno compile reference](https://docs.deno.com/runtime/reference/cli/compile/).
-
-### 7.2 Runtime manifest
-
-Add `semantic/runtime-protocol.ts` for pure types/validation and
-`semantic/runtime.ts` for host resolution. Use this manifest shape:
-
-```ts
-interface NativeRuntimeManifestV1 {
-  version: 1;
-  sigilVersion: string;
-  target: string; // exact target triple from the matrix below
-  engineProtocolVersion: 1;
-  kernelFingerprint: string;
-  typescriptVersion: "7.0.2";
-  typescriptExtractorVersion: 3;
-  egglogPath:
-    | "egglog/sigil-semantic-engine"
-    | "egglog/sigil-semantic-engine.exe";
-  typescriptPath: "typescript/tsc" | "typescript/tsc.exe";
-  files: readonly {
-    path: string;
-    sha256: string;
-    executable: boolean;
-  }[];
-}
-```
-
-If a justified extractor change is made by this plan, increment
-`TYPESCRIPT_EXTRACTOR_VERSION` and use that value consistently instead of
-leaving a false `3` in generated manifests. Packaging alone must not change
-extractor semantics or bump it unnecessarily.
-
-`files` lists every shipped runtime payload and license file except
-`manifest.json` itself. Sort by normalized relative POSIX path. Reject duplicate
-paths, absolute/traversing paths, symlinks, unknown fields/versions, invalid
-hashes, wrong platform suffixes, and files outside the runtime root. Manifest
-JSON is at most 1 MiB; at most 4,096 files; combined runtime payload size is at
-most 512 MiB. Fail packaging rather than silently pruning required files when
-these bounds are exceeded.
-
-The compiled CLI entrypoint embeds the SHA-256 of canonical `manifest.json`,
-expected Sigil version, and target triple. There is no circular hash: the
-manifest does not hash the CLI binary. Outer archive checksums cover the
-complete release archive, including the CLI.
-
-For a standalone release, runtime resolution verifies the embedded manifest
-hash, manifest schema, target, versions, and all runtime payload hashes once at
-the start of each CLI process. Keep verified state only in process memory. A
-changed or missing runtime file rejects before the tool executes. A matching
-hash is package integrity, not verification evidence.
-
-### 7.3 Runtime resolution order and API
-
-Introduce one runtime resolver used by both `engine.ts` and `typescript7.ts`. Do
-not maintain separate searches for the two tools.
-
-Use these modes:
-
-1. **Explicit library host override:** an API caller may supply a validated
-   runtime directory or existing explicit engine `binaryPath` for tests/host
-   embedding. Runtime-directory overrides validate their manifest and
-   compatibility. Existing direct engine-path tests remain possible; the engine
-   response protocol still validates normally. A direct engine path cannot
-   change the TypeScript SDK version or inject trusted observations.
-2. **Compiled standalone CLI:** the generated entrypoint configures standalone
-   mode before importing/running the CLI. Resolve the physical CLI executable
-   with `Deno.realPath(Deno.execPath())`; the runtime root is
-   `../lib/sigil/runtime` relative to its `bin` directory. Require the embedded
-   manifest identity. Never fall back to a source checkout, PATH egglog, a
-   workspace file, or an npm cache in this mode.
-3. **Source checkout:** use the existing repository-built egglog path only when
-   the module's actual local source layout and native manifest exist. TypeScript
-   uses Sigil's pinned SDK/package runtime. Source mode retains the current
-   `deno task build:semantic` actionable error.
-4. **Published library/JSR without a source layout:** require an explicit
-   runtime option or host environment variable `SIGIL_RUNTIME_DIR`. Validate the
-   directory's manifest/version compatibility. If absent, report how to
-   install/select a matching native runtime. Do not download, build, or execute
-   a guessed binary automatically.
-
-In standalone mode, `SIGIL_RUNTIME_DIR` may relocate the matching bundle only
-when it validates against the **same embedded manifest hash**. It cannot select
-an incompatible runtime to bypass a broken installation. Workspace configuration
-cannot specify runtime executables or this environment variable.
-
-Implement standalone entrypoint generation in the build script: import the
-runtime configuration function, call it with the embedded identities, then
-perform a **literal dynamic import** of the CLI entrypoint. Do not use a static
-CLI import whose top-level execution precedes runtime configuration. The
-configuration function is set-once per process; a second incompatible
-initialization fails.
-
-Continue accepting existing `SemanticEngineOptions.binaryPath` for explicit
-library/test uses. All normal public CLI paths use the shared resolver. Add an
-explicit runtime option to compiler/native-analysis API types and propagate it
-through current-world, retained-handoff, parsing, and projection operations. Do
-not read the target workspace to find tool binaries.
-
-In `analyzeTypeScript7`, instantiate the native API with:
-
-```ts
-new API({ cwd: root, tsserverPath: runtime.typescriptExecutable });
-```
-
-This option is present in the installed 7.0.2 SDK's `dist/api/options.d.ts`.
-Keep existing cancellation, transport cleanup, snapshot analysis, and
-standard-library exclusion semantics. Do not patch the SDK to use shell wrappers
-or swap in JavaScript AST inference.
-
-### 7.4 Native identity handshake and doctor command
-
-Add a small compiler-owned `runtime-info` operation to the native bridge. It
-returns protocol version, actual compiled kernel fingerprint, and bridge version
-without accepting project rules or observations. Its JSON decoder must be as
-strict and bounded as other native operations. It is not a verification verdict.
-
-After validating files, compare this handshake to the runtime manifest before
-the first native semantic operation. Protocol/version/identity mismatch is an
-operational incompatibility. Do not call it a red specification or silently
-accept another kernel.
-
-Add:
+Final Implementation invariant:
 
 ```text
-sigil doctor --format json
+exactly one implementation source file + fixed ontology + frozen Design catalog
+        ↓ independent external semanticization
+one local .egg object containing only direct facts attributable to that file
+        ↓ union with every other current local object
+Implementation graph I
+        ↓ egglog saturation
+global Implementation world I*
 ```
 
-The command does not require a configured project, a proposal provider, or
-credentials. Return:
-
-```ts
-interface RuntimeDoctorResultV1 {
-  version: 1;
-  ok: boolean;
-  mode: "standalone" | "source" | "explicit";
-  target: string;
-  sigilVersion: string;
-  kernelFingerprint?: string;
-  typescriptVersion?: string;
-  checks: readonly {
-    id: string;
-    ok: boolean;
-    message: string;
-  }[];
-}
-```
-
-Doctor validates runtime files/handshake, opens a temporary TypeScript project
-through the native API, verifies a known resolved direct call and a required
-standard-library type, then cleans up. It must exercise the actual SDK and
-native compiler, not just execute `--version`. Exit 0 for a fully working
-runtime, 3 for an operational failure, 130 for cancellation. `ok: true` means
-runtime readiness only, never project semantic green.
-
-Use a 30-second total doctor deadline, inherited cancellation, and existing
-subprocess cleanup. Package its tiny source fixture as compiler-owned data. It
-must not read or modify target project state.
-
-### 7.5 Platform build matrix
-
-Build each archive on the matching OS and CPU architecture. Remove the current
-single-Linux-job loop that cross-compiles only the Deno executable and omits
-native companions.
-
-| Archive target              | CI runner          | TypeScript platform package                 |
-| --------------------------- | ------------------ | ------------------------------------------- |
-| `x86_64-unknown-linux-gnu`  | `ubuntu-24.04`     | `@typescript/typescript-linux-x64@7.0.2`    |
-| `aarch64-unknown-linux-gnu` | `ubuntu-24.04-arm` | `@typescript/typescript-linux-arm64@7.0.2`  |
-| `x86_64-apple-darwin`       | `macos-15-intel`   | `@typescript/typescript-darwin-x64@7.0.2`   |
-| `aarch64-apple-darwin`      | `macos-15`         | `@typescript/typescript-darwin-arm64@7.0.2` |
-| `x86_64-pc-windows-msvc`    | `windows-2025`     | `@typescript/typescript-win32-x64@7.0.2`    |
-
-The runner labels and architecture distinction are documented in the
-[GitHub-hosted runner reference](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
-These are the intended matrix entries; a runner/service availability failure is
-a failed prerequisite, not permission to mark that target tested on another CPU.
-Assert the actual OS/architecture at the start of each job.
-
-The workflow must expose `workflow_dispatch` inputs `version` (required) and
-`publish` (boolean, default `false`). A validation run uses the exact CLI manifest
-version with `publish=false`; it executes every build, archive smoke, cancellation
-fixture, source-independent artifact consumer, and installer consumer, uploads
-their summaries, and skips the `publish` job. A tag named `cli-v<version>` or an
-explicit dispatch with `publish=true` may run the final publish job after all five
-targets pass. Never use a validation dispatch to publish a release, and never
-claim a target passed from a build job that did not execute on that target's
-specified runner.
-
-For each matrix entry:
-
-1. Install the pinned build toolchain.
-2. Resolve locked Sigil dependencies and the exact TypeScript platform package.
-   Verify package name/version/integrity against committed lock metadata; do not
-   scrape a user's global cache path.
-3. Build Rust with `--release --locked` for the matrix target. Keep
-   kernel/bridge/rule/schedule source line endings LF in Git/build inputs so
-   platform checkout conversion does not accidentally change semantic identity.
-4. Create an isolated per-target staging directory. The script takes
-   `--target <triple>` and `--output <directory>`; it does not recursively erase
-   a caller-supplied existing output directory. Use a unique child staging
-   directory and clean up only that child.
-5. Copy the native engine, exact TypeScript platform `lib` contents, required
-   licenses/notices, and valid bundled skills. Compute the runtime manifest from
-   actual staged bytes and native handshake.
-6. Generate the standalone entrypoint with that manifest identity. Compile the
-   CLI with read/write/run/env permissions required by existing behavior. Do not
-   keep the current release-only `--allow-env=HOME,USERPROFILE` restriction when
-   the runtime/provider paths need other host environment values; use the same
-   `--allow-env` capability as the source CLI. Do not add network permission to
-   the Sigil process for package downloads at runtime.
-7. Run the isolated archive smoke tests below before archiving. Preserve
-   executable permissions and LF source fixtures. On Windows use the proper
-   `.exe` suffixes.
-8. Produce `.tar.gz` on Linux/macOS and `.zip` on Windows with the existing
-   release asset names. Generate SHA-256 checksums for actual archive bytes.
-9. Upload tested archives and machine-readable test summaries as CI artifacts. A
-   separate release job combines all five successful results, builds the
-   combined checksums file and installer scripts, and only then publishes under
-   the existing explicit release trigger.
-
-Archive assembly can vary in compression timestamps; do not claim bit-for-bit
-reproducible archives unless tested. Runtime manifest ordering, content hashes,
-package versions, and semantic identities must be deterministic for the same
-staged bytes.
-
-### 7.6 Installer behavior
-
-Update both `install.sh` and `install.ps1` to install the entire bundle layout.
-Preserve the existing supported public environment variables and archive names.
-
-Required behavior:
-
-- Verify the release archive checksum before extraction.
-- Extract into a newly created temporary directory. Reject archive entries that
-  escape the extraction root or introduce links outside it. Validate the
-  expected top-level `sigil-<version>` directory and required runtime/CLI files.
-- Install into an immutable version-and-manifest-specific directory under the
-  configured install root. Use `<version>-<first16-of-runtime-manifest-hash>`;
-  if that directory already exists, validate its full manifest identity and
-  files. Reuse an identical valid installation. A different/corrupt existing
-  installation is an error, never `rm -rf` of the active version.
-- Run the staged/new version's `doctor --format json` before switching the
-  public wrapper. If doctor fails, the previous wrapper and installation stay
-  usable.
-- Replace the public wrapper atomically using the platform's existing supported
-  wrapper style, pointing to the exact immutable version directory. Quote paths
-  and forward argument boundaries correctly; do not evaluate user arguments as
-  code.
-- On Windows, a locked destination/wrapper replacement failure is reported and
-  leaves the previous working installation selected. Do not delete the old
-  wrapper before a replacement exists.
-- Retain previous installations. This scope does not add automatic garbage
-  collection or uninstall old versions.
-- Never download additional runtime files after installation or mutate the
-  installed bundle during verification.
-
-Add local archive/checksum inputs to the installer test seam so tests do not
-require a GitHub release or network. Name them `SIGIL_ARCHIVE_PATH` and
-`SIGIL_CHECKSUMS_PATH`; require both together. They are explicit local files,
-and still undergo the same checksum/layout/doctor validation as downloaded
-archives. Never bypass checks in a test mode.
-
-### 7.7 Published libraries and VS Code packaging
-
-The standalone archive is the turnkey CLI distribution. JSR libraries remain
-valid library distributions with explicit native-runtime requirements; do not
-pretend that publishing TypeScript source includes executables.
-
-Update publish metadata to include any new pure/runtime/protocol source modules
-and required documentation. Add `compiler`, `codex-adapter`, and
-`claude-adapter` to the existing JSR release selection alongside its current
-entries, with the corresponding manifest directories and tag prefixes. Preserve
-the dependency order: core, compiler, adapters, CLI; extension release follows
-compatible CLI availability. Do not automatically publish any package from local
-verification.
-
-For JSR use, document `SIGIL_RUNTIME_DIR` or the explicit API runtime option
-with the matching installed runtime directory. Add a local
-publish-content/consumer fixture that imports the staged package and verifies
-the explicit-runtime path. Missing native runtime must produce a precise setup
-error rather than an attempted path inside a JSR cache.
-
-The repository fixture is `scripts/fixtures/published-consumer/consumer.ts` and
-its harness is `scripts/test-published-runtime.ts`. Run it against an extracted
-runtime bundle with:
-
-```sh
-deno task test:published-runtime \
-  --runtime /path/to/sigil-<version>/lib/sigil/runtime
-```
-
-The harness copies only the publishable Core and Compiler contents to a
-temporary staged package, imports the Compiler through its package name, proves
-that an omitted runtime is rejected, then proves that the explicit directory
-passes the native handshake and TypeScript doctor checks. It deletes the
-temporary stage when the command exits.
-
-The VS Code VSIX continues shipping the Node language server and invoking an
-external compatible Sigil CLI. Do not ship another egglog/TypeScript native
-runtime inside the VSIX. Validate compatibility through CLI version/doctor
-output before semantic actions, cache only that process/runtime identity, and
-invalidate the cache when the executable setting or binary metadata changes.
-
-### 7.8 Release smoke tests
-
-Add `scripts/test-cli-release.ts` plus fixture data under a dedicated test
-fixture directory. Tests consume an **extracted archive**, not source module
-entrypoints.
-
-Run all of these on every target:
-
-| ID  | Required test                                                                                                                                                                                                                                                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| R01 | Move the extracted distribution to a path containing spaces and Unicode. Run version and doctor successfully from an unrelated directory.                                                                                                                                       |
-| R02 | Run in a fresh process with source checkout, developer npm/Deno caches, and compiler executables unavailable. The test harness may use its own absolute executable path, but the child CLI cannot depend on it.                                                                 |
-| R03 | On every target, run doctor/design/TypeScript fixtures with empty runtime caches and no provider credentials or Deno network permission. Additionally, run the Linux x64 archive smoke job inside a container with `--network none` to establish enforced offline execution.    |
-| R04 | Reconstruct accepted assertions without original Turtle or caches and produce the known semantic diagnostics with the real packaged engine.                                                                                                                                     |
-| R05 | TypeScript analysis resolves a direct call and a standard-library type using the packaged native executable and adjacent libraries.                                                                                                                                             |
-| R06 | Retained handoff/receipt fixtures produce expected green/yellow/red outcomes. No target `node_modules` is needed. For a mandatory external check, provide an independently compiled tiny fixture executable with an explicit path; do not depend on Deno or Node being on PATH. |
-| R07 | Missing engine, altered engine byte, missing TypeScript library, wrong runtime target/version, or mismatched manifest hash rejects before a completed verification verdict.                                                                                                     |
-| R08 | Cancellation/timeout terminates native children and permits temporary directory removal on that platform.                                                                                                                                                                       |
-| R09 | Local installer inputs install, doctor-check, and select the new version; a bad checksum/doctor failure leaves the prior working installation selected.                                                                                                                         |
-| R10 | Reinstalling an identical version reuses it; corrupt/conflicting installed contents are not silently overwritten.                                                                                                                                                               |
-| R11 | Relocating the complete bundle works. Copying only `bin/sigil` without its runtime gives a precise missing-runtime error.                                                                                                                                                       |
-| R12 | The published-library fixture works only with an explicit compatible runtime and gives an actionable error without one.                                                                                                                                                         |
-
-For R02/R03, add a separate artifact-consumer smoke job for every matrix target.
-It downloads only the tested archive, precompiled test harness/check executable,
-and fixture data; it does not check out the repository, install
-Node/Deno/Rust/npm, or restore developer caches. The harness sets fresh
-child-only home/cache directories and a PATH containing only the explicit
-fixture executables plus required system directories. Build the harness itself
-ahead of time as a compiled executable for that target, so it does not require a
-runtime in the smoke job. Reject test setup if the expected source layout or
-dependency cache is present inside those fixture roots. Do not rename/delete the
-actual development checkout or global home/cache to simulate isolation.
-
-Place test-only failing executable shims for `deno`, `node`, `npm`, `npx`,
-`cargo`, `rustc`, `tsc`, and `tsgo` first on the smoke child's PATH. Use the
-precompiled fixture executable with an invocation-name mode for these shims;
-each records an unexpected invocation and exits nonzero. Assert no shim was
-called. Packaged TypeScript is invoked by its explicit absolute runtime path, so
-this does not block the required native compiler. This prevents a hosted
-runner's preinstalled developer tools from accidentally satisfying the test.
-
-The repository implementation of this contract is
-scripts/fixtures/release-consumer/main.rs. Compile it with the pinned Rust
-toolchain on the same runner and target as the archive. When invoked under its
-normal name it accepts --distribution and --fixture, creates the isolated
-home/cache and hostile PATH, runs version/doctor/semantic-design checks, and
-reports a machine-readable result. It copies itself to each forbidden tool name
-(deno, node, npm, npx, cargo, rustc, tsc, and tsgo, with the platform
-executable suffix when required). It detects that invocation name, records it
-through SIGIL_SHIM_MARKER, and exits 97. The build artifact stores the compiled
-executable under consumer/ and the two fixture files under fixture/project/.
-The consumer job downloads those paths, extracts the archive, and invokes the
-executable without a checkout.
-
-The same consumer job runs the matching local installer with
-SIGIL_ARCHIVE_PATH and SIGIL_CHECKSUMS_PATH, checks a successful doctor and
-wrapper selection, reinstalls the identical manifest, then corrupts the
-installed manifest and asserts that a subsequent install fails while the
-previous wrapper remains usable. Unix targets execute install.sh; Windows
-executes install.ps1 through PowerShell. These installer checks use explicit
-temporary install/bin roots and never contact a release service.
-
-For R08, use scripts/fixtures/uncooperative-engine/main.rs as the native
-child. Compile it with the same pinned Rust toolchain and target as the release
-archive, pass its absolute path as SIGIL_UNCOOPERATIVE_ENGINE, and run the
-existing semantic_runtime_test.ts timeout/cancellation case with write/read/run
-permissions. The helper consumes the request and remains alive until the
-bridge terminates it; the test must observe both the timeout and caller abort,
-reap the child, and remove its temporary directory. On a normal Linux source
-test without that variable, retain the shell fallback. On Windows the matrix
-must set the variable so the test is not skipped.
-
-The additional Linux x64 offline job runs the same archive/harness/fixtures in
-an Ubuntu 24.04 container using `--network none`, without mounting the checkout
-or host caches. Build/pull the container image before disabling network.
-Windows/macOS/ARM jobs establish native execution with absent source/developer
-caches; they do not claim OS-enforced network isolation. Report that distinction
-exactly. All five native smoke jobs and the additional Linux offline job are
-mandatory; a missing runner blocks the corresponding case rather than being
-replaced by another platform's result.
-
-## 8. Format, identity, and invalidation audit
-
-### 8.1 Version boundaries are separate
-
-Do not use one product version string as a substitute for every data/protocol
-identity. Record and validate these independently:
-
-| Boundary                 | Required identity / compatibility rule                                                                                                |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Outer artifact bundle    | Existing manifest version 1 and exact payload hashes; unknown versions reject.                                                        |
-| Canonical state receipt  | Add receipt version 2 below; read version 1 for compatibility.                                                                        |
-| Assertion encoding       | Explicit `assertionFormatVersion: 1`; restricted fixed assertion forms only.                                                          |
-| Normalized fact identity | Explicit `identityVersion: 1`; no lexical normalization changes in this plan.                                                         |
-| Ontology vocabulary      | Explicit `ontologyVersion: 1`; no new vocabulary in this plan.                                                                        |
-| Native protocol          | Existing protocol version plus the defined runtime-info operation; strict request/response schemas.                                   |
-| Semantic kernel          | Actual compiled kernel fingerprint including fixed rules/schedule/bridge dependency identity.                                         |
-| TypeScript observations  | SDK version, extractor version, effective project options, actual analyzed input hashes, and runtime identity in evidence provenance. |
-| Human views              | View receipt version and renderer version; a renderer change invalidates projection bytes/metadata, not accepted facts.               |
-| Proposal payload         | Purpose-specific transport version 1; provider process identity does not confer semantic authority.                                   |
-| Beam checkpoint          | Existing schema plus exact context/answer identities; replay always recomputes results.                                               |
-| Runtime distribution     | Runtime manifest version, target, versions, manifest hash, and individual payload hashes.                                             |
-| Reports/editor transport | Existing supported report/event versions; new incompatible shapes require explicit version changes and readers updated together.      |
-
-Use constants exported from the owning module, not repeated literal version
-strings spread through CLI/tests/docs. The native fingerprint is read from the
-actual native bridge, not a compiler-side handwritten string.
-
-### 8.2 Canonical state receipt version 2
-
-The existing outer world bundle and `world/current.json` pointer stay at their
-current version. Add only this explicit receipt variant under bundle metadata:
-
-```ts
-interface SemanticStateReceiptV2 {
-  version: 2;
-  assertionFormatVersion: 1;
-  identityVersion: 1;
-  ontologyVersion: 1;
-  worldFingerprint: string;
-  sourceFingerprint: string;
-  componentBindings: Readonly<Record<string, string>>;
-}
-```
-
-Keep the same semantic meaning of the three existing fields and component
-binding map. Managed view metadata is not stored as accepted assertions or
-required to read the world.
-
-Read v1 receipts as the documented legacy format/identity/ontology version 1.
-Validate their existing behavior without mutating files during reads. New
-acceptance writes v2. Unknown versions reject with the exact unsupported
-version; never assume a future version is compatible because its JSON looks
-familiar.
-
-Add an explicit metadata migration command:
-
-```text
-sigil semantic migrate <root> --format json
-sigil semantic migrate <root> --write --expected-revision <revision>
-```
-
-This is distinct from `config migrate`. It migrates only accepted-state
-representation metadata. It does not interpret prose, modify assertions, fix a
-red world, change policy, migrate receipt claims, or choose a candidate.
-
-Algorithm:
-
-1. Read and validate the currently published state, including legacy
-   `.sigil/semantic.json`/`.sigil/worlds` state when no new pointer exists.
-2. Decode normalized assertions and render the current canonical `.egg` bytes.
-3. Produce a v2 receipt carrying the same fact/world identity, source identity,
-   and component bindings. Preview lists exact old/new receipt versions and
-   revisions.
-4. Before writing, prove equality of normalized facts, fact IDs, and world
-   fingerprint. For an existing format-1 `.egg` bundle, also require unchanged
-   canonical assertion bytes. Legacy Turtle migration may change serialization,
-   never meaning.
-5. Under the `world` OS lock, require the expected current revision and
-   atomically publish a new immutable world bundle/pointer. Do not delete old
-   revisions or legacy files.
-6. A view receipt referencing the prior metadata revision becomes stale;
-   regenerate/update its receipt through the normal view command. Do not
-   silently change it during state migration.
-7. Existing retained handoffs remain bound to their original content. Do not
-   rewrite them to match a new current revision.
-
-A future change to literal normalization, blank-node identity, ontology, or
-assertion syntax requires another explicit design/version migration. Do not
-implement such a change under this metadata-only migration.
-
-### 8.3 Required invalidation behavior
-
-Audit `artifact-recording.ts`, `artifacts.ts`, `store.ts`,
-`semantic/profile.ts`, `beam.ts`, `handoff.ts`, `verification.ts`, and
-`verify-return.ts` against this table:
-
-| Changed input                                                                   | Must be recomputed/rejected                                                                               | Must remain unchanged                                       |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Accepted assertions                                                             | Semantic closure, scope/obligations, intent context, current-world verification, generated views          | Older immutable revisions and retained handoffs             |
-| Accepted source/binding metadata only                                           | World revision dependent context/aliases, beams, view receipt, current-world run identity                 | Same assertion bytes and normalized fact identity           |
-| Fixed kernel/rule/schedule/bridge identity                                      | Closure, search results, obligations, verification; incompatible retained handoffs reject                 | Accepted assertion files                                    |
-| TypeScript SDK/extractor or runtime payload                                     | Fresh native evidence/check provenance and dependent verification; reject incompatible analyzer contracts | Accepted world meaning                                      |
-| Compiler options, declaration input, source bytes, modes, links, or host policy | Relevant native/check evidence and current verification                                                   | Unchanged asserted facts                                    |
-| Required check command/args/oracle bytes                                        | Handoff/policy validation and actual mandatory check execution                                            | Unrelated accepted facts                                    |
-| Returned receipt bytes or location sidecar                                      | Receipt ingestion/location resolution/outcomes and run identity                                           | Full independently required obligation set                  |
-| Renderer version or generated file bytes                                        | View inspection/publication and workspace drift reporting                                                 | Kernel proof rules, asserted facts, code observations       |
-| Provider/model configuration                                                    | Future proposal invocation/context provenance                                                             | Existing accepted meaning and deterministic compile verdict |
-| Report format                                                                   | Report serialization/readers and compatible document outputs                                              | Underlying accepted facts or native observation truth       |
-
-The current semantic profile fingerprint includes a literal kernel marker.
-Replace that shortcut with the actual resolved kernel fingerprint passed into
-profile identity construction. Keep identity resolution under the caller's
-execution budget. Do not spawn a second engine per stage solely to rediscover
-the same identity.
-
-Record the actual runtime manifest identity in newly collected evidence/run
-dependencies. Runtime binary hashes may differ across platforms even when the
-kernel/SDK contract is compatible. Do not make a platform-specific archive hash
-the semantic identity of a world or automatically rewrite handoff entity IDs.
-Validate the frozen kernel/analyzer contract, then record the runtime actually
-used for the new evidence.
-
-For source mode, record identities for the actual built engine, pinned SDK and
-relevant library inputs. Do not claim that a version string alone fingerprints
-modified local runtime bytes. Retain the existing checks for external
-non-default declaration inputs. Ensure packaged default library contents are
-covered by runtime identity.
-
-On every verification invocation, recollect the required host evidence and rerun
-required checks. A matching disk cache remains documentary. This plan does not
-implement authenticated proof caches or skipping tool execution based on stored
-green.
-
-### 8.4 Audit fixtures
-
-Add focused cases to `compile_artifacts_test.ts`, `semantic_runtime_test.ts`,
-handoff/verification tests, and new runtime/view tests:
-
-- I01: v1 and v2 accepted state read without writes; unknown
-  receipt/identity/format versions reject.
-- I02: explicit v1-to-v2 migration preserves facts, IDs, world fingerprint and
-  format-1 assertion bytes; interrupted publication leaves a readable prior or
-  new revision.
-- I03: migration preview writes nothing; a stale expected revision rejects;
-  repeat migration is a no-op.
-- I04: deleting optional Turtle, views, runs and derived caches does not prevent
-  accepted-world reconstruction and retained verification.
-- I05: kernel change invalidates results/handoff compatibility without rewriting
-  accepted assertions.
-- I06: renderer change affects view identity/drift only, not fact IDs or world
-  fingerprint.
-- I07: SDK/extractor/runtime/library changes cannot reuse old evidence; actual
-  runtime provenance appears in new artifacts.
-- I08: metadata-only world changes invalidate beams/current context while
-  preserving assertion bytes.
-- I09: changing receipts never narrows obligations; matching hashes alone never
-  populate trusted tables.
-- I10: a wrong per-receipt result does not erase independent coverage; an
-  unmentioned real violation still dominates.
-- I11: current-world and retained paths preserve freshness and whole-run
-  deadline behavior after shared context/runtime refactoring.
-- I12: report/editor/history readers handle the supported compatibility versions
-  and reject unknown incompatible versions.
-
-## 9. Interrupted beam-write recovery
-
-### 9.1 Replace the directory lock
-
-`beam-store.ts` currently creates `<beam>.json.lock` as a directory. A process
-crash can leave that directory permanently blocking subsequent writes. Replace
-it with `withCompileArtifactLock(root, "beam-" + name, ...)`, using a permanent
-lock file under `.sigil/cache/locks`.
-
-Do not create/delete lock files per write. Waiting processes must coordinate on
-the same inode. Validate the beam name with the existing 1–64 character rule
-before using it in a lock name or path.
-
-Update the common lock helper to accept cancellation and a finite acquisition
-deadline without leaking a pending lock waiter. For this implementation, await
-`file.tryLock(true)` in a bounded loop with an abortable 25 ms delay. A returned
-`false` means contention; thrown permission/I/O errors propagate. Default lock
-acquisition cap is 5,000 ms or the smaller remaining caller budget. Close the
-file handle on cancellation/error. A process that never acquired the lock must
-not call unlock. Keep the existing `finally` unlock/close path for acquired
-locks. The pinned Deno toolchain exposes this nonblocking API; do not replace it
-with a race against an uncancellable blocking lock promise.
-
-Propagate this bounded lock option to new view/config/state-migration writes.
-Preserve existing world-store callers through defaults. Do not hold a views lock
-while waiting to acquire world; global lock order remains world before views.
-
-### 9.2 Preserve the existing beam format
-
-Keep the current beam JSON checkpoint schema and content-derived revision
-contract. No format rewrite is needed solely to change the lock.
-
-A write must:
-
-1. Validate the checkpoint and name.
-2. Acquire the OS lock within the remaining budget.
-3. Reread the current checkpoint and compare the exact expected revision,
-   including `undefined` for first creation.
-4. Write complete bytes to a unique temporary file on the same filesystem, flush
-   and close it, then atomically replace the beam JSON file.
-5. Clean up only that write's temporary file in `finally` when it still exists.
-6. Return the actual stored content-derived revision.
-
-Readers must `lstat` before reading, reject symlinks/nonregular files, and
-enforce the 16 MiB **byte** bound before allocating the entire file. Continue
-strict checkpoint schema validation. Reading a checkpoint returns asserted
-state/answers only; replay recomputes closure and never restores a saved green.
-
-A hard-killed writer may leave an orphan temporary file. It must not block
-reads/writes or be treated as a checkpoint. Automatic broad cache cleanup is out
-of scope. The old lock directory is ignored by the new implementation and is
-never interpreted as authority. Do not automatically delete an old lock
-directory: an older executable could still be using it. Document that concurrent
-writers using old and new executable versions are unsupported during this
-one-time lock migration; all active writers must use the upgraded CLI.
-
-### 9.3 Recovery tests
-
-Add `packages/compiler/tests/beam_store_test.ts` using real subprocesses, not
-only injected exceptions:
-
-- B01: kill a writer after acquiring the OS lock; a subsequent writer can
-  acquire and proceed within its deadline.
-- B02: kill after temporary-file completion but before replacement; prior
-  checkpoint remains valid and orphan temp is ignored.
-- B03: kill after replacement; new checkpoint is complete and replayable.
-- B04: two writers sharing an expected revision yield one success and one
-  stale-revision failure, never combined answers or partial JSON.
-- B05: a reader racing publication sees either complete old or complete new
-  content, never an accepted partial checkpoint.
-- B06: lock contention times out/cancels without leaving a delayed waiter that
-  later acquires an abandoned handle.
-- B07: legacy checkpoint JSON remains readable; an old leftover lock directory
-  does not block the new path.
-- B08: malformed/oversized/symlink beam files reject before trusted replay.
-- B09: tests execute on Linux, macOS and Windows, and assert process/file
-  cleanup on each.
-
-Use a test-only synchronization channel to stop the child at the desired write
-phase. Do not add a production environment variable that pauses writers or
-bypasses locking.
-
-## 10. Implementation order and semantic commits
-
-Implement the following groups in order. Each group updates its governing
-`.sigil` contracts, source, focused tests, and relevant public docs together
-under the user's already established workflow authorization. Do not leave a
-group half-integrated and claim it is usable.
-
-| Group / suggested commit                                                              | Exact contents                                                                                                  | Must pass before commit                                                                                                                                                        |
-| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| S01 `feat(compiler): centralize semantic context and canonical target identity`       | Shared context/registry; preserve source extraction and exact handoff targeting; no installed files yet         | Existing compiler/CLI tests and component-registry unit tests for virtual targeting, exact identity, ambiguity and no source feedback; full installation V-cases belong to S02 |
-| S02 `feat(compiler): install and inspect managed Sigil views`                         | Pure per-entity renderer, tracked view receipt/files, CLI write/check/recover, recoverable transaction          | V01–V16, relevant source/projection/artifact suites, CLI tests                                                                                                                 |
-| S03 `feat(providers): add strict semantic proposal transports`                        | Purpose schemas/decoder, four provider implementations, reused framing/lifecycle, no evaluator dependency       | P01–P07/P09–P10 and all existing adapter suites                                                                                                                                |
-| S04 `feat(cli): configure semantic providers and migrate legacy settings`             | Provider factory/flags, separate config namespace, authoring/preview/CAS migration, deprecations                | P08, C01–C09, core schema parity and CLI suites                                                                                                                                |
-| S05 `feat(editor): expose semantic handoff workflows and generated views`             | Native VS Code commands, bounded CLI transport, LSP companion navigation, stale-result handling                 | E01–E09/E11, extension unit tests, LSP suite and extension-host tests                                                                                                          |
-| S06 `docs(skills): migrate ordinary workflows to deterministic semantic verification` | Repository skill, compatibility/evals, README/schema/workflow changes, legacy resource labeling                 | E10, skill validator/evals, CLI example fixtures                                                                                                                               |
-| S07 `feat(runtime): resolve and validate pinned native runtime bundles`               | Manifest/resolver, SDK explicit path, native handshake, doctor, source/JSR compatibility                        | Runtime unit tests and native/typecheck integration against locally staged manifests; full archive R-cases belong to S08                                                       |
-| S08 `build(release): package and smoke-test complete native distributions`            | Per-target build, all payloads/licenses, immutable installer switch, CI matrix/aggregation                      | R01–R12 within the defined platform test scopes; no upload during local tests                                                                                                  |
-| S09 `fix(storage): version accepted state metadata and audit invalidation`            | Receipt v2/read compatibility/explicit migration, actual kernel profile identity, runtime evidence dependencies | I01–I12, artifact/handoff/runtime/CLI suites                                                                                                                                   |
-| S10 `fix(storage): make beam writes recover after process interruption`               | OS lock migration, bounded cancellable lock helper, complete checkpoint publication                             | B01–B09 and world/view/config writer regressions                                                                                                                               |
-| S11 `test(integration): validate the completed semantic migration`                    | One full fixture through the public interfaces, final docs consistency and requirement report                   | All completion gates in section 11                                                                                                                                             |
-
-S02 needs cancellable lock behavior described in section 9. Implement that
-common helper when first needed in S02, test its basic deadline/cancellation
-there, and let S10 own the beam-specific migration and hard-kill tests. Do not
-temporarily ship a view writer with an unbounded lock wait.
-
-S08 can create the release script/workflow changes before every remote matrix
-result is available, but do not mark the release objective complete until all
-required target evidence exists. Keep the outstanding target cases explicit in
-the tracker.
-
-Every commit must be reviewable on its own. Use selective staging. Never commit
-the private tracker, test logs, credentials, installed dependency trees,
-unrelated untracked files, or target-project operational receipt bundles.
-
-## 11. Completion gates and final report
-
-### 11.1 One complete public-interface fixture
-
-Add a single integration fixture proving the migrated experience without a live
-model service:
-
-1. Initialize a temporary configured project with a small authored component and
-   TypeScript project. Use no installed project packages.
-2. Configure a fake command provider and submit an intent that adds a second
-   canonical component not represented in authored source.
-3. Exercise an ambiguous beam, inspect the exact proposition, answer it, and
-   accept the selected green world.
-4. Install managed views; verify the source fingerprint and canonical facts did
-   not change because of generation.
-5. Target both the existing authored component and the new component through
-   their generated views and canonical identities.
-6. Create an exact handoff using host policy; independently retain its ID.
-7. Prepare a returned checkout fixture with supported code and claims. This is
-   fixed test data, not a coding-agent implementation loop.
-8. Import receipts and verify; assert separate per-claim and full-scope outcomes
-   with real TypeScript 7 and egglog.
-9. Change a receipt location to a decoy function; confirm the wrong receipt
-   cannot borrow another function's witness while independent coverage remains
-   correctly computed.
-10. Introduce an unmentioned prohibited dependency or a failed mandatory check;
-    assert red.
-11. Introduce opaque behavior with insufficient evidence; assert yellow, not
-    green by optimism.
-12. Edit a generated view and forge its documentary receipt; assert view drift
-    rather than new accepted meaning.
-13. Exercise a view-write interruption and beam-write interruption and recover
-    according to their respective explicit algorithms.
-14. Migrate a legacy config and accepted-state receipt using preview then CAS
-    write; assert expected compatibility/invalidation behavior.
-15. Run the packaged archive variant and editor fake-CLI variant so the final
-    fixture is not only an in-process API demonstration.
-
-### 11.2 Required validation commands
-
-Run package tests from their package working directory using the root tasks that
-already supply it. Do not run the combined compiler/CLI test tree from the
-repository root and mistake cwd-dependent fixture failures for product defects.
-
-At final integration, execute:
-
-```sh
-deno task fmt
-deno task lint
-deno task check
-deno task test:core
-deno task test:compiler
-deno task test:compiler-adapter-codex
-deno task test:compiler-adapter-claude
-deno task test:compiler-adapter-pi
-deno task test:compiler-adapter-opencode
-deno task test:cli
-deno task test:lsp
-deno task test:skill
-deno task test:vscode
-deno task test:vscode:extension
-deno task test:published-runtime --runtime /path/to/sigil-<version>/lib/sigil/runtime
-```
-
-Install the extension's locked development dependencies through the existing
-task before extension checks. On Linux, use the existing Xvfb test path for
-extension-host tests. Run native `cargo fmt --check` and
-`cargo clippy --locked -- -D warnings` from `packages/compiler/native` using the
-pinned toolchain. Run the relevant publish dry runs, VSIX packaging, and the
-per-target release smoke matrix. These commands validate tooling; installing
-Sigil's development dependencies does not authorize target-package world
-capture.
-
-Tests should target observable behavior, trust boundaries, concurrency, and
-packaging failures. Do not inflate counts with tests that merely duplicate
-private implementation details. Existing tests may be updated where the
-documented CLI deprecation or explicit version change requires it, but preserve
-their underlying behavioral guarantees.
-
-### 11.3 Final requirement report
-
-Create committed `docs/semantic-migration-completion.md` when implementation
-finishes. It is a product validation report, not the private operational
-tracker. Include:
-
-- Commit range and exact tested dependency/runtime versions.
-- A table mapping every V/P/C/E/R/I/B case and the full integration fixture to
-  its test file, platform, and executed result.
-- Actual command results and CI artifact/run references. Do not commit raw
-  machine-local logs just to provide a report.
-- Supported archive targets and the exact offline/isolation test scope.
-- Explicit compatibility behavior for legacy configuration/state/exports and
-  unsupported future versions.
-- Public usage for provider configuration, intent/answer/accept, projection
-  check/write/recovery, handoff/import/verification, runtime doctor, and
-  metadata migration.
-- Remaining intentional limitations: supported static evidence only, no
-  installed-package capture/staging, external coding-loop ownership, optional
-  external providers/check tools.
-
-Do not claim completion while any required implementation or acceptance case is
-open, failed, or blocked. A missing cross-platform runner is an honest blocked
-test, not a successful platform. Distinguish an intentional excluded feature
-from an unfinished required deliverable.
-
-Do not add another backlog of speculative semantic features to this report. When
-the four workstreams and their gates are complete, this remaining-scope plan is
-complete.
-
-## 12. Private implementation tracker: location and operating procedure
-
-### 12.1 Where it is
-
-The private operational tracker is **`<repository-root>/.codex-progress/`**.
-
-In the current workspace its absolute path is:
-
-```text
-/home/keyvan/sigil/.codex-progress/
-```
-
-It is separate from the target project's product artifacts under `.sigil/`. Do
-not move it into `.sigil/world`, `.sigil/receipts`, a generated view, a release
-archive, or a published package.
-
-The tracker is local operational memory for the implementing agent/engineer.
-**Never commit it.** `compile.md` is the committed specification; the tracker
-records execution against it. A future clone may not have the tracker and must
-recreate local execution state from this document and Git history.
-
-Current layout:
-
-```text
-.codex-progress/
-  README.md          # local resume/update instructions
-  state.json         # current workstreams/tasks, blockers, next action, processes
-  requirements.md    # current remaining-scope checklist and acceptance evidence
-  record.py          # append an event and update phase/next/commit metadata
-  journal.jsonl      # historical observations and execution outcomes
-  logs/              # raw command/test output, ignored
-```
-
-Obsolete draft implementations, old requirements archives containing superseded
-tasks, and deprecated next-action lists have been removed. Do not recreate an
-archived patch helper or dependency-staging design. Completed product history
-and test logs may remain as evidence; they are not a backlog.
-
-### 12.2 Git exclusion
-
-The existing checkout excludes `/.codex-progress/` through `.git/info/exclude`.
-This is intentionally a local exclusion rather than a committed product ignore
-rule.
-
-On resume, verify:
-
-```sh
-git check-ignore -v .codex-progress/state.json .codex-progress/requirements.md
-git ls-files -- .codex-progress
-```
-
-The first command must show the local exclusion. The second must print no
-tracked files. Before every commit, inspect staged paths and ensure the tracker
-is absent:
-
-```sh
-git diff --cached --name-only
-```
-
-For a new checkout, create the directory and add one `/.codex-progress/` line to
-the path returned by `git rev-parse --git-path info/exclude`. Preserve existing
-exclusion entries; do not overwrite the file. Use that Git command rather than
-assuming `.git` is a directory, because a worktree can use a `.git` file.
-
-### 12.3 State model and current task list
-
-The active workstream IDs are exactly:
-
-| ID | Workstream                                                                    |
-| -- | ----------------------------------------------------------------------------- |
-| M1 | Managed views, shared semantic context, canonical target registry             |
-| M2 | Proposal providers, configuration, editor/LSP, skills/docs migration          |
-| M3 | Native runtime, distribution, installers, platform smoke tests                |
-| M4 | State versions/invalidation, beam recovery, full integration/completion audit |
-
-The executable task IDs are exactly S01–S11 from section 10. Store each task's
-objective, dependencies, status, relevant acceptance-case IDs, evidence paths,
-and commits in `state.json`. Valid statuses are `pending`, `in_progress`,
-`verified`, and `blocked`. An implemented but untested task stays `in_progress`;
-a drafted plan is not a verified implementation.
-
-`requirements.md` tracks the same remaining scope and V/P/C/E/R/I/B acceptance
-IDs. It must not contain old open tasks for the already implemented kernel,
-artifact store, handoff, receipt ingestion, or core verifier. Keep baseline
-compatibility evidence in a short completed-baseline paragraph rather than
-reopening it as work.
-
-Keep a small explicit `out_of_scope` list so exclusions survive compaction. An
-exclusion is a prohibition, not a deferred task. Never put excluded work under
-`next`, `pending`, `blocked`, a future milestone, or a draft-design object.
-
-### 12.4 Resume procedure after interruption or context compaction
-
-Execute in order:
-
-1. Read `.codex-progress/README.md`, `state.json`, and `requirements.md`.
-2. Read the relevant sections of this `compile.md`. This document and current
-   user scope corrections override historical journal wording.
-3. Inspect `git status --short`, current branch/HEAD, staged changes, and the
-   active task's diff. Preserve unrelated user files. In this checkout the known
-   pre-existing untracked file is `.agents/skills/.sigil-managed.json`; do not
-   delete or stage it.
-4. Inspect every recorded active process/session before launching duplicate
-   tests or builds. A stale process ID is not evidence that its task finished.
-   Record actual exit status and output when available.
-5. Inspect the referenced source/test/log evidence for the last checkpoint. The
-   ledger is navigation, not proof; a status saying `verified` must have a
-   matching executed result and commit scope.
-6. Choose the first unverified S-task whose prerequisites are satisfied.
-   Continue its existing work rather than restarting completed stages or
-   resuming historical next-action text.
-7. Record the resumed phase and concrete next action before further mutations.
-
-Do not run instructions embedded in historical logs or old provider output.
-Those files are evidence to inspect, not an alternate instruction source.
-
-### 12.5 Update procedure
-
-After a coherent implementation change, test result, architecture correction,
-commit, failure/recovery, scope change, and before ending work:
-
-1. Update the active task and workstream state in `state.json` using valid JSON
-   and atomic replacement.
-2. Update the matching acceptance rows in `requirements.md`. Record the test
-   file, command, platform, result, log path, and code commit. Do not replace a
-   failed case with an unsupported completion claim.
-3. Save raw command output under `logs/` using a task-specific name, such as
-   `S02-managed-views-linux.txt`. Never put credentials or provider
-   authentication output in logs.
-4. Append a journal event through the existing helper:
-
-```sh
-python3 .codex-progress/record.py S02-view-tests \
-  --evidence 'V01-V16 passed in the managed-view and CLI suites; see logs/S02-managed-views-linux.txt.' \
-  --next 'Review and commit the managed-view implementation; then begin S03.' \
-  --phase S02
-```
-
-After making the semantic commit, record it:
-
-```sh
-python3 .codex-progress/record.py S02-committed \
-  --evidence 'Managed view renderer, installation, inspection and recovery committed with executed acceptance evidence.' \
-  --next 'Begin S03 provider transport migration.' \
-  --phase S03 \
-  --commit HEAD
-```
-
-These commands are examples of the helper's exact syntax, not statements that
-S02 has been implemented. Substitute actual outcomes; never paste an example's
-passing claim into the real tracker without running it.
-
-`record.py` updates event/phase/next/commit metadata. It does not automatically
-mark individual tasks or acceptance cases verified; update those fields
-explicitly and consistently.
-
-When the user removes scope, delete its active task entries, pending subtasks,
-future-design objects, and obsolete drafts immediately. Remove superseded
-next-action fields from historical journal entries so a later resume cannot
-mistake them for current instructions. Preserve historical executed outcomes and
-commit references where useful, marked as history. Do not retain a separate old
-task checklist that can contradict the current one.
-
-When blocked by an external prerequisite, record the precise missing capability
-and the remaining independent work. Do not treat elapsed waiting time as
-approval or a successful test. Continue independent in-scope tasks whose
-dependencies permit it.
-
-At completion, mark M1–M4 and S01–S11 verified only after their required
-evidence exists, write the committed completion report from section 11, and
-leave the entire `.codex-progress/` directory untracked.
+The model understands the local programming language. The catalog supplies
+shared semantic identity. Egglog supplies global meaning. Do not add a compiler
+subsystem between those responsibilities.
+
+**Local facts in files; global meaning in closure.**
