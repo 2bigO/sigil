@@ -6,10 +6,35 @@ import {
   type ServerOptions,
   TransportKind,
 } from "vscode-languageclient/node";
+import {
+  type CompilationEvent,
+  type CompilationProcess,
+  type CompilationReport,
+  diagnosticDisplayRange,
+  runCompilationProcess,
+} from "./compilation.ts";
+import { runSemanticCommand } from "./semantic.ts";
+
 const PREVIEW_COMMAND = "sigil.openPreview";
 const RENDER_DOCUMENT_COMMAND = "sigil.renderDocument";
 const PREVIEW_SCHEME = "sigil-preview";
+const COMPILE_COMPONENT_COMMAND = "sigil.compileComponent";
+const COMPILE_WORKSPACE_COMMAND = "sigil.compileWorkspace";
+const SELECT_COMPILATION_FOCUS_COMMAND = "sigil.selectCompilationFocus";
+const SEMANTIC_INTENT_COMMAND = "sigil.semanticIntent";
+const SEMANTIC_ANSWER_COMMAND = "sigil.semanticAnswer";
+const SEMANTIC_ACCEPT_COMMAND = "sigil.semanticAccept";
+const SEMANTIC_PROJECT_COMMAND = "sigil.semanticProject";
+const SEMANTIC_CHECK_VIEWS_COMMAND = "sigil.semanticCheckViews";
+const SEMANTIC_HANDOFF_COMMAND = "sigil.semanticHandoff";
+const SEMANTIC_IMPORT_RECEIPTS_COMMAND = "sigil.semanticImportReceipts";
+const SEMANTIC_VERIFY_RETURN_COMMAND = "sigil.semanticVerifyReturn";
+type CompilationFocus = "design" | "implementation";
 let client: LanguageClient | undefined;
+let activeCompilation: CompilationProcess | undefined;
+let displayedCompilationRoot: string | undefined;
+let displayedCompilationFocus: CompilationFocus | undefined;
+const workspaceRevisions = new Map<string, number>();
 
 // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::DocumentPreview interface,state,logic,cases
 class PreviewContentProvider implements vscode.TextDocumentContentProvider {
@@ -45,20 +70,177 @@ class PreviewContentProvider implements vscode.TextDocumentContentProvider {
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::SupportedExtensionHosts interface,constraints,cases
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::ReadOnlyEditorSupport interface,constraints
  * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,logic,constraints
+ * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface interface,state,logic,constraints,cases
  */
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  displayedCompilationRoot = undefined;
+  displayedCompilationFocus = undefined;
+  workspaceRevisions.clear();
   const output = vscode.window.createOutputChannel("Sigil", { log: true });
   const previews = new PreviewContentProvider();
+  const compilationDiagnostics = vscode.languages.createDiagnosticCollection(
+    "sigil-compile",
+  );
+  const compilationStatus = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    90,
+  );
+  compilationStatus.name = "Sigil Compilation";
+  compilationStatus.command = SELECT_COMPILATION_FOCUS_COMMAND;
+  compilationStatus.text = "$(play) Sigil Compile $(chevron-down)";
+  compilationStatus.tooltip = "Select Sigil compilation focus";
+  compilationStatus.show();
   context.subscriptions.push(
     output,
+    compilationDiagnostics,
+    compilationStatus,
     vscode.workspace.registerTextDocumentContentProvider(
       PREVIEW_SCHEME,
       previews,
     ),
     vscode.commands.registerCommand(PREVIEW_COMMAND, async () => {
       await openPreview(previews);
+    }),
+    vscode.commands.registerCommand(
+      COMPILE_COMPONENT_COMMAND,
+      async (requestedFocus?: unknown) => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || editor.document.languageId !== "sigil") {
+          await vscode.window.showInformationMessage(
+            "Open a Sigil document to compile its component.",
+          );
+          return;
+        }
+        const focus = asCompilationFocus(requestedFocus) ??
+          await resolveCompilationFocus();
+        if (!focus) return;
+        const position = editor.selection.active;
+        await compileFromEditor(
+          context,
+          output,
+          compilationDiagnostics,
+          compilationStatus,
+          editor.document.uri,
+          position,
+          focus,
+          editor.document.uri,
+        );
+      },
+    ),
+    vscode.commands.registerCommand(
+      COMPILE_WORKSPACE_COMMAND,
+      async (requestedFocus?: unknown) => {
+        const focus = asCompilationFocus(requestedFocus) ??
+          await resolveCompilationFocus();
+        if (!focus) return;
+        await compileFromEditor(
+          context,
+          output,
+          compilationDiagnostics,
+          compilationStatus,
+          undefined,
+          undefined,
+          focus,
+          vscode.window.activeTextEditor?.document.uri,
+        );
+      },
+    ),
+    vscode.commands.registerCommand(
+      SELECT_COMPILATION_FOCUS_COMMAND,
+      async () => {
+        const selected = await vscode.window.showQuickPick([
+          {
+            label: "$(symbol-interface) Design readiness",
+            description: "Active component",
+            command: COMPILE_COMPONENT_COMMAND,
+            focus: "design" as const,
+          },
+          {
+            label: "$(references) Implementation alignment",
+            description: "Active component",
+            command: COMPILE_COMPONENT_COMMAND,
+            focus: "implementation" as const,
+          },
+          {
+            label: "$(project) Design readiness",
+            description: "Workspace",
+            command: COMPILE_WORKSPACE_COMMAND,
+            focus: "design" as const,
+          },
+          {
+            label: "$(project) Implementation alignment",
+            description: "Workspace",
+            command: COMPILE_WORKSPACE_COMMAND,
+            focus: "implementation" as const,
+          },
+          {
+            label: "$(gear) Configure profile…",
+            description: "Open Sigil compilation settings",
+            command: "workbench.action.openSettings",
+          },
+        ], {
+          placeHolder: "Select the Sigil compilation focus",
+        });
+        if (!selected) return;
+        if (selected.command === "workbench.action.openSettings") {
+          await vscode.commands.executeCommand(
+            selected.command,
+            "sigil.compile",
+          );
+          return;
+        }
+        await vscode.commands.executeCommand(selected.command, selected.focus);
+      },
+    ),
+    vscode.commands.registerCommand(SEMANTIC_INTENT_COMMAND, async () => {
+      await semanticIntent(context, output);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_ANSWER_COMMAND, async () => {
+      await semanticAnswer(context, output);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_ACCEPT_COMMAND, async () => {
+      await semanticAccept(context, output);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_PROJECT_COMMAND, async () => {
+      await semanticProject(context, output, false);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_CHECK_VIEWS_COMMAND, async () => {
+      await semanticProject(context, output, true);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_HANDOFF_COMMAND, async () => {
+      await semanticHandoff(context, output);
+    }),
+    vscode.commands.registerCommand(
+      SEMANTIC_IMPORT_RECEIPTS_COMMAND,
+      async () => {
+        await semanticImportReceipts(context, output);
+      },
+    ),
+    vscode.commands.registerCommand(
+      SEMANTIC_VERIFY_RETURN_COMMAND,
+      async () => {
+        await semanticVerifyReturn(context, output);
+      },
+    ),
+    vscode.workspace.onDidChangeTextDocument((event) => {
+      if (
+        event.document.languageId !== "sigil" ||
+        event.document.uri.scheme !== "file" ||
+        event.contentChanges.length === 0
+      ) return;
+      const folder = vscode.workspace.getWorkspaceFolder(event.document.uri);
+      if (!folder) return;
+      const key = folder.uri.toString();
+      workspaceRevisions.set(key, (workspaceRevisions.get(key) ?? 0) + 1);
+      if (displayedCompilationRoot === key) {
+        markCompilationStale(
+          compilationDiagnostics,
+          compilationStatus,
+          displayedCompilationFocus,
+        );
+      }
     }),
   );
 
@@ -93,9 +275,603 @@ export async function activate(
 
 // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
 export async function deactivate(): Promise<void> {
+  activeCompilation?.cancel();
+  activeCompilation = undefined;
+  displayedCompilationRoot = undefined;
+  displayedCompilationFocus = undefined;
+  workspaceRevisions.clear();
   const running = client;
   client = undefined;
   if (running?.isRunning()) await running.stop();
+}
+
+/**
+ * @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface interface,state,logic,constraints,cases
+ * @sigil uses packages/cli/_module.sigil::SigilCli::CompilationFacade interface,constraints
+ */
+async function compileFromEditor(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+  diagnostics: vscode.DiagnosticCollection,
+  status: vscode.StatusBarItem,
+  documentUri: vscode.Uri | undefined,
+  position: vscode.Position | undefined,
+  focus: CompilationFocus,
+  preferredUri?: vscode.Uri,
+): Promise<void> {
+  const folder = await selectCompilationFolder(documentUri ?? preferredUri);
+  if (!folder) {
+    await vscode.window.showInformationMessage(
+      "Sigil compilation requires a file-backed workspace.",
+    );
+    return;
+  }
+  const dirtyDocument = dirtySigilDocument(folder);
+  if (dirtyDocument) {
+    activeCompilation?.cancel();
+    activeCompilation = undefined;
+    void vscode.window.showWarningMessage(
+      `Save ${path.basename(dirtyDocument.uri.fsPath)} before compiling Sigil.`,
+    );
+    return;
+  }
+  const folderKey = folder.uri.toString();
+  const startingRevision = workspaceRevisions.get(folderKey) ?? 0;
+  activeCompilation?.cancel();
+  diagnostics.clear();
+  displayedCompilationRoot = undefined;
+  displayedCompilationFocus = undefined;
+  const configuration = vscode.workspace.getConfiguration("sigil.compile");
+  const executable = configuration.get<string>("executable", "sigil");
+  const profile = configuration.get<string>("profile", "standard");
+  const label = compilationFocusLabel(focus);
+  status.text = `$(sync~spin) Sigil ${label}…`;
+  status.tooltip = `Focus: ${label}\nProfile: ${profile}`;
+  const targetArgs: string[] = [];
+  if (documentUri && position) {
+    targetArgs.push(
+      "--file",
+      workspaceRelativeSigilPath(folder.uri, documentUri),
+      "--position",
+      `${position.line + 1}:${position.character + 1}`,
+    );
+  }
+  const process = runCompilationProcess(
+    executable,
+    [
+      "compile",
+      folder.uri.fsPath,
+      ...targetArgs,
+      "--profile",
+      profile,
+      "--focus",
+      focus,
+    ],
+    folder.uri.fsPath,
+    (event) => showCompilationEvent(output, event),
+    (line) => output.info(line),
+  );
+  activeCompilation = process;
+  try {
+    const report = await process.result;
+    if (activeCompilation !== process) return;
+    projectCompilationReport(
+      report,
+      diagnostics,
+      status,
+      folder.uri,
+      focus,
+      profile,
+    );
+    displayedCompilationRoot = folderKey;
+    displayedCompilationFocus = focus;
+    if ((workspaceRevisions.get(folderKey) ?? 0) !== startingRevision) {
+      markCompilationStale(diagnostics, status, focus);
+    }
+    output.show(true);
+  } catch (error) {
+    if (activeCompilation !== process) return;
+    status.text = `$(error) Sigil ${label}: failed`;
+    const message = error instanceof Error ? error.message : String(error);
+    output.error(message);
+    const action = await vscode.window.showErrorMessage(
+      `Sigil compilation failed: ${message}`,
+      "Open Settings",
+    );
+    if (action === "Open Settings") {
+      await vscode.commands.executeCommand(
+        "workbench.action.openSettings",
+        "sigil.compile.executable",
+      );
+    }
+  } finally {
+    if (activeCompilation === process) activeCompilation = undefined;
+  }
+  void context;
+}
+
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
+function workspaceRelativeSigilPath(
+  folder: vscode.Uri,
+  documentUri: vscode.Uri,
+): string {
+  return path
+    .relative(folder.fsPath, documentUri.fsPath)
+    .replaceAll("\\", "/");
+}
+
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface logic,cases
+function asCompilationFocus(value: unknown): CompilationFocus | undefined {
+  return value === "design" || value === "implementation" ? value : undefined;
+}
+
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,constraints,cases
+async function resolveCompilationFocus(): Promise<
+  CompilationFocus | undefined
+> {
+  const configured = vscode.workspace.getConfiguration("sigil.compile").get<
+    "ask" | CompilationFocus
+  >("focus", "ask");
+  if (configured !== "ask") return configured;
+  const selected = await vscode.window.showQuickPick([
+    {
+      label: "Design readiness",
+      description: "Evaluate desired Sigil without implementation drift",
+      focus: "design" as const,
+    },
+    {
+      label: "Implementation alignment",
+      description: "Compare current implementation with desired Sigil",
+      focus: "implementation" as const,
+    },
+  ], {
+    placeHolder: "Select the Sigil compilation focus",
+  });
+  return selected?.focus;
+}
+
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,cases
+export function compilationFocusLabel(focus: CompilationFocus): string {
+  return focus === "design" ? "Design" : "Implementation";
+}
+
+function dirtySigilDocument(
+  folder: vscode.WorkspaceFolder,
+): vscode.TextDocument | undefined {
+  const folderKey = folder.uri.toString();
+  return vscode.workspace.textDocuments.find((document) =>
+    document.isDirty &&
+    document.languageId === "sigil" &&
+    document.uri.scheme === "file" &&
+    vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString() ===
+      folderKey
+  );
+}
+
+async function semanticRoot(): Promise<vscode.WorkspaceFolder | undefined> {
+  return await selectCompilationFolder(
+    vscode.window.activeTextEditor?.document.uri,
+  );
+}
+
+function semanticExecutable(): string {
+  return vscode.workspace.getConfiguration("sigil.compile").get<string>(
+    "executable",
+    "sigil",
+  );
+}
+
+async function semanticIntent(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  if (dirtySigilDocument(folder)) {
+    await vscode.window.showWarningMessage(
+      "Save Sigil documents before proposing semantic intent.",
+    );
+    return;
+  }
+  const text = await vscode.window.showInputBox({
+    prompt: "Describe the desired semantic change",
+  });
+  if (!text?.trim()) return;
+  try {
+    const result = await runSemanticCommand(
+      semanticExecutable(),
+      [
+        "semantic",
+        "intent",
+        folder.uri.fsPath,
+        "--text",
+        text,
+        "--format",
+        "json",
+      ],
+      folder.uri.fsPath,
+    );
+    context.workspaceState.update(
+      `${folder.uri.toString()}:lastBeam`,
+      result.beam ?? result.beamId,
+    );
+    output.appendLine(JSON.stringify(result));
+    await vscode.window.showInformationMessage(
+      "Semantic intent proposals are ready. Review the exact question in the Sigil output.",
+    );
+  } catch (error) {
+    output.error(error instanceof Error ? error.message : String(error));
+    await vscode.window.showErrorMessage(
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
+async function semanticAnswer(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const beam = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastBeam`,
+  );
+  if (!beam) {
+    await vscode.window.showInformationMessage(
+      "No semantic beam is recorded for this workspace.",
+    );
+    return;
+  }
+  const status = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "status",
+    folder.uri.fsPath,
+    "--beam",
+    beam,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  const question = typeof status.question === "object" && status.question
+    ? (status.question as { factId?: string; text?: string })
+    : undefined;
+  if (!question?.factId) {
+    await vscode.window.showInformationMessage(
+      "The beam has no unresolved semantic question.",
+    );
+    return;
+  }
+  const choice = await vscode.window.showQuickPick(["Yes", "No", "Cancel"], {
+    placeHolder: question.text ?? question.factId,
+  });
+  if (!choice || choice === "Cancel") return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "answer",
+    folder.uri.fsPath,
+    "--beam",
+    beam,
+    "--fact",
+    question.factId,
+    "--value",
+    choice === "Yes" ? "yes" : "no",
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  output.appendLine(JSON.stringify(result));
+}
+
+async function semanticAccept(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const beam = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastBeam`,
+  );
+  if (!beam) {
+    await vscode.window.showInformationMessage(
+      "No semantic beam is recorded for this workspace.",
+    );
+    return;
+  }
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "accept",
+    folder.uri.fsPath,
+    "--beam",
+    beam,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  output.appendLine(JSON.stringify(result));
+  await vscode.window.showInformationMessage(
+    "Accepted the uniquely selected semantic world.",
+  );
+}
+
+async function semanticProject(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+  check: boolean,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const args = [
+    "semantic",
+    "project",
+    folder.uri.fsPath,
+    "--format",
+    "json",
+    ...(check ? ["--check"] : []),
+  ];
+  const inspected = await runSemanticCommand(
+    semanticExecutable(),
+    args,
+    folder.uri.fsPath,
+  );
+  output.appendLine(JSON.stringify(inspected));
+  if (check) {
+    await vscode.window.showInformationMessage(
+      "Generated view inspection complete; see Sigil output for path-specific drift.",
+    );
+    return;
+  }
+  const views = inspected.views as
+    | { worldRevision?: string; state?: string }
+    | undefined;
+  if (!views?.worldRevision) {
+    await vscode.window.showInformationMessage(
+      "No accepted semantic world is available to project.",
+    );
+    return;
+  }
+  const update = await vscode.window.showQuickPick([
+    "Update generated views",
+    "Cancel",
+  ], { placeHolder: `Views are ${views.state ?? "not installed"}` });
+  if (update !== "Update generated views") return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "project",
+    folder.uri.fsPath,
+    "--write",
+    "--expected-revision",
+    views.worldRevision,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  context.workspaceState.update(
+    `${folder.uri.toString()}:lastViews`,
+    result.views,
+  );
+  output.appendLine(JSON.stringify(result));
+}
+
+async function semanticHandoff(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const component = await vscode.window.showInputBox({
+    prompt: "Canonical component ID or name for the handoff",
+  });
+  if (!component?.trim()) return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "slice",
+    folder.uri.fsPath,
+    "--component",
+    component,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  context.workspaceState.update(
+    `${folder.uri.toString()}:lastHandoff`,
+    result.handoffId,
+  );
+  output.appendLine(JSON.stringify(result));
+}
+
+async function semanticImportReceipts(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const handoff = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastHandoff`,
+  );
+  if (!handoff) {
+    await vscode.window.showInformationMessage(
+      "No retained handoff is recorded for this workspace.",
+    );
+    return;
+  }
+  const claims = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    openLabel: "Select receipt claims",
+  });
+  if (!claims?.[0]) return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "receipts",
+    folder.uri.fsPath,
+    "--handoff",
+    handoff,
+    "--claims",
+    claims[0].fsPath,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  context.workspaceState.update(
+    `${folder.uri.toString()}:lastReceipt`,
+    result.receiptId,
+  );
+  output.appendLine(JSON.stringify(result));
+  await vscode.window.showInformationMessage(
+    "Imported receipt claims; they remain unverified until verification.",
+  );
+}
+
+async function semanticVerifyReturn(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const handoff = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastHandoff`,
+  );
+  if (!handoff) {
+    await vscode.window.showInformationMessage(
+      "No retained handoff is recorded for this workspace.",
+    );
+    return;
+  }
+  const receipt = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastReceipt`,
+  );
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "verify",
+    folder.uri.fsPath,
+    "--handoff",
+    handoff,
+    ...(receipt ? ["--receipts", receipt] : []),
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  output.appendLine(JSON.stringify(result));
+  await vscode.window.showInformationMessage(
+    `Returned implementation verification: ${
+      String(result.status ?? "complete")
+    }.`,
+  );
+}
+
+// @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::CompilationSurface state,logic,cases
+function markCompilationStale(
+  diagnostics: vscode.DiagnosticCollection,
+  status: vscode.StatusBarItem,
+  focus?: CompilationFocus,
+): void {
+  diagnostics.clear();
+  const label = focus ? ` ${compilationFocusLabel(focus)}` : "";
+  status.text = `$(warning) Sigil${label}: stale`;
+  status.tooltip = "Sigil sources changed after the displayed compilation.";
+}
+
+async function selectCompilationFolder(
+  preferredUri?: vscode.Uri,
+): Promise<vscode.WorkspaceFolder | undefined> {
+  if (preferredUri?.scheme === "file") {
+    const enclosing = vscode.workspace.getWorkspaceFolder(preferredUri);
+    if (enclosing?.uri.scheme === "file") return enclosing;
+  }
+  const folders = (vscode.workspace.workspaceFolders ?? []).filter((folder) =>
+    folder.uri.scheme === "file"
+  );
+  if (folders.length === 1) return folders[0];
+  if (folders.length < 2) return undefined;
+  const selected = await vscode.window.showQuickPick(
+    folders.map((folder) => ({
+      label: folder.name,
+      description: folder.uri.fsPath,
+      folder,
+    })),
+    { placeHolder: "Select the workspace folder to compile" },
+  );
+  return selected?.folder;
+}
+
+function showCompilationEvent(
+  output: vscode.LogOutputChannel,
+  event: CompilationEvent,
+): void {
+  if (event.type === "stage-started") {
+    output.info(`Running ${String(event.payload.stage)}...`);
+  } else if (event.type === "stage-completed") {
+    const report = event.payload.report as
+      | { id?: string; state?: string; diagnosticCount?: number }
+      | undefined;
+    if (report?.id) {
+      output.info(
+        `Completed ${report.id} (${report.state ?? "unknown"}, ${
+          report.diagnosticCount ?? 0
+        } findings).`,
+      );
+    }
+  } else if (event.type === "diagnostic") {
+    const diagnostic = event.payload.diagnostic as
+      | { severity?: string; code?: string; message?: string }
+      | undefined;
+    if (diagnostic) {
+      output.info(
+        `${diagnostic.severity ?? "information"} ${
+          diagnostic.code ?? "COMPILER"
+        }: ${diagnostic.message ?? ""}`,
+      );
+    }
+  }
+}
+
+function projectCompilationReport(
+  report: CompilationReport,
+  collection: vscode.DiagnosticCollection,
+  status: vscode.StatusBarItem,
+  root: vscode.Uri,
+  focus: CompilationFocus,
+  profile: string,
+): void {
+  const byUri = new Map<string, vscode.Diagnostic[]>();
+  for (const item of report.diagnostics) {
+    if (item.lifecycle === "resolved") continue;
+    if (!item.filePath) continue;
+    const uri = path.isAbsolute(item.filePath)
+      ? vscode.Uri.file(item.filePath)
+      : vscode.Uri.joinPath(root, item.filePath);
+    const displayRange = diagnosticDisplayRange(item);
+    const range = displayRange
+      ? new vscode.Range(
+        Math.max(0, displayRange.start.line - 1),
+        Math.max(0, displayRange.start.column - 1),
+        Math.max(0, displayRange.end.line - 1),
+        Math.max(0, displayRange.end.column - 1),
+      )
+      : new vscode.Range(0, 0, 0, 1);
+    const severity = item.severity === "error"
+      ? vscode.DiagnosticSeverity.Error
+      : item.severity === "warning"
+      ? vscode.DiagnosticSeverity.Warning
+      : vscode.DiagnosticSeverity.Information;
+    const diagnostic = new vscode.Diagnostic(range, item.message, severity);
+    diagnostic.code = item.code;
+    diagnostic.source = "sigil compile";
+    const key = uri.toString();
+    byUri.set(key, [...(byUri.get(key) ?? []), diagnostic]);
+  }
+  collection.set(
+    [...byUri].map(([uri, items]) => [vscode.Uri.parse(uri), items]),
+  );
+  const icon = report.status === "green"
+    ? "$(pass-filled)"
+    : report.status === "yellow"
+    ? "$(warning)"
+    : "$(error)";
+  const label = compilationFocusLabel(focus);
+  const outcome = report.status === "green"
+    ? focus === "design" ? "ready" : "aligned"
+    : report.status === "yellow"
+    ? focus === "design" ? "warnings" : "drift"
+    : "blocked";
+  status.text = `${icon} Sigil ${label}: ${outcome}`;
+  const activeFindingCount =
+    report.diagnostics.filter((item) => item.lifecycle !== "resolved").length;
+  status.tooltip = `Focus: ${label}\nProfile: ${profile}\n${
+    report.componentNames.join(", ") || "Workspace"
+  }: ${activeFindingCount} active findings`;
 }
 
 // @sigil implements integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::DocumentPreview interface,state,logic,constraints,cases

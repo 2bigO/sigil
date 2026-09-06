@@ -41,5 +41,6 @@ await runTests({
   ],
   extensionTestsEnv: {
     SIGIL_REPO_ROOT: repository,
+    SIGIL_TEST_NODE: process.execPath,
   },
 });

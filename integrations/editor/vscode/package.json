@@ -38,7 +38,18 @@
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:sigil",
-    "onCommand:sigil.openPreview"
+    "onCommand:sigil.openPreview",
+    "onCommand:sigil.compileComponent",
+    "onCommand:sigil.compileWorkspace",
+    "onCommand:sigil.selectCompilationFocus",
+    "onCommand:sigil.semanticIntent",
+    "onCommand:sigil.semanticAnswer",
+    "onCommand:sigil.semanticAccept",
+    "onCommand:sigil.semanticProject",
+    "onCommand:sigil.semanticCheckViews",
+    "onCommand:sigil.semanticHandoff",
+    "onCommand:sigil.semanticImportReceipts",
+    "onCommand:sigil.semanticVerifyReturn"
   ],
   "contributes": {
     "languages": [
@@ -80,13 +91,101 @@
         "title": "Sigil: Open Preview",
         "category": "Sigil",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "sigil.compileComponent",
+        "title": "Sigil: Compile Component",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.compileWorkspace",
+        "title": "Sigil: Compile Workspace",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.selectCompilationFocus",
+        "title": "Sigil: Select Compilation Focus",
+        "category": "Sigil",
+        "icon": "$(play)"
+      },
+      {
+        "command": "sigil.semanticIntent",
+        "title": "Sigil: Propose Semantic Intent",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticAnswer",
+        "title": "Sigil: Answer Semantic Question",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticAccept",
+        "title": "Sigil: Accept Semantic World",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticProject",
+        "title": "Sigil: Update Generated Sigil Views",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticCheckViews",
+        "title": "Sigil: Check Generated Sigil Views",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticHandoff",
+        "title": "Sigil: Export Implementation Handoff",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticImportReceipts",
+        "title": "Sigil: Import Returned Receipts",
+        "category": "Sigil"
+      },
+      {
+        "command": "sigil.semanticVerifyReturn",
+        "title": "Sigil: Verify Returned Implementation",
+        "category": "Sigil"
       }
     ],
+    "configuration": {
+      "title": "Sigil",
+      "properties": {
+        "sigil.compile.executable": {
+          "type": "string",
+          "default": "sigil",
+          "description": "Path to a compatible external Sigil CLI executable."
+        },
+        "sigil.compile.profile": {
+          "type": "string",
+          "default": "standard",
+          "description": "Compilation profile used by editor commands."
+        },
+        "sigil.compile.focus": {
+          "type": "string",
+          "enum": [
+            "ask",
+            "design",
+            "implementation"
+          ],
+          "default": "ask",
+          "description": "Default compilation focus used by editor commands."
+        }
+      }
+    },
     "menus": {
       "commandPalette": [
         {
           "command": "sigil.openPreview",
           "when": "editorLangId == sigil"
+        },
+        {
+          "command": "sigil.compileComponent",
+          "when": "editorLangId == sigil"
+        },
+        {
+          "command": "sigil.compileWorkspace"
         }
       ],
       "editor/title": [
@@ -94,6 +193,21 @@
           "command": "sigil.openPreview",
           "when": "editorLangId == sigil",
           "group": "navigation"
+        },
+        {
+          "command": "sigil.selectCompilationFocus",
+          "when": "editorLangId == sigil",
+          "group": "navigation"
+        },
+        {
+          "command": "sigil.semanticIntent",
+          "when": "editorLangId == sigil",
+          "group": "navigation@2"
+        },
+        {
+          "command": "sigil.semanticProject",
+          "when": "editorLangId == sigil",
+          "group": "navigation@3"
         }
       ]
     }
@@ -101,7 +215,7 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "check": "tsc --noEmit",
-    "test:unit": "tsx --test tests/unit/contributions.test.ts",
+    "test:unit": "tsx --test tests/unit/compilation.test.ts tests/unit/contributions.test.ts tests/unit/semantic.test.ts",
     "test:extension": "npm run build && node scripts/run-extension-tests.mjs",
     "test": "npm run check && npm run test:unit",
     "package": "npm run build && node scripts/package-extension.mjs",
