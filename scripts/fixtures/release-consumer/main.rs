@@ -229,6 +229,8 @@ fn is_hostile_shim() -> bool {
 }
 
 fn make_executable(path: &Path) -> Result<(), String> {
+    #[cfg(not(unix))]
+    let _ = path;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;

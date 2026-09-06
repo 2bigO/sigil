@@ -259,7 +259,7 @@ jobs:
             test "$version_one" = "$version_two"
             bad_checksums="$artifact/checksums-invalid.txt"
             archive_name="$(basename "$archive")"
-            awk -v name="$archive_name" '{ if ($2 == name) { $1 = "0" substr($1, 2) } print }' "$checksums" > "$bad_checksums"
+            awk -v name="$archive_name" '{ if ($2 == name) { $1 = (substr($1, 1, 1) == "0" ? "1" : "0") substr($1, 2) } print }' "$checksums" > "$bad_checksums"
             bad_checksums_native="$(cygpath -w "$bad_checksums")"
             if SIGIL_ARCHIVE_PATH="$archive_native" \
               SIGIL_CHECKSUMS_PATH="$bad_checksums_native" \
