@@ -3,6 +3,7 @@ import {
   compile,
   intentBase,
   projectSigilIntent,
+  readCompileArtifact,
   readSemanticState,
 } from "@qoherent/sigil-compiler";
 import { TurtleBuilder } from "../../compiler/src/semantic/builder.ts";
@@ -120,6 +121,10 @@ Deno.test("semantic CLI interprets, accepts and projects canonical meaning throu
       "request",
     ]);
     assert(accepted.exitCode === 0, accepted.stderr);
+    assert(
+      JSON.parse(accepted.stdout).revision ===
+        (await readSemanticState(root))?.revision,
+    );
     assert(await Deno.readTextFile(`${root}/main.sigil`) === source);
     const report = await compile(root, { kind: "workspace" }, "standard", {
       focus: "design",
@@ -169,6 +174,31 @@ Deno.test("semantic CLI interprets, accepts and projects canonical meaning throu
     assert(
       slice.stdout.includes("OBLIGATIONS") && !slice.stdout.includes("@prefix"),
     );
+    const exported = await runCli([
+      "semantic",
+      "slice",
+      root,
+      "--component",
+      "Application",
+    ]);
+    assert(exported.exitCode === 0, exported.stderr);
+    const bundleId = JSON.parse(exported.stdout).artifacts.handoff;
+    assert(slice.stdout.includes(bundleId));
+    const retained = await readCompileArtifact(root, "handoffs", bundleId);
+    assert(retained);
+    assert(retained?.files["assertions.egg"].includes("assert-iri"));
+    assert(JSON.parse(retained.files["slice.json"]).obligations.length > 0);
+    assert(
+      retained.manifest.dependencies.canonicalRevision ===
+        JSON.parse(accepted.stdout).revision,
+    );
+
+    await Deno.writeTextFile(
+      `${root}/.sigil/handoffs/${bundleId}/generated.sigil`,
+      "invalid syntax",
+    );
+    const stable = await runCli(["semantic", "status", root]);
+    assert(stable.exitCode === 0, stable.stderr);
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -276,7 +306,27 @@ Deno.test("semantic CLI rejects invalid usage before executing or mutating a wor
   assert((await runCli(["--help"])).stdout.includes("semantic"));
 });
 
-Deno.test("semantic verify exposes native evidence and source receipts without persisting a verdict", async () => {
+Deno.test("semantic artifacts initializes storage before any green interpretation is available", async () => {
+  const { root } = await fixture();
+  try {
+    const initialized = await runCli(["semantic", "artifacts", root]);
+    assert(initialized.exitCode === 0, initialized.stderr);
+    const result = JSON.parse(initialized.stdout);
+    for (const kind of ["world", "receipts", "handoffs", "runs", "cache"]) {
+      assert((await Deno.stat(result.directories[kind])).isDirectory);
+    }
+    assert(!await readSemanticState(root));
+    assert(
+      (await Deno.readTextFile(`${root}/.sigil/.gitignore`)).includes(
+        "/receipts/",
+      ),
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("semantic verify records evidence artifacts and recomputes coverage for changed source", async () => {
   const root = await Deno.makeTempDir();
   try {
     await Deno.mkdir(`${root}/.sigil`);
@@ -334,6 +384,16 @@ Deno.test("semantic verify exposes native evidence and source receipts without p
     assert(report.evidence.anchors[0].component === component);
     assert(report.evidence.observations.length === 0);
     assert(report.evidence.turtle.includes("Evidence"));
+    const stageId = report.artifacts.stages["implementation-coverage"];
+    const recorded = await readCompileArtifact(root, "cache", stageId);
+    assert(recorded);
+    assert(recorded?.files["observations.egg"].includes("assert-iri"));
+    assert(
+      recorded.manifest.dependencies.analysis ===
+        report.evidence.inputFingerprint,
+    );
+    const run = await readCompileArtifact(root, "runs", report.artifacts.run);
+    assert(run && JSON.parse(run.files["report.json"]).status === "green");
     assert(!await readSemanticState(root));
     const turtle = await runCli([
       "semantic",
@@ -343,12 +403,21 @@ Deno.test("semantic verify exposes native evidence and source receipts without p
       "turtle",
     ]);
     assert(turtle.exitCode === 0 && turtle.stdout.includes("Evidence"));
+    const repeated = await runCli(["semantic", "verify", root]);
+    assert(
+      JSON.parse(repeated.stdout).artifacts
+        .stages["implementation-coverage"] === stageId,
+    );
     await Deno.writeTextFile(
       `${root}/app.ts`,
       'export const value: number = "wrong";',
     );
     const red = await runCli(["semantic", "verify", root]);
     assert(red.exitCode === 1 && JSON.parse(red.stdout).status === "red");
+    assert(
+      JSON.parse(red.stdout).artifacts.stages["implementation-coverage"] !==
+        stageId,
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

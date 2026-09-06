@@ -1,24 +1,32 @@
 import { resolve } from "node:path";
 import {
+  artifactPayload,
   collectImplementationEvidence,
   CommandSemanticProvider,
   compileSemanticWorld,
   implementationSlice,
+  initializeCompileArtifacts,
+  loadCompilationWorkspace,
   projectGreenSemanticWorld,
   projectSigilIntent,
   proposeSemanticIntent,
   readImplementationPolicy,
   readSemanticState,
   readWorldBeam,
+  recordCompilationRun,
+  recordSemanticStage,
   renderImplementationSlice,
   resumeWorldBeam,
+  scopeSemanticWorld,
   SemanticInputError,
   type SemanticProposalProvider,
+  serializeEggWorld,
   serializeSemanticWorld,
   type StoredWorldBeam,
   type WorldBeamCheckpoint,
   worldFromFacts,
   type WorldSearchResult,
+  writeCompileArtifact,
   writeSemanticState,
   writeWorldBeam,
 } from "@qoherent/sigil-compiler";
@@ -35,6 +43,7 @@ Commands:
   project    Project the canonical green world as paired Turtle and Sigil
   slice      Return a focused implementation slice for --component
   verify     Analyze implementation with TypeScript 7 and recompute evidence coverage
+  artifacts  Initialize .sigil artifact directories and Git ignore policy
 
 Options:
   --text <intent>          Natural-language intent
@@ -49,7 +58,8 @@ Options:
   --help                  Show this help
 
 A candidate envelope is {"version":1,"candidates":[{"id":"name","additions":"Turtle","retractions":""}]}.
-Only acceptance replaces canonical meaning. Status, project and slice are read-only.
+Only acceptance replaces canonical meaning. Status and project are read-only.
+Slice and verify retain ignored artifacts and report their identities.
 `;
 
 type Action =
@@ -59,7 +69,8 @@ type Action =
   | "accept"
   | "project"
   | "slice"
-  | "verify";
+  | "verify"
+  | "artifacts";
 interface Arguments {
   action: Action;
   path: string;
@@ -71,7 +82,16 @@ class UsageError extends Error {}
 function parse(argv: readonly string[]): Arguments {
   const action = argv[0];
   if (
-    !["intent", "status", "answer", "accept", "project", "slice", "verify"]
+    ![
+      "intent",
+      "status",
+      "answer",
+      "accept",
+      "project",
+      "slice",
+      "verify",
+      "artifacts",
+    ]
       .includes(
         action,
       )
@@ -119,6 +139,7 @@ function parse(argv: readonly string[]): Arguments {
     project: ["--format"],
     slice: ["--component", "--format"],
     verify: ["--format"],
+    artifacts: ["--format"],
   };
   for (const key of Object.keys(values)) {
     if (!allowed[action].includes(key)) {
@@ -245,7 +266,7 @@ export interface SemanticCommandOptions {
   readonly proposalProvider?: SemanticProposalProvider;
 }
 
-/** Semantic workflow stays separate from one-shot read-only compilation. */
+/** Canonical acceptance stays separate from compilation and its result artifacts. */
 // @sigil implements packages/cli/_module.sigil::SigilCli::SemanticWorldCommand interface,logic,constraints,cases
 export async function runSemanticCommand(
   argv: readonly string[],
@@ -257,16 +278,24 @@ export async function runSemanticCommand(
   try {
     const { action, path, values, generatorArgs } = parse(argv);
     options.signal?.throwIfAborted();
-    const context = await workspaceContext(
-      path,
-      options.core ?? new CoreAdapter(),
-    );
-    const engine = { signal: options.signal };
     const json = (value: unknown, exitCode = 0): CliRunResult => ({
       exitCode,
       stdout: JSON.stringify(value, null, 2) + "\n",
       stderr: "",
     });
+    if (action === "artifacts") {
+      const { root } = await loadCompilationWorkspace(path);
+      options.signal?.throwIfAborted();
+      return json({
+        root,
+        directories: await initializeCompileArtifacts(root),
+      });
+    }
+    const context = await workspaceContext(
+      path,
+      options.core ?? new CoreAdapter(),
+    );
+    const engine = { signal: options.signal };
     if (action === "intent") {
       const file = values["--proposals"];
       const command = values["--generator"];
@@ -356,7 +385,7 @@ export async function runSemanticCommand(
         current(saved.checkpoint, refreshed);
         const world = search.selected.compilation.world;
         options.signal?.throwIfAborted();
-        await writeSemanticState(context.root, {
+        const accepted = await writeSemanticState(context.root, {
           world,
           receipt: {
             version: 1,
@@ -373,6 +402,7 @@ export async function runSemanticCommand(
           status: "green",
           accepted: values["--beam"],
           worldFingerprint: world.fingerprint,
+          revision: accepted.revision,
         });
       }
       const summary = searchSummary(search);
@@ -413,14 +443,31 @@ export async function runSemanticCommand(
       });
       const turtle = serializeSemanticWorld(evidence.world);
       const exitCode = implementation.status === "green" ? 0 : 1;
+      options.signal?.throwIfAborted();
+      const stage = await recordSemanticStage(context.root, implementation, {
+        stage: "implementation-coverage",
+        sourceFingerprint: context.source.world.fingerprint,
+        evidence,
+      });
+      const report = {
+        status: implementation.status,
+        worldFingerprint: context.world.fingerprint,
+        diagnostics: implementation.diagnostics,
+        closure: implementation.closure,
+        evidence: { ...evidence, world: undefined, turtle },
+        artifacts: { stages: { "implementation-coverage": stage } },
+      };
+      const run = await recordCompilationRun(context.root, report, {
+        world: context.world.fingerprint,
+        source: context.source.world.fingerprint,
+        "stage.implementation-coverage": stage,
+      });
+      options.signal?.throwIfAborted();
       return values["--format"] === "turtle"
         ? { exitCode, stdout: turtle, stderr: "" }
         : json({
-          status: implementation.status,
-          worldFingerprint: context.world.fingerprint,
-          diagnostics: implementation.diagnostics,
-          closure: implementation.closure,
-          evidence: { ...evidence, world: undefined, turtle },
+          ...report,
+          artifacts: { ...report.artifacts, run },
         }, exitCode);
     }
     if (action === "status") {
@@ -445,13 +492,43 @@ export async function runSemanticCommand(
       return json(projection);
     }
     if (action === "slice") {
+      if (context.sourceChanged) {
+        throw new SemanticInputError(
+          "STALE_WORLD",
+          "Source contracts changed since the accepted world. Accept current intent before exporting a slice.",
+        );
+      }
       const projection = projectGreenSemanticWorld(compilation);
       const component = values["--component"];
       const subject = projection.componentIds[component] ?? component;
       const slice = implementationSlice(compilation, subject);
+      const scoped = await scopeSemanticWorld(context.world, [subject]);
+      options.signal?.throwIfAborted();
+      const artifact = await writeCompileArtifact(context.root, {
+        kind: "handoffs",
+        dependencies: {
+          world: context.world.fingerprint,
+          slice: scoped.fingerprint,
+          source: context.source.world.fingerprint,
+          kernel: compilation.closure.kernelFingerprint,
+          ...(context.stored
+            ? { canonicalRevision: context.stored.revision }
+            : {}),
+        },
+        files: {
+          "assertions.egg": serializeEggWorld(scoped),
+          "slice.json": artifactPayload(slice),
+        },
+        metadata: { role: "slice-export", subject },
+      });
       return values["--format"] === "text"
-        ? { exitCode: 0, stdout: renderImplementationSlice(slice), stderr: "" }
-        : json(slice);
+        ? {
+          exitCode: 0,
+          stdout: renderImplementationSlice(slice) +
+            `\nARTIFACT\n.sigil/handoffs/${artifact.id}\n`,
+          stderr: "",
+        }
+        : json({ ...slice, artifacts: { handoff: artifact.id } });
     }
     throw new UsageError("Choose a valid semantic command.");
   } catch (error) {

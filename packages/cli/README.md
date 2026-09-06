@@ -146,10 +146,14 @@ and caches are ignored by the generated `.sigil/.gitignore`. Previous
 the active state. A later source edit
 invalidates the saved interpretation until new intent is accepted.
 
-`project` returns paired canonical Turtle and a parser-validated human Sigil view
+`project` exports normalized Turtle paired with a parser-validated human Sigil view
 as JSON by default; `--format sigil` and `--format turtle` select one view.
 `slice` returns only the selected component's implementation duties, exclusions,
-related contracts and coverage obligations. These commands write to stdout.
+related contracts and coverage obligations. It retains an ignored
+`.sigil/handoffs/<id>` bundle with focused `assertions.egg`, `slice.json` and a
+dependency manifest. JSON includes `artifacts.handoff`; text includes its path.
+These slice exports do not yet implement the complete protected-policy handoff
+and returned-receipt protocol. `project` writes only to stdout.
 Implementation green still requires mechanically established coverage; a passing
 model judgment or an implementation anchor does not establish it.
 
@@ -195,6 +199,17 @@ optional `access: "reads"` or `"writes"` for a host API catalog.
 `sigil semantic verify .` runs native TypeScript 7 and egglog and returns JSON with
 status, coverage derivations, documentary Turtle and source receipts.
 `--format turtle` exports just the evidence RDF; the exit code still reflects
-verification status. No verdict is persisted. Ordinary `sigil compile` uses the
-same collector for implementation focus when the policy exists. Keep this policy
-and test oracles fixed while generating code candidates.
+verification status. Completed stages and reports are retained in ignored
+`.sigil/cache/<id>` and `.sigil/runs/<id>` bundles. JSON includes their IDs in
+`artifacts`. Ordinary `sigil compile` records the same artifacts and uses the
+collector for implementation focus when the policy exists. Every verification
+collects evidence and recomputes coverage; persisted results cannot establish
+current proof. Keep verifier policy and test oracles fixed during the external
+coding agent's implementation.
+
+Run `sigil semantic artifacts .` to initialize artifact directories and the scoped
+`.sigil/.gitignore` before accepting a world. Acceptance, slice export and compile
+also initialize them when needed. Commit accepted `.sigil/world` revisions and
+authoritative policy; keep submitted receipts and operational artifacts ignored.
+`--no-cache` controls diagnostic history outside the workspace; it does not
+disable target-codebase artifact recording.

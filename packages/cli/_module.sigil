@@ -1210,13 +1210,17 @@ expand SigilCli {
       sigil semantic accept commits one selected green world as canonical assertions.
       sigil semantic project prints paired Turtle and human Sigil views.
       sigil semantic slice prints the selected component's implementation obligations.
+      It also retains an ignored focused .egg slice bundle and reports its identity.
+      sigil semantic verify collects TypeScript 7 observations and computes coverage,
+      recording ignored stage and result bundles with their identities in JSON.
+      sigil semantic artifacts initializes the target artifact layout and ignore policy.
     }
   }
   logic {
     SemanticWorldCommand {
       Reuse SigilCore source resolution and SigilCompiler proposal, beam, kernel,
-      persistence, projection and slice APIs. Keep this mutating intent workflow
-      separate from read-only one-shot compile. Record the source and canonical
+      persistence, projection and slice APIs. Canonical acceptance is separate from
+      one-shot compile and its operational artifacts. Record the source and canonical
       fingerprints at generation; check them again before answering or accepting.
     }
   }
@@ -1224,7 +1228,8 @@ expand SigilCli {
     SemanticWorldCommand {
       Model output cannot select green, author rules, or establish mechanical proof.
       Acceptance requires a single green world and unchanged input receipts.
-      Source files remain intact. Status, project and slice do not mutate state.
+      Source files remain intact. Status and project do not mutate state.
+      Slice and verify preserve canonical meaning while recording artifacts.
     }
   }
   cases {

@@ -1,4 +1,5 @@
 import type { SigilFileSystem } from "@qoherent/sigil-core";
+import { isCompileArtifactDirectory } from "@qoherent/sigil-compiler";
 
 // @sigil uses packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort interface,constraints,cases
 export class DenoSigilFileSystem implements SigilFileSystem {
@@ -63,7 +64,10 @@ async function collectFiles(path: string, files: string[]): Promise<void> {
   if (!stat.isDirectory) return;
 
   for await (const entry of Deno.readDir(path)) {
-    if (entry.name === ".git" || entry.isSymlink) continue;
+    if (
+      entry.name === ".git" || entry.isSymlink ||
+      isCompileArtifactDirectory(path, entry.name)
+    ) continue;
     await collectFiles(joinPath(path, entry.name), files);
   }
 }
