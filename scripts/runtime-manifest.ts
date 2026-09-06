@@ -40,7 +40,7 @@ export async function createRuntimeManifest(
       throw new Error("Native runtime payload exceeds its 512 MiB limit.");
     }
   });
-  files.sort((a, b) => a.path.localeCompare(b.path));
+  files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
   if (files.length > MAX_FILES) {
     throw new Error("Native runtime contains more than 4096 files.");
   }
@@ -111,7 +111,7 @@ function canonicalJson(value: unknown): string {
     if (item && typeof item === "object") {
       return `{${
         Object.entries(item as Record<string, unknown>)
-          .sort(([a], [b]) => a.localeCompare(b))
+          .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
           .map(([key, child]) => `${JSON.stringify(key)}:${encode(child)}`)
           .join(",")
       }}`;

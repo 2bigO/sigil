@@ -7,6 +7,7 @@ import {
   RUNTIME_PAYLOAD_MAX_BYTES,
   validateRuntimeManifest,
 } from "./runtime-protocol.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 
 export type SemanticRuntimeMode = "standalone" | "source" | "explicit";
 export interface SemanticRuntime {
@@ -131,13 +132,26 @@ async function loadRuntime(
   identity?: { manifestHash: string; sigilVersion: string; target: string },
 ): Promise<SemanticRuntime> {
   const manifestPath = join(root, "manifest.json");
-  const source = await Deno.readTextFile(manifestPath);
-  if (new TextEncoder().encode(source).length > RUNTIME_MANIFEST_MAX_BYTES) {
+  const manifestStat = await Deno.lstat(manifestPath);
+  if (
+    manifestStat.isSymlink || !manifestStat.isFile ||
+    manifestStat.size > RUNTIME_MANIFEST_MAX_BYTES
+  ) {
+    throw new Error("Native runtime manifest must be a bounded regular file.");
+  }
+  const manifestBytes = await Deno.readFile(manifestPath);
+  if (manifestBytes.byteLength > RUNTIME_MANIFEST_MAX_BYTES) {
     throw new Error("Native runtime manifest exceeds its size limit.");
+  }
+  let source: string;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(manifestBytes);
+  } catch {
+    throw new Error("Native runtime manifest is not valid UTF-8.");
   }
   let raw: unknown;
   try {
-    raw = JSON.parse(source);
+    raw = parseUniqueJson(source, RUNTIME_MANIFEST_MAX_BYTES);
   } catch {
     throw new Error("Native runtime manifest is not valid JSON.");
   }

@@ -30,6 +30,18 @@ try {
   $Expected = ($Line -split "\s+")[0].ToLowerInvariant()
   $Actual = (Get-FileHash $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($Actual -ne $Expected) { throw "Checksum verification failed for $Asset." }
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $Zip = [IO.Compression.ZipFile]::OpenRead($Archive)
+  try {
+    foreach ($Entry in $Zip.Entries) {
+      $Name = $Entry.FullName.Replace('\', '/')
+      if ([IO.Path]::IsPathRooted($Name) -or $Name -match '(^|/)\.\.?(/|$)' -or $Name.Contains('//')) {
+        throw "Archive contains an unsafe path: $Name"
+      }
+    }
+  } finally {
+    $Zip.Dispose()
+  }
   Expand-Archive -Path $Archive -DestinationPath $Temp
   $Source = Join-Path $Temp "sigil-$Version"
   $Executable = Join-Path $Source "bin\sigil.exe"

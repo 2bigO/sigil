@@ -1,3 +1,5 @@
+import { parseUniqueJson } from "./proposal-protocol.ts";
+
 export const NATIVE_RUNTIME_MANIFEST_VERSION = 1 as const;
 export const PINNED_TYPESCRIPT_VERSION = "7.0.2" as const;
 export const TYPESCRIPT_RUNTIME_EXTRACTOR_VERSION = 3 as const;
@@ -41,7 +43,8 @@ export function validateRuntimeManifest(
   const safePath = (candidate: unknown): candidate is string =>
     typeof candidate === "string" && candidate.length > 0 &&
     candidate.length <= 512 && !candidate.startsWith("/") &&
-    !candidate.includes("\\") && !candidate.split("/").includes("..") &&
+    !candidate.includes("\\") &&
+    !candidate.split("/").some((part) => part === ".." || part === ".") &&
     !candidate.split("/").includes("") && candidate !== ".";
   if (
     !object(value) || value.version !== 1 ||
@@ -105,7 +108,7 @@ export function decodeRuntimeInfo(source: string): RuntimeInfoV1 {
   }
   let value: unknown;
   try {
-    value = JSON.parse(source);
+    value = parseUniqueJson(source, 1024 * 1024);
   } catch {
     throw new Error("Runtime handshake is not valid JSON.");
   }
