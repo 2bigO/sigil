@@ -491,10 +491,8 @@ export async function runSemanticCommand(
       }
       return json(verified.report, exitCode);
     }
-    const context = await workspaceContext(
-      path,
-      options.core ?? new CoreAdapter(),
-    );
+    const core = options.core ?? new CoreAdapter();
+    const context = await workspaceContext(path, core);
     const engine = { signal: options.signal };
     if (action === "intent") {
       const file = values["--proposals"];
@@ -783,6 +781,21 @@ export async function runSemanticCommand(
             managed,
             worldRevision,
             authoredLocations,
+            {
+              validateCurrent: async () => {
+                const fresh = await workspaceContext(path, core);
+                if (
+                  fresh.stored?.revision !== worldRevision ||
+                  fresh.source.world.fingerprint !==
+                    context.source.world.fingerprint
+                ) {
+                  throw new SemanticInputError(
+                    "STALE_WORLD",
+                    "Accepted world or authored source changed during managed view publication.",
+                  );
+                }
+              },
+            },
           )
           : await recoverManagedViews(
             context.root,
@@ -790,6 +803,21 @@ export async function runSemanticCommand(
             worldRevision,
             managed,
             authoredLocations,
+            {
+              validateCurrent: async () => {
+                const fresh = await workspaceContext(path, core);
+                if (
+                  fresh.stored?.revision !== worldRevision ||
+                  fresh.source.world.fingerprint !==
+                    context.source.world.fingerprint
+                ) {
+                  throw new SemanticInputError(
+                    "STALE_WORLD",
+                    "Accepted world or authored source changed during managed view recovery.",
+                  );
+                }
+              },
+            },
           );
         return json({
           status: "current",

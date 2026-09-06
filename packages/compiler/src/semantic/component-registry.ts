@@ -2,6 +2,12 @@ import type {
   ResolvedComponent,
   ResolvedSigilWorkspace,
 } from "@qoherent/sigil-core";
+import {
+  parseSigilDocument,
+  resolveSigilWorkspace,
+  SIGIL_VERSION,
+  type SigilWorkspace,
+} from "@qoherent/sigil-core";
 import { RDF_TYPE, SIGIL_ONTOLOGY } from "./ontology.ts";
 import { canonicalWorkspacePath } from "../compilation-target.ts";
 import { semanticComponentId, type SemanticSourceBinding } from "./source.ts";
@@ -76,28 +82,46 @@ function generatedComponent(
   name: string,
   path: string,
 ): ResolvedComponent {
-  const range = {
-    start: { line: 1, column: 1 },
-    end: { line: 1, column: name.length + 1 },
-  };
-  return {
-    name,
-    filePath: path,
-    declaration: {
-      kind: "component",
-      name,
-      range,
-      sections: [],
+  const source =
+    `component ${name} {\n  goal {\n    Represent the canonical semantic component ${name}.\n  }\n  interface {\n    No public capability is asserted for this component.\n  }\n}\n`;
+  const parsed = parseSigilDocument(path, source, {
+    sigilVersion: SIGIL_VERSION,
+  });
+  const errors = parsed.diagnostics.filter((item) => item.severity === "error");
+  if (errors.length) {
+    invalid(
+      `generated component ${name} is not parser-valid: ${
+        errors.map((item) => item.message).join("; ")
+      }`,
+    );
+  }
+  const virtual: SigilWorkspace = {
+    root: ".",
+    workspaceSnapshotIdentity: "virtual-managed-view",
+    config: {
+      sigilVersion: SIGIL_VERSION,
+      workspace: { name: "managed-view", members: [] },
+      files: { include: ["**/*.sigil"], exclude: [] },
+      tools: {},
     },
-    expansions: { componentName: name, expands: [] },
-    conceptNamespace: {
-      componentName: name,
-      concepts: [],
-      accessibleConcepts: [],
-      publicConcepts: [],
-      references: [],
-    },
+    memberRoots: [],
+    files: [{ path, source, document: parsed.document }],
+    diagnostics: parsed.diagnostics,
   };
+  const resolved = resolveSigilWorkspace(virtual);
+  const resolvedErrors = resolved.diagnostics.filter((item) =>
+    item.severity === "error"
+  );
+  if (resolvedErrors.length) {
+    invalid(
+      `generated component ${name} could not be resolved: ${
+        resolvedErrors.map((item) => item.message).join("; ")
+      }`,
+    );
+  }
+  const component = resolved.components.find((item) => item.name === name);
+  if (!component) invalid(`generated component ${name} was not resolved.`);
+  return component;
 }
 
 /**
@@ -221,8 +245,7 @@ export async function createSemanticComponentRegistry(options: {
       ...row,
       projectedName,
       projectedPath,
-      projected: row.authored ??
-        generatedComponent(projectedName, projectedPath),
+      projected: generatedComponent(projectedName, projectedPath),
     });
   }
   const byAlias = new Map<string, SemanticComponentEntry[]>();

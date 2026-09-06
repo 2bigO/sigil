@@ -159,14 +159,17 @@ export function projectGreenSemanticWorld(
     );
     const contracts = new Set(
       world.facts.filter((f) =>
-        f.subject.value === id && f.predicate === SIGIL_ONTOLOGY + "hasContract"
+        resourceId(f.subject) === id &&
+        f.predicate === SIGIL_ONTOLOGY + "hasContract"
       ).map((f) => f.object.value),
     );
     for (const row of compilation.closure.tables.proposition) {
       if (row[1] === id) contracts.add(String(row[0]));
     }
     for (const contract of [...contracts].sort()) {
-      const facts = world.facts.filter((f) => f.subject.value === contract);
+      const facts = world.facts.filter((f) =>
+        resourceId(f.subject) === contract
+      );
       const section = facts.find((f) =>
         f.predicate === SIGIL_ONTOLOGY + "section"
       )?.object.value ?? "constraints";
@@ -187,7 +190,9 @@ export function projectGreenSemanticWorld(
       const body = [...descriptions, ...propositions].join("\n\n");
       if (body) content.get(targetSection)!.push(body);
     }
-    for (const fact of world.facts.filter((f) => f.subject.value === id)) {
+    for (
+      const fact of world.facts.filter((f) => resourceId(f.subject) === id)
+    ) {
       if (
         fact.predicate === RDF_TYPE ||
         ["label", "hasContract"].some((p) =>
@@ -283,14 +288,15 @@ function managedComponentBlock(
   );
   const contracts = new Set(
     world.facts.filter((f) =>
-      f.subject.value === id && f.predicate === SIGIL_ONTOLOGY + "hasContract"
+      resourceId(f.subject) === id &&
+      f.predicate === SIGIL_ONTOLOGY + "hasContract"
     ).map((f) => f.object.value),
   );
   for (const row of compilation.closure.tables.proposition) {
     if (row[1] === id) contracts.add(String(row[0]));
   }
   for (const contract of [...contracts].sort()) {
-    const facts = world.facts.filter((f) => f.subject.value === contract);
+    const facts = world.facts.filter((f) => resourceId(f.subject) === contract);
     const section = facts.find((f) =>
       f.predicate === SIGIL_ONTOLOGY + "section"
     )?.object.value ?? "constraints";
@@ -310,7 +316,7 @@ function managedComponentBlock(
     const body = [...descriptions, ...propositions].join("\n\n");
     if (body) content.get(targetSection)!.push(body);
   }
-  for (const fact of world.facts.filter((f) => f.subject.value === id)) {
+  for (const fact of world.facts.filter((f) => resourceId(f.subject) === id)) {
     if (
       fact.predicate === RDF_TYPE ||
       ["label", "hasContract"].some((p) =>
@@ -431,9 +437,9 @@ export async function renderManagedViewSet(
     }
   }
   const factIds = (id: string) =>
-    compilation.world.facts.filter((f) => f.subject.value === id).map((f) =>
-      f.id
-    ).sort();
+    compilation.world.facts.filter((f) => resourceId(f.subject) === id).map((
+      f,
+    ) => f.id).sort();
   const files: ManagedViewFile[] = [];
   for (const id of ids) {
     const hash = hashByEntity.get(id)!;
@@ -457,14 +463,26 @@ export async function renderManagedViewSet(
     const formatted = formatSigilDocument(parsed.document, source)
       .formattedSource ?? source;
     const content = formatted.replaceAll("\r\n", "\n").replace(/\n*$/, "\n");
+    const finalParsed = parseSigilDocument(path, content, {
+      sigilVersion: SIGIL_VERSION,
+    });
+    const finalErrors = finalParsed.diagnostics.filter((d) =>
+      d.severity === "error"
+    );
+    if (finalErrors.length) {
+      throw new SemanticInputError(
+        "INVALID_MANAGED_VIEW",
+        finalErrors.map((d) => d.message).join("; "),
+      );
+    }
     const ranges = [
-      ...parsed.document.components,
-      ...parsed.document.expands,
+      ...finalParsed.document.components,
+      ...finalParsed.document.expands,
     ].flatMap((form) => form.sections.flatMap((section) => section.units))
       .map((unit) => ({
         factIds: factIds(id),
         contractIds: compilation.world.facts.filter((f) =>
-          f.subject.value === id &&
+          resourceId(f.subject) === id &&
           f.predicate === SIGIL_ONTOLOGY + "hasContract"
         ).map((f) => f.object.value).sort(),
         range: unit.range,

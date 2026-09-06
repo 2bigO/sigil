@@ -15,6 +15,7 @@ import {
   type ViewReceiptV1,
 } from "./view-model.ts";
 import { readSemanticState } from "./store.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 
 const MAX_RECEIPT_BYTES = 8 * 1024 * 1024;
 const MAX_FILES = 4096;
@@ -27,6 +28,13 @@ function invalid(message: string): never {
 
 function safeViewPath(path: string): boolean {
   return /^\.sigil\/views\/[a-f0-9]{64}\.sigil$/.test(path);
+}
+
+function safeAuthoredPath(path: string): boolean {
+  return !!path && path.length <= 4096 && !path.includes("\0") &&
+    !path.includes("\\") && !path.startsWith("/") &&
+    !path.startsWith("./") && !path.includes("//") &&
+    !path.split("/").some((part) => !part || part === "." || part === "..");
 }
 
 function validRange(value: unknown): boolean {
@@ -44,10 +52,14 @@ function validRange(value: unknown): boolean {
       Number.isInteger(item.line) && Number.isInteger(item.column) &&
       (item.line as number) >= 1 && (item.column as number) >= 1;
   };
-  return point(raw.start) && point(raw.end);
+  if (!point(raw.start) || !point(raw.end)) return false;
+  const start = raw.start as { line: number; column: number };
+  const end = raw.end as { line: number; column: number };
+  return end.line > start.line ||
+    end.line === start.line && end.column >= start.column;
 }
 
-function receipt(value: unknown): ViewReceiptV1 {
+async function receipt(value: unknown): Promise<ViewReceiptV1> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     invalid("Managed view receipt must be an object.");
   }
@@ -81,12 +93,15 @@ function receipt(value: unknown): ViewReceiptV1 {
     const file = item as Record<string, unknown>;
     if (
       typeof file.entity !== "string" || !file.entity ||
+      file.entity.length > 4096 || file.entity.includes("\0") ||
       typeof file.path !== "string" || !safeViewPath(file.path) ||
       typeof file.componentName !== "string" || !file.componentName ||
       typeof file.contentHash !== "string" ||
       !VIEW_HASH.test(file.contentHash) ||
       !Array.isArray(file.authoredLocations) ||
+      file.authoredLocations.length > 4096 ||
       !Array.isArray(file.locations) ||
+      file.locations.length > 4096 ||
       Object.keys(file).some((key) =>
         ![
           "entity",
@@ -101,6 +116,11 @@ function receipt(value: unknown): ViewReceiptV1 {
     if (paths.has(file.path) || entities.has(file.entity)) {
       invalid("Managed view receipt contains duplicate paths or entities.");
     }
+    if (file.path !== `.sigil/views/${await digest(file.entity)}.sigil`) {
+      invalid(
+        `Managed view receipt path does not match entity ${file.entity}.`,
+      );
+    }
     for (const authored of file.authoredLocations as unknown[]) {
       if (
         !authored || typeof authored !== "object" || Array.isArray(authored)
@@ -109,7 +129,7 @@ function receipt(value: unknown): ViewReceiptV1 {
       }
       const location = authored as Record<string, unknown>;
       if (
-        typeof location.path !== "string" || !location.path ||
+        typeof location.path !== "string" || !safeAuthoredPath(location.path) ||
         typeof location.componentName !== "string" || !location.componentName ||
         !validRange(location.range) ||
         Object.keys(location).some((key) =>
@@ -126,8 +146,12 @@ function receipt(value: unknown): ViewReceiptV1 {
       const itemLocation = location as Record<string, unknown>;
       if (
         !Array.isArray(itemLocation.factIds) ||
-        itemLocation.factIds.some((id) => typeof id !== "string" || !id) ||
+        itemLocation.factIds.length > 4096 ||
+        itemLocation.factIds.some((id) =>
+          typeof id !== "string" || !id || id.length > 4096
+        ) ||
         !Array.isArray(itemLocation.contractIds) ||
+        itemLocation.contractIds.length > 4096 ||
         itemLocation.contractIds.some((id) => typeof id !== "string" || !id) ||
         !validRange(itemLocation.range) ||
         Object.keys(itemLocation).some((key) =>
@@ -155,6 +179,14 @@ async function readText(
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) return undefined;
     throw error;
+  }
+}
+
+function parseStrictJson(source: string, context: string): unknown {
+  try {
+    return parseUniqueJson(source, MAX_RECEIPT_BYTES);
+  } catch {
+    invalid(`${context} is not valid JSON or contains duplicate object keys.`);
   }
 }
 
@@ -209,12 +241,8 @@ export async function readManagedViewReceipt(
   const source = await readText(resolve(root, ".sigil/views/current.json"));
   if (source === undefined) return undefined;
   let value: unknown;
-  try {
-    value = JSON.parse(source);
-  } catch {
-    invalid("Managed view receipt is not valid JSON.");
-  }
-  return receipt(value);
+  value = parseStrictJson(source, "Managed view receipt");
+  return await receipt(value);
 }
 
 async function viewFiles(root: string): Promise<string[]> {
@@ -261,6 +289,21 @@ export async function inspectManagedViews(
       } catch (error) {
         if (!(error instanceof Deno.errors.NotFound)) throw error;
       }
+      const manifestPath = resolve(
+        pendingRoot,
+        entry.name,
+        "manifest.json",
+      );
+      const manifestSource = await readText(manifestPath, MAX_RECEIPT_BYTES);
+      if (manifestSource === undefined) {
+        invalid(`Managed view transaction ${entry.name} has no manifest.`);
+      }
+      const body = await validateTransaction(
+        parseStrictJson(manifestSource, "Managed view transaction"),
+      );
+      if (await digest(artifactJson(body)) !== entry.name) {
+        invalid(`Managed view transaction ${entry.name} hash does not match.`);
+      }
       transactions.push(entry.name);
     }
   } catch (error) {
@@ -305,14 +348,10 @@ export async function inspectManagedViews(
       else if (old.contentHash !== file.contentHash) {
         differences.push({ path: file.path, kind: "metadata" });
       }
-      try {
-        const source = await readText(resolve(root, file.path), MAX_VIEW_BYTES);
-        if (source === undefined) {
-          differences.push({ path: file.path, kind: "missing" });
-        } else if (await digest(source) !== old?.contentHash) {
-          differences.push({ path: file.path, kind: "changed" });
-        }
-      } catch {
+      const source = await readText(resolve(root, file.path), MAX_VIEW_BYTES);
+      if (source === undefined) {
+        differences.push({ path: file.path, kind: "missing" });
+      } else if (await digest(source) !== old?.contentHash) {
         differences.push({ path: file.path, kind: "changed" });
       }
       expectedByPath.delete(file.path);
@@ -361,9 +400,138 @@ interface ViewTransaction {
   readonly payloads: Readonly<Record<string, string>>;
 }
 
+async function validateTransaction(value: unknown): Promise<ViewTransaction> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    invalid("Managed view transaction must be an object.");
+  }
+  const raw = value as Record<string, unknown>;
+  if (
+    raw.version !== 1 || typeof raw.worldRevision !== "string" ||
+    !VIEW_HASH.test(raw.worldRevision) || !raw.before ||
+    typeof raw.before !== "object" || Array.isArray(raw.before) ||
+    !raw.after || typeof raw.after !== "object" || Array.isArray(raw.after) ||
+    !raw.payloads || typeof raw.payloads !== "object" ||
+    Array.isArray(raw.payloads) || !raw.receipt ||
+    typeof raw.receipt !== "object" || Array.isArray(raw.receipt) ||
+    Object.keys(raw).some((key) =>
+      !["version", "worldRevision", "before", "after", "receipt", "payloads"]
+        .includes(key)
+    )
+  ) invalid("Managed view transaction has an invalid schema.");
+  const paths = (
+    value: unknown,
+    field: string,
+  ): Record<string, string | null> => {
+    const result: Record<string, string | null> = {};
+    for (
+      const [path, hash] of Object.entries(value as Record<string, unknown>)
+    ) {
+      if (
+        !safeViewPath(path) ||
+        !(hash === null || typeof hash === "string" && VIEW_HASH.test(hash))
+      ) {
+        invalid(
+          `Managed view transaction ${field} contains an unsafe path or hash.`,
+        );
+      }
+      result[path] = hash as string | null;
+    }
+    if (Object.keys(result).length > MAX_FILES) {
+      invalid(`Managed view transaction ${field} exceeds its file bound.`);
+    }
+    return result;
+  };
+  const before = paths(raw.before, "before");
+  const after = paths(raw.after, "after");
+  const payloads: Record<string, string> = {};
+  if (
+    artifactJson(Object.keys(before).sort()) !==
+      artifactJson(Object.keys(after).sort())
+  ) {
+    invalid("Managed view transaction before/after paths disagree.");
+  }
+  for (
+    const [path, payload] of Object.entries(
+      raw.payloads as Record<string, unknown>,
+    )
+  ) {
+    if (
+      !safeViewPath(path) || typeof payload !== "string" ||
+      await digest(payload) !== after[path] || after[path] === null
+    ) {
+      invalid(`Managed view transaction payload does not match ${path}.`);
+    }
+    payloads[path] = payload;
+  }
+  for (const [path, next] of Object.entries(after)) {
+    if (next !== null && !(path in payloads)) {
+      invalid(`Managed view transaction is missing payload ${path}.`);
+    }
+    if (next === null && path in payloads) {
+      invalid(`Managed view transaction contains a deletion payload ${path}.`);
+    }
+  }
+  const receiptValue = raw.receipt as Record<string, unknown>;
+  if (
+    Object.keys(receiptValue).some((key) =>
+      !["before", "after"].includes(key)
+    ) ||
+    !(receiptValue.before === null || receiptValue.before &&
+        typeof receiptValue.before === "object") ||
+    !receiptValue.after || typeof receiptValue.after !== "object"
+  ) invalid("Managed view transaction receipts are malformed.");
+  const afterReceipt = await receipt(receiptValue.after);
+  const beforeReceipt = receiptValue.before === null
+    ? null
+    : await receipt(receiptValue.before);
+  const receiptPaths = new Set(afterReceipt.files.map((file) => file.path));
+  const afterFiles = new Set(
+    Object.entries(after).filter(([, hash]) => hash !== null).map(([path]) =>
+      path
+    ),
+  );
+  if (
+    artifactJson([...afterFiles].sort()) !==
+      artifactJson([...receiptPaths].sort())
+  ) {
+    invalid("Managed view transaction after-state and receipt disagree.");
+  }
+  if (
+    artifactJson(Object.keys(payloads).sort()) !==
+      artifactJson([...receiptPaths].sort())
+  ) {
+    invalid("Managed view transaction payloads and receipt disagree.");
+  }
+  const encoded = artifactJson({
+    version: 1,
+    worldRevision: raw.worldRevision,
+    before,
+    after,
+    receipt: { before: beforeReceipt, after: afterReceipt },
+    payloads,
+  });
+  if (encoded.length > MAX_RECEIPT_BYTES) {
+    invalid("Managed view transaction exceeds its size limit.");
+  }
+  return {
+    version: 1,
+    worldRevision: raw.worldRevision as string,
+    before,
+    after,
+    receipt: { before: beforeReceipt, after: afterReceipt },
+    payloads,
+  };
+}
+
 async function hashState(root: string, path: string): Promise<string | null> {
   const source = await readText(resolve(root, path), MAX_VIEW_BYTES);
   return source === undefined ? null : await digest(source);
+}
+
+export interface ManagedViewPublicationOptions {
+  /** Re-read caller-owned source/world identity while both locks are held. */
+  readonly validateCurrent?: () => Promise<void>;
+  readonly lock?: import("./artifacts.ts").CompileArtifactLockOptions;
 }
 
 /** Install a rendered set through a recoverable world-then-views transaction. */
@@ -374,6 +542,7 @@ export async function writeManagedViews(
   authoredLocations: Readonly<
     Record<string, readonly ViewReceiptAuthoredLocation[]>
   > = {},
+  options: ManagedViewPublicationOptions = {},
 ): Promise<{ readonly transaction: string; readonly receipt: ViewReceiptV1 }> {
   if (!VIEW_HASH.test(expectedRevision)) {
     invalid("Expected world revision is invalid.");
@@ -399,6 +568,11 @@ export async function writeManagedViews(
     "world",
     () =>
       withCompileArtifactLock(root, "views", async () => {
+        const currentState = await readSemanticState(root);
+        if (currentState && currentState.revision !== expectedRevision) {
+          invalid("Accepted world changed before managed view publication.");
+        }
+        await options.validateCurrent?.();
         const pending = await inspectManagedViews(root, set, expectedRevision);
         if (pending.transactions.length) {
           invalid("An unresolved managed view transaction exists.");
@@ -456,16 +630,32 @@ export async function writeManagedViews(
           if (!(error instanceof Deno.errors.NotFound)) throw error;
         }
         await Deno.mkdir(txRoot, { recursive: true });
-        await Deno.writeTextFile(
-          resolve(txRoot, "manifest.json"),
-          artifactJson(transactionBody),
-          { createNew: true },
-        );
+        const manifest = artifactJson(transactionBody);
+        try {
+          const existing = await readText(
+            resolve(txRoot, "manifest.json"),
+            MAX_RECEIPT_BYTES,
+          );
+          if (existing !== undefined && existing !== manifest) {
+            invalid(
+              "Managed view transaction directory has a conflicting manifest.",
+            );
+          }
+          if (existing === undefined) {
+            await atomicCompileFile(
+              root,
+              resolve(txRoot, "manifest.json"),
+              manifest,
+            );
+          }
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) throw error;
+        }
         for (const [path, text] of Object.entries(payloads)) {
-          await Deno.writeTextFile(
+          await atomicCompileFile(
+            root,
             resolve(txRoot, path.slice(".sigil/views/".length)),
             text,
-            { createNew: true },
           );
         }
         for (const path of Object.keys(after).sort()) {
@@ -481,16 +671,24 @@ export async function writeManagedViews(
             await atomicCompileFile(root, resolve(root, path), payloads[path]);
           }
         }
+        await options.validateCurrent?.();
+        const finalState = await readSemanticState(root);
+        if (finalState && finalState.revision !== expectedRevision) {
+          invalid("Accepted world changed during managed view publication.");
+        }
         await atomicCompileFile(
           root,
           resolve(root, ".sigil/views/current.json"),
           artifactJson(next),
         );
-        await Deno.writeTextFile(resolve(txRoot, "complete"), "complete\n", {
-          createNew: true,
-        });
+        await atomicCompileFile(
+          root,
+          resolve(txRoot, "complete"),
+          "complete\n",
+        );
         return { transaction, receipt: next };
-      }),
+      }, options.lock),
+    options.lock,
   );
 }
 
@@ -502,21 +700,26 @@ export async function recoverManagedViews(
   authoredLocations: Readonly<
     Record<string, readonly ViewReceiptAuthoredLocation[]>
   > = {},
+  options: ManagedViewPublicationOptions = {},
 ): Promise<{ readonly transaction: string; readonly receipt: ViewReceiptV1 }> {
   if (!VIEW_HASH.test(transaction)) invalid("Transaction identity is invalid.");
   const txRoot = resolve(root, ".sigil/cache/view-transactions", transaction);
   const source = await readText(resolve(txRoot, "manifest.json"));
   if (!source) invalid("Managed view transaction is missing.");
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(source);
-  } catch {
-    invalid("Managed view transaction is not valid JSON.");
-  }
-  if (await digest(artifactJson(parsed)) !== transaction) {
+  const body = await validateTransaction(
+    parseStrictJson(source, "Managed view transaction"),
+  );
+  if (await digest(artifactJson(body)) !== transaction) {
     invalid("Managed view transaction hash does not match its directory.");
   }
-  const body = parsed as ViewTransaction;
+  try {
+    const complete = await Deno.lstat(resolve(txRoot, "complete"));
+    if (complete.isFile && !complete.isSymlink) {
+      invalid("Managed view transaction is already complete.");
+    }
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
+  }
   if (body.worldRevision !== expectedRevision) {
     invalid("Managed view transaction targets a different world revision.");
   }
@@ -527,6 +730,19 @@ export async function recoverManagedViews(
   );
   if (artifactJson(body.receipt.after) !== artifactJson(next)) {
     invalid("Managed view transaction is stale.");
+  }
+  const expectedPaths = new Set(expected.files.map((file) => file.path));
+  for (const [path, hash] of Object.entries(body.after)) {
+    if (hash !== null && !expectedPaths.has(path)) {
+      invalid(
+        "Managed view transaction contains an unexpected generated file.",
+      );
+    }
+  }
+  for (const file of expected.files) {
+    if (body.after[file.path] !== file.contentHash) {
+      invalid("Managed view transaction omits an expected generated file.");
+    }
   }
   const state = await readSemanticState(root);
   if (state?.revision !== expectedRevision) {
@@ -560,6 +776,11 @@ export async function recoverManagedViews(
     "world",
     () =>
       withCompileArtifactLock(root, "views", async () => {
+        const currentState = await readSemanticState(root);
+        if (currentState && currentState.revision !== expectedRevision) {
+          invalid("Accepted world advanced during managed view recovery.");
+        }
+        await options.validateCurrent?.();
         for (const path of Object.keys(body.after).sort()) {
           const current = await hashState(root, path);
           if (current === body.after[path]) continue;
@@ -573,15 +794,23 @@ export async function recoverManagedViews(
             );
           }
         }
+        await options.validateCurrent?.();
+        const finalState = await readSemanticState(root);
+        if (finalState && finalState.revision !== expectedRevision) {
+          invalid("Accepted world advanced during managed view recovery.");
+        }
         await atomicCompileFile(
           root,
           resolve(root, ".sigil/views/current.json"),
           artifactJson(next),
         );
-        await Deno.writeTextFile(resolve(txRoot, "complete"), "complete\n", {
-          create: true,
-        });
+        await atomicCompileFile(
+          root,
+          resolve(txRoot, "complete"),
+          "complete\n",
+        );
         return { transaction, receipt: next };
-      }),
+      }, options.lock),
+    options.lock,
   );
 }

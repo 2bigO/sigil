@@ -479,35 +479,82 @@ export async function compile(
     };
     let boundaryScope = requestedScope;
     let canonicalScopeEntity: string | undefined;
-    if (requestedScope.kind === "component") {
+    if (
+      requestedScope.kind === "component" || requestedScope.kind === "file" ||
+      requestedScope.kind === "location"
+    ) {
       try {
         const semanticContext = await createSemanticWorkspaceContext({
           root: workspace.root,
           resolved,
           engine: engineOptions(),
         });
-        const matches = semanticContext.registry.resolve(
-          requestedScope.componentName,
-        );
+        const matches = requestedScope.kind === "component"
+          ? semanticContext.registry.resolve(requestedScope.componentName)
+          : semanticContext.registry.entries.filter((entry) => {
+            const selectedPath = canonicalWorkspacePath(
+              requestedScope.filePath,
+              workspace.root,
+            );
+            if (entry.projectedPath !== selectedPath) return false;
+            if (requestedScope.kind === "file") return true;
+            const location = {
+              line: requestedScope.line,
+              column: requestedScope.column,
+            };
+            const forms = [
+              entry.projected.declaration,
+              ...entry.projected.expansions.expands.map((item) =>
+                item.declaration
+              ),
+            ];
+            return forms.some((form) =>
+              (location.line > form.range.start.line ||
+                location.line === form.range.start.line &&
+                  location.column >= form.range.start.column) &&
+              (location.line < form.range.end.line ||
+                location.line === form.range.end.line &&
+                  location.column < form.range.end.column)
+            );
+          });
         if (matches.length > 1) {
+          const selector = requestedScope.kind === "component"
+            ? requestedScope.componentName
+            : requestedScope.filePath;
           throw new CompilerFailure(
             "COMPILER_INVALID_INVOCATION",
-            `Semantic component ${
-              JSON.stringify(requestedScope.componentName)
-            } is ambiguous: ${
+            `Semantic component ${JSON.stringify(selector)} is ambiguous: ${
               matches.map((entry) => entry.entity).join(", ")
             }.`,
           );
         }
         if (matches.length === 1) {
           canonicalScopeEntity = matches[0].entity;
-          boundaryScope = matches[0].authored
-            ? {
-              kind: "component",
-              componentName: matches[0].authored.name,
-              declarationPath: requestedScope.declarationPath,
-            }
-            : { kind: "workspace" };
+          if (
+            requestedScope.kind === "component" &&
+            requestedScope.declarationPath &&
+            matches[0].authored &&
+            canonicalWorkspacePath(
+                matches[0].authored.filePath,
+                workspace.root,
+              ) !== requestedScope.declarationPath &&
+            matches[0].projectedPath !== requestedScope.declarationPath
+          ) {
+            throw new CompilerFailure(
+              "COMPILER_INVALID_INVOCATION",
+              `Semantic component ${
+                JSON.stringify(requestedScope.componentName)
+              } is not declared at ${requestedScope.declarationPath}.`,
+            );
+          }
+          boundaryScope =
+            requestedScope.kind === "component" && matches[0].authored
+              ? {
+                kind: "component",
+                componentName: matches[0].authored.name,
+                declarationPath: requestedScope.declarationPath,
+              }
+              : { kind: "workspace" };
         }
       } catch (error) {
         if (error instanceof CompilerFailure) throw error;
@@ -519,12 +566,13 @@ export async function compile(
       exactTarget: options.exactTarget,
     });
     assertResolvableScope(boundary);
-    const target = compilationTargetFor(boundary);
+    let target = compilationTargetFor(boundary);
     const components = resolveCompilationTarget(
       resolved,
       target,
       workspace.root,
     );
+    let reportComponents = components;
     const returned = options.returnedImplementation;
     if (
       returned && (
@@ -633,11 +681,30 @@ export async function compile(
           bindings: sourceIntent.bindings,
           componentBindings: storedState?.receipt.componentBindings,
         });
-        selectedIds = canonicalScopeEntity
-          ? registry.entryForEntity(canonicalScopeEntity)?.authored
+        const selectedEntry = canonicalScopeEntity
+          ? registry.entryForEntity(canonicalScopeEntity)
+          : undefined;
+        if (canonicalScopeEntity && !selectedEntry) {
+          throw new CompilerFailure(
+            "COMPILER_INVALID_INVOCATION",
+            `Canonical semantic component ${canonicalScopeEntity} is not available in the accepted world.`,
+          );
+        }
+        selectedIds = selectedEntry
+          ? selectedEntry.authored
             ? [...registry.entitiesFor(components)]
-            : [canonicalScopeEntity]
+            : [selectedEntry.entity]
           : [...registry.entitiesFor(components)];
+        if (selectedEntry && !selectedEntry.authored) {
+          target = {
+            kind: "component",
+            name: selectedEntry.projected.name,
+            declarationPath: selectedEntry.projected.filePath,
+          };
+          reportComponents = [selectedEntry.projected];
+        } else if (selectedEntry?.authored) {
+          reportComponents = [selectedEntry.authored];
+        }
         if (
           handoff && (
             selectedIds.length !== handoff.manifest.subjects.length ||
@@ -871,7 +938,7 @@ export async function compile(
       target,
       requestedScope: boundary.requestedScope,
       selection: boundary.selection,
-      componentNames: components.map((c) => c.name),
+      componentNames: reportComponents.map((c) => c.name),
       startedAt,
       completedAt: new Date().toISOString(),
       sourceFingerprint,

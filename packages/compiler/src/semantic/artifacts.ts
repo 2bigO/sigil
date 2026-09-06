@@ -15,7 +15,7 @@ export function isCompileArtifactDirectory(
   name: string,
 ): boolean {
   return resolve(parent).replaceAll("\\", "/").endsWith("/.sigil") &&
-    [...COMPILE_ARTIFACT_KINDS, "beams", "worlds"].includes(name);
+    [...COMPILE_ARTIFACT_KINDS, "views", "beams", "worlds"].includes(name);
 }
 export interface CompileArtifactInput {
   readonly kind: CompileArtifactKind;
