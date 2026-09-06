@@ -2011,8 +2011,8 @@ Execute in order:
    user scope corrections override historical journal wording.
 3. Inspect `git status --short`, current branch/HEAD, staged changes, and the
    active task's diff. Preserve unrelated user files. In this checkout the known
-   pre-existing untracked files include `.agents/skills/.sigil-managed.json` and
-   `typegpu.ttl`; do not delete or stage them.
+   pre-existing untracked file is `.agents/skills/.sigil-managed.json`; do not
+   delete or stage it.
 4. Inspect every recorded active process/session before launching duplicate
    tests or builds. A stale process ID is not evidence that its task finished.
    Record actual exit status and output when available.
