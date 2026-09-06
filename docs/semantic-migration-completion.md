@@ -33,7 +33,7 @@ The implementation range starts at the remaining-scope specification commit
 | S08 | `3fb4430` | Native distribution builder, smoke seam, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205` | Public-interface integration assertions, explicit API types and this report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394` | Public-interface integration assertions, explicit API types and the completion report |
 
 ## Versions and reproducibility
 
