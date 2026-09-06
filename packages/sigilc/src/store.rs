@@ -22,7 +22,7 @@ const INDEX: &str = ".sigil/worlds/index.json";
 pub struct Job {
     pub version: u32,
     pub binding: Binding,
-    pub expected_generation: Option<u64>,
+    pub expected_generation: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,14 +30,13 @@ pub struct Job {
 pub struct Entry {
     pub binding: Binding,
     pub assertion_checksum: String,
-    pub generation: u64,
+    pub generation: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Index {
     version: u32,
-    sequence: u64,
     entries: BTreeMap<String, Entry>,
 }
 
@@ -104,8 +103,7 @@ impl LockedStore {
             .map_err(|e| format!("projection store lock unavailable: {e}"))?;
         let index = match fs::symlink_metadata(sources::checked_path(&root, INDEX)?) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Index {
-                version: 1,
-                sequence: 0,
+                version: 2,
                 entries: BTreeMap::new(),
             },
             Err(e) => return Err(e.to_string()),
@@ -114,13 +112,12 @@ impl LockedStore {
             )
             .map_err(|e| format!("invalid projection index: {e}"))?,
         };
-        if index.version != 1 {
+        if index.version != 2 {
             return Err("unsupported projection index version".into());
         }
         for (key, entry) in &index.entries {
             if *key != object_key(&entry.binding)?
-                || entry.generation == 0
-                || entry.generation > index.sequence
+                || !checksum(&entry.generation)
                 || !checksum(&entry.assertion_checksum)
             {
                 return Err(format!("invalid projection index entry: {key}"));
@@ -164,9 +161,9 @@ impl LockedStore {
         let key = object_key(&binding)?;
         self.check_live(&binding)?;
         Ok(Job {
-            version: 1,
+            version: 2,
             binding,
-            expected_generation: self.index.entries.get(&key).map(|e| e.generation),
+            expected_generation: self.index.entries.get(&key).map(|e| e.generation.clone()),
         })
     }
 
@@ -176,13 +173,13 @@ impl LockedStore {
         job: &Job,
         current: &Binding,
         facts: &[Assertion],
-    ) -> Result<u64, String> {
+    ) -> Result<String, String> {
         compatible(current)?;
         let key = object_key(current)?;
-        if job.version != 1 || job.binding != *current {
+        if job.version != 2 || job.binding != *current {
             return Err("prepared semantic inputs no longer match current inputs".into());
         }
-        if self.index.entries.get(&key).map(|e| e.generation) != job.expected_generation {
+        if self.index.entries.get(&key).map(|e| &e.generation) != job.expected_generation.as_ref() {
             return Err("projection generation changed; prepare a new job".into());
         }
         self.check_live(current)?;
@@ -193,19 +190,16 @@ impl LockedStore {
         if encoded.len() > self.limits.assertions.max_document_bytes {
             return Err("encoded projection exceeds byte limit".into());
         }
-        let generation = self
-            .index
-            .sequence
-            .checked_add(1)
-            .ok_or("projection generation exhausted")?;
+        let mut nonce = [0u8; 32];
+        getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
+        let generation = hash(&nonce);
         let mut proposed = self.index.clone();
-        proposed.sequence = generation;
         proposed.entries.insert(
             key.clone(),
             Entry {
                 binding: current.clone(),
                 assertion_checksum: hash(encoded.as_bytes()),
-                generation,
+                generation: generation.clone(),
             },
         );
         let data = serde_json::to_vec(&proposed).map_err(|e| e.to_string())?;

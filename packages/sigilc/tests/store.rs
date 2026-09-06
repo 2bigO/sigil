@@ -224,3 +224,26 @@ fn symlinked_store_and_artifact_paths_are_rejected() {
     assert!(store.publish(&job, &input, &facts()).is_err());
     assert!(!outside.0.join("a.egg").exists());
 }
+
+#[test]
+fn cache_deletion_cannot_make_an_old_generation_current_again() {
+    let root = Workspace::new();
+    root.write("a", b"source");
+    let input = binding(&root, "a");
+    let mut store = open(&root);
+    let first = store.prepare(input.clone()).unwrap();
+    store.publish(&first, &input, &facts()).unwrap();
+    let old = store.prepare(input.clone()).unwrap();
+    drop(store);
+    std::fs::remove_dir_all(root.0.join(".sigil/worlds")).unwrap();
+    let mut store = open(&root);
+    let rebuilt = store.prepare(input.clone()).unwrap();
+    store.publish(&rebuilt, &input, &[]).unwrap();
+    assert!(
+        store
+            .publish(&old, &input, &facts())
+            .unwrap_err()
+            .contains("generation")
+    );
+    assert!(store.inspect(&input).unwrap().assertions.is_empty());
+}

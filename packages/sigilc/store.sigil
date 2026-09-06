@@ -53,6 +53,8 @@ component SigilProjectionStore {
       bounded data-only assertions by temporary-file replacement, then atomically
       replace the index that binds their checksum to inputs and generation.
       Reject duplicate jobs and changed source, catalog or format inputs.
+      Publication tokens cannot repeat after cache deletion and reconstruction;
+      an old job cannot regain authority when disposable generations restart.
       Keep scheduling, workers and production metadata outside the store.
     }
 
