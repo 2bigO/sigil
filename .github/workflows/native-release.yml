@@ -163,10 +163,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          artifact="$RUNNER_TEMP/release-artifact"
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            artifact="$(cygpath -u "$RUNNER_TEMP/release-artifact")"
+            extracted="$(cygpath -u "$RUNNER_TEMP/release-extracted")"
+          else
+            artifact="$RUNNER_TEMP/release-artifact"
+            extracted="$RUNNER_TEMP/release-extracted"
+          fi
           archive="$(find "$artifact" -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -n 1)"
           test -n "$archive"
-          extracted="$RUNNER_TEMP/release-extracted"
           mkdir -p "$extracted"
           if [[ "$archive" = *.zip ]]; then
             tar -xf "$archive" -C "$extracted"
@@ -184,6 +189,74 @@ jobs:
             chmod +x "$consumer"
           fi
           "$consumer" --distribution "$distribution" --fixture "$fixture"
+      - name: Exercise local installer and reinstall protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            temp_root="$(cygpath -u "$RUNNER_TEMP")"
+            artifact="$temp_root/release-artifact"
+            install_root="$temp_root/sigil-install-root"
+            bin_root="$temp_root/sigil-bin-root"
+          else
+            artifact="$RUNNER_TEMP/release-artifact"
+            install_root="$RUNNER_TEMP/sigil-install-root"
+            bin_root="$RUNNER_TEMP/sigil-bin-root"
+          fi
+          archive="$(find "$artifact" -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -n 1)"
+          checksums="$artifact/checksums.txt"
+          mkdir -p "$install_root" "$bin_root"
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            archive_native="$(cygpath -w "$archive")"
+            checksums_native="$(cygpath -w "$checksums")"
+            install_root_native="$(cygpath -w "$install_root")"
+            bin_root_native="$(cygpath -w "$bin_root")"
+            installer_native="$(cygpath -w "$artifact/install.ps1")"
+            run_install() {
+              SIGIL_ARCHIVE_PATH="$archive_native" \
+                SIGIL_CHECKSUMS_PATH="$checksums_native" \
+                SIGIL_INSTALL_DIR="$install_root_native" \
+                SIGIL_BIN_DIR="$bin_root_native" \
+                pwsh -NoProfile -ExecutionPolicy Bypass -File "$installer_native"
+            }
+            run_install
+            wrapper="$bin_root_native/sigil.cmd"
+            version_one="$(pwsh -NoProfile -Command "& '$wrapper' --version")"
+            run_install
+            version_two="$(pwsh -NoProfile -Command "& '$wrapper' --version")"
+            test "$version_one" = "$version_two"
+            manifest="$(pwsh -NoProfile -Command "(Get-ChildItem -LiteralPath '$install_root_native' -Filter manifest.json -Recurse | Select-Object -First 1).FullName")"
+            test -n "$manifest"
+            pwsh -NoProfile -Command "Add-Content -LiteralPath '$manifest' -Value 'tampered'"
+            if run_install; then
+              echo "corrupt existing installation was silently accepted" >&2
+              exit 1
+            fi
+            test "$(pwsh -NoProfile -Command "& '$wrapper' --version")" = "$version_one"
+          else
+            installer="$artifact/install.sh"
+            chmod +x "$installer"
+            run_install() {
+              SIGIL_ARCHIVE_PATH="$archive" \
+                SIGIL_CHECKSUMS_PATH="$checksums" \
+                SIGIL_INSTALL_DIR="$install_root" \
+                SIGIL_BIN_DIR="$bin_root" \
+                "$installer"
+            }
+            run_install
+            version_one="$("$bin_root/sigil" --version)"
+            run_install
+            version_two="$("$bin_root/sigil" --version)"
+            test "$version_one" = "$version_two"
+            manifest="$(find "$install_root/versions" -name manifest.json -print -quit)"
+            test -n "$manifest"
+            printf '%s\n' tampered >> "$manifest"
+            if run_install; then
+              echo "corrupt existing installation was silently accepted" >&2
+              exit 1
+            fi
+            test "$("$bin_root/sigil" --version)" = "$version_one"
+          fi
 
   publish:
     needs: [build, artifact-consumer]
