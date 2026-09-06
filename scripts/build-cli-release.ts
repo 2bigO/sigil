@@ -244,7 +244,10 @@ async function locateTypeScriptPackage(target: ReleaseTarget): Promise<string> {
   const candidates = target.typescriptPackages.map((name) =>
     home ? join(home, ".cache/deno/npm/registry.npmjs.org", name, "7.0.2") : ""
   );
-  if (home) {
+  // The unscoped TypeScript package is acceptable only when building for the
+  // current host. Cross-target archives must use the target-specific native
+  // package; a host executable can never be smuggled into another archive.
+  if (home && target.deno === Deno.build.target) {
     candidates.push(
       join(home, ".cache/deno/npm/registry.npmjs.org/typescript/7.0.2"),
     );
