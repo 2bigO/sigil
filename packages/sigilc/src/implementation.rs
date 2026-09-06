@@ -4,7 +4,7 @@ use crate::{
     design::SourceStatus,
     inputs::{PROJECTION_FORMAT, implementation_identity},
     kernel::{self, Limits, SaturatedWorld},
-    sources::{Selection, discover, hash},
+    sources::{Selection, SourceManifest, discover, hash},
     store::{Freshness, LockedStore},
     turtle::{Assertion, ontology_fingerprint},
 };
@@ -46,6 +46,16 @@ pub fn assemble(
     max_assertions: usize,
 ) -> Result<Assembly, String> {
     let manifest = discover(root, selection)?;
+    assemble_manifest(&manifest, catalog, store, max_assertions)
+}
+
+/// Reuse a scope's captured selection instead of discovering it twice.
+pub fn assemble_manifest(
+    manifest: &SourceManifest,
+    catalog: &Catalog,
+    store: &LockedStore,
+    max_assertions: usize,
+) -> Result<Assembly, String> {
     let mut assertions = BTreeSet::new();
     let mut assertion_sources: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut sources = Vec::new();

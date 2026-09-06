@@ -60,17 +60,11 @@ work and last checkpoint. Check the actual worktree and executable before relyin
 on stored observations. Preserve unrelated changes. The current run uses
 `.codex-progress/`, which must stay ignored and uncommitted.
 
-Resume in the order of the active `work` list, with its explicit priorities
-taking precedence over historical checkpoints and deletion queues. The next
-implementation task is `S32`: finish native `SigilComparisonScope`, validate it
-and use it on this refactor. Its authored contract is present; its Rust/CLI
-implementation is not. Do this before resuming structural export extraction or
-other legacy deletions. Then perform `LOOP-PARITY`: use existing stack capabilities
-for each remaining temporary mechanism and turn observed missing answers into
-specific Design/implementation work. Continue the whole refactor after that
-review; do not turn the review into a prerequisite for all useful work.
-Remove this one-time ordering paragraph when both initial steps are satisfied;
-the general convergence and retirement rules continue to apply.
+Resume in the order of the active `work` list, with explicit priorities taking
+precedence over historical checkpoints and deletion queues. Ordered native scope
+is implemented and used on this refactor. Use it on subsequent work; do not
+reimplement it from the earlier scope-first checkpoint. Continue with the
+information/evidence parity review and its concrete missing-capability tasks.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
@@ -83,7 +77,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 | Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results. |
 | Which identities may Implementation use? | `sigilc entities` | No catalog from stale or Disjoint Design. Current repository reconstruction remains incomplete. |
 | What is the current semantic result? | `sigilc compile design`, `compile implementation`, `compare` | Native commands exist; that does not establish independent current-source reconstruction or frontend integration. |
-| Which files does this comparison cover? | All Design sources in `--frontend`; Implementation `--selection` | Explicit paired scope is defined by `packages/sigilc/scope.sigil` but not implemented. `--source` only targets per-file operations. |
+| Which files does this comparison cover, and in what focus order? | `sigilc scope --frontend FILE --scope FILE`; same `--scope` on world commands | Reports ordered roots, effective import/owner closure and Implementation selection. Order and membership have separate identities. Inspection does not require reconstructed worlds and is not a semantic gate. |
 | Can generated worlds be discarded/recovered? | `sigilc clean` | Use deliberately for disposable-cache recovery, not routinely before freshness inspection. |
 | What code/features still need delivery? | Whole specification, authored Design, ordinary checks and remaining delivery queue | Semantic success alone cannot answer this; final delivery audit remains external. |
 
@@ -133,6 +127,24 @@ Keep operational, build and vendored files outside source scope. Do not exclude
 actual product files because they are difficult to reconstruct. Never supply this
 procedure, the tracker, neighboring code or Design relationships to an
 Implementation worker. The independence rules below still apply.
+
+For a focused increment, use one scope definition instead of manually slicing
+the frontend bundle or rebuilding per-task comparison lists:
+
+```sh
+sigilc scope --frontend frontend.json --scope scope.json
+sigilc stale design --frontend frontend.json --scope scope.json
+sigilc prepare design --frontend frontend.json --scope scope.json --source path/to/contract.sigil --out scope-job
+sigilc compare --frontend frontend.json --scope scope.json
+```
+
+The versioned scope pairs ordered `design.paths` with `implementation` selection;
+see the native README for the exact schema. Read `scope.design.focus_order` from
+native output. Requested roots come first, followed by dependency additions.
+Inspect the effective membership and inclusion reasons before interpreting the
+result. Use `--scope` consistently on subsequent ingest/catalog/Implementation
+operations. It replaces `--selection`; it does not replace the full-scope final
+audit, an external work queue or independent reconstruction.
 
 ## The convergence loop
 
@@ -216,22 +228,25 @@ Already observed during this refactor:
 * Structural export remains a manual call to a helper inside the package being
   removed. Extract that language-only capability into the retained frontend; do
   not introduce a TS compiler wrapper to hide the remaining step.
-* Focused comparison still requires externally chosen frontend membership plus
-  Implementation selection. Implement `SigilComparisonScope` directly in Rust:
-  explicit Design roots, reported import/ownership closure and existing
-  Implementation filtering. Then use it on this refactor and remove temporary
-  scope assembly. Do not treat the authored definition as an available command.
+* Ordered scope now works directly in Rust across native commands. On the real
+  refactor, three requested roots expanded to 60 Design files through imports
+  and ownership; the native output exposed that breadth while preserving focus
+  order. Design was Loose and comparison unavailable, not a fabricated focused
+  success. Scope inspection and Design preparation both completed.
 * **Learning from observation: order is necessary scope information.** This loop
   initially resumed toward export extraction and deletion even though native
   scope was the newly requested first task. Making the priority explicit in the
   temporary queue exposed a missing product requirement: a set of files cannot
   convey what comes first. `SigilComparisonScope::FocusOrder` now requires
   caller-defined order in native scope output, separate from membership and
-  semantic cache identity. Implement and exercise that requirement in `S32`,
-  then check that the resumed external loop recovers priority from native output.
-  This observation has produced Design and a queued acceptance case, not yet
-  an implemented feature. Apply the same observation-to-Design-to-implementation
+  semantic cache identity. `S32` implemented and tested this requirement; real
+  native output now recovers scope/export/editor priority without a separate
+  comparison-priority table. Apply the same observation-to-Design-to-implementation
   process to subsequent gaps; do not leave them as permanent tracker rules.
+* Selecting four explicit Implementation files took roughly 8–11 seconds in
+  each real scoped command because discovery hashes unselected files first.
+  Improve native selection before hashing and validate it on the same scope;
+  do not hide the cost in a custom manifest cache or TS adapter.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
@@ -250,9 +265,8 @@ what inputs are current, and what semantic obligations hold, fail or remain
 unknown. The loop is done when those answers and their evidence agree and the
 final gate passes. A matching color or a newly available primitive is insufficient.
 
-After the first scope implementation task, review active temporary mechanisms
-against implemented Sigil commands/functions. Use existing capabilities directly
-and update this procedure;
+Review active temporary mechanisms against implemented Sigil commands/functions.
+Use existing capabilities directly and update this procedure;
 do not write replacement code for a capability already present. For each missing
 answer, record the concrete real-loop question, missing input/output or evidence,
 and intended owner. Define and implement the missing capability, validate it on
@@ -380,7 +394,7 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | --- | --- | --- |
 | Hand-maintained source/unit inventory | Existing structural frontend export | Already used across subsequent increments. Remove duplicate source/unit inventories and counts; keep the current artifact identity. The language export itself is retained product capability. |
 | Ad hoc target freshness queries | Native `stale`, capture and generation validation | Already used across subsequent increments. Remove custom freshness decisions and per-source tracker statuses; read native reports. |
-| Repeated scope selectors and hand-built comparison membership | Planned `SigilComparisonScope`, reusing existing Implementation selection | Remove duplicated selector prose now. Once native scope is implemented and adopted, delete manual bundle slicing and active per-task file lists used only for comparison. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
+| Repeated scope selectors and hand-built comparison membership | Implemented `sigilc scope` and `--scope` across world commands | Duplicate selector prose removed; native scope trial exercised on the real refactor. Adopt it on the next increment and stop manual bundle slicing/comparison-membership assembly. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
 | Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Stop custom assembly when real returned Turtle uses the native path. Do not mark independent reconstruction available from fixtures. |
 | Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
 | Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |

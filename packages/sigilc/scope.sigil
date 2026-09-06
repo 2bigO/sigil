@@ -45,6 +45,9 @@ component SigilComparisonScope {
     }
 
     ScopedComparison {
+      Expose scope inspection without requiring reconstructed projections or a
+      current catalog. Return current input identities and retained frontend
+      diagnostics; inspection success is not a completed semantic gate.
       Use the same resolved scope for freshness inspection, preparation,
       ingestion, Design compilation, catalog export and Implementation comparison.
       Require per-source operations to target a member of their selected side.

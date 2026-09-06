@@ -127,10 +127,12 @@ impl Scope {
     }
 }
 
-// @sigil implements packages/sigilc/scope.sigil::SigilComparisonScope::DesignMembership interface
-// @sigil implements packages/sigilc/scope.sigil::SigilComparisonScope::FocusOrder interface
 // Both callers operate on validated frontend structure. Share this closure with
 // per-source binding so changing focus cannot hide a semantic dependency.
+/*
+ * @sigil implements packages/sigilc/scope.sigil::SigilComparisonScope::DesignMembership interface
+ * @sigil implements packages/sigilc/scope.sigil::SigilComparisonScope::FocusOrder interface
+ */
 pub(crate) fn design_membership<'a>(
     input: &'a DesignInput,
     roots: impl IntoIterator<Item = &'a str>,

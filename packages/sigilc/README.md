@@ -81,3 +81,54 @@ a usable catalog and returns exit 3 with Implementation and comparison unset;
 the JSON explains the unavailable prerequisite. Inspection and operational exit
 codes do not denote semantic colors. These states do not establish delivery,
 test success or fidelity of external reconstruction.
+
+Use a paired scope to focus Design and Implementation together. For example,
+`scope.json`:
+
+```json
+{
+  "version": 1,
+  "design": { "paths": ["architecture/a.sigil", "architecture/b.sigil"] },
+  "implementation": { "dirs": ["src"], "vendorDirs": ["vendor"] }
+}
+```
+
+```sh
+sigilc scope --frontend frontend.json --scope scope.json
+sigilc stale design --frontend frontend.json --scope scope.json
+sigilc compile design --frontend frontend.json --scope scope.json
+sigilc entities --frontend frontend.json --scope scope.json
+sigilc compare --frontend frontend.json --scope scope.json
+```
+
+All world commands accept `--scope`, including per-source `prepare` and `ingest`
+on either side; their `--source` must belong to that side. Use the same scope
+through preparation, ingestion and comparison. `--scope` replaces `--selection`
+for Implementation and conflicts with it and `--allow-empty`. Set intentional
+emptiness with `design.allowEmpty` and `implementation.allowEmpty` instead.
+An empty Design `paths` array selects no Design only when explicitly allowed.
+Implementation retains its existing selection rules: omitted/empty paths and
+directories select all eligible files; use filters to select an intentional empty
+Implementation. Invalid or duplicate Design roots are errors, never ignored.
+
+Scope output preserves `design.roots` in caller priority order. `design.focus_order`
+places those roots first, followed by additional dependency files sorted by path.
+Imports and required structural owners expand membership, with reasons reported
+in `design.dependencies`. Unresolved imports conservatively include the entire
+frontend bundle and set `conservative_full_bundle`. Included files contribute all
+their units and assertions. Known excluded authored-file diagnostics are omitted;
+included-file, global and configuration diagnostics remain.
+
+`membership_fingerprint` identifies the effective Design and Implementation file
+sets. `order_fingerprint` identifies Design focus order separately. Neither is
+an extra per-file projection key: reprioritizing the same roots reuses unchanged
+bindings. Changing effective catalog identity still invalidates Implementation.
+Excluded cached objects remain reusable and contribute no scoped facts. Scoped
+freshness rows cover effective members; unscoped inspection also reports deleted
+indexed sources outside the current selection.
+
+`scope` exits 0 for completed membership inspection, even before reconstruction;
+it reports captured Design/Implementation input fingerprints and frontend
+diagnostics. It supplies no semantic verdict, task completion or worker scheduling.
+Scoped gates keep their existing exits and include the scope in their JSON output.
+Focused success never substitutes for complete-refactor delivery and comparison.

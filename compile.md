@@ -1814,10 +1814,12 @@ changing the Design identity catalog invalidates Implementation projections.
 Distinguish cached sources outside a scope from actually deleted sources. Reject
 missing roots and conflicting selectors; intentional emptiness is explicit.
 
-Current implementation: `--selection` selects Implementation sources only;
-Design uses all sources in `--frontend`. Per-source `--source` preparation is
-not comparison scoping. The explicit paired scope is defined but not implemented
-yet. Add it directly to `sigilc`, reusing native discovery and input binding;
+Use `sigilc scope --frontend FILE --scope FILE` for ordered membership inspection
+and `--scope FILE` on native world commands for the same focused inputs. The
+versioned scope pairs `design.paths` in caller priority order with the existing
+`implementation` selection object; see `packages/sigilc/README.md` for its schema.
+Without `--scope`, `--selection` selects Implementation only and Design uses all
+sources in `--frontend`. Native scope reuses discovery and input binding directly;
 do not add a TypeScript wrapper or a second task/requirement catalog.
 
 The external workflow chooses files for a question in `compile.md`. Sigil does

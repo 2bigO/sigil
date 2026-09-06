@@ -5,6 +5,7 @@ use crate::{
     implementation,
     inputs::{self, DesignSnapshot},
     kernel::{DesignState, Limits},
+    scope::{ResolvedScope, Scope},
     sources::{self, Selection},
     store::{Freshness, Job, LockedStore, StoreLimits},
     turtle::{self, TurtleLimits},
@@ -40,9 +41,11 @@ pub fn run(args: &[&str]) -> Output {
         ] => (*command, *side, tail),
         ["entities", tail @ ..] => ("entities", "design", tail),
         ["compare", tail @ ..] => ("compare", "implementation", tail),
+        ["scope", tail @ ..] => ("scope", "design", tail),
         _ => return Err((2, "Invalid command or options. Run sigilc --help.".into())),
     };
     let allowed: &[&str] = match command {
+        "scope" => &["--root", "--frontend", "--format"],
         "prepare" => &["--root", "--frontend", "--source", "--out"],
         "ingest" => &["--root", "--frontend", "--source", "--job", "--turtle"],
         _ => &[
@@ -54,6 +57,7 @@ pub fn run(args: &[&str]) -> Output {
         ],
     };
     let mut allowed = allowed.to_vec();
+    allowed.push("--scope");
     if side == "implementation" && matches!(command, "compile" | "stale" | "compare") {
         allowed.push("--selection");
     }
@@ -86,7 +90,18 @@ pub fn run(args: &[&str]) -> Output {
             .ok_or_else(|| (2, format!("required option: {key}")))
     };
     let frontend = required("--frontend")?;
-    if side == "implementation" && matches!(command, "compile" | "stale" | "compare") {
+    if command == "scope" {
+        required("--scope")?;
+    }
+    if options.contains_key("--scope")
+        && (options.contains_key("--selection") || options.contains_key("--allow-empty"))
+    {
+        return Err((2, "--scope conflicts with --selection and --allow-empty; set selection and emptiness within scope".into()));
+    }
+    if side == "implementation"
+        && matches!(command, "compile" | "stale" | "compare")
+        && !options.contains_key("--scope")
+    {
         required("--selection")?;
     }
     let source = if matches!(command, "prepare" | "ingest") {
@@ -116,6 +131,7 @@ pub fn run(args: &[&str]) -> Output {
         turtle_path,
         options.get("--limits").copied(),
         options.get("--selection").copied(),
+        options.get("--scope").copied(),
     ]
     .into_iter()
     .flatten()
@@ -137,104 +153,168 @@ pub fn run(args: &[&str]) -> Output {
         .unwrap_or_default();
     let store_limits = StoreLimits::default();
     let mut store = LockedStore::open(&root, store_limits).map_err(runtime)?;
-    let input =
+    let mut input =
         DesignInput::parse(&read(frontend, 32_000_000).map_err(runtime)?).map_err(runtime)?;
+    let scope = options
+        .get("--scope")
+        .map(|path| {
+            let scope: Scope = serde_json::from_slice(&read(path, 1_000_000).map_err(runtime)?)
+                .map_err(|e| runtime(e.to_string()))?;
+            scope.resolve(&root, &mut input).map_err(runtime)
+        })
+        .transpose()?;
+    if let Some(scope) = &scope {
+        if scope.report.design.intentional_empty {
+            options.insert("--allow-empty", "true");
+        }
+        if let Some(source) = source {
+            let selected = if side == "design" {
+                scope.report.design.sources.contains(source)
+            } else {
+                scope
+                    .report
+                    .implementation_sources
+                    .binary_search_by(|p| p.as_str().cmp(source))
+                    .is_ok()
+            };
+            if !selected {
+                return Err((
+                    2,
+                    format!("{side} source is outside the requested scope: {source}"),
+                ));
+            }
+        }
+    }
     let snapshot =
         DesignSnapshot::capture(&root, input, store_limits.max_source_bytes).map_err(runtime)?;
-    if side == "implementation" {
-        return run_implementation(command, &options, &root, &snapshot, &mut store, limits);
+    if command == "scope" {
+        let scope = scope.unwrap();
+        return json(
+            0,
+            &serde_json::json!({
+                "version":1,"scope":scope.report,
+                "design_input_fingerprint":snapshot.fingerprint().map_err(runtime)?,
+                "implementation_source_fingerprint":scope.implementation.fingerprint,
+                "diagnostics":snapshot.input().diagnostics,
+            }),
+        );
     }
-    match command {
-        "prepare" => {
-            design::valid_frontend(&snapshot).map_err(runtime)?;
-            let source = source.unwrap();
-            let job = store
-                .prepare(snapshot.binding(source).map_err(runtime)?)
-                .map_err(runtime)?;
-            let out = Path::new(out.unwrap());
-            fs::create_dir(out).map_err(|e| {
-                runtime(format!(
-                    "create preparation directory {}: {e}",
-                    out.display()
-                ))
-            })?;
-            write_new(
-                &out.join("design.json"),
-                &snapshot.preparation(source).map_err(runtime)?,
-            )
-            .map_err(runtime)?;
-            write_new(&out.join("ontology.json"), &turtle::ontology_document()).map_err(runtime)?;
-            write_new(&out.join("job.json"), &job).map_err(runtime)?;
-            json(
-                0,
-                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"input_fingerprint":job.binding.fingerprint()}),
-            )
-        }
-        "ingest" => {
-            design::valid_frontend(&snapshot).map_err(runtime)?;
-            let source = source.unwrap();
-            let job: Job =
-                serde_json::from_slice(&read(job_path.unwrap(), 16_000_000).map_err(runtime)?)
-                    .map_err(|e| runtime(e.to_string()))?;
-            if job.binding.side() != "design" || job.binding.source.path != source {
-                return Err((2, "job does not bind the requested Design source".into()));
-            }
-            let facts = turtle::parse(
-                &read(
-                    turtle_path.unwrap(),
-                    TurtleLimits::default().max_document_bytes as u64,
+    let output = if side == "implementation" {
+        run_implementation(
+            command,
+            &options,
+            &root,
+            &snapshot,
+            &mut store,
+            limits,
+            scope.as_ref(),
+        )
+    } else {
+        match command {
+            "prepare" => {
+                design::valid_frontend(&snapshot).map_err(runtime)?;
+                let source = source.unwrap();
+                let job = store
+                    .prepare(snapshot.binding(source).map_err(runtime)?)
+                    .map_err(runtime)?;
+                let out = Path::new(out.unwrap());
+                fs::create_dir(out).map_err(|e| {
+                    runtime(format!(
+                        "create preparation directory {}: {e}",
+                        out.display()
+                    ))
+                })?;
+                write_new(
+                    &out.join("design.json"),
+                    &snapshot.preparation(source).map_err(runtime)?,
                 )
-                .map_err(runtime)?,
-                TurtleLimits::default(),
-            )
-            .map_err(runtime)?;
-            catalog::validate_design(source, snapshot.input(), &facts).map_err(runtime)?;
-            let generation = store
-                .publish(&job, &snapshot.binding(source).map_err(runtime)?, &facts)
                 .map_err(runtime)?;
-            json(
-                0,
-                &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
-            )
-        }
-        "stale" => {
-            let rows = design::inspect(&snapshot, &store).map_err(runtime)?;
-            let code = if rows.iter().all(|s| s.status == Freshness::Fresh) {
-                0
-            } else {
-                1
-            };
-            json(
-                code,
-                &serde_json::json!({"version":1,"side":"design","input_fingerprint":snapshot.fingerprint().map_err(runtime)?,"sources":rows}),
-            )
-        }
-        _ => {
-            let report = design::compile(
-                &snapshot,
-                &store,
-                limits,
-                options.contains_key("--allow-empty"),
-            )
-            .map_err(runtime)?;
-            if command == "entities" {
-                match report.catalog {
-                    Some(catalog) => json(0, &catalog),
-                    None => json(
-                        1,
-                        &serde_json::json!({"version":1,"design":report.world.state,"all_fresh":report.all_fresh,"catalog":null}),
-                    ),
-                }
-            } else {
+                write_new(&out.join("ontology.json"), &turtle::ontology_document())
+                    .map_err(runtime)?;
+                write_new(&out.join("job.json"), &job).map_err(runtime)?;
                 json(
-                    match report.world.state {
-                        DesignState::Coherent | DesignState::Loose => 0,
-                        DesignState::Disjoint => 1,
-                    },
-                    &report,
+                    0,
+                    &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"input_fingerprint":job.binding.fingerprint()}),
                 )
             }
+            "ingest" => {
+                design::valid_frontend(&snapshot).map_err(runtime)?;
+                let source = source.unwrap();
+                let job: Job =
+                    serde_json::from_slice(&read(job_path.unwrap(), 16_000_000).map_err(runtime)?)
+                        .map_err(|e| runtime(e.to_string()))?;
+                if job.binding.side() != "design" || job.binding.source.path != source {
+                    return Err((2, "job does not bind the requested Design source".into()));
+                }
+                let facts = turtle::parse(
+                    &read(
+                        turtle_path.unwrap(),
+                        TurtleLimits::default().max_document_bytes as u64,
+                    )
+                    .map_err(runtime)?,
+                    TurtleLimits::default(),
+                )
+                .map_err(runtime)?;
+                catalog::validate_design(source, snapshot.input(), &facts).map_err(runtime)?;
+                let generation = store
+                    .publish(&job, &snapshot.binding(source).map_err(runtime)?, &facts)
+                    .map_err(runtime)?;
+                json(
+                    0,
+                    &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
+                )
+            }
+            "stale" => {
+                let mut rows = design::inspect(&snapshot, &store).map_err(runtime)?;
+                if let Some(scope) = &scope {
+                    rows.retain(|s| scope.report.design.sources.contains(&s.source));
+                }
+                let code = if rows.iter().all(|s| s.status == Freshness::Fresh) {
+                    0
+                } else {
+                    1
+                };
+                json(
+                    code,
+                    &serde_json::json!({"version":1,"side":"design","input_fingerprint":snapshot.fingerprint().map_err(runtime)?,"sources":rows}),
+                )
+            }
+            _ => {
+                let report = design::compile(
+                    &snapshot,
+                    &store,
+                    limits,
+                    options.contains_key("--allow-empty"),
+                )
+                .map_err(runtime)?;
+                if command == "entities" {
+                    match report.catalog {
+                        Some(catalog) => json(0, &catalog),
+                        None => json(
+                            1,
+                            &serde_json::json!({"version":1,"design":report.world.state,"all_fresh":report.all_fresh,"catalog":null}),
+                        ),
+                    }
+                } else {
+                    json(
+                        match report.world.state {
+                            DesignState::Coherent | DesignState::Loose => 0,
+                            DesignState::Disjoint => 1,
+                        },
+                        &report,
+                    )
+                }
+            }
         }
+    };
+    let (code, output) = output?;
+    if let Some(scope) = scope {
+        let mut report: serde_json::Value =
+            serde_json::from_str(&output).map_err(|e| runtime(e.to_string()))?;
+        report["scope"] = serde_json::to_value(scope.report).map_err(|e| runtime(e.to_string()))?;
+        json(code, &report)
+    } else {
+        Ok((code, output))
     }
 }
 
@@ -246,6 +326,7 @@ fn run_implementation(
     snapshot: &DesignSnapshot,
     store: &mut LockedStore,
     limits: Limits,
+    scope: Option<&ResolvedScope>,
 ) -> Output {
     let design = design::compile(
         snapshot,
@@ -305,20 +386,38 @@ fn run_implementation(
             &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
         );
     }
-    let mut selection: Selection =
-        serde_json::from_slice(&read(options["--selection"], 1_000_000).map_err(runtime)?)
-            .map_err(|e| runtime(e.to_string()))?;
-    if options.contains_key("--allow-empty") {
-        selection.allow_empty = true;
-    }
-    let assembly = implementation::assemble(
-        root,
-        &selection,
-        catalog,
-        store,
-        limits.max_input_assertions,
-    )
-    .map_err(runtime)?;
+    let assembly = if let Some(scope) = scope {
+        let mut assembly = implementation::assemble_manifest(
+            &scope.implementation,
+            catalog,
+            store,
+            limits.max_input_assertions,
+        )
+        .map_err(runtime)?;
+        assembly.sources.retain(|s| {
+            scope
+                .report
+                .implementation_sources
+                .binary_search(&s.source)
+                .is_ok()
+        });
+        assembly
+    } else {
+        let mut selection: Selection =
+            serde_json::from_slice(&read(options["--selection"], 1_000_000).map_err(runtime)?)
+                .map_err(|e| runtime(e.to_string()))?;
+        if options.contains_key("--allow-empty") {
+            selection.allow_empty = true;
+        }
+        implementation::assemble(
+            root,
+            &selection,
+            catalog,
+            store,
+            limits.max_input_assertions,
+        )
+        .map_err(runtime)?
+    };
     if command == "stale" {
         let code = if assembly
             .sources
