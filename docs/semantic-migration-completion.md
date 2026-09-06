@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `bf2ab6e`:
+`ff82926` and currently ends at `136f8fc`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -30,10 +30,10 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430`, `bf2ab6e` | Native distribution builder, smoke seam, offline Linux archive gate, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e`, `136f8fc` | Native distribution builder, smoke seam, offline Linux archive gate, published-consumer fixture, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting, strict checkpoint parsing, offline release enforcement, and the completion report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting, strict checkpoint parsing, offline release enforcement, published-consumer validation, and the completion report |
 
 ## Versions and reproducibility
 
@@ -137,7 +137,7 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | R09 | `install.sh` successful checksum/doctor/selection seam against the staged archive; bad-checksum and doctor-failure retention branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
 | R10 | Immutable version/manifest installation logic is implemented; reinstall/conflict matrix is not run here | All release targets | CI required |
 | R11 | Relocatable archive layout is implemented; copy-only-bin negative test remains in the release matrix | All release targets | CI required |
-| R12 | Explicit `SIGIL_RUNTIME_DIR` library seam is implemented; published-library fixture remains a release check | All release targets | CI required |
+| R12 | Explicit `SIGIL_RUNTIME_DIR` library seam is implemented; staged published-consumer fixture passes locally and remains a per-target release check | Linux x86_64 | PARTIAL (local consumer pass; all-target matrix required) |
 
 ### State, invalidation and beam recovery (I/B)
 
@@ -199,6 +199,7 @@ The following final commands were executed after the S11 changes:
 | `deno task test:skill` | Pass |
 | focused beam, migration and returned-verification tests | Pass, 11 tests |
 | `DISPLAY=:99 deno task test:vscode:extension` under Xvfb | Pass |
+| `deno task test:published-runtime --runtime /tmp/sigil-extracted-final21/sigil-0.7.1/lib/sigil/runtime` | Pass; staged Compiler consumer rejects missing runtime and passes explicit-runtime doctor |
 | `cargo fmt --check` (Rust 1.91, `packages/compiler/native`) | Pass |
 | `cargo clippy --locked -- -D warnings` (Rust 1.91, `packages/compiler/native`) | Pass |
 | staged `x86_64-unknown-linux-gnu` archive: version, doctor, relocation/isolation, semantic fixture, tamper and missing-runtime/library rejection | Pass |
