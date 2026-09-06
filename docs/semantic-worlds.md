@@ -375,7 +375,15 @@ trusted evidence. Accepted-world reconstruction and semantic closure work after
 optional Turtle files and derived caches are removed.
 
 The current snapshot copier excludes generated directories and `node_modules`.
-Checks that need installed local dependencies require further dependency staging;
-the disposable copy is filesystem work isolation, not an operating-system sandbox.
-Broader behavioral proofs, installed projections, provider migration and release
-packaging remain unfinished.
+Installed-package worlds and installed-dependency capture, freezing and staging
+are outside the implementation scope. Host checks must work with captured project
+inputs and available host tools; checks requiring a copied local dependency
+installation are unsupported. The disposable copy is filesystem work isolation,
+not an operating-system sandbox.
+
+The handoff/receipt verifier is usable from source on Linux with explicit host
+policy and supported static evidence. Human `.sigil` view installation and drift
+handling, provider/editor/skill migration, native release packaging and the final
+requirement audit remain. Additional behavioral proof rules are deliberate future
+extensions; unsupported behavior remains yellow. Following removal of the
+uncommitted dependency-capture changes, 94 compiler tests and 77 CLI tests pass.

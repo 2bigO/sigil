@@ -16,6 +16,8 @@ The same engine verifies a returned codebase against the green semantic world sl
 
 **Implementation scope:** Sigil prepares the handoff and verifies the returned implementation. The coding agent owns writing and repairing code. Generating, ranking, applying or merging multiple code patches, scheduling coding agents, and owning their implementation/repair loop are out of scope. Intent-world candidate search in phases 1–5 remains in scope.
 
+**Package scope:** Capturing semantic worlds for installed packages is out of scope. Do not crawl installed packages into accepted worlds or add installed-dependency capture, freezing or staging to this implementation. Verification uses the target codebase's accepted world, explicit host-owned bindings and supported source observations. The snapshot copier excludes `node_modules`; host checks must work with the captured project inputs and available host tools. Checks requiring a copied local dependency installation are outside the supported execution setup.
+
 Do not treat this as a conventional knowledge graph or retrieval system. The important property is computational closure: asserted facts enter the system, rules derive new facts/properties/obligations, and those consequences drive compilation.
 
 ## Core architecture
@@ -618,7 +620,7 @@ Report artifact identities in compiler/CLI output so an agent can inspect the re
 
 ## Implementation plan for the revised flow
 
-This plan replaces code-patch search and agent-loop work. Keep the existing intent-world search. Reuse the already implemented real Turtle parser, fixed egglog bridge, slice projection, native TypeScript 7 adapter, mechanical coverage rules, ownership-anchor resolver, compiler lifecycle and `semantic verify` command. The current collector provides useful observations; it does not yet implement the full handoff/receipt protocol below.
+This plan replaces code-patch search and agent-loop work. Keep the existing intent-world search. Reuse the real Turtle parser, fixed egglog bridge, slice projection, native TypeScript 7 adapter, mechanical coverage rules, ownership-anchor resolver, compiler lifecycle and `semantic verify` command. The handoff/receipt milestone below is implemented for supported static relations and host checks; migration and remaining validation are listed after the sequence.
 
 1. **Create incremental artifacts and version the handoff.** Implement the target `.sigil` bundle store, committed world revisions and ignored operational directories described above. Extend slice export with normalized fact/obligation identities, canonical `.egg` assertions with optional Turtle export, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification. Verify the storage acceptance conditions, including reconstruction and semantic compilation after removing all optional Turtle files and derived caches.
 
@@ -635,6 +637,27 @@ This plan replaces code-patch search and agent-loop work. Keep the existing inte
 7. **Finish migration and documentation.** Update architecture docs, CLI help, editor/skill workflows and packaging to describe slice handoff and returned-code verification. Remove code-candidate ranking, patch application and agent-loop orchestration from the planned product scope. Keep any in-progress utility only where it serves verification of one returned snapshot. Commit the work in these semantic groups and maintain the uncommitted operational progress record.
 
 The first implementation milestone is one complete handoff → returned receipts → independent TypeScript 7 observations → egglog coverage report, with green, yellow and red cases. Broaden supported evidence and composed obligations only after that path is tested.
+
+### Current implementation and remaining work
+
+The original architecture inspection and vertical prototype are complete. The revised handoff milestone is usable from a source checkout on Linux: build the native engine with `deno task build:semantic`, then run the CLI through `deno run --allow-env --allow-read --allow-write --allow-run packages/cli/src/main.ts`. Projects need accepted semantic state and explicit `.sigil/implementation.json` bindings. This is a working verifier with a bounded evidence vocabulary; it is not yet a completed distribution and workflow migration.
+
+| Plan area | Current state |
+|---|---|
+| Phases 1–5: intent and semantic reasoning | Turtle proposals, fixed egglog closure, deterministic pruning/ranking, exact ambiguity questions and retained beams work. Proposal input uses a supplied file or generic executable provider. |
+| Phase 6: ordinary compile | Deterministic compilation preserves targets, diagnostics, witnesses, events and reports. Default compilation invokes no LLM judge. |
+| Phase 7: human `.sigil` | Green worlds generate parser-validated output. Writing managed views back into the project with stable bindings and drift handling remains. |
+| Phases 8–11: handoff and verification | Retained slice/obligation bundles, strict receipt ingestion, native callable witnesses, bounded host checks, fixed egglog claim/coverage results and CLI/compile integration work. |
+| Incremental artifacts | Canonical lossless `.egg` worlds and policy are tracked; handoffs, receipts, completed stages, runs and caches are ignored. Reconstruction without Turtle or derived caches is tested. |
+
+Remaining work within the original plan:
+
+1. Complete the human `.sigil` projection workflow, including stable component bindings and detection of edits that diverge from canonical meaning. These are views of the target project's world, unrelated to installed-package worlds.
+2. Migrate bundled provider/harness integrations to semantic proposals and update editor/LSP/skill/configuration/docs surfaces that still describe evaluator workflows. The generic proposal provider and deterministic CLI already work.
+3. Package and locate the pinned native egglog engine and TypeScript 7 runtime in releases. The current release script packages the CLI and skills without explicitly shipping the egglog executable; source-checkout execution is the validated path. Validate supported platform installs.
+4. Finish the requirement audit and relevant integration/release checks, including format/kernel invalidation and recovery of interrupted beam writes. Accepted-world publication already uses operating-system locks; beam checkpoints still use directory locks.
+
+After removal of the uncommitted dependency-capture work, the compiler suite passes 94 tests and the CLI suite passes 77 tests on Linux. Fixtures exercise green/yellow/red results, forged or omitted claims, wrong/stale locations, changed protected inputs, unmentioned violations and tool failures. This does not establish cross-platform release readiness. Static direct relations have explicit sufficiency rules; arbitrary behavioral claims remain yellow unless supported by additional deliberately implemented rules. The illustrative future analyses in phase 3 do not require an unbounded ontology expansion to finish this milestone.
 
 ## Important architectural principles
 
