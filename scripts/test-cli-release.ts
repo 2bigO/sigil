@@ -119,6 +119,7 @@ try {
   } catch (error) {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
+  await runPackagedPublicFlow(relocatedCli, unrelated, isolatedEnv, scratch);
 
   const tampered = await Deno.makeTempDir({
     prefix: "sigil-release-tampered-",
@@ -212,6 +213,7 @@ try {
       relocated: true,
       isolated: true,
       design: true,
+      publicFlow: true,
       tamperRejected: true,
       missingRuntimeRejected: true,
       missingLibraryRejected: true,
@@ -252,7 +254,9 @@ async function run(
   };
   if (!allowFailure && result.code !== 0) {
     throw new Error(
-      `${basename(command[0])} failed (${result.code}): ${result.stderr}`,
+      `${basename(command[0])} failed (${result.code}) [${
+        command.slice(1).join(" ")
+      }]: ${result.stderr || result.stdout}`,
     );
   }
   return result;
@@ -267,6 +271,273 @@ async function writeFixture(root: string): Promise<void> {
   await Deno.remove(join(root, "fixture-config.json"));
 }
 
+async function writePublicFixture(root: string): Promise<void> {
+  await Deno.mkdir(join(root, ".sigil"), { recursive: true });
+  await Deno.writeTextFile(
+    join(root, ".sigil/config.json"),
+    JSON.stringify({
+      sigilVersion: "0.7.0",
+      workspace: { name: "packaged-public", members: [] },
+      files: { include: ["**/*.sigil"], exclude: [] },
+      tools: {},
+    }),
+  );
+  await Deno.writeTextFile(
+    join(root, "main.sigil"),
+    `component Application {
+  goal {
+  }
+  interface {
+  }
+}
+`,
+  );
+  await Deno.writeTextFile(
+    join(root, "app.ts"),
+    "export function run() { return 1; }\n",
+  );
+  await Deno.writeTextFile(
+    join(root, "tsconfig.json"),
+    JSON.stringify({
+      compilerOptions: { strict: true, noEmit: true },
+      files: ["app.ts"],
+    }),
+  );
+}
+
+async function runPackagedPublicFlow(
+  cli: string,
+  cwd: string,
+  env: Record<string, string>,
+  scratch: string,
+): Promise<void> {
+  const root = join(scratch, "packaged public flow");
+  await writePublicFixture(root);
+  const component = "urn:sigil:component:main.sigil:Application";
+  const intent = "Keep application behavior independent of disk.";
+  const contract = `urn:sigil:intent:${await sha256Text(intent)}`;
+  const proposals = join(root, "proposals.json");
+  await Deno.writeTextFile(
+    proposals,
+    JSON.stringify({
+      version: 1,
+      candidates: [{
+        id: "packaged",
+        additions: `@prefix s: <https://sigil.dev/ontology/1#> .
+<urn:Disk> a s:Capability .
+<urn:Generated> a s:Component; s:label "Generated" .
+<${contract}> a s:Contract; s:required true; s:description "${intent}"; s:section "goal"; s:from <${component}>; s:relation "dependsOn"; s:target <urn:Disk>; s:expected false .
+<${component}> s:hasContract <${contract}> .`,
+        retractions: "",
+      }],
+    }),
+  );
+  const intentResult = await run(
+    [
+      cli,
+      "semantic",
+      "intent",
+      root,
+      "--text",
+      intent,
+      "--proposals",
+      proposals,
+      "--beam",
+      "packaged-flow",
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const intentJson = JSON.parse(intentResult.stdout) as { status?: string };
+  if (intentJson.status !== "green") {
+    throw new Error("Packaged public intent did not produce a green beam.");
+  }
+  const accepted = await run(
+    [
+      cli,
+      "semantic",
+      "accept",
+      root,
+      "--beam",
+      "packaged-flow",
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const acceptedJson = JSON.parse(accepted.stdout) as { revision?: string };
+  if (!acceptedJson.revision) {
+    throw new Error("Packaged acceptance omitted revision.");
+  }
+  await run(
+    [
+      cli,
+      "semantic",
+      "project",
+      root,
+      "--write",
+      "--expected-revision",
+      acceptedJson.revision,
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const listed = await run(
+    [
+      cli,
+      "semantic",
+      "status",
+      root,
+      "--list",
+      "components",
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const components = JSON.parse(listed.stdout) as {
+    items?: readonly { id?: string; authoredPath?: string | null }[];
+  };
+  if (
+    !components.items?.some((item) =>
+      item.id === "urn:Generated" && item.authoredPath === null
+    )
+  ) {
+    throw new Error(
+      "Packaged public flow lost its generated component identity.",
+    );
+  }
+  await Deno.writeTextFile(
+    join(root, ".sigil/implementation.json"),
+    JSON.stringify({
+      version: 1,
+      project: "tsconfig.json",
+      components: [{ entity: component, files: ["app.ts"], exhaustive: true }],
+      targets: [{
+        entity: "urn:Disk",
+        declarations: [{ file: "app.ts", symbol: "run" }],
+      }],
+    }),
+  );
+  const slice = await run(
+    [
+      cli,
+      "semantic",
+      "slice",
+      root,
+      "--component",
+      component,
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const sliceJson = JSON.parse(slice.stdout) as {
+    artifacts?: { handoff?: string };
+  };
+  const handoff = sliceJson.artifacts?.handoff;
+  if (!handoff) throw new Error("Packaged public slice omitted its handoff.");
+  const manifest = JSON.parse(
+    await Deno.readTextFile(
+      join(root, ".sigil/handoffs", handoff, "handoff.json"),
+    ),
+  ) as {
+    obligations?: readonly {
+      id: string;
+      subject: string;
+      relation: string;
+      target: string;
+      expected: boolean;
+    }[];
+  };
+  const obligation = manifest.obligations?.find((item) =>
+    item.subject === component
+  );
+  if (!obligation) {
+    throw new Error("Packaged public handoff omitted its obligation.");
+  }
+  const returned = join(scratch, "packaged returned checkout");
+  await copyDirectory(root, returned);
+  const submission = join(scratch, "packaged receipt submission");
+  await Deno.mkdir(submission, { recursive: true });
+  const fingerprint = await sha256(
+    await Deno.readFile(join(returned, "app.ts")),
+  );
+  const claims = join(submission, "claims.ttl");
+  const locations = join(submission, "locations.json");
+  await Deno.writeTextFile(
+    claims,
+    `@prefix s: <https://sigil.dev/ontology/1#> .
+<urn:packaged:receipt> a s:Evidence; s:covers <${obligation.id}>; s:from <${obligation.subject}>; s:relation "${obligation.relation}"; s:target <${obligation.target}>; s:expected ${obligation.expected} .`,
+  );
+  await Deno.writeTextFile(
+    locations,
+    JSON.stringify({
+      version: 1,
+      handoff,
+      receipts: {
+        "urn:packaged:receipt": {
+          locations: [{ file: "app.ts", fingerprint, symbol: "run" }],
+        },
+      },
+    }),
+  );
+  const imported = await run(
+    [
+      cli,
+      "semantic",
+      "receipts",
+      returned,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--claims",
+      claims,
+      "--locations",
+      locations,
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const receiptId =
+    (JSON.parse(imported.stdout) as { artifacts?: { receipts?: string } })
+      .artifacts?.receipts;
+  if (!receiptId) {
+    throw new Error("Packaged receipt import omitted its artifact identity.");
+  }
+  const verified = await run(
+    [
+      cli,
+      "semantic",
+      "verify",
+      returned,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--receipts",
+      receiptId,
+    ],
+    cwd,
+    false,
+    env,
+  );
+  const report = JSON.parse(verified.stdout) as {
+    status?: string;
+    receiptResults?: readonly { status?: string }[];
+  };
+  if (
+    report.status !== "green" ||
+    !report.receiptResults?.some((item) => item.status === "supported")
+  ) {
+    throw new Error("Packaged public receipt verification did not pass.");
+  }
+}
+
 async function copyDirectory(source: string, target: string): Promise<void> {
   await Deno.mkdir(target, { recursive: true });
   for await (const entry of Deno.readDir(source)) {
@@ -274,4 +545,16 @@ async function copyDirectory(source: string, target: string): Promise<void> {
     if (entry.isDirectory) await copyDirectory(from, to);
     else if (entry.isFile) await Deno.copyFile(from, to);
   }
+}
+
+async function sha256Text(value: string): Promise<string> {
+  return await sha256(new TextEncoder().encode(value));
+}
+
+async function sha256(value: Uint8Array): Promise<string> {
+  const copy = new Uint8Array(value.byteLength);
+  copy.set(value);
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", copy))].map(
+    (byte) => byte.toString(16).padStart(2, "0"),
+  ).join("");
 }
