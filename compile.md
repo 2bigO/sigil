@@ -798,12 +798,27 @@ Concrete integration details from the checkout:
   recovery disabled for source identity.
 * The local dependency path is useful for a development spike only. Pin a
   distributable Git revision or a verified published version in the final
-  manifest and lockfile. Snapdir's workspace requires Rust 1.91.1; Sigil currently
+  manifest and lockfile. A bounded portability patch may use a checked-in Cargo
+  patch of that exact upstream core crate, with its license, revision, and small
+  source diff documented. This is a distributable dependency, never an ignored
+  `repos/` path. Report copied dependency lines separately from Sigil replacement
+  code and also show the raw tracked-extension total so vendoring is visible.
+  Snapdir's workspace requires Rust 1.91.1; Sigil currently
   declares 1.91. Align the declared MSRV and build environment.
 * Preserve existing release platforms. First isolate/port the small required
   snapdir-core filesystem surface for Windows and verify it on the release
   matrix. Do not silently remove Windows support or ship a release dependent on
   the ignored `repos/` checkout. This is an early feasibility milestone.
+
+Portability evidence (implementation cycle 2): the pinned core failed a Windows
+MSVC compile check at seven Unix-only references in permissions, mmap error
+classification, and optional CPU telemetry. Conditional compilation plus a
+documentary Windows permission value resolves these without changing hashing or
+walking. The bounded patch passes compile checks for all five retained target
+triples and the Linux no-follow regression. Cross-checks do not establish native
+linking or runtime acceptance; those remain required release checks. Vendoring
+the exact core with this patch avoids requiring an unpublished upstream revision
+or a build-time source rewriting/download framework.
 
 ---
 
