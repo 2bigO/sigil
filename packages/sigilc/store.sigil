@@ -5,6 +5,27 @@ component SigilProjectionStore {
   }
 
   interface {
+    DesignCommands {
+      Expose prepare, ingest, stale and compile for Design and entities for its
+      catalog. Accept an explicit frontend bundle and workspace root. Preparation
+      writes only bound Design context, fixed ontology and a job descriptor into
+      a new caller-selected directory; refuse to overwrite existing directories.
+      Ingestion checks the job source and current inputs before publication.
+      Report completed Loose or Disjoint with exit one, invalid options with two,
+      and operational failure without a semantic result with three.
+      No provider, model or automatic repair options exist.
+    }
+
+    CurrentDesign {
+      Assemble fresh source projections against a recaptured frontend snapshot.
+      Add only structural type and label facts plus required unit inventory from
+      the frontend. Missing projections leave Design Loose unless fresh facts
+      already establish Disjoint. Frontend errors produce no completed verdict.
+      Validate the complete identity set before freezing a current catalog.
+      Reports identify captured inputs, projection contents and compiled kernel.
+      Prepare Design context only from its bound source and dependency closure.
+    }
+
     ProjectionPublication {
       Capture the expected per-source generation before reconstruction.
       Under one OS file lock, compare the prepared binding and generation with

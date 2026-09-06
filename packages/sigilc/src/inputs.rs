@@ -78,6 +78,29 @@ impl DesignSnapshot {
         &self.input
     }
 
+    /// Everything supplied to a Design worker is covered by this source's key.
+    pub fn preparation(&self, source: &str) -> Result<serde_json::Value, String> {
+        let binding = self.binding(source)?;
+        let SemanticInput::Design { dependencies, .. } = &binding.semantic else {
+            unreachable!()
+        };
+        let paths: BTreeSet<_> = dependencies
+            .iter()
+            .map(|d| d.path.as_str())
+            .chain(std::iter::once(source))
+            .collect();
+        Ok(serde_json::json!({
+            "schemaVersion": self.input.schema_version,
+            "frontendVersion": self.input.frontend_version,
+            "target": self.input.sources.iter().find(|s| s.path == source),
+            "dependencies": self.input.sources.iter().filter(|s| s.path != source && paths.contains(s.path.as_str())).collect::<Vec<_>>(),
+            "context": self.input.context,
+            "entities": self.input.entities.iter().filter(|e| paths.contains(e.source.as_str())).collect::<Vec<_>>(),
+            "units": self.input.units.iter().filter(|u| paths.contains(u.source.as_str())).collect::<Vec<_>>(),
+            "imports": self.input.imports.iter().filter(|i| paths.contains(i.source.as_str())).collect::<Vec<_>>(),
+        }))
+    }
+
     /// Check the exact buffers resolved by TypeScript, including absent context.
     pub fn capture(root: &Path, input: DesignInput, max_file_bytes: u64) -> Result<Self, String> {
         input.validate()?;

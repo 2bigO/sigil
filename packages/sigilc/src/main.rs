@@ -6,7 +6,13 @@ use std::{
 
 fn main() -> ExitCode {
     match run() {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok((code, output)) => match io::stdout().write_all(output.as_bytes()) {
+            Ok(()) => ExitCode::from(code),
+            Err(error) => {
+                let _ = writeln!(io::stderr(), "{error}");
+                ExitCode::from(3)
+            }
+        },
         Err((code, message)) => {
             let _ = writeln!(io::stderr(), "{message}");
             ExitCode::from(code)
@@ -14,12 +20,12 @@ fn main() -> ExitCode {
     }
 }
 
-fn run() -> Result<(), (u8, String)> {
+fn run() -> sigilc::cli::Output {
     let args: Vec<_> = std::env::args().skip(1).collect();
     let args: Vec<_> = args.iter().map(String::as_str).collect();
     let output = match args.as_slice() {
         ["--version"] => format!("sigilc {}\n", env!("CARGO_PKG_VERSION")),
-        ["--help"] | ["-h"] => "sigilc — deterministic Semantic Worlds compiler\n\nCommands:\n  ontology [--format text|json]    Export the fixed assertion vocabulary\n\nOptions:\n  --help\n  --version\n".into(),
+        ["--help"] | ["-h"] => "sigilc — deterministic Semantic Worlds compiler\n\nCommands:\n  ontology [--format text|json]\n  prepare design --frontend FILE --source PATH --out NEW_DIR\n  ingest design --frontend FILE --source PATH --job FILE --turtle FILE|-\n  stale design --frontend FILE\n  compile design --frontend FILE [--limits FILE] [--allow-empty]\n  entities --frontend FILE [--limits FILE] [--allow-empty]\n\nDesign commands accept --root DIR (default: .). Reports are JSON.\nNo command invokes a model.\n".into(),
         ["ontology", "--format", "json"] => {
             serde_json::to_string_pretty(&ontology_document()).map_err(|e| (3, e.to_string()))? + "\n"
         },
@@ -27,9 +33,7 @@ fn run() -> Result<(), (u8, String)> {
             let properties = vocabulary().into_iter().map(|(name, range)| format!("{name} ({range})")).collect::<Vec<_>>().join(", ");
             format!("RDF 1.1 Turtle: @prefix sigil: <{ONTOLOGY}> .\nClasses: {}.\nProperties: {properties}.\nUse named resources and direct assertions only; no blank nodes, rules, derived relations, or evidence claims.\nNumbers are finite and nonnegative, at most 9007199254740991; risk is at most 1.\n", CLASSES.join(", "))
         },
-        _ => return Err((2, "Invalid command or options. Run sigilc --help.".into())),
+        _ => return sigilc::cli::run(&args),
     };
-    io::stdout()
-        .write_all(output.as_bytes())
-        .map_err(|e| (3, e.to_string()))
+    Ok((0, output))
 }

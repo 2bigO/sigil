@@ -51,6 +51,7 @@ pub enum Freshness {
     EntityCatalogInvalidated,
     Incompatible,
     Incomplete,
+    Deleted,
 }
 
 #[derive(Debug)]
@@ -135,6 +136,26 @@ impl LockedStore {
 
     pub fn entries(&self) -> &BTreeMap<String, Entry> {
         &self.index.entries
+    }
+
+    pub fn deleted_sources(
+        &self,
+        side: &str,
+        selected: &std::collections::BTreeSet<&str>,
+    ) -> Result<Vec<String>, String> {
+        let mut deleted = Vec::new();
+        for entry in self.index.entries.values() {
+            let path = &entry.binding.source.path;
+            if entry.binding.side() != side || selected.contains(path.as_str()) {
+                continue;
+            }
+            match fs::symlink_metadata(sources::checked_path(&self.root, path)?) {
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => deleted.push(path.clone()),
+                Err(e) => return Err(e.to_string()),
+                Ok(_) => (),
+            }
+        }
+        Ok(deleted)
     }
 
     /// Return a descriptor to the external caller before it supplies Turtle.
