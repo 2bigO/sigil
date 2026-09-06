@@ -5,6 +5,14 @@ component SigilProjectionStore {
   }
 
   interface {
+    DisposableCleanup {
+      Clean only generated worlds while holding the same exclusive writer lock.
+      Recover even from a malformed index without interpreting its contents.
+      Remove symlink artifacts themselves without following their targets.
+      Keep the lock inode in place so cleanup cannot split concurrent writers.
+      Preserve authored sources, workspace configuration and external job inputs.
+    }
+
     ImplementationCommands {
       Prepare exactly one copied source file, fixed ontology and identity-only
       catalog for the worker. Keep its job descriptor with the external caller.

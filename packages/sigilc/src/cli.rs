@@ -21,6 +21,17 @@ pub type Output = Result<(u8, String), (u8, String)>;
 
 // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::DesignCommands interface
 pub fn run(args: &[&str]) -> Output {
+    if args.first() == Some(&"clean") {
+        let root = match args {
+            ["clean"] => ".",
+            ["clean", "--root", root] => root,
+            _ => return Err((2, "Usage: sigilc clean [--root DIR]".into())),
+        };
+        return json(
+            0,
+            &serde_json::json!({"version":1,"removed":crate::store::clean(Path::new(root)).map_err(runtime)?}),
+        );
+    }
     let (command, side, tail) = match args {
         [
             command @ ("prepare" | "ingest" | "stale" | "compile"),

@@ -89,18 +89,7 @@ pub struct LockedStore {
 
 impl LockedStore {
     pub fn open(root: &Path, limits: StoreLimits) -> Result<Self, String> {
-        let root = root.canonicalize().map_err(|e| e.to_string())?;
-        fs::create_dir_all(sources::checked_path(&root, WORLDS)?).map_err(|e| e.to_string())?;
-        regular_or_absent(&sources::checked_path(&root, &format!("{WORLDS}/.lock"))?)?;
-        let lock = OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(sources::checked_path(&root, &format!("{WORLDS}/.lock"))?)
-            .map_err(|e| e.to_string())?;
-        lock.try_lock()
-            .map_err(|e| format!("projection store lock unavailable: {e}"))?;
+        let (root, lock) = acquire(root)?;
         let index = match fs::symlink_metadata(sources::checked_path(&root, INDEX)?) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Index {
                 version: 2,
@@ -289,6 +278,47 @@ impl LockedStore {
         }
         Ok(())
     }
+}
+
+// @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::DisposableCleanup interface
+pub fn clean(root: &Path) -> Result<Vec<String>, String> {
+    let (root, _lock) = acquire(root)?;
+    let mut removed = Vec::new();
+    for entry in fs::read_dir(sources::checked_path(&root, WORLDS)?).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        if entry.file_name() == ".lock" {
+            continue;
+        }
+        let kind = entry.file_type().map_err(|e| e.to_string())?;
+        // read_dir's file type does not follow symlinks. Never resolve a cache
+        // entry's target; recursive removal also leaves symlink targets intact.
+        if kind.is_dir() {
+            fs::remove_dir_all(entry.path())
+        } else {
+            fs::remove_file(entry.path())
+        }
+        .map_err(|e| e.to_string())?;
+        removed.push(format!("{WORLDS}/{}", entry.file_name().to_string_lossy()));
+    }
+    removed.sort();
+    Ok(removed)
+}
+
+fn acquire(root: &Path) -> Result<(PathBuf, File), String> {
+    let root = root.canonicalize().map_err(|e| e.to_string())?;
+    fs::create_dir_all(sources::checked_path(&root, WORLDS)?).map_err(|e| e.to_string())?;
+    let path = sources::checked_path(&root, &format!("{WORLDS}/.lock"))?;
+    regular_or_absent(&path)?;
+    let lock = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(path)
+        .map_err(|e| e.to_string())?;
+    lock.try_lock()
+        .map_err(|e| format!("projection store lock unavailable: {e}"))?;
+    Ok((root, lock))
 }
 
 fn inspected(status: Freshness) -> Inspection {

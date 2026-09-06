@@ -247,3 +247,42 @@ fn cache_deletion_cannot_make_an_old_generation_current_again() {
     );
     assert!(store.inspect(&input).unwrap().assertions.is_empty());
 }
+
+#[test]
+fn cleanup_recovers_corrupt_indexes_and_preserves_sources_and_the_writer_lock() {
+    let root = Workspace::new();
+    root.write("a", b"source");
+    root.write(".sigil/config.json", b"preserve");
+    root.write("job/job.json", b"external input");
+    let store = open(&root);
+    root.write(".sigil/worlds/index.json", b"corrupt index");
+    root.write(".sigil/worlds/design/a.egg", b"corrupt assertion");
+    assert!(sigilc::store::clean(&root.0).is_err());
+    drop(store);
+    assert!(LockedStore::open(&root.0, StoreLimits::default()).is_err());
+    let removed = sigilc::store::clean(&root.0).unwrap();
+    assert_eq!(
+        removed,
+        vec![".sigil/worlds/design", ".sigil/worlds/index.json"]
+    );
+    assert!(root.0.join(".sigil/worlds/.lock").is_file());
+    for path in ["a", ".sigil/config.json", "job/job.json"] {
+        assert!(root.0.join(path).is_file());
+    }
+    assert!(open(&root).entries().is_empty());
+    assert!(sigilc::store::clean(&root.0).unwrap().is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn cleanup_unlinks_artifacts_without_following_symlinks() {
+    let root = Workspace::new();
+    let outside = Workspace::new();
+    outside.write("preserved", b"outside");
+    drop(open(&root));
+    std::os::unix::fs::symlink(&outside.0, root.0.join(".sigil/worlds/foreign")).unwrap();
+    root.write(".sigil/worlds/design/local.egg", b"cache");
+    std::os::unix::fs::symlink(&outside.0, root.0.join(".sigil/worlds/design/nested")).unwrap();
+    sigilc::store::clean(&root.0).unwrap();
+    assert!(outside.0.join("preserved").is_file());
+}
