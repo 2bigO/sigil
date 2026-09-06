@@ -37,6 +37,10 @@ export interface CompileArtifact {
 }
 export const isFingerprint = (value: unknown): value is string =>
   typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+export interface CompileArtifactLockOptions {
+  readonly signal?: AbortSignal;
+  readonly timeoutMs?: number;
+}
 const MAX_BYTES = 32 * 1024 * 1024;
 const IGNORE_MARKER =
   "# Sigil incremental artifacts (accepted world and policy remain tracked)";
@@ -148,6 +152,7 @@ export async function withCompileArtifactLock<T>(
   root: string,
   name: string,
   action: () => Promise<T>,
+  options: CompileArtifactLockOptions = {},
 ): Promise<T> {
   if (!/^[a-zA-Z0-9_-]{1,100}$/.test(name)) {
     invalid("Invalid artifact lock name.");
@@ -164,12 +169,60 @@ export async function withCompileArtifactLock<T>(
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
   using file = await Deno.open(path, { create: true, read: true, write: true });
-  await file.lock(true);
+  const timeoutMs = options.timeoutMs ?? 5_000;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    invalid("Artifact lock timeout must be a positive safe integer.");
+  }
+  const deadline = performance.now() + timeoutMs;
+  let acquired = false;
   try {
+    while (!acquired) {
+      options.signal?.throwIfAborted();
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) {
+        throw new SemanticInputError(
+          "ARTIFACT_LOCK_TIMEOUT",
+          `Timed out acquiring compile artifact lock ${name}.`,
+        );
+      }
+      acquired = await file.tryLock(true);
+      if (!acquired) {
+        await abortableDelay(options.signal, Math.min(25, remaining));
+      }
+    }
     return await action();
   } finally {
-    await file.unlock();
+    if (acquired) await file.unlock();
   }
+}
+
+function abortableDelay(
+  signal: AbortSignal | undefined,
+  milliseconds: number,
+): Promise<void> {
+  if (signal?.aborted) {
+    return Promise.reject(
+      signal.reason ?? new DOMException("Operation cancelled.", "AbortError"),
+    );
+  }
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const cancel = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
+      reject(
+        signal?.reason ??
+          new DOMException("Operation cancelled.", "AbortError"),
+      );
+    };
+    const done = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", cancel);
+      resolve();
+    };
+    timer = setTimeout(done, milliseconds);
+    signal?.addEventListener("abort", cancel, { once: true });
+  });
 }
 
 export async function initializeCompileArtifacts(
@@ -210,7 +263,17 @@ export async function atomicCompileFile(
   const temporary = resolve(root, ".sigil/cache/tmp", crypto.randomUUID());
   await directory(resolve(root, ".sigil/cache/tmp"));
   try {
-    await Deno.writeTextFile(temporary, text, { createNew: true });
+    const bytes = new TextEncoder().encode(text);
+    using file = await Deno.open(temporary, {
+      createNew: true,
+      write: true,
+    });
+    let offset = 0;
+    while (offset < bytes.byteLength) {
+      offset += await file.write(bytes.subarray(offset));
+    }
+    await file.sync();
+    file.close();
     await Deno.rename(temporary, destination);
   } finally {
     await Deno.remove(temporary).catch((error) => {

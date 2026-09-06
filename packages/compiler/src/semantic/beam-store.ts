@@ -1,3 +1,9 @@
+import {
+  atomicCompileFile,
+  type CompileArtifactLockOptions,
+  initializeCompileArtifacts,
+  withCompileArtifactLock,
+} from "./artifacts.ts";
 import { validateWorldBeam, type WorldBeamCheckpoint } from "./beam.ts";
 import { digest, SemanticInputError } from "./turtle.ts";
 
@@ -20,18 +26,34 @@ export async function readWorldBeam(
   root: string,
   name: string,
 ): Promise<StoredWorldBeam | undefined> {
+  const path = beamPath(root, name);
   let source: string;
   try {
-    source = await Deno.readTextFile(beamPath(root, name));
+    const stat = await Deno.lstat(path);
+    if (!stat.isFile || stat.isSymlink || stat.size > 16 * 1024 * 1024) {
+      throw new SemanticInputError(
+        "INVALID_BEAM",
+        "Beam checkpoint must be a bounded regular file.",
+      );
+    }
+    const bytes = await Deno.readFile(path);
+    if (bytes.byteLength > 16 * 1024 * 1024) {
+      throw new SemanticInputError(
+        "INVALID_BEAM",
+        "Beam checkpoint exceeds its size limit.",
+      );
+    }
+    try {
+      source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      throw new SemanticInputError(
+        "INVALID_BEAM",
+        "Beam checkpoint is not valid UTF-8.",
+      );
+    }
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) return undefined;
     throw error;
-  }
-  if (source.length > 16 * 1024 * 1024) {
-    throw new SemanticInputError(
-      "INVALID_BEAM",
-      "Beam checkpoint exceeds its size limit.",
-    );
   }
   let checkpoint: unknown;
   try {
@@ -52,24 +74,13 @@ export async function writeWorldBeam(
   name: string,
   checkpoint: WorldBeamCheckpoint,
   expectedRevision?: string,
+  options: { readonly lock?: CompileArtifactLockOptions } = {},
 ): Promise<StoredWorldBeam> {
   validateWorldBeam(checkpoint);
   const path = beamPath(root, name);
   await Deno.mkdir(`${root}/.sigil/beams`, { recursive: true });
-  const lock = `${path}.lock`;
-  try {
-    await Deno.mkdir(lock);
-  } catch (error) {
-    if (error instanceof Deno.errors.AlreadyExists) {
-      throw new SemanticInputError(
-        "BEAM_BUSY",
-        "Another write owns this beam checkpoint lock.",
-      );
-    }
-    throw error;
-  }
-  const temporary = `${path}.${crypto.randomUUID()}.tmp`;
-  try {
+  await initializeCompileArtifacts(root);
+  return withCompileArtifactLock(root, `beam-${name}`, async () => {
     const current = await readWorldBeam(root, name);
     if (current?.revision !== expectedRevision) {
       throw new SemanticInputError(
@@ -78,16 +89,7 @@ export async function writeWorldBeam(
       );
     }
     const source = JSON.stringify(checkpoint) + "\n";
-    await Deno.writeTextFile(temporary, source, { createNew: true });
-    await Deno.rename(temporary, path);
+    await atomicCompileFile(root, path, source);
     return { revision: await digest(source), checkpoint };
-  } finally {
-    try {
-      await Deno.remove(temporary).catch((error) => {
-        if (!(error instanceof Deno.errors.NotFound)) throw error;
-      });
-    } finally {
-      await Deno.remove(lock);
-    }
-  }
+  }, options.lock);
 }
