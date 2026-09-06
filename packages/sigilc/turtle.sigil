@@ -4,6 +4,14 @@ component SigilTurtleInput {
   }
 
   interface {
+    RestrictedAssertions {
+      Encode normalized facts as assert-iri and assert-literal forms containing
+      only literal strings. Parse cached files with egglog's AST reader and reject
+      every other command, rule, include, expression argument, or arity. Revalidate
+      the decoded RDF against the same fixed ontology before using any assertion.
+      Cached files are data and are never executed as egglog programs.
+    }
+
     AssertionValidation {
       Use a mature Turtle parser. Reject blank resources, triple terms, graphs,
       unknown vocabulary, malformed typed literals, and compiler-owned relations.
