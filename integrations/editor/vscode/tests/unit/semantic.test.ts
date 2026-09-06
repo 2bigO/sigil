@@ -25,6 +25,53 @@ test("semantic command retains completed nonzero semantic outcomes", async () =>
   assert.equal(result.status, "stale");
 });
 
+test("fake CLI completes the public semantic handoff sequence", async () => {
+  const responses: Record<
+    string,
+    { version: 1; command: string; status: string }
+  > = {
+    "semantic-intent": {
+      version: 1,
+      command: "semantic-intent",
+      status: "green",
+    },
+    "semantic-accept": {
+      version: 1,
+      command: "semantic-accept",
+      status: "green",
+    },
+    "semantic-project": {
+      version: 1,
+      command: "semantic-project",
+      status: "current",
+    },
+    "semantic-receipts": {
+      version: 1,
+      command: "semantic-receipts",
+      status: "unverified",
+    },
+    "semantic-verify": {
+      version: 1,
+      command: "semantic-verify",
+      status: "red",
+    },
+  };
+  const script = `const response = ${
+    JSON.stringify(responses)
+  }[process.argv[1]];
+if (!response) process.exit(2);
+process.stdout.write(JSON.stringify(response));
+if (response.command === "semantic-verify") process.exitCode = 1;`;
+  for (const command of Object.keys(responses)) {
+    const result = await runSemanticCommand(
+      process.execPath,
+      ["-e", script, command],
+      process.cwd(),
+    );
+    assert.equal(result.command, command);
+  }
+});
+
 test("semantic command rejects malformed or unsupported responses", async () => {
   await assert.rejects(
     runSemanticCommand(
