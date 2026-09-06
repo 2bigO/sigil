@@ -12,31 +12,12 @@ Version 0.7 responsibilities:
   Markdown and opens it in VS Code's built-in Markdown preview, available from
   the Command Palette and from a preview button in the editor title toolbar of
   `.sigil` editors (Markdown-style *Open Preview to the Side*);
-- expose explicit component and workspace compilation through an external
-  compatible `sigil` executable;
-- expose semantic intent, exact-question answering, world acceptance, managed
-  view publication/checking, handoff export, receipt import, and retained
-  returned-implementation verification through the same external executable;
 - provide editor-native affordances without duplicating `sigil-core` behavior.
 
-Compilation does not bundle the compiler into the VSIX. Install a compatible
-Sigil CLI, then use **Sigil: Compile Component** or **Sigil: Compile
-Workspace**. Configure `sigil.compile.executable` when `sigil` is not on the
-extension host's `PATH`, and `sigil.compile.profile` to select a profile.
-
-Component compilation sends the active file plus its one-based cursor position,
-so the compiler resolves the exact enclosing component or expansion. In a
-multi-root workspace the extension uses the active document's containing
-workspace folder; workspace compilation prompts for a folder when no active
-document disambiguates it. The JSONL bridge validates protocol version, run
-identity, sequence, payloads, reports, and the single terminal event before
-projecting diagnostics.
-
-Semantic commands use a separate bounded JSON bridge. The extension never
-embeds Deno, egglog, TypeScript 7, or a provider. It prompts to save dirty
-documents, passes argv arrays with `shell: false`, and treats workspace state as
-convenience IDs only. Each selected beam, handoff, receipt, and view revision is
-revalidated by the CLI before it is displayed.
+For semantic compilation, instruct the model/operator to invoke `sigilc` directly.
+Use `sigilc --help` for its native commands. The extension provides language
+authoring and preview; no compiler subprocess wrapper, provider configuration,
+accepted-world workflow or receipt bridge is installed.
 
 ## Document preview
 

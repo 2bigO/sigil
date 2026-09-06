@@ -1,6 +1,4 @@
 @packages/lsp import { SigilLsp }
-@packages/cli import { SigilCli }
-@packages/compiler import { SigilCompiler }
 
 component SigilVsCodeExtension {
   goal {
@@ -55,23 +53,6 @@ component SigilVsCodeExtension {
       does not modify Sigil documents
     }
 
-    CompilationSurface {
-      contributes the Sigil: Compile Component and Sigil: Compile Workspace commands
-
-      SigilCli remains available through its imported owning contract
-
-      provides a clickable Sigil Compilation status item for selecting design
-      readiness or implementation alignment
-
-      invokes a compatible external sigil compile process instead of bundling
-      SigilCompiler
-
-      displays focus-aware compilation progress, red, yellow, or green status, and
-      source-ranged findings from the authoritative CompilationReport
-
-      groups findings by component, stage, severity, and lifecycle
-    }
-
   }
 }
 
@@ -86,17 +67,6 @@ expand SigilVsCodeExtension {
       runs, independent of cursor position.
     }
 
-    CompilationSurface {
-      The active compilation is idle, starting, running, cancelling, completed,
-      failed, or superseded.
-
-      The displayed report is current or stale relative to the active document and
-      selected profile and focus.
-
-      The configured compilation focus is ask, design, or implementation.
-
-      The displayed focus is design or implementation when a focused result exists.
-    }
   }
 
   logic {
@@ -128,33 +98,6 @@ expand SigilVsCodeExtension {
       The editor-title action invokes the same preview command.
     }
 
-    CompilationSurface {
-      Compile Component passes the active Sigil file and cursor position to external
-      sigil compile for compiler-owned component resolution.
-
-      Compile Workspace invokes external sigil compile for the configured workspace.
-
-      ask presents design readiness and implementation alignment before invoking
-      compilation.
-
-      design invokes the CLI with --focus design and implementation invokes it with
-      --focus implementation.
-
-      Clicking the compilation status item always permits explicit focus selection
-      for the active component and provides workspace compilation and profile
-      configuration actions.
-
-      Component compilation uses the workspace folder containing the active document.
-
-      Workspace compilation requests a folder selection when a multi-root window has
-      more than one eligible file-backed workspace folder.
-
-      The extension consumes structured compiler events and projects final findings
-      into a dedicated diagnostic collection and compilation view.
-
-      Starting a replacement run for the same target and profile cancels or
-      supersedes the obsolete run.
-    }
   }
 
   constraints {
@@ -209,43 +152,6 @@ expand SigilVsCodeExtension {
       behavior.
     }
 
-    CompilationSurface {
-      Agentic compilation is explicit and does not run automatically while typing.
-
-      Deterministic LSP diagnostics remain live independently from agentic
-      compilation.
-
-      Focus selection is invocation-level editor control and does not create Git
-      metadata, implementation attestations, or persistent workflow state.
-
-      The VSIX does not bundle SigilCompiler or require it for ordinary language
-      support.
-
-      Compilation commands require a compatible external sigil executable and show
-      actionable setup guidance when it is missing or incompatible.
-
-      The extension does not reinterpret compiler findings or compute compilation
-      color independently.
-
-      End-to-end extension verification uses @vscode/test-electron to launch a
-      separate extension host with the development extension and controlled test
-      workspace.
-
-      The extension labels status with the focus it invoked and displays only
-      findings returned by that focus's authoritative report.
-
-      Design focus does not invoke or display current-code-compatibility findings.
-
-      The extension invokes JSON Lines mode, validates protocol compatibility and
-      event ordering, and accepts the final CompilationReport only from a completed
-      terminal event.
-
-      A stage-completed event carries its stage report in payload.report and the
-      report id must match the active stage started by the preceding lifecycle event.
-
-      Every accepted event belongs to the started run, follows a valid lifecycle
-      transition, and precedes at most one terminal event.
-    }
   }
 
   decisions {
@@ -324,76 +230,6 @@ expand SigilVsCodeExtension {
       or a security review approves a useful Restricted Mode subset.
     }
 
-    ExternalCompilerIntegration {
-      Decision: Invoke the external sigil compile process and consume its structured
-      protocol instead of bundling SigilCompiler into the VSIX.
-
-      Scope: Governs the VS Code compilation surface; ordinary bundled language
-      support remains independent.
-
-      Trade-offs: Agentic compilation requires a compatible host-installed Sigil CLI.
-
-      Design issues addressed: Bundling the compiler would increase an extension
-      artifact already dominated by its client bundle.
-
-      Consequences: The VSIX remains small and terminal and editor compilation use
-      the same runtime.
-    }
-
-    LocationBasedCompilation {
-      Decision: Pass the active file and cursor position to the external compiler and
-      let deterministic Sigil semantics resolve the selected component.
-
-      Scope: Governs VS Code Compile Component targeting and multi-root folder
-      selection; excludes workspace-wide compilation targets.
-
-      Trade-offs: Compile Component requires a compatible CLI that supports location
-      targets.
-
-      Design issues addressed: Textual prefix scanning cannot resolve expand-only
-      files, duplicate component names, or cursor containment reliably.
-
-      Discarded alternatives: Duplicating the Sigil parser in the extension and
-      sending only a component name were rejected.
-
-      Consequences: Editor compilation uses one component identity resolved by the
-      compiler while the extension remains a thin host facade.
-    }
-
-    ExplicitAgenticCompilation {
-      Decision: Keep deterministic diagnostics live while running agentic compilation
-      only through explicit user commands.
-
-      Scope: Governs VS Code compilation triggering; excludes CI and direct CLI
-      invocation.
-
-      Trade-offs: Designers initiate recompilation manually after changing Sigil.
-
-      Consequences: Editing remains responsive and does not incur unexpected agent
-      cost or latency.
-    }
-
-    UserSelectedCompilationFocus {
-      Decision: Make the clickable compilation status item and compile commands offer
-      design readiness or implementation alignment, with ask as the default
-      configured focus.
-
-      Scope: Governs VS Code focus selection, CLI invocation, and focus-aware status
-      presentation; excludes compiler stage semantics, Git integration, and workflow
-      lifecycle.
-
-      Trade-offs: ask adds one selection step while explicit default settings remain
-      available for frequent use.
-
-      Design issues addressed: One unlabeled red, yellow, or green status conflates
-      desired-contract quality with current implementation alignment.
-
-      Discarded alternatives: Inferring focus from repository drift, storing
-      implementation completion, and computing editor-owned status were rejected.
-
-      Consequences: Users control the evaluated question from the status bar while
-      compiler color and findings remain authoritative.
-    }
   }
 
   cases {
@@ -440,47 +276,5 @@ expand SigilVsCodeExtension {
       VSIX.
     }
 
-    CompilationSurface {
-      Selecting design readiness for the component under the cursor invokes design
-      focus and labels progress and the final status as Design.
-
-      Selecting implementation alignment invokes implementation focus and labels
-      progress and the final status as Implementation.
-
-      Cancelling ask leaves compilation and displayed findings unchanged.
-
-      A configured design or implementation focus lets component and workspace
-      commands run without asking while the clickable status item still permits an
-      explicit choice.
-
-      Compiling from an expand-only file evaluates the component represented by that
-      expand.
-
-      Compiling a document in the second folder of a multi-root window uses that
-      document's workspace folder.
-
-      A missing or incompatible sigil executable leaves ordinary language features
-      active and presents setup guidance.
-
-      Recompiling after a correction marks resolved findings through the compiler
-      report comparison.
-
-      The extension-host end-to-end tester invokes Compile Component with a fake
-      compiler, verifies the workspace-relative file target, cursor position,
-      profile, focus, and JSONL protocol arguments, and projects the returned finding
-      into VS Code diagnostics.
-
-      Invoking the editor-title compilation command with VS Code's context argument
-      still uses the configured design or implementation focus rather than forwarding
-      that context as a compiler option.
-
-      The extension-host end-to-end tester refuses to invoke the external compiler
-      when the active Sigil document is dirty.
-
-      Editing after a completed run marks its focus-labeled displayed report stale.
-
-      Design focus never displays a current-code-compatibility finding because that
-      stage is outside its requested closure.
-    }
   }
 }
