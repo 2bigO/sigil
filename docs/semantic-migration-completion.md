@@ -19,7 +19,7 @@ publication remains gated on executing the matrix on Linux x64/ARM64, macOS
 x64/ARM64, and Windows x64, including the Linux offline container job.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `19507a1`:
+`ff82926` and currently ends at `a1b54b2`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ The implementation range starts at the remaining-scope specification commit
 | S08 | `3fb4430`, `bf2ab6e`, `136f8fc`, `19507a1` | Native distribution builder, smoke seam, offline Linux archive gate, published-consumer fixture, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting, strict checkpoint parsing, offline release enforcement, published-consumer validation, and the completion report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, published-consumer validation, the combined semantic-flow fixture, and the completion report |
 
 ## Versions and reproducibility
 
@@ -167,15 +167,15 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 
 ### Full public-interface fixture
 
-The distributed Linux tests cover the fixture's public operations: intent,
-ambiguity, exact answer, acceptance, projection, managed-view inspection,
-handoff, receipt import, returned verification, stale-input rejection,
-metadata migration and beam recovery. The CLI semantic-flow test also asserts
-that migration preview is a no-op for an already-v2 receipt. The exact
-single-fixture sequence in `compile.md` section 11.1, including the packaged
-archive variant and editor extension-host run, has not been executed as one
-test. It is therefore **PARTIAL** until the release matrix and one combined
-fixture run complete; its packaged-archive and Xvfb subchecks pass separately.
+`packages/cli/tests/semantic_commands_test.ts` now runs one public fixture
+through intent, ambiguity, exact answer, acceptance, projection and recovery,
+provider-config migration and beam invalidation, canonical component slices,
+handoff, receipt import, supported and decoy returned receipts, prohibited and
+opaque code outcomes, a failed mandatory check, orphan-beam handling and
+forged-view drift. Existing compiler tests add the v1 accepted-state preview
+and CAS migration coverage. The fixture's packaged archive and editor fake-CLI
+variants are still separate checks, and the five-target release matrix remains
+CI-required, so the complete section 11.1 gate is **PARTIAL**.
 
 ## Validation commands and results
 
@@ -185,10 +185,10 @@ The following final commands were executed after the S11 changes:
 | --- | --- |
 | `deno check packages/compiler/src/mod.ts packages/cli/src/main.ts` | Pass |
 | `deno task fmt` | Pass |
-| `deno lint` | Pass, 169 files checked |
+| `deno lint` | Pass, 171 files checked |
 | `deno task check` | Pass, including VS Code TypeScript check |
 | `deno task test:compiler` | Pass, 106 tests |
-| `deno task test:cli` | Pass, 81 tests |
+| `deno task test:cli` | Pass, 82 tests |
 | `deno task test:core` | Pass |
 | `deno task test:compiler-adapter-opencode` | Pass |
 | `deno task test:compiler-adapter-pi` | Pass |
@@ -198,6 +198,7 @@ The following final commands were executed after the S11 changes:
 | `deno task test:vscode` | Pass |
 | `deno task test:skill` | Pass |
 | focused beam, migration and returned-verification tests | Pass, 11 tests |
+| `deno test --allow-env --allow-read --allow-write --allow-run packages/cli/tests/semantic_commands_test.ts --filter 'public semantic flow'` | Pass |
 | `DISPLAY=:99 deno task test:vscode:extension` under Xvfb | Pass |
 | `deno task test:published-runtime --runtime /tmp/sigil-extracted-final21/sigil-0.7.1/lib/sigil/runtime` | Pass; staged Compiler consumer rejects missing runtime and passes explicit-runtime doctor |
 | `cargo fmt --check` (Rust 1.91, `packages/compiler/native`) | Pass |
