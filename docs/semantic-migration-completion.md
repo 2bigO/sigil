@@ -2,8 +2,8 @@
 
 This report is the product-facing validation record for the remaining scope in
 [`compile.md`](../compile.md). It records what is implemented, what was executed
-in the Linux source checkout, and which release checks still require the
-specified CI runners. It does not treat an unexecuted platform check as a pass.
+in the Linux source checkout, and the completed five-target release validation
+run. It does not treat an unexecuted platform check as a pass.
 
 Installed-package world capture, target dependency capture/freezing/staging,
 implementation patch loops, coding-agent orchestration, speculative ontology
@@ -14,12 +14,14 @@ expansion, and automatic publication are intentionally excluded.
 The source-checkout implementation is usable on Linux. The semantic compiler,
 managed views, proposal/configuration workflow, editor/LSP integration, pinned
 runtime resolver, state migration, and crash-safe beam storage are committed.
-The release builder, installers, and CI matrix are also committed. Release
-publication remains gated on executing the matrix on Linux x64/ARM64, macOS
-x64/ARM64, and Windows x64, including the Linux offline container job.
+The release builder, installers, and CI matrix are committed. Non-publishing
+validation run `34020979785` passed on Linux x64/ARM64, macOS x64/ARM64, and
+Windows x64, including the Linux offline container job. The publish job was
+correctly skipped; publication still requires an explicit tag or
+`workflow_dispatch` with `publish=true`.
 
 The implementation range starts at the remaining-scope specification commit
-`ff82926` and currently ends at `1ddccc1`:
+`ff82926` and currently ends at `e85dbb9`:
 
 | Group | Commit | Delivered behavior |
 | --- | --- | --- |
@@ -30,10 +32,10 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31`, `9da0997`, `81fa824`, `73bbb66`, `be5f258`, `5121766`, `84ffcc9`, `5fbff41`, `7c773bb`, `1ddccc1` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, per-target installer consumer, per-target published-runtime consumer, native Windows archive creation, pre-pulled offline smoke image, checksum-retention installer checks, machine-readable consumer summaries, cross-platform cancellation fixture, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1`, `cdf5b31`, `9da0997`, `81fa824`, `73bbb66`, `be5f258`, `5121766`, `84ffcc9`, `5fbff41`, `7c773bb`, `1ddccc1`, `fffd160`, `6f17b7e`, `afa3eca`, `e85dbb9` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, source-independent artifact-consumer matrix, per-target installer consumer, per-target published-runtime consumer, native Windows archive creation, pre-pulled offline smoke image, machine-readable consumer summaries, cross-platform cancellation fixture, non-publishing validation dispatch, native Windows ZIP extraction, deterministic checksum-retention checks, and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
-| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2`, `f86f88f`, `e53f3e3` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, packaged public-flow validation, editor fake-CLI validation, published-consumer validation, the combined semantic-flow fixture, and the completion report |
+| S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2`, `f86f88f`, `e53f3e3`, `e85dbb9` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, packaged public-flow validation, editor fake-CLI validation, published-consumer validation, the combined semantic-flow fixture, five-target matrix evidence, and the completion report |
 
 ## Versions and reproducibility
 
@@ -126,18 +128,18 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 
 | ID | Test/evidence | Platform | Result |
 | --- | --- | --- | --- |
-| R01 | `scripts/test-cli-release.ts`; staged archive smoke run from an unrelated cwd after relocation to a path containing spaces and Unicode | Linux x86_64 | PARTIAL (local archive; target matrix required) |
-| R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency; packaged public intent/accept/project/slice/receipt/verify flow | Linux x86_64 | PASS (local archive) |
-| R03 | `scripts/test-cli-release.ts` validates doctor/design with isolated caches; `native-release.yml` enforces the Linux x64 `--network none` container smoke | Linux x86_64 offline container | PARTIAL (Linux x64 pass; all-target matrix required) |
-| R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts` | Linux source | PASS (Linux); archive matrix still required |
-| R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
-| R06 | Handoff/receipt fixtures pass in compiler and CLI suites; packaged archive runs the public handoff/receipt flow | Linux source + x86_64 archive | PASS (local); archive matrix still required |
-| R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks remain matrix checks | Linux x86_64 | PARTIAL (local archive; tamper and missing-library branches pass) |
-| R08 | Cross-platform Rust cancellation fixture runs the timeout/caller-abort test against the native bridge; target process-cleanup runs remain required | Linux source + target matrix | PARTIAL (Linux source and configured helper pass; target matrix remains required) |
-| R09 | `install.sh`/PowerShell local archive consumers exercise checksum/doctor/selection and same-version reinstall; the source-independent matrix also rejects a corrupt existing manifest | Linux x86_64 + target matrix | PARTIAL (Linux consumer pass; all-target matrix remains required) |
-| R10 | Immutable version/manifest installation logic is implemented; reinstall/conflict matrix is not run here | All release targets | CI required |
-| R11 | Relocatable archive layout is implemented; copy-only-bin negative test remains in the release matrix | All release targets | CI required |
-| R12 | Explicit `SIGIL_RUNTIME_DIR` library seam is implemented; staged published-consumer fixture runs during every target archive build and passes locally | Linux x86_64 + target matrix | PARTIAL (Linux consumer pass; all-target matrix remains required) |
+| R01 | `scripts/test-cli-release.ts`; staged archive smoke run from an unrelated cwd after relocation to a path containing spaces and Unicode | Five-target build jobs | PASS (run 34020979785) |
+| R02 | Standalone archive smoke run with bundled bootstrap and no project cwd dependency; packaged public intent/accept/project/slice/receipt/verify flow | Five-target build jobs | PASS (run 34020979785) |
+| R03 | `scripts/test-cli-release.ts` validates doctor/design with isolated caches; `native-release.yml` enforces the Linux x64 `--network none` container smoke | Five-target build jobs + Linux x64 offline container | PASS (run 34020979785) |
+| R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts`; packaged public flow runs on every target | Five-target build jobs | PASS (run 34020979785) |
+| R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts`; packaged runtime fixture runs on every target | Five-target build jobs | PASS (run 34020979785) |
+| R06 | Handoff/receipt fixtures pass in compiler and CLI suites; packaged archive runs the public handoff/receipt flow | Source + all five build jobs | PASS (run 34020979785) |
+| R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks run in the matrix | Five-target build jobs | PASS (run 34020979785) |
+| R08 | Cross-platform Rust cancellation fixture runs the timeout/caller-abort test against the native bridge | Linux, macOS x64/ARM64, Windows x64 | PASS (run 34020979785) |
+| R09 | `install.sh`/PowerShell local archive consumers exercise checksum/doctor/selection, same-version reinstall, invalid checksum rejection and corrupt-manifest retention | All five artifact-consumer jobs | PASS (run 34020979785) |
+| R10 | Immutable version/manifest installation logic; identical reinstall reuse and corrupt/conflicting installation rejection | All five artifact-consumer jobs | PASS (run 34020979785) |
+| R11 | Relocatable archive layout and copy-only-bin missing-runtime rejection | All five build jobs | PASS (run 34020979785) |
+| R12 | Explicit `SIGIL_RUNTIME_DIR` library seam and staged published-consumer fixture run during every target archive build | All five build jobs | PASS (run 34020979785) |
 
 ### State, invalidation and beam recovery (I/B)
 
@@ -163,7 +165,7 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | B06 | `packages/compiler/tests/beam_store_test.ts` | Linux source | PASS (Linux) |
 | B07 | `packages/compiler/tests/beam_store_test.ts` | Linux source | PASS (Linux) |
 | B08 | `packages/compiler/tests/beam_store_test.ts` | Linux source | PASS (Linux) |
-| B09 | Native release matrix and per-target process/file-cleanup jobs | Linux/macOS/Windows | CI required |
+| B09 | Native release matrix and per-target process/file-cleanup jobs | Linux/macOS/Windows | PASS (run 34020979785) |
 
 ### Full public-interface fixture
 
@@ -178,9 +180,9 @@ and verification; the VS Code unit suite runs the equivalent fake-CLI transport
 sequence. Existing compiler tests add the v1 accepted-state preview and CAS
 migration coverage. The five-target release matrix now includes a
 source-independent artifact-consumer and local installer/reinstall consumer for
-every target. Those runners still must execute before the complete section 11.1
-gate can be marked green, so the gate is **PARTIAL** only for that external
-matrix.
+every target. Validation run [34020979785](https://github.com/2bigO/sigil/actions/runs/34020979785)
+passed all five build jobs and all five consumers; its publish job was skipped.
+The complete section 11.1 gate is **PASS**.
 
 ## Validation commands and results
 
@@ -214,6 +216,7 @@ The following final commands were executed after the S11 changes:
 | extracted `x86_64-unknown-linux-gnu` archive in Docker with `--network none`: version, doctor and semantic-design fixture | Pass (Linux x86_64) |
 | local `install.sh` checksum/doctor/selection seam | Pass |
 | local `install.sh` bad-checksum and doctor-failure retention seam | Pass; prior selected wrapper remains unchanged |
+| GitHub Actions `native-release.yml` workflow dispatch `34020979785` with `publish=false` | Pass; five native build jobs, five artifact-consumer/installer jobs, and all machine-readable summaries passed; publish job skipped |
 
 Raw outputs remain in the private `.codex-progress/logs/` folder and are not
 part of the product repository.
@@ -299,15 +302,15 @@ sigil semantic migrate . --format json
 sigil semantic migrate . --write --expected-revision <revision> --format json
 ```
 
-## Intentional limitations and release gate
+## Intentional limitations and publication policy
 
 The verifier certifies the defined static relations and host-selected checks.
 Unsupported dynamic behavior remains yellow. Providers supply hypotheses and
 wording; they never supply laws, verdicts or trusted evidence. Optional
 external providers and check tools remain caller-owned.
 
-The implementation is ready for source-checkout use on Linux. The remaining
-release gate is operational evidence from the five native target jobs and the
-complete single-fixture sequence described in `compile.md`; the Linux x64
-offline container and Xvfb-backed extension-host checks now pass locally. No
-target dependency tree is scanned, copied or frozen by these operations.
+The implementation is ready for source-checkout use on Linux and for the
+validated five-target distribution matrix. The non-publishing matrix run passed
+all target build, cancellation, archive-consumer and installer checks; no GitHub
+release was created. Publishing remains an explicit release operation. No target
+dependency tree is scanned, copied or frozen by these operations.
