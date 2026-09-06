@@ -333,31 +333,15 @@ report the concrete blocker and checkpoint instead of declaring success.
 Replace the placeholder with the actual absolute state folder:
 
 ```text
-Implement the Semantic Worlds refactor in compile.md using the self-hosting
-implementation/replacement loop in track.md.
-
-Use <ABSOLUTE_STATE_DIR> as persistent operational state. Initialize it if new;
-otherwise inspect and resume it. Preserve existing repository changes.
-
-You may implement the refactor, update its authored .sigil contracts, run checks,
-and revise track.md or compile.md based on concrete real-use findings under the
-change rules in track.md. Use each newly usable Sigil capability on the next
-applicable increment and retire the corresponding temporary mechanism.
-
-Commit all related repository changes incrementally in small, semantically
-cohesive commits, including their related tests/contracts/docs. Do not accumulate
-large commits or wait until the refactor ends. Inspect each staged diff and
-preserve unrelated user changes and existing index entries. Record commit IDs
-in the state-folder journal. Do not commit operational state or generated worlds.
-
-Keep coding and model orchestration external to Sigil. Use independent isolated
-semanticizers where the environment supports them; never replace independence
-with coder-authored Turtle or expose forbidden context. Report any actual missing
-external capability without building a harness runtime into the repository.
-
-Continue across iterations until track.md's complete final gate passes: delivered
-scope and checks, current independent Converged-or-Closed implementation across
-the whole scope, and successful temporary-tracker retirement. Yellow alone is
-not delivery completion. Checkpoint on a genuine blocker; do not stop merely at
-a milestone. Do not push, publish or deploy without separate authorization.
+Implement compile.md following the complete loop and rules in track.md.
+Use <ABSOLUTE_STATE_DIR> as persistent state; initialize or resume it.
+Implement, dogfood, and replace temporary tracking until track.md's final gate
+passes. Revise either document when real-use evidence warrants it, following
+track.md's change rules. Make small, semantically cohesive commits throughout.
+Preserve unrelated work. Keep independent semanticization and orchestration
+external. Continue across milestones; checkpoint genuine blockers. Do not push,
+publish, or deploy without separate authorization.
 ```
+
+Append environment-specific installation authorization or credentials directly
+to the initiation message, not to this repository document or operational logs.
