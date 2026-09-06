@@ -95,10 +95,12 @@ Use `--focus design` for semantic closure and `--focus implementation` for cover
 obligations. The legacy stage names remain aliases for these deterministic stages.
 
 In a source checkout, build the native engine with `deno task build:semantic` before
-compiling. Standard and critical-system profiles need no evaluator configuration.
+compiling. Standard and critical-system profiles need no proposal-provider
+configuration.
 `tools.compile.budgets.elapsedTimeMs` bounds native execution; the engine also has
 its own timeout and fixed IPC limits. Existing evaluator configuration remains
-readable for compatibility but cannot provide a compilation verdict.
+readable for compatibility but cannot provide a compilation or verification
+verdict.
 
 The semantic workflow accepts natural-language intent and generated Turtle patches:
 
@@ -213,7 +215,7 @@ verification status. Completed stages and reports are retained in ignored
 collector for implementation focus when the policy exists. Every verification
 collects evidence and recomputes coverage; persisted results cannot establish
 current proof. Keep verifier policy and test oracles fixed during the external
-coding agent's implementation.
+implementation workflow.
 
 Run `sigil semantic artifacts .` to initialize artifact directories and the scoped
 `.sigil/.gitignore` before accepting a world. Acceptance, slice export and compile
@@ -281,5 +283,7 @@ Receipt import rejects invented references, mismatched propositions, conflicting
 claims, duplicate sidecar keys and unsafe paths. It stores assertion-only `.egg`
 and location metadata in ignored `.sigil/receipts/<id>`. Its successful output
 marks the claims `untrusted` and contains no verification verdict. Suggested
-symbols and tests still require independent resolution and execution; receipt
-witness matching in egglog is the next implementation step.
+symbols and tests still require independent resolution and execution;
+`sigil semantic verify --handoff` joins those claims with fresh host
+observations and fixed egglog rules, reporting claim outcomes separately from
+overall obligation coverage.

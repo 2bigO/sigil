@@ -1,4 +1,10 @@
-# Standards and risk
+# Standards and risk (legacy diagnostic compatibility)
+
+> Legacy resource: this file is retained only for compatibility with historical
+> evaluator reports. It is not part of the ordinary semantic workflow and must
+> not be discovered as a proposal provider, proof source, or default command.
+> Current workflows use deterministic semantic intent, acceptance, managed
+> views, handoffs, receipts, and fixed-kernel verification.
 
 Treat the supplied architecture-purpose retrieval result as authoritative, with
 the selected component as the root. Evaluate evidence for that component and

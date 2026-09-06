@@ -46,9 +46,6 @@ receipts, prose, and editor convenience state are untrusted inputs.
    provider supplies hypotheses or question wording; it never supplies a
    verdict, observation, proof, or implementation change.
 
-Do not implement merely because the user requested an outcome or a
-check passed.
-
 3. Keep generated views synchronized:
 
    ```bash
@@ -129,10 +126,18 @@ The compiler owns parsing, canonical identity, world freshness, fixed egglog
 rules, and evidence sufficiency. A receipt cannot close an obligation by itself.
 Human approval for deployment or other product actions remains outside Sigil.
 
-Ask one primary decision at a time for unresolved questions. Inspect governing Sigil before every implementation mutation. Do not implement
-merely because the user requested an outcome or a
-check passed. Ask one primary
-decision at a time when a material proposition is unresolved. Always state whether glossary extraction is
+For unresolved intent, ask one primary semantic question at a time and preserve
+the exact proposition identity. Inspect governing Sigil before authoring or
+changing an authored contract. Human approval for deployment and product
+actions remains outside Sigil; a compiler result is not authorization. State
+whether glossary extraction is required, deferred, or inspection-only when that
+choice affects the authored workflow.
+Ask one primary decision at a time when a material proposition is unresolved.
+
+Inspect governing Sigil before every implementation mutation. Do not implement merely because the user requested an outcome or a
+check passed. This is a context and scope check for the external workflow, not
+a compiler review gate or a substitute for independent verification.
+Always state whether glossary extraction is
    required, deferred, or inspection-only.
 
 Exit code `0` is a completed green operation, `1` is a completed red/yellow

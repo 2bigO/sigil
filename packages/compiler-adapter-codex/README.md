@@ -1,22 +1,36 @@
 # @qoherent/sigil-compiler-adapter-codex
 
-The Codex CLI adapter for the Sigil compiler.
+Codex transport for Sigil semantic proposal generation.
 
-The compiler is provider-neutral: it owns adapter contracts, execution
-coordination, and capability validation, but no provider implementation. This
-package owns Codex invocation, event-stream parsing, and telemetry, and the CLI
-registers it alongside the other adapter packages.
+This package implements CodexSemanticProvider, a SemanticProposalProvider that
+invokes the installed codex executable and returns one bounded version-1 proposal
+envelope. The envelope contains only Turtle additions and retractions. Candidate
+validation, ranking, acceptance, and verification remain in the compiler.
 
 ```ts
-import { CodexAdapter } from "@qoherent/sigil-compiler-adapter-codex";
+import { CodexSemanticProvider } from "@qoherent/sigil-compiler-adapter-codex";
 
-const report = await compile(workspacePath, target, "standard", {
-  adapters: [new CodexAdapter(model)],
+const provider = new CodexSemanticProvider("configured-model");
+const result = await provider.generate({
+  purpose: "interpret-intent",
+  prompt: "compiler-generated prompt",
 });
 ```
 
-Configure an evaluator with provider `codex` and implementation identity
-`builtin.codex-cli`. The provider identifier is opaque to the compiler; it is
-matched against the registered adapter's declaration.
+Configure the bundled provider through the semantic namespace:
 
-`deno task test:compiler-adapter-codex` runs this package's tests.
+```sh
+sigil config set-provider codex . --kind codex --model configured-model
+sigil config set-provider-default codex .
+```
+
+The CLI registers this provider when the host executable is available. Direct
+compiler callers can instantiate it and pass it to proposeSemanticIntent. The
+host must provide codex; Sigil does not download it or use it for ordinary
+compile or semantic verify.
+
+CodexAdapter remains an AgentAdapter compatibility export for callers of the
+legacy evaluator API. It is not selected by the semantic provider namespace and
+cannot supply an ordinary compiler or verification verdict.
+
+Run deno task test:compiler-adapter-codex for this package's tests.

@@ -1,5 +1,12 @@
 # Semantic worlds implementation
 
+This document records architecture decisions and migration evidence. The active
+implementation contract is [compile.md](../compile.md). Accepted meaning is
+lossless assertion-only `.egg` under `.sigil/world`; generated views, handoffs,
+receipts, and execution caches have separate authority and Git policies. The
+current public workflow does not use an LLM evaluator for compile or
+verification.
+
 ## Architecture inspection and migration plan
 
 The language parser retains seven sections (`goal`, `interface`, `state`,
@@ -10,8 +17,9 @@ expansions, public concept identities, imports, and dependency boundaries.
 comments to actual declarations and contract sections. These are reusable
 structural observations, not proofs of the prose they reference.
 
-Before migration, the compiler resolved a workspace and covering boundary, executes a
-structural stage, and called `AgentAdapter.evaluate` for semantic readiness,
+Historical baseline (superseded): before migration, the compiler resolved a
+workspace and covering boundary, executed a structural stage, and called
+`AgentAdapter.evaluate` for semantic readiness,
 architecture, standards, and compatibility. Agent findings determine the report
 color. Reports, history, cancellation, export, and event settlement are useful
 host infrastructure; the evaluator pipeline and judge prompts must be replaced.
@@ -108,8 +116,9 @@ Turtle content cannot become executable egglog.
 These fixtures were authored by the coding model from the existing parser
 contract. They demonstrate selected architectural propositions, not automatic
 translation or verification of every prose paragraph. At this checkpoint the
-ordinary compile entrypoint is unchanged. Candidate search, normal compilation,
-implementation evidence and projections remain subsequent delivery work.
+ordinary compile entrypoint was unchanged. Candidate search, normal compilation,
+implementation evidence, and projections were subsequent delivery work at that
+historical checkpoint; they are now covered by `compile.md`.
 
 ## Candidate-search decisions
 
@@ -154,8 +163,8 @@ Generated Evidence entities with `passes true` remain untrusted assertions.
 
 Nineteen tests exercise these boundaries. The native engine's observation input
 is the trusted host boundary; concrete source analyzers and execution receipts
-still need to be connected before the implementation-search workflow can claim
-mechanical end-to-end verification.
+are connected through retained verification. The excluded implementation-search
+workflow remains outside this project.
 
 ## Source bridge and projections
 

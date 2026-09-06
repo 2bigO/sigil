@@ -1,8 +1,7 @@
 # Contributing to Sigil
 
 This guide takes you from a fresh clone to a passing validation run, and then
-explains where a change belongs and what needs human approval before it is
-written.
+explains where a change belongs and how to validate semantic artifacts.
 
 New to Sigil itself? Read [README.md](README.md) for what Sigil is and
 [PROBLEM.md](PROBLEM.md) for why it exists. This guide assumes you have read
@@ -17,7 +16,7 @@ where they matter.
 - [Focused tasks](#focused-tasks)
 - [Repository boundaries](#repository-boundaries)
 - [Where Sigil belongs](#where-sigil-belongs)
-- [The review gates](#the-review-gates)
+- [The semantic workflow](#the-semantic-workflow)
 - [Your first contribution](#your-first-contribution)
 - [Versions and compatibility](#versions-and-compatibility)
 - [Troubleshooting](#troubleshooting)
@@ -187,17 +186,18 @@ deno test --allow-read --watch packages/core/tests/core_test.ts
 
 ## Repository boundaries
 
-The layout follows one rule: **deterministic language facts live in `packages/`,
-and model-assisted judgment lives in `integrations/`.** Keeping that line intact
+The layout follows one rule: **deterministic language facts and verification live
+in `packages/`, and optional proposal transport lives in `integrations/` and the
+adapter packages.** Keeping that line intact
 is the single most important architectural constraint in this repository.
 
 | Directory                     | Owns                                                                                                                   | Notes                                                                                                                                                                  |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `spec/`                       | The language, configuration, workflow, glossary, and platform-architecture specifications, plus [ADRs](spec/decisions) | The canonical definition is [`spec/sigil-language.md`](spec/sigil-language.md). [`spec/language.sigil`](spec/language.sigil) owns the single language-version literal. |
 | `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                     |
-| `packages/cli/`               | The `sigil` command: `init`, `version`, `parse`, `check`, `glossary`, `graph`, `context`, `render`, `skill`            | Thin over core. Also owns skill installation, which is the one host-filesystem responsibility.                                                                         |
+| `packages/cli/`               | The `sigil` command: authored inspection, semantic intent/acceptance, managed views, handoffs, receipts, verification, and `skill` | Thin over core/compiler. Also owns skill installation, which is the one host-filesystem responsibility. |
 | `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
-| `integrations/skills/sigil/`  | The host-neutral coding-agent skill: semantic review, design conversation, brownfield adoption, review gates           | Markdown and Sigil only. No code dependency on `packages/`.                                                                                                            |
+| `integrations/skills/sigil/`  | The host-neutral coding-agent skill: authoring guidance, design conversation, brownfield adoption, and handoff workflow | Markdown and Sigil only. No code dependency on `packages/`. |
 | `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
 | `scripts/`                    | Release build and skill validation                                                                                     |                                                                                                                                                                        |
@@ -266,44 +266,31 @@ Use the language's single-line comment form, its block form when one entrypoint
 carries several annotations, and HTML comments in agent-facing Markdown. Never
 annotate `.sigil` files, and leave JSON untouched.
 
-## The review gates
+## The semantic workflow
 
-Sigil's own workflow applies to changes made to Sigil. The rule that surprises
-people most:
+The repository's active semantic workflow is deterministic and does not require
+an evaluator or a human review gate in the compiler. Authored `.sigil` files are
+validated with `sigil check`; optional providers return hypotheses; the compiler
+and fixed egglog kernel decide semantic status.
 
-> A clean `sigil check` is **not** semantic approval, and passing tests never
-> grant approval retroactively.
+When changing modeled meaning, submit intent with `sigil semantic intent`,
+inspect the deterministic candidate diff, answer exact unresolved propositions,
+and accept only a uniquely green beam. Acceptance writes canonical
+`.sigil/world` revisions. Publish generated companions with
+`sigil semantic project --write`; generated views are excluded from authored
+discovery and must not be edited to change meaning.
 
-Two gates matter, both defined in
-[`integrations/skills/sigil/SKILL.md`](integrations/skills/sigil/SKILL.md) and
-described end-to-end in [`spec/sigil-workflow.md`](spec/sigil-workflow.md):
+For implementation work, export `sigil semantic slice` with an explicit host
+policy. The external implementation workflow owns code changes and repair. It
+may return receipt claims, which are imported under ignored `.sigil/receipts` and
+verified with `sigil semantic verify --handoff`. A receipt location is a pointer,
+not proof; fresh host observations and fixed rules establish coverage.
 
-**A Sigil proposal is required before writing or semantically changing any
-`.sigil` file.** Present the exact components, expands, imports, semantic lines,
-and decision rationale, and leave the files unchanged until a human approves
-that exact scope. This applies to boundary summaries, internal contracts,
-concept-identifier changes, and brownfield reconstruction alike.
-
-**An implementation gate applies before changing behavior.** Inspect the
-governing Sigil first, confirm every material concern is covered, and only then
-implement. If implementation reveals a decision the Sigil does not record, stop
-and go back to a Sigil proposal rather than encoding the decision in code.
-
-In practice:
-
-| Your change                                             | Needs a Sigil proposal?                        |
-| ------------------------------------------------------- | ---------------------------------------------- |
-| Fixing a typo, formatting, or a comment                 | No                                             |
-| Adding a test for existing specified behavior           | No                                             |
-| Documentation that restates approved facts              | No                                             |
-| Adding a diagnostic code, CLI flag, or output field     | **Yes** — it changes a public contract         |
-| Changing resolution, parsing, or projection behavior    | **Yes**                                        |
-| Adding a component, or changing a `goal` or `interface` | **Yes**                                        |
-| Recording rationale for a choice already made in code   | **Yes** — it is a semantic change to an expand |
-
-Material decisions belong in a `decisions` block with `Decision:` and `Scope:`,
-alongside the binding outcome in `constraints`. Missing rationale for a material
-choice is treated as a readiness gap even when validation passes.
+The only supported semantic writes are accepted world revisions, generated
+managed views, explicit metadata migration, and ignored operational artifacts.
+Do not mutate authored contracts or implementation files from semantic commands.
+Human decisions about deployment, publication, or unrelated product actions
+remain outside the compiler.
 
 ## Your first contribution
 
@@ -323,9 +310,9 @@ sigil context . --component SigilCore --format markdown
 ```
 
 Read the contract's `cases` section. If the behavior you want to test is already
-described there, your test is mechanical and needs no proposal. If it is not
-described, stop — you have found either a coverage gap or undocumented behavior,
-and both need a Sigil proposal first.
+described there, your test is mechanical. If it is not described, record the
+missing contract behavior in the appropriate authored Sigil and add a focused
+case before relying on the test as semantic coverage.
 
 ```sh
 # 4. Add the test beside its peers.
@@ -341,10 +328,11 @@ deno task fmt && deno task lint && deno task check && deno task test
 # 7. Commit and open a pull request against main.
 ```
 
-If your change had instead touched behavior — a new diagnostic, say — step 3
-would have ended in a Sigil proposal covering the new `interface` and `cases`
-lines, human approval, the Sigil edit, and only then the implementation and its
-ownership annotation.
+If your change touches a public contract, update the governing authored Sigil
+and its cases alongside the implementation, then run the semantic and ordinary
+validation commands that cover the changed boundary. A clean check does not
+replace those tests, and a provider response does not replace deterministic
+compiler verification.
 
 ## Versions and compatibility
 

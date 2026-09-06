@@ -28,6 +28,11 @@ Version 0.7 must provide commands to:
 - initialize a non-interactive versioned workspace config;
 - report CLI, core, and Sigil versions.
 - surface concept-identifier diagnostics and resolved concept namespaces.
+- accept a deterministic semantic world from untrusted proposal assertions;
+- inspect and publish managed `.sigil` views;
+- export retained implementation handoffs, import untrusted receipts, and
+  verify returned code with fresh host observations;
+- initialize and report the tracked/ignored `.sigil` artifact layout.
 
 Version 0.7 should favor predictable, machine-readable behavior over rich
 terminal UI.
@@ -45,14 +50,20 @@ Version 0.7 must not implement:
 - watch mode;
 - generated diagrams;
 - anchors or code/spec synchronization;
-- automatic repository-wide source mutation.
+- automatic mutation of authored source or implementation files.
+
+Generated managed views and semantic metadata are explicit, bounded mutation
+surfaces. They never replace authored contracts or become a second source of
+semantic authority.
 
 Anchors remain outside the implemented 0.5 surface. The rejected historical
 anchor surface is defined below and does not change the 0.6 acceptance criteria.
 
 ## 4. Runtime And Dependency Requirements
 
-`sigil-cli` should use Deno TypeScript.
+`sigil-cli` is implemented in TypeScript 7-compatible Deno modules. Standalone
+archives carry the pinned native egglog and TypeScript 7.0.2 runtime; published
+library callers must provide a matching runtime explicitly.
 
 `sigil-cli` must depend on `sigil-core` for:
 
@@ -286,6 +297,41 @@ command must never overwrite an existing config.
 Reports CLI and core package versions and—when a workspace resolves—the
 workspace name and configured Sigil version.
 
+### `sigil semantic`
+
+The semantic command group owns the deterministic world and retained handoff
+workflow. It does not run an evaluator or accept model-written verdicts.
+
+- `semantic intent` submits natural-language intent to one configured provider,
+  generator, or proposal file. The provider returns only a strict version-1
+  envelope containing Turtle additions and retractions. The CLI validates and
+  deterministically ranks the resulting worlds, then saves a named beam.
+- `semantic status` recomputes a canonical world or saved beam. It displays
+  exact unresolved proposition IDs; `semantic answer` records a yes/no answer to
+  that exact fact.
+- `semantic accept` requires one uniquely green beam and atomically publishes
+  lossless assertion-only `.egg` bytes under `.sigil/world/<revision>`.
+- `semantic project --check` inspects generated views. `--write
+  --expected-revision` publishes one generated view per canonical component and
+  the tracked `views/current.json`; `--recover --transaction` completes an
+  explicitly validated interrupted transaction.
+- `semantic artifacts` creates the scoped `.sigil` directories and ignore file.
+- `semantic slice` exports a focused assignment and retains its complete
+  obligations under ignored `.sigil/handoffs/<id>`.
+- `semantic receipts` imports strict assertion-only claims and locations under
+  ignored `.sigil/receipts/<id>` and returns no verdict.
+- `semantic verify` reparses the retained world, resolves current host
+  observations, and runs fixed egglog coverage checks. Receipt outcomes are
+  reported separately from independently established coverage.
+- `semantic migrate` performs the explicit metadata-only accepted-state
+  migration with preview, expected-revision, and CAS semantics.
+
+The accepted `.sigil/world` and verifier policy are committed. Generated views
+are committed when published. Beams, handoffs, receipts, runs, caches, and view
+transactions are operational artifacts and are ignored. Generated views are
+excluded from authored source discovery, while an explicitly opened view remains
+available to parser/LSP syntax and navigation features.
+
 ## 8. Output Contracts
 
 JSON output should be stable enough for agents, CI, and snapshot tests.
@@ -309,10 +355,14 @@ The adapter should:
 - check path existence;
 - list files recursively under the workspace root;
 - normalize paths consistently with `sigil-core` expectations;
+- exclude `.sigil/views/` from authored and implementation discovery while
+  allowing explicit view reads;
 - ignore `.git` directories by default.
 
-The adapter should not skip `.sigil` files based on package or integration
-boundaries.
+The adapter should not skip authored `.sigil` files based on package or
+integration boundaries. Semantic artifact writes belong to compiler-owned
+command handlers and may not implement a second parser, world merger, or
+verification algorithm.
 
 ## 10. Acceptance Scenarios
 
@@ -348,7 +398,12 @@ entrypoint as commands grow.
 Keep command shaping separate from `sigil-core` data models so the core API
 remains reusable by LSP and editor integrations.
 
-Do not add interactive prompts in version 0.7.
+Do not add interactive prompts in version 0.7. Semantic provider interaction is
+an explicit bounded process protocol, not a CLI prompt.
+
+Do not mutate authored `.sigil` contracts or implementation files from a
+semantic command. The only supported writes are accepted world revisions,
+managed generated views, metadata migration, and ignored operational artifacts.
 
 ## 12. Historical Anchor Command Proposal
 

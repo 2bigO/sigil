@@ -25,11 +25,10 @@ The problem statement is captured in [PROBLEM.md](PROBLEM.md).
 
 ## Install The CLI
 
-> **No release is published yet, so the commands in this section do not work.**
-> Until one is, install from source with [Contributing](#contributing) below.
-
-Sigil publishes standalone, unsigned prerelease executables through GitHub
-Releases. Deno and Node.js are not required on the destination machine.
+Sigil's standalone, unsigned prerelease executables contain the native egglog
+engine and TypeScript 7.0.2 runtime. Deno and Node.js are not required on the
+destination machine. Release installation is available when a matching archive
+has been published; source installation is always available for development.
 
 macOS or Linux:
 
@@ -125,30 +124,31 @@ deno install --global --force --config "$PWD/deno.json" \
 
 ## How It Works
 
-Sigil is documentation-first. The `.sigil` files are the durable place where
-decisions, assumptions, component boundaries, and behavior are recorded before
-implementation.
+Authored `.sigil` files describe durable component boundaries, contracts, and
+rationale. The semantic workflow turns those contracts into a lossless accepted
+world and keeps generated human views separate from authored source:
 
-The intended workflow is:
+1. Run `sigil check` and inspect the authored component context.
+2. Submit natural-language intent to a configured proposal provider or a saved
+   proposal envelope. The provider returns untrusted Turtle additions and
+   retractions only.
+3. Inspect deterministic candidates, answer exact unresolved propositions by
+   fact identity, and accept only one uniquely green candidate.
+4. Commit `.sigil/world` and, when desired, publish tracked companion views with
+   `sigil semantic project --write --expected-revision ...`.
+5. Export a focused assignment with `sigil semantic slice`. An external
+   implementation workflow owns code changes and repair; Sigil does not generate
+   or apply patches.
+6. Import returned receipt claims and run `sigil semantic verify --handoff`.
+   Fresh native observations and fixed egglog rules establish coverage. Receipt
+   locations remain claims and never become proof on their own.
 
-1. The user writes the minimum useful Sigil, or selects a reviewed pilot when
-   adopting Sigil in a brownfield repository.
-2. The agent runs structural checks, follows imports, and reads related code,
-   tests, configuration, and documentation.
-3. The agent reviews semantic readiness, cross-Sigil coherence, modularity,
-   applicable standards, and code/spec drift.
-4. Brownfield reconstruction and externally informed additions are proposed
-   before the agent edits Sigil.
-5. The user approves, rejects, or revises the proposed contract and semantic
-   lines.
-6. The agent writes only the approved Sigil and stops at a semantic review gate.
-7. After approval, the agent colocates Sigil with the implementation and uses
-   the agreed contract to generate or change code.
-8. If implementation reveals a missing material decision, the workflow returns
-   to Sigil and human review.
-
-The full workflow is described in
-[spec/sigil-workflow.md](spec/sigil-workflow.md).
+The complete artifact schemas, authority boundaries, migration rules, and
+acceptance matrix are documented in [compile.md](compile.md). The historical
+language workflow remains available in
+[spec/sigil-workflow.md](spec/sigil-workflow.md), but its review-gate and model
+evaluator instructions are compatibility history rather than the current
+compiler workflow.
 
 The Sigil platform architecture is drafted in
 [spec/sigil-platform-architecture.md](spec/sigil-platform-architecture.md).
@@ -293,8 +293,8 @@ The skill teaches coding-agent hosts to:
 - follow Sigil imports;
 - identify public component contracts and matching expands;
 - detect missing, conflicting, or vague information;
-- assess semantic readiness, modularity, applicable standards, and common
-  implementation pitfalls;
+- inspect semantic readiness, modularity, applicable standards, and common
+  implementation pitfalls as authoring guidance;
 - introduce Sigil incrementally into brownfield codebases through a
   change-frontier pilot;
 - derive provisional boundary pictures from documentation, dependency
@@ -307,9 +307,11 @@ The skill teaches coding-agent hosts to:
 - record durable rationale for material selected choices in optional `decisions`
   sections while keeping binding outcomes in `constraints`;
 - propose brownfield and externally informed semantic units before editing;
-- stop at the review gate after semantic changes;
-- colocate approved Sigil with the implementation it explains;
-- use approved Sigil as implementation context.
+- use deterministic semantic intent, answer, acceptance, projection, handoff,
+  receipt, and verification commands;
+- keep generated views out of authored discovery and retain canonical entity IDs;
+- pass implementation ownership to the external workflow and report claims
+  separately from independent coverage.
 
 The compact `SKILL.md` dispatches into progressive references. The
 [workspace bootstrap](integrations/skills/sigil/references/workspace-bootstrap.md)
@@ -368,21 +370,16 @@ editor-native language features, and a read-only component preview derived from
 standard hover responses.
 
 Semantic readiness, standards research, brownfield reconciliation, reviewed
-post-Sigil glossary extraction, proposal gates, scoped terminology handoff, and
-implementation colocation live in the host-neutral Sigil skill rather than
-`sigil-core`. The skill also discovers coherent implementation and UI
-components, distinguishes component contracts from implementation-specific
-expands and trivial mechanics, and requires an implementation coverage map
-before coding. The active boundary keeps deterministic facts in shared packages
-and model-assisted interpretation in the host-neutral skill workflow.
+post-Sigil glossary extraction, and authoring conventions live in the
+host-neutral Sigil skill rather than `sigil-core`. The skill also discovers
+coherent implementation and UI components, distinguishes component contracts
+from implementation-specific expands and trivial mechanics, and helps prepare
+an implementation coverage policy. Deterministic facts, accepted worlds, and
+verification results remain owned by the compiler and fixed egglog kernel.
 
 Editor integrations other than VS Code, stricter body semantics, and additional
-project configuration remain deferred.
-
-Receipts and anchors are rejected historical design explorations rather than
-active or deferred Sigil components.
-[ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md)
-records the rejected proposal for deterministic shared packages, attributed
-host-assisted interpretation, a `sigil-indexer`, and generated review records
-without adding inline Sigil syntax. Its indexer and anchor contracts are not
-part of the active v0.7 workspace.
+project configuration remain deferred. The active semantic workflow is
+documented in [compile.md](compile.md) and the
+[semantic-world migration record](docs/semantic-worlds.md); those documents
+define the retained handoff, untrusted receipt, managed-view, and runtime
+boundaries.

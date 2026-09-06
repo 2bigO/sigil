@@ -1,28 +1,32 @@
 # Setting Up A Project
 
-Getting Sigil running on a repository, start to finish. Assumes the CLI is
-installed (see [Install The CLI](../README.md#install-the-cli)).
+This guide configures a repository for deterministic semantic worlds and
+returned implementation verification. It assumes the CLI is installed; see
+[Install The CLI](../README.md#install-the-cli).
 
 ## 1. Create the workspace
 
-```bash
+Run this at the repository root:
+
+```sh
 sigil init . --name my-project
 ```
 
-Writes `.sigil/config.json` and `.sigil/glossary.json`. The config declares the
-language version, which must match your CLI — `sigil --version` reports the CLI
-version, and a mismatch fails every command with `SIGIL_UNSUPPORTED_VERSION`.
+This writes `.sigil/config.json` and, when absent, `.sigil/glossary.json`. The
+config declares the language version, workspace name, source include/exclude
+patterns, and optional semantic-provider settings. `sigil --version` reports
+the CLI contract version; a mismatch fails commands with
+`SIGIL_UNSUPPORTED_VERSION`.
 
-## 2. Exclude what is not your code
+`sigil init` never overwrites an existing config or glossary. Review both files
+in version control before adding authored contracts.
 
-This is the step that decides whether Sigil works on a real repository.
+## 2. Exclude non-source trees
 
-Sigil reads implementation evidence from every supported source file under the
-root. A virtual environment, a vendored tree, or a generated file counts as your
-code unless you say otherwise. On a large repository that is the difference
-between compiling and failing outright: RIA Hub went from 83,162 files to 4,589
-by naming its exclusions, and one generated Go file in it holds 337 MB of
-embedded assets.
+Sigil reads supported source files under the configured root for structural and
+host observations. A virtual environment, vendored tree, generated output, or
+dependency directory is therefore part of the scan unless excluded. The target
+project's installed packages are never captured or staged for a handoff.
 
 Edit `files.exclude` in `.sigil/config.json`:
 
@@ -33,25 +37,31 @@ Edit `files.exclude` in `.sigil/config.json`:
 ]
 ```
 
-`sigil init --exclude` **replaces** the default list rather than adding to it,
-so either pass every pattern you want or edit the file afterwards.
+`sigil init --exclude` replaces the default list. Pass every desired pattern or
+edit the file afterwards. Exclusion wins over inclusion, and patterns are
+workspace-relative POSIX paths.
 
-## 3. Install the agent skill
+Generated managed views under `.sigil/views/` are excluded automatically from
+authored intent and implementation discovery. They remain available for explicit
+syntax/navigation access.
 
-```bash
-sigil skill install
+## 3. Install the repository skill
+
+```sh
+sigil skill install --project
 ```
 
-No CLI command writes a contract. The skill teaches Codex, Claude Code,
-OpenCode, and Pi to author and revise Sigil, and the CLI checks what they write.
-Use `--project` for repository-local installation, or `--agent <name>` for one.
+The installed skill helps an agent author syntax, inspect imports, and use the
+semantic workflow. It does not supply a verdict. The CLI and fixed egglog kernel
+remain the semantic authority.
 
-## 4. Write the first component
+Use `sigil skill install` for global installation, or add `--agent codex`,
+`--agent claude`, `--agent opencode`, or `--agent pi` to select one host.
 
-A component is a contract. `goal` says what it owns; `interface` is its public
-surface. Ask your agent for one — "model the notification service as a Sigil
-component" — or write it yourself. Either way it lands in a `.sigil` file
-anywhere in the tree and looks like this.
+## 4. Author the first component
+
+A component declares a responsibility and public interface. Write it yourself
+or ask the skill to draft it:
 
 ```sigil
 component Notifier {
@@ -60,118 +70,219 @@ component Notifier {
   }
 
   interface {
-    Delivery {
-      send(recipient, message) delivers one message and reports failure to the
-      caller.
-    }
+    send(recipient, message) delivers one message and reports failure.
   }
 }
 ```
 
-Check it:
-
-```bash
-sigil check .
-```
-
-## 5. Point the contract at the code
-
-Add an ownership annotation as a comment above the implementing symbol:
+Keep this authored file near the boundary it describes. Add ownership comments
+above implementing symbols when the repository has a concrete implementation:
 
 ```ts
-// @sigil implements notifier.sigil::Notifier::Delivery interface
+// @sigil implements notifier.sigil::Notifier::send interface
 export function send(recipient: string, message: string): void {
 ```
 
-The form is
-`@sigil implements|uses|tests <file>::<Component>[::<Concept>]
-<sections>`.
-Sigil reads these from ordinary comments, including `.vue`, `.html`, `.css`, and
-Go templates. A component with no named symbol to hang the note on — most
-single-file frontend components — can carry it at file level.
+The annotation is a navigational claim. It is not implementation proof.
 
-Confirm the link resolved:
+Check the workspace and inspect context:
 
-```bash
+```sh
+sigil check .
 sigil context . --component Notifier
+sigil retrieve . --component Notifier --purpose semantic
 ```
 
-## 6. Use it
+## 5. Configure optional proposal providers
 
-| Command                                                 | What it gives you                                   |
-| ------------------------------------------------------- | --------------------------------------------------- |
-| `sigil check .`                                         | Validates every contract and annotation             |
-| `sigil context . --component X`                         | One component with its dependencies and owning code |
-| `sigil retrieve . --component X --purpose architecture` | Assembled context for an agent                      |
-| `sigil compile .`                                       | Runs the review stages and reports red/yellow/green |
+Natural-language interpretation is explicit and optional. `sigil init` leaves
+the semantic provider map empty. To use a command provider:
 
-Two flags worth knowing early:
-
-- `--max-evidence-bytes N` caps what `retrieve` returns, keeping the closest
-  evidence and reporting what it withheld. Large workspaces return more than an
-  assistant can accept without it.
-- `compile` accepts `--component`, `--file`, `--position`, or `--directory` and
-  works out how much to check from what you name. A directory selects the Sigil
-  sources beneath it, not the implementation files.
-
-## 7. Choose which evaluator reviews your work
-
-`compile` runs its review stages through an AI evaluator, selected by a
-_profile_. `sigil init` seeds profiles for each bundled provider and defaults to
-`standard`, which uses Codex. To use a different one:
-
-```bash
-sigil config set-default . --profile claude
+```sh
+sigil config set-provider local . \
+  --kind command --command /absolute/path/to/provider --arg --json
+sigil config set-provider-default local .
 ```
 
-That sets the profile for both `compile` and the agent skill. An unknown name is
-rejected, so a typo cannot leave the workspace pointing at a profile that does
-not exist.
+The executable receives a bounded prompt on standard input and must return only:
 
-To build your own — say, a faster profile that skips the standards-risk stage:
-
-```bash
-sigil config set-profile fast . --extends standard --main claude   --disable-stage standards-risk
+```json
+{
+  "version": 1,
+  "candidates": [
+    {"id": "one", "additions": "Turtle assertions", "retractions": ""}
+  ]
+}
 ```
 
-Repeating the command edits the same profile, and `--disable-stage` accumulates
-across invocations. Binding a stage again with `--stage <stage>=<evaluator>`
-re-enables it. `sigil config set-profile --help` lists the evaluator, model, and
-per-stage options.
+The compiler validates vocabulary, identities, retractions, and the base
+fingerprint, then runs deterministic candidate search. A provider cannot return
+scores, findings, proof, or executable rules. Bundled `codex`, `claude`, `pi`,
+and `opencode` entries use their corresponding host executable and the same
+strict transport.
 
-## Adopting into an existing codebase
+Provider configuration lives under `tools.semantic` in the root config. Use
+`sigil config set-provider`, `config set-provider-default`, and
+`config migrate`; do not put runtime executable paths in project config. Legacy
+`tools.compile` evaluator fields remain readable for one compatibility release,
+but ordinary compile and semantic verify never invoke them.
 
-The steps above work unchanged on a repository that already has code. Four
-things differ.
+## 6. Accept a canonical world
 
-**Exclusions matter more.** Step 2 is the one that decides whether Sigil runs at
-all on a large repository, so do it before anything else.
+Submit user intent and save a named beam:
 
-**Start with one boundary, not a survey.** Pick something with a clear entry
-point and few dependents. Not the largest area, and not the one you understand
-least. Model it, check it, then pick the next.
+```sh
+sigil semantic intent . --text "The parser must reject filesystem access." \
+  --provider local --beam parser
+sigil semantic status . --beam parser
+```
 
-**Record what the code does, not what it should do.** A contract for existing
-code describes current behaviour. Where the behaviour is wrong, say so in a
-`decisions` entry rather than quietly writing the fix into the contract — the
-contract stops matching the code otherwise.
+When status displays a consequential unresolved proposition, answer its exact
+fact identity:
 
-**Annotate as you go.** A boundary is only half done until
-`sigil context .
---component <Name>` shows the contract and its implementing
-code together.
+```sh
+sigil semantic answer . --beam parser --fact <fact-id> --value no
+```
 
-Ask your agent to do this a boundary at a time: "adopt Sigil for the ingest
-module". It follows
-[brownfield-adoption.md](../integrations/skills/sigil/references/brownfield-adoption.md),
-which is the full procedure and is written for the agent rather than for you.
+Accept only when one candidate is uniquely green:
 
-## Growing from here
+```sh
+sigil semantic accept . --beam parser
+```
 
-One boundary is correct until a second area has its own reason to change. When
-the project earns it, split into areas with their own `_module.sigil` index and
-list them in `workspace.members`; see
-[greenfield-design.md](../integrations/skills/sigil/references/greenfield-design.md).
+Acceptance writes the canonical world and its atomic pointer:
 
-[The 0.1 pilot](pilots/0.1-brownfield.md) records one adoption in full, as a
-worked example rather than a procedure.
+```text
+.sigil/
+  world/
+    current.json
+    <revision>/
+      assertions.egg
+      manifest.json
+```
+
+The assertion `.egg` file is the lossless accepted meaning. It preserves fact
+identities and literal details and can be loaded without original Turtle,
+provider output, or derived caches. Turtle remains an import/export format.
+Compiler-owned kernel rules and untrusted receipt claims stay separate.
+
+## 7. Publish managed views
+
+Project the current green world into generated human-readable companions:
+
+```sh
+sigil semantic project . --check
+sigil semantic project . --write --expected-revision <revision>
+```
+
+The write is transactional and idempotent. It publishes one stable hashed
+`.sigil` file per canonical Component/System entity plus the tracked receipt
+`.sigil/views/current.json`. The generated files contain labels, prose, and
+canonical IDs for reading; they are never fed back into intent extraction.
+Change meaning by submitting new intent and accepting a new world.
+
+If a process stops during publication, inspect and recover the named transaction:
+
+```sh
+sigil semantic project . --recover --transaction <transaction-id>
+```
+
+A changed authored source, policy, world pointer, or generated view is reported
+as drift. `--check` never writes.
+
+## 8. Export a retained implementation handoff
+
+Select the canonical component by name or entity ID:
+
+```sh
+sigil semantic slice . --component Notifier --format text
+```
+
+Before exporting, declare the host-owned implementation policy in
+`.sigil/implementation.json`. Bind exact component file inventories and any
+mandatory checks. Mark an inventory `exhaustive: true` only when the host can
+defend that claim.
+
+The retained handoff under ignored `.sigil/handoffs/<id>` includes:
+
+- the complete boundary obligation set, including obligations outside the slice;
+- focused canonical `.egg` assertions and their fact identities;
+- source, world, kernel, policy, and baseline-code fingerprints;
+- protected specifications, configuration, lock files, and declared oracles;
+- the verifier policy and the original workspace identity.
+
+Keep the handoff ID separately from any returned checkout. Sigil prepares the
+assignment; an external implementation workflow owns coding and repair.
+
+## 9. Import and verify returned claims
+
+The external workflow may return an assertion-only Turtle receipt and a location
+sidecar. Import them as untrusted claims:
+
+```sh
+sigil semantic receipts . --handoff <id> \
+  --claims /tmp/claims.ttl --locations /tmp/locations.json
+sigil semantic verify . --handoff <id> --receipts <receipt-id>
+```
+
+For a separate returned checkout, add
+`--handoff-root /path/to/original/repository`. Receipt import rejects invented
+obligation IDs, mismatched propositions, duplicate identities, unsafe paths,
+wrong file hashes, and malformed envelopes. Successful import writes ignored
+`.sigil/receipts/<id>` and returns no verdict.
+
+Verification reparses the retained world, recomputes all obligations with the
+fixed egglog kernel, resolves native TypeScript 7 selectors, and runs the
+declared host checks. It reports:
+
+- independent coverage established by current observations;
+- each receipt claim and whether it matched an obligation;
+- unsupported or opaque behavior, which remains yellow;
+- failed mandatory commands or operational failures, which cannot become green;
+- stale protected inputs or handoff mismatches.
+
+A source annotation or receipt location is a pointer for inspection. It cannot
+close an obligation by itself.
+
+## 10. Artifact and Git policy
+
+Run this command to initialize the complete layout and scoped ignore file:
+
+```sh
+sigil semantic artifacts .
+```
+
+Commit these project meaning files:
+
+- authored `.sigil` contracts and configuration;
+- `.sigil/world/**` canonical assertion revisions and `world/current.json`;
+- `.sigil/implementation.json` verifier policy;
+- `.sigil/views/**` and `views/current.json` when generated views are published.
+
+Keep these operational artifacts ignored:
+
+- `.sigil/beams/` candidate-search checkpoints;
+- `.sigil/handoffs/` retained assignments;
+- `.sigil/receipts/` returned claims and location metadata;
+- `.sigil/runs/` reports and stage results;
+- `.sigil/cache/` derived data, locks, and interrupted view transactions.
+
+The generated `.sigil/.gitignore` is scoped to this artifact layout and does not
+hide authored contracts or accepted world revisions.
+
+## 11. Runtime checks
+
+A standalone release validates its adjacent native egglog and TypeScript 7.0.2
+runtime automatically. Run:
+
+```sh
+sigil doctor --format json
+```
+
+A published library consumer has no source checkout to search. Set
+`SIGIL_RUNTIME_DIR` to a matching runtime directory, then run the same doctor
+check. The resolver validates manifest versions, target, file hashes, kernel
+identity, and TypeScript extractor version before semantic work begins.
+
+Read [compile.md](../compile.md) for the exact schemas, supported status codes,
+migration/CAS rules, and acceptance matrix.

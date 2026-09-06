@@ -61,9 +61,9 @@ See [the architecture and migration record](../../docs/semantic-worlds.md) and
 [CLI usage](../cli/README.md). Retained receipt verification and bundled
 proposal formats use strict compiler-owned transports. Native release packaging
 ships the pinned runtime separately from target projects. The external coding
-agent owns implementation and repairs. Legacy evaluator APIs remain available
-to existing adapter packages for compatibility, but ordinary compilation and
-retained verification never invoke them.
+workflow owns implementation and repairs. Legacy evaluator APIs remain
+available only to existing adapter compatibility callers; ordinary compilation,
+proposal search, and retained verification never invoke them.
 
 Implementation analysis uses the pinned native TypeScript 7.0.2 API. Supply
 `CompileOptions.implementationPolicy` or `.sigil/implementation.json` to select a
@@ -98,9 +98,10 @@ receipt ingestion are available through `createImplementationHandoff`,
 Handoff reads reparse assertions and recompute the complete boundary obligations;
 `validateHandoffSnapshot` checks protected specification/configuration/oracle
 fingerprints while allowing implementation changes. Raw receipt claims remain
-separate from host observations. `resolveReceiptLocations` checks file hashes, frozen component inventories,
-native callable selectors and optional exact ranges. The TypeScript snapshot
-records each call's enclosing callable, separating sibling functions, nested
-functions and anonymous callbacks. A located pointer alone proves no behavior.
-Fixed egglog receipt-support joins and verification-command integration remain
-the next implementation step.
+separate from host observations. `resolveReceiptLocations` checks file hashes,
+frozen component inventories, native callable selectors and optional exact
+ranges. The TypeScript snapshot records each call's enclosing callable,
+separating sibling functions, nested functions and anonymous callbacks. A
+located pointer alone proves no behavior. Returned claims are joined with fresh
+host observations by retained verification and summarized separately from the
+overall coverage status.
