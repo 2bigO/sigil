@@ -20,7 +20,7 @@ const INTERNAL: &[&str] = &[
 ];
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct Selection {
     pub paths: Vec<String>,
     pub dirs: Vec<String>,
@@ -53,6 +53,14 @@ pub struct CapturedSource {
 
 pub fn hash(bytes: &[u8]) -> String {
     Blake3Hasher.hash_hex(bytes)
+}
+
+pub fn implementation_path(path: &str) -> Result<(), String> {
+    normalized_path(path)?;
+    if path.split('/').any(|part| INTERNAL.contains(&part)) {
+        return Err("Implementation source is inside an excluded internal tree".into());
+    }
+    Ok(())
 }
 
 // @sigil implements packages/sigilc/sources.sigil::SigilSourceIdentity::SourceSelection interface

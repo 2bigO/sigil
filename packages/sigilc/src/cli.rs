@@ -1,9 +1,11 @@
 //! The deterministic command boundary. No process launchers or model options.
 use crate::{
-    catalog, design,
+    catalog, comparison, design,
     frontend::DesignInput,
-    inputs::DesignSnapshot,
+    implementation,
+    inputs::{self, DesignSnapshot},
     kernel::{DesignState, Limits},
+    sources::{self, Selection},
     store::{Freshness, Job, LockedStore, StoreLimits},
     turtle::{self, TurtleLimits},
 };
@@ -19,13 +21,14 @@ pub type Output = Result<(u8, String), (u8, String)>;
 
 // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::DesignCommands interface
 pub fn run(args: &[&str]) -> Output {
-    let (command, tail) = match args {
+    let (command, side, tail) = match args {
         [
             command @ ("prepare" | "ingest" | "stale" | "compile"),
-            "design",
+            side @ ("design" | "implementation"),
             tail @ ..,
-        ] => (*command, tail),
-        ["entities", tail @ ..] => ("entities", tail),
+        ] => (*command, *side, tail),
+        ["entities", tail @ ..] => ("entities", "design", tail),
+        ["compare", tail @ ..] => ("compare", "implementation", tail),
         _ => return Err((2, "Invalid command or options. Run sigilc --help.".into())),
     };
     let allowed: &[&str] = match command {
@@ -39,6 +42,10 @@ pub fn run(args: &[&str]) -> Output {
             "--format",
         ],
     };
+    let mut allowed = allowed.to_vec();
+    if side == "implementation" && matches!(command, "compile" | "stale" | "compare") {
+        allowed.push("--selection");
+    }
     let mut options = BTreeMap::new();
     let mut rest = tail;
     while let Some((flag, next)) = rest.split_first() {
@@ -68,6 +75,9 @@ pub fn run(args: &[&str]) -> Output {
             .ok_or_else(|| (2, format!("required option: {key}")))
     };
     let frontend = required("--frontend")?;
+    if side == "implementation" && matches!(command, "compile" | "stale" | "compare") {
+        required("--selection")?;
+    }
     let source = if matches!(command, "prepare" | "ingest") {
         Some(required("--source")?)
     } else {
@@ -94,6 +104,7 @@ pub fn run(args: &[&str]) -> Output {
         job_path,
         turtle_path,
         options.get("--limits").copied(),
+        options.get("--selection").copied(),
     ]
     .into_iter()
     .flatten()
@@ -119,6 +130,9 @@ pub fn run(args: &[&str]) -> Output {
         DesignInput::parse(&read(frontend, 32_000_000).map_err(runtime)?).map_err(runtime)?;
     let snapshot =
         DesignSnapshot::capture(&root, input, store_limits.max_source_bytes).map_err(runtime)?;
+    if side == "implementation" {
+        return run_implementation(command, &options, &root, &snapshot, &mut store, limits);
+    }
     match command {
         "prepare" => {
             design::valid_frontend(&snapshot).map_err(runtime)?;
@@ -214,6 +228,124 @@ pub fn run(args: &[&str]) -> Output {
     }
 }
 
+// @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::ImplementationCommands interface
+fn run_implementation(
+    command: &str,
+    options: &BTreeMap<&str, &str>,
+    root: &Path,
+    snapshot: &DesignSnapshot,
+    store: &mut LockedStore,
+    limits: Limits,
+) -> Output {
+    let design = design::compile(
+        snapshot,
+        store,
+        limits,
+        options.contains_key("--allow-empty"),
+    )
+    .map_err(runtime)?;
+    let Some(frozen) = &design.catalog else {
+        return json(
+            1,
+            &serde_json::json!({"version":1,"design":design,"implementation":null,"comparison":null,"reason":"current Design catalog unavailable"}),
+        );
+    };
+    let catalog = &frozen.catalog;
+    if matches!(command, "prepare" | "ingest") {
+        let source = options["--source"];
+        sources::implementation_path(source).map_err(|e| (2, e))?;
+        let captured = sources::capture(root, source, StoreLimits::default().max_source_bytes)
+            .map_err(runtime)?;
+        let binding = inputs::implementation(&captured, catalog);
+        if command == "prepare" {
+            let job = store.prepare(binding).map_err(runtime)?;
+            let out = Path::new(options["--out"]);
+            fs::create_dir(out).map_err(|e| runtime(e.to_string()))?;
+            write_bytes_new(&out.join("source"), &captured.bytes).map_err(runtime)?;
+            write_new(&out.join("ontology.json"), &turtle::ontology_document()).map_err(runtime)?;
+            write_new(&out.join("catalog.json"), catalog).map_err(runtime)?;
+            write_new(&out.join("job.json"), &job).map_err(runtime)?;
+            return json(
+                0,
+                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"input_fingerprint":job.binding.fingerprint()}),
+            );
+        }
+        let job: Job =
+            serde_json::from_slice(&read(options["--job"], 16_000_000).map_err(runtime)?)
+                .map_err(|e| runtime(e.to_string()))?;
+        if job.binding.side() != "implementation" || job.binding.source.path != source {
+            return Err((
+                2,
+                "job does not bind the requested Implementation source".into(),
+            ));
+        }
+        let facts = turtle::parse(
+            &read(
+                options["--turtle"],
+                TurtleLimits::default().max_document_bytes as u64,
+            )
+            .map_err(runtime)?,
+            TurtleLimits::default(),
+        )
+        .map_err(runtime)?;
+        catalog.validate_implementation(&facts).map_err(runtime)?;
+        let generation = store.publish(&job, &binding, &facts).map_err(runtime)?;
+        return json(
+            0,
+            &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
+        );
+    }
+    let mut selection: Selection =
+        serde_json::from_slice(&read(options["--selection"], 1_000_000).map_err(runtime)?)
+            .map_err(|e| runtime(e.to_string()))?;
+    if options.contains_key("--allow-empty") {
+        selection.allow_empty = true;
+    }
+    let assembly = implementation::assemble(
+        root,
+        &selection,
+        catalog,
+        store,
+        limits.max_input_assertions,
+    )
+    .map_err(runtime)?;
+    if command == "stale" {
+        let code = if assembly
+            .sources
+            .iter()
+            .all(|s| s.status == Freshness::Fresh)
+        {
+            0
+        } else {
+            1
+        };
+        return json(
+            code,
+            &serde_json::json!({"version":1,"side":"implementation","input_fingerprint":assembly.input_fingerprint,"intentional_empty":assembly.intentional_empty,"sources":assembly.sources}),
+        );
+    }
+    let implementation = assembly.compile(limits).map_err(runtime)?;
+    let comparison = comparison::compare(
+        &design.world,
+        &implementation.world,
+        comparison::FreshInputs {
+            all_design_fresh: design.all_fresh,
+            all_implementation_fresh: implementation.all_fresh,
+        },
+        limits,
+    )
+    .map_err(runtime)?;
+    let code = if comparison.implementation == Some(comparison::ImplementationState::Closed) {
+        0
+    } else {
+        1
+    };
+    json(
+        code,
+        &serde_json::json!({"version":1,"design":design,"implementation":implementation,"comparison":comparison}),
+    )
+}
+
 pub fn read(path: &str, max_bytes: u64) -> Result<Vec<u8>, String> {
     let reader: Box<dyn Read> = if path == "-" {
         Box::new(io::stdin())
@@ -232,13 +364,19 @@ pub fn read(path: &str, max_bytes: u64) -> Result<Vec<u8>, String> {
 }
 
 fn write_new(path: &Path, value: &impl Serialize) -> Result<(), String> {
+    write_bytes_new(
+        path,
+        &serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?,
+    )
+}
+
+fn write_bytes_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
         .open(path)
         .map_err(|e| e.to_string())?;
-    file.write_all(&serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?)
-        .map_err(|e| e.to_string())
+    file.write_all(bytes).map_err(|e| e.to_string())
 }
 
 fn runtime(message: String) -> (u8, String) {

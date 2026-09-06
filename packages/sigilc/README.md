@@ -50,6 +50,29 @@ no completed report. `--limits FILE` on compile/entities reads the closed native
 limits schema; `--allow-empty` explicitly permits and reports an empty Design
 scope. Neither is a model configuration option.
 
-Implementation commands and the final comparison CLI are still being integrated.
-The library already provides isolated Implementation closure and comparison;
-those primitives are not a current repository verification result.
+Implementation preparation requires a current provisional or authoritative Design
+catalog. It writes exactly `source` (unchanged bytes), `ontology.json` and
+`catalog.json` for the worker. Keep `job.json` with the external caller; never
+supply the full Design report or neighboring code to that worker.
+
+```sh
+sigilc prepare implementation --frontend frontend.json --source src/main.rs --out job-main
+sigilc ingest implementation --frontend frontend.json --source src/main.rs --job job-main/job.json --turtle implementation.ttl
+sigilc stale implementation --frontend frontend.json --selection selection.json
+sigilc compile implementation --frontend frontend.json --selection selection.json
+sigilc compare --frontend frontend.json --selection selection.json
+```
+
+Implementation inspection and comparison require an explicit selection JSON.
+For example, `{"dirs":["src"],"exclude":["**/generated/**"],"vendorDirs":["vendor"]}`.
+Optional fields are `paths`, `dirs`, `include`, `exclude`, `vendorDirs` (arrays of
+strings), and `allowEmpty` (default false). Paths are workspace-relative;
+includes/excludes use `*`, `**` and `?` globs. Omitted arrays are empty. Internal
+cache/build trees are always excluded. A selection controls world membership;
+it does not add dependencies to per-file Implementation keys.
+
+Both `compile implementation` and `compare` report independently compiled worlds
+and their fixed-kernel comparison. Closed exits 0; Converged or Drift exits 1.
+Missing/stale or Disjoint Design prevents a usable catalog and returns exit 1
+with no Implementation comparison. These states do not establish delivery,
+test success or fidelity of external reconstruction.

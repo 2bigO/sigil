@@ -5,6 +5,16 @@ component SigilProjectionStore {
   }
 
   interface {
+    ImplementationCommands {
+      Prepare exactly one copied source file, fixed ontology and identity-only
+      catalog for the worker. Keep its job descriptor with the external caller.
+      Require current non-Disjoint Design and validate all catalog references
+      before ingesting Implementation. Accept an explicit source selection for
+      stale inspection and comparison. Compile each world independently, then
+      compare Design obligations with Implementation closure in the fixed matcher.
+      Missing current Design catalog leaves comparison unavailable.
+    }
+
     CurrentImplementation {
       Select arbitrary-language source files and assemble only fresh indexed
       assertions against the current frozen Design catalog. Validate resource

@@ -25,7 +25,7 @@ fn run() -> sigilc::cli::Output {
     let args: Vec<_> = args.iter().map(String::as_str).collect();
     let output = match args.as_slice() {
         ["--version"] => format!("sigilc {}\n", env!("CARGO_PKG_VERSION")),
-        ["--help"] | ["-h"] => "sigilc — deterministic Semantic Worlds compiler\n\nCommands:\n  ontology [--format text|json]\n  prepare design --frontend FILE --source PATH --out NEW_DIR\n  ingest design --frontend FILE --source PATH --job FILE --turtle FILE|-\n  stale design --frontend FILE\n  compile design --frontend FILE [--limits FILE] [--allow-empty]\n  entities --frontend FILE [--limits FILE] [--allow-empty]\n\nDesign commands accept --root DIR (default: .). Reports are JSON.\nNo command invokes a model.\n".into(),
+        ["--help"] | ["-h"] => "sigilc — deterministic Semantic Worlds compiler\n\nCommands:\n  ontology [--format text|json]\n  prepare design --frontend FILE --source PATH --out NEW_DIR\n  ingest design --frontend FILE --source PATH --job FILE --turtle FILE|-\n  stale design --frontend FILE\n  compile design --frontend FILE [--limits FILE] [--allow-empty]\n  entities --frontend FILE [--limits FILE] [--allow-empty]\n  prepare implementation --frontend FILE --source PATH --out NEW_DIR\n  ingest implementation --frontend FILE --source PATH --job FILE --turtle FILE|-\n  stale implementation --frontend FILE --selection FILE\n  compile implementation --frontend FILE --selection FILE\n  compare --frontend FILE --selection FILE [--limits FILE]\n\nWorld commands accept --root DIR (default: .). Reports are JSON.\nNo command invokes a model.\n".into(),
         ["ontology", "--format", "json"] => {
             serde_json::to_string_pretty(&ontology_document()).map_err(|e| (3, e.to_string()))? + "\n"
         },
