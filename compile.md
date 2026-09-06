@@ -25,7 +25,7 @@ Use only two semantic technologies:
 1. **RDF Turtle** for model-facing fact proposals and optional import/export.
 2. **egglog** for canonical persisted assertions and for compiler-owned inference, computation, constraints, closure, numerical analysis, and derived obligations.
 
-Persist the accepted merged world only as a lossless, data-only `.egg` assertion file. Turtle is an interchange format; there is no requirement to keep a second canonical Turtle copy. The compiler owns declarations and rules separately from each project world.
+Persist the accepted merged world only as a lossless, data-only `.egg` assertion file. Turtle is an interchange format; there is no requirement to keep a second canonical Turtle copy. A fresh checkout must be able to load and compile the accepted world using its `.egg` assertions, manifest and compiler-owned kernel without the original Turtle proposals or any derived cache. The compiler owns declarations and rules separately from each project world.
 
 Do not introduce JSON-LD, RDF 1.2 triple-term/reification machinery, N-Quads, TriG, OWL, SHACL, or another intermediate semantic language unless existing code creates a compelling technical requirement.
 
@@ -146,21 +146,30 @@ Parse and normalize candidate Turtle using a real RDF parser.
 
 Do not rely on textual Turtle manipulation.
 
-Create a deterministic lowering from the Sigil RDF ontology into egglog facts.
+Separate two deterministic transformations: lossless encoding of normalized assertions for storage, then analysis-specific lowering into typed egglog tables. The second transformation need not preserve everything needed to reconstruct the accepted world; it must never replace the first.
 
 For example:
 
 ```turtle
-:InstalledSigil :owns :Compilation .
+@prefix s: <https://sigil.dev/ontology/1#> .
+@prefix ex: <urn:example:> .
+
+ex:InstalledSigil s:owns ex:Compilation .
 ```
 
-might lower to:
+is retained in the canonical world as:
+
+```lisp
+(assert-iri "urn:example:InstalledSigil" "https://sigil.dev/ontology/1#owns" "urn:example:Compilation")
+```
+
+Under the compiler-owned declarations, that assertion might lower to an execution table such as:
 
 ```lisp
 (owns InstalledSigil Compilation)
 ```
 
-The LLM must not control this transformation.
+The LLM must not control either transformation. Reloading an accepted `.egg` world starts from the same normalized assertions and bypasses Turtle parsing.
 
 ## Phase 3: egglog is the semantic computer
 
@@ -262,9 +271,9 @@ Compilation should cease to mean "ask another LLM whether this looks good."
 It should become approximately:
 
 ```text
-Turtle
+Turtle proposal/import OR accepted .egg assertions
   ↓
-parse / normalize
+parse selected format / normalize
   ↓
 validate Sigil ontology
   ↓
@@ -373,7 +382,7 @@ This manifest is transport and provenance metadata, not a third semantic languag
 
 Hand the slice to a coding agent with this task:
 
-> Implement this Turtle world slice in the codebase. Return the code and receipts identifying the exact handed-off facts or obligations you claim to implement, together with their code anchors and suggested supporting tests. Report work you could not establish. Do not return a verification verdict.
+> Implement this handed-off semantic world slice in the codebase. Use its readable summary or optional Turtle export to understand the retained `.egg` assertions and obligations. Return the code and receipts identifying the exact handed-off facts or obligations you claim to implement, together with their code anchors and suggested supporting tests. Report work you could not establish. Do not return a verification verdict.
 
 The agent owns implementation. Sigil resumes when the codebase is handed back with the claim that the work is complete. Verification does not require knowing how many edits the agent made, which model it used, or how it organized its work.
 
@@ -583,11 +592,21 @@ These are data forms in compiler-owned tables. Use egglog's real parser, then al
 
 The execution representation can use smaller typed tables or discard irrelevant metadata for a particular analysis; that lowering is not automatically a lossless storage representation. Verify canonical `.egg` round trips across typed literals, language tags, anonymous identities, escaping and duplicate normalization. Check deterministic Turtle import/export against the same normalized fact identities.
 
+Define losslessness over the normalized fact model, not the original Turtle bytes. Prefix choices, comments, whitespace, statement order and duplicate statements are not canonical meaning. Preserve distinct literal lexical forms even when a numeric analysis interprets them as the same value. Keep any original proposal text only as optional documentary provenance.
+
+The storage contract must satisfy these acceptance conditions:
+
+* Decoding an encoded normalized world restores the same facts, fact identities and world fingerprint.
+* Encoding the restored world produces the same canonical assertion bytes under the same format version.
+* Exporting Turtle and importing it again preserves that normalized world, without needing the original Turtle document.
+* Removing optional Turtle exports and derived caches leaves accepted-world loading, slice derivation and recomputed semantic results unchanged under the same kernel and policy.
+* A format or identity-normalization change has an explicit versioned migration. A kernel/rule/schedule change invalidates dependent closure and verification artifacts without silently rewriting accepted assertions.
+
 Keep three artifacts distinct: committed accepted assertions, compiler-owned versioned rules, and ignored derived closure/evidence caches. Recompute closure from assertions under the actual current kernel identity, and invalidate dependent artifacts when that identity changes. Persisting only a saturated e-graph would lose the asserted/derived distinction and is not the chosen design.
 
 The committed world directory contains immutable revisions selected by `current.json`. A revision covers metadata as well as assertions, so changing source bindings without changing the fact set still changes the revision identity. Readers resolve one published revision; they never combine files from partially written revisions. Previous accepted revisions remain available for handoffs and Git history. Existing `.sigil/semantic.json` plus `.sigil/worlds` state remains readable during migration; subsequent acceptance uses the new layout.
 
-Handoffs retain the original task authority, while receipts store the agent's returned claims. Both are bundles that can be explicitly exported or transferred without committing them. Receipt bundles may contain `claims.ttl` and a location sidecar, but cannot contain authoritative proof. Run bundles contain reports and documentary evidence. The layout creates directories and a scoped `.sigil/.gitignore` without overwriting existing ignore entries or ignoring accepted world state.
+Handoffs retain the original task authority, while receipts store the agent's returned claims. Both are bundles that can be explicitly exported or transferred without committing them. Normalize syntactically valid receipt submissions into data-only `claims.egg` plus a location sidecar; retaining the submitted `claims.ttl` is optional. Using the same assertion encoding does not give receipts design authority or make them proof: bundle kind, retained handoff binding and host verification determine their role. Run bundles contain reports and documentary evidence. The layout creates directories and a scoped `.sigil/.gitignore` without overwriting existing ignore entries or ignoring accepted world state.
 
 Every bundle has a versioned manifest with its kind, explicit dependency fingerprints, payload hashes and a content-derived identity. Dependencies identify the world/slice, source snapshot, receipts, kernel, analyzer/configuration and verifier policy as appropriate. Identical inputs and payloads reuse the same immutable artifact. Publish a fully written bundle atomically, then advance any current pointer with a revision comparison. Interrupted writes do not publish incomplete bundles, and a failed later stage does not erase completed earlier stages.
 
@@ -601,7 +620,7 @@ Report artifact identities in compiler/CLI output so an agent can inspect the re
 
 This plan replaces code-patch search and agent-loop work. Keep the existing intent-world search. Reuse the already implemented real Turtle parser, fixed egglog bridge, slice projection, native TypeScript 7 adapter, mechanical coverage rules, ownership-anchor resolver, compiler lifecycle and `semantic verify` command. The current collector provides useful observations; it does not yet implement the full handoff/receipt protocol below.
 
-1. **Create incremental artifacts and version the handoff.** Implement the target `.sigil` bundle store, committed world revisions and ignored operational directories described above.  Extend slice export with normalized fact/obligation identities, canonical `.egg` assertions with optional Turtle export, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification.
+1. **Create incremental artifacts and version the handoff.** Implement the target `.sigil` bundle store, committed world revisions and ignored operational directories described above. Extend slice export with normalized fact/obligation identities, canonical `.egg` assertions with optional Turtle export, verification boundary and a fingerprinted manifest. Preserve the original world and host policy independently of the returned submission. Add round-trip and drift checks so obligations cannot change unnoticed between handoff and verification. Verify the storage acceptance conditions, including reconstruction and semantic compilation after removing all optional Turtle files and derived caches.
 
 2. **Define and ingest receipts.** Specify the strict ordinary-Turtle receipt profile and location sidecar. Resolve references against the retained handoff, reject invented or conflicting identities, and resolve existing Sigil anchors with file/symbol/hash checks. Keep receipt claims in separate tables from accepted assertions and trusted evidence. Do not add arbitrary project rules or a general proof language.
 
