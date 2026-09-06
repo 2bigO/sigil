@@ -62,6 +62,9 @@ import {
 } from "./semantic/evidence.ts";
 import { readSemanticState } from "./semantic/store.ts";
 import { resolveSemanticRuntime } from "./semantic/runtime.ts";
+import { inspectManagedViews } from "./semantic/views.ts";
+import { renderManagedViewSet } from "./semantic/projections.ts";
+import type { ViewInspection } from "./semantic/view-model.ts";
 import { AdapterFailure } from "./adapter-execution-coordinator.ts";
 import {
   createExecutionBudget,
@@ -759,6 +762,7 @@ export async function compile(
     let returnedImplementation: CompilationReport["returnedImplementation"];
     let failed = false;
     let design: SemanticCompilation | undefined;
+    let workspaceDriftViews: ViewInspection | undefined;
     for (const stage of profile.stages) {
       cancellationSignal?.throwIfAborted();
       if (
@@ -803,6 +807,57 @@ export async function compile(
             ...engineOptions(),
             focus: "design",
           });
+          if (!handoff && storedState) {
+            let managed: import("./semantic/view-model.ts").ManagedViewSet;
+            try {
+              managed = design.status === "green"
+                ? await renderManagedViewSet(design)
+                : {
+                  rendererVersion: 1 as const,
+                  worldFingerprint: world.fingerprint,
+                  files: [],
+                };
+            } catch {
+              managed = {
+                rendererVersion: 1,
+                worldFingerprint: world.fingerprint,
+                files: [],
+              };
+            }
+            try {
+              workspaceDriftViews = await inspectManagedViews(
+                workspace.root,
+                managed,
+                canonicalRevision,
+              );
+            } catch (error) {
+              if (!(error instanceof SemanticInputError)) throw error;
+              workspaceDriftViews = {
+                version: 1,
+                state: "unsupported-version",
+                worldRevision: canonicalRevision,
+                recordedWorldRevision: null,
+                transactions: [],
+                differences: [],
+              };
+            }
+            if (
+              ["stale", "edited", "incomplete", "unsupported-version"].includes(
+                workspaceDriftViews.state,
+              )
+            ) {
+              current.push(
+                await semanticInputDiagnostic(
+                  new SemanticInputError(
+                    "MANAGED_VIEW_DRIFT",
+                    `Managed semantic views are ${workspaceDriftViews.state}; regenerate them with semantic project --write.`,
+                  ),
+                  stage.id,
+                  "warning",
+                ),
+              );
+            }
+          }
           stageArtifacts[stage.id] = await recordSemanticStage(
             workspace.root,
             design,
@@ -942,6 +997,12 @@ export async function compile(
       startedAt,
       completedAt: new Date().toISOString(),
       sourceFingerprint,
+      semanticScope: [...new Set(selectedIds)].sort().length
+        ? { entities: [...new Set(selectedIds)].sort() }
+        : undefined,
+      workspaceDrift: workspaceDriftViews
+        ? { authoredSourceChanged: stale, views: workspaceDriftViews }
+        : undefined,
       requestedStage,
       focus: options.focus,
       profile,

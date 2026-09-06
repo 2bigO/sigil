@@ -182,6 +182,13 @@ export interface CompilationReport {
   readonly startedAt: string;
   readonly completedAt: string;
   readonly sourceFingerprint: string;
+  /** Canonical semantic entities selected for this run, sorted by identity. */
+  readonly semanticScope?: { readonly entities: readonly string[] };
+  /** Documentary source/view drift observed while constructing this report. */
+  readonly workspaceDrift?: {
+    readonly authoredSourceChanged: boolean;
+    readonly views: import("./semantic/view-model.ts").ViewInspection;
+  };
   readonly requestedStage?: string;
   readonly focus?: CompilationFocus;
   readonly session?: {
@@ -206,6 +213,11 @@ export interface CompilationEvaluationResult {
   readonly startedAt: string;
   readonly completedAt: string;
   readonly sourceFingerprint: string;
+  readonly semanticScope?: { readonly entities: readonly string[] };
+  readonly workspaceDrift?: {
+    readonly authoredSourceChanged: boolean;
+    readonly views: import("./semantic/view-model.ts").ViewInspection;
+  };
   readonly requestedStage?: string;
   readonly focus?: CompilationFocus;
   readonly profile: EffectiveProfile;

@@ -80,6 +80,8 @@ export function validateCompilationReportWire(
     ["red", "yellow", "green"].includes(String(value.status)) &&
     date(value.startedAt) && date(value.completedAt) &&
     nonempty(value.sourceFingerprint) && validProfile(value.profile) &&
+    validSemanticScope(value.semanticScope) &&
+    validWorkspaceDrift(value.workspaceDrift) &&
     Array.isArray(value.stages) && value.stages.every(validStageReport) &&
     Array.isArray(value.diagnostics) &&
     value.diagnostics.every(validDiagnostic) &&
@@ -88,6 +90,64 @@ export function validateCompilationReportWire(
       value.focus === "implementation") &&
     validSession(value.session) && validArtifacts(value.artifacts) &&
     validReturnedImplementation(value.returnedImplementation);
+}
+
+function validSemanticScope(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!record(value) || Object.keys(value).some((key) => key !== "entities")) {
+    return false;
+  }
+  const entities = value.entities;
+  if (!Array.isArray(entities) || !entities.every(nonempty)) return false;
+  const ordered = entities as string[];
+  return ordered.every((item, index, all) =>
+    item.length > 0 && (index === 0 || all[index - 1] < item)
+  );
+}
+
+function validWorkspaceDrift(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (
+    !record(value) ||
+    Object.keys(value).some((key) =>
+      !["authoredSourceChanged", "views"].includes(key)
+    ) || typeof value.authoredSourceChanged !== "boolean"
+  ) return false;
+  const views = value.views;
+  if (
+    !record(views) || views.version !== 1 ||
+    ![
+      "not-installed",
+      "current",
+      "stale",
+      "edited",
+      "incomplete",
+      "unsupported-version",
+    ].includes(String(views.state)) ||
+    (views.worldRevision !== null && !hash(views.worldRevision)) ||
+    (views.recordedWorldRevision !== null &&
+      !hash(views.recordedWorldRevision)) ||
+    !Array.isArray(views.transactions) ||
+    !views.transactions.every((item) => hash(item)) ||
+    !Array.isArray(views.differences) ||
+    !views.differences.every((item) =>
+      record(item) &&
+      typeof item.path === "string" && item.path.length > 0 &&
+      ["missing", "changed", "unexpected", "metadata"].includes(
+        String(item.kind),
+      )
+    )
+  ) return false;
+  return Object.keys(views).every((key) =>
+    [
+      "version",
+      "state",
+      "worldRevision",
+      "recordedWorldRevision",
+      "transactions",
+      "differences",
+    ].includes(key)
+  );
 }
 
 function validReturnedImplementation(value: unknown): boolean {
@@ -214,6 +274,10 @@ function record(value: unknown): value is Record<string, unknown> {
 
 function nonempty(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
+}
+
+function hash(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 }
 
 function stringArray(value: unknown): boolean {
