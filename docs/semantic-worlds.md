@@ -287,3 +287,27 @@ metadata, and atomic heads compare the complete revision under OS file locks.
 Legacy semantic.json/worlds state remains readable. Accepted world state and policy
 are tracked; handoffs, receipts, runs and caches have scoped ignore rules. Native
 responses include a fingerprint of the compiled kernel/bridge/dependency sources.
+
+
+## Retained handoffs and receipt ingestion
+
+A full implementation handoff now retains the accepted world and exact scoped
+assertions in lossless `.egg`, with a versioned manifest recording every boundary
+coverage obligation, its native kernel identity and contributing fact identities.
+The caller retains the content-derived handoff ID independently of the external
+coding agent. Loading the bundle reparses assertions and recomputes obligations;
+unknown versions, changed kernels, fabricated obligations and altered protected
+inventories are rejected. Baseline code is fingerprinted independently of the
+expected implementation changes. Specification, configuration and host-selected
+test-oracle changes prevent certification against that assignment.
+
+`semantic slice` creates this handoff using host implementation policy.
+`semantic receipts` validates ordinary Turtle claims and a strict location
+sidecar against the retained obligation/fact set, then stores ignored untrusted
+receipt artifacts. Successful ingestion does not establish implementation
+coverage. Empty receipt submissions do not remove any required obligations.
+A documentary `passes true` cannot populate trusted tool tables.
+
+The next stage resolves receipt locations to native TypeScript symbols and joins
+independently observed primitives with exact obligations in fixed egglog rules.
+Per-receipt outcomes remain distinct from coverage found independently elsewhere.

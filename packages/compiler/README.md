@@ -90,5 +90,11 @@ Artifact data never restores trusted observations or skips verification.
 
 `initializeCompileArtifacts` creates the layout and scoped Git ignore policy.
 `writeCompileArtifact` and `readCompileArtifact` publish and integrity-check
-versioned bundles, including untrusted receipt submissions. Full retained handoff
-and returned-receipt validation remains a separate implementation step.
+versioned bundles, including untrusted receipt submissions. Retained handoffs and strict
+receipt ingestion are available through `createImplementationHandoff`,
+`readImplementationHandoff`, `writeReceiptSubmission` and `readReceiptSubmission`.
+Handoff reads reparse assertions and recompute the complete boundary obligations;
+`validateHandoffSnapshot` checks protected specification/configuration/oracle
+fingerprints while allowing implementation changes. Raw receipt claims remain
+separate from host observations. Native symbol resolution and fixed egglog
+receipt-support joins remain the next implementation step.

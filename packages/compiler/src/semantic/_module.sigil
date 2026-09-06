@@ -107,6 +107,38 @@ component SigilSemanticProfile {
   }
 }
 
+component SigilImplementationHandoff {
+  goal {
+    Preserve exactly the accepted assignment and host verification policy before
+    an external coding agent implements it, without scheduling that agent.
+  }
+  interface {
+    RetainedHandoff {
+      Retain the complete accepted world, scoped assertions, all derived boundary
+      obligations and fact-to-obligation provenance in a content-addressed bundle.
+      The caller retains its identity independently of the returned submission.
+      Bind source, baseline code, kernel, TypeScript analyzer, component inventory,
+      API catalog, required checks and protected specification/configuration/test
+      fingerprints. Exact host-selected test files remain protected oracles.
+
+      Reload through the restricted egglog parser and recompute design closure and
+      obligations. Reject unknown versions, altered payloads, stale kernels and
+      mismatched scope or obligation identities. Saved green is never proof.
+      Detect changed or added protected configuration and specification files in
+      returned snapshots. Code changes are expected; protected input drift prevents
+      certification. Snapshot and tool bounds remain operational failures.
+    }
+    ReceiptSubmission {
+      Parse ordinary Turtle Evidence claims plus a strict source-location sidecar
+      referring to the caller-retained handoff identity. Resolve covers references
+      to exported obligation or fact identities without reducing the required set.
+      Require exact proposition agreement and reject unknown or conflicting claims.
+      Keep submitted assertions and source selectors untrusted. File hashes and
+      native symbol resolution must be checked independently before witness joins.
+    }
+  }
+}
+
 component SigilSemanticIntentSearch {
   goal {
     Turn natural-language requests into candidate Turtle worlds and preserve

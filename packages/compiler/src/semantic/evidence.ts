@@ -43,6 +43,17 @@ export interface ImplementationPolicy {
     /** Optional API catalog classification of direct calls. */
     readonly access?: "reads" | "writes";
   }[];
+  /** Host-selected checks and their exact protected test-oracle inputs. */
+  readonly checks?: readonly ImplementationCheckCommand[];
+  readonly protectedFiles?: readonly string[];
+}
+
+export interface ImplementationCheckCommand {
+  readonly id: string;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly files: readonly string[];
+  readonly timeoutMs?: number;
 }
 
 export interface EvidenceReceipt {
@@ -133,7 +144,14 @@ function strings(value: unknown, predicate = nonempty): value is string[] {
 export function parseImplementationPolicy(
   input: unknown,
 ): ImplementationPolicy {
-  const value = record(input, ["version", "project", "components", "targets"]);
+  const value = record(input, [
+    "version",
+    "project",
+    "components",
+    "targets",
+    "checks",
+    "protectedFiles",
+  ]);
   if (
     value.version !== 1 || !path(value.project) ||
     !Array.isArray(value.components) || value.components.length > 1000 ||
@@ -199,6 +217,45 @@ export function parseImplementationPolicy(
       throw new Error(
         "An implementation target needs a module, declaration or global selector.",
       );
+    }
+  }
+  if (
+    value.protectedFiles !== undefined && !strings(value.protectedFiles, path)
+  ) {
+    throw new Error("Invalid protected file inventory.");
+  }
+  if (value.checks !== undefined) {
+    if (!Array.isArray(value.checks) || value.checks.length > 32) {
+      throw new Error("Invalid required checks.");
+    }
+    const ids = new Set<string>();
+    for (const raw of value.checks) {
+      const check = record(raw, [
+        "id",
+        "command",
+        "args",
+        "files",
+        "timeoutMs",
+      ]);
+      if (
+        !nonempty(check.id) ||
+        check.id.startsWith("urn:sigil:check:typescript7:") ||
+        ids.has(check.id) ||
+        !nonempty(check.command) || !Array.isArray(check.args) ||
+        check.args.length > 256 ||
+        check.args.some((arg) =>
+          typeof arg !== "string" || arg.length > 8192 || arg.includes("\0")
+        ) ||
+        !strings(check.files, path) || check.timeoutMs !== undefined &&
+          (!Number.isSafeInteger(check.timeoutMs) ||
+            Number(check.timeoutMs) <= 0 ||
+            Number(check.timeoutMs) > 2_147_483_647)
+      ) {
+        throw new Error(
+          "Invalid host check identity, command or protected oracle files.",
+        );
+      }
+      ids.add(check.id);
     }
   }
   return value as unknown as ImplementationPolicy;
@@ -439,7 +496,10 @@ export async function collectImplementationEvidence(
     world,
     observations,
     completeScopes,
-    requiredChecks: [typecheckId],
+    requiredChecks: [
+      typecheckId,
+      ...policy.checks?.map((check) => check.id) ?? [],
+    ],
     checks,
     receipts,
     analysis,

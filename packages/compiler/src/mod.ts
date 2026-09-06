@@ -36,3 +36,5 @@ export * from "./semantic/artifacts.ts";
 export * from "./semantic/egg-world.ts";
 export * from "./semantic/artifact-recording.ts";
 export * from "./semantic/scope.ts";
+export * from "./semantic/handoff.ts";
+export * from "./semantic/receipts.ts";
