@@ -48,6 +48,11 @@ import {
   type SemanticSourceBinding,
 } from "./semantic/source.ts";
 import { scopeSemanticWorld } from "./semantic/scope.ts";
+import { isCompileArtifactDirectory } from "./semantic/artifacts.ts";
+import {
+  recordCompilationRun,
+  recordSemanticStage,
+} from "./semantic/artifact-recording.ts";
 import {
   collectImplementationEvidence,
   type ImplementationEvidence,
@@ -95,6 +100,7 @@ class DenoReadOnlyFileSystem implements SigilFileSystem {
       for await (const entry of Deno.readDir(path)) {
         if (
           entry.isSymlink ||
+          isCompileArtifactDirectory(path, entry.name) ||
           [
             ".git",
             ".deno",
@@ -545,6 +551,7 @@ export async function compile(
     }
     const diagnostics: CompilerDiagnostic[] = [];
     const stages: StageReport[] = [];
+    const stageArtifacts: Record<string, string> = {};
     let failed = false;
     let design: SemanticCompilation | undefined;
     for (const stage of profile.stages) {
@@ -588,6 +595,15 @@ export async function compile(
             ...engineOptions(),
             focus: "design",
           });
+          stageArtifacts[stage.id] = await recordSemanticStage(
+            workspace.root,
+            design,
+            {
+              stage: stage.id,
+              sourceFingerprint,
+              mechanical: options.semanticEngine,
+            },
+          );
           current.push(
             ...await Promise.all(
               design.diagnostics.map((d) =>
@@ -617,7 +633,7 @@ export async function compile(
           })
           : undefined;
         const mechanical = engineOptions();
-        const implementation = await compileSemanticWorld(world, {
+        const implementationOptions = {
           ...mechanical,
           observations: [
             ...mechanical.observations ?? [],
@@ -632,8 +648,22 @@ export async function compile(
             ...evidence?.requiredChecks ?? [],
           ],
           checks: [...mechanical.checks ?? [], ...evidence?.checks ?? []],
-          focus: "implementation",
-        });
+          focus: "implementation" as const,
+        };
+        const implementation = await compileSemanticWorld(
+          world,
+          implementationOptions,
+        );
+        stageArtifacts[stage.id] = await recordSemanticStage(
+          workspace.root,
+          implementation,
+          {
+            stage: stage.id,
+            sourceFingerprint,
+            evidence,
+            mechanical: implementationOptions,
+          },
+        );
         current.push(
           ...await Promise.all(
             implementation.diagnostics.map((d) =>
@@ -669,7 +699,7 @@ export async function compile(
       stages.push(report);
       requireEventDelivery(await eventWriter.stageCompleted(report), true);
     }
-    const report = constructCompilationReport({
+    let report = constructCompilationReport({
       runId: opened.runId,
       workspaceRoot: workspace.root,
       target,
@@ -685,7 +715,23 @@ export async function compile(
       stages,
       diagnostics,
       previous,
+      artifacts: { stages: stageArtifacts },
     });
+    cancellationSignal?.throwIfAborted();
+    const runArtifact = await recordCompilationRun(workspace.root, report, {
+      source: sourceFingerprint,
+      world: world.fingerprint,
+      profile: profile.fingerprint,
+      ...Object.fromEntries(
+        Object.entries(stageArtifacts).map((
+          [name, id],
+        ) => [`stage.${name}`, id]),
+      ),
+    });
+    report = {
+      ...report,
+      artifacts: { stages: stageArtifacts, run: runArtifact },
+    };
     cancellationSignal?.throwIfAborted();
     successLinearized = true;
     const destination = options.reportExport ?? options.output;

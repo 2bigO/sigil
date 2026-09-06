@@ -7,7 +7,9 @@ import {
   MockAdapter,
   parseSemanticWorld,
   projectSigilIntent,
+  readCompileArtifact,
   readSemanticState,
+  renderCompilationReportMarkdown,
   serializeSemanticWorld,
   validateCompilationEventStream,
   writeSemanticState,
@@ -154,6 +156,100 @@ Deno.test("ordinary compilation uses egglog and never invokes an LLM judge", asy
     );
     assertEquals(validated.kind, "terminal");
     assertEquals(events.at(-1)?.type, "completed");
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("compile records reusable stages and reports without reading generated artifacts as source", async () => {
+  const root = await workspace();
+  try {
+    const options = { focus: "design" as const, disableHistory: true };
+    const first = await compile(
+      root,
+      { kind: "workspace" },
+      "standard",
+      options,
+    );
+    const stageId = first.artifacts?.stages["semantic-closure"];
+    const runId = first.artifacts?.run;
+    assert(stageId && runId);
+    const stage = await readCompileArtifact(root, "cache", stageId);
+    const run = await readCompileArtifact(root, "runs", runId);
+    assert(stage && run);
+    assert(stage.files["assertions.egg"].includes("assert-iri"));
+    assertEquals(stage.manifest.dependencies.source, first.sourceFingerprint);
+    assertEquals(JSON.parse(run.files["report.json"]).status, "yellow");
+    assertEquals(run.manifest.dependencies["stage.semantic-closure"], stageId);
+    assert(
+      renderCompilationReportMarkdown(first).includes(`.sigil/runs/${runId}`),
+    );
+
+    // Even a generated Sigil or source file must not reenter workspace discovery.
+    await Deno.writeTextFile(
+      `${root}/.sigil/cache/${stageId}/generated.sigil`,
+      "invalid Sigil",
+    );
+    await Deno.writeTextFile(
+      `${root}/.sigil/cache/${stageId}/observed.ts`,
+      "invalid TypeScript",
+    );
+    const second = await compile(
+      root,
+      { kind: "workspace" },
+      "standard",
+      options,
+    );
+    assertEquals(second.sourceFingerprint, first.sourceFingerprint);
+    assertEquals(second.artifacts?.stages["semantic-closure"], stageId);
+    assert(second.artifacts?.run !== runId);
+
+    await Deno.writeTextFile(`${root}/app.ts`, "export const changed = true;");
+    const changed = await compile(
+      root,
+      { kind: "workspace" },
+      "standard",
+      options,
+    );
+    assert(changed.sourceFingerprint !== first.sourceFingerprint);
+    assert(changed.artifacts?.stages["semantic-closure"] !== stageId);
+    assertEquals(changed.status, first.status);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("completed semantic artifacts survive a later implementation tool failure", async () => {
+  const root = await workspace();
+  try {
+    const input = await interpretation(root);
+    await assertRejects(() =>
+      compile(root, { kind: "workspace" }, "standard", {
+        semanticDocuments: input.documents,
+        implementationPolicy: {
+          version: 1,
+          project: "missing.json",
+          components: [],
+          targets: [],
+        },
+      })
+    );
+    const cache = [];
+    for await (const entry of Deno.readDir(`${root}/.sigil/cache`)) {
+      if (/^[a-f0-9]{64}$/.test(entry.name)) cache.push(entry.name);
+    }
+    assertEquals(cache.length, 1);
+    const runs = [];
+    for await (const entry of Deno.readDir(`${root}/.sigil/runs`)) {
+      runs.push(entry.name);
+    }
+    assertEquals(runs, []);
+    const result = await compile(root, { kind: "workspace" }, "standard", {
+      semanticDocuments: input.documents,
+      focus: "design",
+    });
+    assertEquals(result.status, "green");
+    assertEquals(result.artifacts?.stages["semantic-closure"], cache[0]);
   } finally {
     await Deno.remove(root, { recursive: true });
   }

@@ -24,6 +24,16 @@ export function renderCompilationReportMarkdown(
     ),
   ];
 
+  if (report.artifacts) {
+    lines.push("", "## Saved artifacts", "");
+    if (report.artifacts.run) {
+      lines.push(`- Run: ${inlineText(`.sigil/runs/${report.artifacts.run}`)}`);
+    }
+    for (const [stage, id] of Object.entries(report.artifacts.stages)) {
+      lines.push(`- ${inlineText(stage)}: ${inlineText(`.sigil/cache/${id}`)}`);
+    }
+  }
+
   const grouped = groupDiagnostics(report);
   if (grouped.length > 0) {
     lines.push("", "## Findings");

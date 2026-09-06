@@ -80,8 +80,10 @@ expand SigilOneShotCompilation {
   constraints {
     ReadOnlyCompilation {
       Compilation reads selected source and canonical semantic state. Only event,
-      report, history, and explicit export state may be written. Intent generation,
-      canonical-state acceptance, and code candidate execution have separate APIs.
+      report, history, explicit export and incremental artifact state may be written.
+      Completed stages survive later failure in ignored target .sigil bundles;
+      reports expose their identities. Artifact reads never grant evidence authority.
+      Intent generation and canonical-state acceptance have separate APIs.
     }
 
     SemanticAuthority {

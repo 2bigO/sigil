@@ -160,6 +160,10 @@ export interface EffectiveProfile {
 
 export interface CompilationReport {
   readonly reportVersion: 3;
+  readonly artifacts?: {
+    readonly stages: Readonly<Record<string, string>>;
+    readonly run?: string;
+  };
   readonly runId: string;
   readonly workspaceRoot: string;
   /**

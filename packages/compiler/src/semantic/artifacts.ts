@@ -9,6 +9,14 @@ export const COMPILE_ARTIFACT_KINDS = [
   "cache",
 ] as const;
 export type CompileArtifactKind = typeof COMPILE_ARTIFACT_KINDS[number];
+/** Generated artifacts must not feed back into source or implementation discovery. */
+export function isCompileArtifactDirectory(
+  parent: string,
+  name: string,
+): boolean {
+  return resolve(parent).replaceAll("\\", "/").endsWith("/.sigil") &&
+    [...COMPILE_ARTIFACT_KINDS, "beams", "worlds"].includes(name);
+}
 export interface CompileArtifactInput {
   readonly kind: CompileArtifactKind;
   readonly dependencies: Readonly<Record<string, string>>;

@@ -86,7 +86,15 @@ export function validateCompilationReportWire(
     (value.requestedStage === undefined || nonempty(value.requestedStage)) &&
     (value.focus === undefined || value.focus === "design" ||
       value.focus === "implementation") &&
-    validSession(value.session);
+    validSession(value.session) && validArtifacts(value.artifacts);
+}
+
+function validArtifacts(value: unknown): boolean {
+  const hash = (value: unknown) =>
+    typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+  return value === undefined || record(value) && record(value.stages) &&
+      Object.values(value.stages).every(hash) &&
+      (value.run === undefined || hash(value.run));
 }
 
 // @sigil implements packages/compiler/src/report-protocol.sigil::SigilCompilationReportProtocol::ReportWireValidation interface

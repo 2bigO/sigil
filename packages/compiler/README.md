@@ -3,8 +3,8 @@
 # @qoherent/sigil-compiler
 
 Sigil compiles asserted semantic worlds with a fixed egglog kernel. Ordinary RDF
-1.1 Turtle stores facts; a real N3 parser validates and normalizes the versioned
-Sigil vocabulary. The pinned native egglog engine derives consequences, numerical
+1.1 Turtle provides interchange; a real N3 parser validates and normalizes the
+versioned Sigil vocabulary. The pinned native egglog engine derives consequences, numerical
 properties, invariants and explicit obligations. Models generate possibilities;
 they do not supply compiler verdicts, rules, or trusted implementation evidence.
 
@@ -37,7 +37,7 @@ Exact proposition answers filter the beam; optional model wording never replaces
 the proposition itself. Named checkpoints use atomic revision checks and replay
 assertions through the kernel rather than storing proof.
 
-`projectGreenSemanticWorld` returns paired canonical Turtle and a parser-validated
+`projectGreenSemanticWorld` exports normalized Turtle paired with a parser-validated
 human `.sigil` view. `implementationSlice` and `renderImplementationSlice` expose
 focused duties, exclusions, contracts and obligations for coding agents. Positive
 implementation coverage requires a host observation; negative obligations require
@@ -58,10 +58,10 @@ engine. `tools.compile.budgets.elapsedTimeMs` caps execution. Source metadata st
 outside the ontology, and derived facts are never silently reasserted.
 
 See [the architecture and migration record](../../docs/semantic-worlds.md) and
-[CLI usage](../cli/README.md). Code candidate
-execution, bundled proposal formats and native release packaging remain migration
-work. Legacy evaluator APIs remain available to existing adapter packages, but
-ordinary compilation never invokes them.
+[CLI usage](../cli/README.md). Retained receipt verification, bundled proposal
+formats and native release packaging remain migration work. The external coding
+agent owns implementation and repairs. Legacy evaluator APIs remain available to
+existing adapter packages, but ordinary compilation never invokes them.
 
 Implementation analysis uses the pinned native TypeScript 7.0.2 API. Supply
 `CompileOptions.implementationPolicy` or `.sigil/implementation.json` to select a
@@ -79,3 +79,16 @@ relationships, not execution of every path. Negative dependency coverage require
 an exhaustive host inventory with no missing files, compiler errors, opaque calls
 or unresolved imports. Other behavioral absence remains unresolved. Ownership
 annotations remain claims and never become blanket implementation proof.
+
+Completed semantic stages are recorded under `.sigil/cache/<id>` and result
+reports under `.sigil/runs/<id>`. The report exposes these IDs in `artifacts`;
+Markdown includes their workspace-relative paths. Each manifest binds payload
+hashes to the world, relevant source, kernel and mechanical inputs. Completed
+stages survive a later failure and identical stage artifacts reuse their IDs.
+The stored report omits its own bundle ID to avoid a circular content hash.
+Artifact data never restores trusted observations or skips verification.
+
+`initializeCompileArtifacts` creates the layout and scoped Git ignore policy.
+`writeCompileArtifact` and `readCompileArtifact` publish and integrity-check
+versioned bundles, including untrusted receipt submissions. Full retained handoff
+and returned-receipt validation remains a separate implementation step.

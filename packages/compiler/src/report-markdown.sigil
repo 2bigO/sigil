@@ -15,6 +15,9 @@ component SigilCompilationReportMarkdown {
       with stage, state, and diagnostic count, then Findings grouped by originating
       stage
 
+      When present, artifact identities locate the saved run and completed stages
+      under the workspace .sigil directory for subsequent inspection.
+
       each nonempty stage group has one compact diagnostic table with severity,
       lifecycle, rule code, semantic subject, and location; evidence, impact, and
       suggested correction appear once below the corresponding diagnostic

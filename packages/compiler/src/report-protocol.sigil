@@ -24,6 +24,10 @@ component SigilCompilationReportProtocol {
       hashes, component graph, effective profile, stages, evaluator environment, and
       completed passes
 
+      optional artifacts identifies immutable completed stage bundles and the run
+      result in the target .sigil directory. Identities are hashes, not proof.
+      The stored run payload omits its own bundle identity to avoid a hash cycle.
+
       runId is the non-empty invocation identity that constructed this report;
       optional session contains sessionIdentity, baseEpoch, generation, base
       fingerprint, and proposal fingerprint and is present exactly for a proposal

@@ -34,3 +34,5 @@ export * from "./semantic/typescript7.ts";
 export * from "./semantic/evidence.ts";
 export * from "./semantic/artifacts.ts";
 export * from "./semantic/egg-world.ts";
+export * from "./semantic/artifact-recording.ts";
+export * from "./semantic/scope.ts";

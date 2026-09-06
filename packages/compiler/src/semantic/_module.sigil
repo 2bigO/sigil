@@ -14,7 +14,7 @@ component SigilSemanticKernel {
 expand SigilSemanticKernel {
   constraints {
     SemanticAuthority {
-      Turtle stores assertions. Egglog owns inference, numerical computation,
+      Turtle exchanges assertions. Egglog owns inference, numerical computation,
       invariants, and obligations. Unknown vocabulary, generated laws, named graphs,
       and RDF triple terms are rejected. Source metadata remains outside ontology.
       Derived consequences are never silently copied into asserted state.
@@ -46,10 +46,10 @@ component SigilSemanticState {
   }
   interface {
     SemanticState {
-      Store canonical Turtle by content fingerprint and atomically replace a receipt
-      containing the world fingerprint, source fingerprint, and component bindings.
-      Writes compare the expected previous fingerprint under a workspace lock.
-      Reads parse Turtle again and verify its fingerprint. Existing content-addressed
+      Store canonical assertions by content fingerprint and atomically replace a
+      revision containing the world fingerprint, source fingerprint, and component
+      bindings. Writes compare the expected previous revision under a workspace lock.
+      Reads parse assertions again and verify their fingerprint. Content-addressed
       snapshots are immutable. Prepare new snapshots before atomic publication and
       release the write lock even when stale state or cleanup fails.
       New accepted state is a committed immutable bundle in .sigil/world, selected
@@ -76,6 +76,9 @@ component SigilCompileArtifacts {
       mutable heads and compare complete revisions under operating-system locks.
 
       Compile records completed semantic stages and final reports independently.
+      Slice export retains a focused assertion bundle and its obligations, source,
+      world and kernel identities. These exports precede the complete retained
+      handoff protocol that freezes policy and test oracles for verification.
       Native closure identifies its actual compiled kernel and dependency revision.
       Reopening an artifact verifies its bytes but never restores trusted evidence
       or a proof status. Receipt ingestion and tool execution retain their separate
