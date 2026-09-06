@@ -222,10 +222,39 @@ export async function createSemanticComponentRegistry(options: {
       rows.push({ entity, authored: undefined, label: names.get(entity) });
     }
   }
-  const prefixes = new Map<string, string[]>();
-  for (const row of rows) {
-    const prefix = legalPrefix(row.label ?? row.authored?.name ?? row.entity);
-    prefixes.set(prefix, [...(prefixes.get(prefix) ?? []), row.entity]);
+  rows.sort((a, b) => a.entity < b.entity ? -1 : a.entity > b.entity ? 1 : 0);
+  const fullHashes = new Map<string, string>();
+  for (const row of rows) fullHashes.set(row.entity, await digest(row.entity));
+  const lengths = new Map([...fullHashes].map(([entity]) => [entity, 12]));
+  const projectedNames = new Map<string, string>();
+  while (true) {
+    projectedNames.clear();
+    const collisions = new Set<string>();
+    for (const row of rows) {
+      const prefix = legalPrefix(row.label ?? row.authored?.name ?? row.entity);
+      const hash = fullHashes.get(row.entity)!;
+      const suffix = hash.slice(0, lengths.get(row.entity)!);
+      const name = `${
+        prefix.slice(0, Math.max(1, 75 - suffix.length - 1))
+      }_${suffix}`;
+      const prior = [...projectedNames.entries()].find(([, value]) =>
+        value === name
+      );
+      if (prior && prior[0] !== row.entity) {
+        collisions.add(prior[0]);
+        collisions.add(row.entity);
+      } else {
+        projectedNames.set(row.entity, name);
+      }
+    }
+    if (!collisions.size) break;
+    for (const entity of collisions) {
+      const next = lengths.get(entity)! + 4;
+      if (next > fullHashes.get(entity)!.length) {
+        invalid(`generated component names collide for ${entity}`);
+      }
+      lengths.set(entity, next);
+    }
   }
   const entries: SemanticComponentEntry[] = [];
   for (
@@ -233,14 +262,9 @@ export async function createSemanticComponentRegistry(options: {
       a.entity < b.entity ? -1 : a.entity > b.entity ? 1 : 0
     )
   ) {
-    const prefix = legalPrefix(row.label ?? row.authored?.name ?? row.entity);
-    const hash = (await digest(row.entity)).slice(0, 12);
-    const collisions = prefixes.get(prefix)?.length ?? 0;
-    const suffix = collisions > 1 ? hash : hash;
-    const projectedName = `${
-      prefix.slice(0, Math.max(1, 75 - suffix.length - 1))
-    }_${suffix}`;
-    const projectedPath = `.sigil/views/${hash}.sigil`;
+    const fullHash = fullHashes.get(row.entity)!;
+    const projectedName = projectedNames.get(row.entity)!;
+    const projectedPath = `.sigil/views/${fullHash}.sigil`;
     entries.push({
       ...row,
       projectedName,

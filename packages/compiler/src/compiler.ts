@@ -641,6 +641,7 @@ export async function compile(
       resolved.imports,
     );
     let world = handoff?.slice ?? sourceIntent.world;
+    let workspaceWorld = world;
     let inputError: SemanticInputError | undefined;
     let stale = false;
     let canonicalRevision: string | null = null;
@@ -677,6 +678,7 @@ export async function compile(
     }
     if (!inputError) {
       try {
+        workspaceWorld = world;
         const registry = await createSemanticComponentRegistry({
           resolved,
           root: workspace.root,
@@ -810,8 +812,12 @@ export async function compile(
           if (!handoff && storedState) {
             let managed: import("./semantic/view-model.ts").ManagedViewSet;
             try {
-              managed = design.status === "green"
-                ? await renderManagedViewSet(design)
+              const fullDesign = await compileSemanticWorld(workspaceWorld, {
+                ...engineOptions(),
+                focus: "design",
+              });
+              managed = fullDesign.status === "green"
+                ? await renderManagedViewSet(fullDesign)
                 : {
                   rendererVersion: 1 as const,
                   worldFingerprint: world.fingerprint,
