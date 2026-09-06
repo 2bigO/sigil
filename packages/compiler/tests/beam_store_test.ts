@@ -75,7 +75,7 @@ Deno.test("artifact lock contention observes cancellation and orphan files", asy
     const held = withCompileArtifactLock(
       root,
       "held",
-      async () => release.promise,
+      () => release.promise,
     );
     await new Promise((resolve) => setTimeout(resolve, 20));
     await assertRejects(

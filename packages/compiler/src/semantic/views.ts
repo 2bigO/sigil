@@ -32,9 +32,13 @@ function safeViewPath(path: string): boolean {
 function validRange(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const raw = value as Record<string, unknown>;
-  if (Object.keys(raw).some((key) => !["start", "end"].includes(key))) return false;
+  if (Object.keys(raw).some((key) => !["start", "end"].includes(key))) {
+    return false;
+  }
   const point = (candidate: unknown): boolean => {
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return false;
+    if (
+      !candidate || typeof candidate !== "object" || Array.isArray(candidate)
+    ) return false;
     const item = candidate as Record<string, unknown>;
     return Object.keys(item).every((key) => ["line", "column"].includes(key)) &&
       Number.isInteger(item.line) && Number.isInteger(item.column) &&
@@ -98,7 +102,9 @@ function receipt(value: unknown): ViewReceiptV1 {
       invalid("Managed view receipt contains duplicate paths or entities.");
     }
     for (const authored of file.authoredLocations as unknown[]) {
-      if (!authored || typeof authored !== "object" || Array.isArray(authored)) {
+      if (
+        !authored || typeof authored !== "object" || Array.isArray(authored)
+      ) {
         invalid("Managed view receipt contains an invalid authored location.");
       }
       const location = authored as Record<string, unknown>;
@@ -112,7 +118,9 @@ function receipt(value: unknown): ViewReceiptV1 {
       ) invalid("Managed view receipt contains an invalid authored location.");
     }
     for (const location of file.locations as unknown[]) {
-      if (!location || typeof location !== "object" || Array.isArray(location)) {
+      if (
+        !location || typeof location !== "object" || Array.isArray(location)
+      ) {
         invalid("Managed view receipt contains an invalid generated location.");
       }
       const itemLocation = location as Record<string, unknown>;
@@ -375,10 +383,12 @@ export async function writeManagedViews(
   await Deno.mkdir(resolve(root, ".sigil/cache/view-transactions"), {
     recursive: true,
   });
-  for (const directory of [
-    resolve(root, ".sigil/views"),
-    resolve(root, ".sigil/cache/view-transactions"),
-  ]) {
+  for (
+    const directory of [
+      resolve(root, ".sigil/views"),
+      resolve(root, ".sigil/cache/view-transactions"),
+    ]
+  ) {
     const stat = await Deno.lstat(directory);
     if (!stat.isDirectory || stat.isSymlink) {
       invalid("Managed view storage directory is unsafe.");
@@ -387,7 +397,7 @@ export async function writeManagedViews(
   return withCompileArtifactLock(
     root,
     "world",
-    async () =>
+    () =>
       withCompileArtifactLock(root, "views", async () => {
         const pending = await inspectManagedViews(root, set, expectedRevision);
         if (pending.transactions.length) {
@@ -548,7 +558,7 @@ export async function recoverManagedViews(
   return withCompileArtifactLock(
     root,
     "world",
-    async () =>
+    () =>
       withCompileArtifactLock(root, "views", async () => {
         for (const path of Object.keys(body.after).sort()) {
           const current = await hashState(root, path);

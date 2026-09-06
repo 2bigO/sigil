@@ -8,7 +8,6 @@ import { compileSemanticWorld } from "../src/semantic/compile.ts";
 import {
   inspectManagedViews,
   readManagedViewReceipt,
-  viewReceiptFor,
   writeManagedViews,
 } from "../src/semantic/views.ts";
 import { renderManagedViewSet } from "../src/semantic/projections.ts";

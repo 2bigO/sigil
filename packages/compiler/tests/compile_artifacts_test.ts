@@ -9,6 +9,7 @@ import { parseEggWorld, serializeEggWorld } from "../src/semantic/egg-world.ts";
 import { compileSemanticWorld } from "../src/semantic/compile.ts";
 import { scopeSemanticWorld } from "../src/semantic/scope.ts";
 import {
+  migrateSemanticState,
   readSemanticState,
   writeSemanticState,
 } from "../src/semantic/store.ts";
@@ -225,6 +226,47 @@ Deno.test("accepted egg world reconstructs slices and semantic closure without T
     assertEquals(after.status, before.status);
     assertEquals(after.closure, before.closure);
     assertEquals(after.diagnostics, before.diagnostics);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("semantic state metadata migration previews without writes and preserves Egg bytes", async () => {
+  const root = await Deno.makeTempDir({ prefix: "sigil-migrate-" });
+  try {
+    const world = await parseSemanticWorld([]);
+    const receipt = {
+      version: 1 as const,
+      worldFingerprint: world.fingerprint,
+      sourceFingerprint: world.fingerprint,
+      componentBindings: {},
+    };
+    await Deno.mkdir(`${root}/.sigil/worlds`, { recursive: true });
+    await Deno.writeTextFile(
+      `${root}/.sigil/worlds/${world.fingerprint}.ttl`,
+      serializeSemanticWorld(world),
+    );
+    await Deno.writeTextFile(
+      `${root}/.sigil/semantic.json`,
+      artifactJson(receipt),
+    );
+    const before = await readSemanticState(root);
+    assert(before);
+    const preview = await migrateSemanticState(root);
+    assertEquals(preview.fromVersion, 1);
+    assertEquals((await readSemanticState(root))?.revision, before.revision);
+    const written = await migrateSemanticState(root, {
+      write: true,
+      expectedRevision: before.revision,
+    });
+    assertEquals(written.fromVersion, 1);
+    const after = await readSemanticState(root);
+    assert(after);
+    assertEquals(after.receipt.version, 2);
+    assertEquals(
+      serializeEggWorld(after.world),
+      serializeEggWorld(before.world),
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }

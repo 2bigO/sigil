@@ -110,6 +110,8 @@ sigil semantic accept . --beam parser
 sigil compile . --focus design
 sigil semantic project . --format sigil
 sigil semantic project . --format turtle
+sigil semantic migrate . --format json
+sigil semantic migrate . --write --expected-revision <revision> --format json
 sigil semantic slice . --component Parser --format text
 ```
 
@@ -223,6 +225,11 @@ operational artifacts ignored. `semantic project --check` is read-only; use
 an explicitly validated interrupted transaction.
 `--no-cache` controls diagnostic history outside the workspace; it does not
 disable target-codebase artifact recording.
+
+Run `sigil doctor --format json` from any directory to validate the packaged
+egglog bridge and TypeScript 7 runtime. Library users must select a matching
+runtime with `SIGIL_RUNTIME_DIR`; standalone archives resolve their adjacent
+runtime automatically.
 
 
 The implementation policy may also contain `protectedFiles` and `checks`:

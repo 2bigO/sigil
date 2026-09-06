@@ -280,7 +280,7 @@ export async function writeReceiptSubmission(
   handoff: ImplementationHandoff,
   turtle: string,
   sidecar: unknown,
-) {
+): Promise<{ readonly id: string; readonly submission: ReceiptSubmission }> {
   const submission = await parseReceiptSubmission(handoff, turtle, sidecar);
   const artifact = await writeCompileArtifact(root, {
     kind: "receipts",

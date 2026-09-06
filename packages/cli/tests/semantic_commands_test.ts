@@ -142,6 +142,16 @@ Deno.test("semantic CLI interprets, accepts and projects canonical meaning throu
       JSON.parse(accepted.stdout).revision ===
         (await readSemanticState(root))?.revision,
     );
+    const migration = await runCli([
+      "semantic",
+      "migrate",
+      root,
+      "--format",
+      "json",
+    ]);
+    assert(migration.exitCode === 0, migration.stderr);
+    assert(JSON.parse(migration.stdout).fromVersion === 2);
+    assert(JSON.parse(migration.stdout).changed === false);
     assert(await Deno.readTextFile(`${root}/main.sigil`) === source);
     const report = await compile(root, { kind: "workspace" }, "standard", {
       focus: "design",

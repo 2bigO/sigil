@@ -239,7 +239,7 @@ CLI formats and user-facing intent commands are still integration work.
 
 ## CLI intent workflow
 
-`sigil semantic intent/status/answer/accept/project/slice` now connects the proposal,
+`sigil semantic intent/status/answer/accept/project/slice/migrate` now connects the proposal,
 beam, persistence and projection APIs. A prepared candidate-envelope file or a
 generator executable supplies hypotheses. Viable beams carry source and canonical
 fingerprints; acceptance refreshes both receipts and requires a uniquely selected

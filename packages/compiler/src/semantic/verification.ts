@@ -2,10 +2,13 @@ import { resolve } from "node:path";
 import { recordImplementationEvidence } from "./artifact-recording.ts";
 import type { ResolvedSigilWorkspace } from "@qoherent/sigil-core";
 import { runImplementationChecks } from "./checks.ts";
+import type { CommandCheckEvidence } from "./checks.ts";
 import { compileSemanticWorld } from "./compile.ts";
+import type { SemanticCompilation } from "./compile.ts";
 import type { SemanticEngineOptions } from "./engine.ts";
 import {
   collectImplementationEvidence,
+  type ImplementationEvidence,
   type ImplementationPolicy,
   parseImplementationPolicy,
 } from "./evidence.ts";
@@ -29,12 +32,20 @@ interface VerificationInputs {
   readonly canonicalRevision?: string | null;
 }
 
+export interface VerificationEvidenceCollection {
+  readonly evidence: ImplementationEvidence | undefined;
+  readonly commands: CommandCheckEvidence;
+  readonly snapshot: ImplementationSnapshot;
+  readonly nativeArtifact: string | undefined;
+  readonly assertCurrent: () => Promise<void>;
+}
+
 /** Shared independent tools and freshness checks for both verification entry paths. */
 // @sigil implements packages/compiler/src/semantic/_module.sigil::SigilImplementationEvidence::EvidenceCollection interface
 export async function collectVerificationEvidence(
   options: VerificationInputs,
   budget: ExecutionBudget,
-) {
+): Promise<VerificationEvidenceCollection> {
   const engine = () => ({
     binaryPath: options.engine?.binaryPath,
     runtimeDirectory: options.engine?.runtimeDirectory,
@@ -140,7 +151,14 @@ export async function verifyImplementationWorld(
     readonly world: SemanticWorld;
     readonly timeoutMs?: number;
   },
-) {
+): Promise<{
+  readonly compilation: SemanticCompilation;
+  readonly evidence: ImplementationEvidence | undefined;
+  readonly commands: CommandCheckEvidence;
+  readonly snapshot: ImplementationSnapshot;
+  readonly mechanical: SemanticEngineOptions;
+  readonly nativeArtifact: string | undefined;
+}> {
   return await withExecutionBudget({
     timeoutMs: options.timeoutMs,
     signal: options.engine?.signal,

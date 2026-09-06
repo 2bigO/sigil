@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import type { ResolvedSigilWorkspace } from "@qoherent/sigil-core";
+import type { CommandCheckEvidence } from "./checks.ts";
 import {
   artifactPayload,
   recordCompilationRun,
@@ -7,7 +8,10 @@ import {
 } from "./artifact-recording.ts";
 import { artifactJson } from "./artifacts.ts";
 import { compileSemanticWorld } from "./compile.ts";
+import type { SemanticCompilation } from "./compile.ts";
 import type { SemanticEngineOptions } from "./engine.ts";
+import type { MechanicalCheck } from "./engine.ts";
+import type { ImplementationEvidence } from "./evidence.ts";
 import {
   type ExecutionBudget,
   withExecutionBudget,
@@ -17,6 +21,7 @@ import {
   readImplementationHandoff,
   validateHandoffSnapshot,
 } from "./handoff.ts";
+import type { ReceiptLocationResult } from "./receipt-locations.ts";
 import { receiptWitnessInputs } from "./receipt-witnesses.ts";
 import { parseReceiptSubmission, readReceiptSubmission } from "./receipts.ts";
 import { SemanticInputError, serializeSemanticWorld } from "./turtle.ts";
@@ -35,11 +40,68 @@ export interface ReturnedImplementationOptions {
   >;
 }
 
+interface ReturnedObligation {
+  readonly id: string;
+  readonly kernelId: string;
+  readonly subject: string;
+  readonly relation: string;
+  readonly target: string;
+  readonly expected: boolean;
+  readonly status: "violated" | "covered" | "unresolved";
+  readonly evidence: readonly string[];
+  readonly violations: readonly string[];
+}
+
+interface ReturnedReceiptResult {
+  readonly receipt: string;
+  readonly obligation: string;
+  readonly status: "contradicted" | "supported" | "unresolved";
+  readonly evidence: readonly string[];
+  readonly witness: string;
+  readonly locations: readonly ReceiptLocationResult[];
+}
+
+interface ReturnedImplementationReportData {
+  readonly version: 1;
+  readonly status: "green" | "yellow" | "red";
+  readonly handoff: string;
+  readonly receiptSubmission: string | null;
+  readonly worldFingerprint: string;
+  readonly sliceFingerprint: string;
+  readonly codeFingerprint: string;
+  readonly scope: readonly string[];
+  readonly obligations: readonly ReturnedObligation[];
+  readonly receiptResults: readonly ReturnedReceiptResult[];
+  readonly diagnostics: SemanticCompilation["diagnostics"];
+  readonly closure: SemanticCompilation["closure"];
+  readonly checks: readonly MechanicalCheck[];
+  readonly requiredChecks: readonly string[];
+  readonly evidence: Omit<ImplementationEvidence, "world"> & {
+    readonly world: undefined;
+    readonly turtle: string;
+  };
+  readonly commandEvidence: Omit<CommandCheckEvidence, "world"> & {
+    readonly world: undefined;
+    readonly turtle: string;
+  };
+  readonly artifacts: {
+    readonly stages: Readonly<Record<string, string>>;
+    readonly checks: Readonly<Record<string, string>>;
+    readonly run: string;
+  };
+}
+
+interface ReturnedImplementationResult {
+  readonly compilation: SemanticCompilation;
+  readonly evidence: ImplementationEvidence;
+  readonly report: ReturnedImplementationReportData;
+}
+
 /** Verify one returned snapshot. No candidate generation, patching or repair loop. */
 // @sigil implements packages/compiler/src/semantic/_module.sigil::SigilImplementationHandoff::ReceiptVerification interface
 export async function verifyReturnedImplementation(
   options: ReturnedImplementationOptions,
-) {
+): Promise<ReturnedImplementationResult> {
   return await withExecutionBudget(
     { timeoutMs: options.timeoutMs, signal: options.engine?.signal },
     (budget) => verifyReturnedSnapshot(options, budget),
@@ -49,7 +111,7 @@ export async function verifyReturnedImplementation(
 async function verifyReturnedSnapshot(
   options: ReturnedImplementationOptions,
   budget: ExecutionBudget,
-) {
+): Promise<ReturnedImplementationResult> {
   const root = resolve(options.root);
   const engine = {
     binaryPath: options.engine?.binaryPath,
@@ -172,7 +234,7 @@ async function verifyReturnedSnapshot(
     },
   });
   const report = {
-    version: 1,
+    version: 1 as const,
     status: compilation.status,
     handoff: handoff.id,
     receiptSubmission: options.receipts ?? null,
@@ -220,17 +282,43 @@ async function verifyReturnedSnapshot(
   };
 }
 
-export type ReturnedImplementationReport = Awaited<
-  ReturnType<typeof verifyReturnedImplementation>
->["report"];
-export type ReturnedImplementationSummary = ReturnType<
-  typeof summarizeReturnedImplementation
->;
+export type ReturnedImplementationReport =
+  ReturnedImplementationResult["report"];
+
+export interface ReturnedImplementationSummary {
+  readonly status: ReturnedImplementationReport["status"];
+  readonly handoff: ReturnedImplementationReport["handoff"];
+  readonly receiptSubmission: ReturnedImplementationReport["receiptSubmission"];
+  readonly codeFingerprint: ReturnedImplementationReport["codeFingerprint"];
+  readonly worldFingerprint: ReturnedImplementationReport["worldFingerprint"];
+  readonly sliceFingerprint: ReturnedImplementationReport["sliceFingerprint"];
+  readonly scope: ReturnedImplementationReport["scope"];
+  readonly run: ReturnedImplementationReport["artifacts"]["run"];
+  readonly obligations: readonly {
+    readonly id: string;
+    readonly status:
+      ReturnedImplementationReport["obligations"][number]["status"];
+    readonly proposition: string;
+    readonly evidence: readonly string[];
+    readonly violations: readonly string[];
+  }[];
+  readonly receipts: readonly {
+    readonly receipt: string;
+    readonly obligation: string;
+    readonly status:
+      ReturnedImplementationReport["receiptResults"][number]["status"];
+    readonly evidence: readonly string[];
+    readonly witness: string;
+    readonly locations: readonly string[];
+  }[];
+  readonly requiredChecks: ReturnedImplementationReport["requiredChecks"];
+  readonly checks: ReturnedImplementationReport["checks"];
+}
 
 /** Compact report projection; the run bundle retains primitive source/rule witnesses. */
 export function summarizeReturnedImplementation(
   report: ReturnedImplementationReport,
-) {
+): ReturnedImplementationSummary {
   return {
     status: report.status,
     handoff: report.handoff,

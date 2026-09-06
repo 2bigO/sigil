@@ -206,7 +206,10 @@ function abortableDelay(
     );
   }
   return new Promise((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout>;
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", cancel);
+      resolve();
+    }, milliseconds);
     const cancel = () => {
       clearTimeout(timer);
       signal?.removeEventListener("abort", cancel);
@@ -215,12 +218,6 @@ function abortableDelay(
           new DOMException("Operation cancelled.", "AbortError"),
       );
     };
-    const done = () => {
-      clearTimeout(timer);
-      signal?.removeEventListener("abort", cancel);
-      resolve();
-    };
-    timer = setTimeout(done, milliseconds);
     signal?.addEventListener("abort", cancel, { once: true });
   });
 }
