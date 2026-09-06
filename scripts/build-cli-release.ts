@@ -189,6 +189,17 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       "--distribution",
       stage,
     ]);
+    await run([
+      Deno.execPath(),
+      "run",
+      "--allow-read",
+      "--allow-write",
+      "--allow-run",
+      "--allow-env",
+      join(root, "scripts/test-published-runtime.ts"),
+      "--runtime",
+      runtimeRoot,
+    ]);
     const archive = join(
       output,
       `${target.asset}${engineSuffix ? ".zip" : ".tar.gz"}`,
