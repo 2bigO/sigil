@@ -175,7 +175,12 @@ async function readText(
     if (!stat.isFile || stat.isSymlink || stat.size > max) {
       invalid(`Managed view metadata is not a bounded regular file: ${path}.`);
     }
-    return await Deno.readTextFile(path);
+    const bytes = await Deno.readFile(path);
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      invalid(`Managed view metadata is not valid UTF-8: ${path}.`);
+    }
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) return undefined;
     throw error;
@@ -279,12 +284,20 @@ export async function inspectManagedViews(
   const transactions: string[] = [];
   try {
     for await (const entry of Deno.readDir(pendingRoot)) {
+      if (entry.isSymlink) {
+        invalid(`Managed view transaction entry is a symlink: ${entry.name}.`);
+      }
       if (!entry.isDirectory || !VIEW_HASH.test(entry.name)) continue;
       try {
         const complete = await Deno.lstat(
           resolve(pendingRoot, entry.name, "complete"),
         );
-        if (complete.isFile && !complete.isSymlink) continue;
+        if (complete.isSymlink || !complete.isFile) {
+          invalid(
+            `Managed view transaction ${entry.name} has an invalid complete marker.`,
+          );
+        }
+        continue;
       } catch (error) {
         if (!(error instanceof Deno.errors.NotFound)) throw error;
       }
@@ -331,6 +344,7 @@ export async function inspectManagedViews(
     throw error;
   }
   const actual = await viewFiles(root);
+  if (transactions.length) state = "incomplete";
   if (!recorded && actual.length) {
     for (const path of actual) differences.push({ path, kind: "unexpected" });
     state = "incomplete";
@@ -573,8 +587,13 @@ export async function writeManagedViews(
         }
         await options.validateCurrent?.();
         const pending = await inspectManagedViews(root, set, expectedRevision);
-        if (pending.transactions.length) {
-          invalid("An unresolved managed view transaction exists.");
+        if (
+          pending.transactions.length ||
+          ["edited", "incomplete", "unsupported-version"].includes(
+            pending.state,
+          )
+        ) {
+          invalid("An unresolved or edited managed view generation exists.");
         }
         const previous = await readManagedViewReceipt(root);
         const actual = await viewFiles(root);
@@ -713,9 +732,10 @@ export async function recoverManagedViews(
   }
   try {
     const complete = await Deno.lstat(resolve(txRoot, "complete"));
-    if (complete.isFile && !complete.isSymlink) {
-      invalid("Managed view transaction is already complete.");
+    if (complete.isSymlink || !complete.isFile) {
+      invalid("Managed view transaction has an invalid complete marker.");
     }
+    invalid("Managed view transaction is already complete.");
   } catch (error) {
     if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
