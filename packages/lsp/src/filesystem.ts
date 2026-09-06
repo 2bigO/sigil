@@ -1,5 +1,5 @@
 import type { SigilFileSystem } from "@qoherent/sigil-core";
-import { normalizePath } from "@qoherent/sigil-core";
+import { isManagedSigilViewPath, normalizePath } from "@qoherent/sigil-core";
 
 // @sigil uses packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort interface,constraints,cases
 export class DenoSigilFileSystem implements SigilFileSystem {
@@ -83,6 +83,11 @@ async function collectFiles(path: string, files: string[]): Promise<void> {
   if (!stat.isDirectory) return;
   for await (const entry of Deno.readDir(path)) {
     if (entry.name === ".git" || entry.isSymlink) continue;
+    const childPath = `${path}/${entry.name}`;
+    if (
+      isManagedSigilViewPath(childPath) ||
+      normalizePath(childPath).includes("/.sigil/views")
+    ) continue;
     await collectFiles(`${path}/${entry.name}`, files);
   }
 }

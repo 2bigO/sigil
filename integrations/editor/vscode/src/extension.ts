@@ -13,6 +13,7 @@ import {
   diagnosticDisplayRange,
   runCompilationProcess,
 } from "./compilation.ts";
+import { runSemanticCommand } from "./semantic.ts";
 
 const PREVIEW_COMMAND = "sigil.openPreview";
 const RENDER_DOCUMENT_COMMAND = "sigil.renderDocument";
@@ -20,6 +21,14 @@ const PREVIEW_SCHEME = "sigil-preview";
 const COMPILE_COMPONENT_COMMAND = "sigil.compileComponent";
 const COMPILE_WORKSPACE_COMMAND = "sigil.compileWorkspace";
 const SELECT_COMPILATION_FOCUS_COMMAND = "sigil.selectCompilationFocus";
+const SEMANTIC_INTENT_COMMAND = "sigil.semanticIntent";
+const SEMANTIC_ANSWER_COMMAND = "sigil.semanticAnswer";
+const SEMANTIC_ACCEPT_COMMAND = "sigil.semanticAccept";
+const SEMANTIC_PROJECT_COMMAND = "sigil.semanticProject";
+const SEMANTIC_CHECK_VIEWS_COMMAND = "sigil.semanticCheckViews";
+const SEMANTIC_HANDOFF_COMMAND = "sigil.semanticHandoff";
+const SEMANTIC_IMPORT_RECEIPTS_COMMAND = "sigil.semanticImportReceipts";
+const SEMANTIC_VERIFY_RETURN_COMMAND = "sigil.semanticVerifyReturn";
 type CompilationFocus = "design" | "implementation";
 let client: LanguageClient | undefined;
 let activeCompilation: CompilationProcess | undefined;
@@ -183,6 +192,36 @@ export async function activate(
           return;
         }
         await vscode.commands.executeCommand(selected.command, selected.focus);
+      },
+    ),
+    vscode.commands.registerCommand(SEMANTIC_INTENT_COMMAND, async () => {
+      await semanticIntent(context, output);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_ANSWER_COMMAND, async () => {
+      await semanticAnswer(context, output);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_ACCEPT_COMMAND, async () => {
+      await semanticAccept(context, output);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_PROJECT_COMMAND, async () => {
+      await semanticProject(context, output, false);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_CHECK_VIEWS_COMMAND, async () => {
+      await semanticProject(context, output, true);
+    }),
+    vscode.commands.registerCommand(SEMANTIC_HANDOFF_COMMAND, async () => {
+      await semanticHandoff(context, output);
+    }),
+    vscode.commands.registerCommand(
+      SEMANTIC_IMPORT_RECEIPTS_COMMAND,
+      async () => {
+        await semanticImportReceipts(context, output);
+      },
+    ),
+    vscode.commands.registerCommand(
+      SEMANTIC_VERIFY_RETURN_COMMAND,
+      async () => {
+        await semanticVerifyReturn(context, output);
       },
     ),
     vscode.workspace.onDidChangeTextDocument((event) => {
@@ -406,6 +445,309 @@ function dirtySigilDocument(
     document.uri.scheme === "file" &&
     vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString() ===
       folderKey
+  );
+}
+
+async function semanticRoot(): Promise<vscode.WorkspaceFolder | undefined> {
+  return await selectCompilationFolder(
+    vscode.window.activeTextEditor?.document.uri,
+  );
+}
+
+function semanticExecutable(): string {
+  return vscode.workspace.getConfiguration("sigil.compile").get<string>(
+    "executable",
+    "sigil",
+  );
+}
+
+async function semanticIntent(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  if (dirtySigilDocument(folder)) {
+    await vscode.window.showWarningMessage(
+      "Save Sigil documents before proposing semantic intent.",
+    );
+    return;
+  }
+  const text = await vscode.window.showInputBox({
+    prompt: "Describe the desired semantic change",
+  });
+  if (!text?.trim()) return;
+  try {
+    const result = await runSemanticCommand(
+      semanticExecutable(),
+      [
+        "semantic",
+        "intent",
+        folder.uri.fsPath,
+        "--text",
+        text,
+        "--format",
+        "json",
+      ],
+      folder.uri.fsPath,
+    );
+    context.workspaceState.update(
+      `${folder.uri.toString()}:lastBeam`,
+      result.beam ?? result.beamId,
+    );
+    output.appendLine(JSON.stringify(result));
+    await vscode.window.showInformationMessage(
+      "Semantic intent proposals are ready. Review the exact question in the Sigil output.",
+    );
+  } catch (error) {
+    output.error(error instanceof Error ? error.message : String(error));
+    await vscode.window.showErrorMessage(
+      error instanceof Error ? error.message : String(error),
+    );
+  }
+}
+
+async function semanticAnswer(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const beam = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastBeam`,
+  );
+  if (!beam) {
+    await vscode.window.showInformationMessage(
+      "No semantic beam is recorded for this workspace.",
+    );
+    return;
+  }
+  const status = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "status",
+    folder.uri.fsPath,
+    "--beam",
+    beam,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  const question = typeof status.question === "object" && status.question
+    ? (status.question as { factId?: string; text?: string })
+    : undefined;
+  if (!question?.factId) {
+    await vscode.window.showInformationMessage(
+      "The beam has no unresolved semantic question.",
+    );
+    return;
+  }
+  const choice = await vscode.window.showQuickPick(["Yes", "No", "Cancel"], {
+    placeHolder: question.text ?? question.factId,
+  });
+  if (!choice || choice === "Cancel") return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "answer",
+    folder.uri.fsPath,
+    "--beam",
+    beam,
+    "--fact",
+    question.factId,
+    "--value",
+    choice === "Yes" ? "yes" : "no",
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  output.appendLine(JSON.stringify(result));
+}
+
+async function semanticAccept(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const beam = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastBeam`,
+  );
+  if (!beam) {
+    await vscode.window.showInformationMessage(
+      "No semantic beam is recorded for this workspace.",
+    );
+    return;
+  }
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "accept",
+    folder.uri.fsPath,
+    "--beam",
+    beam,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  output.appendLine(JSON.stringify(result));
+  await vscode.window.showInformationMessage(
+    "Accepted the uniquely selected semantic world.",
+  );
+}
+
+async function semanticProject(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+  check: boolean,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const args = [
+    "semantic",
+    "project",
+    folder.uri.fsPath,
+    "--format",
+    "json",
+    ...(check ? ["--check"] : []),
+  ];
+  const inspected = await runSemanticCommand(
+    semanticExecutable(),
+    args,
+    folder.uri.fsPath,
+  );
+  output.appendLine(JSON.stringify(inspected));
+  if (check) {
+    await vscode.window.showInformationMessage(
+      "Generated view inspection complete; see Sigil output for path-specific drift.",
+    );
+    return;
+  }
+  const views = inspected.views as
+    | { worldRevision?: string; state?: string }
+    | undefined;
+  if (!views?.worldRevision) {
+    await vscode.window.showInformationMessage(
+      "No accepted semantic world is available to project.",
+    );
+    return;
+  }
+  const update = await vscode.window.showQuickPick([
+    "Update generated views",
+    "Cancel",
+  ], { placeHolder: `Views are ${views.state ?? "not installed"}` });
+  if (update !== "Update generated views") return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "project",
+    folder.uri.fsPath,
+    "--write",
+    "--expected-revision",
+    views.worldRevision,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  context.workspaceState.update(
+    `${folder.uri.toString()}:lastViews`,
+    result.views,
+  );
+  output.appendLine(JSON.stringify(result));
+}
+
+async function semanticHandoff(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const component = await vscode.window.showInputBox({
+    prompt: "Canonical component ID or name for the handoff",
+  });
+  if (!component?.trim()) return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "slice",
+    folder.uri.fsPath,
+    "--component",
+    component,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  context.workspaceState.update(
+    `${folder.uri.toString()}:lastHandoff`,
+    result.handoffId,
+  );
+  output.appendLine(JSON.stringify(result));
+}
+
+async function semanticImportReceipts(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const handoff = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastHandoff`,
+  );
+  if (!handoff) {
+    await vscode.window.showInformationMessage(
+      "No retained handoff is recorded for this workspace.",
+    );
+    return;
+  }
+  const claims = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    openLabel: "Select receipt claims",
+  });
+  if (!claims?.[0]) return;
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "receipts",
+    folder.uri.fsPath,
+    "--handoff",
+    handoff,
+    "--claims",
+    claims[0].fsPath,
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  context.workspaceState.update(
+    `${folder.uri.toString()}:lastReceipt`,
+    result.receiptId,
+  );
+  output.appendLine(JSON.stringify(result));
+  await vscode.window.showInformationMessage(
+    "Imported receipt claims; they remain unverified until verification.",
+  );
+}
+
+async function semanticVerifyReturn(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const folder = await semanticRoot();
+  if (!folder) return;
+  const handoff = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastHandoff`,
+  );
+  if (!handoff) {
+    await vscode.window.showInformationMessage(
+      "No retained handoff is recorded for this workspace.",
+    );
+    return;
+  }
+  const receipt = await context.workspaceState.get<string>(
+    `${folder.uri.toString()}:lastReceipt`,
+  );
+  const result = await runSemanticCommand(semanticExecutable(), [
+    "semantic",
+    "verify",
+    folder.uri.fsPath,
+    "--handoff",
+    handoff,
+    ...(receipt ? ["--receipts", receipt] : []),
+    "--format",
+    "json",
+  ], folder.uri.fsPath);
+  output.appendLine(JSON.stringify(result));
+  await vscode.window.showInformationMessage(
+    `Returned implementation verification: ${
+      String(result.status ?? "complete")
+    }.`,
   );
 }
 
