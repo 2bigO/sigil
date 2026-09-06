@@ -1,0 +1,42 @@
+component SigilWorldClosure {
+  goal {
+    Enrich one asserted world with finite compiler-owned egglog laws.
+  }
+
+  interface {
+    IsolatedClosure {
+      Each saturation creates a fresh EGraph containing only that world's
+      validated assertions. Derive dependency reachability, delegated capabilities,
+      structured propositions, contradictions, minimum distance and maximum risk.
+      Return sorted fixed tables with bounded rule and source witnesses.
+    }
+
+    RuntimeIdentity {
+      Fingerprint the actual compiled kernel, lowering code and pinned runtime
+      dependencies. Reports identify the engine that produced their evidence.
+    }
+  }
+}
+
+expand SigilWorldClosure {
+  constraints {
+    IsolatedClosure {
+      Workers cannot supply rules or fill compiler-owned tables. Keep raw
+      conflicting values so minimum and maximum merges cannot hide contradictions.
+      Use bounded tuple witnesses without concatenated semantic IDs or recursively
+      expanding proof strings. Reject unsupported numeric path sums.
+      Bound input rows, runtime rows, iterations and elapsed time. Check runtime
+      limits between default egglog iterations and before returning. Limit failure
+      returns no completed closure or semantic verdict.
+    }
+  }
+
+  cases {
+    IsolatedClosure {
+      Linking A dependsOn B in one object with B dependsOn C in another derives
+      A reachable C without modifying either object. Saturating a world separately
+      does not carry those facts into it. Positive cost cycles terminate through
+      minimum merge; reachable risk propagates through maximum merge.
+    }
+  }
+}
