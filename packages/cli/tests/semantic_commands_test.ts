@@ -1,6 +1,7 @@
 import { parseSigilDocument } from "@qoherent/sigil-core";
 import {
   compile,
+  digest,
   intentBase,
   projectSigilIntent,
   readCompileArtifact,
@@ -25,7 +26,7 @@ const source = `component Application {
 }
 `;
 const intent = "Keep application behavior independent of disk.";
-async function fixture(ambiguous = false) {
+async function fixture(ambiguous = false, generatedComponent = false) {
   const root = await Deno.makeTempDir();
   await Deno.mkdir(`${root}/.sigil`);
   await Deno.writeTextFile(
@@ -78,6 +79,13 @@ async function fixture(ambiguous = false) {
         "target",
         "urn:Disk",
       ).value(id, "expected", false).edge(component, "hasContract", id);
+    }
+    if (generatedComponent) {
+      turtle.type("urn:Generated", "Component").value(
+        "urn:Generated",
+        "label",
+        "Generated component",
+      );
     }
     return turtle;
   };
@@ -487,6 +495,528 @@ Deno.test("semantic verify records evidence artifacts and recomputes coverage fo
         stageId,
     );
   } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+async function copyTree(source: string, destination: string): Promise<void> {
+  await Deno.mkdir(destination, { recursive: true });
+  for await (const entry of Deno.readDir(source)) {
+    const from = `${source}/${entry.name}`;
+    const to = `${destination}/${entry.name}`;
+    if (entry.isDirectory) await copyTree(from, to);
+    else if (entry.isFile) await Deno.copyFile(from, to);
+  }
+}
+
+Deno.test("public semantic flow retains views, handoff identity and independent receipt outcomes", async () => {
+  const { root, proposalFile, component } = await fixture(false, true);
+  let returnedRoot: string | undefined;
+  let submissionRoot: string | undefined;
+  const checkMarker = `${root}/.check-fail`;
+  try {
+    await Deno.writeTextFile(
+      `${root}/bridge.ts`,
+      "export function bridge() { return 1; }",
+    );
+    await Deno.writeTextFile(`${root}/hidden.ts`, "export const value = 0;");
+    await Deno.writeTextFile(
+      `${root}/tsconfig.json`,
+      JSON.stringify({
+        compilerOptions: { strict: true, noEmit: true },
+        files: ["app.ts", "bridge.ts", "hidden.ts"],
+      }),
+    );
+    await Deno.writeTextFile(
+      `${root}/.sigil/implementation.json`,
+      JSON.stringify({
+        version: 1,
+        project: "tsconfig.json",
+        components: [{
+          entity: component,
+          files: ["app.ts", "hidden.ts"],
+          exhaustive: true,
+        }],
+        targets: [{
+          entity: "urn:Disk",
+          declarations: [{ file: "bridge.ts", symbol: "bridge" }],
+        }],
+        checks: [{
+          id: "marker-check",
+          command: Deno.execPath(),
+          args: [
+            "eval",
+            "--allow-read",
+            `try { await Deno.stat(${
+              JSON.stringify(checkMarker)
+            }); Deno.exit(1); } catch {}`,
+          ],
+          files: ["bridge.ts"],
+        }],
+      }),
+    );
+    const proposal = JSON.parse(await Deno.readTextFile(proposalFile)) as {
+      candidates: { additions: string; [key: string]: unknown }[];
+      [key: string]: unknown;
+    };
+    proposal.candidates = proposal.candidates.map((candidate) => ({
+      ...candidate,
+      additions: candidate.additions.replaceAll('"uses"', '"dependsOn"'),
+    }));
+    await Deno.writeTextFile(proposalFile, JSON.stringify(proposal));
+    const generated = await runCli([
+      "semantic",
+      "intent",
+      root,
+      "--text",
+      intent,
+      "--proposals",
+      proposalFile,
+      "--beam",
+      "public-flow",
+    ]);
+    assert(generated.exitCode === 0, generated.stderr || generated.stdout);
+    const accepted = await runCli([
+      "semantic",
+      "accept",
+      root,
+      "--beam",
+      "public-flow",
+    ]);
+    assert(accepted.exitCode === 0, accepted.stderr);
+    const acceptedData = JSON.parse(accepted.stdout);
+    const before = await readSemanticState(root);
+    assert(before?.revision === acceptedData.revision);
+
+    const ambiguousProposalFile = `${root}/ambiguous-proposals.json`;
+    const routeIntent = "Route application operations through one boundary.";
+    const routeContract = `urn:sigil:intent:${await digest(routeIntent)}`;
+    const ambiguousCandidates = ["Left", "Right"].map((boundary) =>
+      new TurtleBuilder()
+        .type(`urn:${boundary}`, "Boundary")
+        .type(routeContract, "Contract")
+        .value(routeContract, "required", true)
+        .value(routeContract, "description", routeIntent)
+        .value(routeContract, "section", "goal")
+        .edge(routeContract, "from", component)
+        .value(routeContract, "relation", "dependsOn")
+        .edge(routeContract, "target", "urn:Disk")
+        .value(routeContract, "expected", false)
+        .edge(component, "hasContract", routeContract)
+        .edge(component, "routesThrough", `urn:${boundary}`)
+        .toString()
+    );
+    await Deno.writeTextFile(
+      ambiguousProposalFile,
+      JSON.stringify({
+        version: 1,
+        candidates: ambiguousCandidates.map((additions, index) => ({
+          id: `route-${index}`,
+          additions,
+          retractions: "",
+        })),
+      }),
+    );
+    const ambiguous = await runCli([
+      "semantic",
+      "intent",
+      root,
+      "--text",
+      routeIntent,
+      "--proposals",
+      ambiguousProposalFile,
+      "--beam",
+      "route-choice",
+    ]);
+    assert(ambiguous.exitCode === 1, ambiguous.stderr || ambiguous.stdout);
+    const ambiguousData = JSON.parse(ambiguous.stdout);
+    assert(ambiguousData.question?.factId && ambiguousData.question.exact);
+    const answered = await runCli([
+      "semantic",
+      "answer",
+      root,
+      "--beam",
+      "route-choice",
+      "--fact",
+      ambiguousData.question.factId,
+      "--value",
+      "yes",
+    ]);
+    assert(answered.exitCode === 0, answered.stderr || answered.stdout);
+    const routeStatus = await runCli([
+      "semantic",
+      "status",
+      root,
+      "--beam",
+      "route-choice",
+    ]);
+    assert(
+      JSON.parse(
+        routeStatus.stdout,
+      ).result === "selected",
+    );
+    const routeAccepted = await runCli([
+      "semantic",
+      "accept",
+      root,
+      "--beam",
+      "route-choice",
+    ]);
+    assert(routeAccepted.exitCode === 0, routeAccepted.stderr);
+    const routeRevision = JSON.parse(routeAccepted.stdout).revision as string;
+    assert((await readSemanticState(root))?.revision === routeRevision);
+    const configPath = `${root}/.sigil/config.json`;
+    const legacyConfig = JSON.parse(await Deno.readTextFile(configPath));
+    legacyConfig.tools = {
+      compile: {
+        evaluators: { codex: { provider: "codex", model: "test-model" } },
+        profiles: { standard: { main: ["codex"] } },
+        defaultProfile: "standard",
+      },
+    };
+    await Deno.writeTextFile(configPath, JSON.stringify(legacyConfig));
+    const configPreview = await runCli([
+      "config",
+      "migrate",
+      root,
+      "--format",
+      "json",
+    ]);
+    assert(configPreview.exitCode === 0, configPreview.stderr);
+    const configPreviewData = JSON.parse(configPreview.stdout);
+    assert(configPreviewData.changes.length > 0);
+    assert(JSON.parse(await Deno.readTextFile(configPath)).tools.compile);
+    const configWritten = await runCli([
+      "config",
+      "migrate",
+      root,
+      "--write",
+      "--expected-hash",
+      configPreviewData.originalHash,
+      "--format",
+      "json",
+    ]);
+    assert(configWritten.exitCode === 0, configWritten.stderr);
+    assert(
+      JSON.parse(await Deno.readTextFile(configPath)).tools.semantic
+        .defaultProvider === "codex",
+    );
+    const viewCheck = await runCli(["semantic", "project", root, "--check"]);
+    assert(viewCheck.exitCode === 1, viewCheck.stdout);
+    const published = await runCli([
+      "semantic",
+      "project",
+      root,
+      "--write",
+      "--expected-revision",
+      routeRevision,
+    ]);
+    assert(published.exitCode === 0, published.stderr);
+    const after = await readSemanticState(root);
+    assert(after?.revision === routeRevision);
+    const currentViews = await runCli(["semantic", "project", root, "--check"]);
+    assert(currentViews.exitCode === 0, currentViews.stderr);
+    const components = JSON.parse(
+      (await runCli([
+        "semantic",
+        "status",
+        root,
+        "--list",
+        "components",
+      ])).stdout,
+    ).items as { id: string; authoredPath: string | null; viewPath: string }[];
+    const generatedComponent = components.find((item) =>
+      item.authoredPath === null
+    );
+    assert(
+      generatedComponent && generatedComponent.viewPath.endsWith(".sigil"),
+    );
+    const publishedData = JSON.parse(published.stdout) as {
+      transaction: string;
+    };
+    await Deno.remove(
+      `${root}/.sigil/cache/view-transactions/${publishedData.transaction}/complete`,
+    );
+    await Deno.remove(`${root}/${generatedComponent.viewPath}`);
+    const recoveredViews = await runCli([
+      "semantic",
+      "project",
+      root,
+      "--recover",
+      "--transaction",
+      publishedData.transaction,
+    ]);
+    assert(recoveredViews.exitCode === 0, recoveredViews.stderr);
+    assert(
+      (await runCli(["semantic", "project", root, "--check"])).exitCode ===
+        0,
+    );
+    const beamFile = `${root}/.sigil/beams/route-choice.json`;
+    await Deno.writeTextFile(`${beamFile}.orphan.tmp`, "partial\n");
+    const beamStatus = await runCli([
+      "semantic",
+      "status",
+      root,
+      "--beam",
+      "route-choice",
+    ]);
+    assert(beamStatus.exitCode === 1, beamStatus.stderr || beamStatus.stdout);
+    assert(JSON.parse(beamStatus.stdout).stale === true);
+    await Deno.remove(`${beamFile}.orphan.tmp`);
+    for (const selector of [component, generatedComponent.id]) {
+      const slice = await runCli([
+        "semantic",
+        "slice",
+        root,
+        "--component",
+        selector,
+        "--format",
+        "text",
+      ]);
+      assert(slice.exitCode === 0, slice.stderr || slice.stdout);
+    }
+    const exported = await runCli([
+      "semantic",
+      "slice",
+      root,
+      "--component",
+      component,
+    ]);
+    assert(exported.exitCode === 0, exported.stderr);
+    const handoff = JSON.parse(exported.stdout).artifacts.handoff as string;
+    const retained = await readCompileArtifact(root, "handoffs", handoff);
+    assert(retained);
+    const manifest = JSON.parse(retained!.files["handoff.json"]);
+    const obligation = manifest.obligations.find((item: { subject: string }) =>
+      item.subject === component
+    );
+    assert(obligation);
+    returnedRoot = await Deno.makeTempDir();
+    await copyTree(root, returnedRoot);
+    submissionRoot = await Deno.makeTempDir();
+    const appFingerprint = await digest(
+      await Deno.readTextFile(`${returnedRoot}/app.ts`),
+    );
+    const claims = `${submissionRoot}/claims.ttl`;
+    const locations = `${submissionRoot}/locations.json`;
+    await Deno.writeTextFile(
+      claims,
+      `@prefix s: <https://sigil.dev/ontology/1#> .\n<urn:receipt:valid> a s:Evidence; s:covers <${obligation.id}>; s:from <${obligation.subject}>; s:relation "${obligation.relation}"; s:target <${obligation.target}>; s:expected ${obligation.expected} .`,
+    );
+    await Deno.writeTextFile(
+      locations,
+      JSON.stringify({
+        version: 1,
+        handoff,
+        receipts: {
+          "urn:receipt:valid": {
+            locations: [{
+              file: "app.ts",
+              fingerprint: appFingerprint,
+              symbol: "run",
+            }],
+          },
+        },
+      }),
+    );
+    const imported = await runCli([
+      "semantic",
+      "receipts",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--claims",
+      claims,
+      "--locations",
+      locations,
+    ]);
+    assert(imported.exitCode === 0, imported.stderr);
+    const receiptId = JSON.parse(imported.stdout).artifacts.receipts as string;
+    const verified = await runCli([
+      "semantic",
+      "verify",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--receipts",
+      receiptId,
+    ]);
+    assert(verified.exitCode === 0, verified.stderr || verified.stdout);
+    const report = JSON.parse(verified.stdout);
+    assert(report.status === "green");
+    assert(
+      report.receiptResults.some((item: { status: string }) =>
+        item.status === "supported"
+      ),
+    );
+
+    await Deno.writeTextFile(
+      `${returnedRoot}/hidden.ts`,
+      'import { bridge } from "./bridge.ts"; export const hidden = bridge();',
+    );
+    const prohibited = await runCli([
+      "semantic",
+      "verify",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--receipts",
+      receiptId,
+    ]);
+    assert(prohibited.exitCode === 1, prohibited.stderr || prohibited.stdout);
+    const prohibitedReport = JSON.parse(prohibited.stdout);
+    assert(prohibitedReport.status === "red");
+    assert(
+      prohibitedReport.receiptResults.some((item: { status: string }) =>
+        item.status === "contradicted"
+      ),
+    );
+
+    await Deno.writeTextFile(
+      `${returnedRoot}/hidden.ts`,
+      'const path = "./bridge.ts"; export const hidden = import(path);',
+    );
+    const opaque = await runCli([
+      "semantic",
+      "verify",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--receipts",
+      receiptId,
+    ]);
+    assert(opaque.exitCode === 1, opaque.stderr || opaque.stdout);
+    const opaqueReport = JSON.parse(opaque.stdout);
+    assert(opaqueReport.status === "yellow");
+    assert(
+      opaqueReport.receiptResults.some((item: { status: string }) =>
+        item.status === "unresolved"
+      ),
+    );
+
+    await Deno.writeTextFile(checkMarker, "fail\n");
+    await Deno.writeTextFile(
+      `${returnedRoot}/hidden.ts`,
+      "export const value = 0;",
+    );
+    const failedCheck = await runCli([
+      "semantic",
+      "verify",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--receipts",
+      receiptId,
+    ]);
+    assert(
+      failedCheck.exitCode === 1,
+      failedCheck.stderr || failedCheck.stdout,
+    );
+    const failedCheckReport = JSON.parse(failedCheck.stdout);
+    assert(failedCheckReport.status === "red");
+    assert(
+      failedCheckReport.checks.some((check: { id: string; passed: boolean }) =>
+        check.id === "marker-check" && !check.passed
+      ),
+    );
+    await Deno.remove(checkMarker);
+
+    await Deno.writeTextFile(
+      `${submissionRoot}/locations-decoy.json`,
+      JSON.stringify({
+        version: 1,
+        handoff,
+        receipts: {
+          "urn:receipt:decoy": {
+            locations: [{
+              file: "app.ts",
+              fingerprint: appFingerprint,
+              symbol: "missing",
+            }],
+          },
+        },
+      }),
+    );
+    await Deno.writeTextFile(
+      `${submissionRoot}/claims-decoy.ttl`,
+      `@prefix s: <https://sigil.dev/ontology/1#> .\n<urn:receipt:decoy> a s:Evidence; s:covers <${obligation.id}>; s:from <${obligation.subject}>; s:relation "${obligation.relation}"; s:target <${obligation.target}>; s:expected ${obligation.expected} .`,
+    );
+    const importedDecoy = await runCli([
+      "semantic",
+      "receipts",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--claims",
+      `${submissionRoot}/claims-decoy.ttl`,
+      "--locations",
+      `${submissionRoot}/locations-decoy.json`,
+    ]);
+    assert(importedDecoy.exitCode === 0, importedDecoy.stderr);
+    const decoyId = JSON.parse(importedDecoy.stdout).artifacts
+      .receipts as string;
+    const decoyReport = await runCli([
+      "semantic",
+      "verify",
+      returnedRoot,
+      "--handoff",
+      handoff,
+      "--handoff-root",
+      root,
+      "--receipts",
+      decoyId,
+    ]);
+    assert(
+      decoyReport.exitCode === 0,
+      decoyReport.stderr || decoyReport.stdout,
+    );
+    const decoy = JSON.parse(decoyReport.stdout);
+    assert(decoy.status === "green");
+    assert(
+      decoy.receiptResults.some((item: { status: string }) =>
+        item.status === "unresolved"
+      ),
+    );
+    const editedView = `${await Deno.readTextFile(
+      `${root}/${generatedComponent.viewPath}`,
+    )}\nEdited\n`;
+    await Deno.writeTextFile(
+      `${root}/${generatedComponent.viewPath}`,
+      editedView,
+    );
+    const forgedReceiptPath = `${root}/.sigil/views/current.json`;
+    const forgedReceipt = JSON.parse(
+      await Deno.readTextFile(forgedReceiptPath),
+    ) as { files: { path: string; contentHash: string }[] };
+    const forgedFile = forgedReceipt.files.find((file) =>
+      file.path === generatedComponent.viewPath
+    );
+    assert(forgedFile);
+    forgedFile.contentHash = await digest(editedView);
+    await Deno.writeTextFile(forgedReceiptPath, JSON.stringify(forgedReceipt));
+    const drift = await runCli(["semantic", "project", root, "--check"]);
+    assert(drift.exitCode === 1);
+    const driftReport = JSON.parse(drift.stdout).views;
+    assert(
+      ["edited", "incomplete", "stale"].includes(driftReport.state) &&
+        driftReport.differences.length > 0,
+    );
+    assert((await readSemanticState(root))?.revision === routeRevision);
+  } finally {
+    if (returnedRoot) await Deno.remove(returnedRoot, { recursive: true });
+    if (submissionRoot) await Deno.remove(submissionRoot, { recursive: true });
     await Deno.remove(root, { recursive: true });
   }
 });
