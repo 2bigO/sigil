@@ -107,6 +107,8 @@ fn declarations_are_owned_and_explicit_but_foreign_references_are_allowed() {
         "c:A s:label \"changed\" .",
         "<urn:sigil:component:b.sigil:B> a s:Component .",
         "<urn:sigil:unit:a.sigil:1:1> a s:State .",
+        "c:A s:uses <urn:sigil:unit:a.sigil:1:1> .",
+        "<urn:sigil:unit:a.sigil:1:1> s:target <urn:sigil:unit:a.sigil:1:1> .",
         "<urn:sigil:entity:a.sigil:%52ead> a s:Capability; s:label \"Read\" .",
         "<urn:sigil:entity:a.sigil:> a s:Capability; s:label \"Empty\" .",
     ] {
@@ -119,6 +121,14 @@ fn declarations_are_owned_and_explicit_but_foreign_references_are_allowed() {
         "c:A a s:Component; s:label \"A\"; s:uses b:Foreign . <urn:sigil:unit:a.sigil:1:1> a s:Contract .",
     );
     catalog::validate_design("a.sigil", &input, &local).unwrap();
+    assert!(
+        catalog::validate_design(
+            "b.sigil",
+            &input,
+            &facts("<urn:sigil:unit:a.sigil:1:1> s:expected false .")
+        )
+        .is_err()
+    );
     assert!(
         DesignIdentities::collect(&input, &BTreeMap::from([("a.sigil".into(), local.clone())]))
             .is_err()

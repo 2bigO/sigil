@@ -146,6 +146,38 @@ fn declarations(
     let mut declared: BTreeMap<String, (BTreeSet<String>, BTreeSet<Object>)> = BTreeMap::new();
     for assertion in assertions {
         turtle::validate(assertion.clone())?;
+        if let Some(unit) = reserved.get(&assertion.subject).filter(|i| i.internal) {
+            let property = assertion.predicate.strip_prefix(ONTOLOGY);
+            if unit.source != source
+                || !(assertion.predicate == RDF_TYPE
+                    || property.is_some_and(|p| {
+                        [
+                            "required",
+                            "assumed",
+                            "from",
+                            "target",
+                            "relation",
+                            "expected",
+                            "description",
+                            "section",
+                        ]
+                        .contains(&p)
+                    }))
+            {
+                return Err(format!(
+                    "invalid or foreign interpretation-unit assertion: {}",
+                    assertion.subject
+                ));
+            }
+        }
+        if let Object::Iri { value } = &assertion.object
+            && reserved.get(value).is_some_and(|i| i.internal)
+            && assertion.predicate != format!("{ONTOLOGY}hasContract")
+        {
+            return Err(format!(
+                "interpretation unit is not a domain endpoint: {value}"
+            ));
+        }
         let is_type = assertion.predicate == RDF_TYPE;
         if !is_type && assertion.predicate != format!("{ONTOLOGY}label") {
             continue;
