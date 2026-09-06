@@ -67,6 +67,52 @@
     "tools": {
       "type": "object",
       "propertyNames": { "minLength": 1 },
+      "properties": {
+        "semantic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "providers"],
+          "properties": {
+            "version": { "const": 1 },
+            "defaultProvider": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_-]{0,63}$"
+            },
+            "proposalTimeoutMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            },
+            "providers": {
+              "type": "object",
+              "propertyNames": { "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+              "additionalProperties": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind"],
+                    "properties": {
+                      "kind": { "enum": ["codex", "claude", "pi", "opencode"] },
+                      "model": { "type": "string", "minLength": 1 }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["kind", "command"],
+                    "properties": {
+                      "kind": { "const": "command" },
+                      "command": { "type": "string", "minLength": 1 },
+                      "args": { "type": "array", "items": { "type": "string" } }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
       "additionalProperties": { "type": "object" },
       "default": {}
     }

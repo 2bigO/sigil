@@ -39,6 +39,7 @@ import {
 } from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "./core-adapter.ts";
 import type { CliRunResult } from "./main.ts";
+import { configuredSemanticProvider } from "./semantic-providers.ts";
 
 export const SEMANTIC_HELP = `Usage: sigil semantic <command> [path] [options]
 
@@ -58,6 +59,7 @@ Options:
   --generator <program>   Executable reading a prompt on stdin and writing proposal JSON
   --generator-arg <value>  Argument to the executable; repeatable
   --proposals <file>      Read a generated candidate envelope instead of invoking a provider
+  --provider <name>       Use the named configured semantic provider
   --beam <name>           Named checkpoint (intent defaults to a fresh name)
   --fact <id>             Exact current question's fact identity
   --value <yes|no>        Answer to that exact proposition
@@ -134,6 +136,7 @@ function parse(argv: readonly string[]): Arguments {
         "--generator",
         "--generator-arg",
         "--proposals",
+        "--provider",
         "--beam",
         "--fact",
         "--value",
@@ -163,7 +166,14 @@ function parse(argv: readonly string[]): Arguments {
     }
   }
   const allowed: Record<string, readonly string[]> = {
-    intent: ["--text", "--generator", "--proposals", "--beam", "--format"],
+    intent: [
+      "--text",
+      "--generator",
+      "--proposals",
+      "--provider",
+      "--beam",
+      "--format",
+    ],
     status: ["--beam", "--format"],
     answer: ["--beam", "--fact", "--value", "--format"],
     accept: ["--beam", "--format"],
@@ -200,11 +210,12 @@ function parse(argv: readonly string[]): Arguments {
   ) throw new UsageError(`Unsupported ${action} format ${format}.`);
   if (
     action === "intent" &&
-    (!values["--text"] ||
-      Number(!!values["--generator"]) + Number(!!values["--proposals"]) !== 1)
+      !values["--text"] ||
+    Number(!!values["--generator"]) + Number(!!values["--proposals"]) +
+          Number(!!values["--provider"]) > 1
   ) {
     throw new UsageError(
-      "intent requires --text and exactly one of --generator or --proposals.",
+      "intent requires --text and at most one of --provider, --generator or --proposals.",
     );
   }
   if (generatorArgs.length && (action !== "intent" || !values["--generator"])) {
@@ -353,6 +364,48 @@ export async function runSemanticCommand(
       stdout: JSON.stringify(value, null, 2) + "\n",
       stderr: "",
     });
+    if (
+      action === "intent" && !values["--proposals"] &&
+      !values["--generator"] && !values["--provider"] &&
+      !options.proposalProvider
+    ) {
+      let root: string;
+      try {
+        root = (await loadCompilationWorkspace(path)).root;
+      } catch {
+        throw new UsageError(
+          "No semantic provider is configured. Select --provider <name>, --generator <executable>, or --proposals <file>.",
+        );
+      }
+      let configured: unknown;
+      try {
+        configured = JSON.parse(
+          await Deno.readTextFile(resolve(root, ".sigil/config.json")),
+        );
+      } catch {
+        throw new UsageError(
+          "No semantic provider is configured. Select --provider <name>, --generator <executable>, or --proposals <file>.",
+        );
+      }
+      const semantic = configured && typeof configured === "object" &&
+          !Array.isArray(configured)
+        ? (configured as Record<string, unknown>).tools &&
+            typeof (configured as Record<string, unknown>).tools === "object"
+          ? ((configured as Record<string, unknown>).tools as Record<
+            string,
+            unknown
+          >).semantic
+          : undefined
+        : undefined;
+      if (
+        !semantic || typeof semantic !== "object" ||
+        !(semantic as Record<string, unknown>).defaultProvider
+      ) {
+        throw new UsageError(
+          "No semantic provider is configured. Select --provider <name>, --generator <executable>, or --proposals <file>.",
+        );
+      }
+    }
     if (action === "artifacts") {
       const { root } = await loadCompilationWorkspace(path);
       options.signal?.throwIfAborted();
@@ -431,15 +484,30 @@ export async function runSemanticCommand(
     if (action === "intent") {
       const file = values["--proposals"];
       const command = values["--generator"];
-      const provider = options.proposalProvider ?? (file
-        ? {
+      let provider: SemanticProposalProvider;
+      if (options.proposalProvider) provider = options.proposalProvider;
+      else if (file) {
+        provider = {
           identity: `file:${resolve(file)}`,
           generate: () => Deno.readTextFile(resolve(file)),
-        }
-        : new CommandSemanticProvider({
+        };
+      } else if (command) {
+        provider = new CommandSemanticProvider({
           command: /[/\\]/.test(command) ? resolve(command) : command,
           args: generatorArgs,
-        }));
+        });
+      } else {
+        try {
+          provider = configuredSemanticProvider(
+            context.resolved.workspace.config?.tools.semantic,
+            values["--provider"],
+          );
+        } catch (error) {
+          throw new UsageError(
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      }
       const result = await proposeSemanticIntent(
         context.world,
         values["--text"],

@@ -52,10 +52,15 @@ import metadata from "../deno.json" with { type: "json" };
 import {
   applySetDefault,
   applySetProfile,
+  applySetProvider,
+  applySetProviderDefault,
+  migrateToolsConfiguration,
   seededToolConfiguration,
   type SetDefaultInput,
   type SetProfileInput,
+  type SetProviderInput,
 } from "./config-authoring.ts";
+import { digest } from "@qoherent/sigil-compiler";
 
 export const SIGIL_CLI_VERSION = metadata.version;
 
@@ -388,6 +393,214 @@ export class CoreAdapter {
     const nextConfig: SigilConfig = { ...config, tools: outcome.tools };
     await this.#writeConfigAtomically(configPath, nextConfig);
     return { root, configPath, config: nextConfig, diagnostics: [] };
+  }
+
+  async setProvider(
+    path: string | undefined,
+    input: SetProviderInput,
+  ): Promise<ConfigAuthoringResult> {
+    const loaded = await this.#discoverAuthoringConfig(path);
+    if ("diagnostics" in loaded) {
+      return {
+        root: loaded.root,
+        configPath: loaded.configPath,
+        config: null,
+        diagnostics: loaded.diagnostics,
+      };
+    }
+    const outcome = applySetProvider(loaded.config.tools, input);
+    if ("error" in outcome) {
+      return {
+        root: loaded.root,
+        configPath: loaded.configPath,
+        config: loaded.config,
+        diagnostics: [
+          diagnostic(outcome.error.code, outcome.error.message, {
+            filePath: loaded.configPath,
+          }),
+        ],
+      };
+    }
+    const config = { ...loaded.config, tools: outcome.tools };
+    await this.#writeConfigAtomically(loaded.configPath, config);
+    return {
+      root: loaded.root,
+      configPath: loaded.configPath,
+      config,
+      diagnostics: [],
+    };
+  }
+
+  async setProviderDefault(
+    path: string | undefined,
+    name: string,
+  ): Promise<ConfigAuthoringResult> {
+    const loaded = await this.#discoverAuthoringConfig(path);
+    if ("diagnostics" in loaded) {
+      return {
+        root: loaded.root,
+        configPath: loaded.configPath,
+        config: null,
+        diagnostics: loaded.diagnostics,
+      };
+    }
+    const outcome = applySetProviderDefault(loaded.config.tools, name);
+    if ("error" in outcome) {
+      return {
+        root: loaded.root,
+        configPath: loaded.configPath,
+        config: loaded.config,
+        diagnostics: [
+          diagnostic(outcome.error.code, outcome.error.message, {
+            filePath: loaded.configPath,
+          }),
+        ],
+      };
+    }
+    const config = { ...loaded.config, tools: outcome.tools };
+    await this.#writeConfigAtomically(loaded.configPath, config);
+    return {
+      root: loaded.root,
+      configPath: loaded.configPath,
+      config,
+      diagnostics: [],
+    };
+  }
+
+  async migrateConfig(
+    path: string | undefined,
+    write: boolean,
+    expectedHash?: string,
+  ): Promise<
+    ConfigAuthoringResult & {
+      readonly originalHash: string | null;
+      readonly proposed: unknown;
+      readonly changes: readonly string[];
+    }
+  > {
+    const loaded = await this.#discoverAuthoringConfig(path);
+    if ("diagnostics" in loaded) {
+      return {
+        ...loaded,
+        config: null,
+        originalHash: null,
+        proposed: null,
+        changes: [],
+      };
+    }
+    const perform = async (): Promise<
+      ConfigAuthoringResult & {
+        readonly originalHash: string | null;
+        readonly proposed: unknown;
+        readonly changes: readonly string[];
+      }
+    > => {
+      const source = await this.#fs.readTextFile(loaded.configPath);
+      const originalHash = await digest(source);
+      let preview;
+      try {
+        preview = migrateToolsConfiguration(loaded.config.tools);
+      } catch (error) {
+        return {
+          root: loaded.root,
+          configPath: loaded.configPath,
+          config: loaded.config,
+          originalHash,
+          proposed: null,
+          changes: [],
+          diagnostics: [
+            diagnostic(
+              "SIGIL_CONFIG_INVALID",
+              error instanceof Error ? error.message : String(error),
+              { filePath: loaded.configPath },
+            ),
+          ],
+        };
+      }
+      if (!write) {
+        return {
+          root: loaded.root,
+          configPath: loaded.configPath,
+          config: loaded.config,
+          originalHash,
+          proposed: preview.proposed,
+          changes: preview.changes,
+          diagnostics: [],
+        };
+      }
+      if (expectedHash !== originalHash) {
+        return {
+          root: loaded.root,
+          configPath: loaded.configPath,
+          config: loaded.config,
+          originalHash,
+          proposed: preview.proposed,
+          changes: preview.changes,
+          diagnostics: [
+            diagnostic(
+              "SIGIL_CONFIG_INVALID",
+              "Committed configuration changed before migration write.",
+              { filePath: loaded.configPath },
+            ),
+          ],
+        };
+      }
+      const next = { ...loaded.config, tools: preview.proposed };
+      await this.#writeConfigAtomically(loaded.configPath, next);
+      await this.#writeMigrationArtifact(loaded.root, {
+        version: 1,
+        originalHash,
+        before: loaded.config,
+        after: next,
+        changes: preview.changes,
+      });
+      return {
+        root: loaded.root,
+        configPath: loaded.configPath,
+        config: next,
+        originalHash,
+        proposed: preview.proposed,
+        changes: preview.changes,
+        diagnostics: [],
+      };
+    };
+    return write
+      ? await this.#withConfigLock(loaded.root, perform)
+      : await perform();
+  }
+
+  async #withConfigLock<T>(
+    root: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    if (!(this.#fs instanceof DenoSigilFileSystem)) return await operation();
+    const directory = joinPath(root, ".sigil/cache");
+    await Deno.mkdir(directory, { recursive: true });
+    const handle = await Deno.open(joinPath(directory, "config.lock"), {
+      read: true,
+      write: true,
+      create: true,
+    });
+    await handle.lock(true);
+    try {
+      return await operation();
+    } finally {
+      await handle.unlock().catch(() => {});
+      handle.close();
+    }
+  }
+
+  async #writeMigrationArtifact(
+    root: string,
+    artifact: Record<string, unknown>,
+  ): Promise<void> {
+    if (!(this.#fs instanceof DenoSigilFileSystem)) return;
+    const directory = joinPath(root, ".sigil/cache/config-migrations");
+    await Deno.mkdir(directory, { recursive: true });
+    const source = `${JSON.stringify(artifact, null, 2)}\n`;
+    const id = await digest(source);
+    const path = joinPath(directory, `${id}.json`);
+    await Deno.writeTextFile(path, source, { create: true });
   }
 
   async #discoverAuthoringConfig(

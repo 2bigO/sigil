@@ -65,7 +65,10 @@ export async function formatResult(
   }
   if (
     (result.command === "init" || result.command === "config-set-default" ||
-      result.command === "config-set-profile") &&
+      result.command === "config-set-profile" ||
+      result.command === "config-set-provider" ||
+      result.command === "config-set-provider-default" ||
+      result.command === "config-migrate") &&
     (request.format === undefined || request.format === "text")
   ) {
     return formatConfigWriteText(result, request);
@@ -148,7 +151,15 @@ function isAbsolute(path: string): boolean {
 function formatConfigWriteText(
   result: Extract<
     CommandResult,
-    { command: "init" | "config-set-default" | "config-set-profile" }
+    {
+      command:
+        | "init"
+        | "config-set-default"
+        | "config-set-profile"
+        | "config-set-provider"
+        | "config-set-provider-default"
+        | "config-migrate";
+    }
   >,
   request: CommandRequest,
 ): string {
@@ -172,6 +183,14 @@ function formatConfigWriteText(
       lines.push(`Updated ${result.configPath}`);
       if (request.command === "config-set-profile") {
         lines.push(`Profile ${request.profileName}`);
+      } else if (request.command === "config-set-provider") {
+        lines.push(`Semantic provider ${request.name}`);
+      } else if (request.command === "config-set-provider-default") {
+        lines.push(`Default semantic provider ${request.name}`);
+      } else if (request.command === "config-migrate") {
+        lines.push(
+          `${request.write ? "Migrated" : "Migration preview"} configuration`,
+        );
       }
     }
   }

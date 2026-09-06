@@ -118,6 +118,55 @@ export async function runCommand(
       diagnostics: result.diagnostics,
     };
   }
+  if (request.command === "config-set-provider") {
+    const result = await core.setProvider(request.path, {
+      name: request.name,
+      kind: request.kind,
+      model: request.model,
+      command: request.executable,
+      args: request.args,
+    });
+    return {
+      command: "config-set-provider",
+      workspaceRoot: result.root,
+      configPath: result.configPath,
+      sigilVersion: result.config?.sigilVersion ?? null,
+      workspaceName: result.config?.workspace.name ?? null,
+      config: result.config,
+      diagnostics: result.diagnostics,
+    };
+  }
+  if (request.command === "config-set-provider-default") {
+    const result = await core.setProviderDefault(request.path, request.name);
+    return {
+      command: "config-set-provider-default",
+      workspaceRoot: result.root,
+      configPath: result.configPath,
+      sigilVersion: result.config?.sigilVersion ?? null,
+      workspaceName: result.config?.workspace.name ?? null,
+      config: result.config,
+      diagnostics: result.diagnostics,
+    };
+  }
+  if (request.command === "config-migrate") {
+    const result = await core.migrateConfig(
+      request.path,
+      request.write,
+      request.expectedHash,
+    );
+    return {
+      command: "config-migrate",
+      workspaceRoot: result.root,
+      configPath: result.configPath,
+      sigilVersion: result.config?.sigilVersion ?? null,
+      workspaceName: result.config?.workspace.name ?? null,
+      config: result.config,
+      originalHash: result.originalHash,
+      proposed: result.proposed,
+      changes: result.changes,
+      diagnostics: result.diagnostics,
+    };
+  }
   if (request.command === "version") {
     const workspace = await core.loadWorkspace(request.path, request.root);
     return {

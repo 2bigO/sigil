@@ -89,9 +89,27 @@ Options:
 Subcommands:
   set-default       Set the default and agent compilation profile
   set-profile       Add or edit a compilation profile
+  set-provider      Add or edit a semantic proposal provider
+  set-provider-default  Select the default semantic proposal provider
+  migrate           Preview or write legacy evaluator configuration migration
 
 Options:
   --help            Show this help
+`,
+  "config-set-provider":
+    `Usage: sigil config set-provider <name> [path] --kind <kind> [options]
+
+Options:
+  --kind <kind>       codex, claude, pi, opencode, or command
+  --model <model>     Model for a bundled provider
+  --command <program> Executable for a command provider
+  --arg <value>       Literal command argument; may be repeated
+`,
+  "config-set-provider-default":
+    `Usage: sigil config set-provider-default <name> [path]
+`,
+  "config-migrate":
+    `Usage: sigil config migrate [path] [--write --expected-hash <hash>]
 `,
   "config-set-default":
     `Usage: sigil config set-default [path] --profile <name> [options]

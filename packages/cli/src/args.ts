@@ -20,7 +20,10 @@ export type HelpTopic =
   | "skill-list"
   | "skill-install"
   | "config-set-default"
-  | "config-set-profile";
+  | "config-set-profile"
+  | "config-set-provider"
+  | "config-set-provider-default"
+  | "config-migrate";
 export type OutputFormat = "json" | "jsonl" | "text" | "markdown";
 export type SkillAgent = "codex" | "claude" | "opencode" | "pi";
 
@@ -37,6 +40,9 @@ export type CommandRequest =
   | InitRequest
   | ConfigSetDefaultRequest
   | ConfigSetProfileRequest
+  | ConfigSetProviderRequest
+  | ConfigSetProviderDefaultRequest
+  | ConfigMigrateRequest
   | VersionRequest
   | ParseRequest
   | CheckRequest
@@ -80,6 +86,26 @@ export interface ConfigSetProfileRequest extends GlobalOptions {
   readonly models: Readonly<Record<string, string>>;
   readonly implementationIds: Readonly<Record<string, string>>;
   readonly implementationVersions: Readonly<Record<string, string>>;
+}
+export interface ConfigSetProviderRequest extends GlobalOptions {
+  readonly command: "config-set-provider";
+  readonly path?: string;
+  readonly name: string;
+  readonly kind: "codex" | "claude" | "pi" | "opencode" | "command";
+  readonly model?: string;
+  readonly executable?: string;
+  readonly args: readonly string[];
+}
+export interface ConfigSetProviderDefaultRequest extends GlobalOptions {
+  readonly command: "config-set-provider-default";
+  readonly path?: string;
+  readonly name: string;
+}
+export interface ConfigMigrateRequest extends GlobalOptions {
+  readonly command: "config-migrate";
+  readonly path?: string;
+  readonly write: boolean;
+  readonly expectedHash?: string;
 }
 export interface VersionRequest extends GlobalOptions {
   readonly command: "version";
@@ -205,16 +231,25 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       return { kind: "help", helpTopic: "config" };
     }
     if (
-      (rest[0] === "set-default" || rest[0] === "set-profile") &&
+      ([
+        "set-default",
+        "set-profile",
+        "set-provider",
+        "set-provider-default",
+        "migrate",
+      ].includes(rest[0])) &&
       rest.includes("--help")
     ) {
-      return { kind: "help", helpTopic: `config-${rest[0]}` };
+      return {
+        kind: "help",
+        helpTopic: `config-${rest[0]}` as HelpTopic,
+      };
     }
     if (rest.includes("--help")) {
       return usage(
         rest[0] && !rest[0].startsWith("-")
           ? `Unknown config subcommand "${rest[0]}".`
-          : "config requires exactly one subcommand: set-default or set-profile.",
+          : "config requires exactly one subcommand: set-default, set-profile, set-provider, set-provider-default, or migrate.",
         "config",
       );
     }
@@ -262,6 +297,18 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   const models: Record<string, string> = {};
   const implementationIds: Record<string, string> = {};
   const implementationVersions: Record<string, string> = {};
+  let providerKind:
+    | "codex"
+    | "claude"
+    | "pi"
+    | "opencode"
+    | "command"
+    | undefined;
+  let providerModel: string | undefined;
+  let providerExecutable: string | undefined;
+  const providerArgs: string[] = [];
+  let configWrite = false;
+  let expectedHash: string | undefined;
 
   for (let index = 0; index < rest.length; index++) {
     const arg = rest[index];
@@ -506,6 +553,10 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--model": {
         const value = take(arg);
         if (typeof value !== "string") return value;
+        if (commandName === "config" && rest[0] === "set-provider") {
+          providerModel = value;
+          break;
+        }
         const pair = splitKeyValue(value);
         if (!pair) {
           return usage("--model requires evaluatorId=model.", commandHelpTopic);
@@ -513,6 +564,39 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         models[pair[0]] = pair[1];
         break;
       }
+      case "--kind": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        if (!["codex", "claude", "pi", "opencode", "command"].includes(value)) {
+          return usage(
+            "--kind must be codex, claude, pi, opencode, or command.",
+            commandHelpTopic,
+          );
+        }
+        providerKind = value as typeof providerKind;
+        break;
+      }
+      case "--command": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        providerExecutable = value;
+        break;
+      }
+      case "--arg": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        providerArgs.push(value);
+        break;
+      }
+      case "--expected-hash": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        expectedHash = value;
+        break;
+      }
+      case "--write":
+        configWrite = true;
+        break;
       case "--implementation-id": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -631,6 +715,16 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       commandHelpTopic,
     );
   }
+  if (
+    commandName !== "config" &&
+    (providerKind || providerModel || providerExecutable ||
+      providerArgs.length || configWrite || expectedHash)
+  ) {
+    return usage(
+      `${commandName} does not accept semantic provider configuration options.`,
+      commandHelpTopic,
+    );
+  }
   if (commandName === "skill") {
     if (root) {
       return usage("skill commands do not accept --root.", commandHelpTopic);
@@ -708,11 +802,19 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     }
     if (positional.length === 0) {
       return usage(
-        "config requires exactly one subcommand: set-default or set-profile.",
+        "config requires exactly one subcommand: set-default, set-profile, set-provider, set-provider-default, or migrate.",
         "config",
       );
     }
-    if (positional[0] !== "set-default" && positional[0] !== "set-profile") {
+    if (
+      ![
+        "set-default",
+        "set-profile",
+        "set-provider",
+        "set-provider-default",
+        "migrate",
+      ].includes(positional[0])
+    ) {
       return usage(`Unknown config subcommand "${positional[0]}".`, "config");
     }
     const subcommandPositional = positional.slice(1);
@@ -747,6 +849,122 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
           path: subcommandPositional[0],
           profile,
           agentProfile,
+          ...base,
+        },
+      };
+    }
+    if (positional[0] === "set-provider") {
+      if (!positional[1] || positional.length > 3) {
+        return usage(
+          "config set-provider requires <name> [path].",
+          "config-set-provider",
+        );
+      }
+      if (!providerKind) {
+        return usage(
+          "config set-provider requires --kind.",
+          "config-set-provider",
+        );
+      }
+      if (providerKind === "command" && !providerExecutable) {
+        return usage(
+          "command providers require --command.",
+          "config-set-provider",
+        );
+      }
+      if (providerKind !== "command" && providerExecutable) {
+        return usage(
+          "bundled providers do not accept --command.",
+          "config-set-provider",
+        );
+      }
+      if (providerKind === "command" && providerModel) {
+        return usage(
+          "command providers do not accept --model.",
+          "config-set-provider",
+        );
+      }
+      if (providerKind !== "command" && providerArgs.length) {
+        return usage(
+          "bundled providers do not accept --arg.",
+          "config-set-provider",
+        );
+      }
+      return {
+        kind: "ok",
+        request: {
+          command: "config-set-provider",
+          path: positional[2],
+          name: positional[1],
+          kind: providerKind,
+          model: providerModel,
+          executable: providerExecutable,
+          args: providerArgs,
+          ...base,
+        },
+      };
+    }
+    if (positional[0] === "set-provider-default") {
+      if (!positional[1] || positional.length > 3) {
+        return usage(
+          "config set-provider-default requires <name> [path].",
+          "config-set-provider-default",
+        );
+      }
+      if (
+        providerKind || providerModel || providerExecutable ||
+        providerArgs.length
+      ) {
+        return usage(
+          "set-provider-default accepts only a provider name and path.",
+          "config-set-provider-default",
+        );
+      }
+      return {
+        kind: "ok",
+        request: {
+          command: "config-set-provider-default",
+          name: positional[1],
+          path: positional[2],
+          ...base,
+        },
+      };
+    }
+    if (positional[0] === "migrate") {
+      if (positional.length > 2) {
+        return usage(
+          "config migrate accepts at most one path.",
+          "config-migrate",
+        );
+      }
+      if (
+        providerKind || providerModel || providerExecutable ||
+        providerArgs.length
+      ) {
+        return usage(
+          "config migrate accepts --write and --expected-hash only.",
+          "config-migrate",
+        );
+      }
+      if (configWrite && !expectedHash) {
+        return usage(
+          "config migrate --write requires --expected-hash.",
+          "config-migrate",
+        );
+      }
+      if (!configWrite && expectedHash) {
+        return usage(
+          "--expected-hash requires config migrate --write.",
+          "config-migrate",
+        );
+      }
+      return {
+        kind: "ok",
+        request: {
+          command: "config-migrate",
+          path: positional[1],
+          write: configWrite,
+          expectedHash,
           ...base,
         },
       };

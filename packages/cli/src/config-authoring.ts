@@ -1,6 +1,11 @@
 import type {
   AgentProvider,
   CompileConfiguration,
+  SemanticProviderKind,
+} from "@qoherent/sigil-compiler";
+import {
+  semanticToolsFrom,
+  validateSemanticTools,
 } from "@qoherent/sigil-compiler";
 import { CodexAdapter } from "@qoherent/sigil-compiler-adapter-codex";
 import { OpenCodeAdapter } from "@qoherent/sigil-compiler-adapter-opencode";
@@ -34,6 +39,196 @@ export interface SetProfileInput {
   readonly models?: Readonly<Record<string, string>>;
   readonly implementationIds?: Readonly<Record<string, string>>;
   readonly implementationVersions?: Readonly<Record<string, string>>;
+}
+
+export interface SetProviderInput {
+  readonly name: string;
+  readonly kind: SemanticProviderKind;
+  readonly model?: string;
+  readonly command?: string;
+  readonly args?: readonly string[];
+}
+
+export interface MigrationPreview {
+  readonly proposed: ToolsObject;
+  readonly changes: readonly string[];
+}
+
+export function applySetProvider(
+  tools: ToolsObject,
+  input: SetProviderInput,
+): ConfigAuthoringOutcome {
+  const config = semanticToolsFrom(tools.semantic);
+  const proposal = {
+    ...config,
+    providers: {
+      ...config.providers,
+      [input.name]: {
+        kind: input.kind,
+        ...(input.model !== undefined ? { model: input.model } : {}),
+        ...(input.command !== undefined ? { command: input.command } : {}),
+        ...(input.args !== undefined ? { args: [...input.args] } : {}),
+      },
+    },
+  };
+  const validated = validateSemanticTools(proposal);
+  if (!validated.config) {
+    return error(
+      "SIGIL_CONFIG_UNKNOWN_PROVIDER",
+      validated.issues.map((issue) => `${issue.path}: ${issue.message}`).join(
+        "\n",
+      ),
+    );
+  }
+  return {
+    tools: {
+      ...tools,
+      semantic: validated.config as unknown as Record<string, unknown>,
+    },
+  };
+}
+
+export function applySetProviderDefault(
+  tools: ToolsObject,
+  name: string,
+): ConfigAuthoringOutcome {
+  const config = semanticToolsFrom(tools.semantic);
+  if (!config.providers[name]) {
+    return error(
+      "SIGIL_CONFIG_UNKNOWN_PROVIDER",
+      `Unknown semantic provider "${name}".`,
+    );
+  }
+  return {
+    tools: {
+      ...tools,
+      semantic: {
+        ...config,
+        defaultProvider: name,
+      } as unknown as Record<string, unknown>,
+    },
+  };
+}
+
+/** Pure legacy evaluator-to-semantic migration preview. */
+export function migrateToolsConfiguration(
+  tools: ToolsObject,
+): MigrationPreview {
+  const compile = recordOf(tools.compile);
+  const semantic = semanticToolsFrom(tools.semantic);
+  let defaultProvider = semantic.defaultProvider;
+  const providers: Record<string, unknown> = { ...semantic.providers };
+  const changes: string[] = [];
+  const evaluators = recordOf(
+    compile.evaluators as Readonly<Record<string, unknown>> | undefined,
+  );
+  for (const [id, raw] of Object.entries(evaluators)) {
+    const evaluator = recordOf(raw as Readonly<Record<string, unknown>>);
+    const kind = evaluator.provider;
+    if (
+      ![
+        "codex",
+        "claude",
+        "pi",
+        "opencode",
+      ].includes(String(kind))
+    ) continue;
+    const entry = {
+      kind,
+      ...(typeof evaluator.model === "string"
+        ? { model: evaluator.model }
+        : {}),
+    };
+    if (
+      providers[id] &&
+      JSON.stringify(providers[id]) !== JSON.stringify(entry)
+    ) {
+      throw new Error(
+        `Semantic provider ${
+          JSON.stringify(id)
+        } conflicts with its legacy evaluator.`,
+      );
+    }
+    if (!providers[id]) {
+      providers[id] = entry;
+      changes.push(`converted evaluator ${id} to semantic provider`);
+    }
+  }
+  const legacyAdapter = compile.adapter;
+  if (Object.keys(evaluators).length === 0 && legacyAdapter !== undefined) {
+    const command = typeof legacyAdapter === "string"
+      ? legacyAdapter
+      : recordOf(legacyAdapter as Readonly<Record<string, unknown>>).command;
+    if (typeof command !== "string" || !command.trim()) {
+      throw new Error(
+        "Legacy compile.adapter must contain a non-empty command to migrate.",
+      );
+    }
+    const entry = { kind: "command", command };
+    if (
+      providers["legacy-adapter"] &&
+      JSON.stringify(providers["legacy-adapter"]) !== JSON.stringify(entry)
+    ) {
+      throw new Error(
+        'Semantic provider "legacy-adapter" conflicts with the legacy adapter.',
+      );
+    }
+    if (!providers["legacy-adapter"]) {
+      providers["legacy-adapter"] = entry;
+      changes.push("converted compile.adapter to legacy-adapter provider");
+    }
+  }
+  if (defaultProvider === undefined) {
+    const profiles = recordOf(
+      compile.profiles as Readonly<Record<string, unknown>> | undefined,
+    );
+    const defaultProfile = typeof compile.defaultProfile === "string"
+      ? compile.defaultProfile
+      : "standard";
+    const selected = recordOf(
+      profiles[defaultProfile] as Readonly<Record<string, unknown>> | undefined,
+    );
+    const main = Array.isArray(selected.main)
+      ? selected.main.filter((id): id is string => typeof id === "string")
+      : Array.isArray(selected.evaluatorIds)
+      ? selected.evaluatorIds.filter((id): id is string =>
+        typeof id === "string"
+      )
+      : [];
+    const recognized = main.filter((id) => Object.hasOwn(providers, id));
+    if (recognized.length === 1 && main.length === 1) {
+      changes.push(
+        `selected ${recognized[0]} as the semantic default provider`,
+      );
+      defaultProvider = recognized[0];
+    } else if (main.length > 1) {
+      changes.push(
+        "left semantic default unset because the legacy profile selects multiple evaluators",
+      );
+    }
+  }
+  const proposedCompile = { ...compile };
+  for (const key of ["adapter", "evaluators", "main", "evaluatorIds"]) {
+    if (Object.hasOwn(proposedCompile, key)) {
+      delete proposedCompile[key];
+      changes.push(`removed legacy compile.${key}`);
+    }
+  }
+  return {
+    proposed: {
+      ...tools,
+      compile: proposedCompile as Record<string, unknown>,
+      semantic: {
+        ...semantic,
+        ...(defaultProvider ? { defaultProvider } : {}),
+        providers,
+      } as unknown as Record<
+        string,
+        unknown
+      >,
+    },
+    changes,
+  };
 }
 
 // @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::SeededDefaults interface,logic,cases
@@ -88,6 +283,7 @@ export function seededToolConfiguration(): ToolsObject {
   return {
     agent: { profile: "standard" },
     compile: compile as unknown as Record<string, unknown>,
+    semantic: { version: 1, providers: {} },
   };
 }
 
