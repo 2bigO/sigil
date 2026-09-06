@@ -52,131 +52,183 @@ repository-owned contracts/instructions where they supersede the old workflow.
 Record whether glossary work is needed; do not create vocabulary work merely to
 make the loop more elaborate.
 
-## Bootstrap state: small, inspectable, disposable
+## Resume with the implemented flow
 
-Initialize only the user-selected folder. If it already contains a run, resume
-it; do not overwrite it. Preserve existing staged and unstaged repository changes.
-Record the starting revision and working-tree diff so later deletion measurements
-do not claim the user's prior work. Small incremental commits for this refactor
-are authorized and required. Publishing, pushing, and deployment are not.
+Resume `STATE_DIR`; do not reinitialize the existing run or its baseline. Read
+`state.json` for the last usable `sigilc` path/build identity, remaining delivery
+work and last checkpoint. Check the actual worktree and executable before relying
+on stored observations. Preserve unrelated changes. The current run uses
+`.codex-progress/`, which must stay ignored and uncommitted.
 
-Start with this layout; add a file only when actual use needs it:
+Use native primitives now; do not rebuild these operations in temporary Python
+queries, manual status tables or a TypeScript compiler wrapper:
 
-```text
-STATE_DIR/
-  state.json          current scope, delivery work, replacements, checkpoint
-  journal.jsonl       compact iteration and decision records
-  artifacts/          captured checks, reports, baseline, usable tool builds
-  queries.py          optional small standard-library inspection helper
+| Real question | Implemented operation | Current limit |
+| --- | --- | --- |
+| What authored sources, imports and units exist? | Existing parser/resolver structural Design export | Helper still lives in `packages/compiler/src/design-input.ts`; extract into core/frontend, then remove the compiler package. |
+| What must be reconstructed? | `sigilc stale design` / `stale implementation` | Implementation needs a current Design catalog. Read source rows from the report, not a second freshness table. |
+| What inputs may a worker receive? | `sigilc prepare design` / `prepare implementation` | External caller owns dispatch and isolation. New output directory required. |
+| Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results. |
+| Which identities may Implementation use? | `sigilc entities` | No catalog from stale or Disjoint Design. Current repository reconstruction remains incomplete. |
+| What is the current semantic result? | `sigilc compile design`, `compile implementation`, `compare` | Native commands exist; that does not establish independent current-source reconstruction or frontend integration. |
+| Can generated worlds be discarded/recovered? | `sigilc clean` | Use deliberately for disposable-cache recovery, not routinely before freshness inspection. |
+| What code/features still need delivery? | Whole specification, authored Design, ordinary checks and remaining delivery queue | Semantic success alone cannot answer this; final delivery audit remains external. |
+
+These commands and their argument schemas are implemented and documented in
+`packages/sigilc/README.md`. Verify the selected binary's `--help`; older retained
+builds may have different exits or schemas. Do not invent an unavailable CLI
+export command. Until the structural helper moves, use a small external call to
+`loadDesignInput` to write the bundle; this is a temporary language-export step,
+not a `sigil compile` wrapper.
+
+For example, with an actual current structural bundle and a new preparation
+directory selected by the external caller:
+
+```sh
+sigilc stale design --frontend frontend.json
+sigilc prepare design --frontend frontend.json --source path/to/contract.sigil --out design-job
+# External Design worker receives design.json and ontology.json.
+# Caller retains job.json; after the worker returns result.ttl:
+sigilc ingest design --frontend frontend.json --source path/to/contract.sigil --job design-job/job.json --turtle result.ttl
+sigilc compile design --frontend frontend.json
+sigilc entities --frontend frontend.json
 ```
 
-Keep state outside selected implementation sources and worker inputs. If the
-folder is inside the repository, explicitly exclude it as operational artifacts;
-do not exclude actual product source to improve the result. Do not add a tracked
-task-framework package, database, daemon, provider adapter, or UI. Plain JSON,
-shell, and short Python queries are enough. Use atomic replacement for `state.json`.
+Use the recorded executable path if `sigilc` is not on PATH. Commands default to
+the current workspace root; use `--root` explicitly when running elsewhere.
+Regenerate structural export after changes to its captured sources/config/glossary.
+Read completed results and exits separately: `stale` exit 1 means work remains;
+Loose Design exits 0 but may still lack a usable catalog. A missing catalog is
+an unavailable Implementation prerequisite, not Drift and not permission to
+invent identities or skip files.
 
-Minimum state fields:
+Once the catalog is current, use the independent Implementation flow:
 
-| Field | Content |
-| --- | --- |
-| `version`, `cycle`, `phase` | Small file format version and resumable position. |
-| `baseline` | Initial source revision/diff, original plan hash, inventory and count method. |
-| `current_spec` | Current `compile.md`, `track.md`, authored scope and selection identities. |
-| `scope` | Stable requirement IDs, exact plan references, owning Design components, acceptance cases, and required implementation selection. |
-| `work` | Requirement ID, dependencies, delivery state, relevant files, check evidence, and remaining issue. |
-| `replacements` | Temporary mechanism, intended Sigil replacement, adoption state and real-use evidence. |
-| `tools` | Last usable local compiler/frontend executable paths and build/source identities. |
-| `checkpoint` | Last completed action, next useful action, blockers and artifact paths. |
-| `deletion_policy`, `deletion_queue` | Prioritized concrete files/packages/callers to remove, retained behavior if any, direct native replacement, and evidence that deletion happened. No adapter creation as a completion criterion. |
-| `primitive_observations` | Actual refactor task, direct `sigilc` command/function, input/tool identity, result, friction or defect, and next action. Distinguish exercised, failed, and unavailable from untried. |
-
-Use delivery states `pending`, `active`, `verified`, `blocked`. A checked
-requirement becomes pending again when a relevant change invalidates its evidence.
-Record removed/replaced requirements as historical changes, not “verified” work.
-These are external bookkeeping states, not new Sigil ontology predicates.
-
-Build the initial inventory from all of `compile.md`, including preservation,
-packaging, mandatory removals, and acceptance cases. Group work by coherent
-behavior and dependency; do not treat every heading as a separate component or
-force one component to equal one file. Link every required item to authored
-Design as it is written. Do not silently omit difficult requirements.
-
-Queries should initially answer only:
-
-```text
-What remains, and what can be done next?
-What changed since the last verified snapshot?
-What is blocked, and why?
-Which temporary mechanism can the new tools replace now?
-What evidence is still required for the final gate?
+```sh
+sigilc prepare implementation --frontend frontend.json --source src/file.ext --out implementation-job
+# External isolated worker receives ONLY source, ontology.json, catalog.json.
+# Caller retains job.json; after the worker returns implementation.ttl:
+sigilc ingest implementation --frontend frontend.json --source src/file.ext --job implementation-job/job.json --turtle implementation.ttl
+sigilc stale implementation --frontend frontend.json --selection selection.json
+sigilc compile implementation --frontend frontend.json --selection selection.json
+sigilc compare --frontend frontend.json --selection selection.json
 ```
 
-Report counts of verified/active/pending/blocked requirements, acceptance checks,
-fresh/stale/missing projections, and adopted replacements separately. If a
-percentage is useful, label its denominator: `verified delivery items / current
-required items`. It is an inventory ratio, not an estimate of effort or semantic
-completeness. Report additions/removals since baseline alongside it.
+The selection must cover the required refactor scope, including unchanged files.
+Record any intentionally empty selection; do not use it to bypass missing work.
+Keep operational, build and vendored files outside source scope. Do not exclude
+actual product files because they are difficult to reconstruct. Never supply this
+procedure, the tracker, neighboring code or Design relationships to an
+Implementation worker. The independence rules below still apply.
 
-## Each iteration
+## The convergence loop
 
-1. Resume from the checkpoint. Read changed plans, governing contracts and code;
-   inspect repository state and reconcile changed scope/evidence. Check which
-   newly materialized commands actually work. Never invent a command from an
-   example in the plan or treat an unavailable binary as an installed capability.
-2. Select the smallest coherent dependency-ready increment that advances the
-   refactor or replaces a temporary mechanism. Give the coding environment the
-   whole current human-readable specification, plus the immediate task and
-   observations from completed previous cycles. Scope selection does not turn
-   coding into semantic-slice or receipt-driven implementation.
-   Prefer an actionable deletion over another abstraction. For each obsolete
-   subsystem ask what can disappear now, including its callers, tests, exports,
-   config and release wiring. Obsolete behavior needs no replacement. If a
-   retained behavior prevents deletion, record that specific dependency and
-   implement only that behavior in its intended owner; never create an adapter
-   to keep the old surface callable.
-3. Implement the increment, including governing `.sigil`, focused tests and
-   callers. Use the mandatory-removal list to delete obsolete machinery in the
-   same increment. Remove `packages/compiler/` completely after extracting only
-   retained language functionality. Do not create a `sigil compile` forwarding
-   command, TS compiler package skeleton, or compatibility framework.
-4. Run checks appropriate to the change. Use fixed Turtle fixtures to test the
-   compiler; distinguish those from independent reconstruction of actual code.
-   Record exact commands, exits, source identity, and meaningful evidence.
-5. Build and exercise the new capability on this repository's actual next work.
-   Run it as soon as usable, starting within the same iteration if practical and
-   making it the default in the next applicable iteration. A passing toy fixture
-   alone is not successful dogfooding. Record what it replaced and what real
-   question it answered.
-   Invoke `sigilc` directly. Observe each applicable primitive/function while
-   carrying out this refactor: what it makes easy, what is awkward, what fails,
-   and what remains unavailable. Record real inputs and outcomes in
-   `primitive_observations`; improve the primitive itself when evidence warrants
-   it instead of hiding friction behind a TypeScript adapter. A fixture pass is
-   not an observation of current repository semantics.
-6. Prepare independent reconstruction when the needed pipeline exists. Refresh
-   Design, expose the current Loose/Coherent catalog, prepare target files,
-   obtain independent Turtle externally, ingest, and compare. Before the full
-   pipeline works, record “semantic status unavailable”; do not fabricate yellow
-   from tracker state. Missing external-worker facilities are a concrete blocker
-   for independent verification, not a reason to build an agent runtime in Sigil.
-7. End the coding portion before examining that round's blind reconstruction
-   results. Collect current reports, failures and unknowns; decide the next
-   increment or evidence-backed plan correction. A repair starts another coding
-   round and needs new independent reconstruction for changed inputs.
-8. Update the checkpoint and journal, then continue. Do not stop merely because
-   one component, milestone or iteration passed. Pause only on a real external
-   blocker or a user decision that prevents useful authorized progress.
-   Keep the next actionable deletion at the front of the temporary catalog.
-   Record gross removals, additions and net change separately, excluding moved
-   code, copied dependencies and abandoned uncommitted code from claimed net
-   deletion. Require absence of removed packages/routes/imports at delivery;
-   marking a replacement available does not mean the old code was deleted.
+1. **Inspect with the flow we have.** Read changed governing Design/code, rebuild
+   current frontend inputs when needed, and use native stale/gate/catalog output
+   to inspect current semantics. Read ordinary check evidence for delivery gaps.
+   Do not regenerate a parallel manual source inventory, freshness algorithm,
+   semantic identity list or comparison just because a temporary one exists.
+2. **Choose the next useful change.** Give the coding environment the entire
+   current human-readable specification and previous-round observations. Prefer
+   a concrete deletion or the missing primitive/integration that enables it.
+   Delete UI dedicated to intentionally removed backend concepts together with
+   those concepts: beams, receipts, accepted worlds and evaluator profiles need
+   no replacement. Retain the VS Code language and compilation/status frontend
+   needed by sigilc; demonstrate its new integration before removing its old
+   dependency. Do not delete retained behavior/tests to avoid that integration.
+3. **Implement and check.** Update governing `.sigil`, source, callers and relevant
+   tests in cohesive increments. Remove obsolete backend code and its obsolete
+   UI/protocol/config/tests. Preserve unrelated work. No thin TS compiler package,
+   legacy API emulation, orchestration runtime or new task framework.
+4. **Dogfood each applicable primitive on actual work.** Use preparation,
+   ingestion, inspection and comparison directly where their prerequisites hold.
+   Distinguish real repository results, fixed fixtures, unavailable prerequisites
+   and untried operations. External workers own model calls and isolation.
+   End the coding round before examining its blind reconstruction outputs;
+   repair starts a new round with fresh input capture/reconstruction as needed.
+5. **Improve sigilc from what happened.** Apply the observation review below.
+   Resolve demonstrated defects or friction in the responsible primitive or
+   retained frontend. Recheck the corrected operation on the real task; promote
+   the candidate compiler only after relevant tests and real-use validation.
+6. **Remove another temporary mechanism.** Inspect the retirement table below on
+   every iteration. If a native flow now answers a question, make it the default
+   and delete/deactivate the corresponding custom query, duplicate state field
+   or manual assembly step. Use the replacement in the next applicable increment.
+   If a prerequisite is missing, record that exact gap and implement it when
+   within scope; do not call the mechanism replaced or grow another adapter.
+7. **Checkpoint, commit, continue.** Record concise evidence, additions/removals,
+   tool/input identity, observation and adoption/retirement or reversal. Continue
+   to the next gap until the final gate passes. A milestone, a yellow result or a
+   working primitive is not completion. Missing external reconstruction may block
+   semantic verification while useful implementation/deletion work continues.
 
-Commit completed coherent increments throughout these steps, not at the end of
-the refactor. An iteration can contain several commits; a cycle boundary is not
-a reason to bundle unrelated work. Record each commit ID with its requirement
-IDs and check evidence in the operational journal.
+This is a shrinking loop: implement → use on this refactor → observe → improve →
+remove temporary machinery → continue using the Sigil flow. Do not let tracking
+become a permanent second implementation. Do not delete retained product features
+as a substitute for retiring temporary machinery.
+
+## Observe and improve sigilc
+
+Keep observations tied to an actual command/function and refactor question:
+
+```text
+Task and primitive/function; exact command; executable/kernel and input identity
+Result/exit and evidence path; exercised, failed, unavailable, or untried
+What worked; concrete friction, diagnostic gap, defect, or unnecessary manual step
+Smallest fix in its intended owner; validation on the original task
+Temporary mechanism or duplicated state the fix lets us remove next
+```
+
+Record these in `primitive_observations` while needed; durable behavior belongs
+in authored Design, code and tests. This is an observation log, not a new issue
+tracker, task ontology or compiler scheduling API. A native improvement should
+make the real flow easier or more correct, not merely make a fixture green.
+
+Already observed during this refactor:
+
+* Design Loose and Implementation Converged were incorrectly treated as failing
+  gates. The native CLI now returns 0 for those warning states and 1 only for
+  Disjoint/Drift. Preserve named states in the frontend.
+* Missing current Design projections prevent a catalog and Implementation
+  comparison. Native output now reports unavailable comparison with exit 3 and
+  no Implementation state. This is a real prerequisite gap, not Drift.
+* Disposable-cache cleanup needed to recover corrupt indexes without unlinking
+  the writer lock. `clean` now does so; publication generations also cannot be
+  reused by old jobs after cache recreation. Recovery fixtures and real-root
+  cleanup are distinct evidence.
+* Structural export remains a manual call to a helper inside the package being
+  removed. Extract that language-only capability into the retained frontend; do
+  not introduce a TS compiler wrapper to hide the remaining step.
+* Native primitives do not yet establish a working editor or release cutover.
+  Keep retained compilation/status UI while integrating it. Remove UI whose
+  sole purpose is a deliberately deleted backend concept.
+
+Update these observations when new evidence changes the conclusion. Raw command
+outputs live under `STATE_DIR/artifacts`; historical outputs are never current
+world authority. Do not broaden proof, language-analysis or orchestration scope
+just to make the flow look complete.
+
+## Keep only the temporary state still needed
+
+The existing run is already bootstrapped. Preserve its baseline, historical
+journal and evidence; do not recreate its initial inventories every iteration.
+Use atomic replacement for `state.json` and keep it uncommitted. For a genuinely
+new run, capture starting revision/diff, whole-spec requirement IDs and check
+scope once, preserving user changes.
+
+Keep remaining delivery requirements, acceptance gaps, protected frontend
+capabilities, deletion prerequisites, usable tool identity, observations and a
+small checkpoint. Native/frontend artifacts now own source/unit inventory and
+freshness inspection. Link those outputs instead of copying per-source states or
+maintaining parallel semantic counts/colors. Delivery states remain
+`pending`, `active`, `verified`, `blocked`; they are external bookkeeping, never
+Sigil semantic predicates. Reopen verified work when relevant inputs change.
+
+No tracked task package, database, daemon, scheduler, dashboard or provider
+adapter. Add a disposable query only for an actual unanswered question; remove
+it as soon as the native flow can answer that question. Keep delivery and
+semantic evidence separate, measure real net code deletion against the original
+baseline, and exclude moves, copied dependencies and abandoned edits from gains.
 
 ## Small commits by semantic change
 
@@ -255,33 +307,30 @@ ordinary build/test checks. Finish with the final built tools, not merely an
 earlier working snapshot. A compiler change requires re-running affected compiler
 tests and comparisons even when source-local projection reuse remains valid.
 
-## Replace mechanisms, not the external agent
+## Retire temporary mechanisms continuously
 
-Use states `temporary → trial → adopted → retired` for replacement bookkeeping.
-Adoption requires a real repository operation and use on the next applicable
-increment. Revert explicitly on failure. Retire the corresponding custom query
-once native output is the default; do not maintain two verdict implementations.
+Use `temporary → trial → adopted → retired`. Trial exercises a real task;
+adoption uses it on the next applicable increment; retirement stops using the
+old query/state/mechanism. Archive evidence if useful, but remove it from active
+instructions. A failed replacement is explicitly reverted and repaired.
 
-| Temporary mechanism | Replacement to use as soon as available |
-| --- | --- |
-| Manually assembled source/contract inventory | Existing Sigil frontend resolution and the minimal authored-unit inventory; `.sigil` owns the required Design. |
-| Ad hoc target-change/freshness queries | `sigilc` preparation, snapdir-backed source identity, projection index and stale inspection. Do not add neighbor dependencies. |
-| Manually combined Turtle/fact files | Native validated ingestion and mirrored per-file disposable `.egg` assembly. |
-| Hand-maintained semantic identity list | Provisional/authoritative frozen Design catalog from current non-Disjoint Design. |
-| Python joins answering “what is missing or disagrees?” | Native independent D*/I* comparison, obligations and current diagnostics. |
-| Tracker-maintained component semantic colors | Native overall report plus diagnostics attributed to governing components; no invented component status algorithm. |
-| Bespoke operational work queue | External agent reads current Sigil diagnostics, remaining acceptance/check results, and the whole specification to choose work. No product task scheduler. |
+| Temporary mechanism | Use now / next | Retirement condition |
+| --- | --- | --- |
+| Hand-maintained source/unit inventory | Existing structural frontend export | Already used across subsequent increments. Remove duplicate source/unit inventories and counts; keep the current artifact identity. The language export itself is retained product capability. |
+| Ad hoc target freshness queries | Native `stale`, capture and generation validation | Already used across subsequent increments. Remove custom freshness decisions and per-source tracker statuses; read native reports. |
+| Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Stop custom assembly when real returned Turtle uses the native path. Do not mark independent reconstruction available from fixtures. |
+| Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
+| Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |
+| Tracker-maintained semantic colors | Named native gate states and diagnostics | Retire custom coloring when current native output is the source used by the frontend and external workflow. No absence-of-diagnostics color algorithm. |
+| Bespoke delivery/work queue | Whole specification, authored Design, native diagnostics and ordinary acceptance checks | Shrink checked items continuously; retire the remaining queue at the final audit/rehearsal. Yellow cannot establish delivery. |
 
-The last row does not mean Sigil decides that code was delivered merely because
-it is yellow. Compiler semantic status and external acceptance checks remain
-distinct. Retire the ongoing hand-maintained delivery queue only after its
-requirements are reconciled with authored Design, all delivery items are checked,
-and the final audit preserves the evidence. Ordinary tests and external coding
-do not need replacement by Sigil.
-
-No new percent-complete command, task ontology, component dashboard, obligation
-receipt or tracker migration API is needed. Use existing/new deterministic outputs
-specified by `compile.md`; presentation in this folder can be disposable queries.
+Every checkpoint must identify what temporary mechanism was removed/reduced,
+or the specific prerequisite preventing the next retirement and the next action
+to remove it. Continue until the Sigil flow replaces every applicable temporary
+mechanism. Do not stop after making a replacement available while continuing to
+use the old mechanism. Remove needless fields/scripts rather than migrating them
+into another tracker. Keep ordinary tests, external scheduling, independent
+workers and human product approvals outside this replacement scope.
 
 ## The loop and requirements may evolve from real use
 
@@ -367,8 +416,12 @@ Replace the placeholder with the actual absolute state folder:
 Implement compile.md following the complete loop and rules in track.md.
 Use <ABSOLUTE_STATE_DIR> as persistent state; initialize or resume it.
 Implement, dogfood, and replace temporary tracking until track.md's final gate
-passes. Revise either document when real-use evidence warrants it, following
-track.md's change rules. Make small, semantically cohesive commits throughout.
+passes. Use implemented sigilc primitives directly on each applicable refactor
+step, record concrete improvement observations, and keep removing/reducing
+temporary queries and state until the Sigil flow replaces them. Preserve retained
+frontend capabilities; delete UI dedicated to removed backend concepts. Revise
+either document when real-use evidence warrants it, following track.md's change
+rules. Make small, semantically cohesive commits throughout.
 Preserve unrelated work. Keep independent semanticization and orchestration
 external. Continue across milestones; checkpoint genuine blockers. Do not push,
 publish, or deploy without separate authorization.
