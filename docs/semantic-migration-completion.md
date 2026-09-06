@@ -30,7 +30,7 @@ The implementation range starts at the remaining-scope specification commit
 | S05 | `bcd7fbc` | VS Code semantic commands and managed-view LSP navigation |
 | S06 | `ce2c3b2` | Skill, adapter, schema, and workflow documentation migration |
 | S07 | `d424934` | Pinned runtime manifest, resolver, native handshake and doctor |
-| S08 | `3fb4430`, `bf2ab6e`, `136f8fc`, `19507a1` | Native distribution builder, smoke seam, offline Linux archive gate, published-consumer fixture, CI matrix and immutable installers |
+| S08 | `3fb4430`, `bf2ab6e`, `10244a6`, `136f8fc`, `19507a1` | Native distribution builder, standalone bootstrap, offline Linux archive gate, published-consumer fixture, CI matrix and immutable installers |
 | S09 | `5764358` | Receipt v2 migration, profile/runtime identity and evidence provenance |
 | S10 | `b18c908` | Permanent cancellable beam locks and synced atomic writes |
 | S11 | `5d95205`, `21dc1dd`, `10fb394`, `8a3a561`, `668b8f1`, `1df050b`, `9a208b2`, `3ba636f`, `a2d46d9`, `edb6818`, `359ce43`, `338e5a7`, `6ae3e66`, `bc7da66`, `45b6dd3`, `bf2ab6e`, `136f8fc`, `19507a1`, `a1b54b2` | Public-interface integration assertions, canonical-view targeting/report metadata, validated inventory listings, runtime/installer hardening, managed-view directory targeting and recovery, strict checkpoint parsing, offline release enforcement, published-consumer validation, the combined semantic-flow fixture, and the completion report |
@@ -132,9 +132,9 @@ step of the single end-to-end fixture required by `compile.md` section 11.1.
 | R04 | Native Egg assertions and source reconstruction pass in `packages/compiler/tests/compile_artifacts_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R05 | TypeScript 7 native fixture tests in `packages/compiler/tests/typescript7_test.ts` | Linux source | PASS (Linux); archive matrix still required |
 | R06 | Handoff/receipt fixtures pass in compiler and CLI suites | Linux source | PASS (Linux); archive matrix still required |
-| R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
+| R07 | Runtime manifest tamper and missing-library rejection in `scripts/test-cli-release.ts`; wrong-target and all-target checks remain matrix checks | Linux x86_64 | PARTIAL (local archive; tamper and missing-library branches pass) |
 | R08 | Cancellation cleanup passes in native source tests; all target process-cleanup runs remain required | Linux source | CI required |
-| R09 | `install.sh` successful checksum/doctor/selection seam against the staged archive; bad-checksum and doctor-failure retention branches remain matrix checks | Linux x86_64 | PARTIAL (local archive) |
+| R09 | `install.sh` successful checksum/doctor/selection seam plus bad-checksum and checksum-valid doctor-failure retention | Linux x86_64 | PARTIAL (local archive; all-target matrix remains required) |
 | R10 | Immutable version/manifest installation logic is implemented; reinstall/conflict matrix is not run here | All release targets | CI required |
 | R11 | Relocatable archive layout is implemented; copy-only-bin negative test remains in the release matrix | All release targets | CI required |
 | R12 | Explicit `SIGIL_RUNTIME_DIR` library seam is implemented; staged published-consumer fixture passes locally and remains a per-target release check | Linux x86_64 | PARTIAL (local consumer pass; all-target matrix required) |
@@ -206,6 +206,7 @@ The following final commands were executed after the S11 changes:
 | staged `x86_64-unknown-linux-gnu` archive: version, doctor, relocation/isolation, semantic fixture, tamper and missing-runtime/library rejection | Pass |
 | extracted `x86_64-unknown-linux-gnu` archive in Docker with `--network none`: version, doctor and semantic-design fixture | Pass (Linux x86_64) |
 | local `install.sh` checksum/doctor/selection seam | Pass |
+| local `install.sh` bad-checksum and doctor-failure retention seam | Pass; prior selected wrapper remains unchanged |
 
 Raw outputs remain in the private `.codex-progress/logs/` folder and are not
 part of the product repository.
