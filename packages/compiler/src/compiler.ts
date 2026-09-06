@@ -482,9 +482,10 @@ export async function compile(
     };
     let boundaryScope = requestedScope;
     let canonicalScopeEntity: string | undefined;
+    let canonicalScopeEntities: readonly string[] | undefined;
     if (
       requestedScope.kind === "component" || requestedScope.kind === "file" ||
-      requestedScope.kind === "location"
+      requestedScope.kind === "location" || requestedScope.kind === "directory"
     ) {
       try {
         const semanticContext = await createSemanticWorkspaceContext({
@@ -494,6 +495,16 @@ export async function compile(
         });
         const matches = requestedScope.kind === "component"
           ? semanticContext.registry.resolve(requestedScope.componentName)
+          : requestedScope.kind === "directory"
+          ? semanticContext.registry.entries.filter((entry) => {
+            const selectedPath = canonicalWorkspacePath(
+              requestedScope.directoryPath,
+              workspace.root,
+            ).replace(/\/$/, "");
+            const viewPath = entry.projectedPath;
+            return viewPath === selectedPath ||
+              viewPath.startsWith(`${selectedPath}/`);
+          })
           : semanticContext.registry.entries.filter((entry) => {
             const selectedPath = canonicalWorkspacePath(
               requestedScope.filePath,
@@ -520,7 +531,7 @@ export async function compile(
                   location.column < form.range.end.column)
             );
           });
-        if (matches.length > 1) {
+        if (matches.length > 1 && requestedScope.kind !== "directory") {
           const selector = requestedScope.kind === "component"
             ? requestedScope.componentName
             : requestedScope.filePath;
@@ -530,6 +541,10 @@ export async function compile(
               matches.map((entry) => entry.entity).join(", ")
             }.`,
           );
+        }
+        if (requestedScope.kind === "directory" && matches.length) {
+          canonicalScopeEntities = matches.map((entry) => entry.entity);
+          boundaryScope = { kind: "workspace" };
         }
         if (matches.length === 1) {
           canonicalScopeEntity = matches[0].entity;
@@ -550,14 +565,15 @@ export async function compile(
               } is not declared at ${requestedScope.declarationPath}.`,
             );
           }
-          boundaryScope =
-            requestedScope.kind === "component" && matches[0].authored
-              ? {
-                kind: "component",
-                componentName: matches[0].authored.name,
-                declarationPath: requestedScope.declarationPath,
-              }
-              : { kind: "workspace" };
+          boundaryScope = requestedScope.kind === "directory"
+            ? { kind: "workspace" }
+            : requestedScope.kind === "component" && matches[0].authored
+            ? {
+              kind: "component",
+              componentName: matches[0].authored.name,
+              declarationPath: requestedScope.declarationPath,
+            }
+            : { kind: "workspace" };
         }
       } catch (error) {
         if (error instanceof CompilerFailure) throw error;
@@ -686,29 +702,36 @@ export async function compile(
           bindings: sourceIntent.bindings,
           componentBindings: storedState?.receipt.componentBindings,
         });
-        const selectedEntry = canonicalScopeEntity
-          ? registry.entryForEntity(canonicalScopeEntity)
-          : undefined;
-        if (canonicalScopeEntity && !selectedEntry) {
+        const selectedEntries = canonicalScopeEntities
+          ? canonicalScopeEntities.map((entity) =>
+            registry.entryForEntity(entity)
+          )
+          : canonicalScopeEntity
+          ? [registry.entryForEntity(canonicalScopeEntity)]
+          : [];
+        if (selectedEntries.some((entry) => !entry)) {
           throw new CompilerFailure(
             "COMPILER_INVALID_INVOCATION",
-            `Canonical semantic component ${canonicalScopeEntity} is not available in the accepted world.`,
+            "A selected canonical semantic component is not available in the accepted world.",
           );
         }
-        selectedIds = selectedEntry
-          ? selectedEntry.authored
-            ? [...registry.entitiesFor(components)]
-            : [selectedEntry.entity]
+        const concreteEntries = selectedEntries.filter((
+          entry,
+        ): entry is NonNullable<typeof entry> => !!entry);
+        selectedIds = concreteEntries.length
+          ? concreteEntries.map((entry) => entry.entity)
           : [...registry.entitiesFor(components)];
-        if (selectedEntry && !selectedEntry.authored) {
+        if (concreteEntries.length === 1 && !concreteEntries[0].authored) {
           target = {
             kind: "component",
-            name: selectedEntry.projected.name,
-            declarationPath: selectedEntry.projected.filePath,
+            name: concreteEntries[0].projected.name,
+            declarationPath: concreteEntries[0].projected.filePath,
           };
-          reportComponents = [selectedEntry.projected];
-        } else if (selectedEntry?.authored) {
-          reportComponents = [selectedEntry.authored];
+          reportComponents = [concreteEntries[0].projected];
+        } else if (concreteEntries.length) {
+          reportComponents = concreteEntries.map((entry) =>
+            entry.authored ?? entry.projected
+          );
         }
         if (
           handoff && (
@@ -997,7 +1020,9 @@ export async function compile(
       runId: opened.runId,
       workspaceRoot: workspace.root,
       target,
-      requestedScope: boundary.requestedScope,
+      // Preserve the caller's physical selector even when managed-view aliases
+      // use a workspace boundary internally.
+      requestedScope,
       selection: boundary.selection,
       componentNames: reportComponents.map((c) => c.name),
       startedAt,

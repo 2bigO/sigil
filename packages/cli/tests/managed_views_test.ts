@@ -161,6 +161,20 @@ Deno.test("CLI installs canonical views and targets an unbound entity", async ()
     );
     assertEquals(report.semanticScope, { entities: ["urn:Extra"] });
     assertEquals(report.componentNames, [extra.componentName]);
+    const directoryReport = await compile(
+      root,
+      { kind: "directory", directoryPath: ".sigil/views" },
+      "standard",
+      { focus: "design" },
+    );
+    assertEquals(directoryReport.target.kind, "workspace");
+    assertEquals(directoryReport.requestedScope, {
+      kind: "directory",
+      directoryPath: ".sigil/views",
+    });
+    assertEquals(directoryReport.semanticScope, {
+      entities: [application, "urn:Extra"].sort(),
+    });
   } finally {
     await Deno.remove(root, { recursive: true });
   }
