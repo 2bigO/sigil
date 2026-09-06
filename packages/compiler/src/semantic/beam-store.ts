@@ -6,6 +6,7 @@ import {
 } from "./artifacts.ts";
 import { validateWorldBeam, type WorldBeamCheckpoint } from "./beam.ts";
 import { digest, SemanticInputError } from "./turtle.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 
 export interface StoredWorldBeam {
   readonly revision: string;
@@ -57,7 +58,7 @@ export async function readWorldBeam(
   }
   let checkpoint: unknown;
   try {
-    checkpoint = JSON.parse(source);
+    checkpoint = parseUniqueJson(source, 16 * 1024 * 1024);
   } catch {
     throw new SemanticInputError(
       "INVALID_BEAM",

@@ -23,6 +23,7 @@ import { RDF_TYPE, SIGIL_ONTOLOGY } from "./ontology.ts";
 import { scopeSemanticWorld } from "./scope.ts";
 import { digest, SemanticInputError, type SemanticWorld } from "./turtle.ts";
 import { TYPESCRIPT_EXTRACTOR_VERSION } from "./typescript7.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 
 export interface HandoffObligation {
   readonly id: string;
@@ -325,7 +326,12 @@ export async function readImplementationHandoff(
       "world.egg",
     ])
   ) invalid("No retained implementation handoff matches this identity.");
-  const raw = JSON.parse(artifact.files["handoff.json"]) as HandoffManifest;
+  let raw: HandoffManifest;
+  try {
+    raw = parseUniqueJson(artifact.files["handoff.json"]) as HandoffManifest;
+  } catch {
+    invalid("Retained handoff manifest is not valid JSON.");
+  }
   if (
     !raw || raw.version !== 1 || raw.analyzer !== "typescript@7.0.2" ||
     raw.extractorVersion !== TYPESCRIPT_EXTRACTOR_VERSION ||
