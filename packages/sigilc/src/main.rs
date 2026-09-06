@@ -1,4 +1,4 @@
-use sigilc::turtle::{CLASSES, ONTOLOGY, vocabulary};
+use sigilc::turtle::{CLASSES, ONTOLOGY, ontology_document, vocabulary};
 use std::{
     io::{self, Write},
     process::ExitCode,
@@ -21,11 +21,7 @@ fn run() -> Result<(), (u8, String)> {
         ["--version"] => format!("sigilc {}\n", env!("CARGO_PKG_VERSION")),
         ["--help"] | ["-h"] => "sigilc — deterministic Semantic Worlds compiler\n\nCommands:\n  ontology [--format text|json]    Export the fixed assertion vocabulary\n\nOptions:\n  --help\n  --version\n".into(),
         ["ontology", "--format", "json"] => {
-            serde_json::to_string_pretty(&serde_json::json!({
-                "version": 1, "namespace": ONTOLOGY,
-                "classes": CLASSES, "predicates": vocabulary(),
-                "numericRange": {"min": 0, "max": 9_007_199_254_740_991_u64, "riskMax": 1},
-            })).map_err(|e| (3, e.to_string()))? + "\n"
+            serde_json::to_string_pretty(&ontology_document()).map_err(|e| (3, e.to_string()))? + "\n"
         },
         ["ontology"] | ["ontology", "--format", "text"] => {
             let properties = vocabulary().into_iter().map(|(name, range)| format!("{name} ({range})")).collect::<Vec<_>>().join(", ");

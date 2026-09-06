@@ -109,6 +109,19 @@ pub fn vocabulary() -> BTreeMap<&'static str, &'static str> {
     .collect()
 }
 
+/// This version changes when the accepted assertion profile becomes incompatible.
+pub fn ontology_document() -> serde_json::Value {
+    serde_json::json!({
+        "version": 1, "namespace": ONTOLOGY,
+        "classes": CLASSES, "predicates": vocabulary(),
+        "numericRange": {"min": 0, "max": 9_007_199_254_740_991_u64, "riskMax": 1},
+    })
+}
+
+pub fn ontology_fingerprint() -> String {
+    hash(&serde_json::to_vec(&ontology_document()).expect("fixed ontology serialization"))
+}
+
 // @sigil implements packages/sigilc/turtle.sigil::SigilTurtleInput::AssertionValidation interface
 pub fn parse(source: &[u8], limits: TurtleLimits) -> Result<Vec<Assertion>, String> {
     if source.len() > limits.max_document_bytes {

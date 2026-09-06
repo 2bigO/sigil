@@ -4,6 +4,19 @@ component SigilSourceIdentity {
   }
 
   interface {
+    SemanticInputs {
+      Bind Implementation to only its captured path and exact bytes, fixed
+      ontology and projection format, and frozen identity-catalog fingerprint.
+      Selection and neighboring source changes do not invalidate that object.
+      Design additionally binds the conservative transitive resolved import
+      closure, frontend structure and version, and applicable config and glossary
+      bytes including absence. Cycles terminate with a visited set. Unresolved
+      imports conservatively bind the entire selected Design set.
+      Recheck frontend source and context bytes against the filesystem before
+      accepting that bundle as a current snapshot. Capture membership separately
+      from the reusable per-source key. No production metadata enters either key.
+    }
+
     SourceSelection {
       Select normalized workspace-relative paths and directories using Sigil
       include and exclude globs. Support arbitrary source extensions. Exclude
