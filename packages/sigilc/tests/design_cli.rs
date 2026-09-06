@@ -58,14 +58,14 @@ const PREFIX: &str =
 #[test]
 fn design_cli_distinguishes_missing_empty_interpreted_and_disjoint_worlds() {
     let root = workspace();
-    let missing = result(&root, &["compile", "design"], 1);
+    let missing = result(&root, &["compile", "design"], 0);
     assert_eq!(missing["world"]["state"], "Loose");
     assert_eq!(missing["all_fresh"], false);
     assert!(missing["catalog"].is_null());
     let stale = result(&root, &["stale", "design"], 1);
     assert_eq!(stale["sources"][0]["status"], "missing");
     publish(&root, "first", "");
-    let empty = result(&root, &["compile", "design"], 1);
+    let empty = result(&root, &["compile", "design"], 0);
     assert_eq!(empty["world"]["state"], "Loose");
     assert_eq!(empty["all_fresh"], true);
     let provisional = result(&root, &["entities"], 0);

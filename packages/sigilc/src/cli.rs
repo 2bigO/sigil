@@ -227,10 +227,9 @@ pub fn run(args: &[&str]) -> Output {
                 }
             } else {
                 json(
-                    if report.world.state == DesignState::Coherent {
-                        0
-                    } else {
-                        1
+                    match report.world.state {
+                        DesignState::Coherent | DesignState::Loose => 0,
+                        DesignState::Disjoint => 1,
                     },
                     &report,
                 )
@@ -257,7 +256,7 @@ fn run_implementation(
     .map_err(runtime)?;
     let Some(frozen) = &design.catalog else {
         return json(
-            1,
+            3,
             &serde_json::json!({"version":1,"design":design,"implementation":null,"comparison":null,"reason":"current Design catalog unavailable"}),
         );
     };
@@ -346,10 +345,12 @@ fn run_implementation(
         limits,
     )
     .map_err(runtime)?;
-    let code = if comparison.implementation == Some(comparison::ImplementationState::Closed) {
-        0
-    } else {
-        1
+    let code = match comparison.implementation {
+        Some(
+            comparison::ImplementationState::Closed | comparison::ImplementationState::Converged,
+        ) => 0,
+        Some(comparison::ImplementationState::Drift) => 1,
+        None => 3,
     };
     json(
         code,

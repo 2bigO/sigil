@@ -44,8 +44,9 @@ Labels retain RDF datatype and language. Catalog aliases come only from the
 language frontend, not model assertions. Identity matching alone does not prove
 that a worker described the source faithfully.
 
-Reports are JSON. `compile design` returns exit 0 for Coherent and 1 for Loose
-or Disjoint; `stale` returns 1 if work remains. `entities` returns exit 0 with a
+Reports are JSON. `compile design` returns exit 0 for Coherent (green) or Loose
+(yellow with warnings), and 1 for Disjoint (red). `stale` returns 1 if work remains.
+`entities` returns exit 0 with a
 provisional or authoritative catalog, or 1 with no catalog when Design is stale
 or Disjoint. Invalid options return 2. Input/I/O/runtime failures return 3 and
 no completed report. `--limits FILE` on compile/entities reads the closed native
@@ -74,7 +75,9 @@ cache/build trees are always excluded. A selection controls world membership;
 it does not add dependencies to per-file Implementation keys.
 
 Both `compile implementation` and `compare` report independently compiled worlds
-and their fixed-kernel comparison. Closed exits 0; Converged or Drift exits 1.
-Missing/stale or Disjoint Design prevents a usable catalog and returns exit 1
-with no Implementation comparison. These states do not establish delivery,
+and their fixed-kernel comparison. Closed (green) and Converged (yellow with
+warnings) exit 0; Drift (red) exits 1. Missing/stale or Disjoint Design prevents
+a usable catalog and returns exit 3 with Implementation and comparison unset;
+the JSON explains the unavailable prerequisite. Inspection and operational exit
+codes do not denote semantic colors. These states do not establish delivery,
 test success or fidelity of external reconstruction.

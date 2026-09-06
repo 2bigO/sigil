@@ -27,8 +27,8 @@ fn run(root: &Workspace, args: &[&str], expected: i32) -> Value {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    if expected >= 2 {
-        assert!(out.stdout.is_empty());
+    if out.stdout.is_empty() {
+        assert!(expected >= 2);
         Value::Null
     } else {
         serde_json::from_slice(&out.stdout).unwrap()
@@ -66,13 +66,13 @@ fn publish(root: &Workspace, side: &str, out: &str, body: &str) {
 fn independent_cli_moves_from_unknown_to_closed_and_detects_relationship_only_drift() {
     let root = workspace();
     publish(&root, "design", "design1", ":A s:provides :B .");
-    let missing = run(&root, &["compare", "--selection", "selection.json"], 1);
+    let missing = run(&root, &["compare", "--selection", "selection.json"], 0);
     assert_eq!(missing["comparison"]["implementation"], "Converged");
     publish(&root, "implementation", "empty", "");
     let empty = run(
         &root,
         &["compile", "implementation", "--selection", "selection.json"],
-        1,
+        0,
     );
     assert_eq!(empty["comparison"]["implementation"], "Converged");
     assert_eq!(empty["implementation"]["all_fresh"], true);
@@ -84,9 +84,25 @@ fn independent_cli_moves_from_unknown_to_closed_and_detects_relationship_only_dr
     );
     let closed = run(&root, &["compare", "--selection", "selection.json"], 0);
     assert_eq!(closed["comparison"]["implementation"], "Closed");
+    assert_eq!(
+        run(
+            &root,
+            &["compile", "implementation", "--selection", "selection.json"],
+            0
+        )["comparison"]["implementation"],
+        "Closed"
+    );
     publish(&root, "design", "design2", ":A s:excludes :B .");
     let drift = run(&root, &["compare", "--selection", "selection.json"], 1);
     assert_eq!(drift["comparison"]["implementation"], "Drift");
+    assert_eq!(
+        run(
+            &root,
+            &["compile", "implementation", "--selection", "selection.json"],
+            1
+        )["comparison"]["implementation"],
+        "Drift"
+    );
     assert_eq!(
         closed["implementation"]["input_fingerprint"],
         drift["implementation"]["input_fingerprint"]
@@ -99,7 +115,7 @@ fn independent_cli_moves_from_unknown_to_closed_and_detects_relationship_only_dr
         1,
     );
     assert_eq!(stale["sources"][0]["status"], "modified");
-    let unknown = run(&root, &["compare", "--selection", "selection.json"], 1);
+    let unknown = run(&root, &["compare", "--selection", "selection.json"], 0);
     assert_eq!(unknown["comparison"]["implementation"], "Converged");
 }
 
@@ -192,9 +208,18 @@ fn missing_design_catalog_never_prepares_or_compares_implementation() {
             "--out",
             "worker",
         ],
-        1,
+        3,
     );
     assert!(result["implementation"].is_null());
     assert!(!root.0.join("worker").exists());
-    assert!(run(&root, &["compare", "--selection", "selection.json"], 1)["comparison"].is_null());
+    assert!(run(&root, &["compare", "--selection", "selection.json"], 3)["comparison"].is_null());
+    publish(&root, "design", "disjoint", ":A s:uses :B; s:excludes :B .");
+    let unavailable = run(
+        &root,
+        &["compile", "implementation", "--selection", "selection.json"],
+        3,
+    );
+    assert_eq!(unavailable["design"]["world"]["state"], "Disjoint");
+    assert!(unavailable["implementation"].is_null());
+    assert!(unavailable["comparison"].is_null());
 }

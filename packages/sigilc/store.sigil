@@ -20,7 +20,10 @@ component SigilProjectionStore {
       before ingesting Implementation. Accept an explicit source selection for
       stale inspection and comparison. Compile each world independently, then
       compare Design obligations with Implementation closure in the fixed matcher.
-      Missing current Design catalog leaves comparison unavailable.
+      Completed Closed is green and Converged is yellow with warnings; both exit
+      zero. Drift is red and exits one. Apply this mapping to compile
+      implementation and compare. Missing current Design catalog leaves
+      comparison unavailable, exits three, and never reports Drift.
     }
 
     CurrentImplementation {
@@ -39,8 +42,12 @@ component SigilProjectionStore {
       writes only bound Design context, fixed ontology and a job descriptor into
       a new caller-selected directory; refuse to overwrite existing directories.
       Ingestion checks the job source and current inputs before publication.
-      Report completed Loose or Disjoint with exit one, invalid options with two,
-      and operational failure without a semantic result with three.
+      Compile Design exits zero for Coherent (green) or Loose (yellow with
+      warnings), and one only for Disjoint (red). Invalid options exit two;
+      operational failure without a completed semantic result exits three.
+      Inspection exits are command-specific: stale returns one for nonfresh
+      sources, and entities returns one when no current catalog is available.
+      Neither inspection exit is a semantic color.
       No provider, model or automatic repair options exist.
     }
 
