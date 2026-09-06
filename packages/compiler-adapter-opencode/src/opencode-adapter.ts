@@ -20,6 +20,15 @@ import {
   validateAgentEvaluationResult,
 } from "@qoherent/sigil-compiler";
 import metadata from "../deno.json" with { type: "json" };
+import { BundledSemanticProvider } from "@qoherent/sigil-compiler";
+export class OpenCodeSemanticProvider extends BundledSemanticProvider {
+  constructor(
+    model?: string,
+    options: { readonly command?: string; readonly timeoutMs?: number } = {},
+  ) {
+    super({ kind: "opencode", model, ...options });
+  }
+}
 
 export type OpenCodeCommandRunner = (
   invocation: AdapterSubprocessInvocation,

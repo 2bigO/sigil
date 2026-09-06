@@ -3,6 +3,8 @@ import {
   coordinateAdapterExecution,
 } from "../adapter-execution-coordinator.ts";
 import {
+  type AdapterSubprocessInvocation,
+  type AdapterSubprocessResult,
   createAdapterSubprocessHandle,
   runAdapterSubprocess,
 } from "../adapter-subprocess.ts";
@@ -23,6 +25,10 @@ import {
   serializeSemanticWorld,
   worldFromFacts,
 } from "./turtle.ts";
+import {
+  decodeProposalEnvelope,
+  decodeQuestionEnvelope,
+} from "./proposal-protocol.ts";
 
 export interface ProposalRequest {
   readonly purpose: "interpret-intent" | "render-question";
@@ -58,10 +64,6 @@ export interface IntentSearchResult {
   };
 }
 
-function object(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
-}
-
 function invalid(message: string): never {
   throw new SemanticInputError("INVALID_PROPOSAL", message);
 }
@@ -71,39 +73,15 @@ export function decodeWorldProposals(
   baseFingerprint: string,
   maxCandidates = 4,
 ): readonly WorldCandidate[] {
-  if (source.length > 4 * 1024 * 1024) {
-    invalid("Proposal output exceeds its size limit.");
-  }
-  let value: unknown;
-  try {
-    value = JSON.parse(source);
-  } catch {
-    invalid(
-      "Proposal output must be a JSON envelope containing Turtle patches.",
-    );
-  }
-  if (
-    !object(value) || value.version !== 1 || !Array.isArray(value.candidates) ||
-    Object.keys(value).some((key) =>
-      !["version", "candidates"].includes(key)
-    ) ||
-    value.candidates.length < 1 || value.candidates.length > maxCandidates
-  ) {
+  const value = decodeProposalEnvelope(source);
+  if (value.candidates.length > maxCandidates) {
     invalid(
       `Expected version 1 with between 1 and ${maxCandidates} Turtle candidates.`,
     );
   }
   const identities = new Set<string>();
   return value.candidates.map((candidate) => {
-    if (
-      !object(candidate) || typeof candidate.id !== "string" ||
-      !candidate.id.trim() || candidate.id.length > 128 ||
-      typeof candidate.additions !== "string" ||
-      typeof candidate.retractions !== "string" ||
-      Object.keys(candidate).some((key) =>
-        !["id", "additions", "retractions"].includes(key)
-      ) || identities.has(candidate.id)
-    ) {
+    if (identities.has(candidate.id)) {
       invalid(
         "Each candidate needs a unique id, additions Turtle and retractions Turtle, with no other fields.",
       );
@@ -226,26 +204,7 @@ export async function proposeSemanticIntent(
           }),
         ].join("\n\n"),
       });
-      let value: unknown;
-      try {
-        value = JSON.parse(raw);
-      } catch {
-        invalid("Question rendering must return JSON.");
-      }
-      if (
-        !object(value) || value.version !== 1 ||
-        value.factId !== proposition.fact.id ||
-        typeof value.question !== "string" ||
-        !value.question.trim() || value.question.length > 2000 ||
-        Object.keys(value).some((key) =>
-          !["version", "factId", "question"].includes(key)
-        )
-      ) {
-        invalid(
-          "Question renderer changed the proposition identity or returned invalid text.",
-        );
-      }
-      text = value.question;
+      text = decodeQuestionEnvelope(raw, proposition.fact.id).question;
     }
     // Always retain the exact machine proposition alongside the untrusted wording.
     question = {
@@ -276,6 +235,17 @@ export interface CommandProposalOptions {
   readonly identity?: string;
 }
 
+export interface BundledSemanticProviderOptions {
+  readonly kind: "codex" | "claude" | "pi" | "opencode";
+  readonly command?: string;
+  readonly model?: string;
+  readonly timeoutMs?: number;
+  /** Injectable transport used by tests; production uses runAdapterSubprocess. */
+  readonly runner?: (
+    invocation: AdapterSubprocessInvocation,
+  ) => Promise<AdapterSubprocessResult>;
+}
+
 /** Stdin prompt / stdout JSON provider, reusing Sigil's bounded process lifecycle. */
 export class CommandSemanticProvider implements SemanticProposalProvider {
   readonly identity: string;
@@ -293,7 +263,7 @@ export class CommandSemanticProvider implements SemanticProposalProvider {
     // a checkout to edit. This directory is operational state and is always removed.
     const cwd = await Deno.makeTempDir({ prefix: "sigil-proposal-" });
     const handle = createAdapterSubprocessHandle(this.identity);
-    let outputChars = 0;
+    let outputBytes = 0;
     let stdout = "";
     try {
       return await coordinateAdapterExecution({
@@ -317,11 +287,11 @@ export class CommandSemanticProvider implements SemanticProposalProvider {
             maxInitialRequestChars: 4 * 1024 * 1024,
             maxProviderFrameChars: 4 * 1024 * 1024,
             onFrame(frame) {
-              outputChars += frame.text.length;
-              if (outputChars > 4 * 1024 * 1024) {
+              outputBytes += new TextEncoder().encode(frame.text).length;
+              if (outputBytes > 4 * 1024 * 1024) {
                 throw new AdapterFailure(
                   "operational-limit",
-                  "Proposal output exceeds its total character limit.",
+                  "Proposal output exceeds its total byte limit.",
                 );
               }
               if (frame.channel === "stdout") stdout += frame.text;
@@ -334,4 +304,189 @@ export class CommandSemanticProvider implements SemanticProposalProvider {
       await Deno.remove(cwd, { recursive: true });
     }
   }
+}
+
+/** Native proposal transport shared by the bundled provider adapters. */
+export class BundledSemanticProvider implements SemanticProposalProvider {
+  readonly identity: string;
+  constructor(readonly options: BundledSemanticProviderOptions) {
+    this.identity = `builtin.${options.kind}${
+      options.model ? `:${options.model}` : ""
+    }`;
+  }
+  async generate(request: ProposalRequest): Promise<string> {
+    request.signal?.throwIfAborted();
+    const timeoutMs = this.options.timeoutMs ?? 120_000;
+    if (
+      !Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 ||
+      timeoutMs > 2_147_483_647
+    ) throw new Error("Invalid proposal execution timeout.");
+    const cwd = await Deno.makeTempDir({ prefix: "sigil-proposal-" });
+    const handle = createAdapterSubprocessHandle(this.identity);
+    let stdout = "";
+    let stderr = "";
+    try {
+      return await coordinateAdapterExecution({
+        elapsedOrigin: performance.now(),
+        elapsedTimeMs: timeoutMs,
+        providerCleanupMs: 3000,
+        implementationIdentity: this.identity,
+        handle,
+        signal: request.signal,
+        invoke: async (signal, resources, terminationControl) => {
+          const command = this.options.command ?? this.options.kind;
+          const args = this.options.kind === "codex"
+            ? [
+              "exec",
+              "--ephemeral",
+              "--sandbox",
+              "read-only",
+              "--json",
+              ...(this.options.model ? ["--model", this.options.model] : []),
+              "-",
+            ]
+            : this.options.kind === "claude"
+            ? [
+              "--print",
+              "--output-format",
+              "stream-json",
+              "--no-session-persistence",
+              ...(this.options.model ? ["--model", this.options.model] : []),
+            ]
+            : this.options.kind === "pi"
+            ? [
+              "--print",
+              "--mode",
+              "json",
+              "--no-session",
+              ...(this.options.model ? ["--model", this.options.model] : []),
+            ]
+            : [
+              "run",
+              "--format",
+              "json",
+              ...(this.options.model ? ["--model", this.options.model] : []),
+            ];
+          const runner = this.options.runner ?? runAdapterSubprocess;
+          const result = await runner({
+            implementationIdentity: this.identity,
+            command,
+            args,
+            cwd,
+            input: request.prompt,
+            signal,
+            handle,
+            resources,
+            terminationControl,
+            maxInitialRequestChars: 4 * 1024 * 1024,
+            maxProviderFrameChars: 4 * 1024 * 1024,
+            onFrame(frame) {
+              const next = frame.channel === "stdout"
+                ? stdout + frame.text
+                : stderr + frame.text;
+              if (new TextEncoder().encode(next).length > 4 * 1024 * 1024) {
+                throw new AdapterFailure(
+                  "operational-limit",
+                  "Proposal provider output exceeds 4 MiB.",
+                );
+              }
+              if (frame.channel === "stdout") stdout = next;
+              else stderr = next;
+            },
+          });
+          if (!stdout && result.stdout) stdout = result.stdout;
+          if (!stderr && result.stderr) stderr = result.stderr;
+          if (stderr && !stdout) throw new AdapterFailure("process", stderr);
+          return extractBundledPayload(stdout, this.options.kind);
+        },
+      });
+    } finally {
+      await Deno.remove(cwd, { recursive: true });
+    }
+  }
+}
+
+function extractBundledPayload(
+  raw: string,
+  kind: BundledSemanticProviderOptions["kind"],
+): string {
+  const trimmed = raw.trim();
+  try {
+    const direct = JSON.parse(trimmed);
+    if (
+      direct && typeof direct === "object" && !Array.isArray(direct) &&
+      direct.version === 1
+    ) return trimmed;
+  } catch { /* event stream below */ }
+  const payloads: string[] = [];
+  let terminal = 0;
+  for (const line of raw.split(/\r?\n/).filter(Boolean)) {
+    let event: Record<string, unknown>;
+    try {
+      const value = JSON.parse(line);
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new Error("event");
+      }
+      event = value as Record<string, unknown>;
+    } catch {
+      throw new AdapterFailure(
+        "final-result-protocol",
+        "Bundled provider emitted a non-JSON event.",
+      );
+    }
+    if (
+      ["tool_use", "tool_call", "command_execution", "tool_result"].includes(
+        String(event.type),
+      )
+    ) {
+      throw new AdapterFailure(
+        "final-result-protocol",
+        "Bundled proposal provider emitted a tool event.",
+      );
+    }
+    if (kind === "codex" && event.type === "item.completed") {
+      const item = event.item as Record<string, unknown> | undefined;
+      if (item?.type === "agent_message" && typeof item.text === "string") {
+        payloads.push(item.text);
+      }
+    } else if (kind === "claude" && event.type === "result") {
+      terminal++;
+      if (event.subtype !== "success" || event.is_error === true) {
+        throw new AdapterFailure(
+          "execution",
+          "Claude proposal turn was unsuccessful.",
+        );
+      }
+      if (
+        typeof event.structured_output === "object" && event.structured_output
+      ) payloads.push(JSON.stringify(event.structured_output));
+      else if (typeof event.result === "string") payloads.push(event.result);
+    } else if (kind === "pi" && event.type === "message_end") {
+      const message = event.message as Record<string, unknown> | undefined;
+      if (
+        message?.role === "assistant" && typeof message.content === "string"
+      ) payloads.push(message.content);
+      terminal++;
+    } else if (
+      kind === "opencode" &&
+      (event.type === "message" || event.type === "assistant")
+    ) {
+      const text = typeof event.text === "string"
+        ? event.text
+        : typeof event.content === "string"
+        ? event.content
+        : undefined;
+      if (text) payloads.push(text);
+      if (event.finished === true || event.type === "assistant") terminal++;
+    } else if (event.type === "turn.completed" || event.type === "result") {
+      terminal++;
+    }
+  }
+  if (payloads.length !== 1 || terminal !== 1) {
+    throw new AdapterFailure(
+      "final-result-protocol",
+      "Bundled provider did not emit exactly one successful terminal proposal.",
+    );
+  }
+  return payloads[0];
 }

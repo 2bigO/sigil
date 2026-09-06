@@ -25,6 +25,15 @@ import {
   validateExecutionBudgets,
 } from "@qoherent/sigil-compiler";
 import metadata from "../deno.json" with { type: "json" };
+import { BundledSemanticProvider } from "@qoherent/sigil-compiler";
+export class CodexSemanticProvider extends BundledSemanticProvider {
+  constructor(
+    model?: string,
+    options: { readonly command?: string; readonly timeoutMs?: number } = {},
+  ) {
+    super({ kind: "codex", model, ...options });
+  }
+}
 
 export class CodexAdapter implements AgentAdapter {
   readonly provider = "codex" as const;
