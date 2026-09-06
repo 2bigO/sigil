@@ -106,6 +106,7 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
+          docker pull ubuntu:24.04
           version="$INPUT_VERSION"
           if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
           docker run --rm --network none \
