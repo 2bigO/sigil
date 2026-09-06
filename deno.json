@@ -38,6 +38,7 @@
     "test": "deno task test:core && deno task test:compiler && deno task test:compiler-adapter-opencode && deno task test:compiler-adapter-pi && deno task test:compiler-adapter-claude && deno task test:compiler-adapter-codex && deno task test:cli && deno task test:lsp && deno task test:vscode && deno task test:vscode:extension && deno task test:skill",
     "package:vscode": "deno run --allow-read --allow-run scripts/ensure-vscode-deps.ts && npm --prefix integrations/editor/vscode run package",
     "package:cli": "deno run --allow-read --allow-write --allow-run scripts/build-cli-release.ts",
+    "test:published-runtime": "deno run --allow-read --allow-write --allow-run --allow-env scripts/test-published-runtime.ts",
     "publish:dry-run": "deno task --cwd packages/core publish:dry-run && deno task --cwd packages/compiler publish:dry-run && deno task --cwd packages/compiler-adapter-opencode publish:dry-run && deno task --cwd packages/compiler-adapter-pi publish:dry-run && deno task --cwd packages/compiler-adapter-claude publish:dry-run && deno task --cwd packages/compiler-adapter-codex publish:dry-run && deno task --cwd packages/cli publish:dry-run && deno task --cwd packages/lsp publish:dry-run && deno task package:vscode"
   }
 }

@@ -1465,6 +1465,21 @@ publish-content/consumer fixture that imports the staged package and verifies
 the explicit-runtime path. Missing native runtime must produce a precise setup
 error rather than an attempted path inside a JSR cache.
 
+The repository fixture is `scripts/fixtures/published-consumer/consumer.ts` and
+its harness is `scripts/test-published-runtime.ts`. Run it against an extracted
+runtime bundle with:
+
+```sh
+deno task test:published-runtime \
+  --runtime /path/to/sigil-<version>/lib/sigil/runtime
+```
+
+The harness copies only the publishable Core and Compiler contents to a
+temporary staged package, imports the Compiler through its package name, proves
+that an omitted runtime is rejected, then proves that the explicit directory
+passes the native handshake and TypeScript doctor checks. It deletes the
+temporary stage when the command exits.
+
 The VS Code VSIX continues shipping the Node language server and invoking an
 external compatible Sigil CLI. Do not ship another egglog/TypeScript native
 runtime inside the VSIX. Validate compatibility through CLI version/doctor
@@ -1864,6 +1879,7 @@ deno task test:lsp
 deno task test:skill
 deno task test:vscode
 deno task test:vscode:extension
+deno task test:published-runtime --runtime /path/to/sigil-<version>/lib/sigil/runtime
 ```
 
 Install the extension's locked development dependencies through the existing
