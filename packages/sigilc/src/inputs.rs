@@ -150,33 +150,11 @@ impl DesignSnapshot {
             .sources
             .get(source)
             .ok_or_else(|| format!("Design source not selected: {source}"))?;
-        let mut closure = BTreeSet::new();
-        let mut pending = vec![source];
-        // Missing graph edges cannot justify narrower importer reuse.
-        if self
-            .input
-            .imports
-            .iter()
-            .any(|i| i.target.is_none() || i.names.iter().any(|n| n.entity.is_none()))
-        {
-            pending.extend(self.sources.keys().map(String::as_str));
-        }
-        while let Some(path) = pending.pop() {
-            if !closure.insert(path) {
-                continue;
-            }
-            for import in &self.input.imports {
-                if import.source == path
-                    && let Some(target) = &import.target
-                {
-                    pending.push(target);
-                }
-            }
-        }
+        let closure = crate::scope::design_membership(&self.input, [source]).sources;
         let dependencies = closure
             .iter()
-            .filter(|p| **p != source)
-            .map(|p| self.sources[*p].clone())
+            .filter(|p| p.as_str() != source)
+            .map(|p| self.sources[p].clone())
             .collect();
         let structure = hash(
             &serde_json::to_vec(&(
