@@ -17,6 +17,8 @@ Deno.test("runtime manifest resolution validates every staged payload", async ()
     await Deno.mkdir(`${root}/typescript`, { recursive: true });
     await Deno.writeTextFile(`${root}/egglog/sigil-semantic-engine`, "engine");
     await Deno.writeTextFile(`${root}/typescript/tsc`, "tsc");
+    await Deno.chmod(`${root}/egglog/sigil-semantic-engine`, 0o755);
+    await Deno.chmod(`${root}/typescript/tsc`, 0o755);
     const files = [
       ["egglog/sigil-semantic-engine", "engine", true],
       ["typescript/tsc", "tsc", true],

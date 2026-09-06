@@ -1,6 +1,7 @@
 import { RDF_TYPE, SEMANTIC_PREDICATES, SIGIL_ONTOLOGY } from "./ontology.ts";
 import { resourceId, type SemanticWorld } from "./turtle.ts";
 import { resolveSemanticRuntime, validateRuntimeHandshake } from "./runtime.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 
 export interface LoweredFact {
   readonly relation: "kind" | "edge" | "boolean" | "number" | "text";
@@ -127,29 +128,64 @@ async function verifyRuntimeHandshake(
     stdout: "piped",
     stderr: "piped",
   }).spawn();
+  const stop = () => {
+    try {
+      child.kill("SIGKILL");
+    } catch { /* already exited */ }
+  };
+  signal?.addEventListener("abort", stop, { once: true });
   const input = new TextEncoder().encode('{"version":1,"runtime_info":true}');
-  const writer = child.stdin.getWriter();
   try {
-    await writer.write(input);
-    await writer.close();
-  } finally {
-    writer.releaseLock();
-  }
-  const [stdout, stderr, status] = await Promise.all([
-    boundedOutput(child.stdout, 1024 * 1024),
-    boundedOutput(child.stderr, 1024 * 1024),
-    child.status,
-  ]);
-  signal?.throwIfAborted();
-  if (!status.success) {
-    throw new Error(
-      `Native runtime handshake failed: ${new TextDecoder().decode(stderr)}`,
+    const writer = child.stdin.getWriter();
+    const guard = <T>(operation: Promise<T>): Promise<T> =>
+      operation.catch((error) => {
+        stop();
+        throw error;
+      });
+    const results = await Promise.allSettled(
+      [
+        guard((async () => {
+          try {
+            await writer.write(input);
+            await writer.close();
+          } finally {
+            writer.releaseLock();
+          }
+        })()),
+        guard(boundedOutput(child.stdout, 1024 * 1024)),
+        guard(boundedOutput(child.stderr, 1024 * 1024)),
+        guard(child.status),
+      ] as const,
     );
+    signal?.throwIfAborted();
+    const [write, stdout, stderr, status] = results;
+    if (
+      write.status !== "fulfilled" || stdout.status !== "fulfilled" ||
+      stderr.status !== "fulfilled" || status.status !== "fulfilled"
+    ) {
+      const failure = results.find((result) => result.status === "rejected");
+      throw failure?.status === "rejected"
+        ? failure.reason
+        : new Error("Native runtime handshake I/O did not settle.");
+    }
+    if (!status.value.success) {
+      throw new Error(
+        `Native runtime handshake failed: ${
+          new TextDecoder().decode(stderr.value)
+        }`,
+      );
+    }
+    validateRuntimeHandshake(new TextDecoder().decode(stdout.value), {
+      engineProtocolVersion: 1,
+      kernelFingerprint,
+    });
+  } catch (error) {
+    stop();
+    throw error;
+  } finally {
+    signal?.removeEventListener("abort", stop);
+    if (signal?.aborted) stop();
   }
-  validateRuntimeHandshake(new TextDecoder().decode(stdout), {
-    engineProtocolVersion: 1,
-    kernelFingerprint,
-  });
 }
 
 /** Validate every fixed table before any absence can be interpreted as success. */
@@ -157,7 +193,7 @@ export function decodeClosureResponse(source: string): ClosureResult {
   if (new TextEncoder().encode(source).length > IPC_LIMIT) {
     throw new Error("Semantic engine response exceeds the 16 MiB limit.");
   }
-  const raw: unknown = JSON.parse(source);
+  const raw: unknown = parseUniqueJson(source, IPC_LIMIT);
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new Error("Invalid egglog engine response.");
   }

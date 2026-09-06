@@ -2,12 +2,14 @@ import { resolve } from "node:path";
 import {
   artifactJson,
   atomicCompileFile,
+  type CompileArtifactLockOptions,
   initializeCompileArtifacts,
   isFingerprint,
   readCompileArtifact,
   withCompileArtifactLock,
   writeCompileArtifact,
 } from "./artifacts.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 import { parseEggWorld, serializeEggWorld } from "./egg-world.ts";
 import type { SemanticEngineOptions } from "./engine.ts";
 import {
@@ -103,9 +105,29 @@ async function readJson(path: string): Promise<unknown | undefined> {
         "Semantic state metadata must be a bounded regular file.",
       );
     }
-    return JSON.parse(await Deno.readTextFile(path));
+    const bytes = await Deno.readFile(path);
+    if (bytes.length > 1024 * 1024) {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "Semantic state metadata exceeds its byte limit.",
+      );
+    }
+    let source: string;
+    try {
+      source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      throw new SemanticInputError(
+        "INVALID_SEMANTIC_STATE",
+        "Semantic state metadata is not valid UTF-8.",
+      );
+    }
+    return parseUniqueJson(source, 1024 * 1024);
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) return;
+    if (error instanceof SemanticInputError) {
+      if (error.code === "INVALID_SEMANTIC_STATE") throw error;
+      throw new SemanticInputError("INVALID_SEMANTIC_STATE", error.message);
+    }
     if (error instanceof SyntaxError) {
       throw new SemanticInputError(
         "INVALID_SEMANTIC_STATE",
@@ -193,6 +215,7 @@ export async function writeSemanticState(
   root: string,
   state: Omit<StoredSemanticState, "revision">,
   expectedRevision?: string,
+  options: { readonly lock?: CompileArtifactLockOptions } = {},
 ): Promise<StoredSemanticState> {
   const receipt = receiptV2(validateReceipt(state.receipt));
   const assertions = serializeEggWorld(state.world);
@@ -230,7 +253,7 @@ export async function writeSemanticState(
       artifactJson({ version: 1, revision: artifact.id }),
     );
     return { world, receipt, revision: artifact.id };
-  });
+  }, options.lock);
 }
 
 export interface SemanticStateMigrationResult {
@@ -251,6 +274,7 @@ export async function migrateSemanticState(
     readonly write?: boolean;
     readonly expectedRevision?: string;
     readonly engine?: SemanticEngineOptions;
+    readonly lock?: CompileArtifactLockOptions;
   } = {},
 ): Promise<SemanticStateMigrationResult> {
   const current = await readSemanticState(root, options.engine);
@@ -284,10 +308,15 @@ export async function migrateSemanticState(
       assertionFingerprint: assertionHash,
     };
   }
-  const candidate = await writeSemanticState(root, {
-    world: current.world,
-    receipt: migratedReceipt,
-  }, options.expectedRevision);
+  const candidate = await writeSemanticState(
+    root,
+    {
+      world: current.world,
+      receipt: migratedReceipt,
+    },
+    options.expectedRevision,
+    { lock: options.lock },
+  );
   const afterAssertions = serializeEggWorld(candidate.world);
   if (
     afterAssertions !== beforeAssertions ||

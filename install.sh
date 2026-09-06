@@ -49,8 +49,12 @@ if [ -z "${tmp:-}" ]; then tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT HUP INT
 tar -tzf "$archive" | while IFS= read -r entry; do
   case "$entry" in
     /*|../*|*/../*|*"/.."|*"//"*) fail "archive contains an unsafe path: $entry" ;;
+    sigil-$VERSION|sigil-$VERSION/*) ;;
+    *) fail "archive contains an unexpected top-level path: $entry" ;;
   esac
 done
+link_entry="$(tar -tvzf "$archive" | awk 'substr($0,1,1) == "l" || substr($0,1,1) == "h" { print; exit }')"
+[ -z "$link_entry" ] || fail "archive contains a symbolic link: $link_entry"
 tar -xzf "$archive" -C "$tmp"
 source_dir="$tmp/sigil-$VERSION"
 [ -d "$source_dir" ] || fail "archive does not contain sigil-$VERSION"

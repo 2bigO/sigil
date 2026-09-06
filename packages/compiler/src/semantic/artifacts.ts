@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { digest, SemanticInputError } from "./turtle.ts";
+import { parseUniqueJson } from "./proposal-protocol.ts";
 
 export const COMPILE_ARTIFACT_KINDS = [
   "world",
@@ -323,7 +324,7 @@ export async function readCompileArtifact(
   }
   let parsed: unknown;
   try {
-    parsed = JSON.parse(source);
+    parsed = parseUniqueJson(source, 1024 * 1024);
   } catch {
     invalid("Artifact manifest is not valid JSON.");
   }

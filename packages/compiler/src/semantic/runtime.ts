@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   decodeRuntimeInfo,
@@ -75,6 +75,8 @@ export async function resolveSemanticRuntime(
   if (options.binaryPath) {
     return { mode: "explicit", engineExecutable: options.binaryPath };
   }
+  const executable = await standaloneRoot();
+  const identity = standaloneIdentity();
   let environmentOverride: string | undefined;
   try {
     environmentOverride = Deno.env.get("SIGIL_RUNTIME_DIR");
@@ -82,11 +84,19 @@ export async function resolveSemanticRuntime(
     // Library callers may intentionally omit environment permission.
   }
   const override = options.runtimeDirectory ?? environmentOverride;
+  // A compiled CLI may relocate its validated bundle through the environment,
+  // but the relocation must carry the exact embedded manifest identity.
+  if (identity && executable && override) {
+    return await loadRuntime(
+      override,
+      "standalone",
+      identity.sigilVersion,
+      identity,
+    );
+  }
   if (override) {
     return await loadRuntime(override, "explicit", options.sigilVersion);
   }
-  const executable = await standaloneRoot();
-  const identity = standaloneIdentity();
   if (identity && executable) {
     return await loadRuntime(
       executable,
@@ -131,7 +141,13 @@ async function loadRuntime(
   sigilVersion?: string,
   identity?: { manifestHash: string; sigilVersion: string; target: string },
 ): Promise<SemanticRuntime> {
-  const manifestPath = join(root, "manifest.json");
+  const runtimeRoot = resolve(root);
+  const rootStat = await Deno.lstat(runtimeRoot);
+  if (!rootStat.isDirectory || rootStat.isSymlink) {
+    throw new Error("Native runtime root must be a real directory.");
+  }
+  const physicalRoot = await Deno.realPath(runtimeRoot);
+  const manifestPath = join(runtimeRoot, "manifest.json");
   const manifestStat = await Deno.lstat(manifestPath);
   if (
     manifestStat.isSymlink || !manifestStat.isFile ||
@@ -157,6 +173,15 @@ async function loadRuntime(
   }
   validateRuntimeManifest(raw);
   const manifest = raw;
+  const windows = Deno.build.os === "windows";
+  if (
+    manifest.egglogPath.endsWith(".exe") !== windows ||
+    manifest.typescriptPath.endsWith(".exe") !== windows
+  ) {
+    throw new Error(
+      "Native runtime executable suffix does not match this host.",
+    );
+  }
   if (sigilVersion && manifest.sigilVersion !== sigilVersion) {
     throw new Error("Native runtime Sigil version does not match the CLI.");
   }
@@ -172,11 +197,26 @@ async function loadRuntime(
   }
   let payloadBytes = 0;
   for (const file of manifest.files) {
-    const path = join(root, ...file.path.split("/"));
+    const path = join(runtimeRoot, ...file.path.split("/"));
+    let parent = runtimeRoot;
+    for (const part of file.path.split("/")) {
+      parent = join(parent, part);
+      const partStat = await Deno.lstat(parent);
+      if (partStat.isSymlink) {
+        throw new Error(
+          `Native runtime path cannot contain a symlink: ${file.path}`,
+        );
+      }
+    }
     const stat = await Deno.lstat(path);
     if (stat.isSymlink || !stat.isFile) {
       throw new Error(
         `Native runtime file failed integrity validation: ${file.path}`,
+      );
+    }
+    if (!windows && file.executable && !(stat.mode && (stat.mode & 0o111))) {
+      throw new Error(
+        `Native runtime executable is not marked executable: ${file.path}`,
       );
     }
     payloadBytes += stat.size;
@@ -190,14 +230,17 @@ async function loadRuntime(
       );
     }
   }
-  const engineExecutable = join(root, ...manifest.egglogPath.split("/"));
+  const engineExecutable = join(
+    runtimeRoot,
+    ...manifest.egglogPath.split("/"),
+  );
   const typescriptExecutable = join(
-    root,
+    runtimeRoot,
     ...manifest.typescriptPath.split("/"),
   );
   return {
     mode,
-    root,
+    root: physicalRoot,
     manifest,
     manifestHash,
     engineExecutable,
@@ -259,35 +302,9 @@ export async function runtimeDoctor(
     });
     const checks: { id: string; ok: boolean; message: string }[] = [];
     if (runtime.manifest) {
-      const child = new Deno.Command(runtime.engineExecutable, {
-        stdin: "piped",
-        stdout: "piped",
-        stderr: "piped",
-      }).spawn();
-      const writer = child.stdin.getWriter();
-      try {
-        await writer.write(
-          new TextEncoder().encode('{"version":1,"runtime_info":true}'),
-        );
-        await writer.close();
-      } finally {
-        writer.releaseLock();
-      }
-      const [stdout, stderr, status] = await Promise.all([
-        bounded(runtime.engineExecutable, child.stdout),
-        bounded(runtime.engineExecutable, child.stderr),
-        child.status,
-      ]);
-      signal.throwIfAborted();
-      if (!status.success) {
-        throw new Error(
-          `Native runtime handshake failed: ${
-            new TextDecoder().decode(stderr)
-          }`,
-        );
-      }
+      const stdout = await runtimeHandshake(runtime.engineExecutable, signal);
       validateRuntimeHandshake(
-        new TextDecoder().decode(stdout),
+        stdout,
         runtime.manifest,
       );
       checks.push({
@@ -358,6 +375,72 @@ export async function runtimeDoctor(
     if (temporary) {
       await Deno.remove(temporary, { recursive: true }).catch(() => {});
     }
+  }
+}
+
+/** Run the identity probe with the same kill/reap guarantees as semantic work. */
+async function runtimeHandshake(
+  executable: string,
+  signal: AbortSignal,
+): Promise<string> {
+  signal.throwIfAborted();
+  const child = new Deno.Command(executable, {
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+  }).spawn();
+  const stop = () => {
+    try {
+      child.kill("SIGKILL");
+    } catch { /* already exited */ }
+  };
+  signal.addEventListener("abort", stop, { once: true });
+  const guard = <T>(operation: Promise<T>): Promise<T> =>
+    operation.catch((error) => {
+      stop();
+      throw error;
+    });
+  try {
+    const writer = child.stdin.getWriter();
+    const results = await Promise.allSettled(
+      [
+        guard((async () => {
+          try {
+            await writer.write(
+              new TextEncoder().encode('{"version":1,"runtime_info":true}'),
+            );
+            await writer.close();
+          } finally {
+            writer.releaseLock();
+          }
+        })()),
+        guard(bounded(executable, child.stdout)),
+        guard(bounded(executable, child.stderr)),
+        guard(child.status),
+      ] as const,
+    );
+    signal.throwIfAborted();
+    const [write, stdout, stderr, status] = results;
+    if (
+      write.status !== "fulfilled" || stdout.status !== "fulfilled" ||
+      stderr.status !== "fulfilled" || status.status !== "fulfilled"
+    ) {
+      const failure = results.find((result) => result.status === "rejected");
+      throw failure?.status === "rejected"
+        ? failure.reason
+        : new Error("Native runtime handshake I/O did not settle.");
+    }
+    if (!status.value.success) {
+      throw new Error(
+        `Native runtime handshake failed: ${
+          new TextDecoder().decode(stderr.value)
+        }`,
+      );
+    }
+    return new TextDecoder().decode(stdout.value);
+  } finally {
+    signal.removeEventListener("abort", stop);
+    if (signal.aborted) stop();
   }
 }
 

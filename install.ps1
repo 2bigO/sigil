@@ -38,6 +38,11 @@ try {
       if ([IO.Path]::IsPathRooted($Name) -or $Name -match '(^|/)\.\.?(/|$)' -or $Name.Contains('//')) {
         throw "Archive contains an unsafe path: $Name"
       }
+      if ($Name -ne "sigil-$Version" -and -not $Name.StartsWith("sigil-$Version/")) {
+        throw "Archive contains an unexpected top-level path: $Name"
+      }
+      $UnixType = (($Entry.ExternalAttributes -shr 16) -band 0xF000)
+      if ($UnixType -eq 0xA000) { throw "Archive contains a symbolic link: $Name" }
     }
   } finally {
     $Zip.Dispose()
