@@ -57,6 +57,7 @@ fn run() -> Result<(), String> {
     }
     install_hostile_shims(&shims)?;
     install_fixture(&fixture, &target)?;
+    reject_source_and_cache_roots(&distribution, &fixture, &home, &cache)?;
 
     let path = isolated_path(&shims);
     let environment = isolated_environment(&path, &home, &cache, &marker);
@@ -158,6 +159,31 @@ fn install_fixture(source: &Path, target: &Path) -> Result<(), String> {
         sigil.join("config.json"),
     )
     .map_err(io_error)?;
+    Ok(())
+}
+
+fn reject_source_and_cache_roots(
+    distribution: &Path,
+    fixture: &Path,
+    home: &Path,
+    cache: &Path,
+) -> Result<(), String> {
+    for name in ["packages", "node_modules", "deno.json", "Cargo.toml"] {
+        if distribution.join(name).exists() {
+            return Err(format!(
+                "distribution unexpectedly contains source/dependency root {}",
+                distribution.join(name).display()
+            ));
+        }
+    }
+    if fixture.join("node_modules").exists() || fixture.join(".git").exists() {
+        return Err("fixture unexpectedly contains source/dependency state".to_owned());
+    }
+    if fs::read_dir(home).map_err(io_error)?.next().is_some()
+        || fs::read_dir(cache).map_err(io_error)?.next().is_some()
+    {
+        return Err("isolated home/cache was not empty before the child ran".to_owned());
+    }
     Ok(())
 }
 
