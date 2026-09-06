@@ -438,11 +438,13 @@ export async function runCli(
   }
 }
 
-if (import.meta.main) {
+export async function runMain(
+  args: readonly string[] = Deno.args,
+): Promise<never> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   Deno.addSignalListener("SIGINT", cancel);
-  const result = await runCli(Deno.args, {
+  const result = await runCli(args, {
     signal: controller.signal,
     onCompilationEvent: async (line) => {
       await Deno.stdout.write(new TextEncoder().encode(line));
@@ -460,6 +462,8 @@ if (import.meta.main) {
   }
   Deno.exit(result.exitCode);
 }
+
+if (import.meta.main) await runMain();
 
 function compilationProgress(event: CompilationEvent): string {
   if (event.type === "started") return "Compiling Sigil...\n";

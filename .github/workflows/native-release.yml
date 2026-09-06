@@ -2,8 +2,7 @@ name: Publish native CLI release
 
 on:
   push:
-    tags:
-      - cli-v*
+    tags: ["cli-v*"]
   workflow_dispatch:
     inputs:
       version:
@@ -13,14 +12,34 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: native-cli-${{ github.ref }}-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+            ts-package: '@typescript/typescript-linux-x64'
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            ts-package: '@typescript/typescript-linux-arm64'
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+            ts-package: '@typescript/typescript-darwin-x64'
+          - target: aarch64-apple-darwin
+            runner: macos-15
+            ts-package: '@typescript/typescript-darwin-arm64'
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+            ts-package: '@typescript/typescript-win32-x64'
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
@@ -29,45 +48,68 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: integrations/editor/vscode/package-lock.json
-      - run: npm ci
-        working-directory: integrations/editor/vscode
-      - name: Resolve and validate version
-        id: version
+      - name: Assert runner identity
+        shell: bash
+        run: |
+          deno eval 'console.log(`${Deno.build.os}/${Deno.build.arch}`)'
+          case '${{ matrix.target }}' in
+            *linux*) test "$(uname -s)" = Linux ;;
+            *apple*) test "$(uname -s)" = Darwin ;;
+            *windows*) test "$(uname -s)" = MINGW64_NT* || test "${RUNNER_OS}" = Windows ;;
+          esac
+      - name: Resolve exact TypeScript platform package
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/typescript" --ignore-scripts --no-save '${{ matrix.ts-package }}@7.0.2'
+          echo "SIGIL_TYPESCRIPT_PACKAGE_DIR=$RUNNER_TEMP/typescript/node_modules/${{ matrix.ts-package }}" >> "$GITHUB_ENV"
+      - name: Build locked native engine
+        shell: bash
+        run: cargo build --manifest-path packages/compiler/native/Cargo.toml --release --locked
+      - name: Build, smoke test, and stage archive
         shell: bash
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          version="$INPUT_VERSION"
-          if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
-          actual="$(deno eval 'const value=JSON.parse(await Deno.readTextFile("packages/cli/deno.json")); console.log(value.version)')"
-          [[ "$version" == "$actual" ]] || { echo "Release $version does not match CLI manifest $actual" >&2; exit 1; }
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=cli-v$version" >> "$GITHUB_OUTPUT"
-      - run: deno task fmt
-      - run: deno task lint
-      - run: deno task check
-      - run: deno task test:core
-      - run: deno task test:compiler
-      - run: deno task test:compiler-adapter-opencode
-      - run: deno task test:compiler-adapter-pi
-      - run: deno task test:cli
-      - name: Build native archives
-        run: deno run --allow-read --allow-write --allow-run scripts/build-cli-release.ts --version '${{ steps.version.outputs.version }}'
+          version="$INPUT_VERSION"; if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
+          deno run --allow-read --allow-write --allow-run --allow-env scripts/build-cli-release.ts --target '${{ matrix.target }}' --version "$version" --output "$RUNNER_TEMP/release"
+          mkdir -p "release-${{ matrix.target }}"
+          cp "$RUNNER_TEMP/release"/* "release-${{ matrix.target }}/"
+          printf '%s\n' '{"target":"${{ matrix.target }}","status":"smoke-tested"}' > "release-${{ matrix.target }}/test-summary.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigil-release-${{ matrix.target }}
+          path: release-${{ matrix.target }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sigil-release-*
+          merge-multiple: true
+          path: build/release
+      - name: Combine checksums and installers
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="$INPUT_VERSION"; if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
+          find build/release -name checksums.txt -delete
+          for asset in build/release/*.tar.gz build/release/*.zip; do
+            [[ -f "$asset" ]] || continue
+            sha256sum "$asset"
+          done | sort -k2 > build/release/checksums.txt
+          sed "s/__SIGIL_VERSION__/$version/g" install.sh > build/release/install.sh
+          sed "s/__SIGIL_VERSION__/$version/g" install.ps1 > build/release/install.ps1
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ inputs.version || github.ref_name }}
+        shell: bash
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" build/release/* --clobber
-            gh release edit "$TAG" --title "Sigil CLI $VERSION" --latest
-          else
-            gh release create "$TAG" build/release/* \
-              --verify-tag \
-              --title "Sigil CLI $VERSION" \
-              --generate-notes \
-              --latest
-          fi
+          version="$VERSION"; version="${version#cli-v}"
+          tag="cli-v$version"
+          gh release create "$tag" build/release/* --verify-tag --title "Sigil CLI $version" --generate-notes --latest

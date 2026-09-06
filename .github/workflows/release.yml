@@ -5,6 +5,9 @@ on:
     tags:
       - core-v*
       - cli-v*
+      - compiler-v*
+      - codex-adapter-v*
+      - claude-adapter-v*
       - opencode-adapter-v*
       - pi-adapter-v*
   workflow_dispatch:
@@ -13,7 +16,7 @@ on:
         description: Package to publish
         required: true
         type: choice
-        options: [core, cli, opencode-adapter, pi-adapter]
+        options: [core, compiler, cli, codex-adapter, claude-adapter, opencode-adapter, pi-adapter]
       version:
         description: Exact manifest version to publish
         required: true
@@ -57,7 +60,10 @@ jobs:
           fi
           case "$package" in
             core) directory="packages/core" ;;
+            compiler) directory="packages/compiler" ;;
             cli) directory="packages/cli" ;;
+            codex-adapter) directory="packages/compiler-adapter-codex" ;;
+            claude-adapter) directory="packages/compiler-adapter-claude" ;;
             opencode-adapter) directory="packages/compiler-adapter-opencode" ;;
             pi-adapter) directory="packages/compiler-adapter-pi" ;;
             *) echo "Unsupported package: $package" >&2; exit 2 ;;

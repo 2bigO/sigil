@@ -28,11 +28,22 @@ export interface RuntimeDoctorResultV1 {
   readonly checks: readonly { id: string; ok: boolean; message: string }[];
 }
 
-let standaloneIdentity: {
+interface StandaloneIdentity {
   manifestHash: string;
   sigilVersion: string;
   target: string;
-} | undefined;
+}
+const standaloneIdentityKey = Symbol.for("sigil.semantic.runtime.identity");
+function standaloneIdentity(): StandaloneIdentity | undefined {
+  return (globalThis as typeof globalThis & {
+    [standaloneIdentityKey]?: StandaloneIdentity;
+  })[standaloneIdentityKey];
+}
+function setStandaloneIdentity(identity: StandaloneIdentity): void {
+  (globalThis as typeof globalThis & {
+    [standaloneIdentityKey]?: StandaloneIdentity;
+  })[standaloneIdentityKey] = identity;
+}
 
 export function configureStandaloneRuntime(
   identity: { manifestHash: string; sigilVersion: string; target: string },
@@ -42,14 +53,14 @@ export function configureStandaloneRuntime(
     !identity.target
   ) throw new Error("Invalid standalone runtime identity.");
   if (
-    standaloneIdentity &&
-    JSON.stringify(standaloneIdentity) !== JSON.stringify(identity)
+    standaloneIdentity() &&
+    JSON.stringify(standaloneIdentity()) !== JSON.stringify(identity)
   ) {
     throw new Error(
       "Standalone runtime identity was already configured differently.",
     );
   }
-  standaloneIdentity = { ...identity };
+  setStandaloneIdentity({ ...identity });
 }
 
 export async function resolveSemanticRuntime(
@@ -73,12 +84,13 @@ export async function resolveSemanticRuntime(
     return await loadRuntime(override, "explicit", options.sigilVersion);
   }
   const executable = await standaloneRoot();
-  if (standaloneIdentity && executable) {
+  const identity = standaloneIdentity();
+  if (identity && executable) {
     return await loadRuntime(
       executable,
       "standalone",
-      standaloneIdentity.sigilVersion,
-      standaloneIdentity,
+      identity.sigilVersion,
+      identity,
     );
   }
   const sourceEngine = new URL(
@@ -95,7 +107,9 @@ export async function resolveSemanticRuntime(
     }
   } catch { /* source build is optional */ }
   throw new Error(
-    "Sigil's native runtime is unavailable. Run deno task build:semantic or select SIGIL_RUNTIME_DIR.",
+    `Sigil's native runtime is unavailable (standalone=${
+      Boolean(standaloneIdentity())
+    }, executable=${Deno.execPath()}). Run deno task build:semantic or select SIGIL_RUNTIME_DIR.`,
   );
 }
 
