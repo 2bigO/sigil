@@ -1,5 +1,4 @@
 import { basename, dirname, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { createRuntimeManifest } from "./runtime-manifest.ts";
 
 interface ReleaseTarget {
@@ -96,6 +95,10 @@ console.log(`Built ${assets.length} release assets in ${output}.`);
 async function buildTarget(target: ReleaseTarget): Promise<void> {
   const stageParent = join(output, ".stage", target.asset, crypto.randomUUID());
   const stage = join(stageParent, `sigil-${version}`);
+  const bootstrapPath = join(
+    root,
+    `.sigil-release-bootstrap-${target.deno}-${crypto.randomUUID()}.ts`,
+  );
   try {
     const runtimeRoot = join(stage, "lib/sigil/runtime");
     await Promise.all([
@@ -138,15 +141,12 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
     });
     await Deno.writeTextFile(join(runtimeRoot, "manifest.json"), built.source);
     await Deno.writeTextFile(
-      join(stage, "runtime-bootstrap.ts"),
+      bootstrapPath,
       [
-        `import { configureStandaloneRuntime } from ${
-          JSON.stringify(
-            pathToFileURL(
-              join(root, "packages/compiler/src/semantic/runtime.ts"),
-            ).href,
-          )
-        };`,
+        // Keep this bootstrap inside the repository so Deno resolves both
+        // imports into the compiled virtual filesystem. An absolute source
+        // URL would make an extracted archive depend on this checkout.
+        'import { configureStandaloneRuntime } from "./packages/compiler/src/semantic/runtime.ts";',
         `configureStandaloneRuntime(${
           JSON.stringify({
             manifestHash: built.hash,
@@ -154,11 +154,7 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
             target: target.deno,
           })
         });`,
-        `const { runMain } = await import(${
-          JSON.stringify(
-            pathToFileURL(join(root, "packages/cli/src/main.ts")).href,
-          )
-        });`,
+        'const { runMain } = await import("./packages/cli/src/main.ts");',
         "await runMain();",
         "",
       ].join("\n"),
@@ -176,7 +172,7 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       target.deno,
       "--output",
       join(stage, "bin", target.executable),
-      join(stage, "runtime-bootstrap.ts"),
+      bootstrapPath,
     ]);
     await copyValidSkills(
       join(root, "integrations/skills"),
@@ -193,7 +189,6 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       "--distribution",
       stage,
     ]);
-    await Deno.remove(join(stage, "runtime-bootstrap.ts"));
     const archive = join(
       output,
       `${target.asset}${engineSuffix ? ".zip" : ".tar.gz"}`,
@@ -205,6 +200,7 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
         dirname(stage),
       );}
   } finally {
+    await Deno.remove(bootstrapPath).catch(() => {});
     if (!Deno.env.get("SIGIL_KEEP_STAGE")) {
       await Deno.remove(stageParent, { recursive: true }).catch(() => {});
     }
