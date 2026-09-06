@@ -4,12 +4,23 @@
 The goal of this refactor is a **large net deletion of code and concepts**.
 
 Delete the entire TypeScript `@qoherent/sigil-compiler` package, including its
-adapters and callers. Do not replace it with a thin TypeScript wrapper around
+adapters and obsolete compiler-only callers. Preserve frontend consumers and
+their retained user capabilities while changing the backend they use. Do not
+replace the compiler package with a thin TypeScript wrapper around
 `sigilc`, a forwarding `sigil compile` command, or legacy compatibility exports.
-The frontend instructs the model/operator to invoke `sigilc` directly. Preserve
-only actual language functionality in the existing core/frontend, including the
-minimal structural Design export; it must not launch or wrap the native compiler.
+The frontend instructs the model/operator to invoke `sigilc` directly. Keep the
+parser/resolver and minimal structural Design export in the existing core/frontend;
+that export must not launch or wrap the native compiler. Frontend presentation
+uses native states and diagnostics without retaining the old compiler API.
 Code removal is a delivery requirement, not a final optional cleanup.
+
+Retain the VS Code language integration and compilation/status frontend that
+still has a role with sigilc. Delete UI dedicated to removed backend concepts,
+including beams, receipts, accepted worlds and evaluator profiles, together with
+those concepts; it needs no alternative. For retained interactions, a native
+primitive existing is insufficient evidence that its frontend integration works.
+Verify that interaction before removing its old dependency. Do not create a
+compatibility package or delete retained UI as a shortcut to that cutover.
 
 Backward compatibility and migration are explicitly out of scope. Sigil has no external users yet. Prefer deleting obsolete systems and restoring known-good pre-semantic-compiler code over preserving transitional abstractions.
 
@@ -1924,8 +1935,11 @@ Expected result: **large net code deletion**.
    catalogs for Coherent Design; reject Disjoint Design. Invalidate all I
    projections when the supplied full identity catalog changes. Preserve reuse
    for relationship/status-only changes with identical identity content.
-8. Direct models/operators from frontend guidance to `sigilc` commands and reports.
-   Preserve ordinary language tooling without worlds or model configuration.
+8. Preserve the VS Code language integration and wire retained status/report
+   interactions to the new infrastructure. Direct models/operators from frontend guidance to
+   `sigilc` commands and reports. Verify the actual frontend workflow before
+   deleting its old backend dependency. Preserve ordinary language tooling
+   without worlds or model configuration.
 9. Delete obsolete receipt, TS7 verifier, accepted-world, managed-view,
    semantic-slice, beam, provider/evaluator orchestration, and migration systems,
    including their protocols, configuration, callers, tests, and dependencies.
@@ -1947,6 +1961,11 @@ These systems must be absent at completion, including public exports, command
 routes, schemas/config keys, manifests, packaging, docs and obsolete tests.
 Extract a small useful deterministic helper first if necessary, but do not leave
 the old subsystem callable, renamed, dormant, or behind a compatibility alias.
+Remove frontend UI and tests whose sole purpose is a removed backend concept.
+Preserve frontend capabilities still required by the new architecture and their
+behavior tests. For each row, distinguish those two cases, identify any retained
+behavior's actual replacement and missing integration, and delete the obsolete
+parts without waiting for alternatives to deliberately removed concepts.
 
 | Remove completely | Concrete current targets |
 | --- | --- |
@@ -1957,7 +1976,7 @@ the old subsystem callable, renamed, dormant, or behind a compatibility alias.
 | Receipts, handoffs and mechanical verification | Under that semantic directory: `handoff.ts`, `receipts.ts`, `receipt-locations.ts`, `receipt-witnesses.ts`, `verify-return.ts`, `verification.ts`, `typescript7.ts`, `implementation-workspace.ts`, `evidence.ts`, `checks.ts`; remove the TS7 analyzer dependency and installed-package verification staging. Ordinary external project tests remain useful. |
 | Accepted-world and managed-view workflows | `semantic/store.ts`, `views.ts`, `view-model.ts`, `projections.ts`; remove accepted-state migration, managed-view editing/recovery, and generated `.sigil/views` authority. |
 | Retained semantic artifact framework | `semantic/artifact-recording.ts` and the retained-bundle machinery in `artifacts.ts`; replace only the necessary path/hash/atomic publication behavior with the small disposable world store. No retained runs, receipt bundles, or stage-result database. |
-| Legacy compiler profiles/history/events | Delete `profile.ts`, `semantic/profile.ts`, `history.ts`, `event-protocol.ts`, `event-reader.ts`, and `event-writer.ts` with their callers and exports. Concrete limits, current diagnostics, and reports belong directly to native sigilc commands; no TS reporting adapter or legacy event translation. |
+| Legacy compiler profiles/history/events | Delete `profile.ts`, `semantic/profile.ts`, `history.ts`, `event-protocol.ts`, `event-reader.ts`, and `event-writer.ts` with their obsolete callers, exports and dedicated UI. Concrete limits, current diagnostics, and reports come from native sigilc commands; preserve frontend presentation of those native results, with no compiler wrapper package or legacy event translation. |
 | Old CLI semantic surface | Delete `sigil compile`, `packages/cli/src/semantic-commands.ts`, `semantic-providers.ts`, and `compiler-adapters.ts`, including old intent/answer/accept/beam/slice/receipt/verify/project/migrate routes. Frontend guidance tells models/operators to use `sigilc` directly; add no routing or subprocess wrapper. Remove provider/evaluator/migration authoring branches, not generic config functionality. |
 | Old native bridge and duplicate semantic pipeline | Remove `packages/compiler/native/` after moving useful engine code into `packages/sigilc`. Remove the old `sigil-semantic-engine` protocol, runtime lookup/staging and TS ingestion/lowering/closure copies after Rust replaces them. No third binary or duplicate ontology authority. |
 
@@ -1976,7 +1995,10 @@ mappings. Preserve Sigil Design-language resolution.
 
 * Preserve `packages/core` parser/resolver, source ranges, import/Concept/export
   tests, generic navigation/ownership comments, and useful CLI/LSP/editor behavior.
-  Remove only semantic-view and proof-specific coupling from those surfaces.
+  Preserve the VS Code language integration and user-facing native compilation
+  status/diagnostics. Delete UI for obsolete semantic-view, proof, beam and
+  profile concepts along with their backend. Validate retained editor workflows
+  against the new infrastructure before removing their old dependency.
 * Move useful behavior from `native/src/main.rs`, `kernel.egg`, and `schedule.egg`
   to `packages/sigilc`. Delete the old bridge `Input` protocol and receipt tables.
 * Port relevant validation cases from `semantic/turtle.ts`, `ontology.ts`, and
