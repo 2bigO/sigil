@@ -3,6 +3,7 @@ import type {
   CompilerDiagnostic,
   DiagnosticSemanticSubject,
 } from "./types.ts";
+import type { ReturnedImplementationSummary } from "./semantic/verify-return.ts";
 
 // @sigil implements packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface,logic,constraints,cases
 export function renderCompilationReportMarkdown(
@@ -32,6 +33,13 @@ export function renderCompilationReportMarkdown(
     for (const [stage, id] of Object.entries(report.artifacts.stages)) {
       lines.push(`- ${inlineText(stage)}: ${inlineText(`.sigil/cache/${id}`)}`);
     }
+  }
+
+  if (report.returnedImplementation) {
+    lines.push(
+      "",
+      renderReturnedImplementationMarkdown(report.returnedImplementation),
+    );
   }
 
   const grouped = groupDiagnostics(report);
@@ -67,6 +75,64 @@ export function renderCompilationReportMarkdown(
     }
   }
   return `${lines.join("\n")}\n`;
+}
+
+/** The same returned-verification projection serves semantic verify and compile. */
+export function renderReturnedImplementationMarkdown(
+  report: ReturnedImplementationSummary,
+): string {
+  const lines = [
+    "## Returned implementation",
+    "",
+    `Coverage: **${report.status.toUpperCase()}**`,
+    "",
+    `Scope: ${report.scope.map(inlineText).join(", ")}`,
+    `Handoff: ${inlineText(report.handoff)}`,
+    `Code snapshot: ${inlineText(report.codeFingerprint)}`,
+    "",
+    "| Obligation | Proposition | Coverage | Evidence |",
+    "| --- | --- | --- | --- |",
+    ...report.obligations.map((o) =>
+      `| ${tableCell(o.id)} | ${tableCell(o.proposition)} | ${o.status} | ${
+        tableCell(o.evidence.join(", "))
+      } |`
+    ),
+  ];
+  if (report.receipts.length) {
+    lines.push(
+      "",
+      "| Receipt | Obligation | Claim result | Locations |",
+      "| --- | --- | --- | --- |",
+      ...report.receipts.map((r) =>
+        `| ${tableCell(r.receipt)} | ${
+          tableCell(r.obligation)
+        } | ${r.status} | ${tableCell(r.locations.join("; "))} |`
+      ),
+    );
+  } else {lines.push(
+      "",
+      "No receipt claims submitted; all retained obligations were checked.",
+    );}
+  lines.push(
+    "",
+    "| Required check | Result |",
+    "| --- | --- |",
+    ...report.requiredChecks.map((id) => {
+      const checks = report.checks.filter((c) => c.id === id);
+      return `| ${tableCell(id)} | ${
+        checks.some((c) => !c.passed)
+          ? "failed"
+          : checks.some((c) => c.passed)
+          ? "passed"
+          : "unresolved"
+      } |`;
+    }),
+    "",
+    `Detailed source and rule witnesses: ${
+      inlineText(`.sigil/runs/${report.run}`)
+    }`,
+  );
+  return lines.join("\n") + "\n";
 }
 
 function groupDiagnostics(

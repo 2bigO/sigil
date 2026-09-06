@@ -138,6 +138,9 @@ export interface CompileRequest extends GlobalOptions {
   readonly profile?: string;
   readonly agent: boolean;
   readonly noCache: boolean;
+  readonly handoff?: string;
+  readonly receipts?: string;
+  readonly handoffRoot?: string;
   readonly output?: string;
 }
 export interface RenderRequest extends GlobalOptions {
@@ -244,6 +247,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let compileAgent = false;
   let focus: CompileRequest["focus"];
   let noCache = false;
+  let handoff: string | undefined;
+  let receipts: string | undefined;
+  let handoffRoot: string | undefined;
   let output: string | undefined;
   let check = false;
   let purpose: RetrieveRequest["purpose"] | undefined;
@@ -368,6 +374,27 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--no-cache":
         noCache = true;
         break;
+      case "--handoff":
+      case "--receipts":
+      case "--handoff-root": {
+        const value = take(arg);
+        if (typeof value !== "string") return value;
+        const previous = arg === "--handoff"
+          ? handoff
+          : arg === "--receipts"
+          ? receipts
+          : handoffRoot;
+        if (previous !== undefined) {
+          return usage(`${arg} may only be supplied once.`, commandHelpTopic);
+        }
+        if (!value) {
+          return usage(`${arg} requires a nonempty value.`, commandHelpTopic);
+        }
+        if (arg === "--handoff") handoff = value;
+        else if (arg === "--receipts") receipts = value;
+        else handoffRoot = value;
+        break;
+      }
       case "--check":
         check = true;
         break;
@@ -584,7 +611,8 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   }
   if (
     commandName !== "compile" &&
-    (compileAgent || focus || noCache || output || format === "jsonl")
+    (compileAgent || focus || noCache || output || handoff || receipts ||
+      handoffRoot || format === "jsonl")
   ) {
     return usage(
       `${commandName} does not accept compile options.`,
@@ -916,6 +944,15 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         "compile",
       );
     }
+    if (!handoff && (receipts || handoffRoot)) {
+      return usage(
+        "--receipts and --handoff-root require --handoff.",
+        "compile",
+      );
+    }
+    if (handoff && focus === "design") {
+      return usage("--handoff requires implementation coverage.", "compile");
+    }
     return {
       kind: "ok",
       request: {
@@ -931,6 +968,9 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         profile,
         agent: compileAgent,
         noCache,
+        handoff,
+        receipts,
+        handoffRoot,
         output,
         ...base,
       },

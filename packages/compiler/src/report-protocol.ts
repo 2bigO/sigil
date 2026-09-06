@@ -86,7 +86,38 @@ export function validateCompilationReportWire(
     (value.requestedStage === undefined || nonempty(value.requestedStage)) &&
     (value.focus === undefined || value.focus === "design" ||
       value.focus === "implementation") &&
-    validSession(value.session) && validArtifacts(value.artifacts);
+    validSession(value.session) && validArtifacts(value.artifacts) &&
+    validReturnedImplementation(value.returnedImplementation);
+}
+
+function validReturnedImplementation(value: unknown): boolean {
+  const hash = (v: unknown) =>
+    typeof v === "string" && /^[a-f0-9]{64}$/.test(v);
+  if (value === undefined) return true;
+  return record(value) && hash(value.handoff) && hash(value.run) &&
+    hash(value.worldFingerprint) && hash(value.sliceFingerprint) &&
+    hash(value.codeFingerprint) &&
+    (value.receiptSubmission === null || hash(value.receiptSubmission)) &&
+    ["green", "yellow", "red"].includes(String(value.status)) &&
+    stringArray(value.scope) && stringArray(value.requiredChecks) &&
+    Array.isArray(value.obligations) &&
+    value.obligations.every((o) =>
+      record(o) && nonempty(o.id) && nonempty(o.proposition) &&
+      ["covered", "violated", "unresolved"].includes(String(o.status)) &&
+      stringArray(o.evidence) && stringArray(o.violations)
+    ) &&
+    Array.isArray(value.receipts) &&
+    value.receipts.every((r) =>
+      record(r) && nonempty(r.receipt) && nonempty(r.obligation) &&
+      nonempty(r.witness) &&
+      ["supported", "contradicted", "unresolved"].includes(String(r.status)) &&
+      stringArray(r.evidence) && stringArray(r.locations)
+    ) &&
+    Array.isArray(value.checks) &&
+    value.checks.every((c) =>
+      record(c) && nonempty(c.id) && typeof c.passed === "boolean" &&
+      nonempty(c.evidence)
+    );
 }
 
 function validArtifacts(value: unknown): boolean {

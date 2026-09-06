@@ -28,6 +28,11 @@ component SigilCompilationReportProtocol {
       result in the target .sigil directory. Identities are hashes, not proof.
       The stored run payload omits its own bundle identity to avoid a hash cycle.
 
+      optional returnedImplementation records the retained assignment, submitted
+      receipt identity, exact scope and world/code fingerprints, all obligation
+      outcomes, individual receipt outcomes, checks and the detailed run artifact.
+      Validate this summary when reading reports. It never restores proof authority.
+
       runId is the non-empty invocation identity that constructed this report;
       optional session contains sessionIdentity, baseEpoch, generation, base
       fingerprint, and proposal fingerprint and is present exactly for a proposal

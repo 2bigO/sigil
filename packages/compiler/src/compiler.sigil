@@ -33,6 +33,13 @@ component SigilOneShotCompilation {
       source contracts. semanticEngine selects the native executable, operational
       timeout, and host-owned implementation observations.
 
+      returnedImplementation selects a caller-retained handoff and optional receipt
+      bundle, with an optional original handoff root. It requires an implementation
+      stage and the same selected component identities as the assignment. Reject
+      replacement semantic documents, policy or caller-supplied proof tables.
+      Compile the retained slice and share the returned-snapshot verifier with the
+      semantic CLI. Report receipt quality separately from obligation coverage.
+
       disableHistory disables history reads and writes. cancellationSignal cancels
       before success linearization. reportExport requests atomic report export.
       eventSink and hostWarningSink are optional caller-owned delivery capabilities.

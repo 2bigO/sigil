@@ -212,3 +212,49 @@ export async function verifyReturnedImplementation(
     report: { ...report, artifacts: { ...report.artifacts, run } },
   };
 }
+
+export type ReturnedImplementationReport = Awaited<
+  ReturnType<typeof verifyReturnedImplementation>
+>["report"];
+export type ReturnedImplementationSummary = ReturnType<
+  typeof summarizeReturnedImplementation
+>;
+
+/** Compact report projection; the run bundle retains primitive source/rule witnesses. */
+export function summarizeReturnedImplementation(
+  report: ReturnedImplementationReport,
+) {
+  return {
+    status: report.status,
+    handoff: report.handoff,
+    receiptSubmission: report.receiptSubmission,
+    codeFingerprint: report.codeFingerprint,
+    worldFingerprint: report.worldFingerprint,
+    sliceFingerprint: report.sliceFingerprint,
+    scope: report.scope,
+    run: report.artifacts.run,
+    obligations: report.obligations.map((o) => ({
+      id: o.id,
+      status: o.status,
+      proposition: `${o.subject} ${
+        o.expected ? "" : "never "
+      }${o.relation} ${o.target}`,
+      evidence: o.evidence,
+      violations: o.violations,
+    })),
+    receipts: report.receiptResults.map((r) => ({
+      receipt: r.receipt,
+      obligation: r.obligation,
+      status: r.status,
+      evidence: r.evidence,
+      witness: r.witness,
+      locations: r.locations.map((l) =>
+        l.symbol
+          ? `${l.symbol.file}:${l.symbol.line}:${l.symbol.column} ${l.symbol.selector}`
+          : `location ${l.location + 1}: ${l.status}`
+      ),
+    })),
+    requiredChecks: report.requiredChecks,
+    checks: report.checks,
+  };
+}

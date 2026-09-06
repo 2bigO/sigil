@@ -17,12 +17,15 @@ import {
   recordCompilationRun,
   recordSemanticStage,
   renderImplementationSlice,
+  renderReturnedImplementationMarkdown,
   resumeWorldBeam,
   SemanticInputError,
   type SemanticProposalProvider,
   serializeEggWorld,
   serializeSemanticWorld,
   type StoredWorldBeam,
+  summarizeReturnedImplementation,
+  verifyReturnedImplementation,
   type WorldBeamCheckpoint,
   worldFromFacts,
   type WorldSearchResult,
@@ -42,7 +45,7 @@ Commands:
   accept     Accept a uniquely selected green --beam as canonical assertions
   project    Project the canonical green world as paired Turtle and Sigil
   slice      Return a focused implementation slice for --component
-  verify     Analyze implementation with TypeScript 7 and recompute evidence coverage
+  verify     Check current code or a retained --handoff with optional --receipts
   artifacts  Initialize .sigil artifact directories and Git ignore policy
   receipts   Import --claims Turtle and --locations JSON against a retained --handoff
 
@@ -57,9 +60,10 @@ Options:
   --component <name|iri>  Component for an implementation slice
   --handoff <id>          Exact retained assignment identity
   --handoff-root <path>   Original workspace retaining that assignment (defaults to path)
+  --receipts <id>         Imported receipt bundle for verification; omission checks all obligations
   --claims <file>         Returned untrusted Turtle receipt claims
   --locations <file>      Matching receipt source-location sidecar
-  --format <value>        json (default); project: sigil|turtle; slice: text|egg|turtle
+  --format <value>        json (default); project: sigil|turtle; slice: text|egg|turtle; verify: turtle|markdown
   --help                  Show this help
 
 A candidate envelope is {"version":1,"candidates":[{"id":"name","additions":"Turtle","retractions":""}]}.
@@ -128,6 +132,7 @@ function parse(argv: readonly string[]): Arguments {
         "--format",
         "--handoff",
         "--handoff-root",
+        "--receipts",
         "--claims",
         "--locations",
       ].includes(arg)
@@ -149,7 +154,7 @@ function parse(argv: readonly string[]): Arguments {
     accept: ["--beam", "--format"],
     project: ["--format"],
     slice: ["--component", "--format"],
-    verify: ["--format"],
+    verify: ["--format", "--handoff", "--handoff-root", "--receipts"],
     artifacts: ["--format"],
     receipts: [
       "--handoff",
@@ -169,7 +174,7 @@ function parse(argv: readonly string[]): Arguments {
     format !== "json" &&
     !(action === "project" && ["sigil", "turtle"].includes(format)) &&
     !(action === "slice" && ["text", "turtle", "egg"].includes(format)) &&
-    !(action === "verify" && format === "turtle")
+    !(action === "verify" && ["turtle", "markdown"].includes(format))
   ) throw new UsageError(`Unsupported ${action} format ${format}.`);
   if (
     action === "intent" &&
@@ -199,6 +204,14 @@ function parse(argv: readonly string[]): Arguments {
   ) {
     throw new UsageError(
       "receipts requires --handoff, --claims and --locations.",
+    );
+  }
+  if (
+    action === "verify" && !values["--handoff"] &&
+    (values["--receipts"] || values["--handoff-root"] || format === "markdown")
+  ) {
+    throw new UsageError(
+      "--receipts, --handoff-root and verify Markdown require --handoff.",
     );
   }
   return { action: action as Action, path: path ?? ".", values, generatorArgs };
@@ -344,6 +357,40 @@ export async function runSemanticCommand(
         claims: imported.submission.claims,
         artifacts: { receipts: imported.id },
       });
+    }
+    if (action === "verify" && values["--handoff"]) {
+      const { root } = await loadCompilationWorkspace(path);
+      const verified = await verifyReturnedImplementation({
+        root,
+        handoff: values["--handoff"],
+        receipts: values["--receipts"],
+        handoffRoot: values["--handoff-root"]
+          ? resolve(values["--handoff-root"])
+          : undefined,
+        resolved: await (options.core ?? new CoreAdapter()).resolveWorkspace(
+          root,
+        ),
+        engine: { signal: options.signal },
+      });
+      const exitCode = verified.report.status === "green" ? 0 : 1;
+      if (values["--format"] === "turtle") {
+        return {
+          exitCode,
+          stdout: verified.report.evidence.turtle + "\n" +
+            verified.report.commandEvidence.turtle,
+          stderr: "",
+        };
+      }
+      if (values["--format"] === "markdown") {
+        return {
+          exitCode,
+          stdout: renderReturnedImplementationMarkdown(
+            summarizeReturnedImplementation(verified.report),
+          ),
+          stderr: "",
+        };
+      }
+      return json(verified.report, exitCode);
     }
     const context = await workspaceContext(
       path,

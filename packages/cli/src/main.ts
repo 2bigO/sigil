@@ -219,6 +219,9 @@ Options:
   --profile <name>    Select a compilation profile (default: standard)
   --focus <value>     Evaluate design readiness or implementation alignment
   --no-cache          Do not consult compilation history
+  --handoff <id>      Verify the exact retained assignment against returned code
+  --receipts <id>     Imported claims for that assignment (optional)
+  --handoff-root <p>  Original workspace retaining the assignment
   --output <file>     Export the selected completed representation
   --format <value>    Output text, jsonl, or markdown
   --root <path>       Use an explicit workspace root
@@ -320,6 +323,13 @@ export async function runCli(
           exactTarget: parsed.request.exactTarget,
           requestedStage: parsed.request.stage,
           focus: parsed.request.focus,
+          returnedImplementation: parsed.request.handoff
+            ? {
+              handoff: parsed.request.handoff,
+              receipts: parsed.request.receipts,
+              handoffRoot: parsed.request.handoffRoot,
+            }
+            : undefined,
           noHistory: parsed.request.noCache,
           history: parsed.request.noCache
             ? undefined
@@ -442,6 +452,21 @@ function formatCompilation(report: CompilationReport): string {
       report.componentNames.join(", ") || "workspace"
     }`,
   ];
+  const returned = report.returnedImplementation;
+  if (returned) {
+    lines.push(`Verified scope: ${returned.scope.join(", ")}`);
+    for (const obligation of returned.obligations) {
+      lines.push(
+        `${obligation.status} ${obligation.id}: ${obligation.proposition}`,
+      );
+    }
+    for (const receipt of returned.receipts) {
+      lines.push(
+        `Receipt ${receipt.receipt}: ${receipt.status} for ${receipt.obligation}`,
+      );
+    }
+    lines.push(`Verification witnesses: .sigil/runs/${returned.run}`);
+  }
   for (const diagnostic of report.diagnostics) {
     const location = diagnostic.filePath
       ? `${diagnostic.filePath}${

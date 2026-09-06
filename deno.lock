@@ -246,6 +246,11 @@
   },
   "workspace": {
     "members": {
+      "packages/cli": {
+        "dependencies": [
+          "jsr:@std/assert@1"
+        ]
+      },
       "packages/compiler": {
         "dependencies": [
           "jsr:@std/assert@1",

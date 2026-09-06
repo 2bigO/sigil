@@ -59,6 +59,11 @@ import {
   readImplementationPolicy,
 } from "./semantic/evidence.ts";
 import { readSemanticState } from "./semantic/store.ts";
+import { readImplementationHandoff } from "./semantic/handoff.ts";
+import {
+  summarizeReturnedImplementation,
+  verifyReturnedImplementation,
+} from "./semantic/verify-return.ts";
 import {
   digest,
   parseSemanticWorld,
@@ -460,6 +465,45 @@ export async function compile(
       target,
       workspace.root,
     );
+    const returned = options.returnedImplementation;
+    if (
+      returned && (
+        !profile.stages.some((stage) =>
+          stage.id === "implementation-coverage"
+        ) ||
+        options.semanticDocuments !== undefined ||
+        options.implementationPolicy !== undefined ||
+        Object.keys(options.semanticEngine ?? {}).some((key) =>
+          !["binaryPath", "timeoutMs"].includes(key)
+        )
+      )
+    ) {
+      throw new CompilerFailure(
+        "COMPILER_INVALID_INVOCATION",
+        "Returned verification requires implementation coverage and cannot override the retained world, policy or evidence.",
+      );
+    }
+    const handoff = returned
+      ? await readImplementationHandoff(
+        returned.handoffRoot ?? workspace.root,
+        returned.handoff,
+        engineOptions(),
+      )
+      : undefined;
+    const selectedIds = components.map((c) =>
+      semanticComponentId(c, workspace.root)
+    );
+    if (
+      handoff && (
+        selectedIds.length !== handoff.manifest.subjects.length ||
+        selectedIds.some((id) => !handoff.manifest.subjects.includes(id))
+      )
+    ) {
+      throw new CompilerFailure(
+        "COMPILER_INVALID_INVOCATION",
+        "Compilation scope must match the retained handoff subjects. Select its components, using --exact-target when needed.",
+      );
+    }
     const opened = await openCompilationEventWriter(
       options.eventSink ?? callbackEventSink(options.onEvent),
       {
@@ -493,32 +537,34 @@ export async function compile(
       workspace.root,
       resolved.imports,
     );
-    const selectedIds = components.map((c) =>
-      semanticComponentId(c, workspace.root)
-    );
-    let world = sourceIntent.world;
+    let world = handoff?.slice ?? sourceIntent.world;
     let inputError: SemanticInputError | undefined;
     let stale = false;
     try {
-      const stored = await readSemanticState(workspace.root);
-      if (
-        stored &&
-        stored.receipt.sourceFingerprint !== sourceIntent.world.fingerprint
-      ) stale = true;
-      else if (stored) {
-        world = await worldFromFacts([...world.facts, ...stored.world.facts], {
-          ...world.provenance,
-          ...stored.world.provenance,
-        });
+      if (!handoff) {
+        const stored = await readSemanticState(workspace.root);
+        if (
+          stored &&
+          stored.receipt.sourceFingerprint !== sourceIntent.world.fingerprint
+        ) stale = true;
+        else if (stored) {
+          world = await worldFromFacts(
+            [...world.facts, ...stored.world.facts],
+            {
+              ...world.provenance,
+              ...stored.world.provenance,
+            },
+          );
+        }
+        if (options.semanticDocuments?.length) {
+          const proposed = await parseSemanticWorld(options.semanticDocuments);
+          world = await worldFromFacts([...world.facts, ...proposed.facts], {
+            ...world.provenance,
+            ...proposed.provenance,
+          });
+        }
+        world = await scopeSemanticWorld(world, selectedIds);
       }
-      if (options.semanticDocuments?.length) {
-        const proposed = await parseSemanticWorld(options.semanticDocuments);
-        world = await worldFromFacts([...world.facts, ...proposed.facts], {
-          ...world.provenance,
-          ...proposed.provenance,
-        });
-      }
-      world = await scopeSemanticWorld(world, selectedIds);
     } catch (error) {
       if (!(error instanceof SemanticInputError)) throw error;
       inputError = error;
@@ -529,6 +575,7 @@ export async function compile(
         world.fingerprint,
         stale,
         inputError?.message,
+        returned,
       ]),
     );
     const historyDisabled = options.disableHistory ?? options.noHistory ??
@@ -552,6 +599,7 @@ export async function compile(
     const diagnostics: CompilerDiagnostic[] = [];
     const stages: StageReport[] = [];
     const stageArtifacts: Record<string, string> = {};
+    let returnedImplementation: CompilationReport["returnedImplementation"];
     let failed = false;
     let design: SemanticCompilation | undefined;
     for (const stage of profile.stages) {
@@ -621,63 +669,91 @@ export async function compile(
       } else if (
         stage.id === "implementation-coverage" && design?.status === "green"
       ) {
-        const policy = options.implementationPolicy ??
-          await readImplementationPolicy(workspace.root);
-        const evidence = policy
-          ? await collectImplementationEvidence({
+        if (returned) {
+          const verified = await verifyReturnedImplementation({
             root: workspace.root,
-            policy,
+            ...returned,
             resolved,
-            signal: cancellationSignal,
-            timeoutMs: engineOptions().timeoutMs,
-          })
-          : undefined;
-        const mechanical = engineOptions();
-        const implementationOptions = {
-          ...mechanical,
-          observations: [
-            ...mechanical.observations ?? [],
-            ...evidence?.observations ?? [],
-          ],
-          completeScopes: [
-            ...mechanical.completeScopes ?? [],
-            ...evidence?.completeScopes ?? [],
-          ],
-          requiredChecks: [
-            ...mechanical.requiredChecks ?? [],
-            ...evidence?.requiredChecks ?? [],
-          ],
-          checks: [...mechanical.checks ?? [], ...evidence?.checks ?? []],
-          focus: "implementation" as const,
-        };
-        const implementation = await compileSemanticWorld(
-          world,
-          implementationOptions,
-        );
-        stageArtifacts[stage.id] = await recordSemanticStage(
-          workspace.root,
-          implementation,
-          {
-            stage: stage.id,
-            sourceFingerprint,
-            evidence,
-            mechanical: implementationOptions,
-          },
-        );
-        current.push(
-          ...await Promise.all(
-            implementation.diagnostics.map((d) =>
-              fromSemanticDiagnostic(
-                d,
-                implementation,
-                sourceIntent.bindings,
-                resolver,
-                stage.id,
-                evidence,
-              )
+            engine: engineOptions(),
+          });
+          returnedImplementation = summarizeReturnedImplementation(
+            verified.report,
+          );
+          stageArtifacts[stage.id] =
+            verified.report.artifacts.stages["returned-implementation"];
+          current.push(
+            ...await Promise.all(
+              verified.compilation.diagnostics.map((d) =>
+                fromSemanticDiagnostic(
+                  d,
+                  verified.compilation,
+                  sourceIntent.bindings,
+                  resolver,
+                  stage.id,
+                  verified.evidence,
+                )
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          const policy = options.implementationPolicy ??
+            await readImplementationPolicy(workspace.root);
+          const evidence = policy
+            ? await collectImplementationEvidence({
+              root: workspace.root,
+              policy,
+              resolved,
+              signal: cancellationSignal,
+              timeoutMs: engineOptions().timeoutMs,
+            })
+            : undefined;
+          const mechanical = engineOptions();
+          const implementationOptions = {
+            ...mechanical,
+            observations: [
+              ...mechanical.observations ?? [],
+              ...evidence?.observations ?? [],
+            ],
+            completeScopes: [
+              ...mechanical.completeScopes ?? [],
+              ...evidence?.completeScopes ?? [],
+            ],
+            requiredChecks: [
+              ...mechanical.requiredChecks ?? [],
+              ...evidence?.requiredChecks ?? [],
+            ],
+            checks: [...mechanical.checks ?? [], ...evidence?.checks ?? []],
+            focus: "implementation" as const,
+          };
+          const implementation = await compileSemanticWorld(
+            world,
+            implementationOptions,
+          );
+          stageArtifacts[stage.id] = await recordSemanticStage(
+            workspace.root,
+            implementation,
+            {
+              stage: stage.id,
+              sourceFingerprint,
+              evidence,
+              mechanical: implementationOptions,
+            },
+          );
+          current.push(
+            ...await Promise.all(
+              implementation.diagnostics.map((d) =>
+                fromSemanticDiagnostic(
+                  d,
+                  implementation,
+                  sourceIntent.bindings,
+                  resolver,
+                  stage.id,
+                  evidence,
+                )
+              ),
+            ),
+          );
+        }
       }
       for (const raw of current) {
         const diagnostic = currentLifecycle(raw, previous);
@@ -716,6 +792,7 @@ export async function compile(
       diagnostics,
       previous,
       artifacts: { stages: stageArtifacts },
+      returnedImplementation,
     });
     cancellationSignal?.throwIfAborted();
     const runArtifact = await recordCompilationRun(workspace.root, report, {

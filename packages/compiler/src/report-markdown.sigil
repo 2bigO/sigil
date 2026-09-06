@@ -18,6 +18,10 @@ component SigilCompilationReportMarkdown {
       When present, artifact identities locate the saved run and completed stages
       under the workspace .sigil directory for subsequent inspection.
 
+      Returned implementation summaries show the verified scope, each obligation,
+      each receipt's separate outcome and resolved locations, mandatory checks and
+      the detailed evidence artifact. Escape all source-derived display text.
+
       each nonempty stage group has one compact diagnostic table with severity,
       lifecycle, rule code, semantic subject, and location; evidence, impact, and
       suggested correction appear once below the corresponding diagnostic

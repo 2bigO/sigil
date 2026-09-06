@@ -160,6 +160,8 @@ export interface EffectiveProfile {
 
 export interface CompilationReport {
   readonly reportVersion: 3;
+  readonly returnedImplementation?:
+    import("./semantic/verify-return.ts").ReturnedImplementationSummary;
   readonly artifacts?: {
     readonly stages: Readonly<Record<string, string>>;
     readonly run?: string;
@@ -231,6 +233,12 @@ export interface CompilationEvent {
 export type CompilationReportRepresentation = "json" | "markdown";
 
 export interface CompileOptions {
+  /** Verify the exact retained assignment against this returned workspace. */
+  readonly returnedImplementation?: {
+    readonly handoff: string;
+    readonly receipts?: string;
+    readonly handoffRoot?: string;
+  };
   /** Host-owned code bindings. Defaults to .sigil/implementation.json when present. */
   readonly implementationPolicy?:
     import("./semantic/evidence.ts").ImplementationPolicy;

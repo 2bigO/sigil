@@ -73,10 +73,10 @@ nor an LLM's assertion that code is correct closes its obligation.
    APIs only where they cannot reinstate an LLM judge as the default compiler.
 4. Project green worlds into existing `.sigil` syntax and focused implementation
    slices, including explicit obligations and provenance.
-5. Add proposal adapters and implementation candidate execution in isolated
-   workspaces; feed compiler/test/static/anchor observations into Turtle and
-   verify coverage through the same kernel. Proposed evidence stays distinct
-   from mechanically observed evidence.
+5. Add proposal adapters and retained semantic-slice handoffs. An external coding
+   agent returns code and untrusted receipt claims; independent compiler/test/static
+   observations establish witnesses checked by the same kernel. Code-patch search,
+   application and ownership of the coding agent's repair loop are out of scope.
 6. Update CLI, editor/skill integration, packaging, documentation, and tests.
    Audit every phase and architectural invariant in `compile.md` against actual
    source and executed checks before declaring completion.
@@ -166,18 +166,18 @@ blocks. It deliberately does not guess executable predicates from prose. The
 actual `SigilParser` file now exercises this bridge in a test: every prose unit
 is represented and remains unresolved until interpreted.
 
-Green worlds project to a human `.sigil` view paired with canonical Turtle and
+Green worlds project to a human `.sigil` view with optional Turtle interchange and
 an entity/component mapping. The existing parser and formatter validate the
 generated view. Text containing braces, long tokens, or fences uses Sigil's
 existing literal blocks, preserving the value without permitting source
-injection. The Turtle companion retains complete semantic fidelity.
+injection. Lossless canonical `.egg` assertions retain complete semantic fidelity.
 
 Implementation slices select one component's capabilities, delegation,
 exclusions, dependencies, routing invariants, related contracts, and explicit
 coverage obligations. They omit unrelated components and RDF syntax.
-Twenty-three tests now cover these projection and source-binding properties in
-addition to the kernel and search behavior. Persisting paired artifacts and
-connecting the source bridge to ordinary compilation remain integration work.
+Projection and source-binding tests cover these properties alongside the kernel
+and search behavior. Installing generated views and tracking their drift remain
+integration work; ordinary compilation already uses the source bridge.
 
 ## Ordinary compiler migration
 
@@ -190,11 +190,11 @@ closures. Legacy provider configuration is tolerated but contributes no verdict.
 A source prose unit becomes a required contract with a stable content identity.
 This deliberately leaves arbitrary prose yellow until a proposal supplies its
 structured meaning. Current source requirements are always retained when loading
-Turtle. Canonical assertions use a content-addressed Turtle snapshot and an atomic
-receipt bound to the source intent fingerprint; source edits invalidate old
+proposals. Canonical assertions use an immutable `.egg` revision and an atomic
+pointer bound to the source intent fingerprint; source edits invalidate old
 interpretations. Every compile runs closure again. Component/source locations stay
-in sidecars. Implementation observations are a trusted host boundary; automatic
-collectors and the user-facing intent workflow remain subsequent work.
+in sidecars. Returned verification uses its independently retained assignment and
+rejects protected input drift instead of changing the required work.
 
 The native boundary now checks every fixed output table and cell before
 interpreting absence as satisfaction. IPC is bounded at 16 MiB, stderr at 1 MiB;
@@ -312,7 +312,52 @@ Native receipt-location resolution now checks exact source hashes, callable
 selectors, optional ranges and frozen component ownership. TypeScript 7 indexes
 native symbols and each call's actual enclosing callable; sibling and nested
 functions cannot establish evidence for another receipt location. The handoff
-records the extractor version alongside the native compiler identity. The next
-stage joins these independently observed primitives with exact obligations in
-fixed egglog rules.
+records the extractor version alongside the native compiler identity. Fixed egglog
+rules join these independently observed primitives with exact obligations.
 Per-receipt outcomes remain distinct from coverage found independently elsewhere.
+
+## Verify an external agent's returned implementation
+
+Retain the original handoff identity before giving the coding agent the work.
+Import its claims after it returns the code, then verify against that identity:
+
+```sh
+sigil semantic slice . --component Application
+sigil semantic receipts . --handoff <saved-handoff-id> --claims <claims.ttl> --locations <locations.json>
+sigil semantic verify . --handoff <saved-handoff-id> --receipts <imported-receipt-id>
+sigil compile . --component Application --exact-target --focus implementation --handoff <saved-handoff-id> --receipts <imported-receipt-id> --format markdown
+```
+
+`--handoff-root` can locate the retained assignment in the original workspace when
+the returned code is a separate checkout. Receipt bundles live in the returned
+workspace. Omitting `--receipts` still verifies every obligation. Ordinary compile
+requires its selected component identities to match the assignment and rejects
+replacement semantic documents, verifier policy or injected proof tables.
+
+The shared verifier validates protected inputs, analyzes the full host-owned
+component inventory with TypeScript 7, resolves receipt pointers and executes
+mandatory host commands. Each command receives a fresh disposable snapshot;
+modifying existing input bytes, file kinds or executable modes invalidates its
+result. Actual nonzero exit codes are failed checks. Cancellation, timeout,
+launch failure and output-limit failure return no completed verdict. Native input
+hashes and the returned snapshot are checked again after tool execution.
+
+Fixed egglog rules report supported, contradicted or unresolved claims separately
+from covered, violated or unresolved obligations. A wrong-function receipt can
+remain unresolved while independent coverage is green. An observed prohibition,
+failed mandatory check or complete analysis proving a required relation absent
+is red. Incomplete scope stays yellow. Passing a host command proves that check;
+it does not automatically prove arbitrary behavior.
+
+Both commands expose scope, snapshot identity, obligations, claim outcomes and
+check results. `semantic verify --format markdown` and ordinary compile share a
+readable projection. Detailed runs retain source and rule witnesses in ignored
+`.sigil/runs` and `.sigil/cache` bundles. Reading these bundles never restores
+trusted evidence. Accepted-world reconstruction and semantic closure work after
+optional Turtle files and derived caches are removed.
+
+The current snapshot copier excludes generated directories and `node_modules`.
+Checks that need installed local dependencies require further dependency staging;
+the disposable copy is filesystem work isolation, not an operating-system sandbox.
+Broader behavioral proofs, installed projections, provider migration and release
+packaging remain unfinished.
