@@ -6,4 +6,5 @@ pub mod frontend;
 pub mod inputs;
 pub mod kernel;
 pub mod sources;
+pub mod store;
 pub mod turtle;

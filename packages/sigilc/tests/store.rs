@@ -1,0 +1,226 @@
+mod support;
+use sigilc::{
+    inputs::{Binding, PROJECTION_FORMAT, SemanticInput},
+    sources::{capture, hash},
+    store::{Freshness, Job, LockedStore, StoreLimits},
+    turtle::{self, TurtleLimits},
+};
+use support::Workspace;
+
+fn binding(root: &Workspace, path: &str) -> Binding {
+    Binding {
+        source: capture(&root.0, path, 100_000).unwrap().identity,
+        ontology: turtle::ontology_fingerprint(),
+        projection_format: PROJECTION_FORMAT,
+        semantic: SemanticInput::Implementation {
+            catalog_fingerprint: hash(b"fixed test catalog"),
+        },
+    }
+}
+fn facts() -> Vec<turtle::Assertion> {
+    turtle::parse(
+        b"<urn:fixture:a> <https://sigil.dev/ontology/1#uses> <urn:fixture:b> .",
+        TurtleLimits::default(),
+    )
+    .unwrap()
+}
+fn open(root: &Workspace) -> LockedStore {
+    LockedStore::open(&root.0, StoreLimits::default()).unwrap()
+}
+
+#[test]
+fn jobs_capture_generation_before_turtle_and_cannot_publish_out_of_order() {
+    let root = Workspace::new();
+    root.write("folder/a.py", b"first");
+    let input = binding(&root, "folder/a.py");
+    let job = {
+        let store = open(&root);
+        assert_eq!(store.inspect(&input).unwrap().status, Freshness::Missing);
+        store.prepare(input.clone()).unwrap()
+    };
+    let duplicate = serde_json::from_slice::<Job>(&serde_json::to_vec(&job).unwrap()).unwrap();
+    let mut store = open(&root);
+    store.publish(&job, &input, &facts()).unwrap();
+    assert!(
+        root.0
+            .join(".sigil/worlds/implementation/folder/a.py.egg")
+            .is_file()
+    );
+    assert_eq!(store.inspect(&input).unwrap().assertions, facts());
+    assert!(
+        store
+            .publish(&duplicate, &input, &[])
+            .unwrap_err()
+            .contains("generation")
+    );
+    let replacement = store.prepare(input.clone()).unwrap();
+    store.publish(&replacement, &input, &[]).unwrap();
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Fresh);
+    assert!(store.inspect(&input).unwrap().assertions.is_empty());
+    assert!(store.publish(&replacement, &input, &facts()).is_err());
+    assert!(
+        LockedStore::open(&root.0, StoreLimits::default())
+            .err()
+            .unwrap()
+            .contains("lock")
+    );
+    drop(store);
+    assert_eq!(
+        open(&root).inspect(&input).unwrap().status,
+        Freshness::Fresh
+    );
+}
+
+#[test]
+fn changed_sources_catalogs_and_formats_reject_publication() {
+    let root = Workspace::new();
+    root.write("a.rs", b"one");
+    let input = binding(&root, "a.rs");
+    let mut store = open(&root);
+    let job = store.prepare(input.clone()).unwrap();
+    root.write("neighbor.rs", b"unrelated");
+    store.publish(&job, &input, &facts()).unwrap();
+    let job = store.prepare(input.clone()).unwrap();
+    root.write("a.rs", b"two");
+    assert!(
+        store
+            .publish(&job, &input, &[])
+            .unwrap_err()
+            .contains("source input changed")
+    );
+    let modified = binding(&root, "a.rs");
+    assert_eq!(
+        store.inspect(&modified).unwrap().status,
+        Freshness::Modified
+    );
+    assert!(
+        store
+            .publish(&job, &modified, &[])
+            .unwrap_err()
+            .contains("semantic inputs")
+    );
+    let mut changed_catalog = input.clone();
+    changed_catalog.semantic = SemanticInput::Implementation {
+        catalog_fingerprint: hash(b"changed"),
+    };
+    assert_eq!(
+        store.inspect(&changed_catalog).unwrap().status,
+        Freshness::EntityCatalogInvalidated
+    );
+    assert!(store.publish(&job, &changed_catalog, &[]).is_err());
+    let mut incompatible = input.clone();
+    incompatible.projection_format += 1;
+    assert!(store.prepare(incompatible).is_err());
+}
+
+#[test]
+fn failed_index_publication_remains_incomplete_in_memory_and_after_reopen() {
+    let root = Workspace::new();
+    root.write("a", b"source");
+    let input = binding(&root, "a");
+    let mut store = open(&root);
+    let first = store.prepare(input.clone()).unwrap();
+    store.publish(&first, &input, &facts()).unwrap();
+    let second = store.prepare(input.clone()).unwrap();
+    let obstruction = root.0.join(".sigil/worlds/index.json.tmp");
+    std::fs::create_dir(&obstruction).unwrap();
+    assert!(store.publish(&second, &input, &[]).is_err());
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Incomplete);
+    drop(store);
+    let mut store = open(&root);
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Incomplete);
+    std::fs::remove_dir(obstruction).unwrap();
+    store.publish(&second, &input, &[]).unwrap();
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Fresh);
+}
+
+#[test]
+fn only_matching_indexed_restricted_assertions_contribute_facts() {
+    let root = Workspace::new();
+    root.write("a", b"source");
+    let input = binding(&root, "a");
+    root.write(
+        ".sigil/worlds/implementation/a.egg",
+        b"(panic \"never execute\")",
+    );
+    let mut store = open(&root);
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Missing);
+    let job = store.prepare(input.clone()).unwrap();
+    store.publish(&job, &input, &facts()).unwrap();
+    root.write(
+        ".sigil/worlds/implementation/a.egg",
+        b"(panic \"never execute\")",
+    );
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Incomplete);
+    drop(store);
+    let index_path = root.0.join(".sigil/worlds/index.json");
+    let mut index: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();
+    index["entries"]["implementation/a"]["assertion_checksum"] =
+        serde_json::json!(hash(b"(panic \"never execute\")"));
+    std::fs::write(&index_path, serde_json::to_vec(&index).unwrap()).unwrap();
+    assert_eq!(
+        open(&root).inspect(&input).unwrap().status,
+        Freshness::Incomplete
+    );
+    std::fs::remove_file(root.0.join(".sigil/worlds/implementation/a.egg")).unwrap();
+    assert_eq!(
+        open(&root).inspect(&input).unwrap().status,
+        Freshness::Incomplete
+    );
+    index["entries"]["implementation/a"]["model"] = serde_json::json!("forbidden");
+    std::fs::write(index_path, serde_json::to_vec(&index).unwrap()).unwrap();
+    assert!(LockedStore::open(&root.0, StoreLimits::default()).is_err());
+}
+
+#[test]
+fn limits_and_invalid_paths_fail_before_index_acceptance() {
+    let root = Workspace::new();
+    root.write("a", b"source");
+    let input = binding(&root, "a");
+    let limits = StoreLimits {
+        max_index_bytes: 2,
+        ..StoreLimits::default()
+    };
+    let mut store = LockedStore::open(&root.0, limits).unwrap();
+    let job = store.prepare(input.clone()).unwrap();
+    assert!(
+        store
+            .publish(&job, &input, &[])
+            .unwrap_err()
+            .contains("index exceeds")
+    );
+    assert_eq!(store.inspect(&input).unwrap().status, Freshness::Missing);
+    assert!(!root.0.join(".sigil/worlds/implementation/a.egg").exists());
+    let mut invalid = input.clone();
+    invalid.source.path = "../escape".into();
+    assert!(store.prepare(invalid).is_err());
+    for pointer in ["", "/binding", "/binding/semantic"] {
+        let mut value = serde_json::to_value(&job).unwrap();
+        value
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert("producer".into(), serde_json::json!("forbidden"));
+        assert!(serde_json::from_value::<Job>(value).is_err());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn symlinked_store_and_artifact_paths_are_rejected() {
+    use std::os::unix::fs::symlink;
+    let root = Workspace::new();
+    let outside = Workspace::new();
+    symlink(&outside.0, root.0.join(".sigil")).unwrap();
+    assert!(LockedStore::open(&root.0, StoreLimits::default()).is_err());
+    std::fs::remove_file(root.0.join(".sigil")).unwrap();
+    root.write("a", b"source");
+    let input = binding(&root, "a");
+    let mut store = open(&root);
+    let job = store.prepare(input.clone()).unwrap();
+    symlink(&outside.0, root.0.join(".sigil/worlds/implementation")).unwrap();
+    assert!(store.publish(&job, &input, &facts()).is_err());
+    assert!(!outside.0.join("a.egg").exists());
+}

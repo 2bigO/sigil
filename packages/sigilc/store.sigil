@@ -1,0 +1,28 @@
+component SigilProjectionStore {
+  goal {
+    Publish disposable source-bound assertions without accepting stale or
+    out-of-order reconstruction as current evidence.
+  }
+
+  interface {
+    ProjectionPublication {
+      Capture the expected per-source generation before reconstruction.
+      Under one OS file lock, compare the prepared binding and generation with
+      current inputs and recheck source and Design dependency bytes. Publish
+      bounded data-only assertions by temporary-file replacement, then atomically
+      replace the index that binds their checksum to inputs and generation.
+      Reject duplicate jobs and changed source, catalog or format inputs.
+      Keep scheduling, workers and production metadata outside the store.
+    }
+
+    IndexedAssembly {
+      Mirror normalized source paths with their original extensions plus egg.
+      Load only index-selected assertions with matching complete input bindings
+      and checksums. Parse them as restricted data. Missing, stale, corrupt,
+      deleted and unindexed objects contribute no current facts.
+      Bound index and assertion bytes separately. Refuse path traversal,
+      symlinked artifact paths and malformed index metadata.
+      A busy writer lock is an operational failure, never a semantic result.
+    }
+  }
+}

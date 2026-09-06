@@ -1,0 +1,359 @@
+//! Small disposable index and atomic per-source publication. No job registry.
+use crate::{
+    assertions,
+    frontend::normalized_path,
+    inputs::{Binding, SemanticInput},
+    sources::{self, hash},
+    turtle::{Assertion, TurtleLimits},
+};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::BTreeMap,
+    fs::{self, File, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
+};
+
+const WORLDS: &str = ".sigil/worlds";
+const INDEX: &str = ".sigil/worlds/index.json";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Job {
+    pub version: u32,
+    pub binding: Binding,
+    pub expected_generation: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Entry {
+    pub binding: Binding,
+    pub assertion_checksum: String,
+    pub generation: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Index {
+    version: u32,
+    sequence: u64,
+    entries: BTreeMap<String, Entry>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Freshness {
+    Fresh,
+    Missing,
+    Modified,
+    DependencyInvalidated,
+    EntityCatalogInvalidated,
+    Incompatible,
+    Incomplete,
+}
+
+#[derive(Debug)]
+pub struct Inspection {
+    pub status: Freshness,
+    pub assertions: Vec<Assertion>,
+}
+
+#[derive(Clone, Copy)]
+pub struct StoreLimits {
+    pub max_index_bytes: u64,
+    pub max_source_bytes: u64,
+    pub assertions: TurtleLimits,
+}
+impl Default for StoreLimits {
+    fn default() -> Self {
+        Self {
+            max_index_bytes: 16_000_000,
+            max_source_bytes: 16_000_000,
+            assertions: TurtleLimits {
+                max_document_bytes: 8_000_000,
+                max_assertions: 100_000,
+            },
+        }
+    }
+}
+
+/// Owns the exclusive lock until dropped. Host code computes current Design and
+/// catalog bindings inside this lifetime before preparing or publishing.
+pub struct LockedStore {
+    root: PathBuf,
+    _lock: File,
+    index: Index,
+    limits: StoreLimits,
+}
+
+impl LockedStore {
+    pub fn open(root: &Path, limits: StoreLimits) -> Result<Self, String> {
+        let root = root.canonicalize().map_err(|e| e.to_string())?;
+        fs::create_dir_all(sources::checked_path(&root, WORLDS)?).map_err(|e| e.to_string())?;
+        regular_or_absent(&sources::checked_path(&root, &format!("{WORLDS}/.lock"))?)?;
+        let lock = OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(sources::checked_path(&root, &format!("{WORLDS}/.lock"))?)
+            .map_err(|e| e.to_string())?;
+        lock.try_lock()
+            .map_err(|e| format!("projection store lock unavailable: {e}"))?;
+        let index = match fs::symlink_metadata(sources::checked_path(&root, INDEX)?) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Index {
+                version: 1,
+                sequence: 0,
+                entries: BTreeMap::new(),
+            },
+            Err(e) => return Err(e.to_string()),
+            Ok(_) => serde_json::from_slice::<Index>(
+                &sources::capture(&root, INDEX, limits.max_index_bytes)?.bytes,
+            )
+            .map_err(|e| format!("invalid projection index: {e}"))?,
+        };
+        if index.version != 1 {
+            return Err("unsupported projection index version".into());
+        }
+        for (key, entry) in &index.entries {
+            if *key != object_key(&entry.binding)?
+                || entry.generation == 0
+                || entry.generation > index.sequence
+                || !checksum(&entry.assertion_checksum)
+            {
+                return Err(format!("invalid projection index entry: {key}"));
+            }
+        }
+        Ok(Self {
+            root,
+            _lock: lock,
+            index,
+            limits,
+        })
+    }
+
+    pub fn entries(&self) -> &BTreeMap<String, Entry> {
+        &self.index.entries
+    }
+
+    /// Return a descriptor to the external caller before it supplies Turtle.
+    pub fn prepare(&self, binding: Binding) -> Result<Job, String> {
+        compatible(&binding)?;
+        let key = object_key(&binding)?;
+        self.check_live(&binding)?;
+        Ok(Job {
+            version: 1,
+            binding,
+            expected_generation: self.index.entries.get(&key).map(|e| e.generation),
+        })
+    }
+
+    // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::ProjectionPublication interface
+    pub fn publish(
+        &mut self,
+        job: &Job,
+        current: &Binding,
+        facts: &[Assertion],
+    ) -> Result<u64, String> {
+        compatible(current)?;
+        let key = object_key(current)?;
+        if job.version != 1 || job.binding != *current {
+            return Err("prepared semantic inputs no longer match current inputs".into());
+        }
+        if self.index.entries.get(&key).map(|e| e.generation) != job.expected_generation {
+            return Err("projection generation changed; prepare a new job".into());
+        }
+        self.check_live(current)?;
+        if facts.len() > self.limits.assertions.max_assertions {
+            return Err("projection assertion count exceeds limit".into());
+        }
+        let encoded = assertions::encode(facts)?;
+        if encoded.len() > self.limits.assertions.max_document_bytes {
+            return Err("encoded projection exceeds byte limit".into());
+        }
+        let generation = self
+            .index
+            .sequence
+            .checked_add(1)
+            .ok_or("projection generation exhausted")?;
+        let mut proposed = self.index.clone();
+        proposed.sequence = generation;
+        proposed.entries.insert(
+            key.clone(),
+            Entry {
+                binding: current.clone(),
+                assertion_checksum: hash(encoded.as_bytes()),
+                generation,
+            },
+        );
+        let data = serde_json::to_vec(&proposed).map_err(|e| e.to_string())?;
+        if data.len() as u64 > self.limits.max_index_bytes {
+            return Err("projection index exceeds byte limit".into());
+        }
+        // A crash between replacements leaves a detectable checksum mismatch or
+        // orphan. Failed publication never becomes current in this handle either.
+        atomic_write(
+            &self.root,
+            &format!("{WORLDS}/{key}.egg"),
+            encoded.as_bytes(),
+        )?;
+        atomic_write(&self.root, INDEX, &data)?;
+        self.index = proposed;
+        Ok(generation)
+    }
+
+    // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::IndexedAssembly interface
+    pub fn inspect(&self, current: &Binding) -> Result<Inspection, String> {
+        compatible(current)?;
+        let key = object_key(current)?;
+        let Some(entry) = self.index.entries.get(&key) else {
+            return Ok(inspected(Freshness::Missing));
+        };
+        let status = freshness(&entry.binding, current);
+        if status != Freshness::Fresh {
+            return Ok(inspected(status));
+        }
+        let path = format!("{WORLDS}/{key}.egg");
+        match fs::symlink_metadata(sources::checked_path(&self.root, &path)?) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(inspected(Freshness::Incomplete));
+            }
+            Err(e) => return Err(e.to_string()),
+            Ok(meta) if !meta.is_file() => return Err("projection is not a regular file".into()),
+            _ => (),
+        }
+        let captured = sources::capture(
+            &self.root,
+            &path,
+            self.limits.assertions.max_document_bytes as u64,
+        )?;
+        if captured.identity.checksum != entry.assertion_checksum {
+            return Ok(inspected(Freshness::Incomplete));
+        }
+        let Ok(source) = std::str::from_utf8(&captured.bytes) else {
+            return Ok(inspected(Freshness::Incomplete));
+        };
+        match assertions::parse(source, self.limits.assertions) {
+            Ok(assertions) => Ok(Inspection {
+                status: Freshness::Fresh,
+                assertions,
+            }),
+            Err(_) => Ok(inspected(Freshness::Incomplete)),
+        }
+    }
+
+    fn check_live(&self, binding: &Binding) -> Result<(), String> {
+        let mut inputs = vec![(&binding.source.path, Some(binding.source.checksum.as_str()))];
+        if let SemanticInput::Design {
+            dependencies,
+            context,
+            ..
+        } = &binding.semantic
+        {
+            inputs.extend(
+                dependencies
+                    .iter()
+                    .map(|d| (&d.path, Some(d.checksum.as_str()))),
+            );
+            inputs.extend(context.iter().map(|c| (&c.path, c.checksum.as_deref())));
+        }
+        for (path, expected) in inputs {
+            if let Some(expected) = expected {
+                let current = sources::capture(&self.root, path, self.limits.max_source_bytes)?;
+                if current.identity.checksum != expected {
+                    return Err(format!("source input changed: {path}"));
+                }
+            } else {
+                match fs::symlink_metadata(sources::checked_path(&self.root, path)?) {
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
+                    Err(e) => return Err(e.to_string()),
+                    Ok(_) => return Err(format!("source input appeared: {path}")),
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+fn inspected(status: Freshness) -> Inspection {
+    Inspection {
+        status,
+        assertions: vec![],
+    }
+}
+
+fn object_key(binding: &Binding) -> Result<String, String> {
+    normalized_path(&binding.source.path)?;
+    Ok(format!("{}/{}", binding.side(), binding.source.path))
+}
+
+fn checksum(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn compatible(binding: &Binding) -> Result<(), String> {
+    if binding.ontology != crate::turtle::ontology_fingerprint()
+        || binding.projection_format != crate::inputs::PROJECTION_FORMAT
+    {
+        return Err("incompatible ontology or projection format".into());
+    }
+    Ok(())
+}
+
+fn freshness(previous: &Binding, current: &Binding) -> Freshness {
+    if previous.ontology != current.ontology
+        || previous.projection_format != current.projection_format
+    {
+        Freshness::Incompatible
+    } else if previous.source != current.source {
+        Freshness::Modified
+    } else if previous.semantic != current.semantic {
+        match (&previous.semantic, &current.semantic) {
+            (SemanticInput::Implementation { .. }, SemanticInput::Implementation { .. }) => {
+                Freshness::EntityCatalogInvalidated
+            }
+            (SemanticInput::Design { .. }, SemanticInput::Design { .. }) => {
+                Freshness::DependencyInvalidated
+            }
+            _ => Freshness::Incompatible,
+        }
+    } else {
+        Freshness::Fresh
+    }
+}
+
+fn atomic_write(root: &Path, relative: &str, bytes: &[u8]) -> Result<(), String> {
+    let target = sources::checked_path(root, relative)?;
+    regular_or_absent(&target)?;
+    fs::create_dir_all(target.parent().ok_or("artifact has no parent")?)
+        .map_err(|e| e.to_string())?;
+    let temporary = sources::checked_path(root, &format!("{relative}.tmp"))?;
+    if regular_or_absent(&temporary)? {
+        fs::remove_file(&temporary).map_err(|e| e.to_string())?;
+    }
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&temporary)
+        .map_err(|e| e.to_string())?;
+    file.write_all(bytes).map_err(|e| e.to_string())?;
+    file.sync_all().map_err(|e| e.to_string())?;
+    drop(file);
+    fs::rename(temporary, target).map_err(|e| e.to_string())
+}
+
+fn regular_or_absent(path: &Path) -> Result<bool, String> {
+    match fs::symlink_metadata(path) {
+        Ok(meta) if meta.is_file() => Ok(true),
+        Ok(_) => Err(format!(
+            "artifact is not a regular file: {}",
+            path.display()
+        )),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e.to_string()),
+    }
+}
