@@ -1419,6 +1419,16 @@ These are the intended matrix entries; a runner/service availability failure is
 a failed prerequisite, not permission to mark that target tested on another CPU.
 Assert the actual OS/architecture at the start of each job.
 
+The workflow must expose `workflow_dispatch` inputs `version` (required) and
+`publish` (boolean, default `false`). A validation run uses the exact CLI manifest
+version with `publish=false`; it executes every build, archive smoke, cancellation
+fixture, source-independent artifact consumer, and installer consumer, uploads
+their summaries, and skips the `publish` job. A tag named `cli-v<version>` or an
+explicit dispatch with `publish=true` may run the final publish job after all five
+targets pass. Never use a validation dispatch to publish a release, and never
+claim a target passed from a build job that did not execute on that target's
+specified runner.
+
 For each matrix entry:
 
 1. Install the pinned build toolchain.
