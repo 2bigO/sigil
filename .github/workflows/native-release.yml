@@ -77,6 +77,23 @@ jobs:
       - name: Build locked native engine
         shell: bash
         run: cargo build --manifest-path packages/compiler/native/Cargo.toml --release --locked --target '${{ matrix.target }}'
+      - name: Build cross-platform cancellation fixture
+        shell: bash
+        run: |
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            helper="$RUNNER_TEMP/uncooperative-engine.exe"
+          else
+            helper="$RUNNER_TEMP/uncooperative-engine"
+          fi
+          rustc --edition 2021 --target '${{ matrix.target }}' -O \
+            scripts/fixtures/uncooperative-engine/main.rs -o "$helper"
+          echo "SIGIL_UNCOOPERATIVE_ENGINE=$helper" >> "$GITHUB_ENV"
+      - name: Verify native cancellation cleanup
+        shell: bash
+        run: |
+          deno test --allow-env --allow-read --allow-write --allow-run \
+            packages/compiler/tests/semantic_runtime_test.ts \
+            --filter 'engine timeout and cancellation reap'
       - name: Build, smoke test, and stage archive
         shell: bash
         env:

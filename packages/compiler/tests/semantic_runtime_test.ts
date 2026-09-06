@@ -39,17 +39,21 @@ Deno.test("engine protocol rejects missing tables and malformed rows before stat
 
 Deno.test({
   name: "engine timeout and cancellation reap an uncooperative native process",
-  ignore: Deno.build.os === "windows",
+  ignore: Deno.build.os === "windows" &&
+    !Deno.env.get("SIGIL_UNCOOPERATIVE_ENGINE"),
   async fn() {
     const directory = await Deno.makeTempDir();
     try {
-      const executable = `${directory}/engine`;
-      // No descendants: this shell models the bridge ignoring graceful termination.
-      await Deno.writeTextFile(
-        executable,
-        "#!/bin/sh\ntrap '' TERM\nwhile :; do :; done\n",
-        { mode: 0o700 },
-      );
+      const configured = Deno.env.get("SIGIL_UNCOOPERATIVE_ENGINE");
+      const executable = configured ?? `${directory}/engine`;
+      if (!configured) {
+        // No descendants: this shell models the bridge ignoring graceful termination.
+        await Deno.writeTextFile(
+          executable,
+          "#!/bin/sh\ntrap '' TERM\nwhile :; do :; done\n",
+          { mode: 0o700 },
+        );
+      }
       const world = await parseSemanticWorld([]);
       await assertRejects(
         () => computeClosure(world, { binaryPath: executable, timeoutMs: 40 }),
@@ -74,15 +78,17 @@ Deno.test({
       } finally {
         clearTimeout(timer);
       }
-      await Deno.writeTextFile(
-        executable,
-        '#!/bin/sh\nprintf \'{"version":1,"kernelVersion":"1","kernelFingerprint":"0000000000000000000000000000000000000000000000000000000000000000","tables":{}}\'\n',
-      );
-      await assertRejects(
-        () => computeClosure(world, { binaryPath: executable }),
-        Error,
-        "tables",
-      );
+      if (!configured) {
+        await Deno.writeTextFile(
+          executable,
+          '#!/bin/sh\nprintf \'{"version":1,"kernelVersion":"1","kernelFingerprint":"0000000000000000000000000000000000000000000000000000000000000000","tables":{}}\'\n',
+        );
+        await assertRejects(
+          () => computeClosure(world, { binaryPath: executable }),
+          Error,
+          "tables",
+        );
+      }
     } finally {
       await Deno.remove(directory, { recursive: true });
     }
