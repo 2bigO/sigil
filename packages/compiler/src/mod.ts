@@ -42,3 +42,5 @@ export * from "./semantic/receipt-locations.ts";
 export * from "./semantic/receipt-witnesses.ts";
 export * from "./semantic/verify-return.ts";
 export * from "./semantic/verification.ts";
+export * from "./semantic/component-registry.ts";
+export * from "./semantic/workspace-context.ts";

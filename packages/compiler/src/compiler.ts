@@ -47,6 +47,7 @@ import {
   semanticComponentId,
   type SemanticSourceBinding,
 } from "./semantic/source.ts";
+import { createSemanticComponentRegistry } from "./semantic/component-registry.ts";
 import { scopeSemanticWorld } from "./semantic/scope.ts";
 import { isCompileArtifactDirectory } from "./semantic/artifacts.ts";
 import {
@@ -504,20 +505,12 @@ export async function compile(
         engineOptions(),
       )
       : undefined;
-    const selectedIds = components.map((c) =>
+    // Keep the structural IDs until the canonical registry can be built from
+    // the accepted world. This preserves the old identity for malformed state
+    // while allowing accepted receipts to remap authored components.
+    let selectedIds = components.map((c) =>
       semanticComponentId(c, workspace.root)
     );
-    if (
-      handoff && (
-        selectedIds.length !== handoff.manifest.subjects.length ||
-        selectedIds.some((id) => !handoff.manifest.subjects.includes(id))
-      )
-    ) {
-      throw new CompilerFailure(
-        "COMPILER_INVALID_INVOCATION",
-        "Compilation scope must match the retained handoff subjects. Select its components, using --exact-target when needed.",
-      );
-    }
     const opened = await openCompilationEventWriter(
       options.eventSink ?? callbackEventSink(options.onEvent),
       {
@@ -555,20 +548,22 @@ export async function compile(
     let inputError: SemanticInputError | undefined;
     let stale = false;
     let canonicalRevision: string | null = null;
+    let storedState: Awaited<ReturnType<typeof readSemanticState>>;
     try {
       if (!handoff) {
-        const stored = await readSemanticState(workspace.root, engineOptions());
-        canonicalRevision = stored?.revision ?? null;
+        storedState = await readSemanticState(workspace.root, engineOptions());
+        canonicalRevision = storedState?.revision ?? null;
         if (
-          stored &&
-          stored.receipt.sourceFingerprint !== sourceIntent.world.fingerprint
+          storedState &&
+          storedState.receipt.sourceFingerprint !==
+            sourceIntent.world.fingerprint
         ) stale = true;
-        else if (stored) {
+        else if (storedState) {
           world = await worldFromFacts(
-            [...world.facts, ...stored.world.facts],
+            [...world.facts, ...storedState.world.facts],
             {
               ...world.provenance,
-              ...stored.world.provenance,
+              ...storedState.world.provenance,
             },
           );
         }
@@ -579,11 +574,41 @@ export async function compile(
             ...proposed.provenance,
           });
         }
-        world = await scopeSemanticWorld(world, selectedIds);
       }
     } catch (error) {
       if (!(error instanceof SemanticInputError)) throw error;
       inputError = error;
+    }
+    if (!inputError) {
+      try {
+        const registry = await createSemanticComponentRegistry({
+          resolved,
+          root: workspace.root,
+          world,
+          bindings: sourceIntent.bindings,
+          componentBindings: storedState?.receipt.componentBindings,
+        });
+        selectedIds = [...registry.entitiesFor(components)];
+        if (
+          handoff && (
+            selectedIds.length !== handoff.manifest.subjects.length ||
+            selectedIds.some((id) => !handoff.manifest.subjects.includes(id))
+          )
+        ) {
+          throw new CompilerFailure(
+            "COMPILER_INVALID_INVOCATION",
+            "Compilation scope must match the retained handoff subjects. Select its components, using --exact-target when needed.",
+          );
+        }
+        if (!handoff) world = await scopeSemanticWorld(world, selectedIds);
+      } catch (error) {
+        if (error instanceof CompilerFailure) throw error;
+        if (!(error instanceof Error)) throw error;
+        inputError = new SemanticInputError(
+          "INVALID_SEMANTIC_STATE",
+          error.message,
+        );
+      }
     }
     const sourceFingerprint = await digest(
       JSON.stringify([

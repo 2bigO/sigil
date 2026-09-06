@@ -4,15 +4,14 @@ import {
   CommandSemanticProvider,
   compileSemanticWorld,
   createImplementationHandoff,
+  createSemanticWorkspaceContext,
   implementationSlice,
   initializeCompileArtifacts,
   loadCompilationWorkspace,
   projectGreenSemanticWorld,
-  projectSigilIntent,
   proposeSemanticIntent,
   readImplementationHandoff,
   readImplementationPolicy,
-  readSemanticState,
   readWorldBeam,
   recordCompilationRun,
   recordSemanticStage,
@@ -28,7 +27,6 @@ import {
   verifyImplementationWorld,
   verifyReturnedImplementation,
   type WorldBeamCheckpoint,
-  worldFromFacts,
   type WorldSearchResult,
   writeReceiptSubmission,
   writeSemanticState,
@@ -228,30 +226,7 @@ async function workspaceContext(path: string, core: CoreAdapter) {
     );
   }
   const root = resolve(resolved.workspace.root);
-  const source = await projectSigilIntent(
-    resolved.components,
-    root,
-    resolved.imports,
-  );
-  const stored = await readSemanticState(root);
-  const sourceChanged = !!stored &&
-    stored.receipt.sourceFingerprint !== source.world.fingerprint;
-  const world = !stored || sourceChanged ? source.world : await worldFromFacts(
-    [...source.world.facts, ...stored.world.facts],
-    { ...source.world.provenance, ...stored.world.provenance },
-  );
-  return {
-    root,
-    resolved,
-    source,
-    stored,
-    world,
-    sourceChanged,
-    receipt: {
-      sourceFingerprint: source.world.fingerprint,
-      canonicalFingerprint: stored?.revision,
-    },
-  };
+  return await createSemanticWorkspaceContext({ root, resolved });
 }
 
 function current(
@@ -494,9 +469,11 @@ export async function runSemanticCommand(
             worldFingerprint: world.fingerprint,
             sourceFingerprint: refreshed.source.world.fingerprint,
             componentBindings: Object.fromEntries(
-              Object.entries(refreshed.source.bindings).filter(([, binding]) =>
-                !binding.unit
-              ).map(([id]) => [id, id]),
+              refreshed.registry.entries.flatMap((entry) =>
+                entry.authoredStructuralId
+                  ? [[entry.authoredStructuralId, entry.entity]]
+                  : []
+              ),
             ),
           },
         }, refreshed.stored?.revision);
@@ -623,9 +600,18 @@ export async function runSemanticCommand(
           "Source contracts changed since the accepted world. Accept current intent before exporting a slice.",
         );
       }
-      const projection = projectGreenSemanticWorld(compilation);
       const component = values["--component"];
-      const subject = projection.componentIds[component] ?? component;
+      const matches = context.registry.resolve(component);
+      if (matches.length !== 1) {
+        throw new UsageError(
+          matches.length === 0
+            ? `No semantic component matched ${JSON.stringify(component)}.`
+            : `Semantic component ${JSON.stringify(component)} is ambiguous: ${
+              matches.map((entry) => entry.entity).join(", ")
+            }.`,
+        );
+      }
+      const subject = matches[0].entity;
       const policy = await readImplementationPolicy(context.root);
       if (!policy) {
         throw new UsageError(
