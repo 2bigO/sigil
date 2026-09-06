@@ -4,6 +4,21 @@ component SigilWorldClosure {
   }
 
   interface {
+    DesignObligations {
+      Derive required interpretation from the frontend's physical unit inventory.
+      A complete structured proposition can interpret a unit; a model assertion
+      claiming completeness cannot. Keep Design interpretation obligations separate
+      from requirements on code. Inspect missing fulfillment after closure.
+      Return Disjoint for contradictions, Loose for unresolved required meaning,
+      and Coherent when neither remains. Operational errors return no state.
+
+      Lower provides to a positive provides obligation, requires to availability
+      of provides, excludes to a uses prohibition, and required propositions to
+      their exact predicate and expected value. Latency budgets require bounded
+      Implementation latency. Other descriptive relations and metadata do not
+      automatically impose code obligations.
+    }
+
     IsolatedClosure {
       Each saturation creates a fresh EGraph containing only that world's
       validated assertions. Derive dependency reachability, delegated capabilities,
