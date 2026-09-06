@@ -316,6 +316,10 @@ export async function inspectManagedViews(
   const pendingRoot = resolve(root, ".sigil/cache/view-transactions");
   const transactions: string[] = [];
   try {
+    const pendingStat = await Deno.lstat(pendingRoot);
+    if (!pendingStat.isDirectory || pendingStat.isSymlink) {
+      invalid("Managed view transaction directory is unsafe.");
+    }
     for await (const entry of Deno.readDir(pendingRoot)) {
       if (entry.isSymlink) {
         invalid(`Managed view transaction entry is a symlink: ${entry.name}.`);
@@ -815,6 +819,19 @@ export async function recoverManagedViews(
       if (typeof payload !== "string" || await digest(payload) !== after) {
         invalid(`Managed view transaction payload does not match ${path}.`);
       }
+    }
+  }
+  for (
+    const directory of [
+      resolve(root, ".sigil"),
+      resolve(root, ".sigil/cache"),
+      resolve(root, ".sigil/cache/view-transactions"),
+      txRoot,
+    ]
+  ) {
+    const stat = await Deno.lstat(directory);
+    if (!stat.isDirectory || stat.isSymlink) {
+      invalid("Managed view transaction directory is unsafe.");
     }
   }
   await initializeCompileArtifacts(root);
