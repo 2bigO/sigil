@@ -9,6 +9,11 @@ on:
         description: Exact CLI manifest version to release
         required: true
         type: string
+      publish:
+        description: Publish a GitHub release after every target consumer passes
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -314,6 +319,7 @@ jobs:
           path: ${{ runner.temp }}/consumer-summary.json
 
   publish:
+    if: ${{ github.event_name == 'push' || inputs.publish == true }}
     needs: [build, artifact-consumer]
     runs-on: ubuntu-24.04
     steps:
