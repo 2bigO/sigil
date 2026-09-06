@@ -1793,6 +1793,37 @@ Design naturally targets `.sigil`.
 
 Implementation may contain arbitrary languages.
 
+## Explicit comparison scope
+
+`SigilComparisonScope` in `packages/sigilc/scope.sigil` owns native scoping.
+A scope pairs an explicitly ordered list of authored `.sigil` root files with
+the existing Implementation selection. Resolve Design imports and required owners
+to closed physical-file membership; report both requested roots and included
+dependencies. Dependency files participate in the scoped Design world and catalog.
+Preserve complete unit inventories, applicable context and diagnostics. Report
+conservative widening for unresolved imports instead of silently omitting them.
+Preserve caller-defined focus order in native output; dependency additions must
+not displace explicit priorities. Identify order separately from membership so
+reprioritizing the same files preserves unchanged semantic projection bindings.
+Order informs the external loop; it does not introduce compiler-owned scheduling.
+
+Use that same scope across native preparation, ingestion, freshness, compilation,
+catalog and comparison operations. Membership belongs in world/report identity,
+not as an extra per-file cache key. Existing semantic inputs still govern reuse:
+changing the Design identity catalog invalidates Implementation projections.
+Distinguish cached sources outside a scope from actually deleted sources. Reject
+missing roots and conflicting selectors; intentional emptiness is explicit.
+
+Current implementation: `--selection` selects Implementation sources only;
+Design uses all sources in `--frontend`. Per-source `--source` preparation is
+not comparison scoping. The explicit paired scope is defined but not implemented
+yet. Add it directly to `sigilc`, reusing native discovery and input binding;
+do not add a TypeScript wrapper or a second task/requirement catalog.
+
+The external workflow chooses files for a question in `compile.md`. Sigil does
+not infer that mapping or certify delivery of the prose plan. Focused comparisons
+help the convergence loop; the final gate still covers the complete refactor.
+
 ---
 
 # 33. Minimal sigilc CLI

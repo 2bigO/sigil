@@ -60,6 +60,18 @@ work and last checkpoint. Check the actual worktree and executable before relyin
 on stored observations. Preserve unrelated changes. The current run uses
 `.codex-progress/`, which must stay ignored and uncommitted.
 
+Resume in the order of the active `work` list, with its explicit priorities
+taking precedence over historical checkpoints and deletion queues. The next
+implementation task is `S32`: finish native `SigilComparisonScope`, validate it
+and use it on this refactor. Its authored contract is present; its Rust/CLI
+implementation is not. Do this before resuming structural export extraction or
+other legacy deletions. Then perform `LOOP-PARITY`: use existing stack capabilities
+for each remaining temporary mechanism and turn observed missing answers into
+specific Design/implementation work. Continue the whole refactor after that
+review; do not turn the review into a prerequisite for all useful work.
+Remove this one-time ordering paragraph when both initial steps are satisfied;
+the general convergence and retirement rules continue to apply.
+
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
 
@@ -71,10 +83,11 @@ queries, manual status tables or a TypeScript compiler wrapper:
 | Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results. |
 | Which identities may Implementation use? | `sigilc entities` | No catalog from stale or Disjoint Design. Current repository reconstruction remains incomplete. |
 | What is the current semantic result? | `sigilc compile design`, `compile implementation`, `compare` | Native commands exist; that does not establish independent current-source reconstruction or frontend integration. |
+| Which files does this comparison cover? | All Design sources in `--frontend`; Implementation `--selection` | Explicit paired scope is defined by `packages/sigilc/scope.sigil` but not implemented. `--source` only targets per-file operations. |
 | Can generated worlds be discarded/recovered? | `sigilc clean` | Use deliberately for disposable-cache recovery, not routinely before freshness inspection. |
 | What code/features still need delivery? | Whole specification, authored Design, ordinary checks and remaining delivery queue | Semantic success alone cannot answer this; final delivery audit remains external. |
 
-These commands and their argument schemas are implemented and documented in
+The implemented commands and their argument schemas are documented in
 `packages/sigilc/README.md`. Verify the selected binary's `--help`; older retained
 builds may have different exits or schemas. Do not invent an unavailable CLI
 export command. Until the structural helper moves, use a small external call to
@@ -131,6 +144,10 @@ Implementation worker. The independence rules below still apply.
 2. **Choose the next useful change.** Give the coding environment the entire
    current human-readable specification and previous-round observations. Prefer
    a concrete deletion or the missing primitive/integration that enables it.
+   First use an already implemented Sigil capability and incorporate its actual
+   invocation here. If temporary state supplies necessary information the stack
+   cannot supply, turn that observed gap into authored Design and implementation
+   work. Respect the explicit resumption order above until it is satisfied.
    Delete UI dedicated to intentionally removed backend concepts together with
    those concepts: beams, receipts, accepted worlds and evaluator profiles need
    no replacement. Retain the VS Code language and compilation/status frontend
@@ -199,6 +216,22 @@ Already observed during this refactor:
 * Structural export remains a manual call to a helper inside the package being
   removed. Extract that language-only capability into the retained frontend; do
   not introduce a TS compiler wrapper to hide the remaining step.
+* Focused comparison still requires externally chosen frontend membership plus
+  Implementation selection. Implement `SigilComparisonScope` directly in Rust:
+  explicit Design roots, reported import/ownership closure and existing
+  Implementation filtering. Then use it on this refactor and remove temporary
+  scope assembly. Do not treat the authored definition as an available command.
+* **Learning from observation: order is necessary scope information.** This loop
+  initially resumed toward export extraction and deletion even though native
+  scope was the newly requested first task. Making the priority explicit in the
+  temporary queue exposed a missing product requirement: a set of files cannot
+  convey what comes first. `SigilComparisonScope::FocusOrder` now requires
+  caller-defined order in native scope output, separate from membership and
+  semantic cache identity. Implement and exercise that requirement in `S32`,
+  then check that the resumed external loop recovers priority from native output.
+  This observation has produced Design and a queued acceptance case, not yet
+  an implemented feature. Apply the same observation-to-Design-to-implementation
+  process to subsequent gaps; do not leave them as permanent tracker rules.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
@@ -207,6 +240,32 @@ Update these observations when new evidence changes the conclusion. Raw command
 outputs live under `STATE_DIR/artifacts`; historical outputs are never current
 world authority. Do not broaden proof, language-analysis or orchestration scope
 just to make the flow look complete.
+
+## Require information and evidence parity
+
+The endgame is that temporary `.codex-progress` tracking and the corresponding
+Sigil flow answer the same necessary questions, with supporting evidence: what
+scope is required, what remains, what is implemented or deleted, what checks ran,
+what inputs are current, and what semantic obligations hold, fail or remain
+unknown. The loop is done when those answers and their evidence agree and the
+final gate passes. A matching color or a newly available primitive is insufficient.
+
+After the first scope implementation task, review active temporary mechanisms
+against implemented Sigil commands/functions. Use existing capabilities directly
+and update this procedure;
+do not write replacement code for a capability already present. For each missing
+answer, record the concrete real-loop question, missing input/output or evidence,
+and intended owner. Define and implement the missing capability, validate it on
+that original question, then retire the temporary mechanism after subsequent use.
+Keep this review in the existing temporary work queue, not a second parity tracker.
+
+Proof here means inspectable support for each claim: current native derivations
+and their input identities for semantic conclusions, and actual checks/diffs for
+delivery and removal. Preserve unknowns and unavailable evidence. Neither a task
+marked done nor a green/yellow gate proves checks passed or code disappeared.
+The Sigil flow must recover those distinctions and supporting evidence without
+depending on temporary task flags. Keep test execution and independent workers
+external; do not recreate accepted worlds, receipts or a coding-agent scheduler.
 
 ## Keep only the temporary state still needed
 
@@ -229,6 +288,9 @@ adapter. Add a disposable query only for an actual unanswered question; remove
 it as soon as the native flow can answer that question. Keep delivery and
 semantic evidence separate, measure real net code deletion against the original
 baseline, and exclude moves, copied dependencies and abandoned edits from gains.
+Store shared selection policy once, not on every requirement row. Scope reports
+must eventually replace manual comparison membership; requirement IDs and file
+lists recording actual delivery evidence are not themselves compiler selectors.
 
 ## Small commits by semantic change
 
@@ -318,11 +380,17 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | --- | --- | --- |
 | Hand-maintained source/unit inventory | Existing structural frontend export | Already used across subsequent increments. Remove duplicate source/unit inventories and counts; keep the current artifact identity. The language export itself is retained product capability. |
 | Ad hoc target freshness queries | Native `stale`, capture and generation validation | Already used across subsequent increments. Remove custom freshness decisions and per-source tracker statuses; read native reports. |
+| Repeated scope selectors and hand-built comparison membership | Planned `SigilComparisonScope`, reusing existing Implementation selection | Remove duplicated selector prose now. Once native scope is implemented and adopted, delete manual bundle slicing and active per-task file lists used only for comparison. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
 | Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Stop custom assembly when real returned Turtle uses the native path. Do not mark independent reconstruction available from fixtures. |
 | Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
 | Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |
 | Tracker-maintained semantic colors | Named native gate states and diagnostics | Retire custom coloring when current native output is the source used by the frontend and external workflow. No absence-of-diagnostics color algorithm. |
 | Bespoke delivery/work queue | Whole specification, authored Design, native diagnostics and ordinary acceptance checks | Shrink checked items continuously; retire the remaining queue at the final audit/rehearsal. Yellow cannot establish delivery. |
+
+For every row, retirement requires the same necessary information and supporting
+evidence to be recoverable through the Sigil flow. If it cannot, that is a Design
+and implementation gap for the running loop, not permission to delete the record
+or leave the temporary mechanism permanent.
 
 Every checkpoint must identify what temporary mechanism was removed/reduced,
 or the specific prerequisite preventing the next retirement and the next action
@@ -392,9 +460,12 @@ All of the following must hold for the same final scope and current sources:
 6. Perform a retirement rehearsal: start a fresh external session without the
    temporary `work`/`replacements` state or custom queries. Using only the current
    plans, authored `.sigil`, code, ordinary checks and native Sigil commands, it
-   must recover the required scope, current unknowns and semantic status. No new
-   implementation is required in this rehearsal. Where tools are blind, disclose
-   that rather than claiming the tracker was replaced.
+   must recover the required scope, remaining/delivered/deleted behavior, actual
+   check evidence, current unknowns and native semantic status. Compare those
+   answers and supporting evidence with the temporary state: the same necessary
+   information must be available, including why the loop is done. No new
+   implementation is required in this rehearsal. Any missing necessary answer
+   returns to Design and implementation work; it blocks tracker retirement.
 
 Archive the temporary queue/query scripts and final audit within `STATE_DIR`;
 leave them inactive and recoverable. Do not delete the user-supplied folder.
@@ -415,11 +486,19 @@ Replace the placeholder with the actual absolute state folder:
 ```text
 Implement compile.md following the complete loop and rules in track.md.
 Use <ABSOLUTE_STATE_DIR> as persistent state; initialize or resume it.
+For an existing run, preserve its baseline and follow its explicit priority order.
+Follow any one-time resumption order in track.md, then keep reviewing information
+and evidence parity and implementing observed gaps in the running loop.
 Implement, dogfood, and replace temporary tracking until track.md's final gate
 passes. Use implemented sigilc primitives directly on each applicable refactor
 step, record concrete improvement observations, and keep removing/reducing
-temporary queries and state until the Sigil flow replaces them. Preserve retained
-frontend capabilities; delete UI dedicated to removed backend concepts. Revise
+temporary queries and state until the Sigil flow supplies the same necessary
+information and supporting evidence. Reuse implemented capabilities directly;
+update track.md with their actual use instead of writing redundant code.
+Do not retire a mechanism until this parity is demonstrated on subsequent real
+work. A successful gate alone never proves delivery, test success or deletion.
+Preserve retained frontend capabilities; delete UI dedicated to removed backend
+concepts. Revise
 either document when real-use evidence warrants it, following track.md's change
 rules. Make small, semantically cohesive commits throughout.
 Preserve unrelated work. Keep independent semanticization and orchestration
