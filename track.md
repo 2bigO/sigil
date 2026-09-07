@@ -253,6 +253,18 @@ scope after each external reconstruction/check round. `--scope` replaces
 reconstruction. Projection freshness is binding-specific: preserve an accepted
 egg from another ordered item, but let native `stale` decide whether its
 current Design or catalog binding is reusable before preparing a replacement.
+Keep the original versioned scope input for every command; the report emitted by
+`sigilc scope` is inspection output and is not a later `--scope` input. Native
+world commands share one writer lock, so run stale, preparation, ingestion and
+gates serially; lock contention is an operational retry, not a semantic state.
+
+Current checkpoint (cycle 51): the hard reconstruction gate is satisfied. The
+complete selected scope has 37 fresh Design and 12 fresh Implementation
+projections; Design is `Loose` (exit 0), Implementation is `Converged` (exit 0),
+and comparison has zero unresolved or disagreement results. `sigilc request
+status` reports `scope-1` ready and `scope-2`/`scope-3` queued behind it. Start
+the next round with `scope-1`'s caller scope input, then run native `stale` and
+refresh only rows non-fresh for that item binding.
 
 ## The convergence loop
 
@@ -595,9 +607,9 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | Hand-maintained source/unit inventory | Existing structural frontend export | Already used across subsequent increments. Remove duplicate source/unit inventories and counts; keep the current artifact identity. The language export itself is retained product capability. |
 | Ad hoc target freshness queries | Native `stale`, capture and generation validation | Already used across subsequent increments. Remove custom freshness decisions and per-source tracker statuses; read native reports. |
 | Repeated scope selectors and hand-built comparison membership | Implemented `sigilc scope` and `--scope` across world commands | Adopted on the subsequent source-selection increment; native output selected the first preparation target. Stop manual bundle slicing/comparison-membership assembly and read native order/membership. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
-| Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Stop custom assembly when real returned Turtle uses the native path. Do not mark independent reconstruction available from fixtures. |
-| Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
-| Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |
+| Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Retired after cycle 51: the isolated subagent returned Turtle directly to native ingest. Keep only per-attempt worker and ingest evidence. |
+| Hand-maintained semantic identities | `entities` output | Retired after cycle 51: the current provisional catalog supplied the Implementation worker. Read native catalog output; do not recreate the list. |
+| Python joins for missing/disagreeing behavior | `compare` output | Retired after cycle 51: native comparison reported the complete result with zero unresolved or disagreements. Remove custom joins and read native obligations/diagnostics. |
 | Tracker-maintained semantic colors | Named native gate states and diagnostics | Retired after native editor adoption with actual tools and real refactor use. Read native names and unavailable states; no absence-of-diagnostics color algorithm. Independent current reconstruction is still needed for final convergence. |
 | Bespoke delivery/work queue | Implemented `sigilc request create/status` (`SigilScopedRequest`) for ordered scope lifecycle, plus explicit external check/deletion evidence references | Retired duplicate `delivery queue.next_task` after fresh-session parity (`artifacts/request-parity-37.json`). Keep requirement delivery state and external delivery/check/deletion evidence; use native request status on later increments. Yellow cannot establish delivery. |
 
