@@ -1887,7 +1887,11 @@ versioned scope pairs `design.paths` in caller priority order with the existing
 `implementation` selection object; see `packages/sigilc/README.md` for its schema.
 Without `--scope`, `--selection` selects Implementation only and Design uses all
 sources in `--frontend`. Native scope reuses discovery and input binding directly;
-do not add a TypeScript wrapper or a second task/requirement catalog.
+an Implementation command given only that raw selection cannot establish the
+focused Design catalog and returns unavailable (exit 3). For an ordered request,
+pass its request definition through `--scope` on prepare, ingest, stale, compile,
+and compare so both sides use the same narrowed snapshot. Do not add a TypeScript
+wrapper or a second task/requirement catalog.
 
 The external workflow chooses files for a question in `compile.md`. Sigil does
 not infer that mapping or certify delivery of the prose plan. Focused comparisons
