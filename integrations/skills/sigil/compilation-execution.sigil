@@ -41,6 +41,10 @@ expand SigilCompilationExecution {
       Retain job.json with the caller and return it unchanged with the worker's
       Turtle for ingestion.
 
+      The external frontend/host spawns independent workers in the background,
+      records their process/job evidence and invokes sigilc ingest with the matching
+      source, job.json and returned Turtle.
+
       Design workers receive design.json and ontology.json.
 
       Implementation workers receive exactly captured source bytes, ontology.json and
@@ -94,6 +98,12 @@ expand SigilCompilationExecution {
       Queued/ready release is predecessor-derived; only fresh native Closed or
       Converged evidence is terminal. Do not duplicate its ordering/release state in
       a temporary queue.
+
+      Do not advance the reconstruction task until index.json and every selected
+      Design and Implementation .egg are present and fresh, and the frontend's
+      worker-spawn and matching ingest command/exit are recorded. A lock-only worlds
+      directory, preparation, fixture or hand-authored Turtle is not semanticization
+      evidence.
     }
   }
 
@@ -107,6 +117,10 @@ expand SigilCompilationExecution {
       than editing the descriptor to force acceptance.
 
       Missing Design reconstruction leaves comparison unavailable.
+
+      Missing published worlds or missing frontend worker/ingest interaction keeps
+      the request at the reconstruction gate; no later task or temporary mechanism
+      retirement is allowed.
 
       Useful external implementation work may continue while that semantic
       prerequisite is absent.

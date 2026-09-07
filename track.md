@@ -35,6 +35,36 @@ represent semantic colors. Exit zero alone never verifies delivery or deletion.
 Complete the loop only when the final gate below passes. An ordinary iteration
 may finish with unfinished work; that is a checkpoint, not completion.
 
+## Hard reconstruction gate
+
+The top-level `LOOP-RECONSTRUCTION` task is locked until both observations are
+present. No later work item may be advanced, marked verified, or used to retire
+temporary state while either criterion is false:
+
+1. The current selected scope has published Design **and** Implementation
+   reconstructions under `.sigil/worlds/`. Verify this from
+   `.sigil/worlds/index.json` and the mirrored per-source `.egg` files, then
+   confirm with native `sigilc stale design` and `sigilc stale implementation`
+   that every selected row is `fresh`. The directory and lock file alone do not
+   satisfy this criterion; an empty cache is evidence that publication has not
+   happened.
+2. A real frontend run has spawned the independent background workers and its
+   evidence records each returned Turtle being passed to `sigilc ingest` with
+   the matching source and caller-held `job.json`. The evidence must include
+   the frontend/worker invocation, worker identity or process record, ingest
+   command and exit, and the corresponding published projection. Preparation,
+   fixtures, hand-authored Turtle, or a native command run without the frontend
+   worker interaction do not satisfy this criterion.
+
+`sigilc` intentionally does not schedule workers. The external frontend/host
+owns spawning and isolation, while the native compiler owns validation and
+publication. If the frontend cannot produce this interaction evidence, keep
+the loop at `LOOP-RECONSTRUCTION` and turn the observed capability gap into
+authored Design and implementation work; do not skip the gate or build a
+tracker, scheduler, or compatibility adapter. Only after both criteria are
+verified may the loop advance to Implementation comparison, platform follow-up
+or temporary-mechanism retirement.
+
 ## Sources of authority
 
 `compile.md` defines the refactor's scope and constraints. Authored `.sigil`
@@ -94,6 +124,13 @@ and comparison joins only after a subsequent native information/evidence parity
 observation. If the native flow cannot answer a required question, record the
 observed gap and implement it in its authored owner instead of adding a
 tracker adapter.
+
+The same scoped run also exercised the remaining native reports. Design compile
+exited 0 with named state `Loose` and `all_fresh: false`; `entities` exited 1
+with no catalog; Implementation stale, compile and compare each exited 3 with
+`current Design catalog unavailable` and unset Implementation/comparison state.
+These are prerequisite/inspection outcomes, not semantic colors for missing
+work. Preserve their named reasons when the external round resumes.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:

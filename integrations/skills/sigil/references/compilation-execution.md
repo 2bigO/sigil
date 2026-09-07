@@ -77,6 +77,10 @@ available identity and assertion forms. Keep new domain entity declarations with
 their owning physical source; reference foreign identities without redeclaring
 them. Do not invent assertions merely to make a gate pass. The compiler validates
 syntax, binding and fixed laws; it cannot establish worker fidelity by itself.
+The frontend/host must spawn the independent workers in the background and retain
+the process/job record, returned Turtle path, matching source/job descriptor and
+`sigilc ingest` command/exit for each source. Preparation alone is not a worker
+observation.
 
 ## Independently reconstruct Implementation
 
@@ -99,6 +103,13 @@ Capture and reconstruct changed inputs after another coding round. Ingest the
 worker's completed zero-fact result when appropriate; missing output is different
 from completed empty output. Neither proves that required behavior was delivered.
 Do not weaken scope to obtain a better result.
+
+The reconstruction gate stays open until `.sigil/worlds/index.json` and every
+selected Design and Implementation `.egg` are present and fresh according to
+native stale reports, and a real frontend run proves the worker spawn and
+matching ingestion interaction. A lock-only or otherwise empty worlds directory,
+fixtures, preparation output, or manually authored Turtle cannot advance the
+request to the next task.
 
 ## Interpret the actual command
 
