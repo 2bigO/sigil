@@ -304,9 +304,10 @@ The skill teaches coding-agent hosts to:
 - record durable rationale for material selected choices in optional `decisions`
   sections while keeping binding outcomes in `constraints`;
 - propose brownfield and externally informed semantic units before editing;
-- use deterministic semantic intent, answer, acceptance, projection, handoff,
-  receipt, and verification commands;
-- keep generated views out of authored discovery and retain canonical entity IDs;
+- use deterministic native `sigilc` scope, stale, prepare, ingest, entities,
+  compile, compare, request, and clean commands;
+- keep generated `.sigil` metadata out of authored discovery and retain canonical
+  entity IDs;
 - pass implementation ownership to the external workflow and report claims
   separately from independent coverage.
 

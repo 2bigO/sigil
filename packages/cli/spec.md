@@ -53,9 +53,10 @@ anchor surface is defined below and does not change the 0.6 acceptance criteria.
 
 ## 4. Runtime And Dependency Requirements
 
-`sigil-cli` is implemented in TypeScript 7-compatible Deno modules. Standalone
-archives carry the pinned native egglog and TypeScript 7.0.2 runtime; published
-library callers must provide a matching runtime explicitly.
+The source package is implemented in TypeScript and Deno modules. Standalone
+archives ship the compiled `sigil` language CLI beside the native `sigilc`
+binary; archive consumers do not need a separately installed TypeScript or
+egglog runtime.
 
 `sigil-cli` must depend on `sigil-core` for:
 
