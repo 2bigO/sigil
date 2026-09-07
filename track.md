@@ -250,9 +250,12 @@ result. Use `--scope` consistently on subsequent ingest/catalog/Implementation
 operations, and use `sigilc request status` to advance an ordered multi-item
 scope after each external reconstruction/check round. `--scope` replaces
 `--selection`; neither replaces the full-scope final audit or independent
-reconstruction. Projection freshness is binding-specific: preserve an accepted
-egg from another ordered item, but let native `stale` decide whether its
-current Design or catalog binding is reusable before preparing a replacement.
+reconstruction. Projection freshness is binding-specific: the world index keeps
+one current publication per side and source path. Preserve every row that is
+fresh for the current item; when an ordered item changes the Design catalog,
+native `stale` reports `entity-catalog-invalidated` and the affected sources must
+be reconstructed for that item. Do not add a parallel scope-keyed cache for
+superseded bindings.
 Keep the original versioned scope input for every command; the report emitted by
 `sigilc scope` is inspection output and is not a later `--scope` input. Native
 world commands share one writer lock, so run stale, preparation, ingestion and

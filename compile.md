@@ -1833,7 +1833,10 @@ changing the Design identity catalog invalidates Implementation projections.
 Because an ordered request item can change the selected Design catalog, run
 `stale` with that item's scope before deciding whether an existing
 Implementation `.egg` is reusable. Preserve unrelated fresh projections while
-refreshing only the rows whose current item binding is non-fresh.
+refreshing only the rows whose current item binding is non-fresh. The world
+index keeps one current publication per side and source path; a later ingest
+replaces that publication when its semantic binding changes. Do not introduce a
+second scope-keyed cache to retain superseded catalog bindings.
 The `--scope` argument is always the caller's versioned scope input; do not feed
 a prior `sigilc scope` report back as a scope input. World-store commands share
 one writer lock, so serialize stale, preparation, ingestion and gate commands;
@@ -1930,11 +1933,12 @@ or prompt alone never marks it stale and requires no compiler option or field.
 
 Freshness is evaluated against the current source and semantic binding, not
 against a path in isolation. Ordered request items can therefore produce
-different Design scopes and catalog bindings for the same source. An accepted
-`.egg` from another item remains useful cache data, but it is reusable for the
-current item only when `sigilc stale` reports that item's binding `fresh`.
-Never rebuild a fresh projection merely because it belongs to another item;
-refresh only the non-fresh binding required by the current item.
+different Design scopes and catalog bindings for the same source. A publication
+from another item is reusable for the current item only while its binding is
+still current; after a catalog rebind, native `stale` reports
+`entity-catalog-invalidated` and that source must be reconstructed for the new
+item. Never rebuild a row that is fresh for the current binding, and never keep
+superseded bindings alive with a parallel cache.
 
 `stale` and compile are inspections; neither invokes models or silently refreshes
 projections. Give `entities` a machine-readable catalog/fingerprint result with
