@@ -28,11 +28,7 @@ Version 0.7 must provide commands to:
 - initialize a non-interactive versioned workspace config;
 - report CLI, core, and Sigil versions.
 - surface concept-identifier diagnostics and resolved concept namespaces.
-- accept a deterministic semantic world from untrusted proposal assertions;
-- inspect and publish managed `.sigil` views;
-- export retained implementation handoffs, import untrusted receipts, and
-  verify returned code with fresh host observations;
-- initialize and report the tracked/ignored `.sigil` artifact layout.
+- export the complete structural Design bundle for direct native `sigilc` use.
 
 Version 0.7 should favor predictable, machine-readable behavior over rich
 terminal UI.
@@ -51,10 +47,6 @@ Version 0.7 must not implement:
 - generated diagrams;
 - anchors or code/spec synchronization;
 - automatic mutation of authored source or implementation files.
-
-Generated managed views and semantic metadata are explicit, bounded mutation
-surfaces. They never replace authored contracts or become a second source of
-semantic authority.
 
 Anchors remain outside the implemented 0.5 surface. The rejected historical
 anchor surface is defined below and does not change the 0.6 acceptance criteria.
@@ -297,40 +289,19 @@ command must never overwrite an existing config.
 Reports CLI and core package versions and—when a workspace resolves—the
 workspace name and configured Sigil version.
 
-### `sigil semantic`
+### `sigil export design [path]`
 
-The semantic command group owns the deterministic world and retained handoff
-workflow. It does not run an evaluator or accept model-written verdicts.
+Use core's `loadDesignInput` to emit the raw closed structural JSON bundle.
+The optional path locates the complete workspace; use native `--scope` for focus.
+Preserve captured source/config/glossary text and diagnostics without display-path
+rewriting or a CLI envelope. Support `--root`, `--pretty` and `--format json`;
+reject quiet suppression and non-JSON formats. Language errors return 1 with the
+bundle; runtime failures return 3 without partial output. Export invokes no model
+or semantic compiler. Use `sigilc` directly for semantic operations.
 
-- `semantic intent` submits natural-language intent to one configured provider,
-  generator, or proposal file. The provider returns only a strict version-1
-  envelope containing Turtle additions and retractions. The CLI validates and
-  deterministically ranks the resulting worlds, then saves a named beam.
-- `semantic status` recomputes a canonical world or saved beam. It displays
-  exact unresolved proposition IDs; `semantic answer` records a yes/no answer to
-  that exact fact.
-- `semantic accept` requires one uniquely green beam and atomically publishes
-  lossless assertion-only `.egg` bytes under `.sigil/world/<revision>`.
-- `semantic project --check` inspects generated views. `--write
-  --expected-revision` publishes one generated view per canonical component and
-  the tracked `views/current.json`; `--recover --transaction` completes an
-  explicitly validated interrupted transaction.
-- `semantic artifacts` creates the scoped `.sigil` directories and ignore file.
-- `semantic slice` exports a focused assignment and retains its complete
-  obligations under ignored `.sigil/handoffs/<id>`.
-- `semantic receipts` imports strict assertion-only claims and locations under
-  ignored `.sigil/receipts/<id>` and returns no verdict.
-- `semantic verify` reparses the retained world, resolves current host
-  observations, and runs fixed egglog coverage checks. Receipt outcomes are
-  reported separately from independently established coverage.
-- `semantic migrate` performs the explicit metadata-only accepted-state
-  migration with preview, expected-revision, and CAS semantics.
-
-The accepted `.sigil/world` and verifier policy are committed. Generated views
-are committed when published. Beams, handoffs, receipts, runs, caches, and view
-transactions are operational artifacts and are ignored. Generated views are
-excluded from authored source discovery, while an explicitly opened view remains
-available to parser/LSP syntax and navigation features.
+The legacy `sigil semantic` group is removed, including beam/accepted-world,
+managed-view, retained handoff, receipt and TS7 verification commands. Invocation
+returns ordinary invalid usage, with no forwarding or migration route.
 
 ## 8. Output Contracts
 

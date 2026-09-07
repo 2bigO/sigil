@@ -1,6 +1,5 @@
 /** Command-line interface for versioned Sigil 0.7 workspaces. @module */
 import { type HelpTopic, parseArgs } from "./args.ts";
-import { runSemanticCommand } from "./semantic-commands.ts";
 import {
   type CompilationEvent,
   type CompilationHistoryStore,
@@ -40,7 +39,6 @@ Commands:
   context           Return context for a component or file
   retrieve          Select deterministic purpose-specific context
   compile           Compute deterministic semantic status and diagnostics
-  semantic          Interpret intent, answer beams, accept and project worlds
   render            Render workspace documentation
   doctor            Validate the packaged native runtime
 
@@ -300,9 +298,6 @@ export async function runCli(
   argv: readonly string[],
   options: CliRunOptions = {},
 ): Promise<CliRunResult> {
-  if (argv[0] === "semantic") {
-    return await runSemanticCommand(argv.slice(1), options);
-  }
   const parsed = parseArgs(argv);
   let compilationEvents: CompilationEvent[] | undefined;
   if (parsed.kind === "help") {

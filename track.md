@@ -236,6 +236,12 @@ Already observed during this refactor:
   Filesystem discovery now uses core path helpers and excludes generated metadata
   without importing the compiler package. Native editor/release integration and
   the rest of compiler-package deletion remain; no forwarding shim is needed.
+  The CLI export was adopted on the subsequent editor deletion and CLI deletion
+  increments, replacing the manual Deno eval export invocation. Those increments
+  also removed the editor's beam/world/view/handoff/receipt commands and the
+  legacy `sigil semantic` route with their dedicated helpers and tests. Retained
+  language, preview and compilation workflows passed ordinary host checks;
+  the editor's retained compilation protocol still needs its native cutover.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus

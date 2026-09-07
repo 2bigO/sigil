@@ -28,9 +28,8 @@ collected expansions independently.
 - Treat human text output as convenience, not API.
 - Keep command modules thin over `sigil-core`.
 - Keep Deno filesystem and process APIs at the outer edge.
-- Never mutate authored `.sigil` contracts or implementation files. Semantic
-  commands may publish accepted world revisions and generated managed views
-  through compiler-owned transactional APIs.
+- Keep semantic compilation in native `sigilc`, invoked directly by its caller.
+  Export structural Design through core without semantic lowering or forwarding.
 - Keep CLI behavior deterministic and non-interactive.
 
 ## 3. Internal Modules
@@ -78,7 +77,7 @@ Owns command handlers.
 Responsibilities:
 
 - implement `skill list`, `skill install`, `parse`, `check`, `graph`, `context`,
-  `retrieve`, `render`, configuration, and semantic world commands;
+  `retrieve`, `render`, configuration, and structural Design export;
 - call `sigil-core` through shared helpers;
 - return typed command result objects;
 - avoid command-specific duplication of parser and resolver behavior.
@@ -94,21 +93,6 @@ publication, handoff retention, receipt ingestion, and verification to
 `sigil-compiler`. They may select configuration and format results, but they
 must not merge assertions, rank candidates, interpret receipts, or decide
 coverage themselves.
-
-### `semantic-providers`
-
-Owns selection of the configured `SemanticProposalProvider` and conversion of
-`tools.semantic` configuration into compiler provider instances. Provider output
-is bounded transport text. This module never turns provider output into a
-verdict and never invokes a provider for ordinary `compile` or `verify` paths.
-
-### `semantic-commands`
-
-Owns the public semantic command request/response boundary. It parses no Sigil
-syntax and contains no egglog rules. It calls compiler APIs for intent/status/
-answer/accept, managed-view check/write/recovery, artifacts, slices, receipt
-submissions, retained verification, and metadata migration. It maps compiler
-input and operational failures to the CLI's stable exit behavior.
 
 ### `core-adapter`
 
@@ -244,12 +228,6 @@ main
   -> core-adapter
   -> fs-adapter
   -> sigil-core
-
-semantic-commands
-  -> semantic-providers
-  -> sigil-compiler
-  -> output-model
-  -> exit
 
 commands
   -> output-model

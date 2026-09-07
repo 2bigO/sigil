@@ -41,6 +41,14 @@ component SigilCli {
       obsolete compiler artifact taxonomy or retain duplicate path algorithms.
     }
 
+    RemovedSemanticCommands {
+      Remove the semantic command group, its handlers and tests dedicated to
+      beams, accepted worlds, managed views, handoffs, receipts and TS7 verification.
+      An invocation of that removed group returns ordinary invalid usage. No
+      compatibility dispatch or renamed legacy command survives. Export structural
+      Design through core; the model or operator uses native sigilc directly.
+    }
+
     CliInvocation {
       sigil --help
 
@@ -1217,60 +1225,6 @@ expand SigilCli {
       A red report containing errors exits with code 1.
 
       Cancelling an active compilation exits with code 130.
-    }
-  }
-}
-
-
-expand SigilCli {
-  interface {
-    SemanticWorldCommand {
-      sigil semantic intent accepts natural-language text and a generator executable
-      or prepared proposal envelope. It saves viable candidates as a named beam.
-      sigil semantic status recomputes the canonical world or a named beam.
-      sigil semantic answer records yes or no for the exact current fact identity.
-      sigil semantic accept commits one selected green world as canonical assertions.
-      sigil semantic project prints paired Turtle and human Sigil views.
-      sigil semantic slice prints the selected component's implementation obligations.
-      It also retains an ignored focused .egg slice bundle and reports its identity.
-      Slice handoff requires host implementation policy and preserves the baseline
-      code, complete boundary obligations, protected inputs and verifier identities.
-      sigil semantic receipts ingests untrusted Turtle claims and location metadata
-      against the caller-retained handoff. It reports accepted claim data, no verdict.
-      sigil semantic verify collects TypeScript 7 observations and computes coverage,
-      recording ignored stage and result bundles with their identities in JSON.
-      With --handoff and optional --receipts, verify uses the retained assignment
-      and frozen policy, independent of current submitted world claims. An optional
-      --handoff-root locates the original assignment. Omitting receipts still checks
-      every required obligation. JSON and Markdown expose separate claim and
-      coverage results. Ordinary compile accepts the same assignment options and
-      rejects scope or evidence overrides that would change the retained task.
-      sigil semantic artifacts initializes the target artifact layout and ignore policy.
-    }
-  }
-  logic {
-    SemanticWorldCommand {
-      Reuse SigilCore source resolution and SigilCompiler proposal, beam, kernel,
-      persistence, projection and slice APIs. Canonical acceptance is separate from
-      one-shot compile and its operational artifacts. Record the source and canonical
-      fingerprints at generation; check them again before answering or accepting.
-    }
-  }
-  constraints {
-    SemanticWorldCommand {
-      Model output cannot select green, author rules, or establish mechanical proof.
-      Acceptance requires a single green world and unchanged input receipts.
-      Source files remain intact. Status and project do not mutate state.
-      Slice and verify preserve canonical meaning while recording artifacts.
-    }
-  }
-  cases {
-    SemanticWorldCommand {
-      Ambiguous candidates persist until an exact answer distinguishes them.
-      A stale question, source edit, concurrent receipt change, malformed candidate,
-      or unresolved selected world prevents acceptance.
-      Accepted assertions are recomputed by ordinary compile and generate valid
-      human Sigil and focused implementation slices without raw RDF context dumps.
     }
   }
 }
