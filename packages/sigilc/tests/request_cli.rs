@@ -242,6 +242,43 @@ fn request_status_uses_native_frontend_capture_after_run_artifact_is_gone() {
 }
 
 #[test]
+fn request_status_recovers_external_frontend_from_native_capture() {
+    let root = workspace();
+    let external = root.0.parent().unwrap().join(format!(
+        "sigil-external-frontend-{}-{}.json",
+        std::process::id(),
+        root.0.file_name().unwrap().to_string_lossy()
+    ));
+    std::fs::copy(root.0.join("frontend.json"), &external).unwrap();
+    let external = external.to_string_lossy().to_string();
+    let created = request(
+        &root,
+        &[
+            "request",
+            "create",
+            "--frontend",
+            &external,
+            "--definition",
+            "request.json",
+        ],
+        0,
+    );
+    let capture = created["request"]["frontendSnapshot"].as_str().unwrap();
+    assert!(root.0.join(capture).is_file());
+    std::fs::remove_file(&external).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_sigilc"))
+        .args(["request", "status", "--root"])
+        .arg(&root.0)
+        .current_dir(root.0.parent().unwrap())
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(0));
+    let recovered: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(recovered["request"]["items"][0]["state"], "ready");
+    assert_eq!(recovered["request"]["frontendSnapshot"], capture);
+}
+
+#[test]
 fn request_archive_preserves_terminal_record_before_replacement() {
     let root = workspace();
     let created = request(

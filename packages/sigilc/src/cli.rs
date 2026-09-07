@@ -499,13 +499,25 @@ fn run_request(args: &[&str]) -> Output {
         "status" => {
             let mut state =
                 request::load(store.workflow_state().map_err(runtime)?).map_err(runtime)?;
-            let frontend = options.get("--frontend").copied().unwrap_or_else(|| {
-                state
-                    .frontend_snapshot
-                    .as_deref()
-                    .unwrap_or(state.frontend.as_str())
-            });
-            let frontend_bytes = read(frontend, 32_000_000).map_err(runtime)?;
+            let (frontend, native_capture) = match options.get("--frontend").copied() {
+                Some(frontend) => (frontend, false),
+                None => (
+                    state
+                        .frontend_snapshot
+                        .as_deref()
+                        .unwrap_or(state.frontend.as_str()),
+                    state.frontend_snapshot.is_some(),
+                ),
+            };
+            let frontend_path = if native_capture {
+                root.join(frontend)
+            } else {
+                PathBuf::from(frontend)
+            };
+            let frontend_path = frontend_path
+                .to_str()
+                .ok_or_else(|| runtime("non-UTF-8 scoped request frontend path".into()))?;
+            let frontend_bytes = read(frontend_path, 32_000_000).map_err(runtime)?;
             let parsed = DesignInput::parse(&frontend_bytes).map_err(runtime)?;
             let current_frontend_fingerprint =
                 DesignSnapshot::capture(&root, parsed, store_limits.max_source_bytes)
