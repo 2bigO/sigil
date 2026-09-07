@@ -1054,6 +1054,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "reference only the exact prepared Component, Concept and entity IDs; do not derive nested or renamed IDs from a label",
         );
     }
+    if message.starts_with("unknown source-bound unit identity:") {
+        return Some(
+            "assert only authored-unit IRIs explicitly present in the prepared source/catalog inputs; do not derive a unit ID from a Rust item or path. If this source has no supported catalog-bound assertion, submit valid zero-fact Turtle and keep the evidence attempt",
+        );
+    }
     if message == "contract relation must name a fixed entity predicate" {
         return Some(
             "set sigil:relation to one fixed entity predicate from ontology.json (for example uses, provides, requires or dependsOn), not a free-form phrase",
@@ -1075,6 +1080,19 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
         );
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ingest_hint;
+
+    #[test]
+    fn source_bound_unit_hint_allows_zero_fact_repair() {
+        let hint = ingest_hint("unknown source-bound unit identity: urn:sigil:unit:bad")
+            .expect("source-bound unit failures have an actionable repair hint");
+        assert!(hint.contains("prepared source/catalog"));
+        assert!(hint.contains("zero-fact Turtle"));
+    }
 }
 fn json(code: u8, value: &impl Serialize) -> Output {
     Ok((
