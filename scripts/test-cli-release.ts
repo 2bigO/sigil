@@ -95,6 +95,64 @@ try {
       implementation: { paths: ["main.any"] },
     }),
   );
+  const requestPath = join(scratch, "request.json");
+  await Deno.writeTextFile(
+    requestPath,
+    JSON.stringify({
+      version: 1,
+      id: "release-request",
+      items: [
+        {
+          id: "first",
+          scope: {
+            version: 1,
+            design: { paths: ["main.sigil"] },
+            implementation: { paths: ["main.any"] },
+          },
+        },
+        {
+          id: "second",
+          after: ["first"],
+          scope: {
+            version: 1,
+            design: { paths: ["main.sigil"] },
+            implementation: { paths: ["main.any"] },
+          },
+        },
+      ],
+    }),
+  );
+  const request = JSON.parse(
+    await run(compiler, [
+      "request",
+      "create",
+      "--root",
+      fixture,
+      "--frontend",
+      frontendPath,
+      "--definition",
+      requestPath,
+    ]),
+  );
+  assertEquals(
+    request.request.items.map((item: { state: string }) => item.state),
+    [
+      "ready",
+      "queued",
+    ],
+  );
+  const requestStatus = JSON.parse(
+    await run(compiler, [
+      "request",
+      "status",
+      "--root",
+      fixture,
+    ]),
+  );
+  assertEquals(
+    requestStatus.request.items.map((item: { state: string }) => item.state),
+    ["ready", "queued"],
+  );
   const native = async (args: string[], code = 0) => {
     return JSON.parse(
       await run(compiler, [
