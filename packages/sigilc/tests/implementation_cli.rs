@@ -68,6 +68,13 @@ fn independent_cli_moves_from_unknown_to_closed_and_detects_relationship_only_dr
     publish(&root, "design", "design1", ":A s:provides :B .");
     let missing = run(&root, &["compare", "--selection", "selection.json"], 0);
     assert_eq!(missing["comparison"]["implementation"], "Converged");
+    assert!(
+        missing["diagnostics"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["code"] == "IMPLEMENTATION_UNRESOLVED" && d["severity"] == "warning")
+    );
     publish(&root, "implementation", "empty", "");
     let empty = run(
         &root,
@@ -84,6 +91,7 @@ fn independent_cli_moves_from_unknown_to_closed_and_detects_relationship_only_dr
     );
     let closed = run(&root, &["compare", "--selection", "selection.json"], 0);
     assert_eq!(closed["comparison"]["implementation"], "Closed");
+    assert_eq!(closed["diagnostics"]["items"], json!([]));
     assert_eq!(
         run(
             &root,
@@ -95,6 +103,25 @@ fn independent_cli_moves_from_unknown_to_closed_and_detects_relationship_only_dr
     publish(&root, "design", "design2", ":A s:excludes :B .");
     let drift = run(&root, &["compare", "--selection", "selection.json"], 1);
     assert_eq!(drift["comparison"]["implementation"], "Drift");
+    let disagreement = drift["diagnostics"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "IMPLEMENTATION_DISAGREEMENT")
+        .unwrap();
+    assert_eq!(disagreement["severity"], "error");
+    assert_eq!(disagreement["witness"]["obligation"][2], "uses");
+    assert_eq!(disagreement["witness"]["obligation"][4], "false");
+    assert_eq!(disagreement["witness"]["because"][0][3], "asserted");
+    let locations = disagreement["locations"].as_array().unwrap();
+    assert!(
+        locations
+            .iter()
+            .any(|l| l["side"] == "design" && l["source"] == "a.sigil")
+    );
+    assert!(locations.iter().any(|l| l["side"] == "implementation"
+        && l["source"] == "main.rs"
+        && l.get("range").is_none()));
     assert_eq!(
         run(
             &root,
@@ -211,6 +238,10 @@ fn missing_design_catalog_never_prepares_or_compares_implementation() {
         3,
     );
     assert!(result["implementation"].is_null());
+    assert_eq!(
+        result["diagnostics"]["items"][0]["code"],
+        "COMPARISON_UNAVAILABLE"
+    );
     assert!(!root.0.join("worker").exists());
     assert!(run(&root, &["compare", "--selection", "selection.json"], 3)["comparison"].is_null());
     publish(&root, "design", "disjoint", ":A s:uses :B; s:excludes :B .");
@@ -222,4 +253,12 @@ fn missing_design_catalog_never_prepares_or_compares_implementation() {
     assert_eq!(unavailable["design"]["world"]["state"], "Disjoint");
     assert!(unavailable["implementation"].is_null());
     assert!(unavailable["comparison"].is_null());
+    assert_eq!(
+        unavailable["diagnostics"]["items"][0]["code"],
+        "COMPARISON_UNAVAILABLE"
+    );
+    assert_eq!(
+        unavailable["design"]["diagnostics"]["items"][0]["code"],
+        "DESIGN_CONTRADICTION"
+    );
 }

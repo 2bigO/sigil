@@ -61,6 +61,16 @@ fn design_cli_distinguishes_missing_empty_interpreted_and_disjoint_worlds() {
     let missing = result(&root, &["compile", "design"], 0);
     assert_eq!(missing["world"]["state"], "Loose");
     assert_eq!(missing["all_fresh"], false);
+    let unresolved = missing["diagnostics"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|d| d["code"] == "DESIGN_UNRESOLVED")
+        .unwrap();
+    assert_eq!(unresolved["severity"], "warning");
+    assert_eq!(unresolved["locations"][0]["source"], "a.sigil");
+    assert_eq!(unresolved["locations"][0]["range"]["end"]["column"], 35);
+    assert_eq!(unresolved["witness"]["table"], "design-unresolved");
     assert!(missing["catalog"].is_null());
     let stale = result(&root, &["stale", "design"], 1);
     assert_eq!(stale["sources"][0]["status"], "missing");
@@ -83,6 +93,7 @@ fn design_cli_distinguishes_missing_empty_interpreted_and_disjoint_worlds() {
     );
     let interpreted = result(&root, &["compile", "design"], 0);
     assert_eq!(interpreted["world"]["state"], "Coherent");
+    assert_eq!(interpreted["diagnostics"]["items"], json!([]));
     let authoritative = result(&root, &["entities"], 0);
     assert_eq!(authoritative["status"], "authoritative");
     assert_eq!(
@@ -100,6 +111,21 @@ fn design_cli_distinguishes_missing_empty_interpreted_and_disjoint_worlds() {
     );
     let disjoint = result(&root, &["compile", "design"], 1);
     assert_eq!(disjoint["world"]["state"], "Disjoint");
+    assert_eq!(
+        disjoint["diagnostics"]["items"][0]["code"],
+        "DESIGN_CONTRADICTION"
+    );
+    assert_eq!(disjoint["diagnostics"]["items"][0]["severity"], "error");
+    assert_eq!(
+        disjoint["diagnostics"]["items"][0]["locations"][0]["source"],
+        "a.sigil"
+    );
+    assert!(
+        !disjoint["assertion_sources"]
+            .as_object()
+            .unwrap()
+            .is_empty()
+    );
     assert!(result(&root, &["entities"], 1)["catalog"].is_null());
 }
 

@@ -26,6 +26,8 @@ pub struct DesignReport {
     pub all_fresh: bool,
     pub intentional_empty: bool,
     pub sources: Vec<SourceStatus>,
+    pub assertion_sources: BTreeMap<String, Vec<String>>,
+    pub diagnostics: crate::report::Diagnostics,
     pub world: DesignWorld,
     pub catalog: Option<FrozenCatalog>,
 }
@@ -106,6 +108,15 @@ pub fn compile(
     } else {
         None
     };
+    let mut assertion_sources: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for (source, facts) in &projections {
+        for fact in facts {
+            assertion_sources
+                .entry(fact.id())
+                .or_default()
+                .push(source.clone());
+        }
+    }
     let mut assertions: Vec<_> = projections.values().flatten().cloned().collect();
     for entity in &input.entities {
         let kind = match entity.kind {
@@ -162,6 +173,7 @@ pub fn compile(
     } else {
         None
     };
+    let diagnostics = crate::report::design(input, &world, &sources, &assertion_sources);
     Ok(DesignReport {
         version: 1,
         interpretation_limit: "Authored-unit coverage does not prove faithful interpretation of every sentence.",
@@ -170,6 +182,8 @@ pub fn compile(
         all_fresh,
         intentional_empty: input.sources.is_empty(),
         sources,
+        assertion_sources,
+        diagnostics,
         world,
         catalog,
     })

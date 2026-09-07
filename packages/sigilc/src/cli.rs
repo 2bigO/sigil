@@ -338,7 +338,7 @@ fn run_implementation(
     let Some(frozen) = &design.catalog else {
         return json(
             3,
-            &serde_json::json!({"version":1,"design":design,"implementation":null,"comparison":null,"reason":"current Design catalog unavailable"}),
+            &serde_json::json!({"version":1,"design":design,"implementation":null,"comparison":null,"reason":"current Design catalog unavailable","diagnostics":crate::report::unavailable_comparison()}),
         );
     };
     let catalog = &frozen.catalog;
@@ -451,9 +451,11 @@ fn run_implementation(
         Some(comparison::ImplementationState::Drift) => 1,
         None => 3,
     };
+    let diagnostics =
+        crate::report::implementation(snapshot.input(), &design, &implementation, &comparison);
     json(
         code,
-        &serde_json::json!({"version":1,"design":design,"implementation":implementation,"comparison":comparison}),
+        &serde_json::json!({"version":1,"design":design,"implementation":implementation,"comparison":comparison,"diagnostics":diagnostics}),
     )
 }
 

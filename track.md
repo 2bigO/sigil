@@ -220,6 +220,15 @@ make the real flow easier or more correct, not merely make a fixture green.
 
 Already observed during this refactor:
 
+* The native editor cutover found that named states and raw kernel tables did
+  not supply source-ranged findings. The
+  [ObservedEditorGap case](packages/sigilc/report.sigil) captures the requirement:
+  presentation diagnostics belong in `sigilc`, so the editor does not become a
+  second kernel-table interpreter. Native gate reports now include bounded
+  diagnostics with physical authored ranges, assertion-source attribution and
+  exact obligation/rule witnesses. Use these on the running refactor, then adopt
+  them in the editor and delete its old JSONL profile/stage/history protocol.
+
 * Design Loose and Implementation Converged were incorrectly treated as failing
   gates. The native CLI now returns 0 for those warning states and 1 only for
   Disjoint/Drift. Preserve named states in the frontend.
