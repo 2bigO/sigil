@@ -1830,6 +1830,10 @@ Use that same scope across native preparation, ingestion, freshness, compilation
 catalog and comparison operations. Membership belongs in world/report identity,
 not as an extra per-file cache key. Existing semantic inputs still govern reuse:
 changing the Design identity catalog invalidates Implementation projections.
+Because an ordered request item can change the selected Design catalog, run
+`stale` with that item's scope before deciding whether an existing
+Implementation `.egg` is reusable. Preserve unrelated fresh projections while
+refreshing only the rows whose current item binding is non-fresh.
 Distinguish cached sources outside a scope from actually deleted sources. Reject
 missing roots and conflicting selectors; intentional emptiness is explicit.
 
@@ -1912,10 +1916,20 @@ contain no coding-agent claims or LLM-production metadata. No arbitrary
 Implementation context bundle is prepared. Design preparation retains its
 resolved Sigil frontend/import inputs.
 
-An external caller may prepare and reconstruct an already-fresh projection;
-`stale` need not list it first. Ingestion replaces it only with the matching
+At the start of each reconstruction cycle, run native `sigilc stale` for the
+selected scope. Preserve every projection reported `fresh`; reprepare and
+respawn a subagent only for rows reported `stale`, `missing`, or
+`dependency-invalid`. Ingestion replaces a projection only with the matching
 semantic input identity and expected publication generation. A different model
 or prompt alone never marks it stale and requires no compiler option or field.
+
+Freshness is evaluated against the current source and semantic binding, not
+against a path in isolation. Ordered request items can therefore produce
+different Design scopes and catalog bindings for the same source. An accepted
+`.egg` from another item remains useful cache data, but it is reusable for the
+current item only when `sigilc stale` reports that item's binding `fresh`.
+Never rebuild a fresh projection merely because it belongs to another item;
+refresh only the non-fresh binding required by the current item.
 
 `stale` and compile are inspections; neither invokes models or silently refreshes
 projections. Give `entities` a machine-readable catalog/fingerprint result with
@@ -1950,7 +1964,9 @@ priority among released items rather than an implicit dependency. For example,
 items two and three both name item one when they must remain queued until item
 one finishes.
 
-`request status` derives state from current native evidence. An item is `ready`
+`request status` derives state from current native evidence. Run `stale` for the
+item scope before each reconstruction round; request state does not override
+the binding-specific freshness decision. An item is `ready`
 when its predecessors are terminal and `queued` otherwise. A current scoped
 Implementation result with every selected projection fresh and a valid Design
 records `Closed` or `Converged`; both have exit zero, with `Converged` retaining
