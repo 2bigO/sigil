@@ -34,26 +34,10 @@ not belong here. Unknown configuration, workspace, and file keys are rejected.
 Each `tools` value must be a namespaced JSON object; core preserves but does not
 interpret it.
 
-The compiler-owned semantic namespace is optional and has no default provider:
-
-```json
-"semantic": {
-  "version": 1,
-  "providers": {
-    "local": { "kind": "command", "command": "provider", "args": ["--json"] },
-    "codex": { "kind": "codex", "model": "configured-model" }
-  },
-  "defaultProvider": "local",
-  "proposalTimeoutMs": 120000
-}
-```
-
-Use `sigil config set-provider`, `config set-provider-default`, and
-`config migrate` to author this namespace. Bundled providers accept only a
-model; command providers require a literal executable and string arguments.
-`sigil init` leaves `providers` empty. Legacy evaluator fields are accepted for
-one compatibility release, warned about, and never invoked by ordinary
-compilation or semantic verification.
+`sigil init` writes an empty tools object. The removed compiler's provider,
+evaluator, profile and migration configuration has no consumer or compatibility
+schema. Native sigilc accepts explicit inputs and limits on its own command line;
+model configuration and orchestration remain external.
 
 `workspace.members` is the sole authority for additional project roots in the
 workspace. Each entry is a unique, non-root, non-overlapping,

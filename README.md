@@ -125,31 +125,28 @@ deno install --global --force --config "$PWD/deno.json" \
 
 ## How It Works
 
-Authored `.sigil` files describe durable component boundaries, contracts, and
-rationale. The semantic workflow turns those contracts into a lossless accepted
-world and keeps generated human views separate from authored source:
+Authored `.sigil` files describe component boundaries, contracts and rationale.
+The language frontend and semantic compiler have separate responsibilities:
 
-1. Run `sigil check` and inspect the authored component context.
-2. Submit natural-language intent to a configured proposal provider or a saved
-   proposal envelope. The provider returns untrusted Turtle additions and
-   retractions only.
-3. Inspect deterministic candidates, answer exact unresolved propositions by
-   fact identity, and accept only one uniquely green candidate.
-4. Commit `.sigil/world` and, when desired, publish tracked companion views with
-   `sigil semantic project --write --expected-revision ...`.
-5. Export a focused assignment with `sigil semantic slice`. An external
-   implementation workflow owns code changes and repair; Sigil does not generate
-   or apply patches.
-6. Import returned receipt claims and run `sigil semantic verify --handoff`.
-   Fresh native observations and fixed egglog rules establish coverage. Receipt
-   locations remain claims and never become proof on their own.
+1. Use `sigil check` and ordinary language context to inspect authored sources.
+2. Run `sigil export design . > frontend.json` to capture the structural bundle.
+3. Use `sigilc scope`, `stale` and `prepare` to select current inputs for external
+   workers. Workers return source-local Turtle; Sigil does not launch them.
+4. Import each result with `sigilc ingest`. The compiler validates identities,
+   schemas, source freshness and publication generations.
+5. Compile Design and export its identity catalog. Independent Implementation
+   workers receive one source file, the fixed ontology and that frozen catalog,
+   without Design prose or relationships.
+6. Run `sigilc compare`. The fixed kernel saturates Design and Implementation
+   separately, derives obligations from Design and compares them with
+   Implementation closure. Named states preserve warnings and contradictions.
 
-The complete artifact schemas, authority boundaries, migration rules, and
-acceptance matrix are documented in [compile.md](compile.md). The historical
-language workflow remains available in
-[spec/sigil-workflow.md](spec/sigil-workflow.md), but its review-gate and model
-evaluator instructions are compatibility history rather than the current
-compiler workflow.
+Generated `.sigil/worlds/` objects are disposable and ignored. No accepted-world,
+beam, receipt, provider runtime, TypeScript compiler wrapper or legacy `sigil
+compile` command is retained. Models and operators invoke `sigilc` directly.
+Language parsing, navigation, ownership links and the VS Code frontend remain.
+See the [native command guide](packages/sigilc/README.md) and the complete
+[implementation contract](compile.md).
 
 The Sigil platform architecture is drafted in
 [spec/sigil-platform-architecture.md](spec/sigil-platform-architecture.md).
@@ -241,9 +238,8 @@ ordinary high-level project summary for this configured boundary.
   documents.
 - `examples/` contains independently configured Sigil projects used as
   design-pressure fixtures.
-- `packages/` contains the implemented `sigil-core`, `sigil-compiler`,
-  standalone Claude, OpenCode, and Pi compiler adapters, `sigil-cli`, and
-  initial `sigil-lsp`.
+- `packages/` contains the shared language core, language CLI, LSP, and standalone
+  Rust `sigilc`. The old TypeScript compiler and all four adapter packages are deleted.
 - `integrations/` contains host adapters such as coding-agent skills, the
   initial VS Code extension, and future editor integrations.
 
@@ -328,19 +324,16 @@ is a concise agent-facing guide. The
 references define the corresponding host-side workflows. The canonical language
 specification remains [spec/sigil-language.md](spec/sigil-language.md).
 
-The semantic-world handoff workflow is explicit: inspect `semantic status` and
-`semantic project --check`, submit or import deterministic intent proposals,
-accept a uniquely green world, and commit `.sigil/world` plus `.sigil/views`.
-Create an exact external assignment with `semantic slice`; Sigil does not own
-the coding or repair loop. Import returned receipt claims and run
-`semantic verify --handoff` so the fixed egglog kernel can compare them with
-fresh independent host observations. Receipt claims never become proof merely
-because they name a source location.
+External workflows own authored changes, independent reconstruction and repair.
+Native preparation and ingestion bind current source-local assertions; native
+gates report semantic conclusions. Neither compiler success nor a model claim
+proves software delivery or authorizes publication.
 
 ## Current Status
 
-The core, CLI, LSP, VS Code extension, and Sigil skill are pre-production
-artifacts at 0.7.1, over Sigil Language and configuration contract 0.7.0. See
+The core, CLI, native compiler, LSP, VS Code extension and Sigil skill are
+pre-production artifacts. Each manifest owns its artifact version; the language
+and workspace configuration contract is 0.7.0. See
 [PRE_RELEASE.md](PRE_RELEASE.md), [configuration](spec/sigil-config.md), and the
 [0.7 language migration guide](spec/migrating-to-0.7.md). Reviewed project
 vocabulary is described in the
@@ -375,12 +368,10 @@ post-Sigil glossary extraction, and authoring conventions live in the
 host-neutral Sigil skill rather than `sigil-core`. The skill also discovers
 coherent implementation and UI components, distinguishes component contracts
 from implementation-specific expands and trivial mechanics, and helps prepare
-an implementation coverage policy. Deterministic facts, accepted worlds, and
-verification results remain owned by the compiler and fixed egglog kernel.
+an implementation coverage policy. The native compiler and fixed kernel own
+semantic closure, obligations and Design-versus-Implementation comparison.
 
 Editor integrations other than VS Code, stricter body semantics, and additional
 project configuration remain deferred. The active semantic workflow is
 documented in [compile.md](compile.md) and the
-[semantic-world migration record](docs/semantic-worlds.md); those documents
-define the retained handoff, untrusted receipt, managed-view, and runtime
-boundaries.
+[native command guide](packages/sigilc/README.md).

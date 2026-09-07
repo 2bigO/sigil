@@ -1,4 +1,7 @@
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import {
+  deepStrictEqual as assertEquals,
+  ok as assert,
+} from "node:assert/strict";
 import { InMemorySigilFileSystem, loadDesignInput } from "../src/mod.ts";
 
 const config = JSON.stringify({

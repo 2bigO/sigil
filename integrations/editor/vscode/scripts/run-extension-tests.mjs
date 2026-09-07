@@ -47,6 +47,11 @@ await runTests({
         "packages/sigilc/target/debug",
         process.platform === "win32" ? "sigilc.exe" : "sigilc",
       ),
-    SIGIL_TEST_LANGUAGE: process.env.SIGIL_TEST_LANGUAGE ?? "sigil",
+    SIGIL_TEST_LANGUAGE: process.env.SIGIL_TEST_LANGUAGE ??
+      path.join(
+        repository,
+        "build",
+        process.platform === "win32" ? "sigil.exe" : "sigil",
+      ),
   },
 });

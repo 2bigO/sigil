@@ -128,9 +128,9 @@ export async function run(): Promise<void> {
   const originalError = vscode.window.showErrorMessage;
   (vscode.window as unknown as {
     showErrorMessage: (message: string) => Promise<undefined>;
-  }).showErrorMessage = async (message) => {
+  }).showErrorMessage = (message) => {
     errors.push(message);
-    return undefined;
+    return Promise.resolve(undefined);
   };
   try {
     await compileConfiguration.update(

@@ -85,7 +85,9 @@ npm run package
 The extension-host test uses the current built tools for real export, native
 file scope, ranged findings and unavailable comparison. Build the language CLI
 with `deno compile --allow-read --output /tmp/sigil packages/cli/src/main.ts` from
-the repository root, and build sigilc with Cargo as described in its guide. On a
+the repository root. `deno task build:cli` produces the default language test
+executable in `build/`; `deno task build:sigilc` produces the native test
+executable. The environment variables above can select other built binaries. On a
 headless Linux host, run the extension test under `xvfb-run -a`.
 
 `npm run package` derives the artifact version from `package.json` and creates

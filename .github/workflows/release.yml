@@ -5,18 +5,13 @@ on:
     tags:
       - core-v*
       - cli-v*
-      - compiler-v*
-      - codex-adapter-v*
-      - claude-adapter-v*
-      - opencode-adapter-v*
-      - pi-adapter-v*
   workflow_dispatch:
     inputs:
       package:
         description: Package to publish
         required: true
         type: choice
-        options: [core, compiler, cli, codex-adapter, claude-adapter, opencode-adapter, pi-adapter]
+        options: [core, cli]
       version:
         description: Exact manifest version to publish
         required: true
@@ -38,6 +33,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
+      - uses: dtolnay/rust-toolchain@1.91.1
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -60,12 +56,7 @@ jobs:
           fi
           case "$package" in
             core) directory="packages/core" ;;
-            compiler) directory="packages/compiler" ;;
             cli) directory="packages/cli" ;;
-            codex-adapter) directory="packages/compiler-adapter-codex" ;;
-            claude-adapter) directory="packages/compiler-adapter-claude" ;;
-            opencode-adapter) directory="packages/compiler-adapter-opencode" ;;
-            pi-adapter) directory="packages/compiler-adapter-pi" ;;
             *) echo "Unsupported package: $package" >&2; exit 2 ;;
           esac
           actual="$(deno eval "const c=JSON.parse(await Deno.readTextFile('$directory/deno.json')); console.log(c.version)")"

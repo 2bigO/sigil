@@ -257,7 +257,7 @@ Already observed during this refactor:
   language, preview and compilation workflows passed ordinary host checks.
   The retained editor now consumes native final reports directly. Two-binary
   release packaging and Linux consumption are verified; the remaining legacy
-  compiler-package deletion and other native platform executions are pending.
+  compiler packages are deleted; other native platform executions remain pending.
 * Release integration exposed another obsolete dependency: installers and smoke
   checks required the old runtime manifest, engine and TypeScript proof runtime.
   Archives now stage `sigil` and `sigilc`; installers validate both and compare
@@ -265,16 +265,24 @@ Already observed during this refactor:
   exports Design and runs native gates without host tools, and its separate
   consumer runs offline without the source checkout. Use `deno task package:cli`
   on each matching native runner. Other platforms still need execution evidence;
-  the remaining legacy compiler packages must still be deleted.
+  the legacy compiler packages and their workspace/publishing roots are deleted.
 * Removing staged runtime files did not remove the compiler code still imported
   by the language executable. The release build reported 36.34 MB of embedded
   application files. Deleting the old compile/config/doctor routes, profile and
   migration helpers, adapter dispatch and event handling removed those imports;
   the refreshed build reports 789 KB. Its dependency graph contains no compiler
   module. Language tests, native archive fixtures, offline consumption and the
-  retained editor flow pass with the refreshed binary. This is code and dependency
-  removal, not a forwarding facade. Continue by deleting the now-unused compiler
-  packages and their workspace, publishing, configuration and documentation roots.
+  retained editor flow pass with the refreshed binary. The five legacy compiler
+  packages, workspace/publishing registrations, old bridge builder and obsolete
+  configuration schema are now deleted. CI builds the current native and language
+  executables for the retained editor tests.
+* Deleting the packages exposed a remaining frontend gap: the bundled skill
+  still instructs agents to invoke removed semantic/receipt/provider commands,
+  and its old validator accepts those instructions. That validation success does
+  not establish compatibility with the native flow. Rewrite the repository-owned
+  skill, its governing contracts and fixtures around existing native commands;
+  delete obsolete workflow requirements instead of creating an adapter. Keep
+  external model interaction and independent reconstruction outside the stack.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus

@@ -4,14 +4,11 @@
     "name": "sigil",
     "members": [
       "packages/cli",
-      "packages/compiler",
-      "packages/compiler-adapter-opencode",
-      "packages/compiler-adapter-pi",
-      "packages/compiler-adapter-claude",
       "packages/core",
       "packages/lsp",
       "integrations/skills/sigil",
-      "integrations/editor/vscode"
+      "integrations/editor/vscode",
+      "packages/sigilc"
     ]
   },
   "files": {
@@ -30,63 +27,5 @@
       "examples/**"
     ]
   },
-  "tools": {
-    "agent": {
-      "profile": "standard"
-    },
-    "compile": {
-      "defaultProfile": "standard",
-      "budgets": {
-        "elapsedTimeMs": 3000000,
-        "maxCommands": 512,
-        "maxCommandOutputChars": 3000000,
-        "maxInputTokens": 4000000,
-        "maxOutputTokens": 4000000
-      },
-      "limits": {
-        "maxCompilationRequestChars": 2000000,
-        "maxAgentInputChars": 2000000,
-        "sessionTtlMs": 86400000
-      },
-      "profiles": {
-        "standard": {
-          "main": ["codex"]
-        },
-        "claude": {
-          "extends": "standard",
-          "main": ["claude"]
-        },
-        "pi": {
-          "extends": "standard",
-          "main": ["pi"]
-        },
-        "opencode": {
-          "extends": "standard",
-          "main": ["opencode"]
-        }
-      },
-      "evaluators": {
-        "codex": {
-          "provider": "codex",
-          "implementationId": "builtin.codex-cli",
-          "implementationVersion": "0.7.1"
-        },
-        "claude": {
-          "provider": "claude",
-          "implementationId": "builtin.claude-cli",
-          "implementationVersion": "0.7.1"
-        },
-        "pi": {
-          "provider": "pi",
-          "implementationId": "builtin.pi-cli",
-          "implementationVersion": "0.7.1"
-        },
-        "opencode": {
-          "provider": "opencode",
-          "implementationId": "builtin.opencode-cli",
-          "implementationVersion": "0.7.1"
-        }
-      }
-    }
-  }
+  "tools": {}
 }
