@@ -117,6 +117,21 @@ try {
   );
   const scope = JSON.parse(reference.match(/```json\n([^]*?)\n```/)![1]);
   await Deno.writeTextFile(join(runDir, "scope.json"), JSON.stringify(scope));
+  // The documented request command consumes a caller-owned definition. Keep
+  // this fixture minimal and explicit; it exercises native request persistence
+  // without pretending that a fixture worker or Turtle proves reconstruction.
+  await Deno.writeTextFile(
+    join(runDir, "request.json"),
+    JSON.stringify({
+      version: 1,
+      id: "skill-request-fixture",
+      items: [{
+        id: "scope-a",
+        scope,
+        evidence: ["fixture-only-request-definition"],
+      }],
+    }),
+  );
   const run = async (command: string, expected = 0) => {
     const words = command.trim().split(/\s+/);
     const executable = words.shift() === "sigil" ? language : native;
