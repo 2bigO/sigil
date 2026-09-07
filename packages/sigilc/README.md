@@ -57,6 +57,13 @@ input changes. An accepted evidence record is written into the native projection
 index and surfaced by expanded-world reports, while entries accepted without
 `--evidence` remain explicitly incomplete artifact evidence.
 
+Scope `focus_order` prioritizes work and reporting; it does not require serial
+subagent setup for independent nonfresh sources in one released request item.
+Prepare those rows in distinct directories and use bounded concurrency for their
+temporary Turtle construction. Keep native ingestion authoritative, retry only
+an unchanged ingest when the writer is busy, and wait for the full item gate
+before moving to a dependent ordered item.
+
 `--out` must name a new directory. Do not place prepared inputs in selected
 source scope. Preparation can replace an already-fresh projection through a new
 job, but duplicate jobs cannot overwrite an accepted generation. `--turtle -`
@@ -192,6 +199,7 @@ generated `.sigil/workflow/request.json` ledger:
 ```sh
 sigilc request create --root . --frontend frontend.json --definition request.json
 sigilc request status --root .
+sigilc request record --root . --dossier completion.json
 sigilc request archive --root .
 ```
 
@@ -212,6 +220,15 @@ worker registry, scheduler, retry system, or replacement for external
 reconstruction, tests, review, or deletion evidence. Request status exits 0 when
 items are queued/ready or terminal, 1 when an item is `Drift`, and 3 when native
 inputs or comparison are unavailable.
+
+After every item is `Closed` or `Converged`, `request record --dossier FILE`
+persists one bounded completion dossier in the durable request ledger. Its
+version-1 JSON contains nonempty `nativeReports`, `artifacts`, `delivery`,
+`deletion`, and `checks` reference arrays plus optional `warnings` and
+`overrides`. The compiler records these opaque references and the exact terminal
+request/gate snapshot; it does not trust their claims as a semantic verdict. A
+later `request status` clears the dossier if a source, scope, catalog, or gate
+reopens the request.
 
 Gate reports include native presentation diagnostics for editor and terminal
 consumers. Design compilation returns `diagnostics`; comparison returns

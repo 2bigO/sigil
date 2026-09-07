@@ -115,6 +115,14 @@ expand SigilComparisonScope {
       B first without invalidating otherwise identical per-source projections.
       Repeated runs preserve order even when frontend or filesystem enumeration
       changes. The external workflow still establishes which work is complete.
+
+      Focus order is a priority and reporting order, not a demand to serialize
+      independent reconstructions. After one stale report, a coding agent may
+      prepare and spawn bounded concurrent subagents for independent nonfresh
+      sources in one released item. Native publication stays authoritative and
+      the next ordered item still waits for the predecessor's full terminal
+      gate. This was observed when serial source turns dominated a real
+      reconstruction cycle even though native commands were fast.
     }
 
     ScopeLimits {
@@ -160,7 +168,8 @@ component SigilScopedRequest {
     }
 
     RequestInspection {
-      Expose create, status and advance-equivalent native operations that can
+      Expose create, status, terminal completion-record and advance-equivalent
+      native operations that can
       recover the request, current item states, released order, predecessor
       reasons, scope/input identities, native gate names and supporting evidence
       after a process or session restart. Status may update derived readiness,
@@ -169,6 +178,13 @@ component SigilScopedRequest {
       External callers still choose workers, run coding and ordinary checks,
       and decide when to invoke the commands; sigilc only validates and records
       the deterministic state transition.
+
+      A completion record is accepted only after every item is natively Closed
+      or Converged. It retains bounded opaque references to native reports,
+      projection artifacts, delivery, deletion, checks, warnings and explicit
+      user overrides together with the request fingerprint and terminal gate
+      snapshots. It is not a hand-written done flag: a status refresh clears it
+      whenever inputs or the native lifecycle reopen any item.
     }
 
     RequestArchive {

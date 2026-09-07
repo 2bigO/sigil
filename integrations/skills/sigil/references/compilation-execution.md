@@ -49,6 +49,7 @@ derive release from explicit predecessors:
 ```sh
 sigilc request create --root . --frontend /tmp/sigil-run/frontend.json --definition /tmp/sigil-run/request.json
 sigilc request status --root .
+sigilc request record --root . --dossier /tmp/sigil-run/completion.json
 ```
 
 The definition contains `version`, `id` and ordered `items`; each item contains
@@ -66,12 +67,40 @@ preserves the native request record by fingerprint and clears only the active
 slot; then create the new definition. Do not copy or hand-edit the generated
 ledger in a temporary tracker.
 
+When every item is natively `Closed` or `Converged`, record the whole-loop
+external proof once with `sigilc request record --dossier FILE`. The version-1
+dossier carries opaque `nativeReports`, `artifacts`, `delivery`, `deletion` and
+`checks` references, with optional `warnings` and `overrides`. The command saves
+the request identity and exact terminal native snapshots with those references.
+It rejects a nonterminal request and `request status` clears the dossier if any
+item later reopens. This is evidence indexing, not an external check runner,
+task state, or a hand-written semantic completion flag.
+
 At the start of each reconstruction cycle, run native `sigilc stale` for the
 selected scope. Preserve every row reported `fresh`; reprepare and respawn a
 subagent only for rows reported stale, missing, or dependency-invalid.
 Freshness is binding-specific: an accepted egg from another ordered Design
 item may remain in the cache, but native stale decides whether it is reusable
 for the current item.
+
+## Throughput while preserving scope order
+
+`focus_order` is the priority in which a coding agent should start and report
+work. It does not require one idle subagent to wait for every unrelated source
+in a released scope item. After one `stale` report, prepare each nonfresh row
+in focus order into a distinct directory and **spawn a subagent** for each,
+using bounded concurrency available to the harness. Workers may construct
+their temporary Turtle and evidence concurrently. If the native world writer
+reports lock contention, retry only that unchanged ingest call with bounded
+backoff; do not rebuild its Turtle or create a second worker.
+
+Do not start a later ordered request item until all selected rows in its
+predecessor have published and `request status` has made it terminal. Report
+the first nonzero ingest exit immediately with its native hint, while allowing
+independent workers to continue. For a source with no supported prepared
+assertion, submit a valid zero-fact Turtle directly instead of spending turns
+inventing unsupported facts. This preserves observed order and gate semantics
+without serializing model setup unnecessarily.
 
 ## Durable subagent invocation
 

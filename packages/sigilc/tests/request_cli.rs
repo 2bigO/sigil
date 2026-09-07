@@ -262,6 +262,84 @@ fn request_archive_preserves_terminal_record_before_replacement() {
 }
 
 #[test]
+fn terminal_request_records_and_reopens_completion_dossier() {
+    let root = workspace();
+    request(
+        &root,
+        &[
+            "request",
+            "create",
+            "--frontend",
+            "frontend.json",
+            "--definition",
+            "request.json",
+        ],
+        0,
+    );
+    // The implementation source is bound against the complete captured Design
+    // catalog before the first narrowed item is evaluated.
+    publish(
+        &root,
+        "design",
+        "b.sigil",
+        "scope-a.json",
+        "design-b-bootstrap",
+    );
+    for (design, scope, out) in [
+        ("a.sigil", "scope-a.json", "a"),
+        ("b.sigil", "scope-b.json", "b"),
+        ("c.sigil", "scope-c.json", "c"),
+    ] {
+        publish(&root, "design", design, scope, &format!("design-{out}"));
+        publish(
+            &root,
+            "implementation",
+            "main.any",
+            scope,
+            &format!("implementation-{out}"),
+        );
+        request(&root, &["request", "status"], 0);
+    }
+    let terminal = request(&root, &["request", "status"], 0);
+    assert!(
+        terminal["request"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|item| matches!(item["state"].as_str(), Some("closed" | "converged")))
+    );
+    root.write(
+        "completion.json",
+        br#"{
+          "version": 1,
+          "nativeReports": ["reports/final.json"],
+          "artifacts": ["worlds/index.json"],
+          "delivery": ["delivery/commit"],
+          "deletion": ["audit/deletions.json"],
+          "checks": ["checks/test.json"],
+          "warnings": ["known loose design finding"],
+          "overrides": ["user retired non-Linux runtime checks"]
+        }"#,
+    );
+    let recorded = request(
+        &root,
+        &["request", "record", "--dossier", "completion.json"],
+        0,
+    );
+    assert_eq!(
+        recorded["request"]["completion"]["dossier"]["deletion"][0],
+        "audit/deletions.json"
+    );
+    let restarted = request(&root, &["request", "status"], 0);
+    assert!(restarted["request"]["completion"].is_object());
+
+    root.write("main.any", b"changed implementation target");
+    let reopened = request(&root, &["request", "status"], 0);
+    assert!(reopened["request"]["completion"].is_null());
+    assert_eq!(reopened["request"]["items"][0]["state"], "ready");
+}
+
+#[test]
 fn request_definition_rejects_unknown_or_late_predecessors() {
     let root = workspace();
     root.write(

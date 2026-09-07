@@ -76,6 +76,83 @@ pub struct PersistedRequest {
     pub frontend_input_fingerprint: String,
     pub definition: RequestDefinition,
     pub items: Vec<ItemState>,
+    /// Whole-request delivery evidence is intentionally separate from per-source
+    /// projection artifacts. It is recorded only after every native item is
+    /// terminal and is cleared if a later status refresh reopens the request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completion: Option<RequestCompletion>,
+}
+
+/// Caller-supplied references that explain why a terminal native request may be
+/// treated as a completed external loop. The compiler preserves references and
+/// snapshots native state; it never interprets or verifies the external claims.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CompletionDossierInput {
+    pub version: u32,
+    pub native_reports: Vec<String>,
+    pub artifacts: Vec<String>,
+    pub delivery: Vec<String>,
+    pub deletion: Vec<String>,
+    pub checks: Vec<String>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(default)]
+    pub overrides: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RequestCompletion {
+    pub version: u32,
+    pub request_fingerprint: String,
+    pub frontend_input_fingerprint: String,
+    pub items: Vec<ItemState>,
+    pub dossier: CompletionDossierInput,
+}
+
+const COMPLETION_DOSSIER_VERSION: u32 = 1;
+const MAX_COMPLETION_REFERENCES: usize = 128;
+const MAX_COMPLETION_REFERENCE_BYTES: usize = 4_096;
+
+impl CompletionDossierInput {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.version != COMPLETION_DOSSIER_VERSION {
+            return Err("unsupported completion dossier version".into());
+        }
+        for (name, references, required) in [
+            ("nativeReports", &self.native_reports, true),
+            ("artifacts", &self.artifacts, true),
+            ("delivery", &self.delivery, true),
+            ("deletion", &self.deletion, true),
+            ("checks", &self.checks, true),
+            ("warnings", &self.warnings, false),
+            ("overrides", &self.overrides, false),
+        ] {
+            if required && references.is_empty() {
+                return Err(format!("completion dossier requires {name} references"));
+            }
+            if references.len() > MAX_COMPLETION_REFERENCES {
+                return Err(format!("completion dossier has too many {name} references"));
+            }
+            for reference in references {
+                if reference.trim().is_empty() {
+                    return Err(format!("completion dossier has an empty {name} reference"));
+                }
+                if reference.len() > MAX_COMPLETION_REFERENCE_BYTES {
+                    return Err(format!(
+                        "completion dossier {name} reference exceeds byte limit"
+                    ));
+                }
+                if reference.chars().any(char::is_control) {
+                    return Err(format!(
+                        "completion dossier {name} reference contains control characters"
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
 pub fn validate(definition: &RequestDefinition) -> Result<(), String> {
@@ -226,6 +303,7 @@ pub fn new_state(
         frontend_input_fingerprint,
         definition,
         items,
+        completion: None,
     })
 }
 
@@ -253,7 +331,52 @@ pub fn load(bytes: Option<Vec<u8>>) -> Result<PersistedRequest, String> {
     {
         return Err("scoped request item state does not match definition".into());
     }
+    if let Some(completion) = &state.completion {
+        completion.dossier.validate()?;
+        if completion.version != COMPLETION_DOSSIER_VERSION
+            || completion.request_fingerprint != state.request_fingerprint
+            || completion.frontend_input_fingerprint != state.frontend_input_fingerprint
+            || completion.items.len() != state.items.len()
+            || completion
+                .items
+                .iter()
+                .zip(&state.items)
+                .any(|(saved, current)| {
+                    saved.id != current.id
+                        || saved.after != current.after
+                        || saved.evidence != current.evidence
+                        || saved.state != current.state
+                        || saved.scope != current.scope
+                        || saved.gate != current.gate
+                        || saved.input_fingerprint != current.input_fingerprint
+                        || saved.reason != current.reason
+                })
+            || completion.items.iter().any(|item| !item.state.terminal())
+        {
+            return Err("completion dossier does not match terminal scoped request state".into());
+        }
+    }
     Ok(state)
+}
+
+pub fn completion(
+    state: &PersistedRequest,
+    dossier: CompletionDossierInput,
+) -> Result<RequestCompletion, String> {
+    dossier.validate()?;
+    if state.items.iter().any(|item| !item.state.terminal()) {
+        return Err(
+            "completion dossier requires every scoped request item to be Closed or Converged"
+                .into(),
+        );
+    }
+    Ok(RequestCompletion {
+        version: COMPLETION_DOSSIER_VERSION,
+        request_fingerprint: state.request_fingerprint.clone(),
+        frontend_input_fingerprint: state.frontend_input_fingerprint.clone(),
+        items: state.items.clone(),
+        dossier,
+    })
 }
 
 pub fn encode(state: &PersistedRequest) -> Result<Vec<u8>, String> {

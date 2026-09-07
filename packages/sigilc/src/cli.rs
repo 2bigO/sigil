@@ -5,7 +5,7 @@ use crate::{
     implementation,
     inputs::{self, DesignSnapshot},
     kernel::{DesignState, Limits},
-    request::{self, ItemState, LifecycleState, RequestDefinition},
+    request::{self, CompletionDossierInput, ItemState, LifecycleState, RequestDefinition},
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},
     store::{ArtifactEvidenceInput, Freshness, Job, LockedStore, StoreLimits},
@@ -345,13 +345,13 @@ fn run_request(args: &[&str]) -> Output {
     let action = match args {
         [
             "request",
-            action @ ("archive" | "create" | "status"),
+            action @ ("archive" | "create" | "record" | "status"),
             tail @ ..,
         ] => (*action, tail),
         _ => {
             return Err((
                 2,
-                "Usage: sigilc request archive|create|status [options]".into(),
+                "Usage: sigilc request archive|create|record|status [options]".into(),
             ));
         }
     };
@@ -362,6 +362,7 @@ fn run_request(args: &[&str]) -> Output {
             "--root",
             "--frontend",
             "--definition",
+            "--dossier",
             "--limits",
             "--format",
         ]
@@ -384,6 +385,12 @@ fn run_request(args: &[&str]) -> Output {
     }
     if action.0 != "create" && options.contains_key("--definition") {
         return Err((2, "--definition is only valid for request create".into()));
+    }
+    if action.0 == "record" && !options.contains_key("--dossier") {
+        return Err((2, "required option: --dossier".into()));
+    }
+    if action.0 != "record" && options.contains_key("--dossier") {
+        return Err((2, "--dossier is only valid for request record".into()));
     }
     let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
     let limits = options
@@ -458,6 +465,28 @@ fn run_request(args: &[&str]) -> Output {
                 scopes,
             )
             .map_err(runtime)?;
+            store
+                .publish_workflow_state(&request::encode(&state).map_err(runtime)?)
+                .map_err(runtime)?;
+            json(0, &serde_json::json!({"version":1,"request":state}))
+        }
+        "record" => {
+            let mut state =
+                request::load(store.workflow_state().map_err(runtime)?).map_err(runtime)?;
+            let dossier: CompletionDossierInput =
+                serde_json::from_slice(&read(options["--dossier"], 1_000_000).map_err(runtime)?)
+                    .map_err(|e| runtime(format!("invalid completion dossier: {e}")))?;
+            let completion = request::completion(&state, dossier).map_err(runtime)?;
+            if let Some(existing) = &state.completion {
+                if existing.dossier == completion.dossier {
+                    return json(0, &serde_json::json!({"version":1,"request":state}));
+                }
+                return Err((
+                    2,
+                    "a completion dossier already exists; status must reopen the request or archive it before recording different evidence".into(),
+                ));
+            }
+            state.completion = Some(completion);
             store
                 .publish_workflow_state(&request::encode(&state).map_err(runtime)?)
                 .map_err(runtime)?;
@@ -567,6 +596,27 @@ fn run_request(args: &[&str]) -> Output {
             state.frontend = frontend.to_owned();
             state.frontend_input_fingerprint = current_frontend_fingerprint;
             state.items = updated;
+            if state.completion.as_ref().is_some_and(|completion| {
+                completion.frontend_input_fingerprint != state.frontend_input_fingerprint
+                    || completion.items.len() != state.items.len()
+                    || completion
+                        .items
+                        .iter()
+                        .zip(&state.items)
+                        .any(|(saved, current)| {
+                            saved.id != current.id
+                                || saved.after != current.after
+                                || saved.evidence != current.evidence
+                                || saved.state != current.state
+                                || saved.scope != current.scope
+                                || saved.gate != current.gate
+                                || saved.input_fingerprint != current.input_fingerprint
+                                || saved.reason != current.reason
+                        })
+                    || state.items.iter().any(|item| !item.state.terminal())
+            }) {
+                state.completion = None;
+            }
             let code = if state
                 .items
                 .iter()
