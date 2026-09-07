@@ -1,6 +1,7 @@
 @packages/cli import { SigilCli }
 @packages/sigilc import { SigilSemanticCompiler }
 @packages/sigilc/scope.sigil import { SigilComparisonScope }
+@packages/sigilc/scope.sigil import { SigilScopedRequest }
 
 component SigilCompilationExecution {
   goal {
@@ -12,14 +13,18 @@ component SigilCompilationExecution {
     CompilationExecution {
       SigilCli exports the current structural Design bundle.
 
-      Call sigilc directly for scope, stale, prepare, ingest, entities, compile,
-      compare and clean.
+      Call sigilc directly for scope, request create/status, stale, prepare, ingest,
+      entities, compile, compare and clean.
 
       SigilSemanticCompiler supplies native JSON paired with the actual process exit
       and stderr.
 
       Use one ordered SigilComparisonScope consistently across related operations. A
       scope inspection reports focus and membership without asserting completion.
+
+      Use SigilScopedRequest for an ordered set of scopes when later items wait on
+      explicit predecessors. Request status reports native lifecycle and external
+      evidence references; it does not run workers or prove delivery.
     }
   }
 }
@@ -84,6 +89,11 @@ expand SigilCompilationExecution {
       Scope order does not schedule tasks, prove delivery or invalidate otherwise
       unchanged semantic bindings. A stale report or missing worker projection never
       supplies completed proof.
+
+      Request state is one atomic generated ledger separate from .sigil/worlds.
+      Queued/ready release is predecessor-derived; only fresh native Closed or
+      Converged evidence is terminal. Do not duplicate its ordering/release state in
+      a temporary queue.
     }
   }
 
@@ -100,6 +110,10 @@ expand SigilCompilationExecution {
 
       Useful external implementation work may continue while that semantic
       prerequisite is absent.
+
+      A three-item request may leave items two and three queued behind item one, then
+      release both in requested order after item one reaches a fresh native terminal
+      gate. Restart recovers the same request and lifecycle.
     }
   }
 }
