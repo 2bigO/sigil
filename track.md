@@ -78,16 +78,19 @@ or temporary-mechanism retirement.
 
 ### Accepted-ingest repair loop
 
-For each stale source, the coding agent passes the durable prompt and matching
-ingest-tool parameters to a subagent, which runs the closed worker-to-ingest loop:
+For each stale source, the coding agent passes the durable prompt, matching
+ingest-tool parameters and evidence-manifest path to a subagent, which runs the
+closed worker-to-ingest loop:
 
 1. Spawn a fresh isolated worker with only that source's prepared inputs and
-   retain its process identity, caller-held `job.json`, and temporary Turtle path.
-2. The subagent invokes the matching native `sigilc ingest` tool and records its
-   exact command, stdout, stderr and exit code.
+   retain its process identity, caller-held `job.json`, temporary Turtle path and
+   version-1 evidence manifest.
+2. The subagent invokes the matching native `sigilc ingest --evidence` tool and
+   records its exact command, stdout, stderr and exit code in that manifest.
 3. If ingest rejects, the subagent reads the exact error and actionable hint,
-   repairs only its temporary Turtle, and calls the same tool again until exit 0
-   publishes or it reports a concrete blocker.
+   repairs only its temporary Turtle, appends the attempt to the manifest and
+   calls the same tool again until exit 0 publishes or it reports a concrete
+   blocker.
 4. Never mutate source bytes, prepared JSON, `job.json` or a published
    projection. Recapture and start a fresh isolated round when a bound input
    changes. Keep every attempt for audit.
@@ -108,7 +111,8 @@ and exposed from the accepted `.egg`/expanded-world report. First inspect the
 existing native `egg.md`/projection and report mechanisms and reuse them when
 they already carry these links. The native record is source-binding and
 generation scoped, immutable after acceptance, and separate from request
-scheduling or delivery/test/review/deletion state. Keep process launching
+scheduling or delivery/test/review/deletion state. The subagent supplies the
+version-1 manifest through `sigilc ingest --evidence`; keep process launching
 external and keep model Turtle data-only. The new
 `NATIVE-PROJECTION-EVIDENCE` queue task is locked before temporary-document
 self-sufficiency; do not retire either temporary mechanism until a fresh process
@@ -233,8 +237,9 @@ sigilc stale design --frontend frontend.json
 # reported stale, missing, or dependency-invalid.
 sigilc prepare design --frontend frontend.json --source path/to/contract.sigil --out design-job
 # Spawn a subagent with only design.json and ontology.json, passing the matching
-# sigilc ingest parameters into its prompt. The subagent calls ingest and repairs
-# its temporary Turtle from the exact native hint until exit 0 publishes.
+# sigilc ingest and --evidence parameters into its prompt. The subagent writes
+# the version-1 evidence manifest, calls ingest and repairs its temporary Turtle
+# from the exact native hint until exit 0 publishes.
 sigilc compile design --frontend frontend.json
 sigilc entities --frontend frontend.json
 ```
@@ -252,8 +257,9 @@ Once the catalog is current, use the independent Implementation flow:
 ```sh
 sigilc prepare implementation --frontend frontend.json --source src/file.ext --out implementation-job
 # Spawn a subagent in isolation with ONLY source, ontology.json, catalog.json,
-# passing the matching sigilc ingest parameters into its prompt. It calls ingest
-# and repairs its temporary Turtle from each exact native hint until exit 0.
+# passing the matching sigilc ingest and --evidence parameters into its prompt.
+# It writes the manifest, calls ingest and repairs its temporary Turtle from each
+# exact native hint until exit 0.
 sigilc stale implementation --frontend frontend.json --selection selection.json
 sigilc compile implementation --frontend frontend.json --selection selection.json
 sigilc compare --frontend frontend.json --selection selection.json

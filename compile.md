@@ -1409,9 +1409,10 @@ That action:
 5. gives it only target file bytes as implementation context
 6. gives it the fixed ontology and frozen identity-only Design catalog
 7. receives Turtle
-8. invokes the provided `sigilc ingest implementation --source ...` tool from
-   the subagent prompt; on rejection, the subagent repairs only its temporary
-   Turtle and repeats the call using the exact native hint
+8. invokes the provided `sigilc ingest implementation --source ... --evidence ...`
+   tool from the subagent prompt; on rejection, the subagent records the attempt,
+   repairs only its temporary Turtle and repeats the call using the exact native
+   hint
 9. publishes the `.egg` only if the full job input identity and expected projection generation still match
 10. otherwise discards/marks the result stale
 
@@ -1955,12 +1956,14 @@ sigilc entities
 sigilc ingest design \
   --source architecture/foo.sigil \
   --job <captured-input-id> \
-  --turtle -
+  --turtle - \
+  --evidence <evidence.json>
 
 sigilc ingest implementation \
   --source src/foo.py \
   --job <captured-input-id> \
-  --turtle -
+  --turtle - \
+  --evidence <evidence.json>
 
 sigilc compile design
 
@@ -2092,7 +2095,10 @@ primitives when they already carry the needed links. If they do not, add a small
 Rust-owned, versioned artifact/evidence record to the native projection workflow.
 An accepted source-bound `.egg` and its expanded-world report must expose
 immutable links to the matching source binding, preparation and job identity,
-worker attempt, returned Turtle, ingest result, and publication generation.
+worker attempt, returned Turtle, ingest result, every repair attempt, publication
+generation and the deterministic expanded-world report identity. The external
+subagent supplies these links through the version-1 `sigilc ingest --evidence`
+manifest.
 Keep model Turtle data-only and keep process launching external; the native
 backend validates and persists caller-supplied artifact links when it accepts an
 ingest. Reports must recover those links after a fresh process without

@@ -38,21 +38,24 @@ It performs language analysis only and never invokes a model or `sigilc`.
 sigil export design . > frontend.json
 sigilc ontology --format json
 sigilc prepare design --frontend frontend.json --source architecture/a.sigil --out job-a
-# Give job-a/design.json and job-a/ontology.json to an external Design worker.
-# The caller retains job-a/job.json; the worker returns ordinary Turtle.
-sigilc ingest design --frontend frontend.json --source architecture/a.sigil --job job-a/job.json --turtle result.ttl
+# Spawn a subagent with only job-a/design.json and job-a/ontology.json.
+# It writes result.ttl and evidence.json, invokes ingest, and repairs its
+# temporary Turtle from each native hint until exit 0.
+sigilc ingest design --frontend frontend.json --source architecture/a.sigil --job job-a/job.json --turtle result.ttl --evidence evidence.json
 sigilc stale design --frontend frontend.json
 sigilc compile design --frontend frontend.json
 sigilc entities --frontend frontend.json
 ```
 
-Ingest is the accept/reject boundary for each external reconstruction. Record
-the exact command, exit and stderr. When it rejects, follow the emitted `hint:`
-as the next coding-agent instruction, start a fresh isolated worker from the
-unchanged prepared inputs (or recapture and prepare again when an input changed),
-and submit a new Turtle attempt. Never edit the returned Turtle or `job.json` in
-place; the source round closes only after ingest exits 0 and publishes its
-projection.
+Ingest is the accept/reject boundary for each external reconstruction. The
+coding agent must spawn a subagent with the matching tool parameters; the
+subagent records every Turtle/result attempt in version-1 `--evidence` JSON,
+reads each emitted `hint:`, repairs only its temporary Turtle and repeats the
+same tool call until exit 0 publishes or it reports a blocker. Never edit source
+bytes or `job.json`; recapture and prepare a fresh isolated round when a bound
+input changes. An accepted evidence record is written into the native projection
+index and surfaced by expanded-world reports, while entries accepted without
+`--evidence` remain explicitly incomplete artifact evidence.
 
 `--out` must name a new directory. Do not place prepared inputs in selected
 source scope. Preparation can replace an already-fresh projection through a new
@@ -67,6 +70,18 @@ cache data, never request/task history. `sigilc clean [--root DIR]` removes gene
 when the index is corrupt, retaining only the writer lock file. It preserves
 sources, config and external preparations. Descriptors and external worker orchestration are not stored
 in a compiler job registry.
+
+The optional `--evidence FILE` input records the external worker boundary without
+putting process metadata in Turtle. It is version 1 JSON with `preparation`,
+`job`, `worker`, `ingest`, and an ordered `attempts` array; each attempt names a
+Turtle reference, an ingest-result reference and its exit code. On the accepted
+call, the final attempt must name the submitted `--turtle` path and carry exit
+`0`; rejected calls may record their nonzero exit while the subagent repairs the
+same temporary construction. Native publication
+adds the source binding, job fingerprint, generation and `.egg` projection path. Compile reports
+expose the same records under `artifacts` and identify the expanded-world report
+with `artifact_report`. A projection accepted without `--evidence` remains
+semantically readable but is marked `complete: false`.
 
 New Design domain entities have the IRI
 `urn:sigil:entity:<encodeURIComponent(source path)>:<encodeURIComponent(local name)>`.
@@ -93,7 +108,8 @@ supply the full Design report or neighboring code to that worker.
 
 ```sh
 sigilc prepare implementation --frontend frontend.json --source src/main.rs --out job-main
-sigilc ingest implementation --frontend frontend.json --source src/main.rs --job job-main/job.json --turtle implementation.ttl
+# The subagent executes the matching ingest call with --evidence evidence.json.
+sigilc ingest implementation --frontend frontend.json --source src/main.rs --job job-main/job.json --turtle implementation.ttl --evidence evidence.json
 sigilc stale implementation --frontend frontend.json --selection selection.json
 sigilc compile implementation --frontend frontend.json --selection selection.json
 sigilc compare --frontend frontend.json --selection selection.json

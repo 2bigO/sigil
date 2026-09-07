@@ -78,9 +78,9 @@ writes a new attempt file outside the selected source tree. Capture the process
 ID, exit, stdout/stderr and returned Turtle path. Do not ask `sigilc` to launch a
 worker: it is deliberately a deterministic compiler and publisher.
 
-Pass the source-specific preparation paths and matching native ingest tool
-parameters to the subagent. Use this prompt, substituting only those parameters
-and the attempt output path:
+Pass the source-specific preparation paths, matching native ingest tool
+parameters and an evidence-manifest path to the subagent. Use this prompt,
+substituting only those parameters and output paths:
 
 ```text
 You are an independent Sigil semanticizer subagent. Reconstruct only the supplied source
@@ -94,12 +94,16 @@ zero-fact Turtle result is valid when the source has no supported assertions.
 Every authored unit IRI must have exactly one `rdf:type sigil:Contract`; do not
 type a unit as Goal, Interface, Constraint or Case. Preserve the prepared unit
 IDs and attach their section/description predicates to the Contract resource.
-Write the current result to <ATTEMPT_TTL>, then call the
-provided matching `sigilc ingest` tool with its supplied parameters. If that tool
-rejects the result, read its exact error and `hint:`, correct only the temporary
-Turtle construction in <ATTEMPT_TTL>, and call the same ingest tool again. Keep
-each attempted result and tool exit for the caller. Continue this repair loop
-until the matching ingest publishes with exit 0, or report the concrete blocker.
+Write the current result to <ATTEMPT_TTL>. Before each tool call, update
+version-1 JSON at <EVIDENCE_JSON> with the preparation reference, matching job
+reference, worker process record, exact ingest command and every attempted
+Turtle/result reference plus its exit code. Call the provided matching
+`sigilc ingest` tool with its supplied parameters and `--evidence <EVIDENCE_JSON>`.
+If that tool rejects the result, read its exact error and `hint:`, correct only
+the temporary Turtle construction in <ATTEMPT_TTL>, append the rejected attempt
+to the same evidence manifest, and call the same ingest tool again. Keep each
+attempted result and tool exit for the caller. Continue this repair loop until
+the matching ingest publishes with exit 0, or report the concrete blocker.
 Never edit the source, prepared JSON, caller-held job descriptor or published
 projection.
 ```
@@ -107,12 +111,12 @@ projection.
 For a Design source, the allowed prepared inputs are exactly `design.json` and
 `ontology.json`. For an Implementation source, they are exactly captured
 `source`, `ontology.json` and `catalog.json`. The caller passes the matching
-`sigilc ingest` parameters and unchanged caller-held `job.json` as a tool
-boundary; the subagent may invoke that tool and repair only its temporary Turtle
-until exit 0. The caller records every attempted Turtle, exact tool output and
-exit. If the source, frontend, catalog or other bound input changes, stop and
-ask the caller to recapture and prepare a fresh isolated round. Never edit
-`job.json`, source bytes or published projections.
+`sigilc ingest` parameters, evidence-manifest path and unchanged caller-held
+`job.json` as a tool boundary; the subagent may invoke that tool and repair only
+its temporary Turtle until exit 0. The caller records every attempted Turtle,
+exact tool output and exit. If the source, frontend, catalog or other bound input
+changes, stop and ask the caller to recapture and prepare a fresh isolated round.
+Never edit `job.json`, source bytes or published projections.
 
 Pass the prompt and the source-specific preparation paths as parameters when you
 **spawn a subagent**. The environment may provide that subagent facility in its
@@ -126,13 +130,14 @@ the semanticizer.
 ```sh
 sigilc prepare design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --out /tmp/sigil-run/design-a
 # Spawn a subagent with design-a/design.json and design-a/ontology.json in
-# isolation, passing this matching ingest command's parameters to its prompt.
+# isolation, passing this matching ingest command and evidence-manifest path to
+# its prompt.
 # The subagent writes design-a-attempt-1.ttl and calls the tool itself; if it
 # rejects, the subagent repairs that temporary file from the exact hint and
 # retries until exit 0 (or reports a blocker). The caller retains job.json and
 # every attempted Turtle/tool result. The next line is the tool call executed by
 # the spawned subagent, not a caller-side ingestion step:
-# sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a-attempt-1.ttl
+# sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a-attempt-1.ttl --evidence /tmp/sigil-run/design-a-evidence.json
 sigilc compile design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 sigilc entities --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 ```
@@ -167,12 +172,12 @@ A subagent's self-description is not an independent reconstruction.
 ```sh
 sigilc prepare implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --out /tmp/sigil-run/implementation-main
 # Spawn a subagent with only source, ontology.json and catalog.json, passing the
-# matching ingest command's parameters to its prompt. It writes an attempt,
+# matching ingest command and evidence-manifest path to its prompt. It writes an attempt,
 # invokes the tool itself, repairs its temporary Turtle from each exact hint and
 # retries until exit 0 (or reports a blocker). Caller retains job.json and every
 # attempted Turtle/tool result. The next line is the tool call executed by the
 # spawned subagent:
-# sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main-attempt-1.ttl
+# sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main-attempt-1.ttl --evidence /tmp/sigil-run/implementation-main-evidence.json
 sigilc stale implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 sigilc compile implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 sigilc compare --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json

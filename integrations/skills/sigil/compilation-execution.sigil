@@ -42,14 +42,15 @@ expand SigilCompilationExecution {
       Turtle for ingestion.
 
       The coding agent must spawn a subagent in the background for each source and
-      pass it the matching source, job.json and sigilc ingest tool parameters. The
-      subagent invokes ingest against its temporary Turtle. When the tool rejects,
-      its exact error and hint are returned to that subagent; it repairs only the
-      temporary Turtle and invokes ingest again until native exit zero publishes,
-      or preserves the concrete blocker. Record every process/job, Turtle, tool
-      result and exit. Never mutate source bytes, prepared JSON, job.json or a
-      published projection; recapture and start a fresh isolated round when a
-      bound input changes.
+      pass it the matching source, job.json, evidence-manifest path and sigilc
+      ingest tool parameters. The subagent invokes ingest against its temporary
+      Turtle with --evidence. When the tool rejects, its exact error and hint are
+      returned to that subagent; it repairs only the temporary Turtle, appends the
+      attempt to the manifest and invokes ingest again until native exit zero
+      publishes, or preserves the concrete blocker. Record every process/job,
+      Turtle, tool result and exit. Never mutate source bytes, prepared JSON,
+      job.json or a published projection; recapture and start a fresh isolated
+      round when a bound input changes.
 
       Design workers receive design.json and ontology.json.
 
@@ -80,10 +81,11 @@ expand SigilCompilationExecution {
       Workers, isolation, retries, source edits and scheduling remain external.
 
       A rejection loop is part of the subagent prompt: the subagent repairs its
-      temporary construction from the exact ingest error/hint and repeats the tool
-      call until exit zero or a concrete blocker. It never edits source bytes,
-      prepared JSON, caller-held job.json or a published projection, and it never
-      receives neighboring code or unrelated caller state.
+      temporary construction from the exact ingest error/hint, records the
+      attempt and repeats the tool call with --evidence until exit zero or a
+      concrete blocker. It never edits source bytes, prepared JSON, caller-held
+      job.json or a published projection, and it never receives neighboring code
+      or unrelated caller state.
 
       Do not add a TypeScript wrapper, provider, stage or orchestration service.
 

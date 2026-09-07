@@ -65,22 +65,24 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
 3. Prepare each stale Design source. The coding agent must spawn a subagent in
    the background using the exact prompt and ingest-tool parameters in the
    durable compilation reference. The subagent retains process/job evidence,
-   writes its temporary Turtle and calls the matching `sigilc ingest` tool
-   itself. On a rejection, it reads the exact native error and actionable hint,
-   repairs only its temporary Turtle and calls the tool again until ingest exits
-   0 and publishes, or reports a concrete blocker. Never mutate source bytes,
-   prepared JSON, `job.json` or published projections. Reprepare and start a
-   fresh isolated round when a bound input changes. A preparation without a
-   real worker return and matching accepted `sigilc ingest` is not
-   semanticization evidence.
+   writes its temporary Turtle and version-1 evidence manifest, and calls the
+   matching `sigilc ingest --evidence` tool itself. On a rejection, it reads the
+   exact native error and actionable hint, repairs only its temporary Turtle,
+   appends that attempt to the manifest and calls the tool again until ingest
+   exits 0 and publishes, or reports a concrete blocker. Never mutate source
+   bytes, prepared JSON, `job.json` or published projections. Reprepare and
+   start a fresh isolated round when a bound input changes. A preparation
+   without a real worker return, evidence manifest and matching accepted
+   `sigilc ingest` is not semanticization evidence.
 4. Run `sigilc compile design` and inspect the named state and diagnostics.
    `sigilc entities` exports the current identity catalog when available.
 5. Prepare each selected Implementation source. Its independent subagent
    receives exactly captured source bytes, fixed ontology and frozen catalog.
    Keep Design prose, neighboring code, job descriptors and repair feedback out
    of that worker's input. Run the same prompt-driven worker -> `sigilc ingest`
-   accept/reject loop: the subagent repairs its temporary Turtle from the exact
-   native error/hint and invokes ingest again until exit 0 publishes the
+   accept/reject loop: the subagent records every attempt in the evidence
+   manifest, repairs its temporary Turtle from the exact native error/hint and
+   invokes `sigilc ingest --evidence` again until exit 0 publishes the
    projection. Reprepare and launch a fresh isolated round when a bound input
    changes; never patch source, prepared JSON, descriptor or published output.
 6. Run `sigilc compile implementation` or `sigilc compare`. Preserve unavailable

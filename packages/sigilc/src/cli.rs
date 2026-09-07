@@ -8,7 +8,7 @@ use crate::{
     request::{self, ItemState, LifecycleState, RequestDefinition},
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},
-    store::{Freshness, Job, LockedStore, StoreLimits},
+    store::{ArtifactEvidenceInput, Freshness, Job, LockedStore, StoreLimits},
     turtle::{self, TurtleLimits},
 };
 use serde::Serialize;
@@ -51,7 +51,14 @@ pub fn run(args: &[&str]) -> Output {
     let allowed: &[&str] = match command {
         "scope" => &["--root", "--frontend", "--format"],
         "prepare" => &["--root", "--frontend", "--source", "--out"],
-        "ingest" => &["--root", "--frontend", "--source", "--job", "--turtle"],
+        "ingest" => &[
+            "--root",
+            "--frontend",
+            "--source",
+            "--job",
+            "--turtle",
+            "--evidence",
+        ],
         _ => &[
             "--root",
             "--frontend",
@@ -128,11 +135,17 @@ pub fn run(args: &[&str]) -> Output {
     } else {
         None
     };
+    let evidence_path = if command == "ingest" {
+        options.get("--evidence").copied()
+    } else {
+        None
+    };
     let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
     if [
         Some(frontend),
         job_path,
         turtle_path,
+        evidence_path,
         options.get("--limits").copied(),
         options.get("--selection").copied(),
         options.get("--scope").copied(),
@@ -244,15 +257,17 @@ pub fn run(args: &[&str]) -> Output {
             "ingest" => {
                 design::valid_frontend(&snapshot).map_err(runtime)?;
                 let source = source.unwrap();
-                let job: Job =
-                    serde_json::from_slice(&read(job_path.unwrap(), 16_000_000).map_err(runtime)?)
-                        .map_err(|e| runtime(e.to_string()))?;
+                let evidence = parse_evidence(evidence_path)?;
+                let job_ref = job_path.unwrap();
+                let turtle_ref = turtle_path.unwrap();
+                let job: Job = serde_json::from_slice(&read(job_ref, 16_000_000).map_err(runtime)?)
+                    .map_err(|e| runtime(e.to_string()))?;
                 if job.binding.side() != "design" || job.binding.source.path != source {
                     return Err((2, "job does not bind the requested Design source".into()));
                 }
                 let facts = turtle::parse(
                     &read(
-                        turtle_path.unwrap(),
+                        turtle_ref,
                         TurtleLimits::default().max_document_bytes as u64,
                     )
                     .map_err(runtime)?,
@@ -260,12 +275,16 @@ pub fn run(args: &[&str]) -> Output {
                 )
                 .map_err(runtime)?;
                 catalog::validate_design(source, snapshot.input(), &facts).map_err(runtime)?;
-                let generation = store
-                    .publish(&job, &snapshot.binding(source).map_err(runtime)?, &facts)
+                validate_ingest_evidence(evidence.as_ref(), job_ref, turtle_ref)
                     .map_err(runtime)?;
+                let binding = snapshot.binding(source).map_err(runtime)?;
+                let generation = store
+                    .publish(&job, &binding, &facts, evidence)
+                    .map_err(runtime)?;
+                let artifact = store.artifact(&binding).cloned();
                 json(
                     0,
-                    &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
+                    &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len(),"artifact":artifact}),
                 )
             }
             "stale" => {
@@ -759,9 +778,10 @@ fn run_implementation(
                 &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"input_fingerprint":job.binding.fingerprint()}),
             );
         }
-        let job: Job =
-            serde_json::from_slice(&read(options["--job"], 16_000_000).map_err(runtime)?)
-                .map_err(|e| runtime(e.to_string()))?;
+        let job_ref = options["--job"];
+        let turtle_ref = options["--turtle"];
+        let job: Job = serde_json::from_slice(&read(job_ref, 16_000_000).map_err(runtime)?)
+            .map_err(|e| runtime(e.to_string()))?;
         if job.binding.side() != "implementation" || job.binding.source.path != source {
             return Err((
                 2,
@@ -770,7 +790,7 @@ fn run_implementation(
         }
         let facts = turtle::parse(
             &read(
-                options["--turtle"],
+                turtle_ref,
                 TurtleLimits::default().max_document_bytes as u64,
             )
             .map_err(runtime)?,
@@ -778,10 +798,15 @@ fn run_implementation(
         )
         .map_err(runtime)?;
         catalog.validate_implementation(&facts).map_err(runtime)?;
-        let generation = store.publish(&job, &binding, &facts).map_err(runtime)?;
+        let evidence = parse_evidence(options.get("--evidence").copied())?;
+        validate_ingest_evidence(evidence.as_ref(), job_ref, turtle_ref).map_err(runtime)?;
+        let generation = store
+            .publish(&job, &binding, &facts, evidence)
+            .map_err(runtime)?;
+        let artifact = store.artifact(&binding).cloned();
         return json(
             0,
-            &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
+            &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len(),"artifact":artifact}),
         );
     }
     let assembly = if let Some(scope) = scope {
@@ -897,6 +922,36 @@ fn runtime(message: String) -> (u8, String) {
     }
 }
 
+fn validate_ingest_evidence(
+    evidence: Option<&ArtifactEvidenceInput>,
+    job: &str,
+    turtle: &str,
+) -> Result<(), String> {
+    let Some(evidence) = evidence else {
+        return Ok(());
+    };
+    evidence.validate()?;
+    if evidence.job != job {
+        return Err("artifact evidence job reference does not match --job".into());
+    }
+    if evidence
+        .attempts
+        .last()
+        .is_none_or(|attempt| attempt.turtle != turtle)
+    {
+        return Err("artifact evidence final Turtle reference does not match --turtle".into());
+    }
+    Ok(())
+}
+
+fn parse_evidence(path: Option<&str>) -> Result<Option<ArtifactEvidenceInput>, (u8, String)> {
+    path.map(|path| {
+        serde_json::from_slice::<ArtifactEvidenceInput>(&read(path, 1_000_000).map_err(runtime)?)
+            .map_err(|e| runtime(format!("invalid artifact evidence: {e}")))
+    })
+    .transpose()
+}
+
 fn ingest_hint(message: &str) -> Option<&'static str> {
     if message.starts_with("unexpected character")
         || message.starts_with("premature end of file")
@@ -931,6 +986,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     {
         return Some(
             "run prepare again and submit the returned Turtle with its new caller-held job.json",
+        );
+    }
+    if message.contains("artifact evidence") {
+        return Some(
+            "write version 1 evidence JSON with preparation, matching job, worker process, ingest command, every Turtle/result attempt, and a final attempt whose exit is 0",
         );
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {

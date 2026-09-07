@@ -70,7 +70,25 @@ component SigilProjectionStore {
       Reject duplicate jobs and changed source, catalog or format inputs.
       Publication tokens cannot repeat after cache deletion and reconstruction;
       an old job cannot regain authority when disposable generations restart.
-      Keep scheduling, workers and production metadata outside the store.
+      Keep scheduling and workers outside the store. At acceptance, persist an
+      immutable versioned artifact-evidence record supplied by the external
+      subagent: source binding, preparation and job references, native job
+      fingerprint, worker process record, ingest command, every Turtle/result
+      attempt, projection path and publication generation. This record is
+      evidence linkage, not model data,
+      a task ledger or a worker registry. Ingest rejects an incomplete evidence
+      manifest when the caller asks for native evidence recording.
+    }
+
+    NativeArtifactEvidence {
+      Accept an optional version-1 evidence manifest alongside a matching ingest
+      job. Require the final attempt to name the submitted Turtle and carry exit
+      zero; preserve earlier rejected attempts without interpreting their text.
+      Bind the record to the accepted source fingerprint, generation and exact
+      projection key. Expose complete records through the projection index and
+      expanded-world reports so a fresh process can recover them without a
+      temporary tracker. Existing entries without a record remain semantically
+      readable but are incomplete evidence.
     }
 
     BindingHistory {

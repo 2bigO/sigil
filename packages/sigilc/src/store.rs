@@ -32,6 +32,180 @@ pub struct Entry {
     pub binding: Binding,
     pub assertion_checksum: String,
     pub generation: String,
+    #[serde(default)]
+    pub artifact: Option<ArtifactEvidence>,
+}
+
+/// Caller-supplied links retained with an accepted projection. These are
+/// references to external process/output records, never model assertions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArtifactEvidence {
+    pub version: u32,
+    pub binding: String,
+    pub generation: String,
+    pub preparation: String,
+    pub job: String,
+    pub job_fingerprint: String,
+    pub worker: String,
+    pub ingest: String,
+    pub attempts: Vec<ArtifactAttempt>,
+    pub projection: String,
+    pub complete: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArtifactAttempt {
+    pub turtle: String,
+    pub result: String,
+    pub exit: u8,
+}
+
+/// Input written by the external subagent/caller for the accepted attempt.
+/// The native command checks the final attempt against the command arguments
+/// and retains every earlier rejection reference unchanged.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArtifactEvidenceInput {
+    pub version: u32,
+    pub preparation: String,
+    pub job: String,
+    pub worker: String,
+    pub ingest: String,
+    pub attempts: Vec<ArtifactAttempt>,
+}
+
+const MAX_ARTIFACT_REF_BYTES: usize = 4_096;
+const MAX_ARTIFACT_ATTEMPTS: usize = 128;
+
+impl ArtifactEvidenceInput {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.version != 1 {
+            return Err("unsupported artifact evidence version".into());
+        }
+        for (name, value) in [
+            ("preparation", &self.preparation),
+            ("job", &self.job),
+            ("worker", &self.worker),
+            ("ingest", &self.ingest),
+        ] {
+            validate_artifact_ref(name, value)?;
+        }
+        if self.attempts.is_empty() {
+            return Err("artifact evidence requires at least one ingest attempt".into());
+        }
+        if self.attempts.len() > MAX_ARTIFACT_ATTEMPTS {
+            return Err("artifact evidence has too many ingest attempts".into());
+        }
+        for (index, attempt) in self.attempts.iter().enumerate() {
+            validate_artifact_ref(&format!("attempt {index} Turtle"), &attempt.turtle)?;
+            validate_artifact_ref(&format!("attempt {index} result"), &attempt.result)?;
+        }
+        Ok(())
+    }
+
+    fn validate_accepted(&self) -> Result<(), String> {
+        self.validate()?;
+        if self.attempts.last().is_none_or(|attempt| attempt.exit != 0) {
+            return Err("final artifact evidence attempt must have exit 0".into());
+        }
+        Ok(())
+    }
+}
+
+impl ArtifactEvidence {
+    fn build(
+        input: Option<ArtifactEvidenceInput>,
+        current: &Binding,
+        generation: &str,
+        key: &str,
+        job: &Job,
+    ) -> Result<Self, String> {
+        let projection = format!(".sigil/worlds/{key}.egg");
+        let Some(input) = input else {
+            return Ok(Self {
+                version: 1,
+                binding: current.fingerprint(),
+                generation: generation.into(),
+                preparation: String::new(),
+                job: String::new(),
+                job_fingerprint: String::new(),
+                worker: String::new(),
+                ingest: String::new(),
+                attempts: Vec::new(),
+                projection,
+                complete: false,
+            });
+        };
+        input.validate_accepted()?;
+        Ok(Self {
+            version: 1,
+            binding: current.fingerprint(),
+            generation: generation.into(),
+            preparation: input.preparation,
+            job: input.job,
+            job_fingerprint: hash(
+                &serde_json::to_vec(&("sigil-job-v2", job)).map_err(|e| e.to_string())?,
+            ),
+            worker: input.worker,
+            ingest: input.ingest,
+            attempts: input.attempts,
+            projection,
+            complete: true,
+        })
+    }
+
+    fn validate_for(&self, binding: &Binding, generation: &str, key: &str) -> Result<(), String> {
+        if self.version != 1
+            || self.binding != binding.fingerprint()
+            || self.generation != generation
+            || (self.complete && !checksum(&self.job_fingerprint))
+            || self.projection != format!(".sigil/worlds/{key}.egg")
+        {
+            return Err(format!("invalid artifact evidence for projection: {key}"));
+        }
+        if self.complete {
+            let input = ArtifactEvidenceInput {
+                version: self.version,
+                preparation: self.preparation.clone(),
+                job: self.job.clone(),
+                worker: self.worker.clone(),
+                ingest: self.ingest.clone(),
+                attempts: self.attempts.clone(),
+            };
+            input.validate_accepted()
+        } else if self.preparation.is_empty()
+            && self.job.is_empty()
+            && self.job_fingerprint.is_empty()
+            && self.worker.is_empty()
+            && self.ingest.is_empty()
+            && self.attempts.is_empty()
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "invalid incomplete artifact evidence for projection: {key}"
+            ))
+        }
+    }
+}
+
+fn validate_artifact_ref(name: &str, value: &str) -> Result<(), String> {
+    if value.is_empty() {
+        return Err(format!("artifact evidence {name} reference is empty"));
+    }
+    if value.len() > MAX_ARTIFACT_REF_BYTES {
+        return Err(format!(
+            "artifact evidence {name} reference exceeds byte limit"
+        ));
+    }
+    if value.chars().any(char::is_control) {
+        return Err(format!(
+            "artifact evidence {name} reference contains control characters"
+        ));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,6 +285,9 @@ impl LockedStore {
                 || !checksum(&entry.assertion_checksum)
             {
                 return Err(format!("invalid projection index entry: {key}"));
+            }
+            if let Some(artifact) = &entry.artifact {
+                artifact.validate_for(&entry.binding, &entry.generation, key)?;
             }
         }
         Ok(Self {
@@ -194,6 +371,7 @@ impl LockedStore {
         job: &Job,
         current: &Binding,
         facts: &[Assertion],
+        evidence: Option<ArtifactEvidenceInput>,
     ) -> Result<String, String> {
         compatible(current)?;
         let key = object_key(current)?;
@@ -224,15 +402,21 @@ impl LockedStore {
         {
             let previous_key = history_key(&previous.binding)?;
             preserve_projection(&self.root, &key, &previous_key, self.limits)?;
+            let mut previous = previous;
+            if let Some(artifact) = &mut previous.artifact {
+                artifact.projection = format!(".sigil/worlds/{previous_key}.egg");
+            }
             proposed.entries.insert(previous_key, previous);
             proposed.entries.remove(&key);
         }
+        let artifact = ArtifactEvidence::build(evidence, current, &generation, &key, job)?;
         proposed.entries.insert(
             key.clone(),
             Entry {
                 binding: current.clone(),
                 assertion_checksum: hash(encoded.as_bytes()),
                 generation: generation.clone(),
+                artifact: Some(artifact),
             },
         );
         let data = serde_json::to_vec(&proposed).map_err(|e| e.to_string())?;
@@ -292,6 +476,13 @@ impl LockedStore {
             }),
             Err(_) => Ok(inspected(Freshness::Incomplete)),
         }
+    }
+
+    /// Return the accepted artifact chain for a complete binding. An absent
+    /// value means the projection predates native artifact evidence.
+    pub fn artifact(&self, binding: &Binding) -> Option<&ArtifactEvidence> {
+        self.entry_for(binding)
+            .and_then(|(_, entry)| entry.artifact.as_ref())
     }
 
     // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::BindingHistory interface

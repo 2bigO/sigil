@@ -357,6 +357,77 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
 }
 
 #[test]
+fn accepted_ingest_persists_and_reports_external_artifact_links() {
+    let root = workspace();
+    result(
+        &root,
+        &["prepare", "design", "--source", "a.sigil", "--out", "job"],
+        0,
+    );
+    root.write("facts.ttl", b"");
+    root.write(
+        "evidence.json",
+        br#"{
+          "version": 1,
+          "preparation": "job",
+          "job": "job/job.json",
+          "worker": "worker/process.json",
+          "ingest": "sigilc ingest design --job job/job.json --turtle facts.ttl",
+          "attempts": [
+            {"turtle": "attempt-1.ttl", "result": "attempt-1.stderr", "exit": 3},
+            {"turtle": "facts.ttl", "result": "attempt-2.stdout", "exit": 0}
+          ]
+        }"#,
+    );
+    let accepted = result(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+            "--evidence",
+            "evidence.json",
+        ],
+        0,
+    );
+    assert_eq!(accepted["artifact"]["complete"], true);
+    assert_eq!(
+        accepted["artifact"]["attempts"].as_array().unwrap().len(),
+        2
+    );
+    assert_eq!(accepted["artifact"]["attempts"][0]["exit"], 3);
+    assert_eq!(accepted["artifact"]["attempts"][1]["exit"], 0);
+    assert_eq!(
+        accepted["artifact"]["projection"],
+        ".sigil/worlds/design/a.sigil.egg"
+    );
+
+    let index: Value =
+        serde_json::from_slice(&std::fs::read(root.0.join(".sigil/worlds/index.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        index["entries"]["design/a.sigil"]["artifact"],
+        accepted["artifact"]
+    );
+    let report = result(&root, &["compile", "design"], 0);
+    assert_eq!(report["artifacts"]["a.sigil"]["complete"], true);
+    let input_fingerprint = report["input_fingerprint"].as_str().unwrap();
+    assert_eq!(
+        report["artifact_report"],
+        format!("sigil://expanded-world/design/{input_fingerprint}")
+    );
+    assert_eq!(
+        report["artifacts"]["a.sigil"]["generation"],
+        accepted["generation"]
+    );
+}
+
+#[test]
 fn preparation_omits_unbound_design_files_and_never_overwrites_a_directory() {
     let root = workspace();
     root.write("unrelated.sigil", b"secret unrelated meaning");
