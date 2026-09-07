@@ -42,14 +42,14 @@ expand SigilCompilationExecution {
       Turtle for ingestion.
 
       The coding agent must spawn a subagent in the background for each source and
-      record their process/job evidence and invoke sigilc ingest with the matching
-      source, job.json and returned Turtle. Ingest is an accept/reject boundary: on
-      rejection, retain the exact native error and give the coding agent an
-      actionable repair prompt for its temporary construction, then start a fresh
-      isolated worker from unchanged prepared inputs. Repeat worker -> ingest until
-      native exit zero publishes, or preserve the blocker and keep the gate closed.
-      Never hand-edit Turtle, mutate job.json or pass repair feedback into the
-      worker's allowed input.
+      pass it the matching source, job.json and sigilc ingest tool parameters. The
+      subagent invokes ingest against its temporary Turtle. When the tool rejects,
+      its exact error and hint are returned to that subagent; it repairs only the
+      temporary Turtle and invokes ingest again until native exit zero publishes,
+      or preserves the concrete blocker. Record every process/job, Turtle, tool
+      result and exit. Never mutate source bytes, prepared JSON, job.json or a
+      published projection; recapture and start a fresh isolated round when a
+      bound input changes.
 
       Design workers receive design.json and ontology.json.
 
@@ -79,10 +79,11 @@ expand SigilCompilationExecution {
     CompilationExecution {
       Workers, isolation, retries, source edits and scheduling remain external.
 
-      A rejection loop repairs the coding agent's temporary construction through a
-      fresh worker attempt. It never edits returned Turtle or caller-held job.json,
-      and never sends repair feedback, neighboring code or caller descriptors to an
-      independent worker.
+      A rejection loop is part of the subagent prompt: the subagent repairs its
+      temporary construction from the exact ingest error/hint and repeats the tool
+      call until exit zero or a concrete blocker. It never edits source bytes,
+      prepared JSON, caller-held job.json or a published projection, and it never
+      receives neighboring code or unrelated caller state.
 
       Do not add a TypeScript wrapper, provider, stage or orchestration service.
 
@@ -142,10 +143,11 @@ expand SigilCompilationExecution {
       keeps the request at the reconstruction gate; no later task or temporary
       mechanism retirement is allowed.
 
-      A native ingest rejection supplies the next actionable repair prompt. The
-      coding agent repeats the isolated worker -> ingest round until exit zero
-      publishes or records an observed blocker; it cannot turn rejection into
-      acceptance by changing temporary descriptors or hand-authored facts.
+      A native ingest rejection is returned as the next actionable repair prompt
+      inside the subagent tool loop. The subagent repeats worker -> ingest until
+      exit zero publishes or records an observed blocker; it cannot turn
+      rejection into acceptance by changing source bytes, prepared descriptors,
+      job.json or hand-authored facts.
 
       Useful external implementation work may continue while that semantic
       prerequisite is absent.

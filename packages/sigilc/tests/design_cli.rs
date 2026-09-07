@@ -178,6 +178,7 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     let reserved_stderr = String::from_utf8_lossy(&reserved.stderr);
     assert!(reserved_stderr.contains("hint: reserved authored units"));
     assert!(reserved_stderr.contains("exactly one rdf:type sigil:Contract"));
+    assert!(reserved_stderr.contains("attach section/description to that Contract resource"));
 
     root.write(
         "facts.ttl",

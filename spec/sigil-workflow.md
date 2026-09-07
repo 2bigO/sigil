@@ -2,11 +2,10 @@
 
 > This document describes the pre-semantic-world authoring workflow and is
 > retained for compatibility and history. It is not the current compile or
-> verification procedure. For active work, follow [compile.md](../compile.md):
-> deterministic proposal transport, exact-question resolution, canonical
-> `.egg` acceptance, managed views, retained handoffs, untrusted receipts, and
-> fresh fixed-kernel verification. Its review-gate language does not authorize
-> an evaluator to supply proof.
+> verification procedure. For active work, follow the repository-owned Sigil
+> skill and its native compilation execution reference. The older procedure's
+> generated-world, handoff and receipt vocabulary is retained only as history;
+> it is not a runtime dependency or an instruction to restore those systems.
 
 Sigil is documentation-first.
 The `.sigil` files are the durable place where decisions, assumptions, component boundaries, and behavior are recorded before implementation.

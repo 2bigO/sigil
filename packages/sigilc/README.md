@@ -1,7 +1,8 @@
 # sigilc
 
 The standalone Rust compiler validates externally produced Turtle and derives
-Design from disposable per-source projections. It never launches a model.
+Design from disposable per-source projections. It never launches a model and
+does not read `compile.md`, `track.md`, or any other temporary task document.
 
 Build with Rust 1.91.1 or newer:
 

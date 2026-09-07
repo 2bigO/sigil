@@ -43,7 +43,11 @@ accessible identities and keep each responsibility with its owner.
 ## Use the native flow
 
 Read [compilation execution](references/compilation-execution.md) for the exact
-protocol, ordered scope, per-source worker inputs and command-specific exits.
+protocol, durable subagent prompt, ordered scope, per-source worker inputs and
+command-specific exits. This skill/reference is the model-facing source of the
+worker invocation; `compile.md` and `track.md` are temporary loop records and
+must not be required by the coding-agent workflow. The required action is to
+**spawn a subagent**; do not substitute a provider-specific or legacy launcher.
 Capture current authored input with `sigil export design .`; use that JSON with
 native `--frontend`. Refresh it after authored/config/glossary changes.
 
@@ -58,29 +62,27 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    Freshness is binding-specific: an accepted egg from a different ordered
    Design item may remain in the cache, but native stale decides whether it is
    reusable for the current item.
-3. Prepare each stale Design source. A spawned subagent reconstructs it;
-   the coding agent must spawn a subagent in the background, retain its
-   process/job evidence, and pass its returned Turtle to the matching
-   `sigilc ingest` command with the original caller-held job descriptor. Treat
-   ingest as an accept/reject boundary: on rejection, give the coding agent the
-   exact native error and actionable field-level repair instruction, then start
-   a fresh isolated worker attempt from the unchanged prepared inputs. Do not
-   hand-edit Turtle, mutate `job.json`, or feed repair feedback into a worker's
-   allowed input. Repeat this worker -> ingest loop until native ingest exits 0
-   and publishes the projection, or record the observed blocker without
-   advancing. A preparation without a real worker return and matching
-   accepted `sigilc ingest` is not semanticization evidence.
+3. Prepare each stale Design source. The coding agent must spawn a subagent in
+   the background using the exact prompt and ingest-tool parameters in the
+   durable compilation reference. The subagent retains process/job evidence,
+   writes its temporary Turtle and calls the matching `sigilc ingest` tool
+   itself. On a rejection, it reads the exact native error and actionable hint,
+   repairs only its temporary Turtle and calls the tool again until ingest exits
+   0 and publishes, or reports a concrete blocker. Never mutate source bytes,
+   prepared JSON, `job.json` or published projections. Reprepare and start a
+   fresh isolated round when a bound input changes. A preparation without a
+   real worker return and matching accepted `sigilc ingest` is not
+   semanticization evidence.
 4. Run `sigilc compile design` and inspect the named state and diagnostics.
    `sigilc entities` exports the current identity catalog when available.
 5. Prepare each selected Implementation source. Its independent subagent
    receives exactly captured source bytes, fixed ontology and frozen catalog.
    Keep Design prose, neighboring code, job descriptors and repair feedback out
-   of that worker's input. Run the same worker -> `sigilc ingest` accept/reject
-   loop: route a rejection to the coding agent as an actionable repair of its
-   temporary construction, then launch a fresh worker from the unchanged three
-   inputs. Each retry must use a fresh isolation boundary. Never patch the Turtle
-   or descriptor in place; continue only after
-   native ingest exits 0 and publishes the projection.
+   of that worker's input. Run the same prompt-driven worker -> `sigilc ingest`
+   accept/reject loop: the subagent repairs its temporary Turtle from the exact
+   native error/hint and invokes ingest again until exit 0 publishes the
+   projection. Reprepare and launch a fresh isolated round when a bound input
+   changes; never patch source, prepared JSON, descriptor or published output.
 6. Run `sigilc compile implementation` or `sigilc compare`. Preserve unavailable
    prerequisites and warnings. Reconstruct changed inputs before comparing again.
 7. Run `sigilc request status` again after ingestion and external checks. It

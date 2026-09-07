@@ -27,5 +27,7 @@ cargo check is not an executable platform test. Linux x86_64 has local execution
 evidence; other retained platforms still require their execution evidence.
 
 The ongoing refactor's complete delivery, semantic comparison and temporary-state
-retirement gate is defined in [track.md](track.md). A pre-release milestone does
-not waive it. Publishing or deploying requires separate authorization.
+retirement gate is tracked operationally while the temporary loop documents are
+present; the durable workflow is the repository-owned Sigil skill and native
+command guide. A pre-release milestone does not waive it. Publishing or
+deploying requires separate authorization.

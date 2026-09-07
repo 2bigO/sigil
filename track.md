@@ -1,5 +1,12 @@
 # Semantic Worlds implementation and replacement loop
 
+> **Temporary operational procedure.** `compile.md` and this file may be
+> deleted after the refactor. They can record the current loop and its evidence
+> while active, but compiler frontend/backend code, native commands, release
+> artifacts, and the coding-agent workflow must not read, import, package, or
+> require them. The durable subagent prompt and worker/ingest protocol live in
+> the repository-owned Sigil skill and its references.
+
 This is the coding agent's working procedure for implementing [compile.md](compile.md).
 It is not a Sigil feature, harness runtime, scheduler, or new compiler protocol.
 The user supplies an absolute `STATE_DIR`; until Sigil can replace the temporary
@@ -14,6 +21,10 @@ compiler wrapper or compatibility layer. Frontend guidance directs the model
 to invoke `sigilc` itself.
 `Closed` is welcome but not required. Do not expand proof or language-analysis
 scope just to obtain it.
+
+Worker invocation uses the durable generic action **spawn a subagent**. Keep the
+provider or host mechanism out of this procedure; the subagent receives the
+source-specific prompt and ingest-tool parameters defined by the Sigil skill.
 
 ## Completion means delivery plus semantic convergence
 
@@ -67,19 +78,19 @@ or temporary-mechanism retirement.
 
 ### Accepted-ingest repair loop
 
-For each stale source, the coding agent runs a closed worker-to-ingest loop:
+For each stale source, the coding agent passes the durable prompt and matching
+ingest-tool parameters to a subagent, which runs the closed worker-to-ingest loop:
 
 1. Spawn a fresh isolated worker with only that source's prepared inputs and
-   retain its process identity, caller-held `job.json`, and returned Turtle path.
-2. Invoke the matching native `sigilc ingest` and record its exact command,
-   stdout, stderr and exit code.
-3. If native ingest rejects, send the coding agent the exact error plus an
-   actionable field-level repair prompt. The coding agent repairs its temporary
-   construction, recaptures inputs when the source or frontend identity changed,
-   and launches a new isolated worker attempt.
-4. Never hand-edit returned Turtle, mutate `job.json`, or pass repair feedback,
-   neighboring code, tracker text or caller descriptors into the independent
-   worker. Keep every attempt for audit.
+   retain its process identity, caller-held `job.json`, and temporary Turtle path.
+2. The subagent invokes the matching native `sigilc ingest` tool and records its
+   exact command, stdout, stderr and exit code.
+3. If ingest rejects, the subagent reads the exact error and actionable hint,
+   repairs only its temporary Turtle, and calls the same tool again until exit 0
+   publishes or it reports a concrete blocker.
+4. Never mutate source bytes, prepared JSON, `job.json` or a published
+   projection. Recapture and start a fresh isolated round when a bound input
+   changes. Keep every attempt for audit.
 5. Stop the source round only when ingest exits 0 and publishes its projection;
    otherwise preserve the blocker and leave the reconstruction gate closed.
 
@@ -87,18 +98,36 @@ An accepted exit-0 ingest is the only source-level success in this loop. A
 preparation, worker response, rejected attempt, compile warning or fixture does
 not populate `.sigil/worlds/` and cannot release the next request item.
 
+### Native artifact-evidence migration
+
+`.codex-progress` is temporary. Its worker manifest, preparation/job links,
+returned Turtle, exact ingest command and exit, published `.egg`, input
+fingerprints and gate-report links are evidence needed to explain a native
+projection, so they must be migrated to a small Rust-owned native artifact record
+and exposed from the accepted `.egg`/expanded-world report. First inspect the
+existing native `egg.md`/projection and report mechanisms and reuse them when
+they already carry these links. The native record is source-binding and
+generation scoped, immutable after acceptance, and separate from request
+scheduling or delivery/test/review/deletion state. Keep process launching
+external and keep model Turtle data-only. The new
+`NATIVE-PROJECTION-EVIDENCE` queue task is locked before temporary-document
+self-sufficiency; do not retire either temporary mechanism until a fresh process
+recovers the same links without `.codex-progress`.
+
 ## Sources of authority
 
-`compile.md` defines the refactor's scope and constraints. Authored `.sigil`
-files express the corresponding Design in the language; actual source expresses
-Implementation. Update governing contracts as the refactor changes behavior.
-Do not use the old accepted-world/receipt workflow as the new authority.
+`compile.md` temporarily records the refactor's scope and constraints. Authored
+`.sigil` files express the corresponding Design in the language; actual source
+expresses Implementation. Update governing contracts as the refactor changes
+behavior. The compiler and coding-agent workflow must remain usable without this
+file or `track.md`; use the installed skill/reference for durable worker
+instructions. Do not use the old accepted-world/receipt workflow as authority.
 
 `track.md` defines this external procedure. Temporary JSON, coding-agent claims,
 test reports, and generated worlds cannot amend Design by themselves. Compile
 status cannot prove tests passed or authorize a deployment.
 
-The installed skill may describe the old architecture. Use its applicable
+The installed skill is the durable model-facing workflow. Use its applicable
 inspection guidance, but follow the user's authorized refactor and updated
 repository-owned contracts/instructions where they supersede the old workflow.
 Record whether glossary work is needed; do not create vocabulary work merely to
@@ -203,9 +232,9 @@ sigilc stale design --frontend frontend.json
 # Preserve every fresh row. Reprepare and spawn a subagent only for rows
 # reported stale, missing, or dependency-invalid.
 sigilc prepare design --frontend frontend.json --source path/to/contract.sigil --out design-job
-# Spawn a subagent with only design.json and ontology.json.
-# Caller retains job.json; after the worker returns result.ttl:
-sigilc ingest design --frontend frontend.json --source path/to/contract.sigil --job design-job/job.json --turtle result.ttl
+# Spawn a subagent with only design.json and ontology.json, passing the matching
+# sigilc ingest parameters into its prompt. The subagent calls ingest and repairs
+# its temporary Turtle from the exact native hint until exit 0 publishes.
 sigilc compile design --frontend frontend.json
 sigilc entities --frontend frontend.json
 ```
@@ -222,9 +251,9 @@ Once the catalog is current, use the independent Implementation flow:
 
 ```sh
 sigilc prepare implementation --frontend frontend.json --source src/file.ext --out implementation-job
-# Spawn a subagent in isolation with ONLY source, ontology.json, catalog.json.
-# Caller retains job.json; after the worker returns implementation.ttl:
-sigilc ingest implementation --frontend frontend.json --source src/file.ext --job implementation-job/job.json --turtle implementation.ttl
+# Spawn a subagent in isolation with ONLY source, ontology.json, catalog.json,
+# passing the matching sigilc ingest parameters into its prompt. It calls ingest
+# and repairs its temporary Turtle from each exact native hint until exit 0.
 sigilc stale implementation --frontend frontend.json --selection selection.json
 sigilc compile implementation --frontend frontend.json --selection selection.json
 sigilc compare --frontend frontend.json --selection selection.json
@@ -318,8 +347,9 @@ state.
    was published. Accepted binding history may also appear there as fingerprinted
    `.egg` entries; it is disposable semantic cache evidence, not request history.
    Do not call preparation or a Loose in-memory Design report a completed pass.
-   End the coding round before examining its blind reconstruction outputs;
-   repair starts a new round with fresh input capture/reconstruction as needed.
+   The subagent's prompt-driven ingest tool loop handles Turtle rejection repair;
+   start a fresh isolation round only when a bound input changes or the worker
+   cannot continue, with fresh input capture/reconstruction as needed.
 5. **Improve sigilc from what happened.** Apply the observation review below.
    Resolve demonstrated defects or friction in the responsible primitive or
    retained frontend. Recheck the corrected operation on the real task; promote
@@ -815,8 +845,9 @@ All of the following must hold for the same final scope and current sources:
    work. No active custom script decides semantic status or freshness. The final
    binaries, not the legacy engine, produced the evidence.
 6. Perform a retirement rehearsal: start a fresh external session without the
-   temporary `work`/`replacements` state or custom queries. Using only the current
-   plans, authored `.sigil`, code, ordinary checks and native Sigil commands, it
+   temporary `work`/`replacements` state or custom queries. Using only the
+   durable installed skill/references, authored `.sigil`, code, ordinary checks
+   and native Sigil commands (with `compile.md` and `track.md` absent), it
    must recover the required scope, ordered request/released items, remaining/
    delivered/deleted behavior, actual check evidence, current unknowns and
    native semantic status. Compare those answers and supporting evidence with

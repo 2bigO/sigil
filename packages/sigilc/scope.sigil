@@ -41,7 +41,7 @@ component SigilComparisonScope {
       Do not silently drop unresolved references or errors. When unresolved
       imports require conservative full-bundle membership, report that widening.
       Preserve applicable configuration, glossary context and global diagnostics.
-      Do not infer source membership from prose in compile.md or task metadata.
+      Do not infer source membership from temporary prose or task metadata.
     }
 
     ScopedComparison {

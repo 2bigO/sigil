@@ -145,8 +145,8 @@ Generated `.sigil/worlds/` objects are disposable and ignored. No accepted-world
 beam, receipt, provider runtime, TypeScript compiler wrapper or legacy `sigil
 compile` command is retained. Models and operators invoke `sigilc` directly.
 Language parsing, navigation, ownership links and the VS Code frontend remain.
-See the [native command guide](packages/sigilc/README.md) and the complete
-[implementation contract](compile.md).
+See the [native command guide](packages/sigilc/README.md) and the durable
+[Sigil compilation execution contract](integrations/skills/sigil/references/compilation-execution.md).
 
 The Sigil platform architecture is drafted in
 [spec/sigil-platform-architecture.md](spec/sigil-platform-architecture.md).
@@ -374,5 +374,6 @@ semantic closure, obligations and Design-versus-Implementation comparison.
 
 Editor integrations other than VS Code, stricter body semantics, and additional
 project configuration remain deferred. The active semantic workflow is
-documented in [compile.md](compile.md) and the
-[native command guide](packages/sigilc/README.md).
+documented in the repository-owned Sigil skill and the
+[native command guide](packages/sigilc/README.md). `compile.md` and `track.md`
+are temporary refactor records and are not runtime inputs.

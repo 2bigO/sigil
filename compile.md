@@ -1,6 +1,17 @@
 
 # Task: Radically simplify Sigil around independent Semantic Worlds verification
 
+> **Temporary implementation plan.** This file is an active refactor aid and
+> semanticization source, not a compiler, frontend, backend, or runtime input.
+> The implementation must remain self-sufficient when `compile.md` and
+> `track.md` are removed. Durable worker instructions belong in the installed
+> Sigil skill and its references; native code owns its behavior without reading
+> either temporary document.
+>
+> The model-facing worker action is **spawn a subagent** with the source-specific
+> prompt and ingest-tool parameters from that durable reference. This plan names
+> the protocol only; it does not select or describe a provider-specific launcher.
+
 The goal of this refactor is a **large net deletion of code and concepts**.
 
 Delete the entire TypeScript `@qoherent/sigil-compiler` package, including its
@@ -1094,10 +1105,12 @@ Reject:
 * project-authored rules
 * attempts to populate compiler-owned relations
 
-Do not implement `--fix`/`--autofix` in v1. Reject malformed input with precise
-diagnostics. Wrapper cleanup, such as removing Markdown fences, and semantic
-repair belong to the external environment. No facts, predicates, or entities
-may be invented by ingestion.
+Do not implement `--fix`/`--autofix` in sigilc. Reject malformed input with
+precise diagnostics. The durable subagent prompt owns its temporary Turtle
+repair loop: it invokes the matching ingest tool, reads the exact rejection and
+hint, corrects its temporary construction, and repeats until exit 0 or a
+concrete blocker. No facts, predicates, or entities may be invented by
+ingestion, and sigilc never mutates a worker's source, job or prepared inputs.
 
 ---
 
@@ -1391,13 +1404,16 @@ That action:
 5. gives it only target file bytes as implementation context
 6. gives it the fixed ontology and frozen identity-only Design catalog
 7. receives Turtle
-8. invokes `sigilc ingest implementation --source ...`
+8. invokes the provided `sigilc ingest implementation --source ...` tool from
+   the subagent prompt; on rejection, the subagent repairs only its temporary
+   Turtle and repeats the call using the exact native hint
 9. publishes the `.egg` only if the full job input identity and expected projection generation still match
 10. otherwise discards/marks the result stale
 
-The coding agent immediately continues work after triggering semanticization.
-
-It does not wait for, review, repair, or approve the semanticizer's result.
+The coding agent may continue other work after spawning semanticization, while
+the subagent itself owns the prompt-driven ingest/rejection repair loop. The
+caller records every attempt and waits for an accepted exit-0 publication before
+using the projection as evidence.
 
 Coder triggers are latency hints, not the source inventory. At completion the
 harness enumerates all stale/missing selected files, schedules any the coder did
@@ -2059,6 +2075,26 @@ parity rehearsal removed the duplicate `delivery queue.next_task` pointer from
 `.codex-progress`; external delivery/check/deletion evidence remains outside the
 native ledger.
 
+## Temporary artifact evidence must become native
+
+The running loop currently records worker processes, preparation and job paths,
+returned Turtle, exact ingest commands and exits, published `.egg` paths, input
+fingerprints, and gate reports under `.codex-progress`. That folder is temporary;
+its essential evidence cannot remain available only through a tracker query.
+First inspect the existing native `egg.md`/projection and report mechanisms for
+an elegant binding to the accepted `.egg` and expanded-world record. Reuse those
+primitives when they already carry the needed links. If they do not, add a small
+Rust-owned, versioned artifact/evidence record to the native projection workflow.
+An accepted source-bound `.egg` and its expanded-world report must expose
+immutable links to the matching source binding, preparation and job identity,
+worker attempt, returned Turtle, ingest result, and publication generation.
+Keep model Turtle data-only and keep process launching external; the native
+backend validates and persists caller-supplied artifact links when it accepts an
+ingest. Reports must recover those links after a fresh process without
+`.codex-progress`, while delivery, test, review, and deletion evidence remain
+separately identified external records. Do not turn the projection cache into a
+task ledger or add an adapter around the old artifact framework.
+
 ---
 
 # 34. Candidate search is outside scope
@@ -2162,11 +2198,13 @@ The numbered removal also covers repository-owned contracts that still describe
 the discarded runtime. Cycle 62 inspection found `packages/cli/spec.md`
 requiring a bundled TypeScript 7/native-egglog runtime, and
 `packages/core/config.sigil` plus `packages/core/src/workspace.sigil` still
-describing compiler-adapter/profile configuration. Reconcile those requirements
-with the direct `sigilc` boundary and native diagnostics, or explicitly mark a
-paragraph as historical before the final audit. Historical ADRs and change-log
-entries may retain rejected architecture vocabulary; they are not live runtime
-surfaces and should not be counted as replacement code.
+describing compiler-adapter/profile configuration. Cycle 64 resolved those live
+requirements in `0e1bcad`: the active CLI/core/README wording now names direct
+`sigilc` and generic host-local tools, and the repeated deletion audit found no
+active legacy runtime, profile, semantic-command, or generated-view terms.
+Historical ADRs and change-log entries may retain rejected architecture
+vocabulary; they are not live runtime surfaces and should not be counted as
+replacement code.
 
 Cycle 63 completed the managed-view removal. Concrete filesystem adapters now
 apply the ordinary metadata boundary under `.sigil`: they preserve

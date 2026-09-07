@@ -1,4 +1,4 @@
 interface:
   display_name: "Sigil"
   short_description: "Author Sigil and use native scope and semantic gates"
-  default_prompt: "Use $sigil to inspect governing contracts, export current Design input, use sigilc directly for ordered scope, and when reconstruction is required spawn a subagent in the background for each source and record each matching sigilc ingest attempt until an exit-0 projection is published before native semantic gates."
+  default_prompt: "Use $sigil to inspect governing contracts, export current Design input, read the durable compilation execution reference, use sigilc directly for ordered scope, and when reconstruction is required spawn a subagent in the background for each source using that reference's exact isolated prompt; record each matching sigilc ingest attempt until an exit-0 projection is published before native semantic gates. Never depend on temporary compile.md or track.md instructions."

@@ -935,7 +935,7 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {
         return Some(
-            "reserved authored units must have exactly one rdf:type sigil:Contract; preserve the prepared ID and do not add Goal, Interface, Constraint or Case",
+            "reserved authored units must have exactly one rdf:type sigil:Contract; preserve the prepared ID, attach section/description to that Contract resource, and do not add Goal, Interface, Constraint or Case",
         );
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:component:") {
