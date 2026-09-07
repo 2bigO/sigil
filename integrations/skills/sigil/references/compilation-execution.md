@@ -100,8 +100,9 @@ version-2 JSON at <EVIDENCE_JSON>. Its `preparation`, `job`, `worker` and
 every rejected Turtle/result reference with its actual nonzero exit, followed by
 the submitted Turtle/result reference with `"exit": null`. Call the provided
 matching `sigilc ingest` tool with its supplied parameters and `--evidence
-<EVIDENCE_JSON>`. Native ingest changes only that final pending record to its
-actual accepted exit 0 when it publishes. If that tool rejects the result, read
+<EVIDENCE_JSON>`. Native ingest persists a separate projection artifact whose
+final pending record has the actual accepted exit 0 when it publishes; it does
+not rewrite <EVIDENCE_JSON>. If that tool rejects the result, read
 its exact error and `hint:`, replace the pending null with the observed nonzero
 exit, correct only the temporary Turtle construction in <ATTEMPT_TTL>, append a
 new pending attempt, and call the same ingest tool again. Keep each attempted
