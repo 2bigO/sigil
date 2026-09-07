@@ -201,6 +201,28 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
 
     root.write(
         "facts.ttl",
+        b"<urn:sigil:component:a.sigil:A> <https://example.invalid/uses> <urn:sigil:component:a.sigil:A> .",
+    );
+    let namespace = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(namespace.status.code(), Some(3));
+    let namespace_stderr = String::from_utf8_lossy(&namespace.stderr);
+    assert!(namespace_stderr.contains("unknown predicate namespace"));
+    assert!(namespace_stderr.contains("use the exact Sigil ontology namespace"));
+
+    root.write(
+        "facts.ttl",
         b"@prefix s: <https://sigil.dev/ontology/1#> . <urn:sigil:unit:a.sigil:1:1> s:from <urn:sigil:component:a.sigil:A> ;",
     );
     let malformed = run(

@@ -943,6 +943,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "use ontology predicates: sigil:from for unit ownership, sigil:owns for component-to-Concept links, and sigil:hasContract for component-to-unit links; sigil:owner is not valid",
         );
     }
+    if message == "unknown predicate namespace" {
+        return Some(
+            "use the exact Sigil ontology namespace https://sigil.dev/ontology/1# for predicates; declare @prefix sigil: <https://sigil.dev/ontology/1#> and choose a predicate listed in ontology.json",
+        );
+    }
     if message.starts_with("invalid or foreign interpretation-unit assertion:") {
         return Some(
             "keep unit assertions on the prepared source and use only rdf:type plus required, assumed, from, target, relation, expected, description and section",
