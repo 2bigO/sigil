@@ -69,11 +69,12 @@ tasks. Repeat the review when new observations change the available evidence.
 
 Native `sigilc scope` currently answers one invocation's ordered membership
 only. It does not persist a multi-item request, predecessor dependencies or
-completion transitions. The `SCOPE-REQUEST-STATE` item at the top of the active
-work list is the observed gap required before the temporary delivery queue can
-be retired. Until that item is implemented and adopted on later real work,
-`.codex-progress` remains the authoritative resumable request state; native
-focus order has not released or completed any later item.
+completion transitions. The `NATIVE-SCOPE-DOGFOOD` item at the top of the active
+work list now scopes the next `SCOPE-REQUEST-STATE` implementation through this
+frontend flow and records which temporary answers native output actually
+recovers. Until the request ledger is implemented and adopted on later real
+work, `.codex-progress` remains the authoritative resumable request state;
+native focus order has not released or completed any later item.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
@@ -266,8 +267,10 @@ Already observed during this refactor:
   authored [SigilScopedRequest contract](packages/sigilc/scope.sigil) turns this
   observed gap into the next implementation task. Do not add a temporary
   adapter or repurpose the projection index; implement the narrow request
-  ledger, use it on the three-item real scope, then retire the duplicate delivery
-  queue.
+  ledger. The top `NATIVE-SCOPE-DOGFOOD` task now scopes that implementation with
+  native output and records the parity boundary before any temporary field is
+  removed. Use the ledger on the three-item real scope, then retire the duplicate
+  delivery queue from the following task.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
