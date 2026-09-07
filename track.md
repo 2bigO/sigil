@@ -494,6 +494,17 @@ Already observed during this refactor:
   returned all three scopes `Converged` with exit 0. The concrete distinction is
   now stated in compile.md section 6; preserve the red report as evidence and
   repair by a new isolated reconstruction rather than editing Turtle.
+* **Complete-scope identity and endpoint validation exposed two protocol edges.**
+  The full three-root scope changed the frozen catalog, so all twelve
+  Implementation bindings were correctly invalidated and rebuilt rather than
+  reusing focused-scope eggs. Two workers then tried to use invented
+  `urn:sigil:source`/`urn:sigil:unit` identities; native ingest rejected them
+  with its canonical-ID hint. `compile.md` section 20 now states that
+  interpretation-unit and provenance IDs are internal and cannot be
+  Implementation endpoints. A separate `unknown Sigil class` rejection had no
+  steering text; the native ingest path now emits a class-selection hint and a
+  regression test covers it. Preserve these rejected attempts as evidence and
+  retry from newly prepared jobs, never by editing Turtle.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.

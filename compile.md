@@ -1261,6 +1261,13 @@ It is not a complete ontology of every helper function or internal class.
 
 If a code concept does not map confidently to a Design semantic entity, omit it rather than inventing a new semantic identity.
 
+Implementation assertions are domain-only. Every IRI subject and object must be
+an identity from the frozen catalog; frontend interpretation-unit and other
+provenance IDs are internal and cannot become Implementation endpoints. When a
+source implements a catalog contract, use the exact canonical Component or
+Concept identity from the catalog. Do not mint a unit ID from a function name,
+section label or source path to carry that relation.
+
 Record that omission as an unresolved reconstruction diagnostic outside the
 domain assertions. A valid empty Turtle document distinguishes a completed
 zero-fact reconstruction from a missing job, but cannot establish total semantic

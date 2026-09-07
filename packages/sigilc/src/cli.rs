@@ -914,6 +914,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "use named angle-bracket IRIs for every subject; do not emit blank nodes, [] or RDF-star triple terms",
         );
     }
+    if message == "unknown Sigil class" {
+        return Some(
+            "use rdf:type with one class IRI from ontology.json (for example sigil:Component, sigil:Concept or sigil:Contract); do not invent class names",
+        );
+    }
     if message.starts_with("frontend source changed:")
         || message.starts_with("frontend context changed:")
     {

@@ -268,6 +268,28 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
         String::from_utf8_lossy(&invalid_iri.stderr).contains("hint: return RDF 1.1 Turtle only")
     );
 
+    root.write(
+        "facts.ttl",
+        format!("{PREFIX}a:A a s:Invented .").as_bytes(),
+    );
+    let unknown_class = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(unknown_class.status.code(), Some(3));
+    let unknown_class_stderr = String::from_utf8_lossy(&unknown_class.stderr);
+    assert!(unknown_class_stderr.contains("unknown Sigil class"));
+    assert!(unknown_class_stderr.contains("use rdf:type with one class IRI"));
+
     root.write("facts.ttl", format!("{PREFIX}a:A a s:State .").as_bytes());
     let foreign = run(
         &root,
