@@ -373,6 +373,37 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
           "job": "job/job.json",
           "worker": "worker/process.json",
           "ingest": "sigilc ingest design --job job/job.json --turtle facts.ttl",
+          "result": "attempt-1.stdout",
+          "attempts": [
+            {"turtle": "facts.ttl", "result": "attempt-1.stdout", "exit": null}
+          ]
+        }"#,
+    );
+    let rejected = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+            "--evidence",
+            "evidence.json",
+        ],
+    );
+    assert_eq!(rejected.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("exactly preparation"));
+    root.write(
+        "evidence.json",
+        br#"{
+          "version": 2,
+          "preparation": "job",
+          "job": "job/job.json",
+          "worker": "worker/process.json",
+          "ingest": "sigilc ingest design --job job/job.json --turtle facts.ttl",
           "attempts": [
             {"turtle": "facts.ttl", "result": "attempt-1.stdout", "exit": 0}
           ]
