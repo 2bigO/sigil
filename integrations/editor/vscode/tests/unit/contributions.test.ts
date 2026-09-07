@@ -37,7 +37,7 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
   );
   assert.equal(
     manifest.contributes.commands[1].command,
-    "sigil.compileComponent",
+    "sigil.compileFile",
   );
   assert.equal(
     manifest.contributes.commands[2].command,
@@ -51,6 +51,15 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
     manifest.contributes.configuration.properties[
       "sigil.compile.executable"
     ].default,
+    "sigilc",
+  );
+  assert.equal(
+    manifest.contributes.configuration.properties["sigil.compile.profile"],
+    undefined,
+  );
+  assert.equal(
+    manifest.contributes.configuration
+      .properties["sigil.compile.languageExecutable"].default,
     "sigil",
   );
   assert.deepEqual(
@@ -119,7 +128,7 @@ test("editor title compile action uses the same focus-selection command as the s
   assert.equal(entry.group, "navigation");
   assert.equal(
     editorTitle.some(
-      (item: MenuItem) => item.command === "sigil.compileComponent",
+      (item: MenuItem) => item.command === "sigil.compileFile",
     ),
     false,
   );
@@ -182,8 +191,9 @@ test("manifest maps concept and glossary semantic tokens to a visible TextMate s
 });
 
 // @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport logic,constraints,cases
-test("delegates ownership-source watching to server registration", async () => {
+test("keeps LSP registration separate from compilation input invalidation", async () => {
   const source = await readFile("src/extension.ts", "utf8");
-  assert.equal(source.includes("createFileSystemWatcher"), false);
+  assert.equal(source.includes("synchronize:"), false);
+  assert.equal(source.includes('createFileSystemWatcher("**/*")'), true);
   assert.equal(source.includes("synchronize:"), false);
 });

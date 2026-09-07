@@ -226,8 +226,13 @@ Already observed during this refactor:
   presentation diagnostics belong in `sigilc`, so the editor does not become a
   second kernel-table interpreter. Native gate reports now include bounded
   diagnostics with physical authored ranges, assertion-source attribution and
-  exact obligation/rule witnesses. Use these on the running refactor, then adopt
-  them in the editor and delete its old JSONL profile/stage/history protocol.
+  exact obligation/rule witnesses. The subsequent editor increment adopted those
+  reports with actual language/native binaries and deleted its old JSONL,
+  profile, stage and history handling. Current refactor output is Loose Design
+  and unavailable Implementation; the editor preserves those answers directly.
+  File focus is now explicitly named Compile File because native scope selects
+  physical files and dependency closure. No cursor-component alias or duplicate
+  language resolver was retained to hide that scope difference.
 
 * Design Loose and Implementation Converged were incorrectly treated as failing
   gates. The native CLI now returns 0 for those warning states and 1 only for
@@ -249,8 +254,9 @@ Already observed during this refactor:
   increments, replacing the manual Deno eval export invocation. Those increments
   also removed the editor's beam/world/view/handoff/receipt commands and the
   legacy `sigil semantic` route with their dedicated helpers and tests. Retained
-  language, preview and compilation workflows passed ordinary host checks;
-  the editor's retained compilation protocol still needs its native cutover.
+  language, preview and compilation workflows passed ordinary host checks.
+  The retained editor now consumes native final reports directly; release
+  integration and the remaining legacy CLI/compiler deletion are next.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus
@@ -425,7 +431,7 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Stop custom assembly when real returned Turtle uses the native path. Do not mark independent reconstruction available from fixtures. |
 | Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
 | Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |
-| Tracker-maintained semantic colors | Named native gate states and diagnostics | Retire custom coloring when current native output is the source used by the frontend and external workflow. No absence-of-diagnostics color algorithm. |
+| Tracker-maintained semantic colors | Named native gate states and diagnostics | Retired after native editor adoption with actual tools and real refactor use. Read native names and unavailable states; no absence-of-diagnostics color algorithm. Independent current reconstruction is still needed for final convergence. |
 | Bespoke delivery/work queue | Whole specification, authored Design, native diagnostics and ordinary acceptance checks | Shrink checked items continuously; retire the remaining queue at the final audit/rehearsal. Yellow cannot establish delivery. |
 
 For every row, retirement requires the same necessary information and supporting

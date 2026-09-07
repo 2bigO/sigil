@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import * as vscode from "vscode";
@@ -7,8 +7,6 @@ import * as vscode from "vscode";
 export async function run(): Promise<void> {
   const repository = process.env.SIGIL_REPO_ROOT;
   assert(repository, "SIGIL_REPO_ROOT is required");
-  const testNode = process.env.SIGIL_TEST_NODE;
-  assert(testNode, "SIGIL_TEST_NODE is required");
   const source = vscode.Uri.file(
     path.join(repository, "examples/slotted/auth.sigil"),
   );
@@ -21,14 +19,20 @@ export async function run(): Promise<void> {
   await extension.activate();
 
   const commands = await vscode.commands.getCommands(true);
-  for (const command of [
-    "sigil.openPreview",
-    "sigil.compileComponent",
-    "sigil.compileWorkspace",
-    "sigil.selectCompilationFocus",
-  ]) {
+  for (
+    const command of [
+      "sigil.openPreview",
+      "sigil.compileFile",
+      "sigil.compileWorkspace",
+      "sigil.selectCompilationFocus",
+    ]
+  ) {
     assert(commands.includes(command), `Missing retained command ${command}`);
   }
+  assert(
+    !commands.includes("sigil.compileComponent"),
+    "Obsolete component alias must be absent",
+  );
   assert(
     !commands.some((command) => command.startsWith("sigil.semantic")),
     "Removed beam/world/view/handoff/receipt commands must not be registered",
@@ -105,64 +109,38 @@ export async function run(): Promise<void> {
     "A component reference inside a section should provide a definition",
   );
 
-  const fakeCompilerDirectory = await mkdtemp(
-    path.join(os.tmpdir(), "sigil-vscode-compiler-"),
+  const nativeCompiler = process.env.SIGIL_TEST_COMPILER;
+  const languageCli = process.env.SIGIL_TEST_LANGUAGE;
+  assert(
+    nativeCompiler && languageCli,
+    "Current native compiler and language CLI are required",
+  );
+  const fixtureDirectory = await mkdtemp(
+    path.join(os.tmpdir(), "sigil-vscode-native-"),
   );
   const compileConfiguration = vscode.workspace.getConfiguration(
     "sigil.compile",
     source,
   );
   const folder = vscode.workspace.getWorkspaceFolder(source);
-  assert(folder, "The active Sigil document should belong to a workspace");
-  const compilerScriptPath = path.join(folder.uri.fsPath, "compile");
+  assert(folder);
+  const errors: string[] = [];
+  const originalError = vscode.window.showErrorMessage;
+  (vscode.window as unknown as {
+    showErrorMessage: (message: string) => Promise<undefined>;
+  }).showErrorMessage = async (message) => {
+    errors.push(message);
+    return undefined;
+  };
   try {
-    const argumentsPath = path.join(fakeCompilerDirectory, "arguments.json");
-    const report = {
-      reportVersion: 3,
-      status: "yellow",
-      componentNames: ["Auth"],
-      diagnostics: [{
-        code: "SEMANTIC_AMBIGUITY",
-        severity: "warning",
-        stage: "semantic-readiness",
-        lifecycle: "new",
-        message: "The test finding is active.",
-        filePath: "auth.sigil",
-        range: {
-          start: { line: 1, column: 1 },
-          end: { line: 1, column: 2 },
-        },
-        semanticSubjects: [],
-      }, {
-        code: "SEMANTIC_RESOLVED",
-        severity: "warning",
-        stage: "semantic-readiness",
-        lifecycle: "resolved",
-        message: "The test finding was corrected.",
-        filePath: "auth.sigil",
-        range: {
-          start: { line: 1, column: 1 },
-          end: { line: 1, column: 2 },
-        },
-        semanticSubjects: [],
-      }],
-    };
-    await writeFile(
-      compilerScriptPath,
-      `
-const fs = require("node:fs");
-fs.writeFileSync(${
-        JSON.stringify(argumentsPath)
-      }, JSON.stringify([require("node:path").basename(process.argv[1]), ...process.argv.slice(2)]));
-console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:1,type:"started",payload:{}}));
-console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type:"completed",payload:{report:${
-        JSON.stringify(report)
-      }}}));
-`,
-    );
     await compileConfiguration.update(
       "executable",
-      testNode,
+      nativeCompiler,
+      vscode.ConfigurationTarget.Global,
+    );
+    await compileConfiguration.update(
+      "languageExecutable",
+      languageCli,
       vscode.ConfigurationTarget.Global,
     );
     await compileConfiguration.update(
@@ -170,75 +148,106 @@ console.log(JSON.stringify({protocolVersion:1,runId:"editor-run",sequence:2,type
       "design",
       vscode.ConfigurationTarget.Global,
     );
-    editor.selection = new vscode.Selection(position, position);
-    await vscode.commands.executeCommand("sigil.compileComponent");
-    const compilerArguments = JSON.parse(
-      await readFile(argumentsPath, "utf8"),
-    ) as string[];
-    assert.deepEqual(
-      compilerArguments.slice(0, 10),
-      [
-        "compile",
-        folder.uri.fsPath,
-        "--file",
-        path.relative(folder.uri.fsPath, source.fsPath).replaceAll("\\", "/"),
-        "--position",
-        `${position.line + 1}:${position.character + 1}`,
-        "--profile",
-        "standard",
-        "--focus",
-        "design",
-      ],
+    const report = await vscode.commands.executeCommand<{
+      world: { state: string };
+      scope: { design: { roots: string[]; sources: string[] } };
+      diagnostics: { items: Array<{ code: string; locations: unknown[] }> };
+    }>("sigil.compileFile");
+    assert(report, `Native Design report missing: ${errors.join("; ")}`);
+    assert.equal(report.world.state, "Loose");
+    assert.deepEqual(report.scope.design.roots, ["auth.sigil"]);
+    assert(report.scope.design.sources.includes("user-profile.sigil"));
+    assert(
+      report.diagnostics.items.some((item) =>
+        item.code === "DESIGN_UNRESOLVED"
+      ),
     );
     assert(
       vscode.languages.getDiagnostics(source).some((item) =>
-        item.source === "sigil compile" &&
-        item.code === "SEMANTIC_AMBIGUITY"
+        item.source === "sigilc" && item.code === "DESIGN_UNRESOLVED"
       ),
-      "Expected the active compiler finding to be projected",
-    );
-    assert(
-      !vscode.languages.getDiagnostics(source).some((item) =>
-        item.source === "sigil compile" &&
-        item.code === "SEMANTIC_RESOLVED"
-      ),
-      "Resolved compiler findings must not remain active editor problems",
+      "Native ranged findings must reach editor diagnostics",
     );
 
-    await rm(argumentsPath, { force: true });
+    const selection = path.join(fixtureDirectory, "selection.json");
+    await writeFile(selection, JSON.stringify({ paths: ["auth.sigil"] }));
+    await compileConfiguration.update(
+      "selection",
+      selection,
+      vscode.ConfigurationTarget.Global,
+    );
+    const unavailable = await vscode.commands.executeCommand<
+      {
+        comparison: null;
+        implementation: null;
+        diagnostics: { items: Array<{ code: string }> };
+      }
+    >("sigil.compileFile", "implementation");
     assert(
-      await editor.edit((edit) => {
-        edit.insert(document.positionAt(document.getText().length), "\n");
-      }),
-      "Expected the document edit to succeed",
+      unavailable,
+      `Native unavailable report missing: ${errors.join("; ")}`,
+    );
+    assert.equal(unavailable.comparison, null);
+    assert.equal(unavailable.implementation, null);
+    assert.equal(
+      unavailable.diagnostics.items[0].code,
+      "COMPARISON_UNAVAILABLE",
+    );
+    assert.equal(errors.length, 0);
+
+    await compileConfiguration.update(
+      "executable",
+      path.join(fixtureDirectory, "missing-sigilc"),
+      vscode.ConfigurationTarget.Global,
+    );
+    assert.equal(
+      await vscode.commands.executeCommand("sigil.compileFile"),
+      undefined,
+    );
+    assert.equal(errors.length, 1);
+    assert(errors[0].includes("ENOENT"));
+    assert(
+      !vscode.languages.getDiagnostics(source).some((item) =>
+        item.source === "sigilc"
+      ),
+    );
+
+    assert(
+      await editor.edit((edit) =>
+        edit.insert(document.positionAt(document.getText().length), "\n")
+      ),
     );
     await eventually(() =>
       vscode.languages.getDiagnostics(source).some((item) =>
-          item.source === "sigil compile"
+          item.source === "sigilc"
         )
         ? []
         : [true]
     );
-    await vscode.commands.executeCommand("sigil.compileComponent");
-    await assert.rejects(
-      readFile(argumentsPath, "utf8"),
-      /ENOENT/,
-      "Dirty Sigil documents must not invoke the external compiler",
+    assert.equal(
+      await vscode.commands.executeCommand("sigil.compileFile"),
+      undefined,
+      "Dirty documents must not produce a report",
+    );
+    assert.equal(
+      errors.length,
+      1,
+      "Dirty documents must not launch the missing executable again",
     );
     await vscode.commands.executeCommand("workbench.action.files.revert");
   } finally {
-    await compileConfiguration.update(
-      "executable",
-      undefined,
-      vscode.ConfigurationTarget.Global,
-    );
-    await compileConfiguration.update(
-      "focus",
-      undefined,
-      vscode.ConfigurationTarget.Global,
-    );
-    await rm(compilerScriptPath, { force: true });
-    await rm(fakeCompilerDirectory, { recursive: true, force: true });
+    (vscode.window as unknown as { showErrorMessage: typeof originalError })
+      .showErrorMessage = originalError;
+    for (
+      const key of ["executable", "languageExecutable", "selection", "focus"]
+    ) {
+      await compileConfiguration.update(
+        key,
+        undefined,
+        vscode.ConfigurationTarget.Global,
+      );
+    }
+    await rm(fixtureDirectory, { recursive: true, force: true });
   }
 
   // Success: previewing the whole Sigil file opens a Markdown preview webview

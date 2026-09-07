@@ -41,6 +41,12 @@ await runTests({
   ],
   extensionTestsEnv: {
     SIGIL_REPO_ROOT: repository,
-    SIGIL_TEST_NODE: process.execPath,
+    SIGIL_TEST_COMPILER: process.env.SIGIL_TEST_COMPILER ??
+      path.join(
+        repository,
+        "packages/sigilc/target/debug",
+        process.platform === "win32" ? "sigilc.exe" : "sigilc",
+      ),
+    SIGIL_TEST_LANGUAGE: process.env.SIGIL_TEST_LANGUAGE ?? "sigil",
   },
 });
