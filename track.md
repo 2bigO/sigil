@@ -510,11 +510,13 @@ Already observed during this refactor:
   disagreements or contradictions, but two `SigilProjectionStore` obligations
   (`CurrentDesign` and `DesignCommands`) remained unresolved. The selected
   Implementation paths omitted `packages/sigilc/src/design.rs`, the native
-  owner of `CurrentDesign`, so the next complete-scope round must add that source
-  and rerun stale-first before treating the warning as an evidence limit. The
-  `DesignCommands` warning also remains a fresh-worker attribution question;
-  preserve it and investigate from source-owned canonical identities rather than
-  editing Turtle or weakening the obligation.
+  owner of `CurrentDesign`, and the source owners for the adjacent native
+  interfaces (`packages/sigilc/src/implementation.rs` and
+  `packages/sigilc/src/request.rs`). The next complete-scope round must add
+  those owners and rerun stale-first before treating the warnings as evidence
+  limits. The `DesignCommands` warning also remains a fresh-worker attribution
+  question; preserve it and investigate from source-owned canonical identities
+  rather than editing Turtle or weakening the obligation.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
