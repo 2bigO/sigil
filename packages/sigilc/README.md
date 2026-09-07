@@ -192,11 +192,13 @@ generated `.sigil/workflow/request.json` ledger:
 ```sh
 sigilc request create --root . --frontend frontend.json --definition request.json
 sigilc request status --root .
+sigilc request archive --root .
 ```
 
 Repeating `request create` with the same request ID/definition and frontend is
-idempotent; a different request is rejected until its external evidence is
-preserved and the generated ledger is deliberately replaced.
+idempotent. Before creating a different request, run `request archive`: it
+preserves the existing native record under `.sigil/workflow/archive/` by
+fingerprint and clears the active request slot without hand-editing state.
 
 The definition has `version`, an `id`, and ordered `items`; each item has an
 `id`, a `scope` using the schema above, and optional `after` predecessor IDs.

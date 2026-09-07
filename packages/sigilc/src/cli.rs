@@ -343,8 +343,17 @@ pub fn run(args: &[&str]) -> Output {
 
 fn run_request(args: &[&str]) -> Output {
     let action = match args {
-        ["request", action @ ("create" | "status"), tail @ ..] => (*action, tail),
-        _ => return Err((2, "Usage: sigilc request create|status [options]".into())),
+        [
+            "request",
+            action @ ("archive" | "create" | "status"),
+            tail @ ..,
+        ] => (*action, tail),
+        _ => {
+            return Err((
+                2,
+                "Usage: sigilc request archive|create|status [options]".into(),
+            ));
+        }
     };
     let mut options = BTreeMap::new();
     let mut rest = action.1;
@@ -373,7 +382,7 @@ fn run_request(args: &[&str]) -> Output {
     if action.0 == "create" && !options.contains_key("--definition") {
         return Err((2, "required option: --definition".into()));
     }
-    if action.0 == "status" && options.contains_key("--definition") {
+    if action.0 != "create" && options.contains_key("--definition") {
         return Err((2, "--definition is only valid for request create".into()));
     }
     let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
@@ -390,6 +399,18 @@ fn run_request(args: &[&str]) -> Output {
     let store_limits = StoreLimits::default();
     let store = LockedStore::open(&root, store_limits).map_err(runtime)?;
     match action.0 {
+        "archive" => {
+            let existing =
+                request::load(store.workflow_state().map_err(runtime)?).map_err(runtime)?;
+            let fingerprint = request::fingerprint(&existing.definition).map_err(runtime)?;
+            let archive = store
+                .archive_workflow_state(&fingerprint)
+                .map_err(runtime)?;
+            json(
+                0,
+                &serde_json::json!({"version":1,"archive":archive,"request":existing}),
+            )
+        }
         "create" => {
             let frontend = options
                 .get("--frontend")

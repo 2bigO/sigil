@@ -219,6 +219,49 @@ fn ordered_request_releases_after_terminal_gate_and_survives_restart() {
 }
 
 #[test]
+fn request_archive_preserves_terminal_record_before_replacement() {
+    let root = workspace();
+    let created = request(
+        &root,
+        &[
+            "request",
+            "create",
+            "--frontend",
+            "frontend.json",
+            "--definition",
+            "request.json",
+        ],
+        0,
+    );
+    let archived = request(&root, &["request", "archive"], 0);
+    let archive = archived["archive"].as_str().unwrap();
+    assert!(root.0.join(archive).is_file());
+    assert_eq!(
+        archived["request"]["requestFingerprint"],
+        created["request"]["requestFingerprint"]
+    );
+    assert!(!root.0.join(".sigil/workflow/request.json").exists());
+
+    root.write(
+        "replacement.json",
+        br#"{"version":1,"id":"replacement","items":[{"id":"only","scope":{"version":1,"design":{"paths":["a.sigil"]},"implementation":{"paths":["main.any"]}}}]}"#,
+    );
+    let replacement = request(
+        &root,
+        &[
+            "request",
+            "create",
+            "--frontend",
+            "frontend.json",
+            "--definition",
+            "replacement.json",
+        ],
+        0,
+    );
+    assert_eq!(replacement["request"]["definition"]["id"], "replacement");
+}
+
+#[test]
 fn request_definition_rejects_unknown_or_late_predecessors() {
     let root = workspace();
     root.write(

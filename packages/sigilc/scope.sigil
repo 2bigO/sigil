@@ -170,6 +170,14 @@ component SigilScopedRequest {
       and decide when to invoke the commands; sigilc only validates and records
       the deterministic state transition.
     }
+
+    RequestArchive {
+      Archive the current immutable native request under its definition
+      fingerprint before a different request replaces the single active slot.
+      Preserve the full request, external evidence references and terminal
+      states in generated workflow history. Do not require hand-editing,
+      deleting, or copying request state into a temporary tracker.
+    }
   }
 }
 

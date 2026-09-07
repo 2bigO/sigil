@@ -17,6 +17,7 @@ use std::{
 const WORLDS: &str = ".sigil/worlds";
 const INDEX: &str = ".sigil/worlds/index.json";
 const WORKFLOW_STATE: &str = ".sigil/workflow/request.json";
+const WORKFLOW_ARCHIVE: &str = ".sigil/workflow/archive";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -367,6 +368,20 @@ impl LockedStore {
             return Err("scoped request state exceeds byte limit".into());
         }
         atomic_write(&self.root, WORKFLOW_STATE, bytes)
+    }
+
+    /// Preserve the current request under its immutable fingerprint, then clear
+    /// the single active request slot. Request history stays native and separate
+    /// from disposable projection worlds.
+    pub(crate) fn archive_workflow_state(&self, fingerprint: &str) -> Result<String, String> {
+        let state = self
+            .workflow_state()?
+            .ok_or_else(|| "no scoped request exists; run request create".to_owned())?;
+        let archive = format!("{WORKFLOW_ARCHIVE}/{fingerprint}.json");
+        atomic_write(&self.root, &archive, &state)?;
+        fs::remove_file(sources::checked_path(&self.root, WORKFLOW_STATE)?)
+            .map_err(|e| e.to_string())?;
+        Ok(archive)
     }
 
     pub fn deleted_sources(
