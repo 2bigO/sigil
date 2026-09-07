@@ -80,6 +80,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 | What is the current semantic result? | `sigilc compile design`, `compile implementation`, `compare` | Native commands exist; that does not establish independent current-source reconstruction or frontend integration. |
 | Which files does this comparison cover, and in what focus order? | `sigilc scope --frontend FILE --scope FILE`; same `--scope` on world commands | Reports ordered roots, effective import/owner closure and Implementation selection. Order and membership have separate identities. Inspection does not require reconstructed worlds and is not a semantic gate. |
 | Can generated worlds be discarded/recovered? | `sigilc clean` | Use deliberately for disposable-cache recovery, not routinely before freshness inspection. |
+| Did the selected semanticization pass actually publish current worlds? | `sigilc stale` plus `.sigil/worlds/index.json` and mirrored `.egg` entries | Every selected source must be `fresh` after successful external reconstruction and ingestion. An empty cache or missing rows is an incomplete pass; scope inspection, preparation, compile, fixtures and a Loose report do not fill this gap. Scope history is not stored in worlds. |
 | What code/features still need delivery? | Whole specification, authored Design, ordinary checks and remaining delivery queue | Semantic success alone cannot answer this; final delivery audit remains external. |
 
 The implemented commands and their argument schemas are documented in
@@ -178,6 +179,12 @@ audit, an external work queue or independent reconstruction.
    ingestion, inspection and comparison directly where their prerequisites hold.
    Distinguish real repository results, fixed fixtures, unavailable prerequisites
    and untried operations. External workers own model calls and isolation.
+   A semanticization pass is not complete while a selected source is `missing`,
+   `modified`, or otherwise not fresh in the native world index. Empty
+   `.sigil/worlds/` is valid initialization but proves that no current projection
+   was published. Scope history is not expected there; current `.egg` projections
+   and their bindings are. Do not call preparation or a Loose in-memory Design
+   report a completed pass.
    End the coding round before examining its blind reconstruction outputs;
    repair starts a new round with fresh input capture/reconstruction as needed.
 5. **Improve sigilc from what happened.** Apply the observation review below.

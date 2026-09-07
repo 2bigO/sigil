@@ -736,6 +736,14 @@ semanticizer read dependencies, neighbor hashes, symbol maps, resolver versions,
 or other language-resolution metadata belong there either. Source binding and publication
 metadata are not a coding receipt protocol.
 
+The cache is not a history of scopes or tasks. A scope is a caller-owned,
+command-time selection; it is reported by native commands and is not written as a
+separate world. A projection is reusable whenever its complete source and
+semantic binding is unchanged, so the same `.egg` may participate in several
+scopes. Conversely, an empty `worlds/` directory means that no projection has
+been published for the current workspace. It is valid store initialization, not
+evidence that a semanticization pass ran or that any scope converged.
+
 Readers use only entries whose assertion hash and full input binding validate.
 An interrupted assertion/index update must be rejected as incomplete, never
 accepted using mismatched metadata. Use a temporary file and atomic replacement
@@ -764,6 +772,13 @@ source code  → Implementation
 Deleting `.sigil/worlds/` must always be safe.
 
 A fresh checkout can reconstruct it.
+
+Before calling a scoped semanticization pass complete, run `stale` for every
+selected side and require each selected source to be `fresh`, then inspect the
+published `.egg` entries and `index.json`. `compile` can still produce an
+in-memory structural Design report when projections are missing, but it must
+remain `Loose`; `entities` cannot produce a current catalog and Implementation
+comparison remains unavailable. Only successful `ingest` publishes a projection.
 
 Delete the architecture where generated `.egg` assertions were committed as canonical meaning.
 
