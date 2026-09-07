@@ -21,6 +21,7 @@
       "node_modules/**",
       "build/**",
       "coverage/**",
+      ".sigil/tmp/**",
       ".codex-progress/**",
       "repos/**",
       "**/target/**",
