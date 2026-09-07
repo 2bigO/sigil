@@ -2154,6 +2154,16 @@ parts without waiting for alternatives to deliberately removed concepts.
 | Old CLI semantic surface | Delete `sigil compile`, `packages/cli/src/semantic-commands.ts`, `semantic-providers.ts`, and `compiler-adapters.ts`, including old intent/answer/accept/beam/slice/receipt/verify/project/migrate routes. Frontend guidance tells models/operators to use `sigilc` directly; add no routing or subprocess wrapper. Remove provider/evaluator/migration authoring branches, not generic config functionality. |
 | Old native bridge and duplicate semantic pipeline | Remove `packages/compiler/native/` after moving useful engine code into `packages/sigilc`. Remove the old `sigil-semantic-engine` protocol, runtime lookup/staging and TS ingestion/lowering/closure copies after Rust replaces them. No third binary or duplicate ontology authority. |
 
+The numbered removal also covers repository-owned contracts that still describe
+the discarded runtime. Cycle 62 inspection found `packages/cli/spec.md`
+requiring a bundled TypeScript 7/native-egglog runtime, and
+`packages/core/config.sigil` plus `packages/core/src/workspace.sigil` still
+describing compiler-adapter/profile configuration. Reconcile those requirements
+with the direct `sigilc` boundary and native diagnostics, or explicitly mark a
+paragraph as historical before the final audit. Historical ADRs and change-log
+entries may retain rejected architecture vocabulary; they are not live runtime
+surfaces and should not be counted as replacement code.
+
 Do not delete language semantic tokens, authored semantic units, Concept
 resolution, generic ownership/navigation links, normal CLI config, or report
 formatting merely because their names contain “semantic”, “profile”, or

@@ -423,6 +423,14 @@ Already observed during this refactor:
   and native compilation/status; verify the metadata boundary with the existing
   source-selection checks. The broad VS Code language integration remains
   protected and the prior blanket editor deletion stays reverted.
+* **Cycle 62 contract scan found documentation drift alongside the code audit.**
+  `packages/cli/spec.md` still requires a bundled TypeScript 7/native-egglog
+  runtime, while `packages/core/config.sigil` and
+  `packages/core/src/workspace.sigil` still describe compiler-adapter/profile
+  configuration. Reconcile these live requirements with direct `sigilc` use
+  before the final audit. Keep rejected architecture wording in ADRs or the
+  change log only when it is clearly historical; it is not an implementation
+  replacement and does not justify retaining runtime code.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
