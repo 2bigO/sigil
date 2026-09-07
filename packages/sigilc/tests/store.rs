@@ -114,6 +114,39 @@ fn changed_sources_catalogs_and_formats_reject_publication() {
 }
 
 #[test]
+fn retains_distinct_semantic_bindings_for_ordered_scopes() {
+    let root = Workspace::new();
+    root.write("a.rs", b"one");
+    let first = binding(&root, "a.rs");
+    let mut second = first.clone();
+    second.semantic = SemanticInput::Implementation {
+        catalog_fingerprint: hash(b"second catalog"),
+    };
+
+    let mut store = open(&root);
+    let first_job = store.prepare(first.clone()).unwrap();
+    store.publish(&first_job, &first, &facts()).unwrap();
+    assert_eq!(store.inspect(&first).unwrap().status, Freshness::Fresh);
+    assert_eq!(
+        store.inspect(&second).unwrap().status,
+        Freshness::EntityCatalogInvalidated
+    );
+
+    let second_job = store.prepare(second.clone()).unwrap();
+    store.publish(&second_job, &second, &[]).unwrap();
+    assert_eq!(store.inspect(&second).unwrap().status, Freshness::Fresh);
+    assert_eq!(store.inspect(&second).unwrap().assertions, vec![]);
+    assert_eq!(store.inspect(&first).unwrap().status, Freshness::Fresh);
+    assert_eq!(store.inspect(&first).unwrap().assertions, facts());
+    assert!(
+        store
+            .entries()
+            .keys()
+            .any(|key| key.starts_with("implementation/a.rs~"))
+    );
+}
+
+#[test]
 fn failed_index_publication_remains_incomplete_in_memory_and_after_reopen() {
     let root = Workspace::new();
     root.write("a", b"source");

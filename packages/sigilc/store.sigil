@@ -73,6 +73,16 @@ component SigilProjectionStore {
       Keep scheduling, workers and production metadata outside the store.
     }
 
+    BindingHistory {
+      Retain accepted projections for distinct semantic bindings of the same
+      source in the disposable world store. Keep one current source-path
+      publication and address superseded projections by their complete binding
+      fingerprint, including the Implementation Design-catalog identity.
+      Reuse a retained projection only when its complete binding is fresh for the
+      current operation. Do not key this cache by request item, task, worker or
+      scope identity, and do not turn it into a history or workflow ledger.
+    }
+
     IndexedAssembly {
       Mirror normalized source paths with their original extensions plus egg.
       Load only index-selected assertions with matching complete input bindings

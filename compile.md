@@ -1834,9 +1834,14 @@ Because an ordered request item can change the selected Design catalog, run
 `stale` with that item's scope before deciding whether an existing
 Implementation `.egg` is reusable. Preserve unrelated fresh projections while
 refreshing only the rows whose current item binding is non-fresh. The world
-index keeps one current publication per side and source path; a later ingest
-replaces that publication when its semantic binding changes. Do not introduce a
-second scope-keyed cache to retain superseded catalog bindings.
+index keeps one canonical publication per side and source path, and retains
+superseded accepted projections under a key containing the complete semantic
+binding fingerprint. A later item can therefore publish a different catalog
+binding without reopening an earlier item whose exact binding remains fresh.
+History keys are derived from source side/path and the binding fingerprint; they
+never contain request item, task, worker or scope identity. Reconstruct only
+when the exact binding is absent or stale. This is projection history, not a
+second workflow or task cache.
 The `--scope` argument is always the caller's versioned scope input; do not feed
 a prior `sigilc scope` report back as a scope input. World-store commands share
 one writer lock, so serialize stale, preparation, ingestion and gate commands;
@@ -1934,11 +1939,12 @@ or prompt alone never marks it stale and requires no compiler option or field.
 Freshness is evaluated against the current source and semantic binding, not
 against a path in isolation. Ordered request items can therefore produce
 different Design scopes and catalog bindings for the same source. A publication
-from another item is reusable for the current item only while its binding is
-still current; after a catalog rebind, native `stale` reports
+from another item is reusable for the current item only when an exact retained
+binding is fresh; otherwise native `stale` reports
 `entity-catalog-invalidated` and that source must be reconstructed for the new
-item. Never rebuild a row that is fresh for the current binding, and never keep
-superseded bindings alive with a parallel cache.
+item. Never rebuild a row that is fresh for the current binding. Retained
+binding history is permitted only inside the disposable projection store and is
+never a request/task ledger.
 
 `stale` and compile are inspections; neither invokes models or silently refreshes
 projections. Give `entities` a machine-readable catalog/fingerprint result with
@@ -1961,7 +1967,10 @@ context/retrieval, graph/glossary, and editor services when no semantic world ex
 The `scope` input and `FocusOrder` report remain read-only for one invocation;
 the request primitive below owns the separate durable lifecycle. The disposable
 world index cannot carry that lifecycle: it records only per-source projection
-bindings, checksums and generations.
+bindings, checksums and generations. It may retain superseded accepted
+projections under complete binding-fingerprint keys so an earlier ordered item
+can recover its exact fresh world after a later item publishes another binding;
+those keys are disposable cache data and never request/task state.
 
 The bounded `SigilScopedRequest` contract is implemented by the native
 `sigilc request create/status` primitive. `request create` persists an immutable

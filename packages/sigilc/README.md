@@ -57,7 +57,12 @@ projection.
 source scope. Preparation can replace an already-fresh projection through a new
 job, but duplicate jobs cannot overwrite an accepted generation. `--turtle -`
 reads standard input. The generated `.sigil/worlds/` cache is ignored and
-can be discarded. `sigilc clean [--root DIR]` removes generated worlds even
+can be discarded. Its index keeps one canonical source-path publication and
+may retain accepted superseded projections at keys ending in the complete
+binding fingerprint, for example
+`implementation/src/main.rs~<fingerprint>.egg`. These entries preserve exact
+semantic bindings across ordered scope items; they are disposable projection
+cache data, never request/task history. `sigilc clean [--root DIR]` removes generated worlds even
 when the index is corrupt, retaining only the writer lock file. It preserves
 sources, config and external preparations. Descriptors and external worker orchestration are not stored
 in a compiler job registry.

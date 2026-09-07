@@ -176,7 +176,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 | Which files does this comparison cover, and in what focus order? | `sigilc scope --frontend FILE --scope FILE`; same `--scope` on world commands | Reports ordered roots, effective import/owner closure and Implementation selection. Order and membership have separate identities. Inspection does not require reconstructed worlds and is not a semantic gate. |
 | Which ordered scope item is ready, queued behind a predecessor, or terminal? | `sigilc request create/status` with `SigilScopedRequest` | One atomic `.sigil/workflow/request.json` ledger derives release from explicit predecessors and current native gates. It records opaque external evidence references but does not run workers, tests, review or deletion. |
 | Can generated worlds be discarded/recovered? | `sigilc clean` | Use deliberately for disposable-cache recovery, not routinely before freshness inspection. |
-| Did the selected semanticization pass actually publish current worlds? | `sigilc stale` plus `.sigil/worlds/index.json` and mirrored `.egg` entries | Every selected source must be `fresh` after successful external reconstruction and ingestion. An empty cache or missing rows is an incomplete pass; scope inspection, preparation, compile, fixtures and a Loose report do not fill this gap. Scope history is not stored in worlds. |
+| Did the selected semanticization pass actually publish current worlds? | `sigilc stale` plus `.sigil/worlds/index.json` and mirrored `.egg` entries | Every selected source must be `fresh` after successful external reconstruction and ingestion. An empty cache or missing rows is an incomplete pass; scope inspection, preparation, compile, fixtures and a Loose report do not fill this gap. Accepted superseded bindings may remain as fingerprinted disposable eggs; request history is stored separately. |
 | What code/features still need delivery? | Whole specification, authored Design, ordinary checks and remaining delivery queue | Semantic success alone cannot answer this; final delivery audit remains external. |
 
 The implemented commands and their argument schemas are documented in
@@ -251,23 +251,34 @@ operations, and use `sigilc request status` to advance an ordered multi-item
 scope after each external reconstruction/check round. `--scope` replaces
 `--selection`; neither replaces the full-scope final audit or independent
 reconstruction. Projection freshness is binding-specific: the world index keeps
-one current publication per side and source path. Preserve every row that is
-fresh for the current item; when an ordered item changes the Design catalog,
-native `stale` reports `entity-catalog-invalidated` and the affected sources must
-be reconstructed for that item. Do not add a parallel scope-keyed cache for
-superseded bindings.
+one canonical publication per side and source path, while accepted superseded
+projections are retained under their complete semantic binding fingerprint.
+Preserve every row that is fresh for the current item; when an ordered item
+changes the Design catalog, native `stale` reports `entity-catalog-invalidated`
+unless that exact binding is already retained. Reconstruct only missing or
+non-fresh bindings. History keys contain no request item, task, worker or scope
+identity and do not form a second queue or ledger.
 Keep the original versioned scope input for every command; the report emitted by
 `sigilc scope` is inspection output and is not a later `--scope` input. Native
 world commands share one writer lock, so run stale, preparation, ingestion and
 gates serially; lock contention is an operational retry, not a semantic state.
 
-Current checkpoint (cycle 51): the hard reconstruction gate is satisfied. The
-complete selected scope has 37 fresh Design and 12 fresh Implementation
-projections; Design is `Loose` (exit 0), Implementation is `Converged` (exit 0),
-and comparison has zero unresolved or disagreement results. `sigilc request
-status` reports `scope-1` ready and `scope-2`/`scope-3` queued behind it. Start
-the next round with `scope-1`'s caller scope input, then run native `stale` and
-refresh only rows non-fresh for that item binding.
+Historical checkpoint (cycle 51): the hard reconstruction gate was satisfied.
+The complete selected scope had 37 fresh Design and 12 fresh Implementation
+projections; Design was `Loose` (exit 0), Implementation was `Converged` (exit
+0), and comparison had zero unresolved or disagreement results. `sigilc request
+status` reported `scope-1` ready and `scope-2`/`scope-3` queued behind it.
+
+Current checkpoint (cycle 56): progressing the real request from scope 1 to
+scope 2 exposed that one canonical source-path entry lets the later catalog
+binding replace the earlier one. Native status consequently reopened scope 1
+as ready even though its accepted reconstruction had not changed. The store now
+has authored `BindingHistory` design and implementation plus unit and request
+coverage to retain accepted projections by complete binding fingerprint. The
+change is not complete until a fresh native build and real ordered request run
+show scope 1 remains terminal while scope 2 publishes its different binding.
+Until then, keep the reconstruction gate locked and do not retire more temporary
+state.
 
 ## The convergence loop
 
@@ -299,9 +310,9 @@ refresh only rows non-fresh for that item binding.
    A semanticization pass is not complete while a selected source is `missing`,
    `modified`, or otherwise not fresh in the native world index. Empty
    `.sigil/worlds/` is valid initialization but proves that no current projection
-   was published. Scope history is not expected there; current `.egg` projections
-   and their bindings are. Do not call preparation or a Loose in-memory Design
-   report a completed pass.
+   was published. Accepted binding history may also appear there as fingerprinted
+   `.egg` entries; it is disposable semantic cache evidence, not request history.
+   Do not call preparation or a Loose in-memory Design report a completed pass.
    End the coding round before examining its blind reconstruction outputs;
    repair starts a new round with fresh input capture/reconstruction as needed.
 5. **Improve sigilc from what happened.** Apply the observation review below.
@@ -375,6 +386,17 @@ Already observed during this refactor:
   recovered the same state. A fresh-session parity rehearsal removed only the
   duplicate `delivery queue.next_task` pointer; delivery/check/deletion evidence
   stays external. Do not repurpose the projection index or add an adapter.
+* **Learning from observation: one implementation source needs multiple accepted
+  bindings.** The real request reused one source while ordered Design scopes
+  supplied different catalogs. Publishing scope 2 replaced scope 1's only
+  indexed entry, and `request status` reopened scope 1 even though its accepted
+  reconstruction had not changed. This is a native projection-store gap, not a
+  reason to add request bookkeeping. The smallest fix is binding-keyed retained
+  history: keep one canonical source-path publication, move superseded eggs to a
+  key containing the full binding fingerprint, and inspect exact retained
+  bindings before reconstructing. History keys must not contain request, task,
+  worker or scope IDs. Validate the fix on this same ordered request before
+  retiring any temporary workaround.
 * The retained Linux x86_64 release build and relocated smoke now exercise
   `request create/status` as well as the six named gate states. The smoke uses
   an absolute two-binary installation with no checkout or host tools. Other

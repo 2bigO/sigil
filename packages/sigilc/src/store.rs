@@ -106,7 +106,7 @@ impl LockedStore {
             return Err("unsupported projection index version".into());
         }
         for (key, entry) in &index.entries {
-            if *key != object_key(&entry.binding)?
+            if *key != object_key(&entry.binding)? && *key != history_key(&entry.binding)?
                 || !checksum(&entry.generation)
                 || !checksum(&entry.assertion_checksum)
             {
@@ -157,30 +157,34 @@ impl LockedStore {
         side: &str,
         selected: &std::collections::BTreeSet<&str>,
     ) -> Result<Vec<String>, String> {
-        let mut deleted = Vec::new();
+        let mut deleted = std::collections::BTreeSet::new();
         for entry in self.index.entries.values() {
             let path = &entry.binding.source.path;
             if entry.binding.side() != side || selected.contains(path.as_str()) {
                 continue;
             }
             match fs::symlink_metadata(sources::checked_path(&self.root, path)?) {
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => deleted.push(path.clone()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    deleted.insert(path.clone());
+                }
                 Err(e) => return Err(e.to_string()),
                 Ok(_) => (),
             }
         }
-        Ok(deleted)
+        Ok(deleted.into_iter().collect())
     }
 
     /// Return a descriptor to the external caller before it supplies Turtle.
     pub fn prepare(&self, binding: Binding) -> Result<Job, String> {
         compatible(&binding)?;
-        let key = object_key(&binding)?;
         self.check_live(&binding)?;
+        let expected_generation = self
+            .entry_for(&binding)
+            .map(|(_, entry)| entry.generation.clone());
         Ok(Job {
             version: 2,
             binding,
-            expected_generation: self.index.entries.get(&key).map(|e| e.generation.clone()),
+            expected_generation,
         })
     }
 
@@ -196,7 +200,11 @@ impl LockedStore {
         if job.version != 2 || job.binding != *current {
             return Err("prepared semantic inputs no longer match current inputs".into());
         }
-        if self.index.entries.get(&key).map(|e| &e.generation) != job.expected_generation.as_ref() {
+        if self
+            .entry_for(current)
+            .map(|(_, entry)| entry.generation.as_str())
+            != job.expected_generation.as_deref()
+        {
             return Err("projection generation changed; prepare a new job".into());
         }
         self.check_live(current)?;
@@ -211,6 +219,14 @@ impl LockedStore {
         getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
         let generation = hash(&nonce);
         let mut proposed = self.index.clone();
+        if let Some(previous) = proposed.entries.get(&key).cloned()
+            && previous.binding != *current
+        {
+            let previous_key = history_key(&previous.binding)?;
+            preserve_projection(&self.root, &key, &previous_key, self.limits)?;
+            proposed.entries.insert(previous_key, previous);
+            proposed.entries.remove(&key);
+        }
         proposed.entries.insert(
             key.clone(),
             Entry {
@@ -238,9 +254,12 @@ impl LockedStore {
     // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::IndexedAssembly interface
     pub fn inspect(&self, current: &Binding) -> Result<Inspection, String> {
         compatible(current)?;
-        let key = object_key(current)?;
-        let Some(entry) = self.index.entries.get(&key) else {
-            return Ok(inspected(Freshness::Missing));
+        let Some((key, entry)) = self.entry_for(current) else {
+            let key = object_key(current)?;
+            let Some(entry) = self.index.entries.get(&key) else {
+                return Ok(inspected(Freshness::Missing));
+            };
+            return Ok(inspected(freshness(&entry.binding, current)));
         };
         let status = freshness(&entry.binding, current);
         if status != Freshness::Fresh {
@@ -273,6 +292,22 @@ impl LockedStore {
             }),
             Err(_) => Ok(inspected(Freshness::Incomplete)),
         }
+    }
+
+    // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::BindingHistory interface
+    fn entry_for(&self, binding: &Binding) -> Option<(String, &Entry)> {
+        let key = object_key(binding).ok()?;
+        if let Some(entry) = self.index.entries.get(&key)
+            && entry.binding == *binding
+        {
+            return Some((key, entry));
+        }
+        let history = history_key(binding).ok()?;
+        self.index
+            .entries
+            .get(&history)
+            .filter(|entry| entry.binding == *binding)
+            .map(|entry| (history, entry))
     }
 
     fn check_live(&self, binding: &Binding) -> Result<(), String> {
@@ -359,6 +394,30 @@ fn inspected(status: Freshness) -> Inspection {
 fn object_key(binding: &Binding) -> Result<String, String> {
     normalized_path(&binding.source.path)?;
     Ok(format!("{}/{}", binding.side(), binding.source.path))
+}
+
+fn history_key(binding: &Binding) -> Result<String, String> {
+    Ok(format!(
+        "{}~{}",
+        object_key(binding)?,
+        binding.fingerprint()
+    ))
+}
+
+fn preserve_projection(
+    root: &Path,
+    current_key: &str,
+    history_key: &str,
+    limits: StoreLimits,
+) -> Result<(), String> {
+    let current = format!("{WORLDS}/{current_key}.egg");
+    let history = format!("{WORLDS}/{history_key}.egg");
+    let current_path = sources::checked_path(root, &current)?;
+    if !regular_or_absent(&current_path)? {
+        return Ok(());
+    }
+    let captured = sources::capture(root, &current, limits.assertions.max_document_bytes as u64)?;
+    atomic_write(root, &history, &captured.bytes)
 }
 
 fn checksum(value: &str) -> bool {

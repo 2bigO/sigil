@@ -189,6 +189,32 @@ fn ordered_request_releases_after_terminal_gate_and_survives_restart() {
         restarted["request"]["requestFingerprint"],
         created["request"]["requestFingerprint"]
     );
+
+    // Moving to the next ordered item changes the Design catalog for the same
+    // implementation source. The first item's exact binding must remain
+    // terminal while the second item publishes its replacement binding.
+    publish(&root, "design", "b.sigil", "scope-b.json", "design-b-next");
+    publish(
+        &root,
+        "implementation",
+        "main.any",
+        "scope-b.json",
+        "implementation-b",
+    );
+    let progressed = request(&root, &["request", "status"], 0);
+    assert_eq!(progressed["request"]["items"][0]["state"], "closed");
+    assert_eq!(progressed["request"]["items"][1]["state"], "closed");
+    assert_eq!(progressed["request"]["items"][2]["state"], "ready");
+    let index: Value =
+        serde_json::from_slice(&std::fs::read(root.0.join(".sigil/worlds/index.json")).unwrap())
+            .unwrap();
+    assert!(
+        index["entries"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .any(|key| key.starts_with("implementation/main.any~"))
+    );
     assert!(root.0.join(".sigil/workflow/request.json").is_file());
 }
 
