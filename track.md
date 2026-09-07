@@ -431,6 +431,17 @@ Already observed during this refactor:
   before the final audit. Keep rejected architecture wording in ADRs or the
   change log only when it is clearly historical; it is not an implementation
   replacement and does not justify retaining runtime code.
+* **Cycle 63 deletion observation closed the managed-view runtime gap.** The
+  LSP and core code still had a generated-view path predicate, discovery filter,
+  document-symbol fallback, and a dedicated test. Removing those 66 physical
+  lines and the test in `d2d3bdd` left ordinary navigation, diagnostics, preview,
+  compilation/status, and the broad VS Code integration intact. The LSP
+  filesystem now follows the same generic `.sigil` metadata boundary already
+  covered by the retained CLI source-selection test: only `config.json`,
+  `local.json`, and `glossary.json` are discoverable below `.sigil`. Core no
+  longer knows a generated-view path. This is evidence for `REMOVE-06`, not a
+  reason to add another helper or compatibility layer. The remaining live
+  contract documentation and native platform execution tasks stay active.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root

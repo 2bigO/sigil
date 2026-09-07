@@ -2164,6 +2164,14 @@ paragraph as historical before the final audit. Historical ADRs and change-log
 entries may retain rejected architecture vocabulary; they are not live runtime
 surfaces and should not be counted as replacement code.
 
+Cycle 63 completed the managed-view removal. Concrete filesystem adapters now
+apply the ordinary metadata boundary under `.sigil`: they preserve
+`config.json`, `local.json`, and `glossary.json`, while generated worlds, views,
+and other metadata are outside authored source discovery. Core path matching has
+no generated-view exception or symbol fallback, and the dedicated managed-view
+test is deleted. Keep this boundary covered by the retained source-selection
+checks; do not add a new generated-view helper or compatibility test.
+
 Do not delete language semantic tokens, authored semantic units, Concept
 resolution, generic ownership/navigation links, normal CLI config, or report
 formatting merely because their names contain “semantic”, “profile”, or
