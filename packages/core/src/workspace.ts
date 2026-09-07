@@ -23,7 +23,6 @@ import type {
 import { parseSigilDocument } from "./parser.ts";
 import {
   ancestorsFrom,
-  isManagedSigilViewPath,
   joinPath,
   normalizePath,
   relativePath,
@@ -168,9 +167,6 @@ export async function loadSigilWorkspace(
   const paths = allPaths
     .filter((path) =>
       !nestedRoots.some((root) => path === root || path.startsWith(`${root}/`))
-    )
-    .filter((path) =>
-      !isManagedSigilViewPath(relativePath(discovery.root, path))
     )
     .filter((path) =>
       matchesSigilFile(relativePath(discovery.root, path), discovery.config!)

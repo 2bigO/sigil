@@ -1,9 +1,7 @@
 import {
-  isManagedSigilViewPath,
   isSupportedImplementationSource,
   loadSigilWorkspace,
   normalizePath,
-  parseSigilDocument,
   type ResolvedSigilWorkspace,
   resolveSigilWorkspace,
   type SigilFileSystem,
@@ -311,22 +309,9 @@ export class SigilLanguageServer {
   async #documentSymbol(params: unknown): Promise<unknown> {
     const value = documentSymbolParams(params);
     const path = fileUriToPath(value.textDocument.uri);
-    let document = this.#resolved?.workspace.files.find((item) =>
+    const document = this.#resolved?.workspace.files.find((item) =>
       normalizePath(item.path) === path
     )?.document;
-    if (
-      !document &&
-      isManagedSigilViewPath(
-        relativeToWorkspace(this.#resolved?.workspace.root, path),
-      )
-    ) {
-      const version = this.#resolved?.workspace.config?.sigilVersion;
-      if (version) {
-        document = parseSigilDocument(path, await this.#fs.readTextFile(path), {
-          sigilVersion: version,
-        }).document;
-      }
-    }
     if (!document) return [];
     return documentSymbols(document, await this.#fs.readTextFile(path));
   }
@@ -471,14 +456,6 @@ export class SigilLanguageServer {
     }
     return notifications;
   }
-}
-
-function relativeToWorkspace(root: string | undefined, path: string): string {
-  if (!root) return path;
-  const prefix = `${normalizePath(root).replace(/\/$/, "")}/`;
-  return normalizePath(path).startsWith(prefix)
-    ? normalizePath(path).slice(prefix.length)
-    : normalizePath(path);
 }
 
 class InvalidParamsError extends Error {}
