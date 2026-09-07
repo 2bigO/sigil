@@ -132,6 +132,14 @@ with no catalog; Implementation stale, compile and compare each exited 3 with
 These are prerequisite/inspection outcomes, not semantic colors for missing
 work. Preserve their named reasons when the external round resumes.
 
+Cycle 39 made the reconstruction gate explicit after direct inspection of the
+real workspace. `tree -a .sigil` shows `worlds/.lock` only: there is no
+`worlds/index.json` and no Design or Implementation `.egg`. No frontend run has
+yet been observed spawning a background worker, returning Turtle, or invoking a
+matching `sigilc ingest`. `artifacts/acceptance-gate-39.json` records both
+criteria as unsatisfied. Keep `LOOP-RECONSTRUCTION` locked at this point; native
+preparation and fixture publication are not substitutes for either observation.
+
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
 
