@@ -298,7 +298,12 @@ Already observed during this refactor:
   caller-defined order in native scope output, separate from membership and
   semantic cache identity. `S32` implemented and tested this requirement; real
   native output now recovers scope/export/editor priority without a separate
-  comparison-priority table. Apply the same observation-to-Design-to-implementation
+  comparison-priority table. This is the concrete learn-by-observation example:
+  explicit Todo order revealed the need → `ObservedPriority` recorded it →
+  `FocusOrder` specified it → native implementation and real use replaced the
+  temporary comparison-priority mechanism. Reuse this implemented behavior;
+  do not queue it again from an older observation marked pending.
+  Apply the same observation-to-Design-to-implementation
   process to subsequent gaps; do not leave them as permanent tracker rules.
 * Selecting four explicit Implementation files took roughly 8–11 seconds because
   discovery hashed unselected files first. Native file-only selection now filters

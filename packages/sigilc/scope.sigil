@@ -104,6 +104,9 @@ expand SigilComparisonScope {
       extraction and legacy deletion. Making that order explicit in the temporary
       Todo list exposed a requirement through real use: unordered membership
       could name the same work but could not communicate what comes first.
+      Treat this as learning by observation: a necessary fact supplied by the
+      temporary loop becomes a native requirement, then is implemented, exercised
+      on the original task and adopted before duplicate bookkeeping is removed.
       This observation motivates FocusOrder; use native output on subsequent
       work and retire duplicate focus-priority bookkeeping once it supplies the
       same information. Preserve equivalent caller-defined
