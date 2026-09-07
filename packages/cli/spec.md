@@ -326,14 +326,12 @@ The adapter should:
 - check path existence;
 - list files recursively under the workspace root;
 - normalize paths consistently with `sigil-core` expectations;
-- exclude `.sigil/views/` from authored and implementation discovery while
-  allowing explicit view reads;
+- list only config.json, local.json and glossary.json inside metadata directories;
 - ignore `.git` directories by default.
 
 The adapter should not skip authored `.sigil` files based on package or
-integration boundaries. Semantic artifact writes belong to compiler-owned
-command handlers and may not implement a second parser, world merger, or
-verification algorithm.
+integration boundaries. This language CLI performs no semantic artifact writes;
+models/operators invoke sigilc directly for preparation, ingestion and gates.
 
 ## 10. Acceptance Scenarios
 
@@ -369,12 +367,12 @@ entrypoint as commands grow.
 Keep command shaping separate from `sigil-core` data models so the core API
 remains reusable by LSP and editor integrations.
 
-Do not add interactive prompts in version 0.7. Semantic provider interaction is
-an explicit bounded process protocol, not a CLI prompt.
-
-Do not mutate authored `.sigil` contracts or implementation files from a
-semantic command. The only supported writes are accepted world revisions,
-managed generated views, metadata migration, and ignored operational artifacts.
+Commands remain non-interactive. Model interaction and orchestration are external.
+Init creates missing workspace metadata, fmt explicitly formats authored source,
+and skill installation writes the selected skill destinations. Semantic commands,
+provider/profile authoring, migrations, compiler events and runtime doctor are
+removed, with no forwarding command. Init writes an empty tools object; normal
+workspace configuration discovery, validation and version reporting remain.
 
 ## 12. Historical Anchor Command Proposal
 

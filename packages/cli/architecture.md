@@ -88,11 +88,9 @@ Rules:
 - must not write directly to stdout or stderr;
 - must not directly call Deno filesystem APIs.
 
-Semantic handlers delegate world reconstruction, proposal validation, view
-publication, handoff retention, receipt ingestion, and verification to
-`sigil-compiler`. They may select configuration and format results, but they
-must not merge assertions, rank candidates, interpret receipts, or decide
-coverage themselves.
+Language handlers use core directly. Structural Design export supplies raw input
+for native sigilc. No semantic handler, compiler forwarding command, profile
+selector, retained event stream or provider dispatch remains in this package.
 
 ### `core-adapter`
 
@@ -351,16 +349,9 @@ Required scenarios:
 - invalid arguments return exit code `2`;
 - runtime filesystem failures return exit code `3`;
 - JSON output includes stable diagnostic codes.
-- semantic intent validates a strict provider/proposal envelope and saves a
-  deterministic beam;
-- semantic answer and accept replay the fixed kernel and reject ambiguous or
-  non-green acceptance;
-- semantic project check/write/recover preserves authored files, publishes
-  stable managed-view paths, and handles interrupted transactions;
-- semantic slice retains complete obligations, receipts remain untrusted, and
-  semantic verify recomputes coverage from current host observations;
-- semantic artifact paths have the documented Git policy and generated views
-  are excluded from authored discovery.
+- structural export preserves captured buffers and emits the closed core bundle;
+- removed compile/config/provider/doctor commands reject usage;
+- language operations require no semantic runtime or model configuration.
 
 Tests should snapshot JSON shapes only after the output contract is
 intentionally stable.

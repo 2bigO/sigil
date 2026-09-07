@@ -257,7 +257,7 @@ Already observed during this refactor:
   language, preview and compilation workflows passed ordinary host checks.
   The retained editor now consumes native final reports directly. Two-binary
   release packaging and Linux consumption are verified; the remaining legacy
-  CLI/compiler deletion and other native platform executions are pending.
+  compiler-package deletion and other native platform executions are pending.
 * Release integration exposed another obsolete dependency: installers and smoke
   checks required the old runtime manifest, engine and TypeScript proof runtime.
   Archives now stage `sigil` and `sigilc`; installers validate both and compare
@@ -265,7 +265,16 @@ Already observed during this refactor:
   exports Design and runs native gates without host tools, and its separate
   consumer runs offline without the source checkout. Use `deno task package:cli`
   on each matching native runner. Other platforms still need execution evidence;
-  language CLI removal of its remaining embedded legacy imports is also pending.
+  the remaining legacy compiler packages must still be deleted.
+* Removing staged runtime files did not remove the compiler code still imported
+  by the language executable. The release build reported 36.34 MB of embedded
+  application files. Deleting the old compile/config/doctor routes, profile and
+  migration helpers, adapter dispatch and event handling removed those imports;
+  the refreshed build reports 789 KB. Its dependency graph contains no compiler
+  module. Language tests, native archive fixtures, offline consumption and the
+  retained editor flow pass with the refreshed binary. This is code and dependency
+  removal, not a forwarding facade. Continue by deleting the now-unused compiler
+  packages and their workspace, publishing, configuration and documentation roots.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus

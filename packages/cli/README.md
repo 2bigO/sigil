@@ -64,6 +64,8 @@ Commands:
 - `sigil init [path]` creates a config and, when absent, a glossary seeded only
   with the eight agent-context-excluded, colon-qualified decision-record field
   labels; it never overwrites either file;
+- new configurations have an empty `tools` object; provider/profile authoring
+  and runtime doctor commands have been removed;
 - `sigil version [path]` reports tool and configured contract versions;
 - `sigil parse <path>` returns parsed JSON;
 - `sigil check [path]` returns diagnostics; add `--format text --show-locations`

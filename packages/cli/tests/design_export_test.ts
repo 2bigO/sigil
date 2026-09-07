@@ -24,9 +24,6 @@ Deno.test("export emits the raw native bundle and preserves captured text withou
   try {
     const result = await runCli(["export", "design", ".", "--pretty"], {
       core: new CoreAdapter({ currentDirectory: root }),
-      compiler: () => {
-        throw new Error("export must not compile");
-      },
     });
     assertEquals(result.exitCode, 0, result.stdout);
     assertEquals(result.stderr, "");

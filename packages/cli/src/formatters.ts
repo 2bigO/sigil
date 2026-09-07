@@ -68,14 +68,10 @@ export async function formatResult(
     return formatGlossaryText(result);
   }
   if (
-    (result.command === "init" || result.command === "config-set-default" ||
-      result.command === "config-set-profile" ||
-      result.command === "config-set-provider" ||
-      result.command === "config-set-provider-default" ||
-      result.command === "config-migrate") &&
+    result.command === "init" &&
     (request.format === undefined || request.format === "text")
   ) {
-    return formatConfigWriteText(result, request);
+    return formatInitText(result);
   }
   return `${JSON.stringify(result, null, request.pretty ? 2 : 0)}\n`;
 }
@@ -100,8 +96,7 @@ function normalizeResultPaths(
 function controllingPath(request: CommandRequest): string | undefined {
   if (request.command === "parse") return request.file;
   if (
-    request.command === "context" || request.command === "retrieve" ||
-    request.command === "compile"
+    request.command === "context" || request.command === "retrieve"
   ) {
     return request.path ?? request.file;
   }
@@ -152,51 +147,17 @@ function isAbsolute(path: string): boolean {
  * These commands write one file, so the useful report is what changed rather
  * than the resulting document, which the caller can read or request as JSON.
  */
-function formatConfigWriteText(
-  result: Extract<
-    CommandResult,
-    {
-      command:
-        | "init"
-        | "config-set-default"
-        | "config-set-profile"
-        | "config-set-provider"
-        | "config-set-provider-default"
-        | "config-migrate";
-    }
-  >,
-  request: CommandRequest,
+function formatInitText(
+  result: Extract<CommandResult, { command: "init" }>,
 ): string {
   const lines: string[] = [];
-  const failed = result.diagnostics.some((item) => item.severity === "error");
-  if (!failed) {
-    const compile = result.config?.tools?.compile as
-      | { readonly defaultProfile?: string }
-      | undefined;
-    if (result.command === "init") {
-      lines.push(`Created ${result.configPath}`);
-      lines.push(
-        `Workspace ${result.workspaceName ?? "unnamed"} on Sigil ${
-          result.sigilVersion ?? "unresolved"
-        }`,
-      );
-    } else if (result.command === "config-set-default") {
-      lines.push(`Updated ${result.configPath}`);
-      lines.push(`Default profile ${compile?.defaultProfile ?? "unresolved"}`);
-    } else {
-      lines.push(`Updated ${result.configPath}`);
-      if (request.command === "config-set-profile") {
-        lines.push(`Profile ${request.profileName}`);
-      } else if (request.command === "config-set-provider") {
-        lines.push(`Semantic provider ${request.name}`);
-      } else if (request.command === "config-set-provider-default") {
-        lines.push(`Default semantic provider ${request.name}`);
-      } else if (request.command === "config-migrate") {
-        lines.push(
-          `${request.write ? "Migrated" : "Migration preview"} configuration`,
-        );
-      }
-    }
+  if (!result.diagnostics.some((item) => item.severity === "error")) {
+    lines.push(`Created ${result.configPath}`);
+    lines.push(
+      `Workspace ${result.workspaceName ?? "unnamed"} on Sigil ${
+        result.sigilVersion ?? "unresolved"
+      }`,
+    );
   }
   for (const item of result.diagnostics) {
     lines.push(`${item.severity} ${item.code}: ${item.message}`);

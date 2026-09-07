@@ -24,12 +24,6 @@ export type CommandResult =
   | SkillListCommandResult
   | SkillInstallCommandResult
   | InitCommandResult
-  | ConfigSetDefaultCommandResult
-  | ConfigSetProfileCommandResult
-  | ConfigSetProviderCommandResult
-  | ConfigSetProviderDefaultCommandResult
-  | ConfigMigrateCommandResult
-  | DoctorCommandResult
   | VersionCommandResult
   | ParseCommandResult
   | CheckCommandResult
@@ -83,40 +77,6 @@ export interface WorkspaceMetadata {
 export interface InitCommandResult extends WorkspaceMetadata {
   readonly command: "init";
   readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigSetDefaultCommandResult extends WorkspaceMetadata {
-  readonly command: "config-set-default";
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigSetProfileCommandResult extends WorkspaceMetadata {
-  readonly command: "config-set-profile";
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigSetProviderCommandResult extends WorkspaceMetadata {
-  readonly command: "config-set-provider";
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigSetProviderDefaultCommandResult
-  extends WorkspaceMetadata {
-  readonly command: "config-set-provider-default";
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigMigrateCommandResult extends WorkspaceMetadata {
-  readonly command: "config-migrate";
-  readonly config: SigilConfig | null;
-  readonly originalHash: string | null;
-  readonly proposed: unknown;
-  readonly changes: readonly string[];
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface DoctorCommandResult {
-  readonly command: "doctor";
-  readonly result: import("@qoherent/sigil-compiler").RuntimeDoctorResultV1;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
 export interface VersionCommandResult extends WorkspaceMetadata {

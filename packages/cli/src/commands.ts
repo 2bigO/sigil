@@ -30,7 +30,6 @@ export interface CommandHandlerOptions {
  * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallationCommand interface
  * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallation logic,constraints,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
- * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspectionCommand interface
  * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspection logic,cases
@@ -49,9 +48,6 @@ export async function runCommand(
       bundle,
       diagnostics: bundle.diagnostics,
     };
-  }
-  if (request.command === "doctor") {
-    return { command: "doctor", result: await core.doctor(), diagnostics: [] };
   }
   if (request.command === "skill-list") {
     const result = await listInstalledSkills(options.install?.sourceDirectory);
@@ -84,97 +80,6 @@ export async function runCommand(
       sigilVersion: result.config?.sigilVersion ?? null,
       workspaceName: result.config?.workspace.name ?? null,
       config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-set-default") {
-    const result = await core.setDefaultProfile(
-      request.path,
-      request.profile,
-      request.agentProfile,
-    );
-    return {
-      command: "config-set-default",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-set-profile") {
-    const result = await core.setProfile(request.path, {
-      profileName: request.profileName,
-      extendsProfile: request.extendsProfile,
-      main: request.main,
-      stages: Object.keys(request.stages).length > 0
-        ? request.stages
-        : undefined,
-      disabledStages: request.disableStages.length > 0
-        ? request.disableStages
-        : undefined,
-      newEvaluators: request.newEvaluators,
-      models: request.models,
-      implementationIds: request.implementationIds,
-      implementationVersions: request.implementationVersions,
-    });
-    return {
-      command: "config-set-profile",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-set-provider") {
-    const result = await core.setProvider(request.path, {
-      name: request.name,
-      kind: request.kind,
-      model: request.model,
-      command: request.executable,
-      args: request.args,
-    });
-    return {
-      command: "config-set-provider",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-set-provider-default") {
-    const result = await core.setProviderDefault(request.path, request.name);
-    return {
-      command: "config-set-provider-default",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-migrate") {
-    const result = await core.migrateConfig(
-      request.path,
-      request.write,
-      request.expectedHash,
-    );
-    return {
-      command: "config-migrate",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      originalHash: result.originalHash,
-      proposed: result.proposed,
-      changes: result.changes,
       diagnostics: result.diagnostics,
     };
   }

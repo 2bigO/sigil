@@ -11,6 +11,7 @@ import {
   conceptNamespaceFor,
   DEFAULT_SIGIL_EXCLUDES,
   DEFAULT_SIGIL_INCLUDES,
+  type DesignInput,
   diagnostic,
   discoverSigilWorkspace,
   formatSigilDocument,
@@ -52,27 +53,12 @@ import {
 } from "@qoherent/sigil-core";
 import { DenoSigilFileSystem } from "./fs-adapter.ts";
 import metadata from "../deno.json" with { type: "json" };
-import {
-  applySetDefault,
-  applySetProfile,
-  applySetProvider,
-  applySetProviderDefault,
-  migrateToolsConfiguration,
-  seededToolConfiguration,
-  type SetDefaultInput,
-  type SetProfileInput,
-  type SetProviderInput,
-} from "./config-authoring.ts";
-import { digest } from "@qoherent/sigil-compiler";
-import { runtimeDoctor } from "@qoherent/sigil-compiler";
-
 export const SIGIL_CLI_VERSION = metadata.version;
 
 interface WritableSigilFileSystem extends SigilFileSystem {
   makeDirectory(path: string): Promise<void>;
   writeTextFile(path: string, source: string): Promise<void>;
   replaceTextFile(path: string, source: string): Promise<void>;
-  atomicReplaceTextFile(path: string, source: string): Promise<void>;
 }
 
 export interface CoreAdapterOptions {
@@ -90,13 +76,6 @@ export interface InitConfigResult {
   readonly root: string;
   readonly configPath: string;
   readonly glossaryPath: string;
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-
-export interface ConfigAuthoringResult {
-  readonly root: string;
-  readonly configPath: string;
   readonly config: SigilConfig | null;
   readonly diagnostics: readonly SigilDiagnostic[];
 }
@@ -170,7 +149,10 @@ export class CoreAdapter {
   }
 
   // @sigil implements packages/cli/_module.sigil::SigilCli::DesignExport interface
-  async exportDesign(path?: string, explicitRoot?: string) {
+  async exportDesign(
+    path?: string,
+    explicitRoot?: string,
+  ): Promise<{ root: string; bundle: DesignInput }> {
     return await loadDesignInput(this.#fs, {
       startPath: this.resolveTarget(path ?? this.#currentDirectory),
       explicitRoot: explicitRoot ? this.resolveTarget(explicitRoot) : undefined,
@@ -303,7 +285,7 @@ export class CoreAdapter {
         include: include.length ? [...include] : [...DEFAULT_SIGIL_INCLUDES],
         exclude: exclude.length ? [...exclude] : [...DEFAULT_SIGIL_EXCLUDES],
       },
-      tools: seededToolConfiguration(),
+      tools: {},
     };
     const writable = this.#fs as Partial<WritableSigilFileSystem>;
     if (!writable.makeDirectory || !writable.writeTextFile) {
@@ -325,342 +307,6 @@ export class CoreAdapter {
     return { root, configPath, glossaryPath, config, diagnostics: [] };
   }
 
-  /**
-   * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ConfigFileScope constraints
-   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ContentValidationClassification constraints
-   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::AtomicRewrite constraints
-   */
-  async setDefaultProfile(
-    path: string | undefined,
-    profileName: string,
-    agentProfileName: string | undefined,
-  ): Promise<ConfigAuthoringResult> {
-    const loaded = await this.#discoverAuthoringConfig(path);
-    if ("diagnostics" in loaded) {
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: null,
-        diagnostics: loaded.diagnostics,
-      };
-    }
-    const { root, configPath, config } = loaded;
-    const outcome = applySetDefault(
-      config.tools,
-      {
-        profileName,
-        agentProfileName,
-      } satisfies SetDefaultInput,
-    );
-    if ("error" in outcome) {
-      return {
-        root,
-        configPath,
-        config,
-        diagnostics: [
-          diagnostic(outcome.error.code, outcome.error.message, {
-            filePath: configPath,
-          }),
-        ],
-      };
-    }
-    const nextConfig: SigilConfig = { ...config, tools: outcome.tools };
-    await this.#writeConfigAtomically(configPath, nextConfig);
-    return { root, configPath, config: nextConfig, diagnostics: [] };
-  }
-
-  /**
-   * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ConfigFileScope constraints
-   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::ContentValidationClassification constraints
-   * @sigil implements packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::AtomicRewrite constraints
-   */
-  async setProfile(
-    path: string | undefined,
-    input: SetProfileInput,
-  ): Promise<ConfigAuthoringResult> {
-    const loaded = await this.#discoverAuthoringConfig(path);
-    if ("diagnostics" in loaded) {
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: null,
-        diagnostics: loaded.diagnostics,
-      };
-    }
-    const { root, configPath, config } = loaded;
-    const outcome = applySetProfile(config.tools, input);
-    if ("error" in outcome) {
-      return {
-        root,
-        configPath,
-        config,
-        diagnostics: [
-          diagnostic(outcome.error.code, outcome.error.message, {
-            filePath: configPath,
-          }),
-        ],
-      };
-    }
-    const nextConfig: SigilConfig = { ...config, tools: outcome.tools };
-    await this.#writeConfigAtomically(configPath, nextConfig);
-    return { root, configPath, config: nextConfig, diagnostics: [] };
-  }
-
-  async setProvider(
-    path: string | undefined,
-    input: SetProviderInput,
-  ): Promise<ConfigAuthoringResult> {
-    const loaded = await this.#discoverAuthoringConfig(path);
-    if ("diagnostics" in loaded) {
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: null,
-        diagnostics: loaded.diagnostics,
-      };
-    }
-    const outcome = applySetProvider(loaded.config.tools, input);
-    if ("error" in outcome) {
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: loaded.config,
-        diagnostics: [
-          diagnostic(outcome.error.code, outcome.error.message, {
-            filePath: loaded.configPath,
-          }),
-        ],
-      };
-    }
-    const config = { ...loaded.config, tools: outcome.tools };
-    await this.#writeConfigAtomically(loaded.configPath, config);
-    return {
-      root: loaded.root,
-      configPath: loaded.configPath,
-      config,
-      diagnostics: [],
-    };
-  }
-
-  async setProviderDefault(
-    path: string | undefined,
-    name: string,
-  ): Promise<ConfigAuthoringResult> {
-    const loaded = await this.#discoverAuthoringConfig(path);
-    if ("diagnostics" in loaded) {
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: null,
-        diagnostics: loaded.diagnostics,
-      };
-    }
-    const outcome = applySetProviderDefault(loaded.config.tools, name);
-    if ("error" in outcome) {
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: loaded.config,
-        diagnostics: [
-          diagnostic(outcome.error.code, outcome.error.message, {
-            filePath: loaded.configPath,
-          }),
-        ],
-      };
-    }
-    const config = { ...loaded.config, tools: outcome.tools };
-    await this.#writeConfigAtomically(loaded.configPath, config);
-    return {
-      root: loaded.root,
-      configPath: loaded.configPath,
-      config,
-      diagnostics: [],
-    };
-  }
-
-  async migrateConfig(
-    path: string | undefined,
-    write: boolean,
-    expectedHash?: string,
-  ): Promise<
-    ConfigAuthoringResult & {
-      readonly originalHash: string | null;
-      readonly proposed: unknown;
-      readonly changes: readonly string[];
-    }
-  > {
-    const loaded = await this.#discoverAuthoringConfig(path);
-    if ("diagnostics" in loaded) {
-      return {
-        ...loaded,
-        config: null,
-        originalHash: null,
-        proposed: null,
-        changes: [],
-      };
-    }
-    const perform = async (): Promise<
-      ConfigAuthoringResult & {
-        readonly originalHash: string | null;
-        readonly proposed: unknown;
-        readonly changes: readonly string[];
-      }
-    > => {
-      const source = await this.#fs.readTextFile(loaded.configPath);
-      const originalHash = await digest(source);
-      let preview;
-      try {
-        preview = migrateToolsConfiguration(loaded.config.tools);
-      } catch (error) {
-        return {
-          root: loaded.root,
-          configPath: loaded.configPath,
-          config: loaded.config,
-          originalHash,
-          proposed: null,
-          changes: [],
-          diagnostics: [
-            diagnostic(
-              "SIGIL_CONFIG_INVALID",
-              error instanceof Error ? error.message : String(error),
-              { filePath: loaded.configPath },
-            ),
-          ],
-        };
-      }
-      if (!write) {
-        return {
-          root: loaded.root,
-          configPath: loaded.configPath,
-          config: loaded.config,
-          originalHash,
-          proposed: preview.proposed,
-          changes: preview.changes,
-          diagnostics: [],
-        };
-      }
-      if (expectedHash !== originalHash) {
-        return {
-          root: loaded.root,
-          configPath: loaded.configPath,
-          config: loaded.config,
-          originalHash,
-          proposed: preview.proposed,
-          changes: preview.changes,
-          diagnostics: [
-            diagnostic(
-              "SIGIL_CONFIG_INVALID",
-              "Committed configuration changed before migration write.",
-              { filePath: loaded.configPath },
-            ),
-          ],
-        };
-      }
-      const next = { ...loaded.config, tools: preview.proposed };
-      await this.#writeConfigAtomically(loaded.configPath, next);
-      await this.#writeMigrationArtifact(loaded.root, {
-        version: 1,
-        originalHash,
-        before: loaded.config,
-        after: next,
-        changes: preview.changes,
-      });
-      return {
-        root: loaded.root,
-        configPath: loaded.configPath,
-        config: next,
-        originalHash,
-        proposed: preview.proposed,
-        changes: preview.changes,
-        diagnostics: [],
-      };
-    };
-    return write
-      ? await this.#withConfigLock(loaded.root, perform)
-      : await perform();
-  }
-
-  async #withConfigLock<T>(
-    root: string,
-    operation: () => Promise<T>,
-  ): Promise<T> {
-    if (!(this.#fs instanceof DenoSigilFileSystem)) return await operation();
-    const directory = joinPath(root, ".sigil/cache");
-    await Deno.mkdir(directory, { recursive: true });
-    const handle = await Deno.open(joinPath(directory, "config.lock"), {
-      read: true,
-      write: true,
-      create: true,
-    });
-    await handle.lock(true);
-    try {
-      return await operation();
-    } finally {
-      await handle.unlock().catch(() => {});
-      handle.close();
-    }
-  }
-
-  async #writeMigrationArtifact(
-    root: string,
-    artifact: Record<string, unknown>,
-  ): Promise<void> {
-    if (!(this.#fs instanceof DenoSigilFileSystem)) return;
-    const directory = joinPath(root, ".sigil/cache/config-migrations");
-    await Deno.mkdir(directory, { recursive: true });
-    const source = `${JSON.stringify(artifact, null, 2)}\n`;
-    const id = await digest(source);
-    const path = joinPath(directory, `${id}.json`);
-    await Deno.writeTextFile(path, source, { create: true });
-  }
-
-  async #discoverAuthoringConfig(
-    path: string | undefined,
-  ): Promise<
-    {
-      readonly root: string;
-      readonly configPath: string;
-      readonly config: SigilConfig;
-    } | {
-      readonly root: string;
-      readonly configPath: string;
-      readonly diagnostics: readonly SigilDiagnostic[];
-    }
-  > {
-    const discovery = await discoverSigilWorkspace(this.#fs, {
-      startPath: this.resolveTarget(path ?? this.#currentDirectory),
-      currentDirectory: this.#currentDirectory,
-    });
-    const configPath = discovery.configPath ??
-      joinPath(discovery.root, SIGIL_CONFIG_PATH);
-    if (!discovery.config) {
-      return {
-        root: discovery.root,
-        configPath,
-        diagnostics: discovery.diagnostics,
-      };
-    }
-    return { root: discovery.root, configPath, config: discovery.config };
-  }
-
-  async #writeConfigAtomically(
-    configPath: string,
-    config: SigilConfig,
-  ): Promise<void> {
-    const writable = this.#fs as Partial<WritableSigilFileSystem>;
-    if (!writable.atomicReplaceTextFile) {
-      throw new Error(
-        `Filesystem does not support atomically replacing ${SIGIL_CONFIG_PATH}.`,
-      );
-    }
-    await writable.atomicReplaceTextFile(
-      configPath,
-      `${JSON.stringify(config, null, 2)}\n`,
-    );
-  }
-
   // @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
   versions(): VersionInfo {
     return {
@@ -669,11 +315,6 @@ export class CoreAdapter {
     };
   }
 
-  async doctor(): Promise<
-    import("@qoherent/sigil-compiler").RuntimeDoctorResultV1
-  > {
-    return await runtimeDoctor({ sigilVersion: SIGIL_CLI_VERSION });
-  }
   // @sigil uses packages/core/src/projections.sigil::SigilProjections::ContractProjection interface,logic,cases
   componentContracts(
     resolved: ResolvedSigilWorkspace,

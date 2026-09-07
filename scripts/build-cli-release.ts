@@ -126,7 +126,6 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       join(root, "deno.json"),
       "--allow-read",
       "--allow-write",
-      "--allow-run",
       "--allow-env",
       "--target",
       target.deno,
