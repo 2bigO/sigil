@@ -2093,6 +2093,10 @@ First inspect the existing native `egg.md`/projection and report mechanisms for
 an elegant binding to the accepted `.egg` and expanded-world record. Reuse those
 primitives when they already carry the needed links. If they do not, add a small
 Rust-owned, versioned artifact/evidence record to the native projection workflow.
+Cycle65c completed that implementation in `sigilc`: `Entry.artifact`,
+`ingest --evidence`, and expanded-world `artifacts`/`artifact_report` are now
+native and unit-dogfooded. The requirement remains open until the real ordered
+scope records matching subagent attempts and fresh-process parity.
 An accepted source-bound `.egg` and its expanded-world report must expose
 immutable links to the matching source binding, preparation and job identity,
 worker attempt, returned Turtle, ingest result, every repair attempt, publication

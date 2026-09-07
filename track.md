@@ -46,6 +46,20 @@ represent semantic colors. Exit zero alone never verifies delivery or deletion.
 Complete the loop only when the final gate below passes. An ordinary iteration
 may finish with unfinished work; that is a checkpoint, not completion.
 
+## Ordered gates
+
+`NATIVE-PROJECTION-EVIDENCE` is the first active gate. The Rust artifact record
+and `--evidence` interface are implemented and unit-dogfooded, but the gate stays
+closed until the real ordered scope uses the generic **spawn a subagent** prompt,
+publishes accepted records through `sigilc ingest --evidence`, and a fresh process
+recovers the same links without `.codex-progress`. Compare those native records
+with the temporary worker manifest before deleting any duplicate artifact fields.
+
+Only after that evidence-parity check may the loop enter the hard reconstruction
+gate below. The reconstruction gate itself must still be satisfied before any
+Implementation comparison, platform follow-up, temporary-document removal or
+tracker retirement.
+
 ## Hard reconstruction gate
 
 The top-level `LOOP-RECONSTRUCTION` task is locked until both observations are
@@ -113,10 +127,10 @@ they already carry these links. The native record is source-binding and
 generation scoped, immutable after acceptance, and separate from request
 scheduling or delivery/test/review/deletion state. The subagent supplies the
 version-1 manifest through `sigilc ingest --evidence`; keep process launching
-external and keep model Turtle data-only. The new
-`NATIVE-PROJECTION-EVIDENCE` queue task is locked before temporary-document
-self-sufficiency; do not retire either temporary mechanism until a fresh process
-recovers the same links without `.codex-progress`.
+external and keep model Turtle data-only. Native implementation alone does not
+close this task: do not retire either temporary mechanism until the ordered
+real-use and fresh-process parity checks above recover the same links without
+`.codex-progress`.
 
 ## Sources of authority
 
