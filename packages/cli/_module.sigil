@@ -20,6 +20,27 @@ component SigilCli {
   }
 
   interface {
+    DesignExport {
+      sigil export design [path] [--root workspace] [--pretty]
+
+      Use the core loadDesignInput operation to export the complete discovered
+      workspace as its closed structural JSON bundle. A path locates a workspace;
+      native sigilc scope selects focused Design roots afterward.
+      Write the raw bundle to stdout without a CLI envelope, semantic lowering,
+      display-path substitution or changes to captured text. Retain diagnostics
+      and return the ordinary language diagnostic exit code. Runtime failures
+      produce no partial bundle. Support only JSON; reject quiet suppression.
+      Never invoke sigilc, a model, a profile or the removed semantic compiler.
+    }
+
+    SourceDiscovery {
+      Host listing skips git metadata and symlinks. Within a Sigil metadata
+      directory, list only config.json, local.json and glossary.json so nested
+      workspace configuration remains visible while generated source is excluded.
+      Use core path normalization and joining directly. Do not depend on an
+      obsolete compiler artifact taxonomy or retain duplicate path algorithms.
+    }
+
     CliInvocation {
       sigil --help
 
@@ -482,8 +503,9 @@ expand SigilCli {
     }
 
     StructuredOutput {
-      Every workspace-dependent JSON result includes workspaceRoot, configPath,
-      sigilVersion, and workspaceName.
+      Workspace-dependent inspection JSON includes workspaceRoot, configPath,
+      sigilVersion, and workspaceName. Design export instead emits the exact
+      closed core bundle, with no CLI envelope.
 
       Deterministic CLI commands are non-interactive and reproducible from the same
       inputs.

@@ -1,4 +1,5 @@
 import {
+  normalizePath,
   type RetrievalProjection,
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
@@ -12,7 +13,8 @@ import {
   renderCompilationReportMarkdown,
 } from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
-import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
+import metadata from "../deno.json" with { type: "json" };
+import { DenoSigilFileSystem } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
 import { compileWithBundledAdapters } from "../src/compiler-adapters.ts";
@@ -820,7 +822,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   ]);
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
-  assertEquals(json.cliVersion, "0.7.1");
+  assertEquals(json.cliVersion, metadata.version);
   assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
@@ -2710,7 +2712,7 @@ Deno.test("usage errors include help for the longest recognized command path", a
 Deno.test("version flag reports CLI information", async () => {
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
-  assertEquals(version.stdout, "0.7.1\n");
+  assertEquals(version.stdout, `${metadata.version}\n`);
   assertEquals(version.stderr, "");
 });
 
@@ -2901,7 +2903,7 @@ Deno.test("executable subprocess returns version JSON", async () => {
   assertEquals(output.code, EXIT_OK);
   assertEquals(
     JSON.parse(new TextDecoder().decode(output.stdout)).cliVersion,
-    "0.7.1",
+    metadata.version,
   );
 });
 

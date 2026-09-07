@@ -32,6 +32,7 @@ Commands:
   config            Set the default profile or add or edit a compilation profile
   version           Report workspace and contract versions
   parse             Parse one Sigil file
+  export            Export structural Design JSON for direct sigilc use
   check             Report workspace diagnostics
   fmt               Format selected Sigil source
   glossary          Inspect reviewed glossary terms and occurrences
@@ -151,6 +152,17 @@ Options:
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
   --help            Show this help
+`,
+  export: `Usage: sigil export design [path] [options]
+
+Exports the complete discovered workspace as structural JSON on stdout.
+Use sigilc directly with --frontend and optional --scope for semantic operations.
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format json    JSON is the only output format
+  --pretty         Pretty-print JSON output
+  --help           Show this help
 `,
   parse: `Usage: sigil parse <file> [options]
 

@@ -42,6 +42,14 @@ export async function runCommand(
   options: CommandHandlerOptions = {},
 ): Promise<CommandResult> {
   const core = options.core ?? new CoreAdapter();
+  if (request.command === "export-design") {
+    const { bundle } = await core.exportDesign(request.path, request.root);
+    return {
+      command: "export-design",
+      bundle,
+      diagnostics: bundle.diagnostics,
+    };
+  }
   if (request.command === "doctor") {
     return { command: "doctor", result: await core.doctor(), diagnostics: [] };
   }

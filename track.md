@@ -72,7 +72,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 
 | Real question | Implemented operation | Current limit |
 | --- | --- | --- |
-| What authored sources, imports and units exist? | `loadDesignInput` exported by `@qoherent/sigil-core` | Structural export lives in core; the old compiler helper path is removed. Use the exported function directly until retained language CLI integration exposes it. |
+| What authored sources, imports and units exist? | `sigil export design .` using core's `loadDesignInput` | Emits the raw structural JSON bundle for native `--frontend`. Export selects the complete workspace; native scope selects focus. |
 | What must be reconstructed? | `sigilc stale design` / `stale implementation` | Implementation needs a current Design catalog. Read source rows from the report, not a second freshness table. |
 | What inputs may a worker receive? | `sigilc prepare design` / `prepare implementation` | External caller owns dispatch and isolation. New output directory required. |
 | Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results. |
@@ -84,15 +84,19 @@ queries, manual status tables or a TypeScript compiler wrapper:
 
 The implemented commands and their argument schemas are documented in
 `packages/sigilc/README.md`. Verify the selected binary's `--help`; older retained
-builds may have different exits or schemas. Do not invent an unavailable CLI
-export command. Use a small external call to core's `loadDesignInput` to write the
-bundle until retained language CLI integration exposes it. This exports structure
-only; it never invokes `sigilc` or acts as a `sigil compile` wrapper.
+builds may have different exits or schemas. Use `sigil export design .` to write
+the bundle. If the installed language CLI predates this command, use the current
+checkout directly: `deno run --allow-read packages/cli/src/main.ts export design .`.
+Export returns 0 without language errors, 1 with language-error diagnostics in
+the bundle, 2 for invalid usage and 3 for runtime failure. These are language
+operation exits, not semantic gate states. This exports structure only; invoke
+`sigilc` directly for semantic operations.
 
 For example, with an actual current structural bundle and a new preparation
 directory selected by the external caller:
 
 ```sh
+sigil export design . > frontend.json
 sigilc stale design --frontend frontend.json
 sigilc prepare design --frontend frontend.json --source path/to/contract.sigil --out design-job
 # External Design worker receives design.json and ontology.json.
@@ -228,8 +232,10 @@ Already observed during this refactor:
   cleanup are distinct evidence.
 * Structural export now lives in core, with its contract and retained tests. The
   helper was moved out of the compiler package and its old path removed. Use the
-  public core export; CLI exposure and the rest of compiler-package deletion
-  remain separate integration work, with no forwarding shim.
+  language CLI's `export design` command, which uses that public core export.
+  Filesystem discovery now uses core path helpers and excludes generated metadata
+  without importing the compiler package. Native editor/release integration and
+  the rest of compiler-package deletion remain; no forwarding shim is needed.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus

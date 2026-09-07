@@ -3,6 +3,7 @@ import type {
   AgentDependentContext,
   CollectedExpansion,
   ComponentContractView,
+  DesignInput,
   GlossaryContext,
   GlossaryContextProjection,
   GlossaryOccurrence,
@@ -19,6 +20,7 @@ import type {
 } from "@qoherent/sigil-core";
 
 export type CommandResult =
+  | ExportDesignCommandResult
   | SkillListCommandResult
   | SkillInstallCommandResult
   | InitCommandResult
@@ -37,6 +39,11 @@ export type CommandResult =
   | ContextCommandResult
   | RetrieveCommandResult
   | RenderCommandResult;
+export interface ExportDesignCommandResult {
+  readonly command: "export-design";
+  readonly bundle: DesignInput;
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
 export interface DiagnosticCounts {
   readonly error: number;
   readonly warning: number;

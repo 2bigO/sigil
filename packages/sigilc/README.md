@@ -9,13 +9,15 @@ Build with Rust 1.91.1 or newer:
 cargo build --locked --manifest-path packages/sigilc/Cargo.toml
 ```
 
-The current Design commands consume the versioned structural JSON produced by
-`@qoherent/sigil-core::loadDesignInput` (`packages/core/src/design-input.ts`). Pass that bundle with
+Design commands consume the versioned structural JSON produced by
+`sigil export design .`, using core's `loadDesignInput`. Pass that bundle with
 `--frontend`. The compiler checks its captured source/config/glossary bytes
 against `--root` (default `.`). Regenerate the bundle after authored changes.
-The TypeScript CLI integration is still being implemented.
+Export locates the complete workspace; native scope selects the comparison files.
+It performs language analysis only and never invokes a model or `sigilc`.
 
 ```sh
+sigil export design . > frontend.json
 sigilc ontology --format json
 sigilc prepare design --frontend frontend.json --source architecture/a.sigil --out job-a
 # Give job-a/design.json and job-a/ontology.json to an external Design worker.

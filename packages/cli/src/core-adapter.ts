@@ -22,7 +22,10 @@ import {
   type ImplementationSource,
   isExcludedPath,
   isSupportedImplementationSource,
+  joinPath,
+  loadDesignInput,
   loadSigilWorkspace,
+  normalizePath,
   type OwnedImplementationProjection,
   ownedImplementationTargetsFor as coreOwnedImplementationTargetsFor,
   ownershipDiagnosticsFor as coreOwnershipDiagnosticsFor,
@@ -47,7 +50,7 @@ import {
   type SigilWorkspace,
   type WorkspaceDiscoveryResult,
 } from "@qoherent/sigil-core";
-import { DenoSigilFileSystem, joinPath, normalizePath } from "./fs-adapter.ts";
+import { DenoSigilFileSystem } from "./fs-adapter.ts";
 import metadata from "../deno.json" with { type: "json" };
 import {
   applySetDefault,
@@ -160,6 +163,15 @@ export class CoreAdapter {
     explicitRoot?: string,
   ): Promise<SigilWorkspace> {
     return await loadSigilWorkspace(this.#fs, {
+      startPath: this.resolveTarget(path ?? this.#currentDirectory),
+      explicitRoot: explicitRoot ? this.resolveTarget(explicitRoot) : undefined,
+      currentDirectory: this.#currentDirectory,
+    });
+  }
+
+  // @sigil implements packages/cli/_module.sigil::SigilCli::DesignExport interface
+  async exportDesign(path?: string, explicitRoot?: string) {
+    return await loadDesignInput(this.#fs, {
       startPath: this.resolveTarget(path ?? this.#currentDirectory),
       explicitRoot: explicitRoot ? this.resolveTarget(explicitRoot) : undefined,
       currentDirectory: this.#currentDirectory,

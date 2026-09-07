@@ -1,5 +1,8 @@
-import type { SigilFileSystem } from "@qoherent/sigil-core";
-import { isCompileArtifactDirectory } from "@qoherent/sigil-compiler";
+import {
+  joinPath,
+  normalizePath,
+  type SigilFileSystem,
+} from "@qoherent/sigil-core";
 
 // @sigil uses packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort interface,constraints,cases
 export class DenoSigilFileSystem implements SigilFileSystem {
@@ -47,6 +50,7 @@ export class DenoSigilFileSystem implements SigilFileSystem {
   }
 }
 
+// @sigil implements packages/cli/_module.sigil::SigilCli::SourceDiscovery interface
 async function collectFiles(path: string, files: string[]): Promise<void> {
   let stat: Deno.FileInfo;
   try {
@@ -66,36 +70,12 @@ async function collectFiles(path: string, files: string[]): Promise<void> {
   for await (const entry of Deno.readDir(path)) {
     if (
       entry.name === ".git" || entry.isSymlink ||
-      isCompileArtifactDirectory(path, entry.name)
+      (path.split("/").at(-1) === ".sigil" &&
+        (!entry.isFile ||
+          !["config.json", "local.json", "glossary.json"].includes(entry.name)))
     ) continue;
     await collectFiles(joinPath(path, entry.name), files);
   }
-}
-
-export function normalizePath(path: string): string {
-  const normalized = path.replaceAll("\\", "/").replace(/\/+/g, "/");
-  if (normalized === "") return ".";
-  const absolute = normalized.startsWith("/");
-  const parts: string[] = [];
-  for (const part of normalized.split("/")) {
-    if (part === "" || part === ".") continue;
-    if (part === "..") {
-      if (parts.length > 0 && parts[parts.length - 1] !== "..") {
-        parts.pop();
-      } else if (!absolute) {
-        parts.push(part);
-      }
-      continue;
-    }
-    parts.push(part);
-  }
-  const joined = parts.join("/");
-  if (absolute) return `/${joined}`;
-  return joined || ".";
-}
-
-export function joinPath(...parts: string[]): string {
-  return normalizePath(parts.filter(Boolean).join("/"));
 }
 
 export function compilationCacheDirectory(): string {
