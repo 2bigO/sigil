@@ -87,8 +87,10 @@ component SigilProjectionStore {
       earlier rejected attempts with their observed exits without interpreting
       their text.
       Bind the record to the accepted source fingerprint, generation and exact
-      projection key. Expose complete records through the projection index and
-      expanded-world reports so a fresh process can recover them without a
+      projection key. Expose every fresh source through projection index and
+      expanded-world reports: complete records carry their links, while a null
+      artifact explicitly identifies a projection that predates native evidence.
+      A fresh process can therefore distinguish incomplete evidence without a
       temporary tracker. Existing entries without a record remain semantically
       readable but are incomplete evidence.
     }

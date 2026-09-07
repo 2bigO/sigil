@@ -28,7 +28,9 @@ pub struct DesignReport {
     pub artifact_report: String,
     pub sources: Vec<SourceStatus>,
     pub assertion_sources: BTreeMap<String, Vec<String>>,
-    pub artifacts: BTreeMap<String, ArtifactEvidence>,
+    /// One entry for every fresh source. `null` means that its accepted
+    /// projection predates native artifact evidence and is therefore incomplete.
+    pub artifacts: BTreeMap<String, Option<ArtifactEvidence>>,
     pub diagnostics: crate::report::Diagnostics,
     pub world: DesignWorld,
     pub catalog: Option<FrozenCatalog>,
@@ -99,9 +101,7 @@ pub fn compile(
             }
             catalog::validate_design(&source.path, input, &inspection.assertions)?;
             projections.insert(source.path.clone(), inspection.assertions);
-            if let Some(artifact) = store.artifact(&binding) {
-                artifacts.insert(source.path.clone(), artifact.clone());
-            }
+            artifacts.insert(source.path.clone(), store.artifact(&binding).cloned());
         }
         sources.push(SourceStatus {
             source: source.path.clone(),

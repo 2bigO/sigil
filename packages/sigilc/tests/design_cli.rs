@@ -490,6 +490,25 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
 }
 
 #[test]
+fn fresh_legacy_projection_is_explicitly_incomplete_in_artifact_report() {
+    let root = workspace();
+    publish(&root, "job", "");
+    let index_path = root.0.join(".sigil/worlds/index.json");
+    let mut index: Value = serde_json::from_slice(&std::fs::read(&index_path).unwrap()).unwrap();
+    index["entries"]["design/a.sigil"]
+        .as_object_mut()
+        .unwrap()
+        .remove("artifact");
+    root.write(
+        ".sigil/worlds/index.json",
+        &serde_json::to_vec(&index).unwrap(),
+    );
+
+    let report = result(&root, &["compile", "design"], 0);
+    assert!(report["artifacts"]["a.sigil"].is_null());
+}
+
+#[test]
 fn preparation_omits_unbound_design_files_and_never_overwrites_a_directory() {
     let root = workspace();
     root.write("unrelated.sigil", b"secret unrelated meaning");

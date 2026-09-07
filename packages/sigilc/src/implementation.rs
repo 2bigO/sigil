@@ -25,7 +25,9 @@ pub struct ImplementationReport {
     pub artifact_report: String,
     pub sources: Vec<SourceStatus>,
     pub assertion_sources: BTreeMap<String, Vec<String>>,
-    pub artifacts: BTreeMap<String, ArtifactEvidence>,
+    /// One entry for every fresh source. `null` means that its accepted
+    /// projection predates native artifact evidence and is therefore incomplete.
+    pub artifacts: BTreeMap<String, Option<ArtifactEvidence>>,
     pub world: SaturatedWorld,
 }
 
@@ -36,7 +38,7 @@ pub struct Assembly {
     pub sources: Vec<SourceStatus>,
     assertions: BTreeSet<Assertion>,
     assertion_sources: BTreeMap<String, Vec<String>>,
-    artifacts: BTreeMap<String, ArtifactEvidence>,
+    artifacts: BTreeMap<String, Option<ArtifactEvidence>>,
     catalog_fingerprint: String,
 }
 
@@ -80,9 +82,7 @@ pub fn assemble_manifest(
                     .push(file.path.clone());
                 assertions.insert(fact);
             }
-            if let Some(artifact) = store.artifact(&binding) {
-                artifacts.insert(file.path.clone(), artifact.clone());
-            }
+            artifacts.insert(file.path.clone(), store.artifact(&binding).cloned());
         }
         sources.push(SourceStatus {
             source: file.path.clone(),
