@@ -20,6 +20,20 @@ export async function run(): Promise<void> {
   assert(extension, "Sigil extension was not discovered");
   await extension.activate();
 
+  const commands = await vscode.commands.getCommands(true);
+  for (const command of [
+    "sigil.openPreview",
+    "sigil.compileComponent",
+    "sigil.compileWorkspace",
+    "sigil.selectCompilationFocus",
+  ]) {
+    assert(commands.includes(command), `Missing retained command ${command}`);
+  }
+  assert(
+    !commands.some((command) => command.startsWith("sigil.semantic")),
+    "Removed beam/world/view/handoff/receipt commands must not be registered",
+  );
+
   const position = new vscode.Position(0, 31);
   editor.selection = new vscode.Selection(position, position);
 

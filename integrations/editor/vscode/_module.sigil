@@ -209,6 +209,16 @@ expand SigilVsCodeExtension {
       behavior.
     }
 
+    RemovedWorkflowSurface {
+      Delete commands, menus, activation hooks, process helpers and workspace-state
+      bookkeeping dedicated to beams, accepted worlds, generated-view publication,
+      handoffs and receipts. Those backend concepts are intentionally removed;
+      their frontend needs no replacement or compatibility command.
+      Keep authored-language diagnostics, navigation, highlighting and ordinary
+      document preview. Retained compilation/status feedback has a separate
+      native sigilc integration requirement.
+    }
+
     CompilationSurface {
       Agentic compilation is explicit and does not run automatically while typing.
 
