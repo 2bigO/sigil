@@ -27,7 +27,7 @@ Expected skill behavior:
    than creating a filler decision.
 9. Present a decision-rationale coverage map marking material choices as
    covered, missing, or justified omission.
-10. Keep semantic readiness at correction required while either material choice
+10. Report missing authored rationale while either material choice
     lacks its decision record.
 11. Include every missing exact decision block in the scoped Sigil files, then
     validate and compile the written result.

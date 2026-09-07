@@ -149,16 +149,10 @@ for a repository-wide formatting pass.
 
 ## Concept Identifiers
 
-Treat ungrouped `interface` content reported by
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` as a deferred authoring gap. First complete
-the pre-grouping semantic-readiness review from `standards-review.md` against
-the exact ungrouped prose. Do not begin concept reuse discovery, grouping,
-identifier generation, or warning repair while semantic readiness is
-`unassessed` or `correction required`.
-
-After semantic readiness appears aligned for the selected scope,
-concept-identifier creation, reuse, regrouping, renaming, and warning repair
-are written directly to the scoped Sigil and then revalidated.
+Inspect the meaning of ungrouped `interface` content reported by
+`SIGIL_MISSING_CONCEPT_IDENTIFIER`, then group coherent concepts directly in the
+scoped authored file. Native Design evidence can inform review when available;
+missing reconstruction does not prohibit authoring or require an evaluator stage.
 
 Before proposing an identifier:
 
@@ -204,11 +198,10 @@ After applying a grouping or identifier change:
 1. run `sigil check`;
 2. use `sigil retrieve --purpose architecture` when identity relationships
    changed; use `context` or `graph` only for missing detail;
-3. repeat the semantic-readiness review on the grouped Sigil;
+3. refresh native Design capture and affected reconstruction for semantic review;
 4. investigate any suspected material ambiguity and return to DesignConversation
    in correction mode only when the ambiguity confirms a material problem;
-5. begin glossary candidate extraction only when the final review appears
-   aligned.
+5. inspect relevant glossary changes when requested or materially necessary.
 
 ## Semantic Units
 

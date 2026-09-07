@@ -168,7 +168,7 @@ Use the evidence packet to:
 - support recommendations with directly relevant source identity and links.
 
 Evidence remains nonbinding. The user retains decision authority, and research
-never determines a ReviewGate result.
+does not authorize unrelated product actions.
 
 When authoritative sources disagree before a project decision exists, record
 the disagreement as unresolved design evidence. Enter correction mode only when

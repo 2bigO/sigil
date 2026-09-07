@@ -1,73 +1,108 @@
-<!-- @sigil implements integrations/skills/sigil/compilation-execution.sigil::SigilCompilationExecution interface,logic,constraints -->
+<!-- @sigil implements integrations/skills/sigil/compilation-execution.sigil::SigilCompilationExecution interface,logic,constraints,cases -->
 
-# Shared Compilation Execution
+# Native compilation execution
 
-Use this procedure for every ordinary design or implementation compilation. It
-owns invocation, fresh Markdown output isolation, process-exit handling, and
-retry policy; the calling workflow owns target selection and focus-specific
-interpretation.
+Run from the selected workspace, or pass its absolute path with `--root` to
+native commands. Use the actual installed `sigil` and `sigilc` executables.
+Store captured bundles, scopes, preparations and reports outside selected source
+scope. The paths below are illustrative external paths; each preparation output
+must be a new directory.
 
-## Run And Read
+## Capture and scope
 
-Reserve and record a task-scoped temporary directory with `mktemp -d`. For each
-attempt, choose a unique Markdown report path inside it and verify that the path
-does not exist before invocation. Keep the path outside the workspace so report
-generation does not mutate the implementation scope. Preserve stderr and the
-command exit status through review completion.
-
-Run the selected target with the agent profile:
-
-```bash
-sigil compile <workspace-root> --agent --focus <design|implementation> <target-selector> --format markdown --output <fresh-report-path>
+```sh
+sigil export design . > /tmp/sigil-run/frontend.json
+sigilc scope --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+sigilc stale design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 ```
 
-`--agent` selects the effective `tools.agent.profile`. Do not combine it with
-`--profile`. Compiler sessions remain available only for an explicitly requested
-exceptional diagnostic investigation.
+Create the external run directory before capture. Require successful export;
+never pass empty or partial output on to native commands. Regenerate the bundle
+after changing authored files, imports, config or glossary. Export captures the
+whole workspace; native scope selects focus. For example:
 
-Wait without cancelling or replacing the run until the compiler process exits.
-Do not listen to, parse, capture, or recover a JSONL event stream. Stdout,
-partial progress, silence, a slow response, and passing tests are not completed
-compilation evidence.
+```json
+{
+  "version": 1,
+  "design": { "paths": ["architecture/a.sigil", "architecture/b.sigil"] },
+  "implementation": { "dirs": ["src"], "vendorDirs": ["vendor"] }
+}
+```
 
-Accept the attempt as completed only when both conditions hold:
+Design paths are ordered roots. Read `scope.design.focus_order`; native scope
+preserves explicit priorities and appends import/owner dependencies with reasons.
+Order and unordered membership have separate fingerprints. Reordering alone does
+not invalidate unchanged semantic bindings. Do not maintain a second comparison
+priority or membership table. Scope is not a task scheduler or completion queue.
 
-- the process exits with code `0` or `1`; and
-- that attempt's fresh report path is a readable, nonempty file.
+Implementation selection supports `paths`, `dirs`, `include`, `exclude`,
+`vendorDirs` and `allowEmpty`. Paths are workspace-relative; glob filters use
+`*`, `**` and `?`. Empty paths/dirs select the eligible workspace, not nothing.
+Intentional empty selection requires explicit exclusion and `allowEmpty`.
+Use the same `--scope` on all operations below; do not combine it with
+`--selection` or top-level `--allow-empty`. Without a paired scope, native
+Implementation inspection/comparison requires `--selection FILE`.
 
-Read the report from that file and pass it to the calling workflow with the exit
-status. The Markdown is a compiler-owned review projection of the completed
-report, not the machine-readable authoritative schema. Use its `Status` and
-findings for the immediate review decision. Exit `1` is not itself an
-operational failure because completed yellow and red reports use it.
+## Independently reconstruct Design
 
-## Process Outcomes
+```sh
+sigilc prepare design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --out /tmp/sigil-run/design-a
+# External worker receives design-a/design.json and design-a/ontology.json.
+# Caller retains design-a/job.json. Worker returns ordinary Turtle in design-a.ttl.
+sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a.ttl
+sigilc compile design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+sigilc entities --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+```
 
-- Exit `0` or `1` with a valid fresh report: return the completed green, yellow,
-  or red report without automatic retry.
-- Exit `2`: correct the invocation defect before compiling again. An identical
-  retry cannot repair invalid arguments.
-- Exit `3` or another abnormal termination: preserve stderr and exit status,
-  then retry the identical frozen target once after the process exits.
-- Exit `130`: preserve cancellation evidence and exit status. Retry only after
-  the cause is resolved or the user explicitly requests another run.
-- Missing, unreadable, or empty output after exit `0` or `1`: classify the
-  attempt as incomplete and retry the identical frozen target once.
+Repeat preparation and ingestion for every selected stale source, including
+native-added dependencies. The native ontology and prepared Design JSON define
+available identity and assertion forms. Keep new domain entity declarations with
+their owning physical source; reference foreign identities without redeclaring
+them. Do not invent assertions merely to make a gate pass. The compiler validates
+syntax, binding and fixed laws; it cannot establish worker fidelity by itself.
 
-Never accept an output artifact paired with exit `2`, `3`, `130`, or another
-abnormal exit, even if a file exists. Never reuse a report path across attempts;
-this prevents stale or partially settled output from becoming evidence.
+## Independently reconstruct Implementation
 
-## Retry Rule
+A current provisional or authoritative Design catalog is required. Each
+Implementation worker receives exactly three inputs: `source` (captured unchanged
+bytes), `ontology.json`, and `catalog.json` from its preparation. Do not supply
+Design prose or relationships, neighboring code, job.json or repair feedback.
+A coding worker's self-description is not an independent reconstruction.
 
-Retry only after the first process exits. Preserve both attempts' report paths,
-stderr, and exit statuses. The retry uses the same workspace root, source
-snapshot identity, focus, target selector, resolved effective profile, and
-material command arguments; only its required fresh output path differs. It is
-not a replacement scope or a new interpretation. If those inputs cannot be
-frozen, report the host failure rather than claiming an identical retry. Do not
-retry a usage error or cancellation automatically.
+```sh
+sigilc prepare implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --out /tmp/sigil-run/implementation-main
+# External worker returns implementation-main.ttl; caller retains job.json.
+sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main.ttl
+sigilc stale implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+sigilc compile implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+sigilc compare --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+```
 
-If the second attempt still lacks completed-report evidence, report both
-attempts and block the calling workflow. Never classify incomplete output as
-red, yellow, or green evidence.
+Capture and reconstruct changed inputs after another coding round. Ingest the
+worker's completed zero-fact result when appropriate; missing output is different
+from completed empty output. Neither proves that required behavior was delivered.
+Do not weaken scope to obtain a better result.
+
+## Interpret the actual command
+
+| Command | Exit 0 | Exit 1 |
+| --- | --- | --- |
+| `compile design` | Coherent (green), Loose (yellow with warnings) | Disjoint (red) |
+| `compile implementation`, `compare` | Closed (green), Converged (yellow with warnings) | Drift (red) |
+| `stale` | Selected inputs fresh | Freshness work remains |
+| `entities` | Current catalog available, possibly provisional | Catalog unavailable |
+| `scope` | Inspection completed | No semantic gate meaning |
+
+Exit 2 means invalid usage. Exit 3 means runtime/input failure or an unavailable
+comparison prerequisite. An unavailable comparison can return explanatory JSON
+with Implementation and comparison unset; preserve that explanation without a
+color. Check named states, diagnostics, attribution and omitted counts alongside
+exit status. Cancellation, truncated output and stale reports are not verdicts.
+
+Record the command, executable/version, input identities, exit, report and
+stderr. Diagnose failures before retrying; no fixed retry count makes missing
+inputs available. Never replace a process merely because it is slow.
+
+`.sigil/worlds/` is an ignored disposable cache. `sigilc clean --root DIR` removes
+its generated worlds while preserving sources and external preparations. Use it
+when discarding generated state is intended, then reconstruct required inputs.

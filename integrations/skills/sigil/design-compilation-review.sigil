@@ -1,213 +1,73 @@
 @integrations/skills/sigil/compilation-execution.sigil import { SigilCompilationExecution }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
-@integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
 
 component SigilDesignCompilationReview {
   goal {
-    Consume compiler-owned semantic-readiness and architecture evaluation as
-    provisional evidence for exact written Sigil without transferring design
-    decisions or implementation approval authority to the compiler.
+    Inspect native Design coherence for current authored scope and use concrete
+    findings to improve the written contract without inventing evaluator stages.
   }
 
   interface {
-DesignCompilationReview {
-      evaluates exact written Sigil through SigilCompilationExecution with design
-      focus before user file review and any implementation ReviewGate
+    DesignCompilationReview {
+      Use SigilCompilationExecution with compile design and an explicit native scope
+      where focus is needed.
 
-      consumes deterministic-foundation, semantic-readiness, and architecture-design
-      results from the exact written scope
+      Read the world state, diagnostics, source attribution, input identities and
+      warnings from the native JSON report.
 
-      requires an exited compiler process and its readable completed Markdown report
-      before written-file review, concept grouping, glossary extraction,
-      implementation approval, or implementation; this gate cannot be skipped or
-      overridden
+      Coherent is green and Loose is yellow, both exit zero.
 
-      permits written-file review when design compilation is green or when every
-      yellow finding is explicitly reviewed and accepted as nonblocking by the human
-      user
+      Disjoint is red and exits one.
+
+      Unavailable or failed operations do not establish coherence.
     }
   }
 }
 
 expand SigilDesignCompilationReview {
-  state {
-DesignCompilationReview {
-      Design compilation is awaiting, completed-green, completed-yellow,
-      completed-red, failed, cancelled, or host-transport-blocked for one exact
-      written scope and reviewed boundary. These states map directly to the completed
-      Markdown report, failure, cancellation, and host outcomes from
-      SigilCompilationExecution; missing completed-report evidence remains
-      host-transport-blocked rather than becoming a separate state.
-    }
-  }
-
   logic {
-DesignCompilationReview {
-      Accept the exact scoped Sigil already written by SigilAuthoringWorkflow after
-      design intent and applicable external guidance are sufficiently resolved, then
-      compile it with SigilCompilationExecution with focus design.
+    DesignCompilationReview {
+      Write authorized scoped Design changes, export current structural input and
+      inspect native freshness.
 
-      The affected semantic-unit set is the changed declarations and matching expands
-      in the written files, plus direct imported identities named by those units;
-      freeze that set with the written-scope evidence before target selection. Derive
-      one affected directory from every affected semantic unit's source-file parent,
-      including an expand-only or declarationless file. For each candidate, eligible
-      candidates are importing `_module.sigil` files within the selected workspace
-      whose retrieval closure contains the affected units, followed by exact-case
-      components and matching expands in the selected workspace. The workspace target
-      is the final fallback when no candidate covers the boundary. count the segments
-      in the normalized relative path from each affected directory to each candidate
-      declaration or matching-expand directory, sort all resulting vectors lexically
-      with smaller counts first, and use that sorted list as the candidate distance
-      vector. Select the importing module index whose retrieval closure covers all
-      affected semantic units and has the best vector; resolve equal vectors by
-      normalized repository-relative module- index path in lexical order. When none
-      exists, select the component whose closure maximizes the lexicographic tuple of
-      covered semantic units, matching expands, and direct relationships; resolve
-      equal tuples with the same distance vector against every candidate declaration
-      and matching expand directory, then by normalized source path and exact-case
-      component name in lexical order. Compile the workspace without a component when
-      no component covers the boundary, and record every unit outside a partial
-      target closure.
+      Obtain independent reconstructions before claiming current semantic
+      verification.
 
-      Do not use a compiler session for normal authoring or review. Delegate
-      invocation, Markdown output isolation, process waiting, retry, and host-failure
-      classification entirely to SigilCompilationExecution. Interpret only its
-      returned completed report or failure outcome; a running or incomplete execution
-      is a hard blocker.
+      Review diagnostics against their source.
 
-      Use red and yellow diagnostics to investigate evidence and return confirmed
-      material problems to DesignConversation. Revise red candidates and yellow
-      candidates with unresolved findings.
+      Resolve established corrections within authorized scope.
 
-      Return either a deterministic or coherence correction requirement to the host
-      workflow when established intent determines it, or a DesignConversation route
-      when the report exposes a material decision, conflicting intent, or future-
-      facing pitfall. The host workflow owns correction writes and repetition. Do not
-      continue to grouping, glossary extraction, or implementation from red,
-      unresolved yellow, unavailable, or incomplete evidence.
+      Route genuinely unresolved intent to SigilDesignConversation; a warning does
+      not itself require a new permission round trip.
 
-      Present the exact green written scope, or a yellow scope whose every finding
-      the human explicitly accepted as nonblocking, for user review in the file. Then
-      continue to glossary extraction or implementation review.
+      Preserve remaining unknowns explicitly.
     }
   }
 
   constraints {
-DesignCompilationReview {
-      Compiler green and reviewed yellow are provisional design evidence and do not
-      approve glossary mutation or implementation.
+    DesignCompilationReview {
+      Native scope owns root order, import closure and physical-file membership.
 
-      The skill does not duplicate semantic-readiness or architecture-design judgment
-      already owned by the compiler focus closure.
+      Do not rebuild a target-ranking algorithm or silently narrow final scope.
 
-      External-guidance applicability, design decisions, correction conversations,
-      concept-grouping approval, glossary extraction, and ReviewGate remain owned by
-      the host workflow.
+      Structural check success is not semantic coherence.
 
-      An unavailable, incomplete, or red required design compilation prevents
-      implementation review. Yellow also prevents implementation readiness until the
-      human explicitly reviews every finding and accepts it as nonblocking.
+      Coherent or Loose does not prove implementation, tests, code removal or full
+      task completion.
 
-      A running, unavailable, incomplete, failed, or cancelled required compilation
-      is a hard blocker and cannot be waived or reported as a skipped check.
+      Catalog availability is a native decision; a missing catalog cannot be replaced
+      by a handwritten identity list or an assumed green report.
 
-      A report that requires user judgment remains in DesignConversation; the host
-      does not guess a correction merely to complete the compile-and-resolve loop.
-
-      Written-file review evidence identifies the target workspace root, target
-      paths, changed semantic units, target, profile, focus, and finding
-      dispositions. It supports implementation review but never approves it.
-    }
-  }
-
-  decisions {
-    CompilerDrivenDesignReview {
-      Decision: Use SigilCompiler focus design as the semantic-readiness and
-      modularity evaluator for exact written Sigil.
-
-      Scope: Governs SigilSkill design review after scoped Sigil is written; excludes
-      human design decisions, external-guidance research, glossary extraction, and
-      implementation approval.
-
-      Trade-offs: Semantic work is immediately visible in the target file, so users
-      review the actual change rather than a chat proposal, but compilation may take
-      substantial time before it yields a completed report artifact.
-
-      Design issues addressed: Temporary proposal sessions consume context and make
-      small-model review harder to follow.
-
-      Discarded alternatives: Retaining duplicate host semantic and modularity review
-      was rejected because the compiler design closure already owns those
-      evaluations.
-
-      Consequences: One ordinary compiler report evaluates deterministic validity,
-      semantic readiness, and architecture on the file the user reviews.
-    }
-
-    ReviewedYellowDesignEvidence {
-      Decision: Permit a complete yellow design compilation to proceed only after the
-      human explicitly reviews and accepts every finding as nonblocking.
-
-      Scope: Governs provisional design evidence for Sigil proposal, glossary, and
-      implementation workflows; excludes unavailable, incomplete, and red reports.
-
-      Trade-offs: Noncritical warnings may remain intentionally deferred, and their
-      dispositions must travel with the exact report evidence.
-
-      Design issues addressed: Treating every warning as blocking prevents informed
-      human judgment, while treating yellow as automatic readiness hides unresolved
-      findings.
-
-      Discarded alternatives: Automatic rejection and automatic acceptance of every
-      yellow report were rejected.
-
-      Consequences: Reviewed warnings remain visible and scoped to one report; new or
-      changed findings require another disposition.
-    }
-
-    DeterministicTargetSelection {
-      Decision: Rank compile targets by the worst-first vector of normalized path
-      distances from every affected semantic unit and lexical identities.
-
-      Scope: Governs ordinary design-compilation target selection; excludes compiler
-      status computation, report recovery owned by SigilCompilationExecution, and
-      user acceptance of yellow findings.
-
-      Trade-offs: Worst-first path ordering can differ from a host's informal sense
-      of proximity.
-
-      Design issues addressed: Undefined proximity let hosts select different design
-      closures.
-
-      Discarded alternatives: Host-defined proximity was rejected because it would
-      select different design closures for the same written scope.
-
-      Consequences: A target is repeatable across single- and multi-file scopes;
-      completed-report recovery remains centralized in SigilCompilationExecution.
+      Human product decisions and external worker orchestration remain external.
     }
   }
 
   cases {
-DesignCompilationReview {
-      A red written Sigil with contradictory state ownership returns to
-      DesignConversation before concept grouping or glossary extraction.
-
-      A yellow written scope with one unresolved warning remains blocked. When a
-      human explicitly accepts every finding as nonblocking, its report and
-      dispositions may proceed as provisional evidence.
-
-      An ungrouped green written scope proceeds to concept grouping, then recompiles
-      before glossary extraction.
-
-      A host-transport-blocked compilation reports the host-transport evidence and
-      remains blocked under SigilCompilationExecution's retry policy.
-
-      A failed compilation reports its failure evidence and remains blocked under the
-      execution component's retry policy.
-
-      A cancelled compilation reports its cancellation evidence and exit status and
-      blocks review; retry behavior remains owned by SigilCompilationExecution.
+    DesignCompilationReview {
+      A Loose report retains warnings with exit zero. A concrete missing behavior
+      still requires work; an evidence limitation is not silently relabeled as
+      completion. A Disjoint report returns its contradictory assertions for
+      investigation without automatically rewriting the user's intent.
     }
   }
 }

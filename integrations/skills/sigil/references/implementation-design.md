@@ -1,393 +1,69 @@
-# Implementation Coverage And Component Selection
-
 <!--
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationOwnershipWorkflow interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationCoverage interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/implementation-workflow.sigil::SigilImplementationWorkflow::ImplementationAlignment interface,logic,constraints,cases
 -->
 
-Use this procedure before every implementation mutation. It prevents artifact
-classification, an outcome request, or successful validation from bypassing
-governing Sigil and the implementation coverage needed to produce coherent
-changes.
-
-## Contents
-
-1. Run implementation preflight
-2. Discover implementation concerns
-3. Select component, expand, or omit
-4. Review UI component coverage
-5. Build the implementation coverage map
-6. Link implementation ownership
-7. Propose and approve missing Sigil
-8. Run applicable verification
-9. Reconcile completed implementation
-10. Limits and examples
-
-## 1. Run Implementation Preflight
-
-Before each repository mutation intended to implement a request, confirm that
-the mutation remains within a completed implementation preflight. Run the
-preflight before the first mutation and repeat it whenever the requested scope,
-governing Sigil, implementation evidence, or material concerns change:
-
-1. complete `references/workspace-bootstrap.md`;
-2. apply `references/design-intake.md`; stop when it returns
-   `conversation-required` or `context-insufficient`;
-3. retrieve the governing component and expands with
-   `sigil retrieve --purpose implementation`; its ownership source evidence is
-   required for complete implementation context. If retrieval reports
-   unavailable implementation discovery, resolve that condition before
-   implementation. Use `sigil context` or `sigil graph` only for detail absent
-   from a successful retrieval;
-4. inspect the selected implementation boundary, direct dependents, tests, and
-   relevant implementation evidence;
-5. classify every material concern as established, partial, or missing;
-6. write, validate, and compile missing or changed Sigil when the mutation
-   introduces or exposes an uncovered material decision;
-7. use `ReviewGate(action: implementation)` over the validated written Sigil and
-   exact implementation scope before implementation.
-
-Implementation artifacts include source code, configuration, migrations,
-scripts, workflow instructions, tests, fixtures, metadata, validators,
-generated assets, and documentation. File extension, directory, documentation
-appearance, generated status, or tooling classification never exempts a
-mutation from preflight.
-
-Read-only inspection is not an implementation mutation. After preflight, an edit
-that is proven mechanical, has established coverage, and introduces no material
-decision may proceed without new Sigil. Make that determination from inspected
-evidence rather than before loading the governing contract.
-
-A request to fix, build, or change an outcome does not make ReviewGate ready for
-implementation. Instructions from another skill, tool,
-framework, or workflow do not override ReviewGate. Passing tests, builds,
-validators, or deterministic Sigil checks after an implementation-first edit
-does not legitimize the bypass.
-
-When a bypass is detected, stop and report the drift. On the user's request,
-restore only exact unapproved changes introduced by the current agent, then
-restart at preflight. Restorative rollback does not authorize replacement
-behavior.
-
-## 2. Discover Implementation Concerns
-
-Inspect the selected boundary, planned or existing owning modules, direct
-dependents, tests, and relevant Sigil. Identify material concerns such as:
-
-- coherent product and domain responsibilities;
-- programming abstractions and internal APIs;
-- state machines, processing pipelines, and lifecycle owners;
-- persistence, concurrency, retry, ordering, and failure boundaries;
-- screens, views, and reusable UI surfaces;
-- algorithms or transformations whose rationale is not safely reconstructable;
-- dependency direction, ownership, and binding architecture decisions.
-
-Also identify the implementation namespace-assembly surface and every
-independently owned responsibility behind it. An entrypoint or index is not the
-default owner for behavior merely because it exposes the public namespace.
-
-A component's goal and interface are public relative to its dependents. The
-interface contains the operations, data, events, results, errors, and observable
-promises available to them. It need not be exposed to an end user, external
-client, or another deployable service.
-
-After the pre-grouping semantic-readiness review appears aligned, group
-interface content into concept blocks before implementation. After written
-grouping changes, repeat deterministic validation and semantic-readiness review
-before glossary extraction or implementation. Reuse a concept identifier across
-state, logic, constraints, decisions, or cases only when the same concept
-materially connects those sections. Imported dependencies expose their public
-goal and interface concepts. Agent context additionally provides direct
-dependencies' decisions as scoped rationale without adding them to the
-dependent-facing contract. Inspect a provider directly when transitive
-decisions or other private expands are required for implementation work.
-
-## 3. Select Component, Expand, Or Omit
-
-Choose `component` when a concern:
-
-- owns a coherent responsibility and durable reason to change;
-- has callers, users, parents, children, or adjacent modules that rely on it;
-- exposes a stable operation, event, value, rendering, or interaction contract;
-- owns meaningful state, policy, or lifecycle independently of its container.
-
-Programming abstractions, internal APIs, classes, modules, state machines,
-screens, views, and reusable UI components may qualify. Model the responsibility
-and dependent-facing contract, not the fact that a file or class exists.
-
-Choose an implementation-specific `expand` when material operational rationale
-belongs to an existing component without establishing an independent contract.
-Typical expand content includes algorithms, flows, transitions, data shaping,
-failure propagation, concurrency, persistence rules, focus behavior, and
-binding implementation constraints.
-
-Omit separate Sigil when the concern is local, obvious, safely reconstructable,
-and has no independent contract or durable rationale. Do not mechanically create
-one component per file, class, function, hook, table, endpoint, or visual
-element.
-
-When uncertain, ask whether another implementation unit could rely on the
-concern without knowing its private mechanics. If yes, prefer a component. If
-the detail only explains how an existing owner fulfills its contract, prefer an
-expand.
-
-The selected components and expands must collectively describe the architecture
-that code generation should preserve. Split an owner when unrelated lifecycle,
-state, policy, or reasons to change would otherwise produce a bulky
-implementation unit. Keep a public implementation index focused on namespace
-assembly or explicitly owned boundary-wide orchestration.
-
-## 4. Review UI Component Coverage
-
-Treat a screen, view, or reusable UI surface as a component when it owns a
-coherent presentation or interaction responsibility. Its interface may define:
-
-- props, inputs, emitted events, callbacks, and navigation;
-- visible regions, content hierarchy, actions, and feedback;
-- loading, empty, error, disabled, and success behavior;
-- keyboard operation, accessibility expectations, and supported input methods;
-- responsive behavior, wireframes, repository images, and design links.
-
-Use `state` for meaningful UI modes, `logic` for interaction and transition
-behavior, `constraints` for accessibility, responsive, ownership, and binding
-decisions, and `cases` for observable scenarios. Do not model passive markup or
-every visual element as a component.
-
-When the boundary renders a user interface, read
-`references/frontend-surface-review.md` before selecting owners. It owns the
-surface inventory, client-state ownership classification, presentation
-annotation forms, and frontend drift evidence that this step's concern list
-depends on. Take its inventory as the presentation concern list here rather than
-discovering screens one file at a time.
-
-## 5. Build The Implementation Coverage Map
-
-Before implementation, report a compact map with these columns:
-
-| Concern | Owner | Dependents | Sigil decision | Owning location | Ownership target | Coverage |
-| --- | --- | --- | --- | --- | --- | --- |
-
-Use `component`, `expand`, or `omit` for the Sigil decision and `established`,
-`partial`, or `missing` for coverage. Explain every `omit` that could otherwise
-look material. Do not use numeric coverage scores.
-
-High-level coverage is insufficient when the map contains a material missing or
-partial implementation component or expand. Incidental mechanics do not block.
-
-Also verify decision-rationale coverage for every material implementation choice
-captured by the selected components and expands. A material choice without a
-matching decision record or justified omission keeps implementation coverage
-partial and blocks coding.
-
-For each non-omitted concern, verify that the owning location maps to a cohesive
-implementation module. Verify separately that any public entrypoint or index
-only assembles the approved namespace and does not absorb unrelated behavior or
-mutable state.
-
-## 6. Link Implementation Ownership
-
-Ownership annotations are implementation comments, not Sigil semantic units.
-Never write them into a `.sigil` file. Add or reconcile them only when
-`ReviewGate(action: implementation)` is ready for the governing validated
-written Sigil, exact implementation scope, and proposed comments.
-
-Each annotation has this payload:
-
-```text
-@sigil <relation> <repository-relative-sigil-path>::<Component>[::<Concept>] <section>[,<section>...]
-```
-
-Use only `implements`, `uses`, or `tests`. Select one or more `interface`,
-`state`, `logic`, `constraints`, or `cases` sections. Do not select `goal` or
-`decisions`, because they do not identify implementation ownership.
-
-For a component target, select sections that occur on the component or its
-matching expands. For a concept target, select only sections containing an
-occurrence of that concept. Use comma-separated selectors without whitespace
-around commas.
-
-### Forward Linking
-
-When writing implementation:
-
-1. derive the repository-relative Sigil path, component or optional concept,
-   and related section occurrences from the validated implementation coverage
-   map;
-2. select the stable language entrypoint that owns the behavior, such as a
-   class, function, method, interface, struct, or equivalent definition;
-3. place one annotation immediately before that entrypoint using the language's
-   single-line comment syntax;
-4. when the same entrypoint has multiple annotations, use one multiline comment
-   in the language's normal syntax rather than several single-line comments;
-5. use an HTML comment in agent-facing instruction or workflow Markdown, which
-   remains a file-level target;
-6. never add ownership annotations to Sigil or JSON;
-7. after implementation, verify that every relation, Sigil path, component,
-   optional concept, selected section, and entrypoint association still
-   resolves.
-
-TypeScript examples:
-
-```ts
-// @sigil implements contracts/booking.sigil::Booking::CreateBooking logic,constraints
-export function createBooking() {}
-```
-
-```ts
-/*
- * @sigil implements contracts/booking.sigil::Booking::CreateBooking logic,constraints
- * @sigil uses contracts/booking.sigil::Booking::BookingValidation interface
- */
-export class BookingService {}
-```
-
-Markdown examples:
-
-```markdown
-<!-- @sigil uses contracts/agents.sigil::AgentWorkflow interface -->
-```
-
-```markdown
-<!--
-@sigil uses contracts/agents.sigil::AgentWorkflow interface
-@sigil implements contracts/agents.sigil::AgentWorkflow::SafetyChecks constraints,cases
--->
-```
-
-### Reconciliation Linking
-
-When relevant implementation already exists:
-
-1. inspect the selected component and matching expands together with nearby
-   source, tests, and agent-facing workflow Markdown;
-2. inventory existing ownership comments and stable unlinked entrypoints;
-3. compare contract concepts, entrypoint behavior, callers, imports, tests, and
-   file purpose without treating name similarity alone as ownership evidence;
-4. report candidate links with implementation entrypoint, Sigil target,
-   relation, evidence, and status;
-5. present the exact proposed comments to
-   `ReviewGate(action: implementation)` before changing implementation
-   artifacts;
-6. leave ambiguous ownership or entrypoint association unresolved instead of
-   guessing;
-7. apply only reviewed comments using the target language's syntax, then rescan
-   and report stale, detached, malformed, or unresolved links.
-
-Reconciliation does not semantically edit Sigil and never creates annotations
-inside Sigil. If scanning exposes missing or conflicting contract intent, write,
-validate, and compile the scoped Sigil before linking implementation.
-
-## 7. Write And Validate Missing Sigil
-
-When contract and implementation design are both clear, keep the layers in two
-separate change sets and review cycles. First write only the scoped Sigil change;
-validate and design-compile it, report the written files, and stop for user review
-and implementation ReviewGate. Do not create, modify, delete, or annotate source
-code, tests, configuration, fixtures, generated artifacts, or documentation during
-that pending review. After ReviewGate returns `ready` for the exact validated Sigil
-and implementation scope, begin a new implementation-only change set. When
-implementation design depends on a higher-level decision that is not yet resolved,
-resolve it first and use a separate design review cycle.
-
-For missing coverage, present:
-
-- the exact component, expand, and import text;
-- the responsibility, dependents, and ownership reason;
-- the target location beside its implementation owner;
-- material alternatives or unresolved decisions;
-- the decision-rationale coverage map for new or changed material choices;
-- the updated implementation coverage map.
-
-Write scoped Sigil directly, validate and compile the written result, and report
-it for file review. The implementation change set must remain empty at this point.
-Implementation begins only in a later change set, after the user has reviewed the
-written Sigil and `ReviewGate(action: implementation)` is ready for that validated
-written Sigil and exact implementation scope.
-
-If any implementation artifact was changed before that gate, stop immediately and
-report an implementation-first bypass. Do not continue from the mixed state; on the
-user's request, restore only the current agent's exact unapproved implementation
-changes, then restart at implementation preflight with the Sigil-only review
-boundary.
-
-Ownership comments are not part of the scoped Sigil change. Plan their targets in the
-implementation coverage map, then include them in the exact implementation
-change set submitted to ReviewGate.
-
-## 8. Run Applicable Verification
-
-After each approved implementation change, build a verification inventory before
-claiming completion. Inspect the affected boundary and direct dependents for
-package manifests, task runners, CI workflows, test configuration, and maintained
-workflow documentation. Treat source code, tests, fixtures, configuration,
-validators, metadata, and generated artifacts as one implementation scope when
-they are part of the change.
-
-Select every applicable command in the inventory:
-
-- focused unit or component tests for the changed owner;
-- direct-dependent, integration, contract, and regression suites reachable from
-  the changed boundary;
-- build, type, lint, static-analysis, and end-to-end checks when the repository
-  evidence makes them applicable.
-
-Run each independent selected command, even if another command fails. Run a check
-with failed prerequisites only when those prerequisites become available; record
-the blocked check, prerequisite, and reason. Do not replace a broader applicable
-suite with a focused test, and do not run unrelated repository-wide commands just
-because they exist.
-
-Report the exact command, working directory, result, and relevant failure output
-for every selected check. Report missing or unavailable commands and excluded
-checks with evidence and a reason. Never silently skip an applicable check. A
-passing focused test or build is not complete verification by itself.
-
-## 9. Reconcile Completed Implementation
-
-After each approved implementation change, reconcile the exact completed scope
-before reporting completion:
-
-1. follow `references/compilation-execution.md` with `focus: implementation`:
-   `sigil compile <workspace-root> --agent --focus implementation
-   <target-selector> --format markdown --output <fresh-report-path>`;
-2. compare the completed Markdown report with the governing Sigil,
-   implementation coverage map, ownership annotations, direct dependents, and
-   relevant verification evidence;
-3. when no unresolved drift remains, report implementation complete;
-4. when a finding needs user judgment but changes no governing contract, ask the
-   user to resolve and approve the exact implementation change set, rerun
-   `ReviewGate(action: implementation)`, apply it only when ready, and repeat this
-   procedure;
-5. when a finding changes or exposes a missing governing contract, stop
-   implementation, write the scoped Sigil correction, follow the design validation
-   and compilation loop, repeat implementation preflight, and then resume work.
-
-Keep this loop open until every implementation and contract finding is resolved.
-An unavailable, incomplete, failed, cancelled, red, or unresolved-yellow
-implementation compile is not alignment evidence and cannot support completion.
-
-## 10. Limits And Examples
-
-### Programming Abstraction
-
-A Promise-like abstraction has a stable caller API and owns settlement state.
-Model it as a component; place lifecycle states and settlement algorithms in its
-expand.
-
-### UI Surface
-
-A booking calendar owns layout, navigation, slot selection, loading, empty, and
-failure behavior. Model it as a UI component; place interaction transitions and
-responsive or accessibility decisions in its expand.
-
-### Existing Owner
-
-A retry algorithm is private to a notification component and creates no
-independent caller contract. Capture the material retry, ordering, and failure
-decisions in an implementation-specific expand beside the queue implementation.
-
-### Trivial Mechanic
-
-A local formatting helper performs an obvious transformation and owns no state,
-policy, or dependent-facing contract. Do not create separate Sigil for it.
+# Implementation design and alignment
+
+Inspect governing Sigil before every implementation mutation. Retrieve the
+component and matching expands with `sigil retrieve . --component Name --purpose
+implementation --format markdown`, then inspect owning source, direct dependents,
+tests and gaps in retrieval. Resolve missing context from actual files rather
+than treating an empty ownership map as complete coverage.
+
+The user's task authorization remains effective across routine contract/code
+changes. Ask about a material unresolved choice when necessary; do not add a
+second compiler-driven approval lifecycle.
+
+## Cohesive ownership
+
+Classify material responsibilities as independent components, expands of an
+existing owner, or trivial mechanics needing no separate Sigil. Public entrypoint
+files assemble the namespace; place state, lifecycle and behavior with their
+cohesive owners. A high-level product summary is insufficient when material
+internal APIs, persistence, concurrency or error behavior remain unspecified.
+Use [frontend surface review](frontend-surface-review.md) for presentation owners.
+
+Inspect useful existing primitives first. For a refactor, delete obsolete
+implementations and their dedicated UI/config/tests. Retain required capabilities
+through their new actual infrastructure; do not preserve a legacy API facade.
+A missing native capability observed in the running workflow requires authored
+Design and implementation in its responsible owner, followed by real use.
+
+## Navigation annotations
+
+Ownership comments are optional navigation/context evidence. Use supported
+`@sigil implements` targets with normalized repository-relative Sigil paths,
+component, optional concept, and `interface`, `state`, `logic`, `constraints`
+or `cases` sections. `goal` and `decisions` are not implementation targets.
+
+Place comments beside stable source entrypoints; use HTML comments for
+agent-facing Markdown. Do not annotate JSON or authored Sigil. Inspect both
+component and matching expands; concept selectors address only sections with
+that concept occurrence. Reconcile stale links against actual source and
+contract evidence. Never infer semantic discharge from annotation presence.
+
+## Verify the current result
+
+Run checks appropriate to the changed behavior and its dependents. Keep actual
+check outcomes, required unrun checks and known missing behavior visible.
+Follow [native compilation execution](compilation-execution.md) with the intended
+complete selection or a clearly identified focused increment.
+
+After the coding round, prepare current inputs for independent external workers.
+Each Implementation worker sees only captured source, fixed ontology and frozen
+identity catalog, with no Design relationships or neighboring code. Ingest its
+returned Turtle; do not write self-confirming assertions as verification.
+
+`sigilc compile implementation` and `sigilc compare` return Closed or Converged
+with exit 0, Drift with exit 1. Unavailable comparison remains unset with its
+prerequisite reason. Preserve bounded diagnostic omissions and explained warnings.
+Return concrete defects to implementation and unresolved material intent to
+Design; refresh affected captures/reconstructions after edits.
+
+Completion requires actual delivery, required checks, removals and current
+semantic evidence at the requested scope. A focused success does not prove the
+whole task. Converged may contain evidence limitations; it cannot excuse known
+unimplemented behavior. A test fixture exercises the protocol, not faithful
+independent reconstruction of the application.

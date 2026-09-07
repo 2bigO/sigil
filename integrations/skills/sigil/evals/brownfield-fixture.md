@@ -14,42 +14,36 @@ Expected skill behavior:
 
 1. Determine the repository root, inventory Sigil paths, and report the
    repository as unconfigured without mutation.
-2. If initialization is requested, submit the exact root and files to
-   `ReviewGate(action: workspace-initialization)`, run `sigil init` only when
-   ready, and validate with `sigil version` and `sigil check`.
-3. Inspect repository-level documentation, dependency definitions, executable
+2. Inspect repository-level documentation, dependency definitions, executable
    configuration, and entrypoints without treating them as desired intent.
-4. Explain what the evidence supports and use the shared design conversation for
+3. Explain what the evidence supports and use the shared design conversation for
    the missing application purpose, users or systems, boundary, and external
    interaction surfaces.
-5. Resolve one primary decision per turn, acknowledge each answer, and continue
+4. Resolve one primary decision per turn, acknowledge each answer, and continue
    while material configured-boundary summary decisions remain unresolved.
-6. Synthesize the evidence and conversational answers into a candidate goal and
-   interface, then request separate confirmation.
-7. After confirmation, classify application-wide evidence into optional root
+5. Synthesize the evidence and conversational answers into a candidate goal and
+   interface, then resolve only material questions that remain.
+6. From the established intent, classify application-wide evidence into optional root
    `state`, `logic`, `constraints`, `decisions`, and `cases`. Exclude secrets, incidental
    dependencies, low-level configuration, and task-specific details.
-8. Propose an exact meaningful ordinary summary component in the workspace-root
+7. Propose an exact meaningful ordinary summary component in the workspace-root
    `_module.sigil`; keep it small by responsibility and include direct imports
    only when they assemble intentional directory-import shorthand.
-9. Move independently owned state, operational logic, lifecycle behavior, and
+8. Move independently owned state, operational logic, lifecycle behavior, and
    policy into components or expands beside their owners.
-10. Inspect accessible imported public identities and reuse every semantic match
+9. Inspect accessible imported public identities and reuse every semantic match
     before creating a local component or concept.
-11. Show how the proposed contracts decompose implementation ownership rather
+10. Show how the proposed contracts decompose implementation ownership rather
     than treating the high-level boundary summary as sufficient coverage.
-12. Write the exact boundary module index directly, validate and compile it,
+11. Write the exact boundary module index directly, validate and compile it,
    then review the written result in the file.
-13. After the ready boundary summary is written and validated, focus on the
+12. After the ready boundary summary is written and validated, focus on the
     requested component, classify its coverage, and gather task-specific
     evidence.
-14. Report conflicting current and intended behavior and propose exact task
+13. Report conflicting current and intended behavior and propose exact task
     Sigil before editing.
-15. Write exact task Sigil directly when its material intent is clear, then
+14. Write exact task Sigil directly when its material intent is clear, then
    validate, compile, and review it; enter DesignConversation if it is not.
-16. If the requested implementation change lacks clear Sigil coverage,
+15. If the requested implementation change lacks clear Sigil coverage,
     collaborate with the user to define and approve that coverage before
     changing code.
-17. Write implementation code only when
-    `ReviewGate(action: implementation)` is ready for the validated written task
-    Sigil and exact implementation scope.

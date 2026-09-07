@@ -7,7 +7,6 @@
 @integrations/skills/sigil/authoring-workflow.sigil import { SigilAuthoringWorkflow }
 @integrations/skills/sigil/glossary-workflow.sigil import { SigilGlossaryWorkflow }
 @integrations/skills/sigil/implementation-workflow.sigil import { SigilImplementationWorkflow }
-@integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
 @integrations/skills/sigil/design-conversation.sigil import { SigilDesignConversation }
 @integrations/skills/sigil/design-intake.sigil import { SigilDesignIntake }
 @integrations/skills/sigil/external-guidance-evidence.sigil import { ExternalGuidanceEvidence }
@@ -20,17 +19,21 @@ component SigilSkill {
     contracts.
 
     Keep ambiguity resolution, evidence classification, standards review, and human
-    approval in the host workflow while consuming compiler-owned semantic and
-    architecture evaluation as provisional design evidence.
+    approval in the host workflow while consuming native Design and Implementation
+    reports as scoped semantic evidence.
   }
 
   interface {
 SkillPackage {
       SKILL.md is the portable workflow entrypoint
 
+      Package validation checks metadata and references and executes documented
+      native commands with disposable fixtures. Fixed Turtle exercises protocol; it
+      never establishes independent reconstruction of the application.
+
       VERSION owns the skill artifact version
 
-      compatibility.json declares compatible CLI, core, and language versions
+      compatibility.json declares compatible CLI, core, language and sigilc versions
 
       SigilSkillCompatibility owns compatibility schema, range evaluation, and
       failure behavior before workspace interpretation
@@ -46,14 +49,14 @@ SkillPackage {
     SkillWorkflow {
       SKILL.md dispatches applicable procedures to the imported workspace, design-
       compilation, compilation-execution, standards, authoring, glossary,
-      implementation, review-gate, design-intake, design-conversation, and
-      external-evidence components
+      implementation, design-intake, design-conversation, and external-evidence
+      components
 
       SigilWorkspaceBootstrap, SigilDesignCompilationReview,
       SigilCompilationExecution, SigilStandardsReview, SigilAuthoringWorkflow,
-      SigilGlossaryWorkflow, SigilImplementationWorkflow, SigilReviewGate,
-      SigilDesignConversation, and ExternalGuidanceEvidence remain available through
-      their imported owning contracts
+      SigilGlossaryWorkflow, SigilImplementationWorkflow, SigilDesignConversation,
+      and ExternalGuidanceEvidence remain available through their imported owning
+      contracts
 
       SigilDesignIntake remains available through its imported owning contract
 
@@ -74,7 +77,7 @@ SkillPackage {
       access inapplicable references merely to test their availability.
 
       Each host adapter may define discovery and presentation mechanics but does not
-      redefine ReviewGate or approval authority.
+      redefine native semantics or the user's authorization.
 
       Skill artifact version ownership is independent from language and distributable
       tool versions.
@@ -93,8 +96,8 @@ SkillPackage {
       Scope: Governs the portable skill package, its host adapters, artifact release,
       and compatibility declaration; excludes host-specific installation mechanics.
 
-      Trade-offs: Every host must implement the same approval semantics and perform
-      explicit compatibility validation before workspace interpretation.
+      Trade-offs: Hosts preserve the user's scope and existing authorization while
+      checking the independently versioned language and native tools.
 
       Design issues addressed: Host-specific authority rules and duplicated version
       ownership would make the same skill behave differently across installations.

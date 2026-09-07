@@ -1,6 +1,5 @@
 @spec/language.sigil import { SigilLanguage, SigilModuleIndex }
 @integrations/skills/sigil/design-compilation-review.sigil import { SigilDesignCompilationReview }
-@integrations/skills/sigil/review-gate.sigil import { SigilReviewGate }
 
 component SigilAuthoringWorkflow {
   goal {
@@ -82,8 +81,8 @@ DirectAuthoringLifecycle {
       directly to the selected file before DesignCompilationReview.
 
       Use DesignCompilationReview evidence only to revise, validate, and complete
-      that written draft. A red or unresolved yellow report returns to correction or
-      DesignConversation; it never retroactively prevents creating the initial draft.
+      that written draft. Investigate native Disjoint findings and preserve Loose
+      warnings. Missing reconstruction does not prevent authoring.
     }
 
 ImportSemantics {
@@ -103,9 +102,9 @@ ModuleIndexFile {
     }
 
 ConceptIdentifierWorkflow {
-      Begin concept reuse discovery, grouping, and identifier proposals only after
-      DesignCompilationReview is green or every yellow finding is explicitly reviewed
-      and accepted as nonblocking for the selected scope.
+      Inspect meaning before choosing concept identities. Use native
+      DesignCompilationReview for available semantic evidence; concept grouping does
+      not depend on a removed evaluator stage or separate warning approval.
 
       Inspect the affected section, every other section of the component, and every
       matching expand for the same semantic idea.
@@ -168,7 +167,7 @@ DecisionRationaleWorkflow {
       record.
 
       Repeat the decision-rationale coverage audit after writing validated Sigil and
-      before ReviewGate for implementation can return ready.
+      before relying on the changed contract for implementation.
     }
   }
 
@@ -196,9 +195,8 @@ ModuleIndexFile {
     }
 
 ConceptIdentifierWorkflow {
-      Missing interface concept identifiers remain deferred until pre-grouping
-      DesignCompilationReview is green or reviewed yellow, then are repaired before
-      final design compilation.
+      Repair missing concept identifiers from inspected meaning and accessible
+      identities, then refresh current native Design inputs for semantic review.
 
       Consumer terminology is naming evidence but is not reusable identity unless
       accessible through valid imports.
@@ -314,7 +312,7 @@ DecisionRationaleWorkflow {
       primary author's preferred grouping without multiplying competing proposals.
 
       Discarded alternatives: Multiple parallel naming agents and subagent edit
-      authority were rejected as noisy and outside ReviewGate authority.
+      authority were rejected as noisy and outside this authoring workflow.
 
       Consequences: Exactly one advisory proposal is independently checked; the
       primary agent remains responsible for validation and user review.

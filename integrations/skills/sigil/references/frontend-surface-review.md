@@ -95,7 +95,7 @@ Private half, in `expand`:
 
 Treat asynchrony as contract rather than mechanism. For every request a surface
 issues, state its loading, empty, error, retry, stale, and cancelled behavior.
-Missing async cases are a semantic-readiness gap even when the component
+Missing async cases are a contract coverage gap even when the component
 renders correctly today.
 
 Treat accessibility statements as contract rather than style: keyboard

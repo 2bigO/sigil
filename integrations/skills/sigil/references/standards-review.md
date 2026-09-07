@@ -8,7 +8,7 @@
 Use this procedure when creating, reviewing, or preparing Sigil for
 implementation. It classifies repository and external-guidance evidence for
 design conversation and compiler-driven design review without duplicating the
-compiler's semantic-readiness or architecture-design judgment.
+native compiler's Design coherence and world comparison.
 
 ## Contents
 
@@ -47,36 +47,23 @@ modularity score.
 
 ## 2. Design-Evidence Preparation
 
-### Review And Ordering
+### Review and native evidence
 
-`sigil check` validates deterministic syntax, configuration, resolution,
-workspace relationships, and diagnostics. It does not establish semantic,
-architectural, or design validity and never determines a ReviewGate result.
+`sigil check` validates syntax, configuration, resolution and language diagnostics.
+It does not establish semantic coherence or implementation delivery. Inspect exact
+Sigil prose, evidence and material decisions, then use
+[Design review](design-compilation-review.md) for native semantic evidence.
 
-After deterministic validation completes without error diagnostics, inspect the
-exact Sigil prose, including ungrouped interface content, to classify evidence,
-surface conflicts, and resolve material design decisions. Then follow
-`references/design-compilation-review.md`. The compiler owns semantic-readiness
-and architecture-design evaluation for the exact candidate or written source.
+Do not assign a duplicate host semantic color or modularity score. Investigate
+suspected findings before calling them defects. Correct established problems
+within authorization and ask about material intent only when evidence cannot
+resolve it. Missing reconstruction leaves semantic verification unavailable;
+it does not prohibit useful authoring or concept grouping.
 
-Do not independently assign a duplicate host readiness status or modularity
-score. Do not begin concept reuse discovery, concept grouping, identifier
-proposals, or model-assisted glossary candidate extraction until design
-compilation is green or every yellow finding has been explicitly reviewed and
-accepted as nonblocking for the selected scope.
-
-When evidence suggests a possible problem, investigate and classify it before
-declaring correction required. A suspicion does not automatically enter
-correction or block unrelated work. When a material problem is confirmed, use
-`references/design-conversation.md` in correction mode: preserve affected
-Sigil, identify exact evidence and risk, ask one focused correction decision,
-and block synthesis, approval, and implementation until resolution.
-
-Once the pre-grouping compilation is green or reviewed yellow, follow
-`references/authoring-conventions.md` for missing concept identifiers. After an
-written grouping change, rerun deterministic validation and design compilation.
-When grouping is unnecessary, the post-write design compilation directly
-controls extraction eligibility.
+Follow [authoring conventions](authoring-conventions.md) for concept identities.
+After changes, rerun structural validation and refresh native input/projections
+before relying on a current semantic report. Glossary work follows task scope and
+material terminology needs, not a compiler-stage sequence.
 
 ### Decision-Rationale Coverage
 
@@ -101,9 +88,8 @@ Report the audit as:
 
 When a confirmed choice lacks a decision record, add the exact decision block to
 the semantic proposal. When its governing rationale is unresolved or conflicts
-with evidence, return to DesignConversation in the applicable mode. Missing
-coverage blocks proposal approval and prevents design evidence from being
-submitted as ready for ReviewGate.
+with evidence, return to DesignConversation in the applicable mode. Record missing rationale as authored work; do not treat a native gate as
+proof that rationale or implementation delivery is complete.
 
 After validated written Sigil is updated, repeat the audit against the exact resulting
 semantic units. Successful CLI validation never substitutes for this audit.
@@ -141,12 +127,9 @@ Imports declare component dependencies. Do not repeat them in `interface`.
 Implementation-hiding rules and forbidden internal access belong in
 `constraints` unless they define an externally observable promise.
 
-Review exact interface prose during design-evidence preparation
-without requiring identifiers first. Treat every
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` warning as a deferred authoring gap. After
-design compilation is green or reviewed yellow, repair it through the
-concept-identifier workflow, then verify during final design compilation that repeated identifiers
-describe one coherent concept and imported provider expands remain outside the
+Review interface meaning and repair missing concept identifiers using accessible
+identities. Validate grouping and use current native evidence; repeated identifiers
+must describe one coherent concept. Imported provider expands remain outside the
 consumer's public dependency context.
 
 For UI components, also check when applicable:
@@ -238,8 +221,7 @@ internally coherent.
 ## 3. Evidence Consumption And Provenance
 
 Use the shared evidence packet rather than creating a second research policy in
-this procedure. Standards review owns interpretation and ReviewGate
-consequences:
+this procedure. Standards review owns interpretation of evidence:
 
 1. verify that the packet is current and applicable to the exact reviewed
    component and environment;
@@ -340,9 +322,8 @@ material problem, enter DesignConversation in correction mode and report:
 
 Keep design review blocked until the confirmed problem is resolved. A confirmed
 material problem cannot be deferred, provisionally
-assumed, or bypassed for approval or implementation. Resolution authorizes
-writing the exact scoped Sigil; it does not make ReviewGate ready for
-implementation.
+assumed, or bypassed for approval or implementation. Resolve dependent changes within existing authorization; ask only about
+material intent that evidence cannot settle.
 
 ### Compatible Guidance
 
@@ -446,11 +427,11 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 Show exact semantic units and their target sections without editing first.
 Include required decision blocks and the decision-rationale coverage map.
 
-### ReviewGate Request
+### Material decisions
 
-State the exact action, scope, change set, and evidence. Ask the user to approve,
-reject, or revise the proposed lines and to resolve any blocking conflict or
-uncertainty.
+Identify exact unresolved intent and its evidence. Ask for the decision needed
+before dependent work. Existing user authorization remains effective for routine
+implementation and correction; compiler results do not authorize unrelated work.
 
 ## 8. Examples
 

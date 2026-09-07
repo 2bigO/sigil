@@ -83,8 +83,8 @@ expand Sigil {
 
     SkillWorkflow {
       The host skill applies semantic judgment, conducts design and review
-      conversations, and uses ReviewGate for scoped approval of Sigil changes and
-      implementation.
+      conversations, and honors the user's existing authorization for scoped
+      Sigil and implementation.
     }
 
     SemanticCompilation {
