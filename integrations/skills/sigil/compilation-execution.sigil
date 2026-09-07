@@ -41,9 +41,9 @@ expand SigilCompilationExecution {
       Retain job.json with the caller and return it unchanged with the worker's
       Turtle for ingestion.
 
-      The external frontend/host spawns independent workers in the background,
-      records their process/job evidence and invokes sigilc ingest with the matching
-      source, job.json and returned Turtle.
+      The external coding agent spawns independent workers in the background, records
+      their process/job evidence and invokes sigilc ingest with the matching source,
+      job.json and returned Turtle.
 
       Design workers receive design.json and ontology.json.
 
@@ -118,9 +118,9 @@ expand SigilCompilationExecution {
 
       Missing Design reconstruction leaves comparison unavailable.
 
-      Missing published worlds or missing frontend worker/ingest interaction keeps
-      the request at the reconstruction gate; no later task or temporary mechanism
-      retirement is allowed.
+      Missing published worlds or missing coding-agent worker/ingest interaction
+      keeps the request at the reconstruction gate; no later task or temporary
+      mechanism retirement is allowed.
 
       Useful external implementation work may continue while that semantic
       prerequisite is absent.

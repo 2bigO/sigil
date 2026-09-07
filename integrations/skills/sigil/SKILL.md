@@ -53,7 +53,7 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    queued/ready release and current native gate state.
 2. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
 3. Prepare each stale Design source. An external Design worker reconstructs it;
-   the frontend/host must spawn that worker in the background, retain its
+   the coding agent must spawn that worker in the background, retain its
    process/job evidence, and ingest its returned Turtle with the original
    caller-held job descriptor. A preparation without a real worker return and
    matching `sigilc ingest` invocation is not semanticization evidence.
@@ -71,7 +71,7 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
 
 Do not advance the reconstruction task until the current scope has Design and
 Implementation `.egg` projections plus `index.json`, every selected row is
-fresh, and a real frontend run records the background worker spawn and each
+fresh, and a real coding-agent run records the background worker spawn and each
 matching `sigilc ingest` command/exit. `.sigil/worlds/` containing only its lock,
 native preparation, fixtures, or hand-authored Turtle leaves this gate open.
 

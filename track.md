@@ -48,17 +48,17 @@ temporary state while either criterion is false:
    that every selected row is `fresh`. The directory and lock file alone do not
    satisfy this criterion; an empty cache is evidence that publication has not
    happened.
-2. A real frontend run has spawned the independent background workers and its
+2. A real coding-agent run has spawned the independent background workers and its
    evidence records each returned Turtle being passed to `sigilc ingest` with
    the matching source and caller-held `job.json`. The evidence must include
-   the frontend/worker invocation, worker identity or process record, ingest
+   the coding-agent worker invocation, worker identity or process record, ingest
    command and exit, and the corresponding published projection. Preparation,
-   fixtures, hand-authored Turtle, or a native command run without the frontend
+   fixtures, hand-authored Turtle, or a native command run without the coding-agent
    worker interaction do not satisfy this criterion.
 
-`sigilc` intentionally does not schedule workers. The external frontend/host
+`sigilc` intentionally does not schedule workers. The external coding agent
 owns spawning and isolation, while the native compiler owns validation and
-publication. If the frontend cannot produce this interaction evidence, keep
+publication. If the coding agent cannot produce this interaction evidence, keep
 the loop at `LOOP-RECONSTRUCTION` and turn the observed capability gap into
 authored Design and implementation work; do not skip the gate or build a
 tracker, scheduler, or compatibility adapter. Only after both criteria are
@@ -134,7 +134,7 @@ work. Preserve their named reasons when the external round resumes.
 
 Cycle 39 made the reconstruction gate explicit after direct inspection of the
 real workspace. `tree -a .sigil` shows `worlds/.lock` only: there is no
-`worlds/index.json` and no Design or Implementation `.egg`. No frontend run has
+`worlds/index.json` and no Design or Implementation `.egg`. No coding-agent run has
 yet been observed spawning a background worker, returning Turtle, or invoking a
 matching `sigilc ingest`. `artifacts/acceptance-gate-39.json` records both
 criteria as unsatisfied. Keep `LOOP-RECONSTRUCTION` locked at this point; native
@@ -375,7 +375,7 @@ Already observed during this refactor:
   packages, workspace/publishing registrations, old bridge builder and obsolete
   configuration schema are now deleted. CI builds the current native and language
   executables for the retained editor tests.
-* Deleting the packages exposed a frontend guidance gap: the bundled skill and
+* Deleting the packages exposed a coding-agent guidance gap: the bundled skill and
   public guides still prescribed removed commands, and the validator accepted
   them. Skill 0.9.0 now uses direct native commands and preserves external worker
   isolation. The old compilation/retry/profile and extra approval workflows are
