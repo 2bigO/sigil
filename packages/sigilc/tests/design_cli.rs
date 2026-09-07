@@ -368,7 +368,7 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
     root.write(
         "evidence.json",
         br#"{
-          "version": 2,
+          "version": 1,
           "preparation": "job",
           "job": "job/job.json",
           "worker": "worker/process.json",
@@ -395,11 +395,13 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
         ],
     );
     assert_eq!(rejected.status.code(), Some(3));
-    assert!(String::from_utf8_lossy(&rejected.stderr).contains("exactly version"));
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr).contains("start from prepare's evidence.json")
+    );
     root.write(
         "evidence.json",
         br#"{
-          "version": 2,
+          "version": 1,
           "preparation": "job",
           "job": "job/job.json",
           "worker": "worker/process.json",
@@ -429,7 +431,7 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
     root.write(
         "evidence.json",
         br#"{
-          "version": 2,
+          "version": 1,
           "preparation": "job",
           "job": "job/job.json",
           "worker": "worker/process.json",
@@ -457,7 +459,7 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
         0,
     );
     assert_eq!(accepted["artifact"]["complete"], true);
-    assert_eq!(accepted["artifact"]["version"], 2);
+    assert_eq!(accepted["artifact"]["version"], 1);
     assert_eq!(
         accepted["artifact"]["attempts"].as_array().unwrap().len(),
         2
@@ -529,6 +531,11 @@ fn preparation_omits_unbound_design_files_and_never_overwrites_a_directory() {
     assert!(!prepared.contains("unrelated.sigil"));
     assert!(root.0.join("job/job.json").is_file());
     assert!(root.0.join("job/ontology.json").is_file());
+    let evidence: Value =
+        serde_json::from_slice(&std::fs::read(root.0.join("job/evidence.json")).unwrap()).unwrap();
+    assert_eq!(evidence["version"], 1);
+    assert_eq!(evidence["job"], "job/job.json");
+    assert!(evidence["attempts"][0]["exit"].is_null());
     assert_eq!(
         run(
             &root,

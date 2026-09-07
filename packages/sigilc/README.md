@@ -49,7 +49,7 @@ sigilc entities --frontend frontend.json
 
 Ingest is the accept/reject boundary for each external reconstruction. The
 coding agent must spawn a subagent with the matching tool parameters; the
-subagent records every Turtle/result attempt in version-2 `--evidence` JSON,
+subagent fills the generated artifact-evidence `--evidence` JSON,
 reads each emitted `hint:`, repairs only its temporary Turtle and repeats the
 same tool call until exit 0 publishes or it reports a blocker. Never edit source
 bytes or `job.json`; recapture and prepare a fresh isolated round when a bound
@@ -79,7 +79,7 @@ sources, config and external preparations. Descriptors and external worker orche
 in a compiler job registry.
 
 The optional `--evidence FILE` input records the external worker boundary without
-putting process metadata in Turtle. It is version 2 JSON with `preparation`,
+putting process metadata in Turtle. `prepare` emits its schema-1 template with `preparation`,
 `job`, `worker`, `ingest`, and an ordered `attempts` array; each attempt names a
 Turtle reference and an ingest-result reference. Rejected attempts carry their
 actual nonzero exit. The final submitted attempt names the supplied `--turtle`

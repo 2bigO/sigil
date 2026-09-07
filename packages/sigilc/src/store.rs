@@ -14,6 +14,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub const ARTIFACT_EVIDENCE_VERSION: u32 = 1;
+
 const WORLDS: &str = ".sigil/worlds";
 const INDEX: &str = ".sigil/worlds/index.json";
 const WORKFLOW_STATE: &str = ".sigil/workflow/request.json";
@@ -93,7 +95,7 @@ const MAX_ARTIFACT_ATTEMPTS: usize = 128;
 
 impl ArtifactEvidenceInput {
     pub fn validate(&self) -> Result<(), String> {
-        if self.version != 2 {
+        if self.version != ARTIFACT_EVIDENCE_VERSION {
             return Err("unsupported artifact evidence version".into());
         }
         for (name, value) in [
@@ -170,7 +172,7 @@ impl ArtifactEvidence {
             exit: 0,
         });
         Ok(Self {
-            version: 2,
+            version: ARTIFACT_EVIDENCE_VERSION,
             binding: current.fingerprint(),
             generation: generation.into(),
             preparation: input.preparation,
@@ -187,7 +189,7 @@ impl ArtifactEvidence {
     }
 
     fn validate_for(&self, binding: &Binding, generation: &str, key: &str) -> Result<(), String> {
-        if !matches!(self.version, 1 | 2)
+        if self.version != ARTIFACT_EVIDENCE_VERSION
             || self.binding != binding.fingerprint()
             || self.generation != generation
             || (self.complete && !checksum(&self.job_fingerprint))

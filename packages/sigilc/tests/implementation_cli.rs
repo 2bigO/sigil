@@ -163,6 +163,13 @@ fn worker_gets_only_three_bound_inputs_and_neighbor_edits_do_not_reject_its_job(
         0,
     );
     assert_eq!(prepared["inputs"].as_array().unwrap().len(), 3);
+    assert_eq!(prepared["evidence_template"], "worker/evidence.json");
+    let evidence: Value =
+        serde_json::from_slice(&std::fs::read(root.0.join("worker/evidence.json")).unwrap())
+            .unwrap();
+    assert_eq!(evidence["version"], 1);
+    assert_eq!(evidence["job"], "worker/job.json");
+    assert!(evidence["attempts"][0]["exit"].is_null());
     assert_eq!(
         std::fs::read(root.0.join("worker/source")).unwrap(),
         b"\xff\0direct target bytes"

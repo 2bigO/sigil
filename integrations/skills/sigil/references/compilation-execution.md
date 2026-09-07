@@ -140,7 +140,7 @@ Every authored unit IRI must have exactly one `rdf:type sigil:Contract`; do not
 type a unit as Goal, Interface, Constraint or Case. Preserve the prepared unit
 IDs and attach their section/description predicates to the Contract resource.
 Write the current result to <ATTEMPT_TTL>. Before each tool call, update
-version-2 JSON at <EVIDENCE_JSON>. Its `preparation`, `job`, `worker` and
+the prepared artifact-evidence JSON at <EVIDENCE_JSON>. Its `preparation`, `job`, `worker` and
 `ingest` fields are single reference strings. Its ordered `attempts` records
 every rejected Turtle/result reference with its actual nonzero exit, followed by
 the submitted Turtle/result reference with `"exit": null`. Call the provided

@@ -8,7 +8,9 @@ use crate::{
     request::{self, CompletionDossierInput, ItemState, LifecycleState, RequestDefinition},
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},
-    store::{ArtifactEvidenceInput, Freshness, Job, LockedStore, StoreLimits},
+    store::{
+        ARTIFACT_EVIDENCE_VERSION, ArtifactEvidenceInput, Freshness, Job, LockedStore, StoreLimits,
+    },
     turtle::{self, TurtleLimits},
 };
 use serde::Serialize;
@@ -249,9 +251,14 @@ pub fn run(args: &[&str]) -> Output {
                 write_new(&out.join("ontology.json"), &turtle::ontology_document())
                     .map_err(runtime)?;
                 write_new(&out.join("job.json"), &job).map_err(runtime)?;
+                write_new(
+                    &out.join("evidence.json"),
+                    &artifact_evidence_template(out, &out.join("job.json")),
+                )
+                .map_err(runtime)?;
                 json(
                     0,
-                    &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"input_fingerprint":job.binding.fingerprint()}),
+                    &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"evidence_template":out.join("evidence.json"),"input_fingerprint":job.binding.fingerprint()}),
                 )
             }
             "ingest" => {
@@ -893,9 +900,14 @@ fn run_implementation(
             write_new(&out.join("ontology.json"), &turtle::ontology_document()).map_err(runtime)?;
             write_new(&out.join("catalog.json"), catalog).map_err(runtime)?;
             write_new(&out.join("job.json"), &job).map_err(runtime)?;
+            write_new(
+                &out.join("evidence.json"),
+                &artifact_evidence_template(out, &out.join("job.json")),
+            )
+            .map_err(runtime)?;
             return json(
                 0,
-                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"input_fingerprint":job.binding.fingerprint()}),
+                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"evidence_template":out.join("evidence.json"),"input_fingerprint":job.binding.fingerprint()}),
             );
         }
         let job_ref = options["--job"];
@@ -1035,6 +1047,21 @@ fn write_bytes_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
     file.write_all(bytes).map_err(|e| e.to_string())
 }
 
+fn artifact_evidence_template(out: &Path, job: &Path) -> serde_json::Value {
+    serde_json::json!({
+        "version": ARTIFACT_EVIDENCE_VERSION,
+        "preparation": out,
+        "job": job,
+        "worker": "replace-with-worker-record",
+        "ingest": "replace-with-exact-ingest-command",
+        "attempts": [{
+            "turtle": "replace-with-submitted-turtle",
+            "result": "replace-with-ingest-result",
+            "exit": null
+        }]
+    })
+}
+
 fn runtime(message: String) -> (u8, String) {
     match ingest_hint(&message) {
         Some(hint) => (3, format!("{message}\nhint: {hint}")),
@@ -1110,7 +1137,7 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     }
     if message.contains("artifact evidence") {
         return Some(
-            "write version 2 evidence JSON with exactly version, preparation, job, worker, ingest and attempts at top level; version is numeric 2, the next four are reference strings, and result belongs only in each attempt. Rejected Turtle/result attempts carry actual nonzero exits; append one final submitted Turtle/result attempt with exit null, which native ingest records as exit 0 only after acceptance",
+            "start from prepare's evidence.json and replace its placeholders. Exact shape: {\"version\":1,\"preparation\":\"reference\",\"job\":\"reference\",\"worker\":\"reference\",\"ingest\":\"reference\",\"attempts\":[{\"turtle\":\"reference\",\"result\":\"reference\",\"exit\":null}]}. Each earlier rejected attempt has a numeric exit; only the final submitted attempt has exit null",
         );
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {
@@ -1203,6 +1230,15 @@ mod tests {
         let hint = ingest_hint("interpretation unit has conflicting relations: urn:sigil:unit:a")
             .expect("conflicting unit relations have an actionable repair hint");
         assert!(hint.contains("at most one sigil:relation"));
+    }
+
+    #[test]
+    fn artifact_evidence_hint_shows_the_initial_schema() {
+        let hint = ingest_hint("artifact evidence requires at least one ingest attempt")
+            .expect("artifact evidence failures have an actionable repair hint");
+        assert!(hint.contains("evidence.json"));
+        assert!(hint.contains("\"version\":1"));
+        assert!(hint.contains("\"exit\":null"));
     }
 }
 fn json(code: u8, value: &impl Serialize) -> Output {

@@ -72,7 +72,7 @@ one.
 3. Prepare each stale Design source. The coding agent must spawn a subagent in
    the background using the exact prompt and ingest-tool parameters in the
    durable compilation reference. The subagent retains process/job evidence,
-   writes its temporary Turtle and version-2 evidence manifest, and calls the
+   writes its temporary Turtle and prepared artifact-evidence manifest, and calls the
    matching `sigilc ingest --evidence` tool itself. On a rejection, it reads the
    exact native error and actionable hint, records its actual nonzero exit,
    appends a pending attempt to the manifest and calls the tool again until
