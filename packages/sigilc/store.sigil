@@ -39,8 +39,11 @@ component SigilProjectionStore {
     DesignCommands {
       Expose prepare, ingest, stale and compile for Design and entities for its
       catalog. Accept an explicit frontend bundle and workspace root. Preparation
-      writes only bound Design context, fixed ontology and a job descriptor into
-      a new caller-selected directory; refuse to overwrite existing directories.
+      writes only bound Design context, fixed ontology, a job descriptor and a
+      artifact-evidence template into a new caller-selected directory;
+      refuse to overwrite existing directories. The template binds its preparation
+      and job references, and makes the required final pending attempt shape
+      explicit without supplying worker, ingest, Turtle or result evidence.
       Ingestion checks the job source and current inputs before publication.
       Compile Design exits zero for Coherent (green) or Loose (yellow with
       warnings), and one only for Disjoint (red). Invalid options exit two;
@@ -81,11 +84,17 @@ component SigilProjectionStore {
     }
 
     NativeArtifactEvidence {
-      Accept an optional version-2 evidence manifest alongside a matching ingest
+      Accept an optional artifact-evidence manifest alongside a matching ingest
       job. Require the final pending attempt to name the submitted Turtle with
       exit null; native ingest writes its actual accepted exit zero. Preserve
       earlier rejected attempts with their observed exits without interpreting
       their text.
+
+      Prepare emits a structurally valid template with exactly the manifest
+      fields, one pending attempt with `exit: null`, and nonempty replacement
+      references. A worker replaces those placeholder references, records each
+      rejected attempt with its numeric exit, and keeps exactly one final pending
+      attempt before ingest. Native diagnostics show the same minimal JSON shape.
       Bind the record to the accepted source fingerprint, generation and exact
       projection key. Expose every fresh source through projection index and
       expanded-world reports: complete records carry their links, while a null
