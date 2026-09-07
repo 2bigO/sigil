@@ -272,6 +272,11 @@ Already observed during this refactor:
   recovered the same state. A fresh-session parity rehearsal removed only the
   duplicate `delivery queue.next_task` pointer; delivery/check/deletion evidence
   stays external. Do not repurpose the projection index or add an adapter.
+* The retained Linux x86_64 release build and relocated smoke now exercise
+  `request create/status` as well as the six named gate states. The smoke uses
+  an absolute two-binary installation with no checkout or host tools. Other
+  retained targets still need their matching runners; a cross-target check is
+  not runtime evidence.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
