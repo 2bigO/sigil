@@ -440,8 +440,22 @@ Already observed during this refactor:
   covered by the retained CLI source-selection test: only `config.json`,
   `local.json`, and `glossary.json` are discoverable below `.sigil`. Core no
   longer knows a generated-view path. This is evidence for `REMOVE-06`, not a
-  reason to add another helper or compatibility layer. The remaining live
-  contract documentation and native platform execution tasks stay active.
+  reason to add another helper or compatibility layer. Native platform
+  execution and final information/evidence parity remain active.
+* **Cycle 64 live-contract observation closed the documentation gap.** The
+  active CLI specification, core configuration/workspace contracts, and README
+  now describe source TypeScript/Deno modules, the standalone `sigil` language
+  CLI beside native `sigilc`, generic host-local tools, and direct native scope,
+  freshness, ingestion, and gate commands. A fresh Design export invalidated
+  only the five changed or dependency-invalidated authored rows; five isolated
+  workers were prepared and accepted, while the Design catalog fingerprint
+  stayed unchanged. Complete and focused stale reports are fresh, comparisons
+  remain Design `Loose` / Implementation `Converged`, and scope 2 retains
+  unresolved warning obligations. Preserve the current native compare result
+  rather than treating a worker-dependent warning count as a fixed delivery
+  measure. Do not reopen the documentation task or rebuild
+  unchanged projections; continue with native platform evidence, final
+  deletion/net-deletion audit, and fresh-session information/evidence parity.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
