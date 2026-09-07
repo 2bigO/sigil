@@ -162,6 +162,10 @@ try {
   );
   assert(commands.length >= 12, "Native protocol examples missing");
   for (const command of commands) {
+    // Attempt-2 lines document the fresh-worker repair round. Running them
+    // after the fixture's accepted attempt-1 would correctly hit the native
+    // one-shot job-generation guard, so leave that retry to the live loop.
+    if (command.includes("attempt-2")) continue;
     if (command.startsWith("sigilc ingest")) {
       const turtle = command.split("--turtle ")[1].replace(
         "/tmp/sigil-run",
@@ -196,7 +200,11 @@ try {
         "a.sigil",
         "b.sigil",
       );
-      await Deno.writeTextFile(join(runDir, "design-b.ttl"), "");
+      const secondTurtle = second.split("--turtle ")[1].replace(
+        "/tmp/sigil-run",
+        runDir,
+      );
+      await Deno.writeTextFile(secondTurtle, "");
       await run(second);
     }
     if (command.startsWith("sigilc compile design")) {
