@@ -1887,6 +1887,13 @@ before classifying it as an evidence limit. Expand the versioned selection and
 rerun stale-first when the owner is missing; never satisfy the obligation by
 hand-authored Turtle.
 
+For the current native scope, that owner audit covers `design.rs` for
+`CurrentDesign`, `implementation.rs` for `CurrentImplementation`,
+`request.rs` for the ordered request lifecycle, `cli.rs` for the Design and
+Implementation command interfaces, and `store.rs` for publication, assembly,
+history and cleanup. The list is an ownership check for this scope, not a
+requirement to semanticize unrelated modules.
+
 ---
 
 # 33. Minimal sigilc CLI
