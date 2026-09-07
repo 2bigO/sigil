@@ -93,11 +93,11 @@ const native = resolve(
 const scratch = await Deno.makeTempDir({ prefix: "sigil skill examples 空 " });
 try {
   const workspace = join(scratch, "workspace");
-  const runDir = join(scratch, "external inputs");
+  const runDir = join(workspace, ".sigil", "tmp", "skill-fixture");
   await Deno.mkdir(join(workspace, ".sigil"), { recursive: true });
   await Deno.mkdir(join(workspace, "architecture"));
   await Deno.mkdir(join(workspace, "src"));
-  await Deno.mkdir(runDir);
+  await Deno.mkdir(runDir, { recursive: true });
   await Deno.writeTextFile(
     join(workspace, ".sigil/config.json"),
     JSON.stringify({
@@ -138,10 +138,12 @@ try {
     let outputPath: string | undefined;
     const redirect = words.indexOf(">");
     if (redirect >= 0) {
-      outputPath = words[redirect + 1].replace("/tmp/sigil-run", runDir);
+      outputPath = words[redirect + 1].replace(".sigil/tmp/<run-id>", runDir);
       words.splice(redirect);
     }
-    const args = words.map((word) => word.replace("/tmp/sigil-run", runDir));
+    const args = words.map((word) =>
+      word.replace(".sigil/tmp/<run-id>", runDir)
+    );
     const result = await new Deno.Command(executable, {
       args,
       cwd: workspace,
@@ -158,20 +160,46 @@ try {
     return JSON.parse(stdout);
   };
   const commands = [...reference.matchAll(/```sh\n([^]*?)\n```/g)].flatMap(
-    (block) => block[1].split("\n").filter((line) => /^sigilc? /.test(line)),
+    (block) =>
+      block[1]
+        .split("\n")
+        .map((line) => line.replace(/^# /, ""))
+        .filter((line) => /^sigilc? /.test(line)),
   );
   assert(commands.length >= 12, "Native protocol examples missing");
   for (const command of commands) {
     // Attempt-2 lines document the fresh-worker repair round. Running them
     // after the fixture's accepted attempt-1 would correctly hit the native
     // one-shot job-generation guard, so leave that retry to the live loop.
-    if (command.includes("attempt-2")) continue;
+    if (
+      command.includes("attempt-2") ||
+      command.startsWith("sigilc request record")
+    ) continue;
     if (command.startsWith("sigilc ingest")) {
-      const turtle = command.split("--turtle ")[1].replace(
-        "/tmp/sigil-run",
+      const turtle = command.split("--turtle ")[1].split(" ")[0].replace(
+        ".sigil/tmp/<run-id>",
         runDir,
       );
       await Deno.writeTextFile(turtle, "");
+      const evidence = command.split("--evidence ")[1].replace(
+        ".sigil/tmp/<run-id>",
+        runDir,
+      );
+      const job = command.split("--job ")[1].split(" ")[0].replace(
+        ".sigil/tmp/<run-id>",
+        runDir,
+      );
+      await Deno.writeTextFile(
+        evidence,
+        JSON.stringify({
+          version: 2,
+          preparation: "fixture/preparation",
+          job,
+          worker: "fixture/subagent",
+          ingest: "fixture/sigilc-ingest",
+          attempts: [{ turtle, result: `${turtle}.result`, exit: null }],
+        }),
+      );
     }
     const report = await run(
       command,
@@ -200,11 +228,34 @@ try {
         "a.sigil",
         "b.sigil",
       );
-      const secondTurtle = second.split("--turtle ")[1].replace(
-        "/tmp/sigil-run",
+      const secondTurtle = second.split("--turtle ")[1].split(" ")[0].replace(
+        ".sigil/tmp/<run-id>",
         runDir,
       );
       await Deno.writeTextFile(secondTurtle, "");
+      const secondEvidence = second.split("--evidence ")[1].replace(
+        ".sigil/tmp/<run-id>",
+        runDir,
+      );
+      const secondJob = second.split("--job ")[1].split(" ")[0].replace(
+        ".sigil/tmp/<run-id>",
+        runDir,
+      );
+      await Deno.writeTextFile(
+        secondEvidence,
+        JSON.stringify({
+          version: 2,
+          preparation: "fixture/preparation",
+          job: secondJob,
+          worker: "fixture/subagent",
+          ingest: "fixture/sigilc-ingest",
+          attempts: [{
+            turtle: secondTurtle,
+            result: `${secondTurtle}.result`,
+            exit: null,
+          }],
+        }),
+      );
       await run(second);
     }
     if (command.startsWith("sigilc compile design")) {
@@ -217,6 +268,22 @@ try {
       equal(report.comparison.implementation, "Converged");
     }
   }
+  const status = await run("sigilc request status --root .");
+  equal(status.request.items[0].state, "converged");
+  await Deno.writeTextFile(
+    join(runDir, "completion.json"),
+    JSON.stringify({
+      version: 1,
+      nativeReports: ["fixture/status"],
+      artifacts: ["fixture/worlds"],
+      delivery: ["fixture/delivery"],
+      deletion: ["fixture/deletion"],
+      checks: ["fixture/checks"],
+    }),
+  );
+  await run(
+    "sigilc request record --root . --dossier .sigil/tmp/<run-id>/completion.json",
+  );
   console.log(
     `Validated skill ${version}: metadata, references and ${commands.length} native command examples (fixtures only).`,
   );
