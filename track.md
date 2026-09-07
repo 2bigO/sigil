@@ -72,10 +72,11 @@ implemented `sigilc request create/status` primitive now persists one ordered
 request, explicit predecessor release, native gate identities and opaque
 external evidence references under `.sigil/workflow/request.json`. The first
 real dogfood recorded `ready → queued`, then `Closed → ready` release for a
-three-item request and recovered it in a fresh process. `.codex-progress` still
-contains delivery/check/deletion evidence and the next removal decision; it no
-longer needs to duplicate ordered scope release state. Use request status on
-each subsequent scoped increment before removing another temporary field.
+three-item request and recovered it in a fresh process. A fresh-session parity
+rehearsal then removed the duplicate `delivery queue.next_task` pointer from
+`.codex-progress`; delivery/check/deletion evidence remains there. Use request
+status on each subsequent scoped increment before removing another temporary
+field.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
@@ -268,9 +269,9 @@ Already observed during this refactor:
   explicit predecessor edges, `ready`/`queued` lifecycle, native gate evidence,
   restart recovery and opaque external evidence references. The three-item
   dogfood observed `first=Closed` releasing both dependents; a fresh process
-  recovered the same state. Do not repurpose the projection index or add an
-  adapter. The next task removes only the duplicate delivery ordering/release
-  fields after this parity evidence.
+  recovered the same state. A fresh-session parity rehearsal removed only the
+  duplicate `delivery queue.next_task` pointer; delivery/check/deletion evidence
+  stays external. Do not repurpose the projection index or add an adapter.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
@@ -401,12 +402,13 @@ Sigil semantic predicates. Reopen verified work when relevant inputs change.
 
 No tracked task package, database, daemon, scheduler, dashboard or provider
 adapter. The generated native scoped-request ledger is the one narrow workflow
-state exception needed to retire the temporary delivery queue; it is not a
-generic task ontology or worker runtime. Add a disposable query only for an
-actual unanswered question; remove it as soon as the native flow can answer
-that question. Keep delivery and semantic evidence separate, measure real net
-code deletion against the original baseline, and exclude moves, copied
-dependencies and abandoned edits from gains.
+state exception that retires duplicate scoped ordering/release bookkeeping; it
+is not a generic task ontology or worker runtime. External delivery, checks and
+deletion evidence remain in temporary state until their own parity exists. Add
+a disposable query only for an actual unanswered question; remove it as soon as
+the native flow can answer that question. Keep delivery and semantic evidence
+separate, measure real net code deletion against the original baseline, and
+exclude moves, copied dependencies and abandoned edits from gains.
 Store shared selection policy once, not on every requirement row. Scope reports
 must eventually replace manual comparison membership; requirement IDs and file
 lists recording actual delivery evidence are not themselves compiler selectors.
@@ -504,7 +506,7 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
 | Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |
 | Tracker-maintained semantic colors | Named native gate states and diagnostics | Retired after native editor adoption with actual tools and real refactor use. Read native names and unavailable states; no absence-of-diagnostics color algorithm. Independent current reconstruction is still needed for final convergence. |
-| Bespoke delivery/work queue | Implemented `sigilc request create/status` (`SigilScopedRequest`) for ordered scope lifecycle, plus explicit external check/deletion evidence references | Use the ledger on the next real increment. In the following task delete only duplicate queue ordering/release fields that parity proves redundant; retain delivery/check/deletion evidence and external scheduling. Yellow cannot establish delivery. |
+| Bespoke delivery/work queue | Implemented `sigilc request create/status` (`SigilScopedRequest`) for ordered scope lifecycle, plus explicit external check/deletion evidence references | Retired duplicate `delivery queue.next_task` after fresh-session parity (`artifacts/request-parity-37.json`). Keep requirement delivery state and external delivery/check/deletion evidence; use native request status on later increments. Yellow cannot establish delivery. |
 
 For every row, retirement requires the same necessary information and supporting
 evidence to be recoverable through the Sigil flow. If it cannot, that is a Design

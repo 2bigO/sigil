@@ -1967,9 +1967,10 @@ approval. `sigilc` does not launch, schedule, retry or accept a hand-written
 completion flag. `request status` recomputes the scoped native result and
 recovers the same request and released order after a restart. Real three-item
 frontend dogfood demonstrated `ready → queued`, `Closed → ready` release and
-restart recovery; that evidence is recorded in the running loop. The next real
-task may therefore remove duplicate temporary ordering/release fields while
-retaining external delivery/check/deletion evidence.
+restart recovery; that evidence is recorded in the running loop. A fresh-session
+parity rehearsal removed the duplicate `delivery queue.next_task` pointer from
+`.codex-progress`; external delivery/check/deletion evidence remains outside the
+native ledger.
 
 ---
 
