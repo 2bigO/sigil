@@ -239,7 +239,9 @@ Already observed during this refactor:
   initially resumed toward export extraction and deletion even though native
   scope was the newly requested first task. Making the priority explicit in the
   temporary queue exposed a missing product requirement: a set of files cannot
-  convey what comes first. `SigilComparisonScope::FocusOrder` now requires
+  convey what comes first. The authored
+  [ObservedPriority case](packages/sigilc/scope.sigil) records this discovery;
+  `SigilComparisonScope::FocusOrder` now requires
   caller-defined order in native scope output, separate from membership and
   semantic cache identity. `S32` implemented and tested this requirement; real
   native output now recovers scope/export/editor priority without a separate

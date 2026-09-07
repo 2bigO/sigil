@@ -101,8 +101,12 @@ expand SigilComparisonScope {
 
     ObservedPriority {
       In the refactor loop, scope implementation had to be placed before export
-      extraction and legacy deletion. An unordered set could name the same work
-      but could not communicate that decision. Preserve equivalent caller-defined
+      extraction and legacy deletion. Making that order explicit in the temporary
+      Todo list exposed a requirement through real use: unordered membership
+      could name the same work but could not communicate what comes first.
+      This observation motivates FocusOrder; use native output on subsequent
+      work and retire duplicate focus-priority bookkeeping once it supplies the
+      same information. Preserve equivalent caller-defined
       priority in native scope output so a resumed external loop can recover it.
       Selecting roots A then B reports A first. Reprioritizing B then A reports
       B first without invalidating otherwise identical per-source projections.
