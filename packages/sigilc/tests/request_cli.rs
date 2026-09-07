@@ -434,3 +434,49 @@ fn request_definition_rejects_unknown_or_late_predecessors() {
     assert_eq!(output.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&output.stderr).contains("must precede"));
 }
+
+#[test]
+fn request_rearrange_is_advertised_and_reorders_active_items() {
+    let root = workspace();
+    request(
+        &root,
+        &[
+            "request",
+            "create",
+            "--frontend",
+            "frontend.json",
+            "--definition",
+            "request.json",
+        ],
+        0,
+    );
+    let before = request(&root, &["request", "status"], 0);
+    let before_fingerprint = before["request"]["requestFingerprint"].clone();
+
+    let rearranged = request(
+        &root,
+        &["request", "rearrange", "--order", "first,third,second"],
+        0,
+    );
+    let ids = rearranged["request"]["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item["id"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(ids, ["first", "third", "second"]);
+    assert_ne!(
+        rearranged["request"]["requestFingerprint"],
+        before_fingerprint
+    );
+
+    let help = Command::new(env!("CARGO_BIN_EXE_sigilc"))
+        .arg("--help")
+        .output()
+        .unwrap();
+    assert_eq!(help.status.code(), Some(0));
+    assert!(
+        String::from_utf8_lossy(&help.stdout)
+            .contains("request rearrange --order ID,ID,... [--root DIR]")
+    );
+}
