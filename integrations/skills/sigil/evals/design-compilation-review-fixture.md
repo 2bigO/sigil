@@ -12,7 +12,7 @@ Expected behavior:
 - Preserve requested priority; do not recreate a target-ranking or priority table.
 - Read Loose with exit 0 as yellow; retain its warnings without a new approval gate.
 - Preserve unavailable comparison and its reason; do not promote the old report.
-- Prepare stale sources for independent external workers using native inputs.
+- Prepare stale sources and spawn a subagent for each using native inputs.
 - Distinguish scope inspection, current semantic evidence and whole-task delivery.
 - Use observed missing information to improve its native owner, then adopt the
   replacement on real work before retiring duplicate temporary bookkeeping.

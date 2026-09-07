@@ -1,6 +1,6 @@
 # Semantic Worlds implementation and replacement loop
 
-This is the external agent's working procedure for implementing [compile.md](compile.md).
+This is the coding agent's working procedure for implementing [compile.md](compile.md).
 It is not a Sigil feature, harness runtime, scheduler, or new compiler protocol.
 The user supplies an absolute `STATE_DIR`; until Sigil can replace the temporary
 tracking mechanisms, that folder is the resumable operational state.
@@ -56,8 +56,8 @@ temporary state while either criterion is false:
    fixtures, hand-authored Turtle, or a native command run without the coding-agent
    worker interaction do not satisfy this criterion.
 
-`sigilc` intentionally does not schedule workers. The external coding agent
-owns spawning and isolation, while the native compiler owns validation and
+`sigilc` intentionally does not schedule workers. The coding agent must spawn a
+subagent and owns its isolation, while the native compiler owns validation and
 publication. If the coding agent cannot produce this interaction evidence, keep
 the loop at `LOOP-RECONSTRUCTION` and turn the observed capability gap into
 authored Design and implementation work; do not skip the gate or build a
@@ -195,8 +195,10 @@ directory selected by the external caller:
 ```sh
 sigil export design . > frontend.json
 sigilc stale design --frontend frontend.json
+# Preserve every fresh row. Reprepare and spawn a subagent only for rows
+# reported stale, missing, or dependency-invalid.
 sigilc prepare design --frontend frontend.json --source path/to/contract.sigil --out design-job
-# External Design worker receives design.json and ontology.json.
+# Spawn a subagent with only design.json and ontology.json.
 # Caller retains job.json; after the worker returns result.ttl:
 sigilc ingest design --frontend frontend.json --source path/to/contract.sigil --job design-job/job.json --turtle result.ttl
 sigilc compile design --frontend frontend.json
@@ -215,7 +217,7 @@ Once the catalog is current, use the independent Implementation flow:
 
 ```sh
 sigilc prepare implementation --frontend frontend.json --source src/file.ext --out implementation-job
-# External isolated worker receives ONLY source, ontology.json, catalog.json.
+# Spawn a subagent in isolation with ONLY source, ontology.json, catalog.json.
 # Caller retains job.json; after the worker returns implementation.ttl:
 sigilc ingest implementation --frontend frontend.json --source src/file.ext --job implementation-job/job.json --turtle implementation.ttl
 sigilc stale implementation --frontend frontend.json --selection selection.json
@@ -276,7 +278,7 @@ reconstruction.
 4. **Dogfood each applicable primitive on actual work.** Use preparation,
    ingestion, inspection and comparison directly where their prerequisites hold.
    Distinguish real repository results, fixed fixtures, unavailable prerequisites
-   and untried operations. External workers own model calls and isolation.
+   and untried operations. Spawned subagents own model calls and isolation.
    A semanticization pass is not complete while a selected source is `missing`,
    `modified`, or otherwise not fresh in the native world index. Empty
    `.sigil/worlds/` is valid initialization but proves that no current projection
@@ -399,7 +401,7 @@ Already observed during this refactor:
   executables for the retained editor tests.
 * Deleting the packages exposed a coding-agent guidance gap: the bundled skill and
   public guides still prescribed removed commands, and the validator accepted
-  them. Skill 0.9.0 now uses direct native commands and preserves external worker
+  them. Skill 0.9.0 now uses direct native commands and preserves subagent
   isolation. The old compilation/retry/profile and extra approval workflows are
   deleted. The validator shrank from 1,864 lines to executable documentation
   checks: it runs the 12 native command examples on disposable fixtures, including

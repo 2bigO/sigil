@@ -51,8 +51,8 @@ check outcomes, required unrun checks and known missing behavior visible.
 Follow [native compilation execution](compilation-execution.md) with the intended
 complete selection or a clearly identified focused increment.
 
-After the coding round, prepare current inputs for independent external workers.
-Each Implementation worker sees only captured source, fixed ontology and frozen
+After the coding round, prepare current inputs and spawn a subagent for each
+stale source. Each Implementation subagent sees only captured source, fixed ontology and frozen
 identity catalog, with no Design relationships or neighboring code. Ingest its
 returned Turtle; do not write self-confirming assertions as verification.
 

@@ -82,8 +82,8 @@ expand SigilImplementationWorkflow {
     ImplementationAlignment {
       Run applicable checks for behavior, dependents and integration.
 
-      Capture fresh inputs after coding; independent external workers reconstruct
-      each selected source using only native prepared inputs.
+      Capture fresh inputs after coding; the coding agent must spawn a subagent for
+      each selected stale source using only native prepared inputs.
 
       Ingest returned Turtle and inspect the native comparison.
 

@@ -58,7 +58,8 @@ expand SigilDesignCompilationReview {
       Catalog availability is a native decision; a missing catalog cannot be replaced
       by a handwritten identity list or an assumed green report.
 
-      Human product decisions and external worker orchestration remain external.
+      Human product decisions remain external; the coding agent must spawn a subagent
+      for reconstruction and retain its isolation evidence.
     }
   }
 
