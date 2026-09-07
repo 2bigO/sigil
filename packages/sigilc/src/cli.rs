@@ -342,6 +342,12 @@ pub fn run(args: &[&str]) -> Output {
 }
 
 fn run_request(args: &[&str]) -> Output {
+    if args == ["request", "rearrange", "--help"] {
+        return json(
+            0,
+            &serde_json::json!({"usage":"sigilc request rearrange --order ID,ID,... [--root DIR]","description":"reorder every active request item while preserving predecessor validity"}),
+        );
+    }
     let action = match args {
         [
             "request",
