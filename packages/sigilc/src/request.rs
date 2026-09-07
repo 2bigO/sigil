@@ -310,6 +310,51 @@ pub fn fingerprint(definition: &RequestDefinition) -> Result<String, String> {
     Ok(crate::sources::hash(&bytes))
 }
 
+pub fn rearrange(state: &mut PersistedRequest, order: &[String]) -> Result<(), String> {
+    if order.len() != state.definition.items.len() {
+        return Err("rearrange order must name every scoped request item exactly once".into());
+    }
+    let positions: BTreeMap<_, _> = order
+        .iter()
+        .enumerate()
+        .map(|(index, id)| (id.as_str(), index))
+        .collect();
+    if positions.len() != order.len()
+        || state
+            .definition
+            .items
+            .iter()
+            .any(|item| !positions.contains_key(item.id.as_str()))
+    {
+        return Err("rearrange order must name every scoped request item exactly once".into());
+    }
+    let mut definitions: BTreeMap<_, _> = state
+        .definition
+        .items
+        .iter()
+        .cloned()
+        .map(|item| (item.id.clone(), item))
+        .collect();
+    let mut items: BTreeMap<_, _> = state
+        .items
+        .iter()
+        .cloned()
+        .map(|item| (item.id.clone(), item))
+        .collect();
+    state.definition.items = order
+        .iter()
+        .map(|id| definitions.remove(id).expect("validated order"))
+        .collect();
+    state.items = order
+        .iter()
+        .map(|id| items.remove(id).expect("validated order"))
+        .collect();
+    validate(&state.definition)?;
+    state.request_fingerprint = fingerprint(&state.definition)?;
+    state.completion = None;
+    Ok(())
+}
+
 pub fn new_state(
     definition: RequestDefinition,
     frontend: String,

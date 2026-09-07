@@ -345,13 +345,13 @@ fn run_request(args: &[&str]) -> Output {
     let action = match args {
         [
             "request",
-            action @ ("archive" | "create" | "record" | "status"),
+            action @ ("archive" | "create" | "record" | "rearrange" | "status"),
             tail @ ..,
         ] => (*action, tail),
         _ => {
             return Err((
                 2,
-                "Usage: sigilc request archive|create|record|status [options]".into(),
+                "Usage: sigilc request archive|create|record|rearrange|status [options]".into(),
             ));
         }
     };
@@ -363,6 +363,7 @@ fn run_request(args: &[&str]) -> Output {
             "--frontend",
             "--definition",
             "--dossier",
+            "--order",
             "--limits",
             "--format",
         ]
@@ -391,6 +392,12 @@ fn run_request(args: &[&str]) -> Output {
     }
     if action.0 != "record" && options.contains_key("--dossier") {
         return Err((2, "--dossier is only valid for request record".into()));
+    }
+    if action.0 == "rearrange" && !options.contains_key("--order") {
+        return Err((2, "required option: --order".into()));
+    }
+    if action.0 != "rearrange" && options.contains_key("--order") {
+        return Err((2, "--order is only valid for request rearrange".into()));
     }
     let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
     let limits = options
@@ -491,6 +498,19 @@ fn run_request(args: &[&str]) -> Output {
                 ));
             }
             state.completion = Some(completion);
+            store
+                .publish_workflow_state(&request::encode(&state).map_err(runtime)?)
+                .map_err(runtime)?;
+            json(0, &serde_json::json!({"version":1,"request":state}))
+        }
+        "rearrange" => {
+            let mut state =
+                request::load(store.workflow_state().map_err(runtime)?).map_err(runtime)?;
+            let order = options["--order"]
+                .split(',')
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            request::rearrange(&mut state, &order).map_err(runtime)?;
             store
                 .publish_workflow_state(&request::encode(&state).map_err(runtime)?)
                 .map_err(runtime)?;

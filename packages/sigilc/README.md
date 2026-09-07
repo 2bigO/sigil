@@ -200,8 +200,13 @@ generated `.sigil/workflow/request.json` ledger:
 sigilc request create --root . --frontend frontend.json --definition request.json
 sigilc request status --root .
 sigilc request record --root . --dossier completion.json
+sigilc request rearrange --root . --order first,third,second
 sigilc request archive --root .
 ```
+
+`request rearrange` requires every item ID exactly once and rejects an order
+that places a predecessor after its dependent. It preserves scopes and evidence,
+updates the generated request fingerprint, and clears a completion dossier.
 
 Repeating `request create` with the same request ID/definition and frontend is
 idempotent. Before creating a different request, run `request archive`: it

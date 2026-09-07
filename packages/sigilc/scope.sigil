@@ -147,7 +147,10 @@ component SigilScopedRequest {
       goal that explains intent without affecting release or semantic authority.
       Each item contains an existing ScopeInput and may name explicit predecessor
       item IDs. Preserve the immutable request definition,
-      requested order, effective membership and both scope fingerprints. Reject
+      requested order, effective membership and both scope fingerprints. A native
+      reordering operation accepts every item ID exactly once, preserves each
+      item's scope, evidence and predecessors, validates the resulting order,
+      updates the request fingerprint and clears completion evidence. Reject
       duplicate IDs, unknown predecessors, cycles, duplicate scope roots and
       conflicting selectors. Order is priority among released items; it is not
       an implicit dependency. A request that wants items two and three held
