@@ -208,8 +208,9 @@ idempotent. Before creating a different request, run `request archive`: it
 preserves the existing native record under `.sigil/workflow/archive/` by
 fingerprint and clears the active request slot without hand-editing state.
 
-The definition has `version`, an `id`, and ordered `items`; each item has an
-`id`, a `scope` using the schema above, and optional `after` predecessor IDs.
+The definition has `version`, an `id`, optional bounded human-readable `goal`,
+and ordered `items`; each item has an `id`, optional `goal`, a `scope` using the
+schema above, and optional `after` predecessor IDs.
 Predecessors must appear earlier in the list. `status` recomputes the selected
 native Design and Implementation gates, records bounded fingerprints and gate
 evidence, and releases only terminal (`Closed`/`Converged`) predecessors. A
@@ -230,8 +231,8 @@ a newer structural capture.
 After every item is `Closed` or `Converged`, `request record --dossier FILE`
 persists one bounded completion dossier in the durable request ledger. Its
 version-1 JSON contains nonempty `nativeReports`, `artifacts`, `delivery`,
-`deletion`, and `checks` reference arrays plus optional `warnings` and
-`overrides`. The compiler records these opaque references and the exact terminal
+`deletion`, and `checks` reference arrays plus optional `warnings`, `overrides`,
+and bounded human-readable `outcomes`. The compiler records these opaque references and the exact terminal
 request/gate snapshot; it does not trust their claims as a semantic verdict. A
 later `request status` clears the dossier if a source, scope, catalog, or gate
 reopens the request.

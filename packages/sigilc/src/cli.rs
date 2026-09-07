@@ -584,6 +584,7 @@ fn run_request(args: &[&str]) -> Output {
                         .expect("validated predecessor state");
                     let item_state = ItemState {
                         id: item.id.clone(),
+                        goal: item.goal.clone(),
                         after: item.after.clone(),
                         evidence: item.evidence.clone(),
                         state: LifecycleState::Queued,
@@ -667,6 +668,7 @@ fn unavailable_item(
 ) -> ItemState {
     ItemState {
         id: item.id.clone(),
+        goal: item.goal.clone(),
         after: item.after.clone(),
         evidence: item.evidence.clone(),
         state: LifecycleState::Unavailable,
@@ -722,6 +724,7 @@ fn evaluate_request_item(
     if design_state == DesignState::Disjoint {
         return Ok(ItemState {
             id: item.id.clone(),
+            goal: item.goal.clone(),
             after: item.after.clone(),
             evidence: item.evidence.clone(),
             state: LifecycleState::Unavailable,
@@ -734,6 +737,7 @@ fn evaluate_request_item(
     if !design.all_fresh {
         return Ok(ItemState {
             id: item.id.clone(),
+            goal: item.goal.clone(),
             after: item.after.clone(),
             evidence: item.evidence.clone(),
             state: LifecycleState::Ready,
@@ -814,6 +818,7 @@ fn evaluate_request_item(
     };
     Ok(ItemState {
         id: item.id.clone(),
+        goal: item.goal.clone(),
         after: item.after.clone(),
         evidence: item.evidence.clone(),
         state,

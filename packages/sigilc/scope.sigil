@@ -143,8 +143,10 @@ component SigilScopedRequest {
   interface {
     RequestDefinition {
       Accept a versioned request identity and a nonempty ordered list of named
-      scope items. Each item contains an existing ScopeInput and may name
-      explicit predecessor item IDs. Preserve the immutable request definition,
+      scope items. A request and each item may carry one bounded human-readable
+      goal that explains intent without affecting release or semantic authority.
+      Each item contains an existing ScopeInput and may name explicit predecessor
+      item IDs. Preserve the immutable request definition,
       requested order, effective membership and both scope fingerprints. Reject
       duplicate IDs, unknown predecessors, cycles, duplicate scope roots and
       conflicting selectors. Order is priority among released items; it is not
@@ -181,8 +183,9 @@ component SigilScopedRequest {
 
       A completion record is accepted only after every item is natively Closed
       or Converged. It retains bounded opaque references to native reports,
-      projection artifacts, delivery, deletion, checks, warnings and explicit
-      user overrides together with the request fingerprint and terminal gate
+      projection artifacts, delivery, deletion, checks, warnings, explicit user
+      overrides and bounded human-readable outcome summaries together with the
+      request fingerprint and terminal gate
       snapshots. It is not a hand-written done flag: a status refresh clears it
       whenever inputs or the native lifecycle reopen any item.
 
@@ -208,7 +211,8 @@ expand SigilScopedRequest {
     RequestBoundary {
       This is a bounded scope-request ledger, not a generic task ontology,
       worker registry, job database, daemon, scheduler, retry loop, receipt
-      system or compatibility adapter. Preparation jobs remain immutable
+      system or compatibility adapter. Goals and outcomes are bounded context,
+      not commands, semantic facts, or completion authority. Preparation jobs remain immutable
       source descriptors and projection publication remains disposable.
       Request state never enters Design or Implementation assertions and never
       changes world authority. External delivery, tests and product approval

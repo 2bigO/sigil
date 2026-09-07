@@ -55,8 +55,9 @@ sigilc request status --root .
 sigilc request record --root . --dossier .sigil/tmp/<run-id>/completion.json
 ```
 
-The definition contains `version`, `id` and ordered `items`; each item contains
-an existing `scope`, an `id`, optional `after` predecessor IDs and opaque
+The definition contains `version`, `id`, an optional bounded human-readable
+`goal`, and ordered `items`; each item contains an existing `scope`, an `id`,
+optional `goal`, optional `after` predecessor IDs and opaque
 external `evidence` references. Predecessors must precede their item. The
 generated `.sigil/workflow/request.json` is atomic and separate from disposable
 worlds. Status exposes `ready`, `queued`, `Closed`, `Converged`, `Drift` and
@@ -78,7 +79,8 @@ ledger in a temporary tracker.
 When every item is natively `Closed` or `Converged`, record the whole-loop
 external proof once with `sigilc request record --dossier FILE`. The version-1
 dossier carries opaque `nativeReports`, `artifacts`, `delivery`, `deletion` and
-`checks` references, with optional `warnings` and `overrides`. The command saves
+`checks` references, with optional `warnings`, `overrides` and bounded
+human-readable `outcomes`. The command saves
 the request identity and exact terminal native snapshots with those references.
 It rejects a nonterminal request and `request status` clears the dossier if any
 item later reopens. This is evidence indexing, not an external check runner,

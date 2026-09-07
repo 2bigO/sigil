@@ -52,8 +52,9 @@ fn workspace() -> Workspace {
         &serde_json::to_vec(&json!({
             "version": 1,
             "id": "frontend-dogfood",
+            "goal": "Exercise the durable request ledger",
             "items": [
-                {"id": "first", "scope": {"version": 1, "design": {"paths": ["a.sigil"]}, "implementation": {"paths": ["main.any"]}}},
+                {"id": "first", "goal": "Close the first scoped gate", "scope": {"version": 1, "design": {"paths": ["a.sigil"]}, "implementation": {"paths": ["main.any"]}}},
                 {"id": "second", "after": ["first"], "scope": {"version": 1, "design": {"paths": ["b.sigil"]}, "implementation": {"paths": ["main.any"]}}},
                 {"id": "third", "after": ["first"], "scope": {"version": 1, "design": {"paths": ["c.sigil"]}, "implementation": {"paths": ["main.any"]}}}
             ]
@@ -138,6 +139,11 @@ fn ordered_request_releases_after_terminal_gate_and_survives_restart() {
         0,
     );
     let items = created["request"]["items"].as_array().unwrap();
+    assert_eq!(
+        created["request"]["definition"]["goal"],
+        "Exercise the durable request ledger"
+    );
+    assert_eq!(items[0]["goal"], "Close the first scoped gate");
     assert_eq!(items[0]["state"], "ready");
     assert_eq!(items[1]["state"], "queued");
     assert_eq!(items[2]["state"], "queued");
@@ -378,7 +384,8 @@ fn terminal_request_records_and_reopens_completion_dossier() {
           "deletion": ["audit/deletions.json"],
           "checks": ["checks/test.json"],
           "warnings": ["known loose design finding"],
-          "overrides": ["user retired non-Linux runtime checks"]
+          "overrides": ["user retired non-Linux runtime checks"],
+          "outcomes": ["all scoped gates reached terminal native states"]
         }"#,
     );
     let recorded = request(
@@ -389,6 +396,10 @@ fn terminal_request_records_and_reopens_completion_dossier() {
     assert_eq!(
         recorded["request"]["completion"]["dossier"]["deletion"][0],
         "audit/deletions.json"
+    );
+    assert_eq!(
+        recorded["request"]["completion"]["dossier"]["outcomes"][0],
+        "all scoped gates reached terminal native states"
     );
     let restarted = request(&root, &["request", "status"], 0);
     assert!(restarted["request"]["completion"].is_object());

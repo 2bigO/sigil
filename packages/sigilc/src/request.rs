@@ -16,6 +16,8 @@ pub const VERSION: u32 = 1;
 pub struct RequestDefinition {
     pub version: u32,
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
     pub items: Vec<RequestItem>,
 }
 
@@ -23,6 +25,8 @@ pub struct RequestDefinition {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RequestItem {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
     pub scope: Scope,
     #[serde(default)]
     pub after: Vec<String>,
@@ -54,6 +58,8 @@ impl LifecycleState {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ItemState {
     pub id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
     pub after: Vec<String>,
     pub evidence: Vec<String>,
     pub state: LifecycleState,
@@ -101,6 +107,8 @@ pub struct CompletionDossierInput {
     pub warnings: Vec<String>,
     #[serde(default)]
     pub overrides: Vec<String>,
+    #[serde(default)]
+    pub outcomes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +124,7 @@ pub struct RequestCompletion {
 const COMPLETION_DOSSIER_VERSION: u32 = 1;
 const MAX_COMPLETION_REFERENCES: usize = 128;
 const MAX_COMPLETION_REFERENCE_BYTES: usize = 4_096;
+const MAX_REQUEST_TEXT_BYTES: usize = 4_096;
 
 impl CompletionDossierInput {
     pub fn validate(&self) -> Result<(), String> {
@@ -153,6 +162,7 @@ impl CompletionDossierInput {
                 }
             }
         }
+        validate_texts("outcomes", &self.outcomes, false)?;
         Ok(())
     }
 }
@@ -164,6 +174,7 @@ pub fn validate(definition: &RequestDefinition) -> Result<(), String> {
     if definition.id.trim().is_empty() {
         return Err("scoped request id must be nonempty".into());
     }
+    validate_optional_text("request goal", definition.goal.as_deref())?;
     if definition.items.is_empty() {
         return Err("scoped request requires at least one item".into());
     }
@@ -172,6 +183,7 @@ pub fn validate(definition: &RequestDefinition) -> Result<(), String> {
         if item.id.trim().is_empty() {
             return Err("scoped request item id must be nonempty".into());
         }
+        validate_optional_text(&format!("goal for {}", item.id), item.goal.as_deref())?;
         if !ids.insert(item.id.as_str()) {
             return Err(format!("duplicate scoped request item id: {}", item.id));
         }
@@ -243,6 +255,35 @@ pub fn validate(definition: &RequestDefinition) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_optional_text(name: &str, text: Option<&str>) -> Result<(), String> {
+    let Some(text) = text else {
+        return Ok(());
+    };
+    if text.trim().is_empty() {
+        return Err(format!("{name} must be nonempty when present"));
+    }
+    if text.len() > MAX_REQUEST_TEXT_BYTES {
+        return Err(format!("{name} exceeds byte limit"));
+    }
+    if text.chars().any(char::is_control) {
+        return Err(format!("{name} contains control characters"));
+    }
+    Ok(())
+}
+
+fn validate_texts(name: &str, texts: &[String], required: bool) -> Result<(), String> {
+    if required && texts.is_empty() {
+        return Err(format!("completion dossier requires {name}"));
+    }
+    if texts.len() > MAX_COMPLETION_REFERENCES {
+        return Err(format!("completion dossier has too many {name}"));
+    }
+    for text in texts {
+        validate_optional_text(&format!("completion dossier {name}"), Some(text))?;
+    }
+    Ok(())
+}
+
 fn visit<'a>(
     id: &'a str,
     graph: &BTreeMap<&'a str, Vec<&'a str>>,
@@ -286,6 +327,7 @@ pub fn new_state(
         .zip(scopes)
         .map(|(item, scope)| ItemState {
             id: item.id.clone(),
+            goal: item.goal.clone(),
             after: item.after.clone(),
             evidence: item.evidence.clone(),
             state: if item.after.is_empty() {
@@ -329,6 +371,7 @@ pub fn load(bytes: Option<Vec<u8>>) -> Result<PersistedRequest, String> {
             .zip(&state.definition.items)
             .any(|(actual, expected)| {
                 actual.id != expected.id
+                    || actual.goal != expected.goal
                     || actual.after != expected.after
                     || actual.evidence != expected.evidence
             })
@@ -347,6 +390,7 @@ pub fn load(bytes: Option<Vec<u8>>) -> Result<PersistedRequest, String> {
                 .zip(&state.items)
                 .any(|(saved, current)| {
                     saved.id != current.id
+                        || saved.goal != current.goal
                         || saved.after != current.after
                         || saved.evidence != current.evidence
                         || saved.state != current.state
