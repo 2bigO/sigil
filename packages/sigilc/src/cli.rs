@@ -898,6 +898,15 @@ fn runtime(message: String) -> (u8, String) {
 }
 
 fn ingest_hint(message: &str) -> Option<&'static str> {
+    if message.starts_with("unexpected character")
+        || message.starts_with("premature end of file")
+        || message.starts_with("unexpected end")
+        || message.contains("Turtle parse")
+    {
+        return Some(
+            "return RDF 1.1 Turtle only: use angle-bracket IRIs for urn:sigil resources, declare prefixes before use, terminate every triple with '.', and remove markdown fences or prose",
+        );
+    }
     if message.starts_with("frontend source changed:")
         || message.starts_with("frontend context changed:")
     {

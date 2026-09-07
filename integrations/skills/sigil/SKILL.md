@@ -52,8 +52,8 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    `sigilc request status` before each external round; it is the source for
    queued/ready release and current native gate state.
 2. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
-3. Prepare each stale Design source. An external Design worker reconstructs it;
-   the coding agent must spawn that worker in the background, retain its
+3. Prepare each stale Design source. A spawned subagent reconstructs it;
+   the coding agent must spawn a subagent in the background, retain its
    process/job evidence, and pass its returned Turtle to the matching
    `sigilc ingest` command with the original caller-held job descriptor. Treat
    ingest as an accept/reject boundary: on rejection, give the coding agent the
@@ -66,7 +66,7 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    accepted `sigilc ingest` is not semanticization evidence.
 4. Run `sigilc compile design` and inspect the named state and diagnostics.
    `sigilc entities` exports the current identity catalog when available.
-5. Prepare each selected Implementation source. Its independent external worker
+5. Prepare each selected Implementation source. Its independent subagent
    receives exactly captured source bytes, fixed ontology and frozen catalog.
    Keep Design prose, neighboring code, job descriptors and repair feedback out
    of that worker's input. Run the same worker -> `sigilc ingest` accept/reject

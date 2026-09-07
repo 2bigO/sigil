@@ -199,6 +199,31 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     assert_eq!(owner.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&owner.stderr).contains("sigil:from for unit ownership"));
 
+    root.write(
+        "facts.ttl",
+        b"@prefix s: <https://sigil.dev/ontology/1#> . <urn:sigil:unit:a.sigil:1:1> s:from <urn:sigil:component:a.sigil:A> ;",
+    );
+    let malformed = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(malformed.status.code(), Some(3));
+    let malformed_stderr = String::from_utf8_lossy(&malformed.stderr);
+    assert!(
+        malformed_stderr.contains("hint: return RDF 1.1 Turtle only"),
+        "{malformed_stderr}"
+    );
+    assert!(malformed_stderr.contains("terminate every triple with '.'"));
+
     root.write("facts.ttl", format!("{PREFIX}a:A a s:State .").as_bytes());
     let foreign = run(
         &root,

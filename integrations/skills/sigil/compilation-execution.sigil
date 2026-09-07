@@ -41,9 +41,9 @@ expand SigilCompilationExecution {
       Retain job.json with the caller and return it unchanged with the worker's
       Turtle for ingestion.
 
-      The external coding agent spawns independent workers in the background, records
-      their process/job evidence and invokes sigilc ingest with the matching source,
-      job.json and returned Turtle. Ingest is an accept/reject boundary: on
+      The coding agent must spawn a subagent in the background for each source and
+      record their process/job evidence and invoke sigilc ingest with the matching
+      source, job.json and returned Turtle. Ingest is an accept/reject boundary: on
       rejection, retain the exact native error and give the coding agent an
       actionable repair prompt for its temporary construction, then start a fresh
       isolated worker from unchanged prepared inputs. Repeat worker -> ingest until

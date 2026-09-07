@@ -64,7 +64,7 @@ as proof of delivery, tests, review or deletion.
 
 ```sh
 sigilc prepare design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --out /tmp/sigil-run/design-a
-# External coding-agent worker receives design-a/design.json and
+# Spawn a subagent with design-a/design.json and
 # design-a/ontology.json in isolation. Caller retains design-a/job.json.
 # Worker returns ordinary Turtle in design-a-attempt-1.ttl.
 sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a-attempt-1.ttl
@@ -83,7 +83,7 @@ available identity and assertion forms. Keep new domain entity declarations with
 their owning physical source; reference foreign identities without redeclaring
 them. Do not invent assertions merely to make a gate pass. The compiler validates
 syntax, binding and fixed laws; it cannot establish worker fidelity by itself.
-The coding agent must spawn the independent workers in the background and retain
+The coding agent must spawn a subagent in the background for each source and retain
 the process/job record, every returned Turtle path, matching source/job descriptor
 and each `sigilc ingest` command/exit for each source. A rejection is an actionable
 prompt to the coding agent, which repairs its temporary construction and starts a
@@ -99,11 +99,11 @@ A current provisional or authoritative Design catalog is required. Each
 Implementation worker receives exactly three inputs: `source` (captured unchanged
 bytes), `ontology.json`, and `catalog.json` from its preparation. Do not supply
 Design prose or relationships, neighboring code, job.json or repair feedback.
-A coding worker's self-description is not an independent reconstruction.
+A subagent's self-description is not an independent reconstruction.
 
 ```sh
 sigilc prepare implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --out /tmp/sigil-run/implementation-main
-# External coding-agent worker returns implementation-main-attempt-1.ttl;
+# Spawn a subagent to return implementation-main-attempt-1.ttl;
 # caller retains job.json.
 sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main-attempt-1.ttl
 # On rejection, send the exact native error to the coding agent as an
