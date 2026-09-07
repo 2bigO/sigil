@@ -224,6 +224,28 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     );
     assert!(malformed_stderr.contains("terminate every triple with '.'"));
 
+    root.write(
+        "facts.ttl",
+        b"@prefix s: <https://sigil.dev/ontology/1#> . <urn:sigil:unit:a.sigil:1:1> s:from <urn:sigil:component:a.sigil:A B> .",
+    );
+    let invalid_iri = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(invalid_iri.status.code(), Some(3));
+    assert!(
+        String::from_utf8_lossy(&invalid_iri.stderr).contains("hint: return RDF 1.1 Turtle only")
+    );
+
     root.write("facts.ttl", format!("{PREFIX}a:A a s:State .").as_bytes());
     let foreign = run(
         &root,
@@ -265,6 +287,10 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     let unknown = run(&root, &["compile", "design"]);
     assert_eq!(unknown.status.code(), Some(3));
     assert!(unknown.stdout.is_empty());
+    assert!(
+        String::from_utf8_lossy(&unknown.stderr)
+            .contains("hint: reference only the exact prepared")
+    );
     root.write("a.sigil", b"edited after preparation");
     let stale = run(
         &root,

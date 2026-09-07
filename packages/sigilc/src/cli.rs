@@ -901,6 +901,8 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     if message.starts_with("unexpected character")
         || message.starts_with("premature end of file")
         || message.starts_with("unexpected end")
+        || message.starts_with("error while parsing IRI")
+        || message.contains("Invalid IRI")
         || message.contains("Turtle parse")
     {
         return Some(
@@ -948,7 +950,12 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     }
     if message.starts_with("declaration is not owned by") {
         return Some(
-            "declare new domain identities under the current source URI; reference foreign identities without redeclaring them",
+            "copy reserved identity IRIs exactly from design.json for the requested source; declare new domain identities under that source and reference foreign identities without redeclaring them",
+        );
+    }
+    if message.starts_with("unknown domain identity:") {
+        return Some(
+            "reference only the exact prepared Component, Concept and entity IDs; do not derive nested or renamed IDs from a label",
         );
     }
     if message == "Component and Concept identities are reserved by the frontend" {
