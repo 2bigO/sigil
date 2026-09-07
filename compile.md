@@ -1268,6 +1268,15 @@ source implements a catalog contract, use the exact canonical Component or
 Concept identity from the catalog. Do not mint a unit ID from a function name,
 section label or source path to carry that relation.
 
+When a source contains a pointer such as
+`@sigil implements <design-source>::<Component>::<Interface> interface`, the
+pointer identifies the canonical Component owner and its interface Concept. An
+Implementation reconstruction of that pointer uses the owner's `provides`
+relation to the exact catalog Concept. `hasContract` is the authored Design
+inventory relation and is not an Implementation contract assertion; the local
+`SigilSemanticCompiler` component is not a substitute owner for a referenced
+store or workflow component.
+
 Record that omission as an unresolved reconstruction diagnostic outside the
 domain assertions. A valid empty Turtle document distinguishes a completed
 zero-fact reconstruction from a missing job, but cannot establish total semantic

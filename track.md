@@ -517,6 +517,15 @@ Already observed during this refactor:
   limits. The `DesignCommands` warning also remains a fresh-worker attribution
   question; preserve it and investigate from source-owned canonical identities
   rather than editing Turtle or weakening the obligation.
+* **Owner coverage did not by itself close the two yellow obligations.** The
+  five-row owner-inclusive round reached 15/15 fresh and accepted all five
+  ingests, but fresh workers alternated between `SigilSemanticCompiler` and
+  `SigilProjectionStore` subjects and one used `hasContract`. The fixed compare
+  kernel requires `SigilProjectionStore provides CurrentDesign/DesignCommands`;
+  this is now an explicit generic pointer-mapping rule in compile.md section 20.
+  Reprepare changed documentation and owner rows, then use fresh workers to
+  observe whether the canonical `provides` assertions converge. Never edit
+  Turtle to manufacture the missing edges.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
