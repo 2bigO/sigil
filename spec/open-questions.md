@@ -27,7 +27,7 @@ This file tracks unresolved language and workflow decisions.
 - Should the Codex skill update implementation plans from Sigil automatically, or only after explicit user approval?
 - How should evidence from brownfield reconciliation remain traceable without becoming Sigil syntax?
 - Should standards sources remain in review summaries or gain a durable repository representation?
-- How should multiple hosts produce comparable semantic-readiness findings without sharing one model or prompt?
+- How should external hosts assess reconstruction fidelity while preserving the native three-input Implementation boundary?
 
 The rejected Receipt, anchor, and generated evidence-record architecture is
 preserved for historical analysis in

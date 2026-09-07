@@ -276,13 +276,18 @@ Already observed during this refactor:
   packages, workspace/publishing registrations, old bridge builder and obsolete
   configuration schema are now deleted. CI builds the current native and language
   executables for the retained editor tests.
-* Deleting the packages exposed a remaining frontend gap: the bundled skill
-  still instructs agents to invoke removed semantic/receipt/provider commands,
-  and its old validator accepts those instructions. That validation success does
-  not establish compatibility with the native flow. Rewrite the repository-owned
-  skill, its governing contracts and fixtures around existing native commands;
-  delete obsolete workflow requirements instead of creating an adapter. Keep
-  external model interaction and independent reconstruction outside the stack.
+* Deleting the packages exposed a frontend guidance gap: the bundled skill and
+  public guides still prescribed removed commands, and the validator accepted
+  them. Skill 0.9.0 now uses direct native commands and preserves external worker
+  isolation. The old compilation/retry/profile and extra approval workflows are
+  deleted. The validator shrank from 1,864 lines to executable documentation
+  checks: it runs the 12 native command examples on disposable fixtures, including
+  yellow and unavailable results. Those fixtures prove protocol, not independent
+  reconstruction. Real refactor use exercised export, ordered scope, preparation
+  and Loose/unavailable reports; current independent reconstruction still remains.
+  Quickstart, setup and contribution guidance now use the same native protocol.
+  Continue observing actual operations rather than accepting text-presence checks
+  as evidence of native adoption.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus

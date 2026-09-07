@@ -1,191 +1,88 @@
 # Quickstart
 
-This walkthrough takes a repository from an empty Sigil configuration to a
-checked semantic world and an independently verifiable implementation handoff.
-The compiler is deterministic: proposal providers may suggest assertions, but
-the fixed egglog kernel decides whether a world is consistent and whether
-observations cover its obligations.
+Sigil keeps authored contracts and independently reconstructed implementation
+worlds separate. `sigil` parses and exports the language; `sigilc` derives native
+semantic states from externally supplied assertions. It does not start a model
+or own your coding loop.
 
-## 1. Install the CLI
+## 1. Install both tools
 
-For repository development, install from a checkout:
+Standalone releases ship `sigil`, `sigilc` and the skill catalog together. See
+[installation](../README.md). They require no Deno, Node, Rust or source checkout
+at runtime. For repository development, build the two executables:
 
 ```sh
-git clone https://github.com/qoherent/sigil.git
-cd sigil
-deno task --cwd packages/cli install
-sigil --version
+deno task build:sigilc
+deno task build:cli
+build/sigil --version
+packages/sigilc/target/debug/sigilc --version
 ```
 
-The standalone release contains Sigil's native egglog and TypeScript 7.0.2
-runtime. It does not need Deno, Node, Rust, or a source checkout. If a release
-is available, use the installer described in [the root README](../README.md).
+Use the appropriate executable paths, or put their directories on PATH. Their
+versions are independent; an archive version is not the native compiler version.
 
-## 2. Initialize the target repository
+## 2. Initialize a workspace
+
+From the intended repository root:
 
 ```sh
-cd /path/to/your-repo
 sigil init . --name your-repo
 sigil skill install --project
 ```
 
-Review `.sigil/config.json` before checking a large repository. Exclude vendored,
-generated, build, and dependency trees explicitly:
+Review `.sigil/config.json` and its authored-source include/exclude patterns.
+Keep `.sigil/worlds/` ignored: it is disposable generated native state. Native
+Implementation selection is separate from language configuration; exclude vendor,
+build and operational files from that comparison as appropriate.
 
-```json
-"exclude": [
-  ".git/**", "node_modules/**", "build/**", "coverage/**",
-  ".venv/**", "vendor/**", "**/bindata.go"
-]
-```
+## 3. Author and inspect a boundary
 
-The compiler never captures or stages the target repository's installed
-packages. Those paths are excluded from discovery and are not part of a retained
-handoff.
-
-## 3. Author and check one boundary
-
-Write a small authored `.sigil` contract, or ask the installed skill to draft
-one. A component declares its public purpose and interface:
+Write `notifier.sigil` beside its owner:
 
 ```sigil
 component Notifier {
   goal {
     Deliver notifications to recipients over email.
   }
-
   interface {
-    send(recipient, message) delivers one message and reports failure.
+    Send {
+      Deliver one message and report delivery failure to the caller.
+    }
   }
 }
 ```
 
-Check syntax, imports, ownership annotations, and configuration:
-
 ```sh
-sigil check .
-sigil context . --component Notifier
+sigil check . --format json
+sigil context . --component Notifier --format markdown
 ```
 
-`check` validates authored source. It does not create a semantic interpretation
-or inspect generated managed views as authored input.
+Language checks validate syntax, imports and configuration. They do not establish
+semantic coherence or implementation delivery.
 
-## 4. Interpret intent through a proposal provider
+## 4. Use the native flow
 
-The semantic namespace is intentionally empty after `sigil init`. Configure one
-provider only if the project needs natural-language interpretation:
-
-```sh
-sigil config set-provider local . \
-  --kind command --command /absolute/path/to/provider --arg --json
-sigil config set-provider-default local .
-```
-
-The command provider receives a prompt on standard input and must emit exactly
-one version-1 JSON proposal envelope on standard output. It returns Turtle
-additions and retractions; it never returns a verdict or implementation proof.
-Bundled `codex`, `claude`, `opencode`, and `pi` providers use the same
-envelope through their installed host executables.
-
-Submit an intent and save a named beam:
+Capture current authored input into an external working directory:
 
 ```sh
-sigil semantic intent . \
-  --text "The parser must reject filesystem access." \
-  --provider local --beam parser
-sigil semantic status . --beam parser
+mkdir -p /tmp/sigil-quickstart
+sigil export design . > /tmp/sigil-quickstart/frontend.json
+sigilc compile design --frontend /tmp/sigil-quickstart/frontend.json
 ```
 
-If the candidates leave a consequential choice unresolved, `status` displays
-the exact proposition. Answer that proposition by its fact identity:
+Without independent source reconstructions, this can report Loose with missing
+projection warnings. That is not evidence that implementation is complete.
+Follow the skill's [native compilation protocol](../integrations/skills/sigil/references/compilation-execution.md)
+for ordered scope, freshness, preparation, external worker inputs, ingestion,
+catalog export and comparison. Refresh captured inputs after changes.
 
-```sh
-sigil semantic answer . --beam parser --fact <fact-id> --value no
-sigil semantic status . --beam parser
-```
+Design gates return Coherent or Loose with exit 0 and Disjoint with exit 1.
+Implementation gates return Closed or Converged with exit 0 and Drift with exit 1.
+Loose and Converged are yellow with warnings. Usage is exit 2; runtime or
+unavailable comparison is exit 3. Inspection exits have their own meanings.
 
-Acceptance requires one uniquely selected green candidate. It is the only
-operation that replaces canonical world meaning:
-
-```sh
-sigil semantic accept . --beam parser
-sigil compile . --focus design
-```
-
-The accepted world is lossless assertion-only egglog under
-`.sigil/world/<revision>/assertions.egg`, with a tracked `world/current.json`
-pointer and manifest. Original Turtle and derived caches are not needed to
-reconstruct it.
-
-## 5. Publish and inspect generated views
-
-Generate companion human views from the accepted green world:
-
-```sh
-sigil semantic project . --check
-sigil semantic project . --write --expected-revision <revision>
-```
-
-The command writes `.sigil/views/<entity-hash>.sigil` and the tracked
-`.sigil/views/current.json`. Generated views are excluded from authored intent
-and implementation discovery. Change meaning through `semantic intent` and
-`semantic accept`; do not edit a generated view to change the world. An
-interrupted write can be inspected and recovered explicitly:
-
-```sh
-sigil semantic project . --recover --transaction <transaction-id>
-```
-
-## 6. Hand off implementation and verify the return
-
-Select one canonical component and export an exact retained assignment:
-
-```sh
-sigil semantic slice . --component Notifier --format text
-```
-
-The handoff is stored under ignored `.sigil/handoffs/<id>`. It contains the
-focused `.egg` assertions, complete boundary obligations, protected inputs,
-world identity, and host verifier policy. Give that assignment to the external
-implementation workflow; Sigil does not generate patches or run a coding and
-repair loop.
-
-When the implementation workflow returns, import its untrusted claims:
-
-```sh
-sigil semantic receipts . --handoff <id> \
-  --claims /tmp/claims.ttl --locations /tmp/locations.json
-sigil semantic verify . --handoff <id> --receipts <receipt-id>
-```
-
-Use `--handoff-root /path/to/original/repo` when verifying a returned checkout
-from another directory. Receipt locations and claims are checked for identity,
-hash, scope, and safe paths, then compared with fresh native TypeScript 7 and
-host checks. A receipt never closes an obligation merely because it names a
-symbol. Results distinguish independently covered obligations, unsupported or
-opaque behavior, and command failures.
-
-## 7. Know which files are authoritative
-
-`.sigil/world` and the verifier policy are committed. Generated `.sigil/views`
-and its `current.json` receipt are committed when the project chooses to publish
-human views. The following are operational claims, assignments, or caches and
-are ignored by the generated `.sigil/.gitignore`:
-
-- `.sigil/receipts/` for returned claim submissions;
-- `.sigil/handoffs/` for retained assignments;
-- `.sigil/runs/`, `.sigil/cache/`, and `.sigil/beams/` for execution and search
-  state;
-- `.sigil/cache/view-transactions/` for interrupted view publication.
-
-Initialize or inspect this layout at any time:
-
-```sh
-sigil semantic artifacts .
-```
-
-`sigil doctor --format json` validates the packaged native runtime. A published
-library consumer must select a matching runtime with `SIGIL_RUNTIME_DIR`.
-
-For the complete contracts, artifact schemas, migration rules, and acceptance
-matrix, read [compile.md](../compile.md).
+Each independent Implementation worker receives only captured source bytes,
+fixed ontology and frozen identity catalog. Keep Design prose, neighboring code,
+job descriptors and repair feedback out of its inputs. The external host owns
+model calls, isolation, coding and iteration. Actual checks and removal evidence
+remain necessary alongside semantic comparison.

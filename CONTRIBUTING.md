@@ -28,6 +28,7 @@ where they matter.
 | ------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
 | [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2      | Everything. Core, CLI, and LSP are Deno TypeScript.                                        |
 | [Node.js](https://nodejs.org/)                                      | 24         | The VS Code extension only, including its share of `deno task check` and `deno task test`. |
+| Rust | 1.91.1 | Native compiler and its release/runtime tests. |
 | Git                                                                 | any recent | Cloning and contributing.                                                                  |
 | [VS Code](https://code.visualstudio.com/)                           | `^1.91.0`  | Optional. Only if you work on the extension or run its integration tests.                  |
 
@@ -186,25 +187,25 @@ deno test --allow-read --watch packages/core/tests/core_test.ts
 
 ## Repository boundaries
 
-The layout follows one rule: **deterministic language facts and verification live
-in `packages/`, and optional proposal transport lives in `integrations/` and the
-adapter packages.** Keeping that line intact
-is the single most important architectural constraint in this repository.
+Core owns deterministic language facts. Native sigilc owns world derivation and
+comparison. Frontends present those results; independent workers and coding
+orchestration stay outside the toolchain.
 
 | Directory                     | Owns                                                                                                                   | Notes                                                                                                                                                                  |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `spec/`                       | The language, configuration, workflow, glossary, and platform-architecture specifications, plus [ADRs](spec/decisions) | The canonical definition is [`spec/sigil-language.md`](spec/sigil-language.md). [`spec/language.sigil`](spec/language.sigil) owns the single language-version literal. |
 | `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                     |
-| `packages/cli/`               | The `sigil` command: authored inspection, semantic intent/acceptance, managed views, handoffs, receipts, verification, and `skill` | Thin over core/compiler. Also owns skill installation, which is the one host-filesystem responsibility. |
+| `packages/cli/`               | The `sigil` command: authored inspection, structural Design export and skill installation | Uses core language APIs; never invokes sigilc or models. Also owns skill installation. |
+| `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
 | `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
-| `integrations/skills/sigil/`  | The host-neutral coding-agent skill: authoring guidance, design conversation, brownfield adoption, and handoff workflow | Markdown and Sigil only. No code dependency on `packages/`. |
+| `integrations/skills/sigil/`  | The host-neutral coding-agent skill: authoring guidance, design conversation, brownfield adoption and direct native commands | Markdown and Sigil only. No code dependency on `packages/`. |
 | `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
 | `scripts/`                    | Release build and skill validation                                                                                     |                                                                                                                                                                        |
 | `docs/`                       | Adoption pilots and images                                                                                             |                                                                                                                                                                        |
 
 Dependency direction is one-way: `cli` and `lsp` depend on `core`; the extension
-depends on `lsp`; nothing depends on the skill, and the skill depends on no
+depends on `lsp` and invokes language export/native gates; the skill depends on no
 package code. A change that inverts any of those arrows needs discussion before
 implementation.
 
@@ -268,29 +269,35 @@ annotate `.sigil` files, and leave JSON untouched.
 
 ## The semantic workflow
 
-The repository's active semantic workflow is deterministic and does not require
-an evaluator or a human review gate in the compiler. Authored `.sigil` files are
-validated with `sigil check`; optional providers return hypotheses; the compiler
-and fixed egglog kernel decide semantic status.
+Author contracts directly within the requested scope and inspect them with
+`sigil check`. Export current structural input using `sigil export design .`.
+Call native `sigilc` directly for ordered scope, stale inspection, preparation,
+ingestion, catalogs and Design/Implementation gates. The language CLI does not
+invoke the native compiler or a model on the caller's behalf.
 
-When changing modeled meaning, submit intent with `sigil semantic intent`,
-inspect the deterministic candidate diff, answer exact unresolved propositions,
-and accept only a uniquely green beam. Acceptance writes canonical
-`.sigil/world` revisions. Publish generated companions with
-`sigil semantic project --write`; generated views are excluded from authored
-discovery and must not be edited to change meaning.
+Use the [native skill protocol](integrations/skills/sigil/references/compilation-execution.md)
+for exact commands. External workers reconstruct each source from prepared inputs;
+Implementation workers receive only source bytes, fixed ontology and identity
+catalog. Keep Design prose, neighboring code and job descriptors out of those
+inputs. The external host owns scheduling, isolation, source edits and iteration.
 
-For implementation work, export `sigil semantic slice` with an explicit host
-policy. The external implementation workflow owns code changes and repair. It
-may return receipt claims, which are imported under ignored `.sigil/receipts` and
-verified with `sigil semantic verify --handoff`. A receipt location is a pointer,
-not proof; fresh host observations and fixed rules establish coverage.
+Generated `.sigil/worlds/` is ignored and disposable. Current native reports own
+semantic states and diagnostics. Design Coherent/Loose and Implementation
+Closed/Converged exit 0; Disjoint and Drift exit 1 on their respective gates.
+Unavailable comparison remains unset. Tests, ownership comments and a completed
+gate do not individually prove full delivery or faithful reconstruction.
 
-The only supported semantic writes are accepted world revisions, generated
-managed views, explicit metadata migration, and ignored operational artifacts.
-Do not mutate authored contracts or implementation files from semantic commands.
-Human decisions about deployment, publication, or unrelated product actions
-remain outside the compiler.
+`deno task test:skill` checks metadata/references and executes the documented
+native commands on disposable fixtures. Build both tools first with
+`deno task build:sigilc` and `deno task build:cli`, or set `SIGIL_TEST_LANGUAGE`
+and `SIGIL_TEST_COMPILER` to the intended binaries. The root test task builds its
+prerequisites. Fixed fixture Turtle exercises protocol, not independent
+reconstruction of this repository. Release smoke tests cover all six gate states.
+
+Delete obsolete behavior and its dedicated callers/tests during refactors.
+Preserve required frontend features through actual native infrastructure rather
+than a compatibility facade. Human decisions about publication, deployment or
+unrelated product actions remain outside the compiler and the skill.
 
 ## Your first contribution
 
@@ -331,7 +338,7 @@ deno task fmt && deno task lint && deno task check && deno task test
 If your change touches a public contract, update the governing authored Sigil
 and its cases alongside the implementation, then run the semantic and ordinary
 validation commands that cover the changed boundary. A clean check does not
-replace those tests, and a provider response does not replace deterministic
+replace those tests, and a worker response does not replace deterministic
 compiler verification.
 
 ## Versions and compatibility
