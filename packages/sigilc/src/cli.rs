@@ -917,6 +917,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "reserved authored units must have exactly one rdf:type sigil:Contract; preserve the prepared ID and do not add Goal, Interface, Constraint or Case",
         );
     }
+    if message.starts_with("foreign or changed reserved declaration: urn:sigil:component:") {
+        return Some(
+            "emit reserved Component/Concept declarations only for the requested source; dependency identities are foreign references and must not be redeclared",
+        );
+    }
     if message == "unknown predicate or literal expected: owner" {
         return Some(
             "use ontology predicates: sigil:from for unit ownership, sigil:owns for component-to-Concept links, and sigil:hasContract for component-to-unit links; sigil:owner is not valid",

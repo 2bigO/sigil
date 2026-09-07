@@ -199,6 +199,26 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     assert_eq!(owner.status.code(), Some(3));
     assert!(String::from_utf8_lossy(&owner.stderr).contains("sigil:from for unit ownership"));
 
+    root.write("facts.ttl", format!("{PREFIX}a:A a s:State .").as_bytes());
+    let foreign = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(foreign.status.code(), Some(3));
+    assert!(
+        String::from_utf8_lossy(&foreign.stderr)
+            .contains("dependency identities are foreign references")
+    );
+
     root.write(
         "facts.ttl",
         format!("{PREFIX}a:A s:uses <urn:missing> .").as_bytes(),
