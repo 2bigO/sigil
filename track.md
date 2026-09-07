@@ -526,6 +526,15 @@ Already observed during this refactor:
   Reprepare changed documentation and owner rows, then use fresh workers to
   observe whether the canonical `provides` assertions converge. Never edit
   Turtle to manufacture the missing edges.
+* **The current ordered request was rebound under its exact focused bindings.**
+  Native stale reported nine fresh rows and only `compile.md`, `track.md` and
+  `cli.rs` changed for each item. Nine new isolated workers produced accepted
+  ingests, and request status returned all three items `converged` with fresh
+  Design and Implementation inputs. Scope 2 retains one unresolved
+  `ImplementationCommands` obligation while the complete scope has zero
+  unresolved obligations; this is a scoped evidence warning, not Drift. Keep
+  both the focused warning and the complete result visible rather than copying
+  a full-scope assertion into the focused binding.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
