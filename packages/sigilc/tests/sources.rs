@@ -163,6 +163,85 @@ fn selection_uses_relative_sigil_globs_and_excludes_internal_and_vendor_trees() 
     assert!(empty.intentional_empty);
 }
 
+#[test]
+fn explicit_files_preserve_filtering_deduplication_and_directory_identity() {
+    let root = Workspace::new();
+    let paths = [
+        "src/a.any",
+        "src/b.any",
+        "src/test.any",
+        "src/other.py",
+        "vendor/x.any",
+        "nested/.sigil/private.any",
+    ];
+    for path in paths {
+        root.write(path, b"same bytes");
+    }
+    let filters = || Selection {
+        include: vec!["**/*.any".into()],
+        exclude: vec!["**/test.any".into()],
+        vendor_dirs: vec!["vendor".into()],
+        ..Default::default()
+    };
+    let directory = discover(
+        &root.0,
+        &Selection {
+            dirs: vec!["src".into()],
+            ..filters()
+        },
+    )
+    .unwrap();
+    let explicit = Selection {
+        paths: paths
+            .iter()
+            .chain(["src/a.any"].iter())
+            .map(|p| (*p).into())
+            .collect(),
+        ..filters()
+    };
+    let files = discover(&root.0, &explicit).unwrap();
+    assert_eq!(files.files, directory.files);
+    assert_eq!(files.fingerprint, directory.fingerprint);
+    assert_eq!(files.files.len(), 2);
+    let mut excluded = Selection {
+        paths: vec!["vendor/x.any".into(), "src/test.any".into()],
+        ..filters()
+    };
+    assert!(discover(&root.0, &excluded).is_err());
+    excluded.allow_empty = true;
+    assert!(discover(&root.0, &excluded).unwrap().intentional_empty);
+}
+
+#[cfg(unix)]
+#[test]
+fn explicit_selection_ignores_unrelated_unreadable_and_non_source_paths() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = Workspace::new();
+    root.write("chosen.any", b"selected");
+    root.write("unrelated/not:a:source", b"outside scope");
+    root.write("excluded.any", b"do not hash");
+    fs::set_permissions(root.0.join("unrelated"), fs::Permissions::from_mode(0o0)).unwrap();
+    fs::set_permissions(root.0.join("excluded.any"), fs::Permissions::from_mode(0o0)).unwrap();
+    let result = discover(
+        &root.0,
+        &Selection {
+            paths: vec!["chosen.any".into(), "excluded.any".into()],
+            exclude: vec!["excluded.any".into()],
+            ..Default::default()
+        },
+    );
+    // Restore before assertions so cleanup also works on a failure.
+    fs::set_permissions(root.0.join("unrelated"), fs::Permissions::from_mode(0o700)).unwrap();
+    fs::set_permissions(
+        root.0.join("excluded.any"),
+        fs::Permissions::from_mode(0o600),
+    )
+    .unwrap();
+    let files = result.unwrap();
+    assert_eq!(files.files.len(), 1);
+    assert_eq!(files.files[0].checksum, hash(b"selected"));
+}
+
 #[cfg(unix)]
 #[test]
 fn permissions_do_not_change_semantic_identity() {

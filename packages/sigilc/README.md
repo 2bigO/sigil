@@ -73,6 +73,10 @@ strings), and `allowEmpty` (default false). Paths are workspace-relative;
 includes/excludes use `*`, `**` and `?` globs. Omitted arrays are empty. Internal
 cache/build trees are always excluded. A selection controls world membership;
 it does not add dependencies to per-file Implementation keys.
+Explicit file-only selection applies filters before hashing and avoids unrelated
+directory traversal. It uses the same snapdir BLAKE3 hashes and manifest identity
+as directory selection, with current path/metadata checks around hashing.
+Directory and global selections still use the full pruned snapdir walk.
 
 Both `compile implementation` and `compare` report independently compiled worlds
 and their fixed-kernel comparison. Closed (green) and Converged (yellow with

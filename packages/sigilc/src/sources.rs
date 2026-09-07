@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use snapdir_core::hash_file::HashFile;
 use snapdir_core::{Blake3Hasher, ExcludeMatcher, FollowMode, Hasher, PathType, WalkOptions};
 use std::{
+    collections::BTreeSet,
     fs,
     io::Read,
     path::{Path, PathBuf},
@@ -91,6 +92,49 @@ pub fn discover(root: &Path, selection: &Selection) -> Result<SourceManifest, St
         .iter()
         .map(|p| glob(p))
         .collect::<Result<_, _>>()?;
+    let eligible = |path: &str| {
+        !path.split('/').any(|part| INTERNAL.contains(&part))
+            && !selection
+                .vendor_dirs
+                .iter()
+                .any(|v| path == v || path.starts_with(&format!("{v}/")))
+            && (includes.is_empty() || includes.iter().any(|p| p.is_match(path)))
+            && !excludes.iter().any(|p| p.is_match(path))
+    };
+    // A focused file list needs no directory manifest. Keep snapdir's content
+    // hashing and byte-count guard, with fresh path/metadata checks around it.
+    if !selection.paths.is_empty() && selection.dirs.is_empty() {
+        let mut files = Vec::new();
+        for path in selection.paths.iter().collect::<BTreeSet<_>>() {
+            if !eligible(path) {
+                continue;
+            }
+            let target = checked_path(&root, path)?;
+            let before = fs::symlink_metadata(&target).map_err(|e| e.to_string())?;
+            if !before.is_file() {
+                return Err(format!("not a regular source file: {path}"));
+            }
+            let (checksum, size) = Blake3Hasher
+                .hash_file_hex(&target)
+                .map_err(|e| format!("hash {path}: {e}"))?;
+            let after =
+                fs::symlink_metadata(checked_path(&root, path)?).map_err(|e| e.to_string())?;
+            if !after.is_file()
+                || size != before.len()
+                || size != after.len()
+                || before.modified().ok() != after.modified().ok()
+                || snapdir_core::copy_guard::CopyGuard::from_metadata(&before)
+                    != snapdir_core::copy_guard::CopyGuard::from_metadata(&after)
+            {
+                return Err(format!("source changed during hashing: {path}"));
+            }
+            files.push(SourceIdentity {
+                path: path.clone(),
+                checksum,
+            });
+        }
+        return source_manifest(files, selection.allow_empty);
+    }
     // Snapdir takes absolute regexes. Never pass user globs to ExcludeMatcher.
     let prefix = regex::escape(root.to_str().ok_or("non-UTF-8 workspace path")?);
     let internal = INTERNAL
@@ -138,18 +182,22 @@ pub fn discover(root: &Path, selection: &Selection) -> Result<SourceManifest, St
                 .dirs
                 .iter()
                 .any(|d| path.starts_with(&format!("{d}/")));
-        if requested
-            && (includes.is_empty() || includes.iter().any(|p| p.is_match(&path)))
-            && !excludes.iter().any(|p| p.is_match(&path))
-        {
+        if requested && eligible(&path) {
             files.push(SourceIdentity {
                 path,
                 checksum: entry.checksum.clone(),
             });
         }
     }
+    source_manifest(files, selection.allow_empty)
+}
+
+fn source_manifest(
+    mut files: Vec<SourceIdentity>,
+    allow_empty: bool,
+) -> Result<SourceManifest, String> {
     files.sort_by(|a, b| a.path.cmp(&b.path));
-    if files.is_empty() && !selection.allow_empty {
+    if files.is_empty() && !allow_empty {
         return Err("empty source selection; intentional empty scope requires allowEmpty".into());
     }
     let rows: Vec<_> = files

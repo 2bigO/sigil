@@ -244,10 +244,12 @@ Already observed during this refactor:
   native output now recovers scope/export/editor priority without a separate
   comparison-priority table. Apply the same observation-to-Design-to-implementation
   process to subsequent gaps; do not leave them as permanent tracker rules.
-* Selecting four explicit Implementation files took roughly 8–11 seconds in
-  each real scoped command because discovery hashes unselected files first.
-  Improve native selection before hashing and validate it on the same scope;
-  do not hide the cost in a custom manifest cache or TS adapter.
+* Selecting four explicit Implementation files took roughly 8–11 seconds because
+  discovery hashed unselected files first. Native file-only selection now filters
+  before hashing and skips unrelated traversal. The identical real scope inspection
+  took 8.77 seconds with the previous compiler and 1.36 seconds with the updated
+  compiler, with identical output. Directory/global discovery still walks the
+  pruned tree. No custom cache or TS adapter was introduced.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
@@ -395,7 +397,7 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | --- | --- | --- |
 | Hand-maintained source/unit inventory | Existing structural frontend export | Already used across subsequent increments. Remove duplicate source/unit inventories and counts; keep the current artifact identity. The language export itself is retained product capability. |
 | Ad hoc target freshness queries | Native `stale`, capture and generation validation | Already used across subsequent increments. Remove custom freshness decisions and per-source tracker statuses; read native reports. |
-| Repeated scope selectors and hand-built comparison membership | Implemented `sigilc scope` and `--scope` across world commands | Duplicate selector prose removed; native scope trial exercised on the real refactor. Adopt it on the next increment and stop manual bundle slicing/comparison-membership assembly. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
+| Repeated scope selectors and hand-built comparison membership | Implemented `sigilc scope` and `--scope` across world commands | Adopted on the subsequent source-selection increment; native output selected the first preparation target. Stop manual bundle slicing/comparison-membership assembly and read native order/membership. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
 | Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Stop custom assembly when real returned Turtle uses the native path. Do not mark independent reconstruction available from fixtures. |
 | Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
 | Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |

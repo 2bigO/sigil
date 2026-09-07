@@ -23,6 +23,11 @@ component SigilSourceIdentity {
       include and exclude globs. Support arbitrary source extensions. Exclude
       generated internal trees and configured vendor directories.
       Refuse accidental empty selections and make intentional empty scope explicit.
+      For explicit file-only selection, filter requested paths before hashing
+      and do not traverse unrelated trees. Reuse snapdir file hashing and the
+      same manifest encoding as directory discovery. Validate selected regular
+      files and reject detected changes during hashing; no persistent shortcut
+      replaces current content identity.
     }
 
     SourceIdentity {
@@ -46,6 +51,13 @@ expand SigilSourceIdentity {
   }
 
   cases {
+    FocusedSelection {
+      Selecting four explicit files does not read an unrelated large or
+      unreadable tree. Duplicate requested paths yield one manifest row.
+      Internal, vendor, include and exclude rules still apply before content
+      reads. Equivalent file-only and directory selections have equal identity.
+    }
+
     SourceIdentity {
       Editing an imported file changes only that file's content row. The union
       identity changes, while the unchanged importer's source identity survives.
