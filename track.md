@@ -130,7 +130,8 @@ rehearsal then removed the duplicate `delivery queue.next_task` pointer from
 status on each subsequent scoped increment before removing another temporary
 field.
 
-The current complete-scope dogfood is the next concrete loop checkpoint. A
+Historical cycle-38 complete-scope dogfood was the next concrete loop
+checkpoint at that time. A
 fresh `sigil export design .` produced `artifacts/design-input-38.json`;
 `sigilc scope` preserved the three requested roots and expanded the final root
 to 37 effective Design sources, while `sigilc stale design` reported all 37
@@ -139,7 +140,9 @@ identity and kept the first item `ready` with its two dependents `queued`.
 Native `sigilc prepare design` then provisioned 37 source-local jobs in
 `artifacts/design-prep-38/`, all with exit 0. This is input/provisioning
 evidence only: no worker was launched, no Turtle was invented or ingested, and
-`.sigil/worlds/` remains lock-only. Resume the external Design round in native
+`.sigil/worlds/` remained lock-only. That provisioning-only result was later
+superseded by cycles 47–52, which recorded real worker-to-ingest publication.
+Resume the external Design round in native
 `focus_order`; after ingestion and a current catalog, use the isolated
 Implementation preparation flow. Retire manual Turtle assembly, identity lists
 and comparison joins only after a subsequent native information/evidence parity
@@ -154,13 +157,15 @@ with no catalog; Implementation stale, compile and compare each exited 3 with
 These are prerequisite/inspection outcomes, not semantic colors for missing
 work. Preserve their named reasons when the external round resumes.
 
-Cycle 39 made the reconstruction gate explicit after direct inspection of the
+Historical cycle 39 made the reconstruction gate explicit after direct inspection of the
 real workspace. `tree -a .sigil` shows `worlds/.lock` only: there is no
 `worlds/index.json` and no Design or Implementation `.egg`. No coding-agent run has
 yet been observed spawning a background worker, returning Turtle, or invoking a
 matching `sigilc ingest`. `artifacts/acceptance-gate-39.json` records both
-criteria as unsatisfied. Keep `LOOP-RECONSTRUCTION` locked at this point; native
-preparation and fixture publication are not substitutes for either observation.
+criteria as unsatisfied. That historical gate was later satisfied in cycle 48;
+the current cycle 56 gate is reopened for the newly observed binding-history
+requirement. Native preparation and fixture publication are not substitutes for
+either observation.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
