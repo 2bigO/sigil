@@ -59,28 +59,22 @@ tar -xzf "$archive" -C "$tmp"
 source_dir="$tmp/sigil-$VERSION"
 [ -d "$source_dir" ] || fail "archive does not contain sigil-$VERSION"
 [ -x "$source_dir/bin/sigil" ] || fail "archive does not contain bin/sigil"
-[ -f "$source_dir/lib/sigil/runtime/manifest.json" ] || fail "archive has no runtime manifest"
-[ -f "$source_dir/lib/sigil/runtime/egglog/sigil-semantic-engine" ] || fail "archive has no native engine"
-[ -f "$source_dir/lib/sigil/runtime/typescript/tsc" ] || fail "archive has no TypeScript runtime"
+[ -x "$source_dir/bin/sigilc" ] || fail "archive does not contain bin/sigilc"
+[ ! -e "$source_dir/lib/sigil/runtime" ] || fail "archive contains obsolete runtime payloads"
 if find "$source_dir" -type l -print -quit | grep . >/dev/null 2>&1; then fail "archive contains a symbolic link"; fi
-if command -v sha256sum >/dev/null 2>&1; then manifest_hash="$(sha256sum "$source_dir/lib/sigil/runtime/manifest.json" | awk '{print $1}')"; else manifest_hash="$(shasum -a 256 "$source_dir/lib/sigil/runtime/manifest.json" | awk '{print $1}')"; fi
-manifest_prefix="$(printf '%.16s' "$manifest_hash")"
-destination="$INSTALL_ROOT/versions/${VERSION}-${manifest_prefix}"
+archive_prefix="$(printf '%.16s' "$actual")"
+destination="$INSTALL_ROOT/versions/${VERSION}-${archive_prefix}"
 mkdir -p "$INSTALL_ROOT/versions" "$BIN_DIR"
 if [ -e "$destination" ]; then
-  [ -f "$destination/lib/sigil/runtime/manifest.json" ] || fail "existing installation is corrupt"
-  if command -v sha256sum >/dev/null 2>&1; then existing_hash="$(sha256sum "$destination/lib/sigil/runtime/manifest.json" | awk '{print $1}')"; else existing_hash="$(shasum -a 256 "$destination/lib/sigil/runtime/manifest.json" | awk '{print $1}')"; fi
-  [ "$existing_hash" = "$manifest_hash" ] || fail "existing installation has a different runtime manifest"
+  diff -qr "$source_dir" "$destination" >/dev/null || fail "existing installation differs from verified archive"
 else
   mv "$source_dir" "$destination"
 fi
-"$destination/bin/sigil" doctor --format json >/dev/null || fail "runtime doctor failed; existing installation remains selected"
-wrapper="$BIN_DIR/.sigil-wrapper.$$"
-trap 'rm -rf "$tmp" "$wrapper"' EXIT HUP INT TERM
-cat >"$wrapper" <<EOF
-#!/bin/sh
-exec "$destination/bin/sigil" "\$@"
-EOF
-chmod +x "$wrapper"
-mv -f "$wrapper" "$BIN_DIR/sigil"
+[ "$("$destination/bin/sigil" --version)" = "$VERSION" ] || fail "language executable version check failed"
+"$destination/bin/sigilc" --version >/dev/null || fail "native compiler failed; existing installation remains selected"
+for name in sigil sigilc; do
+  ln -s "$destination/bin/$name" "$BIN_DIR/.$name-wrapper.$$"
+done
+mv -f "$BIN_DIR/.sigil-wrapper.$$" "$BIN_DIR/sigil"
+mv -f "$BIN_DIR/.sigilc-wrapper.$$" "$BIN_DIR/sigilc"
 echo "Installed Sigil $VERSION to $destination"

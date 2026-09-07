@@ -76,44 +76,77 @@ fn run() -> Result<(), String> {
         return Err(format!("version returned invalid text: {version_text:?}"));
     }
 
-    let doctor = run_cli(
-        &cli,
-        &["doctor", "--format", "json"],
-        &unrelated,
-        &environment,
-    )?;
-    if !doctor.status.success() {
+    let compiler = distribution.join("bin").join(if cfg!(windows) {
+        "sigilc.exe"
+    } else {
+        "sigilc"
+    });
+    let compiler_version = run_cli(&compiler, &["--version"], &unrelated, &environment)?;
+    if !compiler_version.status.success() || !stdout_text(&compiler_version).starts_with("sigilc ")
+    {
         return Err(format!(
-            "doctor failed with {}: {}",
-            exit_code(&doctor),
-            output_text(&doctor)
+            "native compiler version failed: {}",
+            output_text(&compiler_version)
         ));
     }
-    if !compact(&stdout_text(&doctor)).contains("\"ok\":true") {
-        return Err(format!(
-            "doctor did not report ok=true: {}",
-            stdout_text(&doctor)
-        ));
-    }
-
     let target_text = path_string(&target);
-    let semantic = run_cli(
+    let exported = run_cli(
         &cli,
-        &["semantic", "status", &target_text, "--format", "json"],
+        &["export", "design", &target_text, "--root", &target_text],
         &unrelated,
         &environment,
     )?;
-    if semantic.status.code() != Some(1) {
+    if !exported.status.success() {
         return Err(format!(
-            "semantic fixture returned {}, expected 1: {}",
-            exit_code(&semantic),
-            output_text(&semantic)
+            "structural Design export failed: {}",
+            output_text(&exported)
         ));
     }
-    if !compact(&stdout_text(&semantic)).contains("\"status\":\"yellow\"") {
+    let frontend = unrelated.join("frontend.json");
+    fs::write(&frontend, &exported.stdout).map_err(io_error)?;
+    let frontend_text = path_string(&frontend);
+    let design = run_cli(
+        &compiler,
+        &[
+            "compile",
+            "design",
+            "--root",
+            &target_text,
+            "--frontend",
+            &frontend_text,
+        ],
+        &unrelated,
+        &environment,
+    )?;
+    if !design.status.success() || !compact(&stdout_text(&design)).contains("\"state\":\"Loose\"") {
         return Err(format!(
-            "semantic fixture did not report yellow: {}",
-            stdout_text(&semantic)
+            "unreconstructed Design must be Loose with exit 0: {}",
+            output_text(&design)
+        ));
+    }
+    let selection = unrelated.join("selection.json");
+    fs::write(&selection, b"{\"paths\":[\"main.sigil\"]}").map_err(io_error)?;
+    let selection_text = path_string(&selection);
+    let comparison = run_cli(
+        &compiler,
+        &[
+            "compare",
+            "--root",
+            &target_text,
+            "--frontend",
+            &frontend_text,
+            "--selection",
+            &selection_text,
+        ],
+        &unrelated,
+        &environment,
+    )?;
+    if comparison.status.code() != Some(3)
+        || !compact(&stdout_text(&comparison)).contains("\"comparison\":null")
+    {
+        return Err(format!(
+            "unavailable comparison must be unset with exit 3: {}",
+            output_text(&comparison)
         ));
     }
 
@@ -126,7 +159,7 @@ fn run() -> Result<(), String> {
         }
     }
     println!(
-        "{{\"artifactConsumer\":true,\"version\":\"{version_text}\",\"doctor\":true,\"semantic\":\"yellow\",\"hostToolsInvoked\":false}}"
+        "{{\"artifactConsumer\":true,\"version\":\"{version_text}\",\"design\":\"Loose\",\"comparison\":null,\"hostToolsInvoked\":false}}"
     );
     Ok(())
 }
@@ -168,7 +201,14 @@ fn reject_source_and_cache_roots(
     home: &Path,
     cache: &Path,
 ) -> Result<(), String> {
-    for name in ["packages", "node_modules", "deno.json", "Cargo.toml"] {
+    for name in [
+        "packages",
+        "node_modules",
+        "deno.json",
+        "Cargo.toml",
+        "repos",
+        "lib",
+    ] {
         if distribution.join(name).exists() {
             return Err(format!(
                 "distribution unexpectedly contains source/dependency root {}",

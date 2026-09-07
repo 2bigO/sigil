@@ -9,6 +9,23 @@ Build with Rust 1.91.1 or newer:
 cargo build --locked --manifest-path packages/sigilc/Cargo.toml
 ```
 
+Standalone releases ship `bin/sigil` and `bin/sigilc` together with the skill
+catalog. The archive version follows the language CLI; `sigilc --version` reports
+the Rust crate version. Both installers expose both commands on PATH.
+
+Build and smoke-test a distribution on its matching native platform:
+
+```sh
+deno task package:cli --target x86_64-unknown-linux-gnu
+```
+
+Omit `--target` to use the host. Release CI retains Linux and macOS on x86_64
+and ARM64, and Windows on x86_64. Each target builds its locked Rust binary and
+compiled language CLI, exercises fixed native gate fixtures, and consumes the
+archive on a matching runner without a source checkout. Cross-target `cargo
+check` is not an executable distribution check. No old bridge or TypeScript proof
+runtime is staged.
+
 Design commands consume the versioned structural JSON produced by
 `sigil export design .`, using core's `loadDesignInput`. Pass that bundle with
 `--frontend`. The compiler checks its captured source/config/glossary bytes

@@ -50,30 +50,41 @@ try {
   Expand-Archive -Path $Archive -DestinationPath $Temp
   $Source = Join-Path $Temp "sigil-$Version"
   $Executable = Join-Path $Source "bin\sigil.exe"
-  $Manifest = Join-Path $Source "lib\sigil\runtime\manifest.json"
+  $Compiler = Join-Path $Source "bin\sigilc.exe"
   if (-not (Test-Path $Executable -PathType Leaf)) { throw "Archive does not contain bin\sigil.exe." }
-  if (-not (Test-Path $Manifest -PathType Leaf)) { throw "Archive has no runtime manifest." }
-  if (-not (Test-Path (Join-Path $Source "lib\sigil\runtime\egglog\sigil-semantic-engine.exe") -PathType Leaf)) { throw "Archive has no native engine." }
-  if (-not (Test-Path (Join-Path $Source "lib\sigil\runtime\typescript\tsc.exe") -PathType Leaf)) { throw "Archive has no TypeScript runtime." }
+  if (-not (Test-Path $Compiler -PathType Leaf)) { throw "Archive does not contain bin\sigilc.exe." }
+  if (Test-Path (Join-Path $Source "lib\sigil\runtime")) { throw "Archive contains obsolete runtime payloads." }
   if (Get-ChildItem $Source -Recurse -Force | Where-Object { $_.LinkType }) { throw "Archive contains a symbolic link." }
-  $ManifestHash = (Get-FileHash $Manifest -Algorithm SHA256).Hash.ToLowerInvariant()
-  $Prefix = $ManifestHash.Substring(0, 16)
+  $Prefix = $Actual.Substring(0, 16)
   $Versions = Join-Path $InstallRoot "versions"
   $Destination = Join-Path $Versions "$Version-$Prefix"
   New-Item -ItemType Directory -Force -Path $Versions, $BinDir | Out-Null
   if (Test-Path $Destination) {
-    $ExistingManifest = Join-Path $Destination "lib\sigil\runtime\manifest.json"
-    if (-not (Test-Path $ExistingManifest -PathType Leaf)) { throw "Existing installation is corrupt." }
-    if ((Get-FileHash $ExistingManifest -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ManifestHash) { throw "Existing installation has a different runtime manifest." }
+    $Files = @(Get-ChildItem $Source -File -Recurse -Force)
+    $Existing = @(Get-ChildItem $Destination -File -Recurse -Force)
+    if ($Files.Count -ne $Existing.Count -or (Get-ChildItem $Destination -Recurse -Force | Where-Object { $_.LinkType })) { throw "Existing installation differs from verified archive." }
+    foreach ($File in $Files) {
+      $Relative = $File.FullName.Substring($Source.Length).TrimStart('\', '/')
+      $InstalledFile = Join-Path $Destination $Relative
+      if (-not (Test-Path $InstalledFile -PathType Leaf) -or (Get-FileHash $InstalledFile -Algorithm SHA256).Hash -ne (Get-FileHash $File.FullName -Algorithm SHA256).Hash) { throw "Existing installation differs from verified archive: $Relative" }
+    }
   } else {
     Move-Item $Source $Destination
   }
-  & (Join-Path $Destination "bin\sigil.exe") doctor --format json | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "Runtime doctor failed; existing installation remains selected." }
-  $Wrapper = Join-Path $BinDir "sigil.cmd"
-  $WrapperTemp = "$Wrapper.$PID.tmp"
-  Set-Content -Path $WrapperTemp -Encoding Ascii -Value "@echo off`r`n`"$(Join-Path $Destination 'bin\sigil.exe')`" %*"
-  Move-Item -Force $WrapperTemp $Wrapper
+  $LanguageVersion = & (Join-Path $Destination "bin\sigil.exe") --version
+  if ($LASTEXITCODE -ne 0 -or $LanguageVersion -ne $Version) { throw "Language executable version check failed." }
+  & (Join-Path $Destination "bin\sigilc.exe") --version | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Native compiler failed; existing installation remains selected." }
+  foreach ($Name in @("sigil", "sigilc")) {
+    $Wrapper = Join-Path $BinDir "$Name.cmd"
+    $WrapperTemp = "$Wrapper.$PID.tmp"
+    $Body = "@echo off`r`n@chcp 65001 >nul`r`n`"$(Join-Path $Destination "bin\$Name.exe")`" %*`r`n"
+    [IO.File]::WriteAllText($WrapperTemp, $Body, [Text.UTF8Encoding]::new($false))
+  }
+  foreach ($Name in @("sigil", "sigilc")) {
+    $Wrapper = Join-Path $BinDir "$Name.cmd"
+    Move-Item -Force "$Wrapper.$PID.tmp" $Wrapper
+  }
   Write-Host "Installed Sigil $Version to $Destination"
 } finally {
   if (Test-Path $Temp) { Remove-Item -Recurse -Force $Temp }

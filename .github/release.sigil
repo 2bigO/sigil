@@ -1,4 +1,5 @@
 @packages/cli import { SigilCli }
+@packages/sigilc import { SigilSemanticCompiler }
 @packages/cli/src/installer.sigil import { SkillInstaller }
 @integrations/editor/vscode import { SigilVsCodeExtension }
 
@@ -16,8 +17,8 @@ component SigilReleaseDistribution {
       a cli-vX.Y.Z GitHub Release provides native CLI archives for supported macOS,
       Linux, and Windows targets
 
-      each archive contains one native executable and its version-matched skill
-      catalog
+      each archive contains the language executable sigil, the independent semantic
+      compiler sigilc, and the distribution-version-matched skill catalog
 
       install.sh installs the latest or explicitly selected macOS or Linux CLI
       release
@@ -42,8 +43,9 @@ expand SigilReleaseDistribution {
       Compile x86_64 and ARM64 executables for macOS and Linux and x86_64 for
       Windows.
 
-      Package stable platform-specific archive names containing versioned bin/sigil
-      and integrations/skills paths.
+      Package stable platform-specific archive names containing versioned
+      bin/sigil, bin/sigilc and integrations/skills paths. Each binary reports its owning manifest
+      version; the archive version follows the language CLI manifest.
 
       Detect host operating system and architecture before selecting an archive.
 
@@ -51,8 +53,10 @@ expand SigilReleaseDistribution {
 
       Verify SHA-256 before extracting or changing the active executable.
 
-      Install into a versioned user-data directory and expose the selected executable
-      through a user PATH directory.
+      Install into a versioned user-data directory and expose both selected
+      executables through a user PATH directory. Verify both binaries before activation.
+      Reinstallation checks existing bytes against the verified archive, including
+      skills; corrupt existing installations fail without selecting a new version.
     }
 
     VsCodeRelease {
@@ -63,8 +67,8 @@ expand SigilReleaseDistribution {
 
   constraints {
     DistributionInputs {
-      SigilCli, SkillInstaller, and SigilVsCodeExtension own the packaged release
-      inputs.
+      SigilCli, SigilSemanticCompiler, SkillInstaller, and SigilVsCodeExtension
+      own the packaged release inputs.
     }
 
     ReleaseIntegrity {
@@ -106,8 +110,8 @@ expand SigilReleaseDistribution {
       Trade-offs: Maintainers build and test a platform matrix and pre-production
       executables may remain unsigned.
 
-      Consequences: One selected executable and its bundled skills form a consistent
-      installation unit.
+      Consequences: Two selected executables and their bundled skills form a
+      consistent installation unit.
 
       Revisit when: Package-manager or signed distribution provides equivalent
       runtime independence and version ownership.
@@ -151,7 +155,14 @@ expand SigilReleaseDistribution {
   cases {
     NativeCliRelease {
       Apple Silicon macOS and supported Linux users install matching native archives
-      without Deno.
+      without host Deno, Node, npm, Rust or TypeScript tools.
+
+      Matching native runners build and execute every retained target. Relocated
+      archives export structural Design with sigil and run native scope,
+      preparation, ingestion and gates directly with sigilc using fixed fixtures.
+      Runtime errors are distinct from named Design and Implementation states.
+      No legacy bridge, TypeScript proof runtime, runtime manifest or compiler
+      wrapper is packaged. Repository-local repos dependencies are unnecessary.
 
       SIGIL_VERSION selects the requested release.
 

@@ -31,29 +31,21 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             runner: ubuntu-24.04
-            ts-package: '@typescript/typescript-linux-x64'
           - target: aarch64-unknown-linux-gnu
             runner: ubuntu-24.04-arm
-            ts-package: '@typescript/typescript-linux-arm64'
           - target: x86_64-apple-darwin
             runner: macos-15-intel
-            ts-package: '@typescript/typescript-darwin-x64'
           - target: aarch64-apple-darwin
             runner: macos-15
-            ts-package: '@typescript/typescript-darwin-arm64'
           - target: x86_64-pc-windows-msvc
             runner: windows-2025
-            ts-package: '@typescript/typescript-win32-x64'
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - uses: dtolnay/rust-toolchain@1.91.0
+      - uses: dtolnay/rust-toolchain@1.91.1
         with:
           targets: ${{ matrix.target }}
       - name: Assert runner identity
@@ -65,40 +57,6 @@ jobs:
             *apple*) test "$(uname -s)" = Darwin ;;
             *windows*) test "$(uname -s)" = MINGW64_NT* || test "${RUNNER_OS}" = Windows ;;
           esac
-      - name: Resolve exact TypeScript platform package
-        shell: bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/typescript"
-          cat > "$RUNNER_TEMP/typescript/package.json" <<'EOF'
-          {"private":true,"dependencies":{"${{ matrix.ts-package }}":"7.0.2"}}
-          EOF
-          npm install --prefix "$RUNNER_TEMP/typescript" --ignore-scripts --no-audit --no-fund '${{ matrix.ts-package }}@7.0.2'
-          deno run --allow-read scripts/verify-typescript-platform.ts \
-            --package-dir "$RUNNER_TEMP/typescript/node_modules/${{ matrix.ts-package }}" \
-            --package-name '${{ matrix.ts-package }}' \
-            --lockfile "$RUNNER_TEMP/typescript/package-lock.json" \
-            --lock deno.lock
-          echo "SIGIL_TYPESCRIPT_PACKAGE_DIR=$RUNNER_TEMP/typescript/node_modules/${{ matrix.ts-package }}" >> "$GITHUB_ENV"
-      - name: Build locked native engine
-        shell: bash
-        run: cargo build --manifest-path packages/compiler/native/Cargo.toml --release --locked --target '${{ matrix.target }}'
-      - name: Build cross-platform cancellation fixture
-        shell: bash
-        run: |
-          if [[ "${RUNNER_OS}" = Windows ]]; then
-            helper="$RUNNER_TEMP/uncooperative-engine.exe"
-          else
-            helper="$RUNNER_TEMP/uncooperative-engine"
-          fi
-          rustc --edition 2021 --target '${{ matrix.target }}' -O \
-            scripts/fixtures/uncooperative-engine/main.rs -o "$helper"
-          echo "SIGIL_UNCOOPERATIVE_ENGINE=$helper" >> "$GITHUB_ENV"
-      - name: Verify native cancellation cleanup
-        shell: bash
-        run: |
-          deno test --allow-env --allow-read --allow-write --allow-run \
-            packages/compiler/tests/semantic_runtime_test.ts \
-            --filter 'engine timeout and cancellation reap'
       - name: Build, smoke test, and stage archive
         shell: bash
         env:
@@ -141,10 +99,12 @@ jobs:
           cli="/tmp/sigil/sigil-$SIGIL_RELEASE_VERSION/bin/sigil"
           test -x "$cli"
           test "$("$cli" --version)" = "$SIGIL_RELEASE_VERSION"
-          "$cli" doctor --format json | grep -q '"ok":true'
+          compiler="/tmp/sigil/sigil-$SIGIL_RELEASE_VERSION/bin/sigilc"
+          "$compiler" --version
           cp /fixtures/project/main.sigil /tmp/fixture/main.sigil
           cp /fixtures/project/fixture-config.json /tmp/fixture/.sigil/config.json
-          "$cli" semantic status /tmp/fixture --format json | grep -q '"status":"yellow"'
+          "$cli" export design /tmp/fixture --root /tmp/fixture > /tmp/frontend.json
+          "$compiler" compile design --root /tmp/fixture --frontend /tmp/frontend.json | grep -q '"state": "Loose"'
           EOF
       - uses: actions/upload-artifact@v4
         with:
@@ -252,6 +212,8 @@ jobs:
                 pwsh -NoProfile -ExecutionPolicy Bypass -File "$installer_native"
             }
             run_install
+            compiler_wrapper="$bin_root_native/sigilc.cmd"
+            pwsh -NoProfile -Command "& '$compiler_wrapper' --version"
             wrapper="$bin_root_native/sigil.cmd"
             version_one="$(pwsh -NoProfile -Command "& '$wrapper' --version")"
             run_install
@@ -270,9 +232,9 @@ jobs:
               exit 1
             fi
             test "$(pwsh -NoProfile -Command "& '$wrapper' --version")" = "$version_one"
-            manifest="$(pwsh -NoProfile -Command "(Get-ChildItem -LiteralPath '$install_root_native' -Filter manifest.json -Recurse | Select-Object -First 1).FullName")"
-            test -n "$manifest"
-            pwsh -NoProfile -Command "Add-Content -LiteralPath '$manifest' -Value 'tampered'"
+            installed_license="$(pwsh -NoProfile -Command "(Get-ChildItem -LiteralPath '$install_root_native' -Filter LICENSE -Recurse | Select-Object -First 1).FullName")"
+            test -n "$installed_license"
+            pwsh -NoProfile -Command "Add-Content -LiteralPath '$installed_license' -Value 'tampered'"
             if run_install; then
               echo "corrupt existing installation was silently accepted" >&2
               exit 1
@@ -289,13 +251,14 @@ jobs:
                 "$installer"
             }
             run_install
+            "$bin_root/sigilc" --version
             version_one="$("$bin_root/sigil" --version)"
             run_install
             version_two="$("$bin_root/sigil" --version)"
             test "$version_one" = "$version_two"
             bad_checksums="$artifact/checksums-invalid.txt"
             archive_name="$(basename "$archive")"
-            awk -v name="$archive_name" '{ if ($2 == name) { $1 = "0" substr($1, 2) } print }' "$checksums" > "$bad_checksums"
+            awk -v name="$archive_name" '{ if ($2 == name) { $1 = (substr($1, 1, 1) == "0" ? "1" : "0") substr($1, 2) } print }' "$checksums" > "$bad_checksums"
             if SIGIL_ARCHIVE_PATH="$archive" \
               SIGIL_CHECKSUMS_PATH="$bad_checksums" \
               SIGIL_INSTALL_DIR="$install_root" \
@@ -305,9 +268,9 @@ jobs:
               exit 1
             fi
             test "$("$bin_root/sigil" --version)" = "$version_one"
-            manifest="$(find "$install_root/versions" -name manifest.json -print -quit)"
-            test -n "$manifest"
-            printf '%s\n' tampered >> "$manifest"
+            installed_license="$(find "$install_root/versions" -name LICENSE -print -quit)"
+            test -n "$installed_license"
+            printf '%s\n' tampered >> "$installed_license"
             if run_install; then
               echo "corrupt existing installation was silently accepted" >&2
               exit 1
@@ -347,7 +310,7 @@ jobs:
           find build/release -name checksums.txt -delete
           for asset in build/release/*.tar.gz build/release/*.zip; do
             [[ -f "$asset" ]] || continue
-            sha256sum "$asset"
+            (cd build/release && sha256sum "${asset##*/}")
           done | sort -k2 > build/release/checksums.txt
           sed "s/__SIGIL_VERSION__/$version/g" install.sh > build/release/install.sh
           sed "s/__SIGIL_VERSION__/$version/g" install.ps1 > build/release/install.ps1

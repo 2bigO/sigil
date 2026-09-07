@@ -25,8 +25,9 @@ The problem statement is captured in [PROBLEM.md](PROBLEM.md).
 
 ## Install The CLI
 
-Sigil's standalone, unsigned prerelease executables contain the native egglog
-engine and TypeScript 7.0.2 runtime. Deno and Node.js are not required on the
+Sigil's standalone, unsigned prerelease archives contain `sigil` for language
+operations and `sigilc` for deterministic semantic compilation, plus bundled
+agent skills. Deno, Node.js, Rust and TypeScript tools are not required on the
 destination machine. Release installation is available when a matching archive
 has been published; source installation is always available for development.
 

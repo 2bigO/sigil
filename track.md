@@ -255,8 +255,17 @@ Already observed during this refactor:
   also removed the editor's beam/world/view/handoff/receipt commands and the
   legacy `sigil semantic` route with their dedicated helpers and tests. Retained
   language, preview and compilation workflows passed ordinary host checks.
-  The retained editor now consumes native final reports directly; release
-  integration and the remaining legacy CLI/compiler deletion are next.
+  The retained editor now consumes native final reports directly. Two-binary
+  release packaging and Linux consumption are verified; the remaining legacy
+  CLI/compiler deletion and other native platform executions are pending.
+* Release integration exposed another obsolete dependency: installers and smoke
+  checks required the old runtime manifest, engine and TypeScript proof runtime.
+  Archives now stage `sigil` and `sigilc`; installers validate both and compare
+  existing installed bytes against the verified archive. The actual Linux archive
+  exports Design and runs native gates without host tools, and its separate
+  consumer runs offline without the source checkout. Use `deno task package:cli`
+  on each matching native runner. Other platforms still need execution evidence;
+  language CLI removal of its remaining embedded legacy imports is also pending.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus
