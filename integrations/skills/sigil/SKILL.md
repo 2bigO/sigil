@@ -55,6 +55,9 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    Run native `sigilc stale` before rebuilding any projection. Preserve every
    `fresh` projection; reprepare and respawn a subagent only for rows reported
    stale, missing or dependency-invalid.
+   Freshness is binding-specific: an accepted egg from a different ordered
+   Design item may remain in the cache, but native stale decides whether it is
+   reusable for the current item.
 3. Prepare each stale Design source. A spawned subagent reconstructs it;
    the coding agent must spawn a subagent in the background, retain its
    process/job evidence, and pass its returned Turtle to the matching

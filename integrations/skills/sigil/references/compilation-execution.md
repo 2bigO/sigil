@@ -63,6 +63,9 @@ as proof of delivery, tests, review or deletion.
 At the start of each reconstruction cycle, run native `sigilc stale` for the
 selected scope. Preserve every row reported `fresh`; reprepare and respawn a
 subagent only for rows reported stale, missing, or dependency-invalid.
+Freshness is binding-specific: an accepted egg from another ordered Design
+item may remain in the cache, but native stale decides whether it is reusable
+for the current item.
 
 ## Independently reconstruct Design
 

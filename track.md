@@ -250,7 +250,9 @@ result. Use `--scope` consistently on subsequent ingest/catalog/Implementation
 operations, and use `sigilc request status` to advance an ordered multi-item
 scope after each external reconstruction/check round. `--scope` replaces
 `--selection`; neither replaces the full-scope final audit or independent
-reconstruction.
+reconstruction. Projection freshness is binding-specific: preserve an accepted
+egg from another ordered item, but let native `stale` decide whether its
+current Design or catalog binding is reusable before preparing a replacement.
 
 ## The convergence loop
 
