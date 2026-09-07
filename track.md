@@ -78,6 +78,23 @@ rehearsal then removed the duplicate `delivery queue.next_task` pointer from
 status on each subsequent scoped increment before removing another temporary
 field.
 
+The current complete-scope dogfood is the next concrete loop checkpoint. A
+fresh `sigil export design .` produced `artifacts/design-input-38.json`;
+`sigilc scope` preserved the three requested roots and expanded the final root
+to 37 effective Design sources, while `sigilc stale design` reported all 37
+projections missing. `sigilc request status` persisted the new frontend input
+identity and kept the first item `ready` with its two dependents `queued`.
+Native `sigilc prepare design` then provisioned 37 source-local jobs in
+`artifacts/design-prep-38/`, all with exit 0. This is input/provisioning
+evidence only: no worker was launched, no Turtle was invented or ingested, and
+`.sigil/worlds/` remains lock-only. Resume the external Design round in native
+`focus_order`; after ingestion and a current catalog, use the isolated
+Implementation preparation flow. Retire manual Turtle assembly, identity lists
+and comparison joins only after a subsequent native information/evidence parity
+observation. If the native flow cannot answer a required question, record the
+observed gap and implement it in its authored owner instead of adding a
+tracker adapter.
+
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
 
