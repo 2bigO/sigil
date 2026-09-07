@@ -867,10 +867,10 @@ Concrete integration details from the checkout:
   code and also show the raw tracked-extension total so vendoring is visible.
   Snapdir's workspace requires Rust 1.91.1; Sigil currently
   declares 1.91. Align the declared MSRV and build environment.
-* Preserve existing release platforms. First isolate/port the small required
-  snapdir-core filesystem surface for Windows and verify it on the release
-  matrix. Do not silently remove Windows support or ship a release dependent on
-  the ignored `repos/` checkout. This is an early feasibility milestone.
+* Preserve the retained Linux release path. First isolate/port the small required
+  snapdir-core filesystem surface without a release dependent on the ignored
+  `repos/` checkout. The user retired non-Linux native execution from this loop;
+  do not turn cross-platform validation into a completion requirement.
 
 The release builder is intentionally native-runner-only: selecting a target whose
 triple differs from `Deno.build.target` stops before cross-building and reports
@@ -2178,7 +2178,8 @@ Expected result: **large net code deletion**.
     harness protocol and allowed/forbidden context. Implement no harness adapter,
     coding workflow, launcher, scheduler, or background runtime. CI uses fixed
     Turtle fixtures or simple model-boundary test doubles.
-11. Finish packaging, installers, platform validation, and the net-deletion audit.
+11. Finish packaging, installers, retained-Linux runtime validation, and the
+    net-deletion audit.
     Verify `sigil` and `sigilc` from a clean checkout without `repos/`. Temporary
     development scaffolding must be gone in the completed refactor.
 
@@ -2665,7 +2666,7 @@ Design, skipped source files, and exhausted closure limits cannot yield `Closed`
 
 Reject `.egg` rules/includes, catalog mutations, path traversal, symlink escapes,
 non-finite arithmetic input, and wrong-side assertion forms. Build distribution
-artifacts without `repos/` on every retained release platform. Permission-only
+artifacts without `repos/` on the retained Linux release path. Permission-only
 changes preserve semantic identity; a rename or added duplicate file changes it.
 
 ## X. Catalog and import boundaries

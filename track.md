@@ -456,15 +456,16 @@ Already observed during this refactor:
   retiring any temporary workaround.
 * The retained Linux x86_64 release build and relocated smoke now exercise
   `request create/status` as well as the six named gate states. The smoke uses
-  an absolute two-binary installation with no checkout or host tools. Other
-  retained targets still need their matching runners; a cross-target check is
-  not runtime evidence.
-* **Cycle 61 platform observation made the remaining release blocker concrete.**
+  an absolute two-binary installation with no checkout or host tools. A
+  cross-target check is not runtime evidence, and non-Linux native execution is
+  retired from this loop by the Cycle 65g user decision below.
+* **Cycle 65g platform decision retires non-Linux execution from this loop.**
   The current release script built and ran the relocated x86_64 Linux archive
-  with Rust 1.91.1. Its four non-host invocations exited before compilation with
-  the explicit matching-native-runner error. Keep those rows active until each
-  native environment supplies build, install and runtime evidence; do not
-  relabel a cross-check or emulation result as a release pass.
+  with Rust 1.91.1. Its four non-host invocations correctly reject the local
+  runner before compilation. The user explicitly declared native platform tests
+  other than this Linux unnecessary, so retain those diagnostics as historical
+  evidence and do not reopen them as completion blockers or substitute an
+  emulated result for a native one.
 * **Cycle 61 deletion audit found one residual removed-backend surface.**
   `packages/lsp/src/filesystem.ts`, `packages/lsp/src/server.ts`,
   `packages/core/src/path.ts`, and the dedicated
@@ -506,7 +507,7 @@ Already observed during this refactor:
   unresolved warning obligations. Preserve the current native compare result
   rather than treating a worker-dependent warning count as a fixed delivery
   measure. Do not reopen the documentation task or rebuild
-  unchanged projections; continue with native platform evidence, final
+  unchanged projections; continue with the Linux release check, final
   deletion/net-deletion audit, and fresh-session information/evidence parity.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
@@ -525,15 +526,17 @@ Already observed during this refactor:
   language, preview and compilation workflows passed ordinary host checks.
   The retained editor now consumes native final reports directly. Two-binary
   release packaging and Linux consumption are verified; the remaining legacy
-  compiler packages are deleted; other native platform executions remain pending.
+  compiler packages are deleted. Cycle 65g explicitly retires non-Linux native
+  execution from this loop at user direction.
 * Release integration exposed another obsolete dependency: installers and smoke
   checks required the old runtime manifest, engine and TypeScript proof runtime.
   Archives now stage `sigil` and `sigilc`; installers validate both and compare
   existing installed bytes against the verified archive. The actual Linux archive
   exports Design and runs native gates without host tools, and its separate
   consumer runs offline without the source checkout. Use `deno task package:cli`
-  on each matching native runner. Other platforms still need execution evidence;
-  the legacy compiler packages and their workspace/publishing roots are deleted.
+  for the retained Linux release acceptance path. Other-platform execution is
+  not a requirement of this loop; the legacy compiler packages and their
+  workspace/publishing roots are deleted.
 * Removing staged runtime files did not remove the compiler code still imported
   by the language executable. The release build reported 36.34 MB of embedded
   application files. Deleting the old compile/config/doctor routes, profile and
@@ -845,8 +848,10 @@ All of the following must hold for the same final scope and current sources:
 
 1. Every required scope item is implemented and its applicable acceptance checks
    pass. Mandatory removals, preserved CLI/language behavior, distribution and
-   platform requirements are audited. Known unimplemented behavior, unrun required
-   checks, unavailable required platforms or runtime errors block completion.
+   platform requirements are audited. The retained Linux release runtime is
+   required; user-retired non-Linux platform checks are not. Known unimplemented
+   behavior, unrun required checks, unavailable required platforms or runtime
+   errors block completion.
    Related repository changes are committed in the small semantic increments
    above; unrelated user changes remain preserved.
 2. Current Design is non-Disjoint. Every selected Implementation file has a fresh
