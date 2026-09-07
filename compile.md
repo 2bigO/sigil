@@ -856,6 +856,14 @@ Concrete integration details from the checkout:
   matrix. Do not silently remove Windows support or ship a release dependent on
   the ignored `repos/` checkout. This is an early feasibility milestone.
 
+The release builder is intentionally native-runner-only: selecting a target whose
+triple differs from `Deno.build.target` stops before cross-building and reports
+the matching runner required. A foreign `cargo check`, an installed target
+library, or emulation is useful corroboration but cannot satisfy distribution
+acceptance. The host archive and its relocated source-free smoke are evidence
+for that host only; each retained Linux ARM64, macOS, and Windows target still
+needs its own native build, install, and runtime result.
+
 Portability evidence (implementation cycle 2): the pinned core failed a Windows
 MSVC compile check at seven Unix-only references in permissions, mmap error
 classification, and optional CPU telemetry. Conditional compilation plus a
@@ -2140,7 +2148,7 @@ parts without waiting for alternatives to deliberately removed concepts.
 | Bundled evaluator-stage skills | `packages/compiler/skills/semantic-readiness/`, `architecture-design/`, `current-code-compatibility/`, `standards-risk/`, including `compile.json` registration. Useful general instructions may survive only as lightweight docs without an evaluator runtime. |
 | Model proposals and beams | Under `packages/compiler/src/semantic/`: `proposal.ts`, `proposal-protocol.ts`, `provider-config.ts`, `search.ts`, `beam.ts`, `beam-store.ts`. |
 | Receipts, handoffs and mechanical verification | Under that semantic directory: `handoff.ts`, `receipts.ts`, `receipt-locations.ts`, `receipt-witnesses.ts`, `verify-return.ts`, `verification.ts`, `typescript7.ts`, `implementation-workspace.ts`, `evidence.ts`, `checks.ts`; remove the TS7 analyzer dependency and installed-package verification staging. Ordinary external project tests remain useful. |
-| Accepted-world and managed-view workflows | `semantic/store.ts`, `views.ts`, `view-model.ts`, `projections.ts`; remove accepted-state migration, managed-view editing/recovery, and generated `.sigil/views` authority. |
+| Accepted-world and managed-view workflows | `semantic/store.ts`, `views.ts`, `view-model.ts`, `projections.ts`, plus any retained LSP/editor special cases for generated `.sigil/views`; remove accepted-state migration, managed-view editing/recovery, generated-view discovery/symbol fallbacks, and generated `.sigil/views` authority. |
 | Retained semantic artifact framework | `semantic/artifact-recording.ts` and the retained-bundle machinery in `artifacts.ts`; replace only the necessary path/hash/atomic publication behavior with the small disposable world store. No retained runs, receipt bundles, or stage-result database. |
 | Legacy compiler profiles/history/events | Delete `profile.ts`, `semantic/profile.ts`, `history.ts`, `event-protocol.ts`, `event-reader.ts`, and `event-writer.ts` with their obsolete callers, exports and dedicated UI. Concrete limits, current diagnostics, and reports come from native sigilc commands; preserve frontend presentation of those native results, with no compiler wrapper package or legacy event translation. |
 | Old CLI semantic surface | Delete `sigil compile`, `packages/cli/src/semantic-commands.ts`, `semantic-providers.ts`, and `compiler-adapters.ts`, including old intent/answer/accept/beam/slice/receipt/verify/project/migrate routes. Frontend guidance tells models/operators to use `sigilc` directly; add no routing or subprocess wrapper. Remove provider/evaluator/migration authoring branches, not generic config functionality. |

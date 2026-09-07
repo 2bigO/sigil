@@ -407,6 +407,22 @@ Already observed during this refactor:
   an absolute two-binary installation with no checkout or host tools. Other
   retained targets still need their matching runners; a cross-target check is
   not runtime evidence.
+* **Cycle 61 platform observation made the remaining release blocker concrete.**
+  The current release script built and ran the relocated x86_64 Linux archive
+  with Rust 1.91.1. Its four non-host invocations exited before compilation with
+  the explicit matching-native-runner error. Keep those rows active until each
+  native environment supplies build, install and runtime evidence; do not
+  relabel a cross-check or emulation result as a release pass.
+* **Cycle 61 deletion audit found one residual removed-backend surface.**
+  `packages/lsp/src/filesystem.ts`, `packages/lsp/src/server.ts`,
+  `packages/core/src/path.ts`, and the dedicated
+  `packages/lsp/tests/managed_views_test.ts` still recognize generated managed
+  views. The backend managed-view workflow is gone, so this is a deletion task,
+  not a frontend capability to preserve. Remove the special discovery and symbol
+  fallback while retaining ordinary language navigation, preview, diagnostics,
+  and native compilation/status; verify the metadata boundary with the existing
+  source-selection checks. The broad VS Code language integration remains
+  protected and the prior blanket editor deletion stays reverted.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
