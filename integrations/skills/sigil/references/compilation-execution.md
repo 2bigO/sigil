@@ -4,19 +4,22 @@
 
 Run from the selected workspace, or pass its absolute path with `--root` to
 native commands. Use the actual installed `sigil` and `sigilc` executables.
-Store captured bundles, scopes, preparations and reports outside selected source
-scope. The paths below are illustrative external paths; each preparation output
-must be a new directory.
+Store disposable bundles, scopes, preparations, attempts and reports under
+`.sigil/tmp/<run-id>/`. This directory is local throwaway run state; each
+preparation output must be a new directory. Keep incrementally reusable state
+under its native `.sigil` owner instead: worlds under `.sigil/worlds/`, request
+captures and ledgers under `.sigil/workflow/`, and no run artifact under a
+temporary coding-agent tracker.
 
 ## Capture and scope
 
 ```sh
-sigil export design . > /tmp/sigil-run/frontend.json
-sigilc scope --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
-sigilc stale design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+sigil export design . > .sigil/tmp/<run-id>/frontend.json
+sigilc scope --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
+sigilc stale design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
 ```
 
-Create the external run directory before capture. Require successful export;
+Create the `.sigil/tmp/<run-id>/` directory before capture. Require successful export;
 never pass empty or partial output on to native commands. Regenerate the bundle
 after changing authored files, imports, config or glossary. Export captures the
 whole workspace; native scope selects focus. For example:
@@ -47,9 +50,9 @@ For several ordered scope items, persist the request once and let native status
 derive release from explicit predecessors:
 
 ```sh
-sigilc request create --root . --frontend /tmp/sigil-run/frontend.json --definition /tmp/sigil-run/request.json
+sigilc request create --root . --frontend .sigil/tmp/<run-id>/frontend.json --definition .sigil/tmp/<run-id>/request.json
 sigilc request status --root .
-sigilc request record --root . --dossier /tmp/sigil-run/completion.json
+sigilc request record --root . --dossier .sigil/tmp/<run-id>/completion.json
 ```
 
 The definition contains `version`, `id` and ordered `items`; each item contains
@@ -60,6 +63,11 @@ worlds. Status exposes `ready`, `queued`, `Closed`, `Converged`, `Drift` and
 `unavailable`, then persists the current native scope/input/gate identities. It
 never launches, schedules or retries a worker and never treats a semantic gate
 as proof of delivery, tests, review or deletion.
+
+`request create` copies its structural frontend input to
+`.sigil/workflow/inputs/<fingerprint>.json`. Default `request status` reads this
+native capture, so deleting `.sigil/tmp/<run-id>/` cannot make a durable request
+unavailable. Passing `--frontend` deliberately evaluates a newer capture.
 
 When a terminal request must be replaced (for example, after temporary source
 paths leave the final scope), run `sigilc request archive --root .` first. It
@@ -105,7 +113,7 @@ without serializing model setup unnecessarily.
 ## Durable subagent invocation
 
 This section is the durable model-facing worker contract. It remains valid when
-the temporary `compile.md`, `track.md` and `.codex-progress` records are absent.
+temporary planning and run records are absent.
 The coding agent must **spawn a subagent** in a fresh isolated process for each
 stale, missing or dependency-invalid source. The caller keeps the preparation
 directory and `job.json`; the subagent receives only the files named below and
@@ -167,7 +175,7 @@ the semanticizer.
 ## Independently reconstruct Design
 
 ```sh
-sigilc prepare design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --out /tmp/sigil-run/design-a
+sigilc prepare design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source architecture/a.sigil --out .sigil/tmp/<run-id>/design-a
 # Spawn a subagent with design-a/design.json and design-a/ontology.json in
 # isolation, passing this matching ingest command and evidence-manifest path to
 # its prompt.
@@ -176,9 +184,9 @@ sigilc prepare design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil
 # retries until exit 0 (or reports a blocker). The caller retains job.json and
 # every attempted Turtle/tool result. The next line is the tool call executed by
 # the spawned subagent, not a caller-side ingestion step:
-# sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a-attempt-1.ttl --evidence /tmp/sigil-run/design-a-evidence.json
-sigilc compile design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
-sigilc entities --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+# sigilc ingest design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source architecture/a.sigil --job .sigil/tmp/<run-id>/design-a/job.json --turtle .sigil/tmp/<run-id>/design-a-attempt-1.ttl --evidence .sigil/tmp/<run-id>/design-a-evidence.json
+sigilc compile design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
+sigilc entities --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
 ```
 
 Repeat preparation and ingestion for every selected stale source, including
@@ -209,17 +217,17 @@ repair loop.
 A subagent's self-description is not an independent reconstruction.
 
 ```sh
-sigilc prepare implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --out /tmp/sigil-run/implementation-main
+sigilc prepare implementation --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source src/main.rs --out .sigil/tmp/<run-id>/implementation-main
 # Spawn a subagent with only source, ontology.json and catalog.json, passing the
 # matching ingest command and evidence-manifest path to its prompt. It writes an attempt,
 # invokes the tool itself, repairs its temporary Turtle from each exact hint and
 # retries until exit 0 (or reports a blocker). Caller retains job.json and every
 # attempted Turtle/tool result. The next line is the tool call executed by the
 # spawned subagent:
-# sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main-attempt-1.ttl --evidence /tmp/sigil-run/implementation-main-evidence.json
-sigilc stale implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
-sigilc compile implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
-sigilc compare --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
+# sigilc ingest implementation --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source src/main.rs --job .sigil/tmp/<run-id>/implementation-main/job.json --turtle .sigil/tmp/<run-id>/implementation-main-attempt-1.ttl --evidence .sigil/tmp/<run-id>/implementation-main-evidence.json
+sigilc stale implementation --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
+sigilc compile implementation --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
+sigilc compare --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
 ```
 
 Capture and reconstruct changed inputs after another coding round. Ingest the

@@ -221,6 +221,12 @@ reconstruction, tests, review, or deletion evidence. Request status exits 0 when
 items are queued/ready or terminal, 1 when an item is `Drift`, and 3 when native
 inputs or comparison are unavailable.
 
+Creating a request copies its structural frontend input into
+`.sigil/workflow/inputs/` under its fingerprint. Default `request status` uses
+that native capture, while `.sigil/tmp/<run-id>/` holds disposable exports,
+preparations, attempts and reports. Passing `--frontend` deliberately evaluates
+a newer structural capture.
+
 After every item is `Closed` or `Converged`, `request record --dossier FILE`
 persists one bounded completion dossier in the durable request ledger. Its
 version-1 JSON contains nonempty `nativeReports`, `artifacts`, `delivery`,

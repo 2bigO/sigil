@@ -445,6 +445,9 @@ fn run_request(args: &[&str]) -> Output {
             let snapshot = DesignSnapshot::capture(&root, input, store_limits.max_source_bytes)
                 .map_err(runtime)?;
             let frontend_fingerprint = snapshot.fingerprint().map_err(runtime)?;
+            let frontend_snapshot = store
+                .publish_workflow_frontend(&frontend_fingerprint, &frontend_bytes)
+                .map_err(runtime)?;
             let scopes = definition
                 .items
                 .iter()
@@ -461,6 +464,7 @@ fn run_request(args: &[&str]) -> Output {
             let state = request::new_state(
                 definition,
                 frontend.to_owned(),
+                Some(frontend_snapshot),
                 frontend_fingerprint,
                 scopes,
             )
@@ -495,10 +499,12 @@ fn run_request(args: &[&str]) -> Output {
         "status" => {
             let mut state =
                 request::load(store.workflow_state().map_err(runtime)?).map_err(runtime)?;
-            let frontend = options
-                .get("--frontend")
-                .copied()
-                .unwrap_or(state.frontend.as_str());
+            let frontend = options.get("--frontend").copied().unwrap_or_else(|| {
+                state
+                    .frontend_snapshot
+                    .as_deref()
+                    .unwrap_or(state.frontend.as_str())
+            });
             let frontend_bytes = read(frontend, 32_000_000).map_err(runtime)?;
             let parsed = DesignInput::parse(&frontend_bytes).map_err(runtime)?;
             let current_frontend_fingerprint =

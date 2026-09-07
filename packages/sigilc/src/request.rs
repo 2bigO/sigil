@@ -73,6 +73,8 @@ pub struct PersistedRequest {
     pub version: u32,
     pub request_fingerprint: String,
     pub frontend: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frontend_snapshot: Option<String>,
     pub frontend_input_fingerprint: String,
     pub definition: RequestDefinition,
     pub items: Vec<ItemState>,
@@ -270,6 +272,7 @@ pub fn fingerprint(definition: &RequestDefinition) -> Result<String, String> {
 pub fn new_state(
     definition: RequestDefinition,
     frontend: String,
+    frontend_snapshot: Option<String>,
     frontend_input_fingerprint: String,
     scopes: Vec<Value>,
 ) -> Result<PersistedRequest, String> {
@@ -300,6 +303,7 @@ pub fn new_state(
         version: VERSION,
         request_fingerprint: fingerprint(&definition)?,
         frontend,
+        frontend_snapshot,
         frontend_input_fingerprint,
         definition,
         items,

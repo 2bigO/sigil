@@ -18,6 +18,7 @@ const WORLDS: &str = ".sigil/worlds";
 const INDEX: &str = ".sigil/worlds/index.json";
 const WORKFLOW_STATE: &str = ".sigil/workflow/request.json";
 const WORKFLOW_ARCHIVE: &str = ".sigil/workflow/archive";
+const WORKFLOW_INPUTS: &str = ".sigil/workflow/inputs";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -368,6 +369,24 @@ impl LockedStore {
             return Err("scoped request state exceeds byte limit".into());
         }
         atomic_write(&self.root, WORKFLOW_STATE, bytes)
+    }
+
+    /// Keep the structural input used by a durable request outside caller-owned
+    /// temporary directories. Unlike worlds, this is request replay input.
+    pub(crate) fn publish_workflow_frontend(
+        &self,
+        fingerprint: &str,
+        bytes: &[u8],
+    ) -> Result<String, String> {
+        if bytes.len() as u64 > self.limits.max_index_bytes {
+            return Err("scoped request frontend capture exceeds byte limit".into());
+        }
+        if !checksum(fingerprint) {
+            return Err("invalid scoped request frontend fingerprint".into());
+        }
+        let path = format!("{WORKFLOW_INPUTS}/{fingerprint}.json");
+        atomic_write(&self.root, &path, bytes)?;
+        Ok(path)
     }
 
     /// Preserve the current request under its immutable fingerprint, then clear

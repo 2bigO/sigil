@@ -185,6 +185,12 @@ component SigilScopedRequest {
       user overrides together with the request fingerprint and terminal gate
       snapshots. It is not a hand-written done flag: a status refresh clears it
       whenever inputs or the native lifecycle reopen any item.
+
+      Creating a request retains its bounded structural frontend capture under
+      the generated workflow record. Default inspection reuses that immutable
+      capture after disposable run artifacts are removed; an explicit newer
+      frontend input may reopen the lifecycle. Do not make restart recovery
+      depend on a temporary tracker or caller-owned export path.
     }
 
     RequestArchive {

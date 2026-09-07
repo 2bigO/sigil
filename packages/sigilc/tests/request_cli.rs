@@ -219,6 +219,29 @@ fn ordered_request_releases_after_terminal_gate_and_survives_restart() {
 }
 
 #[test]
+fn request_status_uses_native_frontend_capture_after_run_artifact_is_gone() {
+    let root = workspace();
+    let created = request(
+        &root,
+        &[
+            "request",
+            "create",
+            "--frontend",
+            "frontend.json",
+            "--definition",
+            "request.json",
+        ],
+        0,
+    );
+    let capture = created["request"]["frontendSnapshot"].as_str().unwrap();
+    assert!(root.0.join(capture).is_file());
+    std::fs::remove_file(root.0.join("frontend.json")).unwrap();
+    let recovered = request(&root, &["request", "status"], 0);
+    assert_eq!(recovered["request"]["items"][0]["state"], "ready");
+    assert_eq!(recovered["request"]["frontendSnapshot"], capture);
+}
+
+#[test]
 fn request_archive_preserves_terminal_record_before_replacement() {
     let root = workspace();
     let created = request(
