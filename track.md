@@ -98,9 +98,11 @@ closed worker-to-ingest loop:
 
 1. Spawn a fresh isolated worker with only that source's prepared inputs and
    retain its process identity, caller-held `job.json`, temporary Turtle path and
-   version-1 evidence manifest.
-2. The subagent invokes the matching native `sigilc ingest --evidence` tool and
-   records its exact command, stdout, stderr and exit code in that manifest.
+   version-2 evidence manifest.
+2. The subagent invokes the matching native `sigilc ingest --evidence` tool with
+   a final pending attempt (`"exit": null`); native records exit 0 only when it
+   accepts. On rejection the subagent replaces that pending value with the exact
+   nonzero exit and retains its command, stdout and stderr reference.
 3. If ingest rejects, the subagent reads the exact error and actionable hint,
    repairs only its temporary Turtle, appends the attempt to the manifest and
    calls the same tool again until exit 0 publishes or it reports a concrete
@@ -252,7 +254,7 @@ sigilc stale design --frontend frontend.json
 sigilc prepare design --frontend frontend.json --source path/to/contract.sigil --out design-job
 # Spawn a subagent with only design.json and ontology.json, passing the matching
 # sigilc ingest and --evidence parameters into its prompt. The subagent writes
-# the version-1 evidence manifest, calls ingest and repairs its temporary Turtle
+# the version-2 evidence manifest, calls ingest and repairs its temporary Turtle
 # from the exact native hint until exit 0 publishes.
 sigilc compile design --frontend frontend.json
 sigilc entities --frontend frontend.json

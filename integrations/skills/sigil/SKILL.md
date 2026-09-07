@@ -65,10 +65,10 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
 3. Prepare each stale Design source. The coding agent must spawn a subagent in
    the background using the exact prompt and ingest-tool parameters in the
    durable compilation reference. The subagent retains process/job evidence,
-   writes its temporary Turtle and version-1 evidence manifest, and calls the
+   writes its temporary Turtle and version-2 evidence manifest, and calls the
    matching `sigilc ingest --evidence` tool itself. On a rejection, it reads the
-   exact native error and actionable hint, repairs only its temporary Turtle,
-   appends that attempt to the manifest and calls the tool again until ingest
+   exact native error and actionable hint, records its actual nonzero exit,
+   appends a pending attempt to the manifest and calls the tool again until ingest
    exits 0 and publishes, or reports a concrete blocker. Never mutate source
    bytes, prepared JSON, `job.json` or published projections. Reprepare and
    start a fresh isolated round when a bound input changes. A preparation

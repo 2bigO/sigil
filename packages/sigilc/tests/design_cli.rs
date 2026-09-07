@@ -368,14 +368,44 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
     root.write(
         "evidence.json",
         br#"{
-          "version": 1,
+          "version": 2,
+          "preparation": "job",
+          "job": "job/job.json",
+          "worker": "worker/process.json",
+          "ingest": "sigilc ingest design --job job/job.json --turtle facts.ttl",
+          "attempts": [
+            {"turtle": "facts.ttl", "result": "attempt-1.stdout", "exit": 0}
+          ]
+        }"#,
+    );
+    let rejected = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+            "--evidence",
+            "evidence.json",
+        ],
+    );
+    assert_eq!(rejected.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("exit null"));
+    root.write(
+        "evidence.json",
+        br#"{
+          "version": 2,
           "preparation": "job",
           "job": "job/job.json",
           "worker": "worker/process.json",
           "ingest": "sigilc ingest design --job job/job.json --turtle facts.ttl",
           "attempts": [
             {"turtle": "attempt-1.ttl", "result": "attempt-1.stderr", "exit": 3},
-            {"turtle": "facts.ttl", "result": "attempt-2.stdout", "exit": 0}
+            {"turtle": "facts.ttl", "result": "attempt-2.stdout", "exit": null}
           ]
         }"#,
     );
@@ -396,6 +426,7 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
         0,
     );
     assert_eq!(accepted["artifact"]["complete"], true);
+    assert_eq!(accepted["artifact"]["version"], 2);
     assert_eq!(
         accepted["artifact"]["attempts"].as_array().unwrap().len(),
         2

@@ -95,15 +95,18 @@ Every authored unit IRI must have exactly one `rdf:type sigil:Contract`; do not
 type a unit as Goal, Interface, Constraint or Case. Preserve the prepared unit
 IDs and attach their section/description predicates to the Contract resource.
 Write the current result to <ATTEMPT_TTL>. Before each tool call, update
-version-1 JSON at <EVIDENCE_JSON> with the preparation reference, matching job
-reference, worker process record, exact ingest command and every attempted
-Turtle/result reference plus its exit code. Call the provided matching
-`sigilc ingest` tool with its supplied parameters and `--evidence <EVIDENCE_JSON>`.
-If that tool rejects the result, read its exact error and `hint:`, correct only
-the temporary Turtle construction in <ATTEMPT_TTL>, append the rejected attempt
-to the same evidence manifest, and call the same ingest tool again. Keep each
-attempted result and tool exit for the caller. Continue this repair loop until
-the matching ingest publishes with exit 0, or report the concrete blocker.
+version-2 JSON at <EVIDENCE_JSON>. Its `preparation`, `job`, `worker` and
+`ingest` fields are single reference strings. Its ordered `attempts` records
+every rejected Turtle/result reference with its actual nonzero exit, followed by
+the submitted Turtle/result reference with `"exit": null`. Call the provided
+matching `sigilc ingest` tool with its supplied parameters and `--evidence
+<EVIDENCE_JSON>`. Native ingest changes only that final pending record to its
+actual accepted exit 0 when it publishes. If that tool rejects the result, read
+its exact error and `hint:`, replace the pending null with the observed nonzero
+exit, correct only the temporary Turtle construction in <ATTEMPT_TTL>, append a
+new pending attempt, and call the same ingest tool again. Keep each attempted
+result and tool exit for the caller. Continue this repair loop until the matching
+ingest publishes with exit 0, or report the concrete blocker.
 Never edit the source, prepared JSON, caller-held job descriptor or published
 projection.
 ```

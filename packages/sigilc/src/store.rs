@@ -62,9 +62,19 @@ pub struct ArtifactAttempt {
     pub exit: u8,
 }
 
-/// Input written by the external subagent/caller for the accepted attempt.
-/// The native command checks the final attempt against the command arguments
-/// and retains every earlier rejection reference unchanged.
+/// An external attempt record. The final pending attempt intentionally has no
+/// exit yet: native ingest records its actual successful exit during publication.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ArtifactAttemptInput {
+    pub turtle: String,
+    pub result: String,
+    pub exit: Option<u8>,
+}
+
+/// Input written by the external subagent/caller. Rejected attempts carry their
+/// observed exit; the final attempt is pending and becomes exit zero only when
+/// this native command accepts the projection.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ArtifactEvidenceInput {
@@ -73,7 +83,7 @@ pub struct ArtifactEvidenceInput {
     pub job: String,
     pub worker: String,
     pub ingest: String,
-    pub attempts: Vec<ArtifactAttempt>,
+    pub attempts: Vec<ArtifactAttemptInput>,
 }
 
 const MAX_ARTIFACT_REF_BYTES: usize = 4_096;
@@ -81,7 +91,7 @@ const MAX_ARTIFACT_ATTEMPTS: usize = 128;
 
 impl ArtifactEvidenceInput {
     pub fn validate(&self) -> Result<(), String> {
-        if self.version != 1 {
+        if self.version != 2 {
             return Err("unsupported artifact evidence version".into());
         }
         for (name, value) in [
@@ -101,14 +111,16 @@ impl ArtifactEvidenceInput {
         for (index, attempt) in self.attempts.iter().enumerate() {
             validate_artifact_ref(&format!("attempt {index} Turtle"), &attempt.turtle)?;
             validate_artifact_ref(&format!("attempt {index} result"), &attempt.result)?;
-        }
-        Ok(())
-    }
-
-    fn validate_accepted(&self) -> Result<(), String> {
-        self.validate()?;
-        if self.attempts.last().is_none_or(|attempt| attempt.exit != 0) {
-            return Err("final artifact evidence attempt must have exit 0".into());
+            let is_final = index + 1 == self.attempts.len();
+            if is_final && attempt.exit.is_some() {
+                return Err(
+                    "final artifact evidence attempt must have exit null until native ingest accepts it"
+                        .into(),
+                );
+            }
+            if !is_final && attempt.exit.is_none() {
+                return Err("only the final artifact evidence attempt may have exit null".into());
+            }
         }
         Ok(())
     }
@@ -138,9 +150,25 @@ impl ArtifactEvidence {
                 complete: false,
             });
         };
-        input.validate_accepted()?;
+        input.validate()?;
+        let mut attempts: Vec<ArtifactAttempt> = input
+            .attempts
+            .iter()
+            .take(input.attempts.len() - 1)
+            .map(|attempt| ArtifactAttempt {
+                turtle: attempt.turtle.clone(),
+                result: attempt.result.clone(),
+                exit: attempt.exit.expect("validated non-final artifact attempt"),
+            })
+            .collect();
+        let accepted = input.attempts.last().expect("validated artifact attempts");
+        attempts.push(ArtifactAttempt {
+            turtle: accepted.turtle.clone(),
+            result: accepted.result.clone(),
+            exit: 0,
+        });
         Ok(Self {
-            version: 1,
+            version: 2,
             binding: current.fingerprint(),
             generation: generation.into(),
             preparation: input.preparation,
@@ -150,14 +178,14 @@ impl ArtifactEvidence {
             ),
             worker: input.worker,
             ingest: input.ingest,
-            attempts: input.attempts,
+            attempts,
             projection,
             complete: true,
         })
     }
 
     fn validate_for(&self, binding: &Binding, generation: &str, key: &str) -> Result<(), String> {
-        if self.version != 1
+        if !matches!(self.version, 1 | 2)
             || self.binding != binding.fingerprint()
             || self.generation != generation
             || (self.complete && !checksum(&self.job_fingerprint))
@@ -166,15 +194,27 @@ impl ArtifactEvidence {
             return Err(format!("invalid artifact evidence for projection: {key}"));
         }
         if self.complete {
-            let input = ArtifactEvidenceInput {
-                version: self.version,
-                preparation: self.preparation.clone(),
-                job: self.job.clone(),
-                worker: self.worker.clone(),
-                ingest: self.ingest.clone(),
-                attempts: self.attempts.clone(),
-            };
-            input.validate_accepted()
+            if self.attempts.is_empty() || self.attempts.len() > MAX_ARTIFACT_ATTEMPTS {
+                return Err(format!("invalid artifact attempts for projection: {key}"));
+            }
+            for (index, attempt) in self.attempts.iter().enumerate() {
+                validate_artifact_ref(&format!("attempt {index} Turtle"), &attempt.turtle)?;
+                validate_artifact_ref(&format!("attempt {index} result"), &attempt.result)?;
+            }
+            if self.attempts.last().is_none_or(|attempt| attempt.exit != 0) {
+                return Err(format!(
+                    "invalid accepted artifact attempt for projection: {key}"
+                ));
+            }
+            for (name, value) in [
+                ("preparation", &self.preparation),
+                ("job", &self.job),
+                ("worker", &self.worker),
+                ("ingest", &self.ingest),
+            ] {
+                validate_artifact_ref(name, value)?;
+            }
+            Ok(())
         } else if self.preparation.is_empty()
             && self.job.is_empty()
             && self.job_fingerprint.is_empty()

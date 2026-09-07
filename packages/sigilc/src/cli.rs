@@ -990,7 +990,7 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     }
     if message.contains("artifact evidence") {
         return Some(
-            "write version 1 evidence JSON with preparation, matching job, worker process, ingest command, every Turtle/result attempt, and a final attempt whose exit is 0",
+            "write version 2 evidence JSON: preparation, job, worker and ingest are reference strings; rejected Turtle/result attempts carry their actual nonzero exits; append one final submitted Turtle/result attempt with exit null, which native ingest records as exit 0 only after acceptance",
         );
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {

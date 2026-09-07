@@ -2101,8 +2101,10 @@ An accepted source-bound `.egg` and its expanded-world report must expose
 immutable links to the matching source binding, preparation and job identity,
 worker attempt, returned Turtle, ingest result, every repair attempt, publication
 generation and the deterministic expanded-world report identity. The external
-subagent supplies these links through the version-1 `sigilc ingest --evidence`
-manifest.
+subagent supplies these links through the version-2 `sigilc ingest --evidence`
+manifest. It records rejected attempts with their observed nonzero exits and a
+final pending (`"exit": null`) attempt; native publication writes the actual
+accepted exit 0, so a worker never has to predict its own tool result.
 Keep model Turtle data-only and keep process launching external; the native
 backend validates and persists caller-supplied artifact links when it accepts an
 ingest. Reports must recover those links after a fresh process without

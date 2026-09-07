@@ -81,9 +81,11 @@ component SigilProjectionStore {
     }
 
     NativeArtifactEvidence {
-      Accept an optional version-1 evidence manifest alongside a matching ingest
-      job. Require the final attempt to name the submitted Turtle and carry exit
-      zero; preserve earlier rejected attempts without interpreting their text.
+      Accept an optional version-2 evidence manifest alongside a matching ingest
+      job. Require the final pending attempt to name the submitted Turtle with
+      exit null; native ingest writes its actual accepted exit zero. Preserve
+      earlier rejected attempts with their observed exits without interpreting
+      their text.
       Bind the record to the accepted source fingerprint, generation and exact
       projection key. Expose complete records through the projection index and
       expanded-world reports so a fresh process can recover them without a
