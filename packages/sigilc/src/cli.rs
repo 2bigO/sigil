@@ -909,6 +909,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "return RDF 1.1 Turtle only: use angle-bracket IRIs for urn:sigil resources, declare prefixes before use, terminate every triple with '.', and remove markdown fences or prose",
         );
     }
+    if message == "subject must be a named resource; blank nodes and triple terms are forbidden" {
+        return Some(
+            "use named angle-bracket IRIs for every subject; do not emit blank nodes, [] or RDF-star triple terms",
+        );
+    }
     if message.starts_with("frontend source changed:")
         || message.starts_with("frontend context changed:")
     {
@@ -956,6 +961,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     if message.starts_with("unknown domain identity:") {
         return Some(
             "reference only the exact prepared Component, Concept and entity IDs; do not derive nested or renamed IDs from a label",
+        );
+    }
+    if message == "contract relation must name a fixed entity predicate" {
+        return Some(
+            "set sigil:relation to one fixed entity predicate from ontology.json (for example uses, provides, requires or dependsOn), not a free-form phrase",
         );
     }
     if message == "Component and Concept identities are reserved by the frontend" {
