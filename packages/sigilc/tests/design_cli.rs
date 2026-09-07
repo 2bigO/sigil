@@ -395,7 +395,7 @@ fn accepted_ingest_persists_and_reports_external_artifact_links() {
         ],
     );
     assert_eq!(rejected.status.code(), Some(3));
-    assert!(String::from_utf8_lossy(&rejected.stderr).contains("exactly preparation"));
+    assert!(String::from_utf8_lossy(&rejected.stderr).contains("exactly version"));
     root.write(
         "evidence.json",
         br#"{
