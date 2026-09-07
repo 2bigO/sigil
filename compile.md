@@ -1834,6 +1834,11 @@ Because an ordered request item can change the selected Design catalog, run
 `stale` with that item's scope before deciding whether an existing
 Implementation `.egg` is reusable. Preserve unrelated fresh projections while
 refreshing only the rows whose current item binding is non-fresh.
+The `--scope` argument is always the caller's versioned scope input; do not feed
+a prior `sigilc scope` report back as a scope input. World-store commands share
+one writer lock, so serialize stale, preparation, ingestion and gate commands;
+a lock-unavailable result is an operational retry condition, not a semantic
+gate state.
 Distinguish cached sources outside a scope from actually deleted sources. Reject
 missing roots and conflicting selectors; intentional emptiness is explicit.
 
