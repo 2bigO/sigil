@@ -14,10 +14,10 @@ description: Author and inspect Sigil contracts, use native sigilc scope and sem
 directly for scope, freshness, preparation, ingestion, catalogs and semantic
 gates. The native compiler never starts models or owns the coding loop.
 
-Inspect governing Sigil before every implementation mutation. Read the component,
-matching expands, imports and relevant implementation before changing its
-contract. Existing user authorization remains effective; a compiler report is
-evidence, not a separate permission system.
+Inspect governing Sigil before every implementation mutation. Read the
+component, matching expands, imports and relevant implementation before changing
+its contract. Existing user authorization remains effective; a compiler report
+is evidence, not a separate permission system.
 
 ## Select the work
 
@@ -34,9 +34,10 @@ sigil glossary . --format json
 
 Use [greenfield design](references/greenfield-design.md) for new boundaries and
 [brownfield adoption](references/brownfield-adoption.md) for existing behavior.
-For unresolved intent, read [design conversation](references/design-conversation.md)
-and ask about the material decision that available evidence cannot resolve.
-Read [authoring conventions](references/authoring-conventions.md) and
+For unresolved intent, read
+[design conversation](references/design-conversation.md) and ask about the
+material decision that available evidence cannot resolve. Read
+[authoring conventions](references/authoring-conventions.md) and
 [language syntax](references/sigil-format.md) when writing contracts. Reuse
 accessible identities and keep each responsibility with its owner.
 
@@ -51,27 +52,33 @@ must not be required by the coding-agent workflow. The required action is to
 Capture current authored input with `sigil export design .`; use that JSON with
 native `--frontend`. Refresh it after authored/config/glossary changes.
 
+At the start of an implementation request, run `sigilc request status --root .`.
+When an active request exists, its `ready` item is the authoritative work to
+run; use its persisted scope and frontend capture, and do not create or replace
+the request. `scope` means source selection within that item, not a task name.
+When no request exists, derive a scope from the authorized work before creating
+one.
+
 1. For an ordered multi-item request, create one native request definition with
    the intended scopes and explicit `after` predecessor IDs. Run
    `sigilc request status` before each external round; it is the source for
    queued/ready release and current native gate state.
-2. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
-   Run native `sigilc stale` before rebuilding any projection. Preserve every
+2. Inspect `sigilc scope` and `sigilc stale` with the intended selection. Run
+   native `sigilc stale` before rebuilding any projection. Preserve every
    `fresh` projection; reprepare and respawn a subagent only for rows reported
-   stale, missing or dependency-invalid.
-   Freshness is binding-specific: an accepted egg from a different ordered
-   Design item may remain in the cache, but native stale decides whether it is
-   reusable for the current item.
+   stale, missing or dependency-invalid. Freshness is binding-specific: an
+   accepted egg from a different ordered Design item may remain in the cache,
+   but native stale decides whether it is reusable for the current item.
 3. Prepare each stale Design source. The coding agent must spawn a subagent in
    the background using the exact prompt and ingest-tool parameters in the
    durable compilation reference. The subagent retains process/job evidence,
    writes its temporary Turtle and version-2 evidence manifest, and calls the
    matching `sigilc ingest --evidence` tool itself. On a rejection, it reads the
    exact native error and actionable hint, records its actual nonzero exit,
-   appends a pending attempt to the manifest and calls the tool again until ingest
-   exits 0 and publishes, or reports a concrete blocker. Never mutate source
-   bytes, prepared JSON, `job.json` or published projections. Reprepare and
-   start a fresh isolated round when a bound input changes. A preparation
+   appends a pending attempt to the manifest and calls the tool again until
+   ingest exits 0 and publishes, or reports a concrete blocker. Never mutate
+   source bytes, prepared JSON, `job.json` or published projections. Reprepare
+   and start a fresh isolated round when a bound input changes. A preparation
    without a real worker return, evidence manifest and matching accepted
    `sigilc ingest` is not semanticization evidence.
 4. Run `sigilc compile design` and inspect the named state and diagnostics.
@@ -86,7 +93,8 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    projection. Reprepare and launch a fresh isolated round when a bound input
    changes; never patch source, prepared JSON, descriptor or published output.
 6. Run `sigilc compile implementation` or `sigilc compare`. Preserve unavailable
-   prerequisites and warnings. Reconstruct changed inputs before comparing again.
+   prerequisites and warnings. Reconstruct changed inputs before comparing
+   again.
 7. Run `sigilc request status` again after ingestion and external checks. It
    persists only native lifecycle/evidence references; workers, coding, tests,
    review and deletion remain external.
@@ -94,32 +102,36 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
 Do not advance the reconstruction task until the current scope has Design and
 Implementation `.egg` projections plus `index.json`, every selected row is
 fresh, and a real coding-agent run records the background worker spawn and each
-matching `sigilc ingest` command/exit. `.sigil/worlds/` containing only its lock,
-native preparation, fixtures, or hand-authored Turtle leaves this gate open.
+matching `sigilc ingest` command/exit. `.sigil/worlds/` containing only its
+lock, native preparation, fixtures, or hand-authored Turtle leaves this gate
+open.
 
 See [Design review](references/design-compilation-review.md) and
 [implementation design](references/implementation-design.md) for interpretation.
 These operations derive meaning from independently supplied assertions; passing
 fixtures, ownership comments or tests do not establish reconstruction fidelity.
-Delivery, tests, removals and full task completion need their own actual evidence.
+Delivery, tests, removals and full task completion need their own actual
+evidence.
 
-Keep `.sigil/worlds/` ignored: it is disposable generated state. Keep preparation
-and report files outside selected source scope. Human decisions, model calls,
-isolation, scheduling and the convergence loop belong to the external host.
-Use existing native functions before inventing temporary mechanisms. An observed
-missing capability belongs in authored Design and its responsible implementation;
-use it on real work before removing the duplicate mechanism.
+Keep `.sigil/worlds/` ignored: it is disposable generated state. Keep
+preparation and report files outside selected source scope. Human decisions,
+model calls, isolation, scheduling and the convergence loop belong to the
+external host. Use existing native functions before inventing temporary
+mechanisms. An observed missing capability belongs in authored Design and its
+responsible implementation; use it on real work before removing the duplicate
+mechanism.
 
 ## Conditional references
 
 - [Frontend surface review](references/frontend-surface-review.md): routing,
   client-state ownership, async modes, accessibility and UI contracts.
 - [Glossary workflow](references/glossary-workflow.md): reviewed vocabulary.
-  State whether extraction is required, deferred or inspection-only when relevant;
-  ordinary inspection does not require a glossary rewrite.
+  State whether extraction is required, deferred or inspection-only when
+  relevant; ordinary inspection does not require a glossary rewrite.
 - [Design intake](references/design-intake.md): ambiguous task boundaries.
 - [External guidance](references/external-guidance-evidence.md) and
-  [standards review](references/standards-review.md): evidence needed by the task.
+  [standards review](references/standards-review.md): evidence needed by the
+  task.
 
 Update this repository-owned skill, metadata and evals together. Do not modify
 an installed global copy to compensate for obsolete repository guidance.
