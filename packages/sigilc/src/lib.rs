@@ -9,6 +9,7 @@ pub mod implementation;
 pub mod inputs;
 pub mod kernel;
 pub mod report;
+pub mod request;
 pub mod scope;
 pub mod sources;
 pub mod store;

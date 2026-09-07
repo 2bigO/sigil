@@ -16,6 +16,7 @@ use std::{
 
 const WORLDS: &str = ".sigil/worlds";
 const INDEX: &str = ".sigil/worlds/index.json";
+const WORKFLOW_STATE: &str = ".sigil/workflow/request.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -122,6 +123,33 @@ impl LockedStore {
 
     pub fn entries(&self) -> &BTreeMap<String, Entry> {
         &self.index.entries
+    }
+
+    /// Read the single native scoped-request ledger while holding the same
+    /// workspace lock used for projection inspection and publication.
+    pub(crate) fn workflow_state(&self) -> Result<Option<Vec<u8>>, String> {
+        let path = sources::checked_path(&self.root, WORKFLOW_STATE)?;
+        match fs::read(path) {
+            Ok(bytes) => {
+                if bytes.len() as u64 > self.limits.max_index_bytes {
+                    Err("scoped request state exceeds byte limit".into())
+                } else {
+                    Ok(Some(bytes))
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    /// Atomically replace the native scoped-request ledger. This state is
+    /// intentionally separate from `.sigil/worlds`, which remains disposable
+    /// projection cache data.
+    pub(crate) fn publish_workflow_state(&self, bytes: &[u8]) -> Result<(), String> {
+        if bytes.len() as u64 > self.limits.max_index_bytes {
+            return Err("scoped request state exceeds byte limit".into());
+        }
+        atomic_write(&self.root, WORKFLOW_STATE, bytes)
     }
 
     pub fn deleted_sources(

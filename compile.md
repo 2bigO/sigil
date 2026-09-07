@@ -1935,41 +1935,41 @@ context/retrieval, graph/glossary, and editor services when no semantic world ex
 
 ## Durable scoped request state
 
-The current scope input and `FocusOrder` report are read-only. They preserve
-ordered Design roots and effective membership for one invocation, but they do
-not remember that a caller requested several scopes, release later work after a
-predecessor converged, or survive a process restart. The disposable world index
-also cannot carry that lifecycle: it records only per-source projection
+The `scope` input and `FocusOrder` report remain read-only for one invocation;
+the request primitive below owns the separate durable lifecycle. The disposable
+world index cannot carry that lifecycle: it records only per-source projection
 bindings, checksums and generations.
 
-To replace the temporary delivery queue in `.codex-progress`, implement the
-bounded `SigilScopedRequest` contract in `packages/sigilc/scope.sigil`. A native
-request operation must persist an immutable request definition and its
-ordered scope items in generated workflow state under `.sigil`, separate from
-`.sigil/worlds`. Each item references the existing versioned scope input and
-may name explicit predecessor item IDs. Order is priority among released items;
-it is not an implicit dependency. For example, items two and three both name
-item one as a predecessor when they must remain queued until item one finishes.
+The bounded `SigilScopedRequest` contract is implemented by the native
+`sigilc request create/status` primitive. `request create` persists an immutable
+request definition and ordered scope items in generated
+`.sigil/workflow/request.json`, separate from `.sigil/worlds`. Each item
+references the existing versioned scope input and may name explicit predecessor
+IDs. Predecessors must appear earlier in the requested order; order remains
+priority among released items rather than an implicit dependency. For example,
+items two and three both name item one when they must remain queued until item
+one finishes.
 
-The request state is derived from current native evidence. An item is `ready`
+`request status` derives state from current native evidence. An item is `ready`
 when its predecessors are terminal and `queued` otherwise. A current scoped
 Implementation result with every selected projection fresh and a valid Design
-may record the named terminal state `Closed` or `Converged`; both have exit zero,
-with `Converged` retaining its warnings. Exit-one `Drift` and exit-three
-unavailable comparison remain visible and never release dependents. Changed
-source bytes, catalog identity, scope fingerprints or freshness reopen a prior
-terminal item. Updates are atomic and retain native report/input identities plus
-references to externally produced delivery and check evidence.
+records `Closed` or `Converged`; both have exit zero, with `Converged` retaining
+its warnings. Exit-one `Drift`, Design `Disjoint`, stale projections and
+exit-three unavailable input/comparison remain visible and never release
+dependents. Changed source bytes, catalog identity, scope fingerprints or
+freshness reopen a prior terminal item as a current `ready`/`unavailable`
+result. Updates are atomic and retain native scope/input/gate identities plus
+opaque references to externally produced delivery, check and deletion evidence.
 
 This state is a narrow request ledger, not a task ontology or worker runtime.
 External callers still select and run workers, coding, tests and product
 approval. `sigilc` does not launch, schedule, retry or accept a hand-written
-completion flag. Its status/advance-equivalent command must recompute or verify
-the scoped native result, recover the same request and released order after a
-restart, and expose enough evidence for the final `.codex-progress` retirement
-rehearsal. Until this capability is implemented and adopted on later real work,
-the temporary delivery queue remains active and the native workflow is not yet a
-complete replacement.
+completion flag. `request status` recomputes the scoped native result and
+recovers the same request and released order after a restart. Real three-item
+frontend dogfood demonstrated `ready → queued`, `Closed → ready` release and
+restart recovery; that evidence is recorded in the running loop. The next real
+task may therefore remove duplicate temporary ordering/release fields while
+retaining external delivery/check/deletion evidence.
 
 ---
 

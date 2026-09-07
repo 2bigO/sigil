@@ -20,7 +20,7 @@ const INTERNAL: &[&str] = &[
     "coverage",
 ];
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct Selection {
     pub paths: Vec<String>,

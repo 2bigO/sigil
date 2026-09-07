@@ -5,6 +5,7 @@ use crate::{
     implementation,
     inputs::{self, DesignSnapshot},
     kernel::{DesignState, Limits},
+    request::{self, ItemState, LifecycleState, RequestDefinition},
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},
     store::{Freshness, Job, LockedStore, StoreLimits},
@@ -22,6 +23,9 @@ pub type Output = Result<(u8, String), (u8, String)>;
 
 // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::DesignCommands interface
 pub fn run(args: &[&str]) -> Output {
+    if args.first() == Some(&"request") {
+        return run_request(args);
+    }
     if args.first() == Some(&"clean") {
         let root = match args {
             ["clean"] => ".",
@@ -316,6 +320,400 @@ pub fn run(args: &[&str]) -> Output {
     } else {
         Ok((code, output))
     }
+}
+
+fn run_request(args: &[&str]) -> Output {
+    let action = match args {
+        ["request", action @ ("create" | "status"), tail @ ..] => (*action, tail),
+        _ => return Err((2, "Usage: sigilc request create|status [options]".into())),
+    };
+    let mut options = BTreeMap::new();
+    let mut rest = action.1;
+    while let Some((flag, next)) = rest.split_first() {
+        if ![
+            "--root",
+            "--frontend",
+            "--definition",
+            "--limits",
+            "--format",
+        ]
+        .contains(flag)
+            || options.contains_key(flag)
+        {
+            return Err((2, format!("unknown or duplicate option: {flag}")));
+        }
+        let Some((value, remaining)) = next.split_first() else {
+            return Err((2, format!("missing value: {flag}")));
+        };
+        options.insert(*flag, *value);
+        rest = remaining;
+    }
+    if options.get("--format").is_some_and(|v| *v != "json") {
+        return Err((2, "this command supports --format json".into()));
+    }
+    if action.0 == "create" && !options.contains_key("--definition") {
+        return Err((2, "required option: --definition".into()));
+    }
+    if action.0 == "status" && options.contains_key("--definition") {
+        return Err((2, "--definition is only valid for request create".into()));
+    }
+    let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
+    let limits = options
+        .get("--limits")
+        .map(|path| {
+            read(path, 1_000_000).and_then(|bytes| {
+                serde_json::from_slice::<Limits>(&bytes).map_err(|e| e.to_string())
+            })
+        })
+        .transpose()
+        .map_err(runtime)?
+        .unwrap_or_default();
+    let store_limits = StoreLimits::default();
+    let store = LockedStore::open(&root, store_limits).map_err(runtime)?;
+    match action.0 {
+        "create" => {
+            let frontend = options
+                .get("--frontend")
+                .copied()
+                .ok_or_else(|| (2, "required option: --frontend".into()))?;
+            let definition: RequestDefinition =
+                serde_json::from_slice(&read(options["--definition"], 1_000_000).map_err(runtime)?)
+                    .map_err(|e| runtime(format!("invalid scoped request definition: {e}")))?;
+            request::validate(&definition).map_err(runtime)?;
+            if let Some(existing) = store.workflow_state().map_err(runtime)? {
+                let existing = request::load(Some(existing)).map_err(runtime)?;
+                if existing.request_fingerprint
+                    == request::fingerprint(&definition).map_err(runtime)?
+                    && existing.frontend == frontend
+                {
+                    return json(0, &serde_json::json!({"version":1,"request":existing}));
+                }
+                return Err((
+                    2,
+                    "a different scoped request already exists; preserve its evidence before replacing .sigil/workflow/request.json".into(),
+                ));
+            }
+            let frontend_bytes = read(frontend, 32_000_000).map_err(runtime)?;
+            let input = DesignInput::parse(&frontend_bytes).map_err(runtime)?;
+            let snapshot = DesignSnapshot::capture(&root, input, store_limits.max_source_bytes)
+                .map_err(runtime)?;
+            let frontend_fingerprint = snapshot.fingerprint().map_err(runtime)?;
+            let scopes = definition
+                .items
+                .iter()
+                .map(|item| {
+                    let mut input = DesignInput::parse(&frontend_bytes).map_err(runtime)?;
+                    let resolved = item
+                        .scope
+                        .clone()
+                        .resolve(&root, &mut input)
+                        .map_err(runtime)?;
+                    serde_json::to_value(resolved.report).map_err(|e| runtime(e.to_string()))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            let state = request::new_state(
+                definition,
+                frontend.to_owned(),
+                frontend_fingerprint,
+                scopes,
+            )
+            .map_err(runtime)?;
+            store
+                .publish_workflow_state(&request::encode(&state).map_err(runtime)?)
+                .map_err(runtime)?;
+            json(0, &serde_json::json!({"version":1,"request":state}))
+        }
+        "status" => {
+            let mut state =
+                request::load(store.workflow_state().map_err(runtime)?).map_err(runtime)?;
+            let frontend = options
+                .get("--frontend")
+                .copied()
+                .unwrap_or(state.frontend.as_str());
+            let frontend_bytes = read(frontend, 32_000_000).map_err(runtime)?;
+            let parsed = DesignInput::parse(&frontend_bytes).map_err(runtime)?;
+            let current_frontend_fingerprint =
+                DesignSnapshot::capture(&root, parsed, store_limits.max_source_bytes)
+                    .and_then(|snapshot| snapshot.fingerprint())
+                    .unwrap_or_else(|_| sources::hash(&frontend_bytes));
+            let mut updated = Vec::with_capacity(state.definition.items.len());
+            let mut states = BTreeMap::new();
+            for (index, item) in state.definition.items.iter().enumerate() {
+                let prior_scope = state.items[index].scope.clone();
+                let mut input = match DesignInput::parse(&frontend_bytes) {
+                    Ok(input) => input,
+                    Err(error) => {
+                        let item_state = unavailable_item(
+                            item,
+                            prior_scope,
+                            None,
+                            format!("frontend parse failed: {error}"),
+                        );
+                        states.insert(item.id.clone(), item_state.state.clone());
+                        updated.push(item_state);
+                        continue;
+                    }
+                };
+                let resolved = match item.scope.clone().resolve(&root, &mut input) {
+                    Ok(scope) => scope,
+                    Err(error) => {
+                        let item_state = unavailable_item(
+                            item,
+                            prior_scope,
+                            None,
+                            format!("scope unavailable: {error}"),
+                        );
+                        states.insert(item.id.clone(), item_state.state.clone());
+                        updated.push(item_state);
+                        continue;
+                    }
+                };
+                let scope_value =
+                    serde_json::to_value(&resolved.report).map_err(|e| runtime(e.to_string()))?;
+                let snapshot =
+                    match DesignSnapshot::capture(&root, input, store_limits.max_source_bytes) {
+                        Ok(snapshot) => snapshot,
+                        Err(error) => {
+                            let item_state = unavailable_item(
+                                item,
+                                Some(scope_value),
+                                None,
+                                format!("frontend inputs unavailable: {error}"),
+                            );
+                            states.insert(item.id.clone(), item_state.state.clone());
+                            updated.push(item_state);
+                            continue;
+                        }
+                    };
+                let blocked = item.after.iter().find(|predecessor| {
+                    !states
+                        .get(*predecessor)
+                        .is_some_and(LifecycleState::terminal)
+                });
+                let input_fingerprint = snapshot.fingerprint().map_err(runtime)?;
+                if let Some(predecessor) = blocked {
+                    let predecessor_state = states
+                        .get(predecessor)
+                        .expect("validated predecessor state");
+                    let item_state = ItemState {
+                        id: item.id.clone(),
+                        after: item.after.clone(),
+                        evidence: item.evidence.clone(),
+                        state: LifecycleState::Queued,
+                        scope: Some(scope_value),
+                        gate: None,
+                        input_fingerprint: Some(input_fingerprint),
+                        reason: Some(format!(
+                            "predecessor {predecessor} is {}",
+                            lifecycle_label(predecessor_state)
+                        )),
+                    };
+                    states.insert(item.id.clone(), item_state.state.clone());
+                    updated.push(item_state);
+                    continue;
+                }
+                let item_state = evaluate_request_item(
+                    item,
+                    resolved,
+                    snapshot,
+                    &store,
+                    limits,
+                    scope_value,
+                    input_fingerprint,
+                )?;
+                states.insert(item.id.clone(), item_state.state.clone());
+                updated.push(item_state);
+            }
+            state.frontend = frontend.to_owned();
+            state.frontend_input_fingerprint = current_frontend_fingerprint;
+            state.items = updated;
+            let code = if state
+                .items
+                .iter()
+                .any(|item| item.state == LifecycleState::Unavailable)
+            {
+                3
+            } else if state
+                .items
+                .iter()
+                .any(|item| item.state == LifecycleState::Drift)
+            {
+                1
+            } else {
+                0
+            };
+            store
+                .publish_workflow_state(&request::encode(&state).map_err(runtime)?)
+                .map_err(runtime)?;
+            json(code, &serde_json::json!({"version":1,"request":state}))
+        }
+        _ => unreachable!(),
+    }
+}
+
+fn unavailable_item(
+    item: &request::RequestItem,
+    scope: Option<serde_json::Value>,
+    input_fingerprint: Option<String>,
+    reason: String,
+) -> ItemState {
+    ItemState {
+        id: item.id.clone(),
+        after: item.after.clone(),
+        evidence: item.evidence.clone(),
+        state: LifecycleState::Unavailable,
+        scope,
+        gate: None,
+        input_fingerprint,
+        reason: Some(reason),
+    }
+}
+
+fn lifecycle_label(state: &LifecycleState) -> &'static str {
+    match state {
+        LifecycleState::Queued => "queued",
+        LifecycleState::Ready => "ready",
+        LifecycleState::Closed => "closed",
+        LifecycleState::Converged => "converged",
+        LifecycleState::Drift => "drift",
+        LifecycleState::Unavailable => "unavailable",
+    }
+}
+
+fn evaluate_request_item(
+    item: &request::RequestItem,
+    scope: ResolvedScope,
+    snapshot: DesignSnapshot,
+    store: &LockedStore,
+    limits: Limits,
+    scope_value: serde_json::Value,
+    input_fingerprint: String,
+) -> Result<ItemState, (u8, String)> {
+    let design = match design::compile(
+        &snapshot,
+        store,
+        limits,
+        scope.report.design.intentional_empty,
+    ) {
+        Ok(report) => report,
+        Err(error) => {
+            return Ok(unavailable_item(
+                item,
+                Some(scope_value),
+                Some(input_fingerprint),
+                format!("Design gate unavailable: {error}"),
+            ));
+        }
+    };
+    let design_state = design.world.state;
+    let design_gate = serde_json::json!({
+        "state": design_state,
+        "allFresh": design.all_fresh,
+        "fingerprint": design.design_fingerprint,
+    });
+    if design_state == DesignState::Disjoint {
+        return Ok(ItemState {
+            id: item.id.clone(),
+            after: item.after.clone(),
+            evidence: item.evidence.clone(),
+            state: LifecycleState::Unavailable,
+            scope: Some(scope_value),
+            gate: Some(serde_json::json!({"design":design_gate})),
+            input_fingerprint: Some(input_fingerprint),
+            reason: Some("Design gate is Disjoint".into()),
+        });
+    }
+    if !design.all_fresh {
+        return Ok(ItemState {
+            id: item.id.clone(),
+            after: item.after.clone(),
+            evidence: item.evidence.clone(),
+            state: LifecycleState::Ready,
+            scope: Some(scope_value),
+            gate: Some(serde_json::json!({"design":design_gate})),
+            input_fingerprint: Some(input_fingerprint),
+            reason: Some("selected Design projections are not fresh".into()),
+        });
+    }
+    let Some(frozen) = &design.catalog else {
+        return Ok(unavailable_item(
+            item,
+            Some(scope_value),
+            Some(input_fingerprint),
+            "current Design catalog unavailable".into(),
+        ));
+    };
+    let assembly = match implementation::assemble_manifest(
+        &scope.implementation,
+        &frozen.catalog,
+        store,
+        limits.max_input_assertions,
+    ) {
+        Ok(assembly) => assembly,
+        Err(error) => {
+            return Ok(unavailable_item(
+                item,
+                Some(scope_value),
+                Some(input_fingerprint),
+                format!("Implementation gate unavailable: {error}"),
+            ));
+        }
+    };
+    let all_implementation_fresh = assembly.all_fresh;
+    let implementation = assembly.compile(limits).map_err(runtime)?;
+    let comparison = comparison::compare(
+        &design.world,
+        &implementation.world,
+        comparison::FreshInputs {
+            all_design_fresh: design.all_fresh,
+            all_implementation_fresh,
+        },
+        limits,
+    )
+    .map_err(runtime)?;
+    let implementation_state = comparison.implementation;
+    let gate = serde_json::json!({
+        "design": design_gate,
+        "implementation": {
+            "allFresh": implementation.all_fresh,
+            "inputFingerprint": implementation.input_fingerprint,
+        },
+        "comparison": {
+            "state": implementation_state,
+            "freshInputs": comparison.fresh_inputs,
+            "unresolved": comparison.unresolved.len(),
+            "disagreements": comparison.disagreements.len(),
+        },
+    });
+    let (state, reason) = if !all_implementation_fresh {
+        (
+            LifecycleState::Ready,
+            Some("selected Implementation projections are not fresh".into()),
+        )
+    } else {
+        match implementation_state {
+            Some(comparison::ImplementationState::Closed) => (LifecycleState::Closed, None),
+            Some(comparison::ImplementationState::Converged) => (LifecycleState::Converged, None),
+            Some(comparison::ImplementationState::Drift) => (
+                LifecycleState::Drift,
+                Some("Implementation gate is Drift".into()),
+            ),
+            None => (
+                LifecycleState::Unavailable,
+                Some("comparison did not produce an Implementation state".into()),
+            ),
+        }
+    };
+    Ok(ItemState {
+        id: item.id.clone(),
+        after: item.after.clone(),
+        evidence: item.evidence.clone(),
+        state,
+        scope: Some(scope_value),
+        gate: Some(gate),
+        input_fingerprint: Some(input_fingerprint),
+        reason,
+    })
 }
 
 // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::ImplementationCommands interface

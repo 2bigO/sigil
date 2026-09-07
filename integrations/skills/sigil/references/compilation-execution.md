@@ -43,6 +43,23 @@ Use the same `--scope` on all operations below; do not combine it with
 `--selection` or top-level `--allow-empty`. Without a paired scope, native
 Implementation inspection/comparison requires `--selection FILE`.
 
+For several ordered scope items, persist the request once and let native status
+derive release from explicit predecessors:
+
+```sh
+sigilc request create --root . --frontend /tmp/sigil-run/frontend.json --definition /tmp/sigil-run/request.json
+sigilc request status --root .
+```
+
+The definition contains `version`, `id` and ordered `items`; each item contains
+an existing `scope`, an `id`, optional `after` predecessor IDs and opaque
+external `evidence` references. Predecessors must precede their item. The
+generated `.sigil/workflow/request.json` is atomic and separate from disposable
+worlds. Status exposes `ready`, `queued`, `Closed`, `Converged`, `Drift` and
+`unavailable`, then persists the current native scope/input/gate identities. It
+never launches, schedules or retries a worker and never treats a semantic gate
+as proof of delivery, tests, review or deletion.
+
 ## Independently reconstruct Design
 
 ```sh

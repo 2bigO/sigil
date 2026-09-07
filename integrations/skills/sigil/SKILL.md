@@ -47,17 +47,24 @@ protocol, ordered scope, per-source worker inputs and command-specific exits.
 Capture current authored input with `sigil export design .`; use that JSON with
 native `--frontend`. Refresh it after authored/config/glossary changes.
 
-1. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
-2. Prepare each stale Design source. An external Design worker reconstructs it;
+1. For an ordered multi-item request, create one native request definition with
+   the intended scopes and explicit `after` predecessor IDs. Run
+   `sigilc request status` before each external round; it is the source for
+   queued/ready release and current native gate state.
+2. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
+3. Prepare each stale Design source. An external Design worker reconstructs it;
    ingest its returned Turtle with the original caller-held job descriptor.
-3. Run `sigilc compile design` and inspect the named state and diagnostics.
+4. Run `sigilc compile design` and inspect the named state and diagnostics.
    `sigilc entities` exports the current identity catalog when available.
-4. Prepare each selected Implementation source. Its independent external worker
+5. Prepare each selected Implementation source. Its independent external worker
    receives exactly captured source bytes, fixed ontology and frozen catalog.
    Keep Design prose, neighboring code, job descriptors and repair feedback out
    of that worker's input. Ingest each returned Turtle.
-5. Run `sigilc compile implementation` or `sigilc compare`. Preserve unavailable
+6. Run `sigilc compile implementation` or `sigilc compare`. Preserve unavailable
    prerequisites and warnings. Reconstruct changed inputs before comparing again.
+7. Run `sigilc request status` again after ingestion and external checks. It
+   persists only native lifecycle/evidence references; workers, coding, tests,
+   review and deletion remain external.
 
 See [Design review](references/design-compilation-review.md) and
 [implementation design](references/implementation-design.md) for interpretation.

@@ -67,14 +67,15 @@ reimplement it from the earlier scope-first checkpoint. The initial parity revie
 is complete; continue its concrete improvement, integration and reconstruction
 tasks. Repeat the review when new observations change the available evidence.
 
-Native `sigilc scope` currently answers one invocation's ordered membership
-only. It does not persist a multi-item request, predecessor dependencies or
-completion transitions. The `NATIVE-SCOPE-DOGFOOD` item at the top of the active
-work list now scopes the next `SCOPE-REQUEST-STATE` implementation through this
-frontend flow and records which temporary answers native output actually
-recovers. Until the request ledger is implemented and adopted on later real
-work, `.codex-progress` remains the authoritative resumable request state;
-native focus order has not released or completed any later item.
+Native `sigilc scope` remains the one-invocation membership primitive. The
+implemented `sigilc request create/status` primitive now persists one ordered
+request, explicit predecessor release, native gate identities and opaque
+external evidence references under `.sigil/workflow/request.json`. The first
+real dogfood recorded `ready → queued`, then `Closed → ready` release for a
+three-item request and recovered it in a fresh process. `.codex-progress` still
+contains delivery/check/deletion evidence and the next removal decision; it no
+longer needs to duplicate ordered scope release state. Use request status on
+each subsequent scoped increment before removing another temporary field.
 
 Use native primitives now; do not rebuild these operations in temporary Python
 queries, manual status tables or a TypeScript compiler wrapper:
@@ -88,7 +89,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 | Which identities may Implementation use? | `sigilc entities` | No catalog from stale or Disjoint Design. Current repository reconstruction remains incomplete. |
 | What is the current semantic result? | `sigilc compile design`, `compile implementation`, `compare` | Native commands exist; that does not establish independent current-source reconstruction or frontend integration. |
 | Which files does this comparison cover, and in what focus order? | `sigilc scope --frontend FILE --scope FILE`; same `--scope` on world commands | Reports ordered roots, effective import/owner closure and Implementation selection. Order and membership have separate identities. Inspection does not require reconstructed worlds and is not a semantic gate. |
-| Which ordered scope item is ready, queued behind a predecessor, or terminal? | **Not yet implemented:** `SigilScopedRequest` is the next native gap | `sigilc scope` has no durable request ID, predecessor graph, lifecycle or restartable transition. Keep the temporary delivery queue until the request ledger is implemented, exercised and adopted. |
+| Which ordered scope item is ready, queued behind a predecessor, or terminal? | `sigilc request create/status` with `SigilScopedRequest` | One atomic `.sigil/workflow/request.json` ledger derives release from explicit predecessors and current native gates. It records opaque external evidence references but does not run workers, tests, review or deletion. |
 | Can generated worlds be discarded/recovered? | `sigilc clean` | Use deliberately for disposable-cache recovery, not routinely before freshness inspection. |
 | Did the selected semanticization pass actually publish current worlds? | `sigilc stale` plus `.sigil/worlds/index.json` and mirrored `.egg` entries | Every selected source must be `fresh` after successful external reconstruction and ingestion. An empty cache or missing rows is an incomplete pass; scope inspection, preparation, compile, fixtures and a Loose report do not fill this gap. Scope history is not stored in worlds. |
 | What code/features still need delivery? | Whole specification, authored Design, ordinary checks and remaining delivery queue | Semantic success alone cannot answer this; final delivery audit remains external. |
@@ -159,8 +160,9 @@ see the native README for the exact schema. Read `scope.design.focus_order` from
 native output. Requested roots come first, followed by dependency additions.
 Inspect the effective membership and inclusion reasons before interpreting the
 result. Use `--scope` consistently on subsequent ingest/catalog/Implementation
-operations. It replaces `--selection`; it does not replace the full-scope final
-audit, the not-yet-implemented persistent request ledger or independent
+operations, and use `sigilc request status` to advance an ordered multi-item
+scope after each external reconstruction/check round. `--scope` replaces
+`--selection`; neither replaces the full-scope final audit or independent
 reconstruction.
 
 ## The convergence loop
@@ -258,19 +260,17 @@ Already observed during this refactor:
 * Missing current Design projections prevent a catalog and Implementation
   comparison. Native output now reports unavailable comparison with exit 3 and
   no Implementation state. This is a real prerequisite gap, not Drift.
-* **Learning from observation: ordered scope is not request state.** The real
-  `sigilc scope` command preserved the requested roots and `order_fingerprint`,
-  while a second invocation left `.sigil/worlds` unchanged (`.lock` only). That
-  proves `FocusOrder` is an adopted read-only selector, not a persistent
-  implementation queue: it has no request identity, predecessor edges,
-  queued/ready states or terminal transition after `Closed`/`Converged`. The
-  authored [SigilScopedRequest contract](packages/sigilc/scope.sigil) turns this
-  observed gap into the next implementation task. Do not add a temporary
-  adapter or repurpose the projection index; implement the narrow request
-  ledger. The top `NATIVE-SCOPE-DOGFOOD` task now scopes that implementation with
-  native output and records the parity boundary before any temporary field is
-  removed. Use the ledger on the three-item real scope, then retire the duplicate
-  delivery queue from the following task.
+* **Learning from observation: ordered scope needed a durable release primitive.**
+  The real `sigilc scope` command preserved requested roots and
+  `order_fingerprint`, while a second invocation left `.sigil/worlds` unchanged
+  (`.lock` only). That confirmed `FocusOrder` is a read-only selector. The
+  implemented `SigilScopedRequest` ledger adds only the missing request identity,
+  explicit predecessor edges, `ready`/`queued` lifecycle, native gate evidence,
+  restart recovery and opaque external evidence references. The three-item
+  dogfood observed `first=Closed` releasing both dependents; a fresh process
+  recovered the same state. Do not repurpose the projection index or add an
+  adapter. The next task removes only the duplicate delivery ordering/release
+  fields after this parity evidence.
 * Disposable-cache cleanup needed to recover corrupt indexes without unlinking
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
@@ -504,7 +504,7 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | Hand-maintained semantic identities | `entities` output | Use a current provisional/authoritative catalog in real preparation; retire the manual list. Missing projections must be reconstructed first. |
 | Python joins for missing/disagreeing behavior | `compare` output | Use independent current D/I projections and native obligations/diagnostics; then remove custom joins. |
 | Tracker-maintained semantic colors | Named native gate states and diagnostics | Retired after native editor adoption with actual tools and real refactor use. Read native names and unavailable states; no absence-of-diagnostics color algorithm. Independent current reconstruction is still needed for final convergence. |
-| Bespoke delivery/work queue | `SigilScopedRequest` for ordered scope lifecycle, plus explicit external check/deletion evidence references | This native request state is not implemented yet. Keep the temporary queue, implement and dogfood the request ledger on the three-item scope, then retire duplicate ordering/release fields. Yellow cannot establish delivery. |
+| Bespoke delivery/work queue | Implemented `sigilc request create/status` (`SigilScopedRequest`) for ordered scope lifecycle, plus explicit external check/deletion evidence references | Use the ledger on the next real increment. In the following task delete only duplicate queue ordering/release fields that parity proves redundant; retain delivery/check/deletion evidence and external scheduling. Yellow cannot establish delivery. |
 
 For every row, retirement requires the same necessary information and supporting
 evidence to be recoverable through the Sigil flow. If it cannot, that is a Design

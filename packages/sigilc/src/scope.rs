@@ -9,7 +9,7 @@ use std::{
     path::Path,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Scope {
     pub version: u32,
@@ -17,7 +17,7 @@ pub struct Scope {
     pub implementation: Selection,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DesignSelection {
     pub paths: Vec<String>,

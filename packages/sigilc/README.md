@@ -156,14 +156,31 @@ diagnostics. It supplies no semantic verdict, task completion or worker scheduli
 Scoped gates keep their existing exits and include the scope in their JSON output.
 Focused success never substitutes for complete-refactor delivery and comparison.
 
-Scope inspection is intentionally read-only. A future native scoped-request
-operation, governed by `SigilScopedRequest` in `scope.sigil`, is responsible for
-persisting an ordered multi-item request and predecessor release state under
-generated `.sigil/workflow/` state. It must keep that state separate from the
-disposable projection index, derive `Closed`/`Converged` only from fresh scoped
-native evidence, preserve `Drift` and unavailable comparison, and never launch
-or schedule workers. Until that operation is implemented and dogfooded, native
-scope order does not replace the external delivery queue.
+Scope inspection is intentionally read-only. The native scoped-request primitive
+keeps one ordered multi-item request and predecessor release state under the
+generated `.sigil/workflow/request.json` ledger:
+
+```sh
+sigilc request create --root . --frontend frontend.json --definition request.json
+sigilc request status --root .
+```
+
+Repeating `request create` with the same request ID/definition and frontend is
+idempotent; a different request is rejected until its external evidence is
+preserved and the generated ledger is deliberately replaced.
+
+The definition has `version`, an `id`, and ordered `items`; each item has an
+`id`, a `scope` using the schema above, and optional `after` predecessor IDs.
+Predecessors must appear earlier in the list. `status` recomputes the selected
+native Design and Implementation gates, records bounded fingerprints and gate
+evidence, and releases only terminal (`Closed`/`Converged`) predecessors. A
+freshness gap leaves an item `ready`; a predecessor that has not converged leaves
+it `queued`; `Drift`, Design `Disjoint`, and unavailable comparison remain visible
+in the item state. The ledger is atomic, survives process restart, and is not a
+worker registry, scheduler, retry system, or replacement for external
+reconstruction, tests, review, or deletion evidence. Request status exits 0 when
+items are queued/ready or terminal, 1 when an item is `Drift`, and 3 when native
+inputs or comparison are unavailable.
 
 Gate reports include native presentation diagnostics for editor and terminal
 consumers. Design compilation returns `diagnostics`; comparison returns
