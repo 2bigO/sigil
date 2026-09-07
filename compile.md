@@ -541,6 +541,13 @@ Its job is only:
 > guessing. Emit only direct facts attributable to this file. Cross-file and
 > transitive consequences are computed later by sigilc/egglog.
 
+Keep programming-language names for local compiler bindings distinct from
+catalog concepts with similar labels. For example, a source reference to the
+Rust `SemanticInput::Implementation` variant is not evidence that the source
+uses the core `ImplementationEvidenceInput` concept. Emit that cross-package
+relation only when the captured source explicitly identifies the canonical
+catalog entity; a shared word such as `Implementation` is not enough.
+
 This is a hard semantic boundary, not an optional context optimization.
 
 The coding agent writes code from Design.

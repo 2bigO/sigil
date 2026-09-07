@@ -483,6 +483,17 @@ Already observed during this refactor:
   took 8.77 seconds with the previous compiler and 1.36 seconds with the updated
   compiler, with identical output. Directory/global discovery still walks the
   pruned tree. No custom cache or TS adapter was introduced.
+* **Learning from observation: similarly named local bindings and catalog concepts
+  must stay separate.** Scope 3 reached fresh Design and Implementation inputs but
+  native comparison returned red `Drift`: the isolated `tests/store.rs` worker
+  asserted that `SigilSemanticCompiler uses ImplementationEvidenceInput` while
+  the independent `SKILL.md` worker asserted the corresponding exclusion. The
+  source only uses the native Rust `SemanticInput::Implementation` variant; it
+  does not name the core evidence-envelope concept. A fresh worker from a newly
+  prepared job removed that unsupported relation, and the unchanged request then
+  returned all three scopes `Converged` with exit 0. The concrete distinction is
+  now stated in compile.md section 6; preserve the red report as evidence and
+  repair by a new isolated reconstruction rather than editing Turtle.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
