@@ -124,3 +124,93 @@ expand SigilComparisonScope {
     }
   }
 }
+
+component SigilScopedRequest {
+  goal {
+    Persist one ordered implementation request and its evidence-backed
+    lifecycle so the external convergence loop can retire duplicate delivery
+    queue state without moving worker orchestration into sigilc.
+  }
+
+  interface {
+    RequestDefinition {
+      Accept a versioned request identity and a nonempty ordered list of named
+      scope items. Each item contains an existing ScopeInput and may name
+      explicit predecessor item IDs. Preserve the immutable request definition,
+      requested order, effective membership and both scope fingerprints. Reject
+      duplicate IDs, unknown predecessors, cycles, duplicate scope roots and
+      conflicting selectors. Order is priority among released items; it is not
+      an implicit dependency. A request that wants items two and three held
+      until item one finishes must name item one as their predecessor.
+    }
+
+    RequestLifecycle {
+      Keep request state in durable generated workflow state separate from the
+      disposable .sigil/worlds projection index. A new item is `ready` when all
+      predecessors are terminal and `queued` otherwise. Re-evaluate each
+      released item against the same scoped stale and gate inputs. Record the
+      native named terminal state `Closed` or `Converged` only when the selected
+      Design is valid, every selected projection is fresh, and the current
+      scoped Implementation gate returns exit zero. Preserve `Drift` for exit
+      one and `unavailable` for exit three without converting either to a
+      successful completion. A changed source, catalog, scope fingerprint or
+      stale projection reopens a prior terminal item with its current reason.
+      Persist transitions atomically and retain the current native report
+      identity and external delivery/check evidence references.
+    }
+
+    RequestInspection {
+      Expose create, status and advance-equivalent native operations that can
+      recover the request, current item states, released order, predecessor
+      reasons, scope/input identities, native gate names and supporting evidence
+      after a process or session restart. Status may update derived readiness,
+      but no command may accept a hand-written `done` flag or infer completion
+      from order, a task title, a model claim, a fixture or an empty world.
+      External callers still choose workers, run coding and ordinary checks,
+      and decide when to invoke the commands; sigilc only validates and records
+      the deterministic state transition.
+    }
+  }
+}
+
+expand SigilScopedRequest {
+  constraints {
+    RequestBoundary {
+      This is a bounded scope-request ledger, not a generic task ontology,
+      worker registry, job database, daemon, scheduler, retry loop, receipt
+      system or compatibility adapter. Preparation jobs remain immutable
+      source descriptors and projection publication remains disposable.
+      Request state never enters Design or Implementation assertions and never
+      changes world authority. External delivery, tests and product approval
+      remain separately evidenced, while their references may be attached to
+      the request for parity inspection.
+    }
+  }
+
+  cases {
+    OrderedRelease {
+      A request with items one, two and three may place one first in order and
+      list one as the predecessor of both two and three. Initially one is
+      `ready` and two and three are `queued`. A current scoped `Closed` or
+      `Converged` result for one atomically releases two and three in their
+      requested order. A `Drift`, unavailable comparison or stale projection
+      leaves both queued and preserves the named reason.
+    }
+
+    ScopeIdentityChange {
+      Reordering released items changes priority but not unchanged per-source
+      bindings. Changing effective membership, Design catalog identity,
+      Implementation selection or captured source bytes invalidates affected
+      terminal state and prevents dependent release until a fresh current gate
+      is observed. Restarting the process recovers the same request and states.
+    }
+
+    EvidenceParity {
+      A status report identifies the exact scope definition, order and
+      membership fingerprints, current source/projection identities, native
+      Design and Implementation states, warnings or unavailable reasons, and
+      external check/deletion evidence references. It never claims that a
+      semantic gate alone proves code delivery or removal.
+    }
+  }
+}

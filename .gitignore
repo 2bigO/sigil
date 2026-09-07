@@ -38,6 +38,7 @@ repos/
 
 # Disposable semantic worlds and external implementation-loop state
 **/.sigil/worlds/
+**/.sigil/workflow/
 .codex-progress/
 
 # Rust build output

@@ -156,6 +156,15 @@ diagnostics. It supplies no semantic verdict, task completion or worker scheduli
 Scoped gates keep their existing exits and include the scope in their JSON output.
 Focused success never substitutes for complete-refactor delivery and comparison.
 
+Scope inspection is intentionally read-only. A future native scoped-request
+operation, governed by `SigilScopedRequest` in `scope.sigil`, is responsible for
+persisting an ordered multi-item request and predecessor release state under
+generated `.sigil/workflow/` state. It must keep that state separate from the
+disposable projection index, derive `Closed`/`Converged` only from fresh scoped
+native evidence, preserve `Drift` and unavailable comparison, and never launch
+or schedule workers. Until that operation is implemented and dogfooded, native
+scope order does not replace the external delivery queue.
+
 Gate reports include native presentation diagnostics for editor and terminal
 consumers. Design compilation returns `diagnostics`; comparison returns
 Implementation `diagnostics` and retains Design findings in `design.diagnostics`.

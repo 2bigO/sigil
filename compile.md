@@ -359,6 +359,10 @@ layer anywhere in the repository. Document the external protocol and keep
 lightweight skill instructions where useful. Implement only deterministic
 preparation/ingestion and compiler behavior at that boundary.
 
+The narrow durable scoped-request ledger specified below is a workflow record,
+not any of those runtimes. It may record ordered scope release and native gate
+evidence, but it must never dispatch, schedule, retry or supervise workers.
+
 Sections describing agents, concurrency, isolation, and retries specify external
 environment responsibilities; they are not Sigil implementation milestones.
 Fixed Turtle fixtures or simple test doubles exercise the model boundary in CI.
@@ -1929,6 +1933,44 @@ The job descriptor pins its identity. CLI examples above assume that preparation
 has completed. The TypeScript CLI remains separately useful for parse/check/fmt,
 context/retrieval, graph/glossary, and editor services when no semantic world exists.
 
+## Durable scoped request state
+
+The current scope input and `FocusOrder` report are read-only. They preserve
+ordered Design roots and effective membership for one invocation, but they do
+not remember that a caller requested several scopes, release later work after a
+predecessor converged, or survive a process restart. The disposable world index
+also cannot carry that lifecycle: it records only per-source projection
+bindings, checksums and generations.
+
+To replace the temporary delivery queue in `.codex-progress`, implement the
+bounded `SigilScopedRequest` contract in `packages/sigilc/scope.sigil`. A native
+request operation must persist an immutable request definition and its
+ordered scope items in generated workflow state under `.sigil`, separate from
+`.sigil/worlds`. Each item references the existing versioned scope input and
+may name explicit predecessor item IDs. Order is priority among released items;
+it is not an implicit dependency. For example, items two and three both name
+item one as a predecessor when they must remain queued until item one finishes.
+
+The request state is derived from current native evidence. An item is `ready`
+when its predecessors are terminal and `queued` otherwise. A current scoped
+Implementation result with every selected projection fresh and a valid Design
+may record the named terminal state `Closed` or `Converged`; both have exit zero,
+with `Converged` retaining its warnings. Exit-one `Drift` and exit-three
+unavailable comparison remain visible and never release dependents. Changed
+source bytes, catalog identity, scope fingerprints or freshness reopen a prior
+terminal item. Updates are atomic and retain native report/input identities plus
+references to externally produced delivery and check evidence.
+
+This state is a narrow request ledger, not a task ontology or worker runtime.
+External callers still select and run workers, coding, tests and product
+approval. `sigilc` does not launch, schedule, retry or accept a hand-written
+completion flag. Its status/advance-equivalent command must recompute or verify
+the scoped native result, recover the same request and released order after a
+restart, and expose enough evidence for the final `.codex-progress` retirement
+rehearsal. Until this capability is implemented and adopted on later real work,
+the temporary delivery queue remains active and the native workflow is not yet a
+complete replacement.
+
 ---
 
 # 34. Candidate search is outside scope
@@ -2095,8 +2137,10 @@ features to manufacture a lower line count is not acceptance.
 
 * Use one preparation descriptor shape for both sides, with only necessary
   side-specific fields. Preparation is deterministic data capture, not a job
-  database: no queued/running/retry states, worker registry, daemon, polling,
-  callbacks, or scheduler. External callers retain descriptors until ingestion.
+  database: it has no queued/running/retry states, worker registry, daemon,
+  polling, callbacks, or scheduler. The separate bounded scoped-request ledger
+  owns only ordered request lifecycle; external callers retain preparation
+  descriptors until ingestion.
 * Share ingestion, assertion encoding, input validation and disposable storage
   code between D and I. Explicit side-specific validation preserves catalog and
   trust boundaries; avoid language/provider plugins or generic pipeline stages.
