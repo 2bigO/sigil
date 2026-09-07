@@ -1112,6 +1112,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "target a prepared domain Component, Concept or entity, never another interpretation unit",
         );
     }
+    if message.starts_with("interpretation unit has conflicting relations:") {
+        return Some(
+            "give each prepared authored unit at most one sigil:relation; choose the single fixed entity predicate represented by that unit and do not combine owns with hasContract",
+        );
+    }
     if message.starts_with("declaration is not owned by") {
         return Some(
             "copy reserved identity IRIs exactly from design.json for the requested source; declare new domain identities under that source and reference foreign identities without redeclaring them",
@@ -1160,6 +1165,13 @@ mod tests {
             .expect("source-bound unit failures have an actionable repair hint");
         assert!(hint.contains("prepared source/catalog"));
         assert!(hint.contains("zero-fact Turtle"));
+    }
+
+    #[test]
+    fn conflicting_unit_relations_have_an_actionable_hint() {
+        let hint = ingest_hint("interpretation unit has conflicting relations: urn:sigil:unit:a")
+            .expect("conflicting unit relations have an actionable repair hint");
+        assert!(hint.contains("at most one sigil:relation"));
     }
 }
 fn json(code: u8, value: &impl Serialize) -> Output {

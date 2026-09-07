@@ -14,8 +14,9 @@ component SigilEntityCatalog {
       nonempty label. Reject unknown references at world assembly, collisions,
       foreign declarations and mutations of reserved identities.
       Interpretation units remain internal and never enter the domain catalog.
-      Only their physical source may describe their interpretation. Units cannot
-      serve as domain endpoints in relationships or code obligations.
+      Only their physical source may describe their interpretation. Each unit may
+      name at most one fixed entity relation. Units cannot serve as domain
+      endpoints in relationships or code obligations.
     }
 
     FrozenIdentity {

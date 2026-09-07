@@ -109,6 +109,7 @@ fn declarations_are_owned_and_explicit_but_foreign_references_are_allowed() {
         "<urn:sigil:unit:a.sigil:1:1> a s:State .",
         "c:A s:uses <urn:sigil:unit:a.sigil:1:1> .",
         "<urn:sigil:unit:a.sigil:1:1> s:target <urn:sigil:unit:a.sigil:1:1> .",
+        "<urn:sigil:unit:a.sigil:1:1> a s:Contract; s:relation \"owns\", \"hasContract\" .",
         "<urn:sigil:entity:a.sigil:%52ead> a s:Capability; s:label \"Read\" .",
         "<urn:sigil:entity:a.sigil:> a s:Capability; s:label \"Empty\" .",
     ] {

@@ -144,6 +144,7 @@ fn declarations(
     }
     let prefix = format!("urn:sigil:entity:{}:", encode_identifier(source));
     let mut declared: BTreeMap<String, (BTreeSet<String>, BTreeSet<Object>)> = BTreeMap::new();
+    let mut unit_relations: BTreeMap<String, BTreeSet<Object>> = BTreeMap::new();
     for assertion in assertions {
         turtle::validate(assertion.clone())?;
         if let Some(unit) = reserved.get(&assertion.subject).filter(|i| i.internal) {
@@ -168,6 +169,12 @@ fn declarations(
                     "invalid or foreign interpretation-unit assertion: {}",
                     assertion.subject
                 ));
+            }
+            if assertion.predicate == format!("{ONTOLOGY}relation") {
+                unit_relations
+                    .entry(assertion.subject.clone())
+                    .or_default()
+                    .insert(assertion.object.clone());
             }
         }
         if let Object::Iri { value } = &assertion.object
@@ -219,6 +226,13 @@ fn declarations(
                 return Err("empty domain label".into());
             }
             labels.insert(assertion.object.clone());
+        }
+    }
+    for (unit, relations) in unit_relations {
+        if relations.len() > 1 {
+            return Err(format!(
+                "interpretation unit has conflicting relations: {unit}"
+            ));
         }
     }
     declared
