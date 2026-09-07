@@ -1,6 +1,5 @@
-import { assert, assertEquals } from "@std/assert";
-import { InMemorySigilFileSystem } from "@qoherent/sigil-core";
-import { loadDesignInput } from "../src/design-input.ts";
+import { assert, assertEquals } from "jsr:@std/assert@1";
+import { InMemorySigilFileSystem, loadDesignInput } from "../src/mod.ts";
 
 const config = JSON.stringify({
   sigilVersion: "0.7.0",

@@ -15,6 +15,8 @@ component SigilDesignInput {
       optional inputs. Rust validates current bytes and owns their fingerprints.
       Keep expansions attributed to their physical file and canonical owner.
       Preserve units even when owner resolution fails, alongside diagnostics.
+      Export this capability from the core language package. Keep no forwarding
+      export or compatibility helper in the removed TypeScript compiler package.
     }
   }
 }

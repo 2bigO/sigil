@@ -10,7 +10,7 @@ cargo build --locked --manifest-path packages/sigilc/Cargo.toml
 ```
 
 The current Design commands consume the versioned structural JSON produced by
-`packages/compiler/src/design-input.ts::loadDesignInput`. Pass that bundle with
+`@qoherent/sigil-core::loadDesignInput` (`packages/core/src/design-input.ts`). Pass that bundle with
 `--frontend`. The compiler checks its captured source/config/glossary bytes
 against `--root` (default `.`). Regenerate the bundle after authored changes.
 The TypeScript CLI integration is still being implemented.

@@ -1,14 +1,13 @@
+import { loadSigilWorkspace } from "./workspace.ts";
+import { normalizePath, relativePath } from "./path.ts";
+import { resolveSigilWorkspace } from "./pipeline.ts";
 import {
-  loadSigilWorkspace,
-  normalizePath,
-  relativePath,
-  resolveSigilWorkspace,
   SIGIL_CORE_VERSION,
   type SigilDiagnostic,
   type SigilFileSystem,
   type SourceRange,
   type WorkspaceLoadOptions,
-} from "@qoherent/sigil-core";
+} from "./model.ts";
 
 /** Structural transport only. sigilc owns hashing, schema checks and meaning. */
 export interface DesignInput {
@@ -41,7 +40,7 @@ export interface DesignInput {
   }[];
 }
 
-// @sigil implements packages/compiler/src/design-input.sigil::SigilDesignInput::ResolvedDesignInput interface
+// @sigil implements packages/core/src/design-input.sigil::SigilDesignInput::ResolvedDesignInput interface
 export async function loadDesignInput(
   fs: SigilFileSystem,
   options: WorkspaceLoadOptions,

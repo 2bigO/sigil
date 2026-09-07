@@ -72,7 +72,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 
 | Real question | Implemented operation | Current limit |
 | --- | --- | --- |
-| What authored sources, imports and units exist? | Existing parser/resolver structural Design export | Helper still lives in `packages/compiler/src/design-input.ts`; extract into core/frontend, then remove the compiler package. |
+| What authored sources, imports and units exist? | `loadDesignInput` exported by `@qoherent/sigil-core` | Structural export lives in core; the old compiler helper path is removed. Use the exported function directly until retained language CLI integration exposes it. |
 | What must be reconstructed? | `sigilc stale design` / `stale implementation` | Implementation needs a current Design catalog. Read source rows from the report, not a second freshness table. |
 | What inputs may a worker receive? | `sigilc prepare design` / `prepare implementation` | External caller owns dispatch and isolation. New output directory required. |
 | Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results. |
@@ -85,9 +85,9 @@ queries, manual status tables or a TypeScript compiler wrapper:
 The implemented commands and their argument schemas are documented in
 `packages/sigilc/README.md`. Verify the selected binary's `--help`; older retained
 builds may have different exits or schemas. Do not invent an unavailable CLI
-export command. Until the structural helper moves, use a small external call to
-`loadDesignInput` to write the bundle; this is a temporary language-export step,
-not a `sigil compile` wrapper.
+export command. Use a small external call to core's `loadDesignInput` to write the
+bundle until retained language CLI integration exposes it. This exports structure
+only; it never invokes `sigilc` or acts as a `sigil compile` wrapper.
 
 For example, with an actual current structural bundle and a new preparation
 directory selected by the external caller:
@@ -226,9 +226,10 @@ Already observed during this refactor:
   the writer lock. `clean` now does so; publication generations also cannot be
   reused by old jobs after cache recreation. Recovery fixtures and real-root
   cleanup are distinct evidence.
-* Structural export remains a manual call to a helper inside the package being
-  removed. Extract that language-only capability into the retained frontend; do
-  not introduce a TS compiler wrapper to hide the remaining step.
+* Structural export now lives in core, with its contract and retained tests. The
+  helper was moved out of the compiler package and its old path removed. Use the
+  public core export; CLI exposure and the rest of compiler-package deletion
+  remain separate integration work, with no forwarding shim.
 * Ordered scope now works directly in Rust across native commands. On the real
   refactor, three requested roots expanded to 60 Design files through imports
   and ownership; the native output exposed that breadth while preserving focus

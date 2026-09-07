@@ -1,4 +1,4 @@
-@packages/compiler/src/design-input.sigil import { SigilDesignInput }
+@packages/core/src/design-input.sigil import { SigilDesignInput }
 
 component SigilSemanticCompiler {
   goal {
