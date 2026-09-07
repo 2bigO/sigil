@@ -19,7 +19,8 @@ adapters and obsolete compiler-only callers. Preserve frontend consumers and
 their retained user capabilities while changing the backend they use. Do not
 replace the compiler package with a thin TypeScript wrapper around
 `sigilc`, a forwarding `sigil compile` command, or legacy compatibility exports.
-The frontend instructs the model/operator to invoke `sigilc` directly. Keep the
+The coding-agent guidance instructs the model/operator to invoke `sigilc`
+directly. Keep the
 parser/resolver and minimal structural Design export in the existing core/frontend;
 that export must not launch or wrap the native compiler. Frontend presentation
 uses native states and diagnostics without retaining the old compiler API.
@@ -458,9 +459,12 @@ This is the key verification design.
 
 The coding agent does **not** author Implementation Turtle itself.
 
-Instead, when the coding agent judges that a coherent piece of code is finalized, it triggers an **independent background semanticization agent** and immediately continues its own work.
-
-The reconstruction result is none of the coding agent's concern.
+Instead, when the coding agent judges that a coherent piece of code is finalized,
+it must **spawn a subagent** with the exact isolated prompt and matching ingest
+parameters in the durable compilation reference. The subagent writes temporary
+Turtle, invokes native ingest, and repairs that construction from each exact
+`hint:` until exit 0 publishes or it reports a blocker. The caller retains every
+attempt and waits for the accepted projection before using it as evidence.
 
 Conceptually:
 
@@ -476,7 +480,7 @@ HARNESS
     ├── supplies fixed Sigil ontology
     ├── supplies frozen Design entity catalog
     ├── supplies only the exact target implementation file bytes
-    └── launches independent semanticizer
+    └── spawns isolated subagent
                 │
                 ▼
         Implementation Turtle
@@ -496,7 +500,8 @@ Meanwhile:
 coding agent → continues implementing other work
 ```
 
-The coding agent must not see or influence the reconstruction result.
+The coding agent must not see or influence the subagent's reconstruction while
+that isolated round is active.
 
 Treat this as an enforced harness boundary: use a separate conversation and an
 isolated read-only set of the three inputs in section 6, with results outside the coder's readable
@@ -1400,7 +1405,7 @@ That action:
 1. captures the exact target source path and file bytes
 2. records the snapdir source checksum
 3. determines the frozen Design entity catalog fingerprint
-4. launches an independent semanticizer agent
+4. spawns an independent subagent with the exact prompt and ingest-tool parameters
 5. gives it only target file bytes as implementation context
 6. gives it the fixed ontology and frozen identity-only Design catalog
 7. receives Turtle

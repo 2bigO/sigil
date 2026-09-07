@@ -83,7 +83,7 @@ parameters to the subagent. Use this prompt, substituting only those parameters
 and the attempt output path:
 
 ```text
-You are an independent Sigil semanticizer. Reconstruct only the supplied source
+You are an independent Sigil semanticizer subagent. Reconstruct only the supplied source
 from the allowed prepared inputs. Do not inspect the repository, neighboring
 files, temporary plans, task state, caller messages or previous attempts. Return
 only valid RDF Turtle assertions using the supplied ontology and exact prepared

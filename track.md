@@ -726,14 +726,14 @@ Do not claim isolation if tools or inherited instructions expose the checkout.
 An Implementation worker receives exactly target bytes, fixed ontology and the
 frozen Design entity catalog. It gets no `compile.md`, `track.md`, state folder,
 neighbor code, Design relationships, obligations, symbol maps or coder reasoning.
-Use the semanticizer instructions in `compile.md`, including the rule that name
-similarity alone is insufficient. One file produces only its direct assertions.
-Freshness contains no model/prompt/producer metadata.
+Use the durable subagent prompt in the repository-owned Sigil skill/reference,
+including the rule that name similarity alone is insufficient. One file produces
+only its direct assertions. Freshness contains no model/prompt/producer metadata.
 
 An external environment can run reconstruction while coding continues. It keeps
 current blind outputs inaccessible to the coder and publishes only through the
 compiler's captured-source/catalog checks. Results may be reviewed after that
-coding round ends. Previous results are not supplied to a new semanticizer.
+coding round ends. Previous results are not supplied to a new subagent.
 If the environment cannot enforce this, report the limitation and obtain a
 suitable external workflow before declaring the final independent result.
 
