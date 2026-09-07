@@ -1,4 +1,4 @@
 interface:
   display_name: "Sigil"
   short_description: "Author Sigil and use native scope and semantic gates"
-  default_prompt: "Use $sigil to inspect governing contracts, export current Design input, use sigilc directly for ordered scope, and when reconstruction is required spawn independent background workers and record matching sigilc ingest evidence before native semantic gates."
+  default_prompt: "Use $sigil to inspect governing contracts, export current Design input, use sigilc directly for ordered scope, and when reconstruction is required spawn independent background workers and record each matching sigilc ingest attempt until an exit-0 projection is published before native semantic gates."

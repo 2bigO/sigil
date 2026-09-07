@@ -891,7 +891,63 @@ fn write_bytes_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
 }
 
 fn runtime(message: String) -> (u8, String) {
-    (3, message)
+    match ingest_hint(&message) {
+        Some(hint) => (3, format!("{message}\nhint: {hint}")),
+        None => (3, message),
+    }
+}
+
+fn ingest_hint(message: &str) -> Option<&'static str> {
+    if message.starts_with("frontend source changed:")
+        || message.starts_with("frontend context changed:")
+    {
+        return Some(
+            "recapture the structural Design export and run prepare again; do not reuse this job or Turtle",
+        );
+    }
+    if message.starts_with("prepared semantic inputs no longer match current inputs")
+        || message.starts_with("projection generation changed;")
+    {
+        return Some(
+            "run prepare again and submit the returned Turtle with its new caller-held job.json",
+        );
+    }
+    if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {
+        return Some(
+            "reserved authored units must have exactly one rdf:type sigil:Contract; preserve the prepared ID and do not add Goal, Interface, Constraint or Case",
+        );
+    }
+    if message == "unknown predicate or literal expected: owner" {
+        return Some(
+            "use ontology predicates: sigil:from for unit ownership, sigil:owns for component-to-Concept links, and sigil:hasContract for component-to-unit links; sigil:owner is not valid",
+        );
+    }
+    if message.starts_with("invalid or foreign interpretation-unit assertion:") {
+        return Some(
+            "keep unit assertions on the prepared source and use only rdf:type plus required, assumed, from, target, relation, expected, description and section",
+        );
+    }
+    if message.starts_with("interpretation unit is not a domain endpoint:") {
+        return Some(
+            "target a prepared domain Component, Concept or entity, never another interpretation unit",
+        );
+    }
+    if message.starts_with("declaration is not owned by") {
+        return Some(
+            "declare new domain identities under the current source URI; reference foreign identities without redeclaring them",
+        );
+    }
+    if message == "Component and Concept identities are reserved by the frontend" {
+        return Some(
+            "preserve prepared Component and Concept declarations instead of redeclaring them as domain entities",
+        );
+    }
+    if message.starts_with("entity requires one type and label:") {
+        return Some(
+            "give each new domain entity exactly one non-reserved rdf:type and one non-empty sigil:label",
+        );
+    }
+    None
 }
 fn json(code: u8, value: &impl Serialize) -> Output {
     Ok((

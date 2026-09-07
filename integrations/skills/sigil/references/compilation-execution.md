@@ -64,9 +64,15 @@ as proof of delivery, tests, review or deletion.
 
 ```sh
 sigilc prepare design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --out /tmp/sigil-run/design-a
-# External worker receives design-a/design.json and design-a/ontology.json.
-# Caller retains design-a/job.json. Worker returns ordinary Turtle in design-a.ttl.
-sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a.ttl
+# External coding-agent worker receives design-a/design.json and
+# design-a/ontology.json in isolation. Caller retains design-a/job.json.
+# Worker returns ordinary Turtle in design-a-attempt-1.ttl.
+sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a-attempt-1.ttl
+# If ingest rejects: capture its exact stderr/exit and give the coding agent
+# an actionable repair prompt. It starts a fresh isolated worker from the same
+# prepared inputs and writes design-a-attempt-2.ttl; never edit Turtle/job.json.
+sigilc ingest design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source architecture/a.sigil --job /tmp/sigil-run/design-a/job.json --turtle /tmp/sigil-run/design-a-attempt-2.ttl
+# Repeat worker -> ingest with a new attempt record until exit 0 publishes.
 sigilc compile design --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 sigilc entities --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 ```
@@ -78,9 +84,14 @@ their owning physical source; reference foreign identities without redeclaring
 them. Do not invent assertions merely to make a gate pass. The compiler validates
 syntax, binding and fixed laws; it cannot establish worker fidelity by itself.
 The coding agent must spawn the independent workers in the background and retain
-the process/job record, returned Turtle path, matching source/job descriptor and
-`sigilc ingest` command/exit for each source. Preparation alone is not a worker
-observation.
+the process/job record, every returned Turtle path, matching source/job descriptor
+and each `sigilc ingest` command/exit for each source. A rejection is an actionable
+prompt to the coding agent, which repairs its temporary construction and starts a
+fresh worker attempt from the same prepared inputs. Do not pass repair feedback,
+neighboring files, or caller descriptors into the worker. Do not hand-edit a
+returned Turtle or mutate its job descriptor. Preparation alone is not a worker
+observation; only the accepted exit-0 ingest that publishes the projection closes
+the source round. Retain the worker's isolation and process evidence.
 
 ## Independently reconstruct Implementation
 
@@ -92,8 +103,14 @@ A coding worker's self-description is not an independent reconstruction.
 
 ```sh
 sigilc prepare implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --out /tmp/sigil-run/implementation-main
-# External worker returns implementation-main.ttl; caller retains job.json.
-sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main.ttl
+# External coding-agent worker returns implementation-main-attempt-1.ttl;
+# caller retains job.json.
+sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main-attempt-1.ttl
+# On rejection, send the exact native error to the coding agent as an
+# actionable repair prompt. It starts a fresh worker from the same three
+# allowed inputs and writes implementation-main-attempt-2.ttl.
+sigilc ingest implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json --source src/main.rs --job /tmp/sigil-run/implementation-main/job.json --turtle /tmp/sigil-run/implementation-main-attempt-2.ttl
+# Repeat worker -> ingest until exit 0 publishes, recording every attempt.
 sigilc stale implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 sigilc compile implementation --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
 sigilc compare --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/scope.json
@@ -101,8 +118,12 @@ sigilc compare --frontend /tmp/sigil-run/frontend.json --scope /tmp/sigil-run/sc
 
 Capture and reconstruct changed inputs after another coding round. Ingest the
 worker's completed zero-fact result when appropriate; missing output is different
-from completed empty output. Neither proves that required behavior was delivered.
-Do not weaken scope to obtain a better result.
+from completed empty output. A rejection loop repairs the coding agent's temporary
+construction, not the source, job descriptor or Turtle by hand. If the native
+error cannot be made actionable or the worker remains unable to produce an accepted
+projection, preserve all attempts and record the blocker; do not bypass ingest.
+Neither accepted ingestion nor a green/yellow gate proves that required behavior
+was delivered. Do not weaken scope to obtain a better result.
 
 The reconstruction gate stays open until `.sigil/worlds/index.json` and every
 selected Design and Implementation `.egg` are present and fresh according to

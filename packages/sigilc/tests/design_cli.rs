@@ -156,6 +156,49 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     );
     assert_eq!(invalid.status.code(), Some(3));
     assert!(invalid.stdout.is_empty());
+
+    root.write(
+        "facts.ttl",
+        format!("{PREFIX}<urn:sigil:unit:a.sigil:1:1> a s:Case .").as_bytes(),
+    );
+    let reserved = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(reserved.status.code(), Some(3));
+    let reserved_stderr = String::from_utf8_lossy(&reserved.stderr);
+    assert!(reserved_stderr.contains("hint: reserved authored units"));
+    assert!(reserved_stderr.contains("exactly one rdf:type sigil:Contract"));
+
+    root.write(
+        "facts.ttl",
+        format!("{PREFIX}<urn:sigil:unit:a.sigil:1:1> s:owner a:A .").as_bytes(),
+    );
+    let owner = run(
+        &root,
+        &[
+            "ingest",
+            "design",
+            "--source",
+            "a.sigil",
+            "--job",
+            "job/job.json",
+            "--turtle",
+            "facts.ttl",
+        ],
+    );
+    assert_eq!(owner.status.code(), Some(3));
+    assert!(String::from_utf8_lossy(&owner.stderr).contains("sigil:from for unit ownership"));
+
     root.write(
         "facts.ttl",
         format!("{PREFIX}a:A s:uses <urn:missing> .").as_bytes(),
@@ -192,7 +235,9 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
         ],
     );
     assert_eq!(stale.status.code(), Some(3));
-    assert!(String::from_utf8_lossy(&stale.stderr).contains("frontend source changed"));
+    let stale_stderr = String::from_utf8_lossy(&stale.stderr);
+    assert!(stale_stderr.contains("frontend source changed"));
+    assert!(stale_stderr.contains("recapture the structural Design export"));
 }
 
 #[test]

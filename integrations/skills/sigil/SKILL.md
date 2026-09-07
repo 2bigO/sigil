@@ -54,15 +54,27 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
 2. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
 3. Prepare each stale Design source. An external Design worker reconstructs it;
    the coding agent must spawn that worker in the background, retain its
-   process/job evidence, and ingest its returned Turtle with the original
-   caller-held job descriptor. A preparation without a real worker return and
-   matching `sigilc ingest` invocation is not semanticization evidence.
+   process/job evidence, and pass its returned Turtle to the matching
+   `sigilc ingest` command with the original caller-held job descriptor. Treat
+   ingest as an accept/reject boundary: on rejection, give the coding agent the
+   exact native error and actionable field-level repair instruction, then start
+   a fresh isolated worker attempt from the unchanged prepared inputs. Do not
+   hand-edit Turtle, mutate `job.json`, or feed repair feedback into a worker's
+   allowed input. Repeat this worker -> ingest loop until native ingest exits 0
+   and publishes the projection, or record the observed blocker without
+   advancing. A preparation without a real worker return and matching
+   accepted `sigilc ingest` is not semanticization evidence.
 4. Run `sigilc compile design` and inspect the named state and diagnostics.
    `sigilc entities` exports the current identity catalog when available.
 5. Prepare each selected Implementation source. Its independent external worker
    receives exactly captured source bytes, fixed ontology and frozen catalog.
    Keep Design prose, neighboring code, job descriptors and repair feedback out
-   of that worker's input. Ingest each returned Turtle.
+   of that worker's input. Run the same worker -> `sigilc ingest` accept/reject
+   loop: route a rejection to the coding agent as an actionable repair of its
+   temporary construction, then launch a fresh worker from the unchanged three
+   inputs. Each retry must use a fresh isolation boundary. Never patch the Turtle
+   or descriptor in place; continue only after
+   native ingest exits 0 and publishes the projection.
 6. Run `sigilc compile implementation` or `sigilc compare`. Preserve unavailable
    prerequisites and warnings. Reconstruct changed inputs before comparing again.
 7. Run `sigilc request status` again after ingestion and external checks. It

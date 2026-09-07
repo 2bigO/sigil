@@ -45,6 +45,14 @@ sigilc compile design --frontend frontend.json
 sigilc entities --frontend frontend.json
 ```
 
+Ingest is the accept/reject boundary for each external reconstruction. Record
+the exact command, exit and stderr. When it rejects, follow the emitted `hint:`
+as the next coding-agent instruction, start a fresh isolated worker from the
+unchanged prepared inputs (or recapture and prepare again when an input changed),
+and submit a new Turtle attempt. Never edit the returned Turtle or `job.json` in
+place; the source round closes only after ingest exits 0 and publishes its
+projection.
+
 `--out` must name a new directory. Do not place prepared inputs in selected
 source scope. Preparation can replace an already-fresh projection through a new
 job, but duplicate jobs cannot overwrite an accepted generation. `--turtle -`

@@ -65,6 +65,28 @@ tracker, scheduler, or compatibility adapter. Only after both criteria are
 verified may the loop advance to Implementation comparison, platform follow-up
 or temporary-mechanism retirement.
 
+### Accepted-ingest repair loop
+
+For each stale source, the coding agent runs a closed worker-to-ingest loop:
+
+1. Spawn a fresh isolated worker with only that source's prepared inputs and
+   retain its process identity, caller-held `job.json`, and returned Turtle path.
+2. Invoke the matching native `sigilc ingest` and record its exact command,
+   stdout, stderr and exit code.
+3. If native ingest rejects, send the coding agent the exact error plus an
+   actionable field-level repair prompt. The coding agent repairs its temporary
+   construction, recaptures inputs when the source or frontend identity changed,
+   and launches a new isolated worker attempt.
+4. Never hand-edit returned Turtle, mutate `job.json`, or pass repair feedback,
+   neighboring code, tracker text or caller descriptors into the independent
+   worker. Keep every attempt for audit.
+5. Stop the source round only when ingest exits 0 and publishes its projection;
+   otherwise preserve the blocker and leave the reconstruction gate closed.
+
+An accepted exit-0 ingest is the only source-level success in this loop. A
+preparation, worker response, rejected attempt, compile warning or fixture does
+not populate `.sigil/worlds/` and cannot release the next request item.
+
 ## Sources of authority
 
 `compile.md` defines the refactor's scope and constraints. Authored `.sigil`
@@ -148,7 +170,7 @@ queries, manual status tables or a TypeScript compiler wrapper:
 | What authored sources, imports and units exist? | `sigil export design .` using core's `loadDesignInput` | Emits the raw structural JSON bundle for native `--frontend`. Export selects the complete workspace; native scope selects focus. |
 | What must be reconstructed? | `sigilc stale design` / `stale implementation` | Implementation needs a current Design catalog. Read source rows from the report, not a second freshness table. |
 | What inputs may a worker receive? | `sigilc prepare design` / `prepare implementation` | External caller owns dispatch and isolation. New output directory required. |
-| Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results. |
+| Can returned facts be published for these inputs? | `sigilc ingest design` / `ingest implementation` | Native schema, catalog, source and generation checks reject invalid/stale results and emit actionable `hint:` steering for the coding-agent repair loop. |
 | Which identities may Implementation use? | `sigilc entities` | No catalog from stale or Disjoint Design. Current repository reconstruction remains incomplete. |
 | What is the current semantic result? | `sigilc compile design`, `compile implementation`, `compare` | Native commands exist; that does not establish independent current-source reconstruction or frontend integration. |
 | Which files does this comparison cover, and in what focus order? | `sigilc scope --frontend FILE --scope FILE`; same `--scope` on world commands | Reports ordered roots, effective import/owner closure and Implementation selection. Order and membership have separate identities. Inspection does not require reconstructed worlds and is not a semantic gate. |

@@ -43,7 +43,13 @@ expand SigilCompilationExecution {
 
       The external coding agent spawns independent workers in the background, records
       their process/job evidence and invokes sigilc ingest with the matching source,
-      job.json and returned Turtle.
+      job.json and returned Turtle. Ingest is an accept/reject boundary: on
+      rejection, retain the exact native error and give the coding agent an
+      actionable repair prompt for its temporary construction, then start a fresh
+      isolated worker from unchanged prepared inputs. Repeat worker -> ingest until
+      native exit zero publishes, or preserve the blocker and keep the gate closed.
+      Never hand-edit Turtle, mutate job.json or pass repair feedback into the
+      worker's allowed input.
 
       Design workers receive design.json and ontology.json.
 
@@ -57,12 +63,26 @@ expand SigilCompilationExecution {
 
       Resolve a reported prerequisite or invocation failure before retrying the
       affected operation.
+
+      Record every worker attempt, returned Turtle, matching ingest command and exit.
+      A source round closes only after the accepted exit-zero ingest publishes its
+      projection; preparation or a rejected attempt is not semanticization.
+
+      Native ingest errors include an actionable `hint:` for common identity,
+      ontology and stale-input failures. Preserve the original error and route its
+      hint to the coding agent's next temporary-construction repair; recapture and
+      prepare again when the hint reports changed inputs.
     }
   }
 
   constraints {
     CompilationExecution {
       Workers, isolation, retries, source edits and scheduling remain external.
+
+      A rejection loop repairs the coding agent's temporary construction through a
+      fresh worker attempt. It never edits returned Turtle or caller-held job.json,
+      and never sends repair feedback, neighboring code or caller descriptors to an
+      independent worker.
 
       Do not add a TypeScript wrapper, provider, stage or orchestration service.
 
@@ -100,7 +120,7 @@ expand SigilCompilationExecution {
       a temporary queue.
 
       Do not advance the reconstruction task until index.json and every selected
-      Design and Implementation .egg are present and fresh, and the frontend's
+      Design and Implementation .egg are present and fresh, and the coding agent's
       worker-spawn and matching ingest command/exit are recorded. A lock-only worlds
       directory, preparation, fixture or hand-authored Turtle is not semanticization
       evidence.
@@ -121,6 +141,11 @@ expand SigilCompilationExecution {
       Missing published worlds or missing coding-agent worker/ingest interaction
       keeps the request at the reconstruction gate; no later task or temporary
       mechanism retirement is allowed.
+
+      A native ingest rejection supplies the next actionable repair prompt. The
+      coding agent repeats the isolated worker -> ingest round until exit zero
+      publishes or records an observed blocker; it cannot turn rejection into
+      acceptance by changing temporary descriptors or hand-authored facts.
 
       Useful external implementation work may continue while that semantic
       prerequisite is absent.
