@@ -52,6 +52,9 @@ native `--frontend`. Refresh it after authored/config/glossary changes.
    `sigilc request status` before each external round; it is the source for
    queued/ready release and current native gate state.
 2. Inspect `sigilc scope` and `sigilc stale` with the intended selection.
+   Run native `sigilc stale` before rebuilding any projection. Preserve every
+   `fresh` projection; reprepare and respawn a subagent only for rows reported
+   stale, missing or dependency-invalid.
 3. Prepare each stale Design source. A spawned subagent reconstructs it;
    the coding agent must spawn a subagent in the background, retain its
    process/job evidence, and pass its returned Turtle to the matching

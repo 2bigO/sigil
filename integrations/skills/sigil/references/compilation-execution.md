@@ -60,6 +60,10 @@ worlds. Status exposes `ready`, `queued`, `Closed`, `Converged`, `Drift` and
 never launches, schedules or retries a worker and never treats a semantic gate
 as proof of delivery, tests, review or deletion.
 
+At the start of each reconstruction cycle, run native `sigilc stale` for the
+selected scope. Preserve every row reported `fresh`; reprepare and respawn a
+subagent only for rows reported stale, missing, or dependency-invalid.
+
 ## Independently reconstruct Design
 
 ```sh

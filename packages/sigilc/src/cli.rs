@@ -968,6 +968,11 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
             "set sigil:relation to one fixed entity predicate from ontology.json (for example uses, provides, requires or dependsOn), not a free-form phrase",
         );
     }
+    if message == "unknown predicate or literal expected: relation" {
+        return Some(
+            "encode sigil:relation as a plain string literal containing one fixed entity predicate; use IRIs for the subject and other entity-valued predicates",
+        );
+    }
     if message == "Component and Concept identities are reserved by the frontend" {
         return Some(
             "preserve prepared Component and Concept declarations instead of redeclaring them as domain entities",
