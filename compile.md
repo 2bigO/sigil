@@ -1876,6 +1876,17 @@ The external workflow chooses files for a question in `compile.md`. Sigil does
 not infer that mapping or certify delivery of the prose plan. Focused comparisons
 help the convergence loop; the final gate still covers the complete refactor.
 
+The final Implementation selection must include the source owner for every
+native command or store interface represented by the selected Design roots. A
+CLI dispatcher or test file is not a substitute for the module that owns the
+modeled behavior: for example, a complete scope that includes
+`packages/sigilc/store.sigil::CurrentDesign` must select
+`packages/sigilc/src/design.rs` as well as its callers and tests. If comparison
+leaves an obligation unresolved, inspect source ownership and selection coverage
+before classifying it as an evidence limit. Expand the versioned selection and
+rerun stale-first when the owner is missing; never satisfy the obligation by
+hand-authored Turtle.
+
 ---
 
 # 33. Minimal sigilc CLI

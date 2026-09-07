@@ -505,6 +505,16 @@ Already observed during this refactor:
   steering text; the native ingest path now emits a class-selection hint and a
   regression test covers it. Preserve these rejected attempts as evidence and
   retry from newly prepared jobs, never by editing Turtle.
+* **Cycle 59 exposed a complete-selection coverage gap.** The full comparison
+  was `Design: Loose`, `Implementation: Converged`, exit 0, with no
+  disagreements or contradictions, but two `SigilProjectionStore` obligations
+  (`CurrentDesign` and `DesignCommands`) remained unresolved. The selected
+  Implementation paths omitted `packages/sigilc/src/design.rs`, the native
+  owner of `CurrentDesign`, so the next complete-scope round must add that source
+  and rerun stale-first before treating the warning as an evidence limit. The
+  `DesignCommands` warning also remains a fresh-worker attribution question;
+  preserve it and investigate from source-owned canonical identities rather than
+  editing Turtle or weakening the obligation.
 * Native primitives do not yet establish a working editor or release cutover.
   Keep retained compilation/status UI while integrating it. Remove UI whose
   sole purpose is a deliberately deleted backend concept.
@@ -661,7 +671,7 @@ instructions. A failed replacement is explicitly reverted and repaired.
 | Repeated scope selectors and hand-built comparison membership | Implemented `sigilc scope` and `--scope` across world commands | Adopted on the subsequent source-selection increment; native output selected the first preparation target. Stop manual bundle slicing/comparison-membership assembly and read native order/membership. Keep external delivery requirements until their final audit; the compiler does not infer them from `compile.md`. |
 | Manually combined Turtle/fact files | Native `prepare`/`ingest` and per-file world assembly | Retired after cycle 51: the isolated subagent returned Turtle directly to native ingest. Keep only per-attempt worker and ingest evidence. |
 | Hand-maintained semantic identities | `entities` output | Retired after cycle 51: the current provisional catalog supplied the Implementation worker. Read native catalog output; do not recreate the list. |
-| Python joins for missing/disagreeing behavior | `compare` output | Retired after cycle 51: native comparison reported the complete result with zero unresolved or disagreements. Remove custom joins and read native obligations/diagnostics. |
+| Python joins for missing/disagreeing behavior | `compare` output | Retired after cycle 51: native comparison owns the result and reports obligations, unresolved findings and contradictions. Focused cycle 51 had zero unresolved findings; complete-scope cycle 59 is correctly recorded as two unresolved obligations until source-selection coverage and fresh attribution are rechecked. Do not reintroduce custom joins. |
 | Tracker-maintained semantic colors | Named native gate states and diagnostics | Retired after native editor adoption with actual tools and real refactor use. Read native names and unavailable states; no absence-of-diagnostics color algorithm. Independent current reconstruction is still needed for final convergence. |
 | Bespoke delivery/work queue | Implemented `sigilc request create/status` (`SigilScopedRequest`) for ordered scope lifecycle, plus explicit external check/deletion evidence references | Retired duplicate `delivery queue.next_task` after fresh-session parity (`artifacts/request-parity-37.json`). Keep requirement delivery state and external delivery/check/deletion evidence; use native request status on later increments. Yellow cannot establish delivery. |
 
