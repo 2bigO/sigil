@@ -128,6 +128,82 @@ outdated generation. Interrupted publication leaves no projection that can be
 treated as current. Removing `.sigil/worlds` is safe: it loses cache and
 last-known impact context, never semantic authority.
 
+### Filesystem shape and flow
+
+The live repository currently has this **abbreviated** shape. `tmp` and
+`workflow` are legacy compiler-owned material to remove; they are shown so the
+boundary is concrete, not because the target architecture retains them.
+
+```text
+.sigil/
+├── config.json
+├── glossary.json
+├── tmp/                 legacy prepared jobs, Turtle attempts, evidence, audits
+├── workflow/            legacy request ledger, inputs, reports, archive
+└── worlds/              generated semantic cache
+    ├── .lock
+    ├── design/          accepted Design projections
+    ├── implementation/  accepted Implementation projections
+    └── index.json       bindings, generations, and freshness
+```
+
+After the simplification, the compiler-owned layout is only:
+
+```text
+.sigil/
+├── config.json
+├── glossary.json
+└── worlds/
+    ├── .lock
+    ├── design/
+    ├── implementation/
+    └── index.json
+```
+
+An external caller may place temporary inputs or logs elsewhere, but that
+location is not part of the Sigil compiler contract and is not read as semantic
+authority.
+
+The retired flow treated semanticization as a managed work process:
+
+```text
+BEFORE — retired compiler-owned process
+
+request queue -> job.json -> worker -> attempt/evidence -> ingest
+      |                                                  |
+      +-------------- workflow ledger <-----------------+
+                         |
+                         v
+                    compile/report
+```
+
+The target flow contains only semantic correctness inputs and accepted facts:
+
+```text
+AFTER — compiler-owned semantic flow
+
+source bytes + frontend/catalog
+             |
+             v
+  prepare -> immutable binding.json -> external semanticizer -> Turtle
+                                                    |
+                                                    v
+                               ingest validates binding and publishes projection
+                                                    |
+                                                    v
+                      fresh Design / Implementation projections in worlds/
+                                                    |
+                                                    v
+                             D -> D* -> O       I -> I*
+                                      \         /
+                                       \       /
+                                      compare / impact
+```
+
+`compare` consumes only fresh `D*`, `O`, and `I*`. `impact` may inspect a
+stale source's last accepted correspondence, but it cannot feed that data back
+into comparison.
+
 ## Design world
 
 The structural Sigil frontend exports authored units, imports, ownership, and
@@ -148,9 +224,9 @@ The Design result is one of:
 
 | State | Meaning |
 | --- | --- |
-| `Disjoint` | Current Design facts contradict a hard invariant. No usable catalog or comparison result exists. |
-| `Loose` | Design is non-contradictory but one or more required Design obligations remain unresolved. A provisional catalog may be exported. |
-| `Coherent` | Design has no contradiction and all required Design obligations are satisfied. Its catalog is authoritative. |
+| 🔴 `Disjoint` | Current Design facts contradict a hard invariant. No usable catalog or comparison result exists. |
+| 🟡 `Loose` | Design is non-contradictory but one or more required Design obligations remain unresolved. A provisional catalog may be exported. |
+| 🟢 `Coherent` | Design has no contradiction and all required Design obligations are satisfied. Its catalog is authoritative. |
 
 `Loose` is deliberately not green: even if the Implementation happens to cover
 every currently derivable obligation, the final comparison cannot be `Closed`.
@@ -267,9 +343,9 @@ is one of:
 
 | State | Meaning |
 | --- | --- |
-| `Drift` | `I*` establishes a fact that contradicts a Design obligation or prohibition. |
-| `Converged` | No contradiction is established, but one or more obligations are unresolved, the Design is `Loose`, or required current input is unavailable. |
-| `Closed` | Design is `Coherent`; every finite obligation is satisfied by fresh `I*`; and no contradiction exists. |
+| 🔴 `Drift` | `I*` establishes a fact that contradicts a Design obligation or prohibition. |
+| 🟡 `Converged` | No contradiction is established, but one or more obligations are unresolved, the Design is `Loose`, or required current input is unavailable. |
+| 🟢 `Closed` | Design is `Coherent`; every finite obligation is satisfied by fresh `I*`; and no contradiction exists. |
 
 Missing information cannot manufacture `Closed`. An empty Implementation
 projection cannot satisfy a positive requirement or prove a negative
