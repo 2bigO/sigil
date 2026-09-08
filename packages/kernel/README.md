@@ -277,10 +277,11 @@ origin anchor `Age`
                     <--denotes-- Implementation anchor `age_years`
 ```
 
-The fixed kernel computes typed `denotes` closure and applies bridge laws using
-canonical Sigil types and predicates—not `Age`, `age`, or `age_years` strings.
-An anchor's correspondence alone never satisfies an obligation; a bridge still
-needs the required fresh Implementation facts.
+The fixed kernel derives `correspondsTo` from these direct typed `denotes`
+edges and applies bridge laws using canonical Sigil types and predicates—not
+`Age`, `age`, or `age_years` strings. An anchor's correspondence alone never
+satisfies an obligation; a bridge still needs the required fresh Implementation
+facts.
 
 If the Rust source changes, its old source anchor is not reused as current truth.
 The impact report may read its last accepted correspondence and produce:
@@ -302,8 +303,8 @@ Today, the relevant limits are intentional but insufficient for this model:
 
 - the current Turtle vocabulary is fixed in
   [`turtle.rs`](../sigilc/src/turtle.rs);
-- `implements`, `denotes`, `correspondsTo`, and equivalence predicates do not
-  yet exist there;
+- accepted `implements`, `denotes`, and equivalence predicates, plus the
+  derived `correspondsTo` closure, do not yet exist there;
 - the current frozen catalog in [catalog.rs](../sigilc/src/catalog.rs) must
   become the binding's typed incoming-anchor set, so an Implementation LLM can
   denote only anchors that were actually supplied; and
@@ -353,12 +354,13 @@ lexical alias, a representation mapping, and a strict semantic equivalence all
 collapse into one identity. That loses attribution and can make unrelated
 obligations appear satisfied.
 
-The ontology instead gains a common correspondence family with typed members:
+The ontology accepts direct typed mappings and derives the broad correspondence
+closure from them:
 
 | Relation | Meaning | May drive impact? | May satisfy an obligation? |
 | --- | --- | ---: | ---: |
-| `correspondsTo` | broad common family | yes | no |
-| `denotes` | local anchor maps to a supplied upstream source anchor | yes | only through explicit rules |
+| `correspondsTo` | compiler-derived broad/transitive correspondence closure; never accepted Turtle | yes | no |
+| `denotes` | LLM-asserted direct local-to-supplied-anchor mapping; never transitive | yes | only through explicit rules |
 | `implements` | local target anchor makes an explicit implementation claim about its denoted Design anchor | yes | yes, through matching rules |
 | `realizes` | local anchor makes an explicit Facet realization claim | yes | yes, through matching rules |
 | `specifies` | Sigil source gives structured meaning | yes | no by itself |
@@ -376,11 +378,20 @@ and requires `implements` and `realizes` targets to also appear in `denotes`;
 it does not validate the programming-language observation that caused the LLM
 to assert either relation.
 
-Saturation derives a broad `impact-reachable` closure from correspondence
-relations. It derives a separate symmetric/transitive equivalence closure from
-`equivalentTo`. A rule that matches requirements chooses which closure it is
-allowed to use. Thus all “same-ish” variants share a discoverable superclass,
-while only explicit equivalence crosses a strict semantic boundary.
+The target Egglog laws derive, rather than accept, broad correspondence:
+
+```text
+denotes(a, b)                         -> correspondsTo(a, b)
+correspondsTo(a, b) + correspondsTo(b, c)
+                                      -> correspondsTo(a, c)
+```
+
+`denotes` stays direct. Thus `Age ←denotes— age ←denotes— age_years` produces
+derived `correspondsTo(age_years, Age)` without rewriting either asserted edge.
+The current and historical `kernel.egg` contain no `correspondsTo` relation, so
+this does not change a legacy Egglog meaning. `equivalentTo` has its separate
+explicit symmetric/transitive closure. A rule that matches requirements chooses
+which closure it may use.
 
 Use ordinary Egglog relations for this first. The present kernel represents
 resource identities as `String` relation values; it does not use e-class union
@@ -412,9 +423,37 @@ may appear in an impact report, never in the matcher that proves a current
 obligation.
 
 Saturation and comparison use canonical `sigil:` types, contract kinds, and
-predicates. `denotes` closure follows typed source anchors across the chain;
-fixed bridge laws then normalize eligible fresh anchor observations into
-semantic facts. Raw labels and hashes are never comparison keys.
+predicates. Derived `correspondsTo` closure follows typed source anchors across
+the chain; fixed bridge laws then normalize eligible fresh anchor observations
+into semantic facts. Raw labels and hashes are never comparison keys.
+
+### Concrete bridge: SemanticBridge comparison report
+
+Let `C` be the incoming `SemanticBridge` Concept anchor and `F` its incoming
+`ComparisonReport` Interface Facet anchor. Fresh `D*` derives `O17: C provides
+F`. The Implementation LLM observes `SemanticBridge::compare` and asserts:
+
+```text
+a = SemanticBridge::compare             [ImplementationAnchor, Logic Facet]
+denotes(a, C) and denotes(a, F)
+implements(a, C) and realizes(a, F)
+known(a, "provides", F)                 [specific local implementation fact]
+```
+
+The fixed comparison bridge may then derive:
+
+```text
+ImplementationAnchor(a) + implements(a, C) + realizes(a, F)
+  + known(a, "provides", F)
+  -> actual(C, "provides", F)
+
+O17 + actual(C, "provides", F) -> satisfied(O17)
+```
+
+Correspondence alone proves nothing: without the observed local `provides`
+fact, no `actual` fact exists and `O17` remains unresolved. `sigilc` validates
+the typed external anchors and assertions, while the LLM alone interprets the
+source language that justified the local fact.
 
 An `impact` operation therefore has a different contract from `compare`:
 

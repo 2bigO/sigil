@@ -346,13 +346,14 @@ such as `age`, `Age`, and `age_years` remain local presentation until accepted
 
 ## Typed correspondence
 
-Correspondence is accepted Turtle in the source projection that asserted it.
-It preserves the mapping rather than hiding it in an LLM interpretation.
+Accepted Turtle contains direct, typed correspondence assertions. The kernel
+derives broader correspondence from them; it does not hide direct mappings in
+an LLM interpretation.
 
 | Relation | Meaning | Impact closure | Obligation matching |
 | --- | --- | ---: | ---: |
-| `correspondsTo` | Broad correspondence family | yes | no |
-| `denotes` | Local anchor maps to a supplied upstream source anchor | yes | only by an explicit rule |
+| `correspondsTo` | Compiler-derived broad/transitive correspondence closure; never accepted Turtle | yes | no |
+| `denotes` | LLM-asserted direct local-to-supplied-anchor mapping; never transitive | yes | only by an explicit rule |
 | `implements` | Local target anchor makes an explicit implementation claim about its denoted Design anchor | yes | only by an explicit rule |
 | `realizes` | Local anchor makes an explicit Facet realization claim | yes | only by an explicit rule |
 | `specifies` | Sigil material gives structured meaning | yes | no by itself |
@@ -370,35 +371,66 @@ requires `implements` and `realizes` targets to also appear in `denotes`; it
 does not validate the programming-language observation that caused the LLM to
 assert either relation.
 
-The kernel derives broad correspondence/impact reachability from the permitted
-relations. It derives a separate symmetric, transitive closure for explicitly
-asserted `equivalentTo`. It must not use Egglog e-class `union`, RDF `sameAs`,
-or an equivalent blanket identity mechanism: doing so would erase source
-attribution and allow a weak lexical relation to satisfy an unrelated
-obligation.
-
-For a source chain, `denotes` is directed from the new local anchor to an
-incoming anchor. Saturation may compute its typed transitive closure, such as
-`Age ← age ← age_years`, but it never merges those anchor nodes or compares
-their labels. Its laws match canonical Sigil types and predicates carried by
-the anchors.
-
-An obligation can be satisfied only by an explicit compiler-owned bridge rule.
-For example:
+The target Egglog closure begins with the direct mapping and derives the broad
+relation explicitly:
 
 ```text
-ImplementationAnchor(a) + implements(a, c) + realizes(a, f)
-  + Concept(c) + Facet(f) + about(f, c) + a provides C
-  -> actual f provides C
+denotes(a, b)                         -> correspondsTo(a, b)
+correspondsTo(a, b) + correspondsTo(b, c)
+                                      -> correspondsTo(a, c)
 ```
 
-The resulting `actual` fact may match a `requires` obligation under the fixed
-comparison law. By contrast, an implementation claim or `denotes` edge alone
-neither proves every capability required by the denoted Design anchor nor
-transfers every Design relationship to the local anchor. `specifies`,
-`aliasOf`, and broad correspondence never silently satisfy an obligation. Any
-future exception must be named as a finite rule in the kernel and tested as
-such.
+Thus `Age ←denotes— age ←denotes— age_years` yields derived
+`correspondsTo(age_years, Age)`, while neither direct `denotes` assertion is
+rewritten or treated as transitive. The current and historical `kernel.egg`
+contain no `correspondsTo` relation, so this adds no legacy Egglog behavior to
+preserve. `equivalentTo` retains its separate explicitly asserted symmetric /
+transitive closure. The kernel must not use Egglog e-class `union`, RDF
+`sameAs`, or another blanket identity mechanism.
+
+### Concrete bridge: SemanticBridge comparison report
+
+Assume the external incoming anchor set contains these typed Sigil anchors:
+
+```text
+C = SemanticBridge       [Concept]
+F = ComparisonReport     [Interface Facet]
+```
+
+Fresh `D*` derives the Design obligation:
+
+```text
+O17: C provides F
+```
+
+The Implementation LLM inspects `SemanticBridge::compare` and asserts only
+what it observed in that source:
+
+```text
+a = SemanticBridge::compare             [ImplementationAnchor, Logic Facet]
+denotes(a, C) and denotes(a, F)          [direct correspondence]
+implements(a, C) and realizes(a, F)      [typed implementation claims]
+known(a, "provides", F)                 [specific local implementation fact]
+```
+
+Only the last fact establishes behavior. A fixed comparison bridge, supplied
+with fresh `I*`, may derive:
+
+```text
+ImplementationAnchor(a) + implements(a, C) + realizes(a, F)
+  + known(a, "provides", F)
+  -> actual(C, "provides", F)
+
+O17 + actual(C, "provides", F) -> satisfied(O17)
+```
+
+If the LLM asserts only `denotes`, `implements`, or `realizes`, the bridge does
+not fire: there is no `actual` fact and `O17` remains unresolved. `sigilc`
+validates the incoming target membership and types, not whether the Rust method
+really provides the report. That source-language judgment belongs to the LLM;
+the fixed rule defines exactly how its accepted local fact may participate in
+comparison. `specifies`, `aliasOf`, and derived `correspondsTo` never satisfy
+an obligation by themselves.
 
 All seven contract kinds remain first-class in the shared vocabulary. `State`
 already has `initialState`, `transitionsTo`, owner, and exclusivity laws; State
