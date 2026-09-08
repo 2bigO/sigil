@@ -1,226 +1,268 @@
-Canonical end-to-end example
+# Canonical end-to-end example
 
-The canonical model is:
+This is the normative, end-to-end computation for the redesigned kernel. It
+does not describe the stale Rust implementation or a compatibility path from
+it.
 
-«LLMs emit generators. The kernel computes closure under composition. Comparison checks realization.»
+> LLMs emit irreducible, source-bound generators. The kernel computes finite
+> closure under fixed composition laws. Comparison checks terminal
+> realizations.
 
-For a selected scope:
+For one selected scope:
 
-D  = Design generators
-I  = Implementation generators
+```text
+D   = direct generators from fresh Design projections
+I   = direct generators from fresh Implementation projections
+D*  = saturate_design(D)
+I*  = saturate_implementation(I)
+O   = obligations(D*)
+R   = compare(O, I*)
+```
 
-D* = closure(D, Design composition laws)
-I* = closure(I, Implementation composition laws)
+The central invariant is absolute:
 
-O  = obligation projection(D*)
+```text
+Never: saturate(D union I)
+Never: let D or D* enter Implementation saturation
+Never: let I or I* rewrite Design obligations
+Always: compare the two independently saturated worlds
+```
 
-R  = realization(O, I*)
+## 1. Design creates a finite requirement
 
-"D" and "I" are always saturated independently. Design facts never enter Implementation closure.
+Suppose a Design source introduces these typed, source-scoped anchors:
 
-1. Design semanticization emits generators
+```text
+C = PreparedBinding    [Concept]
+F = ImmutableBinding   [Interface Facet]
+```
 
-Suppose the Design semanticizer identifies:
+The Design semanticizer supplies only direct Design generators:
 
-C = PreparedBinding       [Concept]
-F = ImmutableBinding      [InterfaceFacet]
-
-and emits direct Design facts:
-
+```text
 facetOf(F, C)
 provides(C, F)
+```
 
-The LLM does not emit an obligation and does not decide whether the Design is satisfied.
+`facetOf(F, C)` says that `F` is a named Interface contribution to `C`.
+`provides(C, F)` is Design meaning: `PreparedBinding` is required to provide
+that interface. Neither fact says that an implementation already does so.
 
-2. Design saturation derives the obligation
+Design saturation and obligation projection are compiler-owned:
 
-The Design kernel computes closure:
-
-D
-│
-│ closure under Design composition
-▼
-D*
-
-From the Design semantics, the obligation projection derives:
+```text
+D  ── Design composition ──>  D*  ── obligation projection ──>  O
 
 O42 = obligation(C, provides, F)
+```
 
-Conceptually:
+The semanticizer does not emit `O42`, and it never chooses a Design status.
+`Coherent` means that Design has no contradiction and has determined its full,
+finite requirement surface; it does **not** mean that Implementation has
+satisfied that surface.
 
-D ──closure──→ D* ──obligation projection──→ O
+## 2. The Implementation binding exposes anchors, not Design
 
-The obligation is therefore a compiler-derived consequence, not an LLM judgment.
+An Implementation semanticizer receives its exact captured source bytes, the
+fixed Sigil ontology, and an immutable incoming-anchor set containing `C` and
+`F`. It does **not** receive `D`, `D*`, `O42`, `facetOf(F, C)`,
+`provides(C, F)`, any other Design relationships, or comparison feedback.
 
-3. Implementation semanticization independently emits generators
+The relevant binding descriptors are intentionally small:
 
-The Implementation semanticizer receives the implementation source and permitted incoming anchors, but not "D", "D*", "O42", Design relationships, or comparison feedback.
+| External anchor | Sigil type | Direct assertions it may target |
+| --- | --- | --- |
+| `C` | `Concept` | `denotes`, `implements` |
+| `F` | `Interface Facet` | `denotes`, typed local behavior such as `provides` |
 
-Reading "inputs.rs", it identifies:
+The semanticizer creates opaque local anchor keys. Ingestion hashes each key
+inside the captured source namespace, so the resulting anchors are safe local
+identities without parsing Rust, Python, TypeScript, or any other source
+language. Labels and spans are documentary, never identity.
 
-S = struct PreparedBinding
-M = PreparedBinding::write_binding
+For an illustrative future implementation source, the semanticizer observes:
 
-and emits direct source observations:
+```text
+S = local struct PreparedBinding         [local Concept anchor]
+M = local PreparedBinding::write_binding [local Interface Facet anchor]
+```
 
+It emits only these direct Implementation generators:
+
+```text
+denotes(S, C)
+denotes(M, F)
 implements(S, C)
-realizes(M, F)
 factorsThrough(M, S)
 provides(M, F)
+```
 
-These are generators.
+Their roles are deliberately distinct:
 
-The semanticizer does not emit the composed statement that the Design obligation is realized.
+- `denotes` is a direct local-to-external anchor mapping. It is never
+  transitive.
+- `implements(S, C)` is a direct typed role claim: this local struct implements
+  the supplied Concept.
+- `factorsThrough(M, S)` is a local structural observation: the method's
+  behavior belongs to the struct's implementation surface.
+- `provides(M, F)` is the LLM's direct source-language observation that the
+  method provides the supplied Interface Facet.
 
-4. Implementation saturation performs composition
+The LLM never asserts `correspondsTo` or `realizes`. The kernel derives
+`correspondsTo` as broad correspondence closure for impact, and derives
+`realizes` only as a terminal theorem.
 
-The Implementation world contains this structure:
+## 3. The two worlds stay separate
 
-                 factorsThrough
-        M ───────────────────────→ S
-        │                          │
-        │                          │ implements
-        │                          ▼
-        │                          C
-        │                          ▲
-        │                          │ facetOf
-        ▼                          │
-        F ─────────────────────────┘
+Before either closure has finished, the worlds look like this:
 
-        M ─────── provides ──────→ F
+```text
+DESIGN: D                              IMPLEMENTATION: I
 
-The kernel owns the composition law:
+F ───── facetOf ─────> C               M ── factorsThrough ──> S
+C ───── provides ────> F               M ── denotes ─────────> F
+                                        M ── provides ────────> F
+                                        S ── denotes ─────────> C
+                                        S ── implements ──────> C
+```
 
+The identical `C` and `F` labels on each side denote the same immutable
+external anchors. They do not copy the Design edges into `I`: in particular,
+`facetOf(F, C)` stays in `D*` and is never an Implementation-saturation input.
+
+The fixed Implementation composition law is therefore entirely local to `I`:
+
+```text
 factorsThrough(M, S)
++ denotes(S, C)
 + implements(S, C)
-+ realizes(M, F)
-+ facetOf(F, C)
++ denotes(M, F)
 + provides(M, F)
+----------------------------------------------
+  realizes(C, provides, F)
+```
 
-→ realizes(C, provides, F)
+This is the terminal theorem of `I*`. It is the only form of `realizes` in
+this model:
 
-Thus:
+```text
+realizes(Concept, predicate, Facet)
+```
 
-I
-│
-│ closure under Implementation composition
-▼
-I*
+No direct mapping alone proves it. If `provides(M, F)` is absent, the theorem
+does not fire even when `denotes`, `implements`, and `factorsThrough` are all
+present. Conversely, the law does not need to import `facetOf(F, C)` from
+Design: the later comparison requires the exact same `(C, provides, F)` tuple
+that Design independently projected as an obligation.
 
-realizes(C, provides, F)
+```text
+I  ── Implementation composition ──>  I*
 
-The important boundary is that correspondence alone is insufficient.
+I* contains realizes(C, provides, F)
+```
 
-This:
+## 4. Comparison is the only cross-world join
 
-implements(S, C)
-realizes(M, F)
-factorsThrough(M, S)
+The fixed comparator sees only the finite obligation surface from `D*` and the
+terminal realization surface from fresh `I*`:
 
-does not establish:
-
-realizes(C, provides, F)
-
-The local behavioral generator:
-
-provides(M, F)
-
-is also required.
-
-5. Comparison checks realization
-
-Design closure produced:
-
+```text
 O42 = obligation(C, provides, F)
+I*  = realizes(C, provides, F)
 
-Implementation closure independently produced:
+obligation(s, p, o) + realizes(s, p, o)
+----------------------------------------
+                 satisfied(obligation)
+```
 
-realizes(C, provides, F)
+```text
+              D*                                   I*
+               │                                    │
+               ▼                                    ▼
+  obligation(C, provides, F)          realizes(C, provides, F)
+               \                                    /
+                \                                  /
+                 └──── fixed realization check ───┘
+                                   │
+                                   ▼
+                            satisfied(O42)
+```
 
-The fixed comparison law is simply:
+There are six named semantic outcomes across the two stages:
 
-obligation(s, p, o)
-+ realizes(s, p, o)
+| Stage | State | Meaning |
+| --- | --- | --- |
+| Design | 🔴 `Disjoint` | Current Design contradicts a hard invariant; it has no usable outgoing anchor set or comparison. |
+| Design | 🟡 `Loose` | Current Design is non-contradictory but its own required structure is unresolved; no result may be `Closed`. |
+| Design | 🟢 `Coherent` | Current Design is non-contradictory and has a complete finite obligation surface. |
+| Compare | 🔴 `Drift` | Fresh `I*` establishes a contradiction of a Design obligation or prohibition. |
+| Compare | 🟡 `Converged` | No contradiction is established, but an obligation is unresolved, Design is `Loose`, or required current input is unavailable. |
+| Compare | 🟢 `Closed` | Design is `Coherent`, every finite obligation has a fresh terminal realization, and no contradiction exists. |
 
-→ satisfied(obligation)
+Thus this example becomes `Closed` only when `D*` is `Coherent`, `I*` derives
+the terminal theorem above for `O42` and every other obligation in scope, and
+the comparator finds no contradiction. A missing `provides(M, F)` produces
+`Converged`, never `Closed`; a contradictory terminal fact produces `Drift`.
 
-Therefore:
+## 5. Correspondence and impact are different from truth
 
-D*                               I*
-│                                │
-▼                                ▼
-obligation(C, provides, F)       realizes(C, provides, F)
-                \                 /
-                 \               /
-                  ── realization ─
-                         │
-                         ▼
-                  satisfied(O42)
+Across a source chain, direct mappings preserve terminology without erasing
+local identities:
 
-If "I*" does not contain the required "realizes(C, provides, F)", the obligation remains unresolved.
+```text
+origin anchor Age  <── denotes ──  Sigil anchor age
+Sigil anchor age   <── denotes ──  Rust anchor age_years
 
-If every finite Design obligation has a matching realization and no contradiction exists:
+kernel closure: correspondsTo(age_years, Age)
+```
 
-Closed
+`denotes` remains exactly as asserted. The broad `correspondsTo` relation is
+compiler-derived and may be transitive; it is useful for impact witnesses but
+cannot satisfy an obligation. No Egglog e-class union, RDF `sameAs`, or blanket
+identity merge is involved.
 
-If no contradiction exists but one or more required realizations are missing or unresolved:
+When a source changes, its former projection is stale. The compiler may use
+its last accepted direct mappings and derived correspondence only to say what
+may need repair:
 
-Converged
+```text
+changed implementation source
+  -> last-known local anchor M
+  -> last-known denotes(M, F)
+  -> last-known correspondence closure
+  -> affected Interface Facet F and upstream origin anchors
+```
 
-If Implementation closure establishes a contradiction of a Design obligation or prohibition:
+That historical path never enters `D`, `I`, `D*`, `I*`, `O`, or `R`. Stale
+anchors cannot satisfy `O42`, produce `Closed`, or prove `Drift`.
 
-Drift
+## 6. The whole computation
 
-Canonical computation
+```text
+Design source                         Implementation source
+     │                                      │
+     ▼                                      ▼
+independent LLM                     independent LLM
+     │                                      │
+     ▼                                      ▼
+direct generators D                 direct generators I
+     │                                      │
+     ▼                                      ▼
+saturate_design                     saturate_implementation
+     │                                      │
+     ▼                                      ▼
+D*                                  I* terminal realizations
+     │                                      │
+     ▼                                      │
+obligations O ─────── compare ──────────────┘
+                       │
+                       ▼
+             🔴 Drift | 🟡 Converged | 🟢 Closed
 
-D* = saturate_design(D)
-I* = saturate_implementation(I)
+changed or missing source ──> last-known correspondence ──> impact only
+```
 
-O = obligations(D*)
-
-for each obligation(s, p, o) in O:
-    require realizes(s, p, o) in I*
-
-Or visually:
-
-DESIGN
-
-source
-  ↓
-LLM
-  ↓
-generators D
-  ↓
-closure under composition
-  ↓
-D*
-  ↓
-obligation projection
-  ↓
-O
-                         IMPLEMENTATION
-
-                         source
-                           ↓
-                         independent LLM
-                           ↓
-                         generators I
-                           ↓
-                         closure under composition
-                           ↓
-                         I*
-                           ↓
-                         realizes(...)
-
-             O ───────────┐
-                          │
-                          ▼
-                   realization check
-                          │
-             ┌────────────┼────────────┐
-             ▼            ▼            ▼
-           Drift      Converged      Closed
-
-The governing principle is:
-
-«Semanticizers assert irreducible source observations. The kernel owns composition. Design closure projects obligations. Implementation closure derives realizations. Comparison asks whether every required Design morphism is realized by the independently derived Implementation world.»
+The governing principle is simple: semanticizers interpret source languages
+and assert irreducible local observations; `sigilc` validates bindings, anchor
+scoping, types, and the fixed ontology; the kernel owns closure; and comparison
+alone joins the current Design and Implementation worlds.

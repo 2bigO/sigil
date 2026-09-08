@@ -9,10 +9,11 @@ is part of this design: extraction alone is not a reason to add another command
 surface.
 
 The initial kernel seed is the current
-[`packages/sigilc/src/kernel.egg`](../sigilc/src/kernel.egg). The first
-extraction must preserve its exact current rules and outcomes before extending
-the model. This README is the agreed target architecture; it deliberately
-describes behavior that is not all implemented in the current `sigilc` crate.
+[`packages/sigilc/src/kernel.egg`](../sigilc/src/kernel.egg). It is source
+material for the new kernel, not a compatibility contract: this architecture
+replaces the stale one-shot implementation model. This README and the
+[canonical example](example.md) are the target; they deliberately describe
+behavior that is not all implemented in the current `sigilc` crate.
 
 ## The decision
 
@@ -116,7 +117,9 @@ addressable contribution from one of the seven contracts to a Concept: an
 Interface facet may describe an interaction, a Logic facet a transformation, a
 State facet a lifecycle configuration, and a Constraint or Case facet a rule or
 observable outcome. Components organize contracts; Concepts are deliberately
-cross-contract and cross-source.
+cross-contract and cross-source. The Design structural fact
+`facetOf(Facet, Concept)` records the contribution without collapsing either
+anchor's identity.
 
 Each semanticization binding instead supplies an immutable **incoming anchor
 set**: typed, hashed anchors accepted from the preceding source surface. The
@@ -138,14 +141,14 @@ Facet contract kind, when applicable:
 documentary display label
 allowed mappings:
   Concept -> denotes, implements
-  Facet   -> denotes, realizes
+  Facet   -> denotes, direct typed semantic observations such as provides
 ```
 
 The descriptor is not a slice of `D`: it contains no Design relationships,
 obligations, or verdict. Its type prevents an `implements` edge to a Facet or a
-`realizes` edge to a Concept. The LLM must not map from lexical similarity
-alone; if a local source construct is ambiguous or unrelated, it omits the
-correspondence.
+`provides` observation from targeting something other than a Facet. The LLM
+must not map from lexical similarity alone; if a local source construct is
+ambiguous or unrelated, it omits the correspondence.
 
 Design may introduce source anchors for Concepts and Facets. Downstream Design
 and Implementation LLMs receive those anchors as external semantic input, not
@@ -178,14 +181,20 @@ relevant observation. Ingest hashes the opaque key and scopes it to a stable
 source namespace; neither step requires source-language parsing:
 
 ```turtle
+<urn:sigil:anchor-key:person>
+  a sigil:ImplementationAnchor, sigil:Concept ;
+  sigil:anchorKey "implementation|Person|type" ;
+  sigil:label "Person" ;
+  sigil:denotes <urn:sigil:anchor:incoming-person#91d4...> ;
+  sigil:implements <urn:sigil:anchor:incoming-person#91d4...> .
+
 <urn:sigil:anchor-key:person-age-years>
-  a sigil:ImplementationAnchor, sigil:LogicFacet ;
+  a sigil:ImplementationAnchor, sigil:InterfaceFacet ;
   sigil:anchorKey "implementation|Person::age_years|method" ;
   sigil:label "Person::age_years" ;
-  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...>,
-    <urn:sigil:anchor:incoming-age-years#c63a...> ;
-  sigil:implements <urn:sigil:anchor:incoming-age#91d4...> ;
-  sigil:realizes <urn:sigil:anchor:incoming-age-years#c63a...> .
+  sigil:denotes <urn:sigil:anchor:incoming-age-years#c63a...> ;
+  sigil:factorsThrough <urn:sigil:anchor-key:person> ;
+  sigil:provides <urn:sigil:anchor:incoming-age-years#c63a...> .
 ```
 
 At ingestion, Sigil validates the anchor type and opaque key, then constructs:
@@ -203,8 +212,8 @@ later anchor is the same symbol. Sigil need not parse Rust, Python, TypeScript,
 or any other implementation language to perform this rewrite or validate the
 resulting graph. It validates that each `denotes` target is in the immutable
 incoming anchor set, that `implements` targets are Concepts, and that
-`realizes` targets are Facets. It never validates that a source-language symbol
-has a particular name.
+direct local semantic observations such as `provides` target compatible Facets.
+It never validates that a source-language symbol has a particular name.
 
 ### Worked chain: README.md → Sigil → Rust/Deno
 
@@ -227,7 +236,7 @@ denote; its anchors become part of the next binding's incoming anchor set.
 
 <urn:sigil:anchor:8ac4...#a03e...>
   a sigil:OriginAnchor, sigil:InterfaceFacet ;
-  sigil:about <urn:sigil:anchor:8ac4...#d2b7...> ;
+  sigil:facetOf <urn:sigil:anchor:8ac4...#d2b7...> ;
   sigil:label "comparison report" .
 ```
 
@@ -243,29 +252,43 @@ rather than copying, unioning, or globally renaming the Markdown anchors.
 
 <urn:sigil:anchor:31f9...#fa63...>
   a sigil:DesignAnchor, sigil:InterfaceFacet ;
-  sigil:about <urn:sigil:anchor:31f9...#78c1...> ;
+  sigil:facetOf <urn:sigil:anchor:31f9...#78c1...> ;
   sigil:denotes <urn:sigil:anchor:8ac4...#a03e...> .
 ```
 
 The selected Rust and Deno LLMs receive the Sigil anchors in their own incoming
-sets. They create local anchors that denote those exact source anchors:
+sets. Each creates a local Concept anchor and a local Interface-Facet anchor.
+The direct behavior remains a local observation; neither semanticizer asserts a
+terminal realization:
 
 ```turtle
-<urn:sigil:anchor:3c91...#c14a...>
-  a sigil:ImplementationAnchor, sigil:LogicFacet ;
-  sigil:label "SemanticBridge::compare" ;
-  sigil:denotes <urn:sigil:anchor:31f9...#78c1...>,
-    <urn:sigil:anchor:31f9...#fa63...> ;
-  sigil:implements <urn:sigil:anchor:31f9...#78c1...> ;
-  sigil:realizes <urn:sigil:anchor:31f9...#fa63...> .
+# Rust
+<urn:sigil:anchor:3c91...#bridge>
+  a sigil:ImplementationAnchor, sigil:Concept ;
+  sigil:label "SemanticBridge" ;
+  sigil:denotes <urn:sigil:anchor:31f9...#78c1...> ;
+  sigil:implements <urn:sigil:anchor:31f9...#78c1...> .
 
-<urn:sigil:anchor:71e2...#a421...>
-  a sigil:ImplementationAnchor, sigil:LogicFacet ;
+<urn:sigil:anchor:3c91...#compare>
+  a sigil:ImplementationAnchor, sigil:InterfaceFacet ;
+  sigil:label "SemanticBridge::compare" ;
+  sigil:denotes <urn:sigil:anchor:31f9...#fa63...> ;
+  sigil:factorsThrough <urn:sigil:anchor:3c91...#bridge> ;
+  sigil:provides <urn:sigil:anchor:31f9...#fa63...> .
+
+# Deno
+<urn:sigil:anchor:71e2...#bridge>
+  a sigil:ImplementationAnchor, sigil:Concept ;
+  sigil:label "SemanticBridge" ;
+  sigil:denotes <urn:sigil:anchor:31f9...#78c1...> ;
+  sigil:implements <urn:sigil:anchor:31f9...#78c1...> .
+
+<urn:sigil:anchor:71e2...#export-comparison>
+  a sigil:ImplementationAnchor, sigil:InterfaceFacet ;
   sigil:label "exportComparison" ;
-  sigil:denotes <urn:sigil:anchor:31f9...#78c1...>,
-    <urn:sigil:anchor:31f9...#fa63...> ;
-  sigil:implements <urn:sigil:anchor:31f9...#78c1...> ;
-  sigil:realizes <urn:sigil:anchor:31f9...#fa63...> .
+  sigil:denotes <urn:sigil:anchor:31f9...#fa63...> ;
+  sigil:factorsThrough <urn:sigil:anchor:71e2...#bridge> ;
+  sigil:provides <urn:sigil:anchor:31f9...#fa63...> .
 ```
 
 The same mechanism records terminology across a chain without compiler name
@@ -360,23 +383,25 @@ closure from them:
 | Relation | Meaning | May drive impact? | May satisfy an obligation? |
 | --- | --- | ---: | ---: |
 | `correspondsTo` | compiler-derived broad/transitive correspondence closure; never accepted Turtle | yes | no |
-| `denotes` | LLM-asserted direct local-to-supplied-anchor mapping; never transitive | yes | only through explicit rules |
-| `implements` | local target anchor makes an explicit implementation claim about its denoted Design anchor | yes | yes, through matching rules |
-| `realizes` | local anchor makes an explicit Facet realization claim | yes | yes, through matching rules |
+| `denotes` | LLM-asserted direct local-to-supplied-anchor mapping; never transitive | yes | no |
+| `implements` | LLM-asserted typed local role claim about a denoted Concept | yes | no |
+| `factorsThrough` | LLM-asserted local structural observation | no | no |
+| `provides` | LLM-asserted typed local behavioral observation | no | no by itself |
+| `realizes` | compiler-derived terminal fact: `realizes(Concept, predicate, Facet)` | no | yes, through the fixed comparator |
 | `specifies` | Sigil source gives structured meaning | yes | no by itself |
 | `refines` | narrower semantic representation | yes | only where a rule opts in |
 | `aliasOf` | lexical/terminology synonym | terminology only | no |
 | `equivalentTo` | explicitly asserted semantic equivalence | yes | only in explicitly enabled rules |
 
 The LLM emits `denotes` for the source-anchor crossover it observed. When code
-also carries stronger meaning, it emits `implements` to the supplied Concept
-anchor and `realizes` to the supplied Facet anchor. These are not the same:
-one Concept can have many Facets, so `implements` gives broad Concept coverage
-while `realizes` identifies the specific behavior, state, constraint, decision,
-or case seen in source. `sigilc` validates target membership and Sigil types,
-and requires `implements` and `realizes` targets to also appear in `denotes`;
-it does not validate the programming-language observation that caused the LLM
-to assert either relation.
+also carries stronger meaning, it emits `implements` to the supplied Concept,
+local structural facts such as `factorsThrough`, and typed local behavior such
+as `provides` to a supplied Facet. These remain irreducible observations.
+`realizes` is reserved for the terminal fact derived by a fixed Implementation
+composition law. `sigilc` validates target membership and Sigil types, and
+requires `implements` and typed local Facet observations to have compatible
+direct `denotes` mappings; it does not validate the programming-language
+observation that caused the LLM to assert them.
 
 The target Egglog laws derive, rather than accept, broad correspondence:
 
@@ -404,7 +429,7 @@ connected.
 
 Saturation remains local, finite, and compiler-owned. It is never aware of a
 “cycle”; it sees an asserted world and derives permitted consequences. The
-current behavior is defined by:
+current seed is organized across:
 
 - [kernel.egg](../sigilc/src/kernel.egg), the shared closure rules;
 - [design.egg](../sigilc/src/design.egg), authored-contract interpretation and
@@ -417,43 +442,52 @@ current behavior is defined by:
   feed Design facts into the Implementation closure.
 
 The kernel keeps that separation. Current Design facts establish obligations;
-current Implementation facts establish actual behavior; a third fixed matcher
-decides `Closed`, `Converged`, or `Drift`. Last-known stale correspondence facts
-may appear in an impact report, never in the matcher that proves a current
-obligation.
+current Implementation facts compose into terminal realizations; a third fixed
+matcher decides `Closed`, `Converged`, or `Drift`. Last-known stale
+correspondence facts may appear in an impact report, never in the matcher that
+proves a current obligation.
 
 Saturation and comparison use canonical `sigil:` types, contract kinds, and
 predicates. Derived `correspondsTo` closure follows typed source anchors across
 the chain; fixed bridge laws then normalize eligible fresh anchor observations
 into semantic facts. Raw labels and hashes are never comparison keys.
 
-### Concrete bridge: SemanticBridge comparison report
+### Canonical composition: PreparedBinding
 
-Let `C` be the incoming `SemanticBridge` Concept anchor and `F` its incoming
-`ComparisonReport` Interface Facet anchor. Fresh `D*` derives `O17: C provides
-F`. The Implementation LLM observes `SemanticBridge::compare` and asserts:
+The full north-star walkthrough is [example.md](example.md). It uses:
 
 ```text
-a = SemanticBridge::compare             [ImplementationAnchor, Logic Facet]
-denotes(a, C) and denotes(a, F)
-implements(a, C) and realizes(a, F)
-known(a, "provides", F)                 [specific local implementation fact]
+C = PreparedBinding      [Concept]
+F = ImmutableBinding     [Interface Facet]
+S = struct PreparedBinding
+M = PreparedBinding::write_binding
 ```
 
-The fixed comparison bridge may then derive:
+Fresh Design generators `facetOf(F, C)` and `provides(C, F)` produce
+`O42 = obligation(C, provides, F)`. The Implementation LLM sees only its
+source and external typed anchors `C` and `F`, then asserts:
 
 ```text
-ImplementationAnchor(a) + implements(a, C) + realizes(a, F)
-  + known(a, "provides", F)
-  -> actual(C, "provides", F)
-
-O17 + actual(C, "provides", F) -> satisfied(O17)
+denotes(S, C) + denotes(M, F)
+implements(S, C)
+factorsThrough(M, S) + provides(M, F)
 ```
 
-Correspondence alone proves nothing: without the observed local `provides`
-fact, no `actual` fact exists and `O17` remains unresolved. `sigilc` validates
-the typed external anchors and assertions, while the LLM alone interprets the
-source language that justified the local fact.
+The terminal realization is kernel-owned:
+
+```text
+factorsThrough(M, S) + denotes(S, C) + implements(S, C)
+  + denotes(M, F) + provides(M, F)
+  -> realizes(C, provides, F)
+
+obligation(C, provides, F) + realizes(C, provides, F)
+  -> satisfied(O42)
+```
+
+Correspondence alone proves nothing: absent local `provides(M, F)`, terminal
+`realizes(C, provides, F)` is not derived and `O42` remains unresolved. The
+LLM interprets the source language; `sigilc` validates typed external anchors
+and applies the fixed composition law.
 
 An `impact` operation therefore has a different contract from `compare`:
 
@@ -524,7 +558,8 @@ exclusive-owner laws.
 
 ## Opaque semanticization boundary
 
-`prepare` writes copied semantic inputs and an immutable `binding.json`.
+`prepare` writes copied semantic inputs and an immutable `binding.json` under
+the generated `.sigil/worlds/prepared/` cache.
 `ingest --binding binding.json` accepts Turtle only when it describes those
 current inputs and can publish at the binding's expected generation.
 
@@ -554,11 +589,13 @@ to `PreparedBinding` as part of the breaking simplification.
 
 The implementation follows this order:
 
-1. Create this Rust package, move the exact current kernel program and runtime
-   wrapper into it, and make `sigilc` depend on its library without behavior
-   change.
-2. Preserve all current kernel, Design, Implementation, comparison, scope,
-   source, catalog, and store tests while extracting the package.
+1. Create this Rust package and move the reusable Egglog/runtime foundations
+   into it. The current one-shot behavior is stale source material, not a
+   compatibility contract.
+2. Replace the current Design, Implementation, and comparison semantics with
+   this document and [example.md](example.md); retain only tests that express
+   still-valid source capture, freshness, scope, finite-law, or store
+   invariants.
 3. Remove artifact evidence, all `--evidence` handling, generated
    `evidence.json`, process/attempt fields, and worker-provenance reports.
    Rename `Job`/`job.json` to `PreparedBinding`/`binding.json` without changing
