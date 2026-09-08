@@ -134,6 +134,87 @@ projection-local; the label and any optional span are documentary. Sigil need
 not parse Rust, Python, TypeScript, or any other implementation language to
 perform this rewrite or validate the resulting graph.
 
+### Worked chain: README.md → Sigil → Rust/Deno
+
+Consider a repository whose original product statement lives in `README.md`:
+
+```markdown
+## Semantic bridge
+
+The semantic bridge accepts a design export and produces a comparison report.
+```
+
+The Markdown semanticizer gives that section a projection-local anchor and
+records that it denotes the canonical concept. The rendered anchor below is
+already compiler-scoped; the semanticizer itself submitted only `local:readme-1`.
+
+```turtle
+<urn:sigil:projection:README-binding#readme-1>
+  a sigil:OriginAnchor ;
+  sigil:label "Semantic bridge" ;
+  sigil:denotes <urn:sigil:entity:docs%2Farchitecture.sigil:SemanticBridge> .
+```
+
+In a later pass, `architecture.sigil` gives that concept its structured
+meaning. Its unit and concept are ordinary canonical Design identities; the
+Sigil projection adds a typed correspondence rather than collapsing the
+Markdown anchor with either identity.
+
+```turtle
+<urn:sigil:entity:architecture.sigil:SemanticBridgeContract>
+  a sigil:Contract ;
+  sigil:specifies <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
+  sigil:from <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
+  sigil:target <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+
+<urn:sigil:entity:architecture.sigil:SemanticBridge>
+  sigil:provides <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+```
+
+The selected target scope may contain both Rust and Deno sources. Their
+semanticizers independently observe local implementation anchors and connect
+them to the same canonical identity:
+
+```turtle
+<urn:sigil:projection:rust-binding#r1>
+  a sigil:Implementation ;
+  sigil:label "SemanticBridge::compare" ;
+  sigil:implements <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
+  sigil:provides <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+
+<urn:sigil:projection:deno-binding#d1>
+  a sigil:Implementation ;
+  sigil:label "exportComparison" ;
+  sigil:implements <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
+  sigil:provides <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+```
+
+The fixed kernel may contain an explicit bridge law that normalizes the local
+observation into a canonical actual fact:
+
+```text
+anchor implements A + anchor provides C
+  → actual A provides C
+```
+
+It does **not** infer that every requirement of `A` is satisfied merely because
+an anchor implements `A`.
+
+If the Rust source changes, its old `r1` anchor is not reused as current truth.
+The impact report may read its last accepted correspondence and produce:
+
+```text
+changed packages/kernel/src/bridge.rs
+  → last-known Rust anchor r1
+  → SemanticBridge
+  → README.md section “Semantic bridge”
+```
+
+That report means “this origin section may need freshening after the downstream
+change.” It does not mean the README bytes are stale, and it cannot satisfy or
+invalidate a current comparison. Reconstructing the changed Rust source creates
+new projection-local anchors and replaces the current correspondence surface.
+
 Today, the relevant limits are intentional but insufficient for this model:
 
 - the current Turtle vocabulary is fixed in
