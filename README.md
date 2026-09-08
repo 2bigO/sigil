@@ -1,7 +1,7 @@
 # <img src="docs/sigil.png" height="30" /> Sigil
 
 Sigil is an inferential modeling language (IML).
-It is textual, with a cool 7-word syntax, not visual.
+It's text-only, no diagrams, with a cool 7-word syntax.
 AI writes it for you, don't worry (^_~). Unlike descriptive modeling languages,
 Sigil design files (*.sigil) compile into **world models (Semantic Worlds)** that compute what
 follows from what you specify, and whether an implementation realizes it.
