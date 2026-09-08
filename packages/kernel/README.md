@@ -558,8 +558,9 @@ exclusive-owner laws.
 
 ## Opaque semanticization boundary
 
-`prepare` writes copied semantic inputs and an immutable `binding.json` under
-the generated `.sigil/worlds/prepared/` cache.
+`prepare` materializes caller-requested copied semantic inputs and an immutable
+`binding.json` for the external semanticizer; it does not add handoff state to
+the world store.
 `ingest --binding binding.json` accepts Turtle only when it describes those
 current inputs and can publish at the binding's expected generation.
 

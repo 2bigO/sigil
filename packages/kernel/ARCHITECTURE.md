@@ -132,8 +132,9 @@ disposable cache of accepted projections and their input bindings. `snapdir`
 captures current source bytes and `sigilc` checks whether a cached projection
 is still usable for the current compilation.
 
-`prepare` produces copied semantic input plus an immutable `binding.json` in
-the generated `.sigil/worlds/prepared/` cache.
+`prepare` materializes caller-requested copied semantic input plus an immutable
+`binding.json` for the external semanticizer. This handoff is not world-store
+state.
 `ingest --binding binding.json` accepts Turtle only if it matches that binding
 and can still publish at its expected generation.
 
@@ -188,7 +189,6 @@ boundary is concrete, not because the target architecture retains them.
 ├── workflow/            legacy request ledger, inputs, reports, archive
 └── worlds/              generated semantic cache
     ├── .lock
-    ├── prepared/        immutable copied inputs and bindings
     ├── design/          accepted Design projections
     ├── implementation/  accepted Implementation projections
     └── index.json       bindings, generations, and freshness
@@ -202,15 +202,16 @@ After the simplification, the compiler-owned layout is only:
 ├── glossary.json
 └── worlds/
     ├── .lock
-    ├── prepared/        immutable semantic inputs and binding.json files
     ├── design/
     ├── implementation/
     └── index.json
 ```
 
-An external caller may place temporary inputs or logs elsewhere, but that
-location is not part of the Sigil compiler contract and is not read as semantic
-authority.
+The external caller chooses the handoff location. That path, and any adjacent
+temporary files or logs, are not compiler state or semantic authority. The
+immutable binding contents are an explicit `ingest` input, not a cached world.
+After ingestion, the store retains only the accepted projection's input
+fingerprint and publication generation; the caller may discard its handoff.
 
 The retired flow treated semanticization as a managed work process:
 
