@@ -562,6 +562,20 @@ An external harness can record those details for its own debugging and
 orchestration. They have no role in freshness or semantic truth. Changing an
 external model or prompt therefore never invalidates an accepted projection.
 
+## Cross-source chaining reference
+
+The [README.md → Sigil → Rust/Deno worked chain](README.md#worked-chain-readmemd--sigil--rustdeno)
+is the concrete reference for a source-bound terminology path: distinct
+Markdown, Sigil, Rust, and Deno anchors preserve their local identities while
+direct `denotes` edges make the chain explainable. It is also a future
+regression fixture: a mixed-language reconstruction must retain attributable
+per-source mappings and derive the expected `correspondsTo` witness without
+parsing any implementation language or merging anchor identities.
+
+That example remains in the README while it explains the current refactor. If
+the refactor changes the README after this architecture is realized, move the
+full chaining example here and keep it as an evergreen kernel regression case.
+
 ## Required invariants and regression cases
 
 The kernel and `sigilc` integration must preserve these checks:
