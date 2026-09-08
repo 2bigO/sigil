@@ -23,11 +23,10 @@ source files + structural frontend input
           current semantic worlds and diagnostics
 ```
 
-The external semanticizer interprets a source language. It may be an LLM, a
-human, a script, or a future deterministic tool. It observes a source file and
-returns Turtle. `sigilc` validates the Turtle as a graph under the fixed
-ontology and exact source/input binding; it does not validate Rust, Python,
-TypeScript, Deno, or another source language's AST or symbol table.
+The independent LLM semanticizer interprets a source language and returns
+Turtle. `sigilc` validates the Turtle as a graph under the fixed ontology and
+exact source/input binding; it does not validate Rust, Python, TypeScript,
+Deno, or another source language's AST or symbol table.
 
 The kernel is a Rust library. `sigilc` is its filesystem/compiler driver:
 
@@ -48,6 +47,40 @@ The seed laws are currently in
 [comparison.egg](../sigilc/src/comparison.egg). Their Rust host is currently
 [kernel.rs](../sigilc/src/kernel.rs). Extraction preserves the behavior before
 the kernel grows new correspondence laws.
+
+## Canonical Sigil vocabulary
+
+All semantically meaningful accepted Turtle assertions use the canonical
+`sigil:` vocabulary, whether their source was Sigil, Markdown, Rust, Deno,
+Python, or another language. This vocabulary is the type system for
+saturation, not a global spelling catalog. The seven Sigil keywords are the
+vocabulary's seven contract kinds:
+
+```text
+Goal | Interface | State | Logic | Constraint | Decision | Case
+```
+
+`Concept` is an existing reusable Sigil semantic type, not a container local to
+one component or contract. Any of the seven contracts may introduce or reuse a
+Concept through its source anchor. A `Facet` is a named, addressable
+contribution of one contract to a Concept. For example, an Interface Facet
+names an interaction, a Logic Facet names a transformation, a State Facet names
+a lifecycle configuration, and a Constraint or Case Facet names a rule or
+observable outcome.
+
+Components organize contracts. Concepts and their Facets deliberately cross
+contract, component, and source-language boundaries through explicit source
+anchor chains. Each binding supplies the LLM with an immutable incoming anchor
+set: typed, hashed anchors accepted from the preceding source surface. The LLM
+creates typed local anchors and links every relevant crossover with `denotes`.
+That records `Age → age → age_years` directly, without compiler name matching
+or identity union.
+
+Design may introduce new typed source anchors. Downstream Design and
+Implementation LLMs receive those anchors, not Design relationships,
+obligations, or conclusions. A binding fingerprints the incoming anchor set;
+the compiler rejects `denotes` targets outside it and treats a changed set as a
+freshness change.
 
 ## The computation, exactly
 
@@ -104,10 +137,10 @@ sigilc ingest --binding binding.json
 
 The binding is compiler correctness, not a job. It includes the normalized
 source path and captured source identity, the ontology and projection-format
-versions, and the semantic input needed for the projection side. An
-Implementation binding also includes the frozen Design entity-catalog
-fingerprint. The expected publication generation prevents an old preparation
-from overwriting a newer projection.
+versions, and the semantic input needed for the projection side. A binding also
+includes the immutable incoming-anchor-set fingerprint supplied to its LLM.
+The expected publication generation prevents an old preparation from
+overwriting a newer projection.
 
 The existing seeds are [inputs.rs](../sigilc/src/inputs.rs),
 [sources.rs](../sigilc/src/sources.rs), and
@@ -120,11 +153,11 @@ rename.
 | Target source bytes change or source disappears | Its projection is stale or absent. |
 | Relevant Design structural/import input changes | Affected Design projection is stale. |
 | Ontology or projection format changes incompatibly | Bound projection is stale. |
-| Frozen Design catalog changes | Bound Implementation projection is stale. |
+| Incoming source-anchor set changes | Bound downstream projection is stale. |
 | Model, prompt, producer, retry, or execution environment changes | Projection remains fresh; external code may choose to reconstruct it. |
 
-Publication must reject a stale source binding, an incompatible catalog, or an
-outdated generation. Interrupted publication leaves no projection that can be
+Publication must reject a stale source binding, an incompatible incoming anchor
+set, or an outdated generation. Interrupted publication leaves no projection that can be
 treated as current. Removing `.sigil/worlds` is safe: it loses cache and
 last-known impact context, never semantic authority.
 
@@ -182,10 +215,10 @@ The target flow contains only semantic correctness inputs and accepted facts:
 ```text
 AFTER — compiler-owned semantic flow
 
-source bytes + frontend/catalog
+source bytes + frontend/incoming anchors
              |
              v
-  prepare -> immutable binding.json -> external semanticizer -> Turtle
+  prepare -> immutable binding.json -> independent LLM semanticizer -> Turtle
                                                     |
                                                     v
                                ingest validates binding and publishes projection
@@ -206,8 +239,8 @@ into comparison.
 
 ## Design world
 
-The structural Sigil frontend exports authored units, imports, ownership, and
-other allowed structure. An external semanticizer turns the selected source
+The structural Sigil frontend exports authored contracts, imports, ownership,
+and other allowed structure. The LLM semanticizer turns the selected source
 material into Design Turtle; native ingestion validates it. Scope includes the
 selected Design roots and their required import/ownership closure before `D`
 is assembled. The source and selection foundations are
@@ -224,25 +257,25 @@ The Design result is one of:
 
 | State | Meaning |
 | --- | --- |
-| 🔴 `Disjoint` | Current Design facts contradict a hard invariant. No usable catalog or comparison result exists. |
-| 🟡 `Loose` | Design is non-contradictory but one or more required Design obligations remain unresolved. A provisional catalog may be exported. |
-| 🟢 `Coherent` | Design has no contradiction and all required Design obligations are satisfied. Its catalog is authoritative. |
+| 🔴 `Disjoint` | Current Design facts contradict a hard invariant. No usable outgoing anchor set or comparison result exists. |
+| 🟡 `Loose` | Design is non-contradictory but one or more required Design obligations remain unresolved. A provisional outgoing anchor set may be exported. |
+| 🟢 `Coherent` | Design has no contradiction and all required Design obligations are satisfied. Its outgoing anchor set is authoritative. |
 
 `Loose` is deliberately not green: even if the Implementation happens to cover
 every currently derivable obligation, the final comparison cannot be `Closed`.
-If a `Loose` Design becomes `Coherent` without a catalog identity change,
+If a `Loose` Design becomes `Coherent` without an outgoing-anchor-set identity change,
 compatible fresh Implementation projections may be reused and only the
 closures, obligations, and comparison recomputed.
 
 ## Implementation world
 
-Each Implementation projection is source-local. Its semanticizer receives only
-the exact target source bytes, fixed ontology, and frozen Design entity catalog
-needed to name canonical targets. It does not receive Design relationships,
+Each Implementation projection is source-local. Its LLM receives only the
+exact target source bytes, fixed ontology, and frozen incoming source-anchor
+set needed to create `denotes` edges. It does not receive Design relationships,
 Design obligations, neighboring implementation bodies, or comparison feedback.
 
 ```text
-one implementation source + ontology + frozen catalog
+one implementation source + ontology + frozen incoming anchor set
             |
             v
 independent external semanticization
@@ -256,44 +289,47 @@ All fresh selected local projections are assembled as `I`, then
 change to one implementation file invalidates that file's projection, not its
 neighbors merely because they import it or expose a changed name. Global
 meaning is recomputed from the reusable fresh projections plus the reconstructed
-one. A catalog change invalidates the projections built against the old catalog.
+one. An incoming-anchor-set change invalidates projections built against the old
+set.
 
 The compiler has no implementation-language adapter, AST parser, symbol
 resolver, LSP dependency, Git symbol history, or fuzzy name matcher. A comment
 or lexical similarity does not independently establish an implementation fact.
 
-## Opaque local anchors and canonical identity
+## Typed hashed anchors and canonical identity
 
-An external semanticizer may observe a source-language construct such as a Rust
-method and give it an opaque local placeholder:
+The LLM semanticizer may observe a source-language construct such as a Rust
+method and create a typed source-local anchor key:
 
 ```turtle
-<urn:sigil:local:a1>
-  a sigil:Implementation ;
+<urn:sigil:anchor-key:person-age-years>
+  a sigil:ImplementationAnchor ;
+  sigil:anchorKey "implementation|Person::age_years|method" ;
   sigil:label "Person::age_years" ;
-  sigil:implements <urn:sigil:entity:design:Age> .
+  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...> .
 ```
 
-During ingestion, the compiler validates the reserved placeholder form and
-rewrites it mechanically into the accepted projection namespace:
+During ingestion, the compiler validates the Anchor type and opaque key, then
+constructs the source-scoped identity mechanically:
 
 ```text
-urn:sigil:projection:<binding-fingerprint>#a1
+source namespace = sha256(versioned normalized workspace-relative source path)
+anchor identity  = source namespace # sha256(versioned anchor key)
 ```
 
-The placeholder is opaque and projection-local. Its label and optional source
-span are documentary. They are not identity, and Sigil makes no promise that a
-later reconstruction will use the same `a1` for the same source-language
-symbol. This is sufficient for current correspondence and conservative
-last-known impact. A source-scoped stable hash adds no required capability
-without either language understanding or an author-maintained stable key, so it
-is intentionally absent.
+The LLM chooses the key; the compiler owns the hash, source namespace, and
+well-formed identity. The label and optional source span are documentary. A
+reconstruction can retain useful anchor continuity when the LLM chooses the
+same key, but `sigilc` makes no source-language claim that two anchors denote
+the same symbol. It validates source scoping, graph structure, and that every
+`denotes` target belongs to the immutable incoming anchor set only.
 
-Canonical entities are distinct, catalog-controlled Design identities. Origin
-anchors, Sigil anchors, and Implementation anchors stay distinct from those
-entities. An explicit authority—often an origin document or glossary—chooses
-canonical terminology; source-local labels such as `age`, `Age`, and
-`age_years` remain local presentation until accepted correspondence maps them.
+Origin anchors, Sigil anchors, and Implementation anchors are explicit `sigil:Anchor`
+subtypes and carry canonical Sigil types such as `Concept` or `LogicFacet`.
+They stay distinct from other source anchors. An explicit authority—often an
+origin document or glossary—introduces the first anchors; source-local labels
+such as `age`, `Age`, and `age_years` remain local presentation until accepted
+`denotes` edges map them across the chain.
 
 ## Typed correspondence
 
@@ -303,8 +339,9 @@ It preserves the mapping rather than hiding it in an LLM interpretation.
 | Relation | Meaning | Impact closure | Obligation matching |
 | --- | --- | ---: | ---: |
 | `correspondsTo` | Broad correspondence family | yes | no |
-| `denotes` | Local anchor names a canonical entity | yes | only by an explicit rule |
-| `implements` | Local target anchor realizes a canonical entity | yes | only by an explicit rule |
+| `denotes` | Local anchor maps to a supplied upstream source anchor | yes | only by an explicit rule |
+| `implements` | Local target anchor makes an explicit implementation claim about its denoted Design anchor | yes | only by an explicit rule |
+| `realizes` | Local anchor makes an explicit Facet realization claim | yes | only by an explicit rule |
 | `specifies` | Sigil material gives structured meaning | yes | no by itself |
 | `refines` | Narrower representation | yes | only where a rule opts in |
 | `aliasOf` | Terminology synonym | terminology only | no |
@@ -317,24 +354,32 @@ or an equivalent blanket identity mechanism: doing so would erase source
 attribution and allow a weak lexical relation to satisfy an unrelated
 obligation.
 
+For a source chain, `denotes` is directed from the new local anchor to an
+incoming anchor. Saturation may compute its typed transitive closure, such as
+`Age ← age ← age_years`, but it never merges those anchor nodes or compares
+their labels. Its laws match canonical Sigil types and predicates carried by
+the anchors.
+
 An obligation can be satisfied only by an explicit compiler-owned bridge rule.
 For example:
 
 ```text
-anchor implements A + anchor provides C
-  -> actual A provides C
+ImplementationAnchor(a) + denotes+(a, f) + Facet(f) + a provides C
+  -> actual f provides C
 ```
 
 The resulting `actual` fact may match a `requires` obligation under the fixed
-comparison law. By contrast, `anchor implements A` alone neither proves every
-capability required by `A` nor transfers every Design relationship to the
-anchor. `denotes`, `specifies`, `aliasOf`, and broad correspondence never
-silently satisfy an obligation. Any future exception must be named as a
-finite rule in the kernel and tested as such.
+comparison law. By contrast, an implementation claim or `denotes` edge alone
+neither proves every capability required by the denoted Design anchor nor
+transfers every Design relationship to the local anchor. `specifies`,
+`aliasOf`, and broad correspondence never silently satisfy an obligation. Any
+future exception must be named as a finite rule in the kernel and tested as
+such.
 
-`State` remains first-class: existing `initialState`, `transitionsTo`, owner,
-and exclusivity laws continue to work. State anchors may participate in typed
-correspondence and impact without weakening those existing laws.
+All seven contract kinds remain first-class in the shared vocabulary. `State`
+already has `initialState`, `transitionsTo`, owner, and exclusivity laws; State
+Facets and typed anchors may participate in correspondence and impact without
+weakening those laws.
 
 ## Comparison states
 
@@ -366,15 +411,17 @@ impact
 changed or missing source
   -> last accepted projection for that source
   -> last-known correspondence closure
-  -> affected canonical entities, Sigil units, and origin anchors
+  -> affected typed source anchors and origin anchors
 ```
 
-Last-known data may say that an edited Rust file *might affect* a concept or an
-origin Markdown section because the prior accepted projection mapped it there.
+Last-known data may say that an edited Rust file *might affect* a typed source
+anchor or an origin Markdown section because the prior accepted projection
+mapped it there.
 It cannot enter `D`, `I`, saturation, obligation derivation, comparison, or a
-current status. Reconstructing the source gives it new projection-local anchors
-and a new current mapping; the older mapping remains only historical cache
-context until eviction or `clean`.
+current status. Reconstructing the source may recreate source-scoped hashed
+anchors when the LLM chooses the same keys, and always creates a new current
+mapping; the older mapping remains only historical cache context until eviction
+or `clean`.
 
 An impact report returns affected surfaces and bounded path witnesses. It does
 not call the affected source stale, assert that documentation is wrong, or
@@ -432,18 +479,19 @@ The kernel and `sigilc` integration must preserve these checks:
 - A positive Implementation disagreement yields `Drift`; an absence of
   contradiction without sufficient coverage yields `Converged`; only coherent,
   fully fresh coverage yields `Closed`.
-- A source edit, deletion, incompatible ontology/format change, catalog change,
-  or publication race prevents obsolete projection assertions from becoming
-  current.
+- A source edit, deletion, incompatible ontology/format change,
+  incoming-anchor-set change, or publication race prevents obsolete projection
+  assertions from becoming current.
 - A source edit may use its prior projection only to report last-known impact.
-- Design import closure invalidates affected Design inputs; Implementation
-  freshness is local to its source binding and frozen catalog.
+- Design import closure invalidates affected Design inputs; downstream
+  freshness is local to its source binding and frozen incoming anchor set.
 - A mixed-language repository works without compiler language adapters.
-- Unknown canonical identities, malformed local-anchor placeholders,
-  catalog mutation attempts, wrong-side assertions, path escapes, Egglog rules,
+- Unknown incoming anchors, malformed typed anchor keys, invalid incoming-anchor
+  set changes, wrong-side assertions, path escapes, Egglog rules,
   includes, and non-finite numeric input are rejected at ingestion.
-- Typed correspondence retains distinct nodes; no alias or `implements` edge
-  silently proves a requirement.
+- Typed correspondence retains distinct source-anchor nodes and their Sigil
+  types; no alias, `denotes`, `implements`, or `realizes` edge silently proves
+  a requirement.
 - Equivalent normalized fixtures reconstruct equivalent worlds after cache
   deletion. Compiler determinism and semanticizer repeatability are separate
   properties.

@@ -96,6 +96,39 @@ predecessor relation, a completion claim, or a scheduler instruction. An
 external caller decides which selected stale projections to reconstruct and may
 do independent ones concurrently.
 
+## Sigil is the shared vocabulary
+
+Every accepted Design and Implementation projection describes semantically
+meaningful observations in the canonical `sigil:` vocabulary. The vocabulary is
+the shared type system for saturation, not a global spelling catalog. The seven
+language keywords are its seven contract kinds:
+
+```text
+Goal | Interface | State | Logic | Constraint | Decision | Case
+```
+
+A `Concept` is the existing reusable semantic type. Any contract may introduce
+or reuse a Concept through its source anchor. A `Facet` is a named,
+addressable contribution from one of the seven contracts to a Concept: an
+Interface facet may describe an interaction, a Logic facet a transformation, a
+State facet a lifecycle configuration, and a Constraint or Case facet a rule or
+observable outcome. Components organize contracts; Concepts are deliberately
+cross-contract and cross-source.
+
+Each semanticization binding instead supplies an immutable **incoming anchor
+set**: typed, hashed anchors accepted from the preceding source surface. The
+LLM creates a typed local anchor for every relevant new observation and emits a
+`denotes` relation to the incoming anchor it identifies. Thus a source chain
+can retain the exact mapping `Age → age → age_years` without pretending that
+the three source spellings are one compiler identity. The binding fingerprints
+that incoming set; a changed set makes the resulting projection stale.
+
+Design may introduce source anchors for Concepts and Facets. Downstream Design
+and Implementation LLMs receive those anchors, not Design relationships,
+obligations, or conclusions. They use the same Sigil types and predicates when
+a fact is semantically relevant; they need not manufacture all seven contract
+kinds for every source file.
+
 ## Correspondence is asserted Turtle
 
 The desired transitive property comes from semantic correspondence assertions
@@ -103,36 +136,46 @@ accepted into source-bound `.egg` projections. It does not come from a hidden
 cycle record.
 
 ```text
-Markdown section anchor
-  --originates--> canonical Concept or Unit
+upstream source anchor `Age`
+  <--denotes-- Sigil source anchor `age`
+                    <--denotes-- Rust source anchor `age_years`
 
-Sigil concept / unit
-  --specifies--> canonical Concept or Unit
-
-Rust or Deno symbol anchor
-  --implements--> canonical Concept or Unit
+each anchor has a canonical Sigil type
+  (`Concept`, `Facet`, and one of the seven contract kinds where applicable)
 ```
 
-Workers may propose these assertions during their isolated Turtle pass. Native
+LLM semanticizers propose these assertions during their isolated Turtle pass. Native
 ingest validates them against the fixed ontology and source binding, then the
 projection store persists the accepted assertions in the corresponding world.
 The assertions remain attributable to the file that produced them.
 
-An Implementation semanticizer uses opaque local placeholders, never a
-language-specific symbol identity:
+The Implementation LLM creates a typed, source-local anchor key for each
+relevant observation. Ingest hashes the opaque key and scopes it to a stable
+source namespace; neither step requires source-language parsing:
 
 ```turtle
-<urn:sigil:local:a1>
-  a sigil:Implementation ;
+<urn:sigil:anchor-key:person-age-years>
+  a sigil:ImplementationAnchor, sigil:LogicFacet ;
+  sigil:anchorKey "implementation|Person::age_years|method" ;
   sigil:label "Person::age_years" ;
-  sigil:implements <urn:sigil:entity:...:Age> .
+  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...> .
 ```
 
-At ingestion, Sigil scopes each placeholder to the accepted projection binding,
-for example `urn:sigil:projection:<binding-fingerprint>#a1`. The token is
-projection-local; the label and any optional span are documentary. Sigil need
-not parse Rust, Python, TypeScript, or any other implementation language to
-perform this rewrite or validate the resulting graph.
+At ingestion, Sigil validates the anchor type and opaque key, then constructs:
+
+```text
+source namespace = sha256(versioned normalized workspace-relative source path)
+anchor identity  = source namespace # sha256(versioned anchor key)
+```
+
+The LLM chooses the anchor key as part of semanticization; the compiler owns
+the hash, namespace, and collision-safe identity form. The label and optional
+span are documentary, not identity. The same LLM key may give useful continuity
+through ordinary edits, but the compiler makes no source-language claim that a
+later anchor is the same symbol. Sigil need not parse Rust, Python, TypeScript,
+or any other implementation language to perform this rewrite or validate the
+resulting graph. It validates that each `denotes` target is in the immutable
+incoming anchor set, not that a source-language symbol has a particular name.
 
 ### Worked chain: README.md → Sigil → Rust/Deno
 
@@ -144,76 +187,81 @@ Consider a repository whose original product statement lives in `README.md`:
 The semantic bridge accepts a design export and produces a comparison report.
 ```
 
-The Markdown semanticizer gives that section a projection-local anchor and
-records that it denotes the canonical concept. The rendered anchor below is
-already compiler-scoped; the semanticizer itself submitted only `local:readme-1`.
+The Markdown LLM introduces typed source anchors for the concept and interface
+facet it observes. An introducing source has no upstream source anchor to
+denote; its anchors become part of the next binding's incoming anchor set.
 
 ```turtle
-<urn:sigil:projection:README-binding#readme-1>
-  a sigil:OriginAnchor ;
-  sigil:label "Semantic bridge" ;
-  sigil:denotes <urn:sigil:entity:docs%2Farchitecture.sigil:SemanticBridge> .
+<urn:sigil:anchor:8ac4...#d2b7...>
+  a sigil:OriginAnchor, sigil:Concept ;
+  sigil:label "Semantic bridge" .
+
+<urn:sigil:anchor:8ac4...#a03e...>
+  a sigil:OriginAnchor, sigil:InterfaceFacet ;
+  sigil:about <urn:sigil:anchor:8ac4...#d2b7...> ;
+  sigil:label "comparison report" .
 ```
 
-In a later pass, `architecture.sigil` gives that concept its structured
-meaning. Its unit and concept are ordinary canonical Design identities; the
-Sigil projection adds a typed correspondence rather than collapsing the
-Markdown anchor with either identity.
+In a later pass, the `architecture.sigil` LLM receives those two source anchors.
+It creates its own typed anchors and uses `denotes` to record the crossover,
+rather than copying, unioning, or globally renaming the Markdown anchors.
 
 ```turtle
-<urn:sigil:entity:architecture.sigil:SemanticBridgeContract>
-  a sigil:Contract ;
-  sigil:specifies <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
-  sigil:from <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
-  sigil:target <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+<urn:sigil:anchor:31f9...#78c1...>
+  a sigil:DesignAnchor, sigil:Concept ;
+  sigil:label "SemanticBridge" ;
+  sigil:denotes <urn:sigil:anchor:8ac4...#d2b7...> .
 
-<urn:sigil:entity:architecture.sigil:SemanticBridge>
-  sigil:provides <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+<urn:sigil:anchor:31f9...#fa63...>
+  a sigil:DesignAnchor, sigil:InterfaceFacet ;
+  sigil:about <urn:sigil:anchor:31f9...#78c1...> ;
+  sigil:denotes <urn:sigil:anchor:8ac4...#a03e...> .
 ```
 
-The selected target scope may contain both Rust and Deno sources. Their
-semanticizers independently observe local implementation anchors and connect
-them to the same canonical identity:
+The selected Rust and Deno LLMs receive the Sigil anchors in their own incoming
+sets. They create local anchors that denote those exact source anchors:
 
 ```turtle
-<urn:sigil:projection:rust-binding#r1>
-  a sigil:Implementation ;
+<urn:sigil:anchor:3c91...#c14a...>
+  a sigil:ImplementationAnchor, sigil:LogicFacet ;
   sigil:label "SemanticBridge::compare" ;
-  sigil:implements <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
-  sigil:provides <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+  sigil:denotes <urn:sigil:anchor:31f9...#fa63...> .
 
-<urn:sigil:projection:deno-binding#d1>
-  a sigil:Implementation ;
+<urn:sigil:anchor:71e2...#a421...>
+  a sigil:ImplementationAnchor, sigil:LogicFacet ;
   sigil:label "exportComparison" ;
-  sigil:implements <urn:sigil:entity:architecture.sigil:SemanticBridge> ;
-  sigil:provides <urn:sigil:entity:architecture.sigil:ComparisonReport> .
+  sigil:denotes <urn:sigil:anchor:31f9...#fa63...> .
 ```
 
-The fixed kernel may contain an explicit bridge law that normalizes the local
-observation into a canonical actual fact:
+The same mechanism records terminology across a chain without compiler name
+matching:
 
 ```text
-anchor implements A + anchor provides C
-  → actual A provides C
+origin anchor `Age`
+  <--denotes-- Design anchor `age`
+                    <--denotes-- Implementation anchor `age_years`
 ```
 
-It does **not** infer that every requirement of `A` is satisfied merely because
-an anchor implements `A`.
+The fixed kernel computes typed `denotes` closure and applies bridge laws using
+canonical Sigil types and predicates—not `Age`, `age`, or `age_years` strings.
+An anchor's correspondence alone never satisfies an obligation; a bridge still
+needs the required fresh Implementation facts.
 
 If the Rust source changes, its old `r1` anchor is not reused as current truth.
 The impact report may read its last accepted correspondence and produce:
 
 ```text
 changed packages/kernel/src/bridge.rs
-  → last-known Rust anchor r1
-  → SemanticBridge
+  → last-known Rust source anchor c14a...
+  → Sigil source anchor fa63...
   → README.md section “Semantic bridge”
 ```
 
 That report means “this origin section may need freshening after the downstream
 change.” It does not mean the README bytes are stale, and it cannot satisfy or
-invalidate a current comparison. Reconstructing the changed Rust source creates
-new projection-local anchors and replaces the current correspondence surface.
+invalidate a current comparison. Reconstructing the changed Rust source may
+recreate a source-scoped hashed anchor when the LLM chooses the same anchor key;
+regardless, it replaces the current correspondence surface.
 
 Today, the relevant limits are intentional but insufficient for this model:
 
@@ -221,16 +269,17 @@ Today, the relevant limits are intentional but insufficient for this model:
   [`turtle.rs`](../sigilc/src/turtle.rs);
 - `implements`, `denotes`, `correspondsTo`, and equivalence predicates do not
   yet exist there;
-- the current frozen catalog in [catalog.rs](../sigilc/src/catalog.rs) prevents
-  an Implementation worker from inventing arbitrary function identities; and
+- the current frozen catalog in [catalog.rs](../sigilc/src/catalog.rs) must
+  become the binding's typed incoming-anchor set, so an Implementation LLM can
+  denote only anchors that were actually supplied; and
 - current [comparison.rs](../sigilc/src/comparison.rs) consumes obligations and
   Implementation facts only for a one-shot verdict. It does not yet emit an
   impact graph.
 
 The new kernel makes those limitations explicit extension points. A target
-anchor is an opaque projection-local identity scoped mechanically by ingestion,
-not an untracked model string and not a compiler-verified source-language
-symbol. When source bytes change, its prior mapping is last-known only;
+anchor is a typed, LLM-authored key hashed and source-scoped mechanically by
+ingestion, not an untracked model string and not a compiler-verified
+source-language symbol. When source bytes change, its prior mapping is last-known only;
 saturation may follow that mapping outward to identify the upstream repair
 surface until a new projection is accepted.
 
@@ -238,16 +287,16 @@ surface until a new projection is accepted.
 
 Identity and spelling are different.
 
-Every source format first produces opaque local anchors and preserves its local
+Every source format first produces typed hashed anchors and preserves its local
 labels: `age`, `Age`, `height_cm`, or `BMI`. A designated origin or glossary
-source establishes canonical Concept and Unit identities. In a simple chain the
-initial source is that authority; the authority must be explicit, never inferred
-from whichever file happened to be selected first.
+source introduces the first typed source anchors; downstream sources receive
+them as incoming anchors and explicitly denote them. The initial authority must
+be explicit, never inferred from whichever file happened to be selected first.
 
 ```text
-Markdown #Age             --denotes--> urn:...:Age
-Python local `age`        --denotes--> urn:...:Age
-Rust `Person::age_years`  --implements--> urn:...:Age
+Origin `Age`
+  <--denotes-- Python local `age`
+                    <--denotes-- Rust `Person::age_years`
 ```
 
 The language model may propose mappings, but it does not get to silently merge
@@ -274,8 +323,9 @@ The ontology instead gains a common correspondence family with typed members:
 | Relation | Meaning | May drive impact? | May satisfy an obligation? |
 | --- | --- | ---: | ---: |
 | `correspondsTo` | broad common family | yes | no |
-| `denotes` | local anchor names a canonical identity | yes | only through explicit rules |
-| `implements` | target anchor realizes a canonical identity | yes | yes, through matching rules |
+| `denotes` | local anchor maps to a supplied upstream source anchor | yes | only through explicit rules |
+| `implements` | local target anchor makes an explicit implementation claim about its denoted Design anchor | yes | yes, through matching rules |
+| `realizes` | local anchor makes an explicit Facet realization claim | yes | yes, through matching rules |
 | `specifies` | Sigil source gives structured meaning | yes | no by itself |
 | `refines` | narrower semantic representation | yes | only where a rule opts in |
 | `aliasOf` | lexical/terminology synonym | terminology only | no |
@@ -301,7 +351,7 @@ Saturation remains local, finite, and compiler-owned. It is never aware of a
 current behavior is defined by:
 
 - [kernel.egg](../sigilc/src/kernel.egg), the shared closure rules;
-- [design.egg](../sigilc/src/design.egg), authored-unit interpretation and
+- [design.egg](../sigilc/src/design.egg), authored-contract interpretation and
   obligations;
 - [comparison.egg](../sigilc/src/comparison.egg), the third, independent
   obligation matcher;
@@ -316,14 +366,19 @@ decides `Closed`, `Converged`, or `Drift`. Last-known stale correspondence facts
 may appear in an impact report, never in the matcher that proves a current
 obligation.
 
+Saturation and comparison use canonical `sigil:` types, contract kinds, and
+predicates. `denotes` closure follows typed source anchors across the chain;
+fixed bridge laws then normalize eligible fresh anchor observations into
+semantic facts. Raw labels and hashes are never comparison keys.
+
 An `impact` operation therefore has a different contract from `compare`:
 
 ```text
 changed or missing target binding
   -> last-known target correspondence
   -> correspondence closure
-  -> affected canonical identities
-  -> affected Sigil units and origin anchors
+  -> affected typed source anchors
+  -> affected Sigil Facets and origin anchors
 ```
 
 It reports a repair surface and witnesses. It does not declare the origin
@@ -357,19 +412,21 @@ No score can make an obligation true. Hash/binding freshness and crisp logical
 relations determine semantic validity. Numbers rank or explain the repair
 surface after validity has been determined.
 
-## State is already a first-class seed
+## The seven Sigil contracts are first-class
 
-`State` is not absent from the current schema. It is already present in the
-frontend section model, the Turtle classes, `initialState` and `transitionsTo`
-predicates, and Design rules for required-state ownership. See
-[frontend.rs](../sigilc/src/frontend.rs), [turtle.rs](../sigilc/src/turtle.rs),
-and [design.egg](../sigilc/src/design.egg).
+`Goal`, `Interface`, `State`, `Logic`, `Constraint`, `Decision`, and `Case` are
+the seven canonical contract kinds. They are all available to Design and
+Implementation semanticization through the same Sigil vocabulary. `State` is
+already present in the frontend section model, the Turtle classes,
+`initialState` and `transitionsTo` predicates, and Design rules for
+required-state ownership. See [frontend.rs](../sigilc/src/frontend.rs),
+[turtle.rs](../sigilc/src/turtle.rs), and [design.egg](../sigilc/src/design.egg).
 
-The kernel extension is to make state anchors participate in correspondence:
-an origin lifecycle section, its Sigil State identity, and an implementation
+The kernel extension makes every contract's Facets correspondence-aware. For
+example, an origin lifecycle section, its State Facet, and an implementation
 state-machine or persistence anchor can be related and included in impact
-closure. This adds traceability without weakening the existing required-owner
-and exclusive-owner laws.
+closure. This adds traceability without weakening required-owner and
+exclusive-owner laws.
 
 ## Opaque semanticization boundary
 
@@ -379,25 +436,24 @@ current inputs and can publish at the binding's expected generation.
 
 ```text
 sigilc prepare -> immutable semantic inputs + binding.json
-external environment -> any human, model, script, retry, or parallel process
+independent LLM semanticizer -> Turtle
 Turtle -> sigilc ingest --binding binding.json -> accepted projection
 ```
 
-The middle step is opaque to Sigil. It may use one model, many models, a human,
-or a deterministic future semanticizer. Sigil neither validates nor records the
-producer, model, provider, prompt, worker, attempt, retry, log, execution
-receipt, or Turtle-production history.
+The LLM invocation is opaque to Sigil. Sigil neither validates nor records its
+model, provider, prompt, worker, attempt, retry, log, execution receipt, or
+Turtle-production history.
 
 Freshness depends only on source identity, semantic input binding, ontology,
-projection format, applicable catalog, and publication generation. A better
+projection format, incoming anchor set, and publication generation. A better
 model or prompt never makes an accepted projection stale; an external caller
 may reconstruct unchanged inputs whenever it chooses.
 
 The binding is compiler correctness, not a job or lifecycle. It prevents Turtle
 for `foo.rs@H1` from publishing as `foo.rs@H2`, prevents a projection built for
-catalog `C1` from becoming current under incompatible `C2`, and prevents an old
-preparation from overwriting a newer generation. The current implementation of
-this boundary is [Job in store.rs](../sigilc/src/store.rs); it will be renamed
+incoming anchor set `A1` from becoming current under incompatible `A2`, and
+prevents an old preparation from overwriting a newer generation. The current
+implementation of this boundary is [Job in store.rs](../sigilc/src/store.rs); it will be renamed
 to `PreparedBinding` as part of the breaking simplification.
 
 ## Migration boundary
@@ -414,7 +470,8 @@ The implementation follows this order:
    Rename `Job`/`job.json` to `PreparedBinding`/`binding.json` without changing
    source binding, freshness, or atomic publication rules.
 4. Extend the ontology, catalog, frontend observations, and Turtle validation
-   with compiler-scoped opaque local anchors and the typed correspondence family.
+   with the canonical Sigil contract/Concept/Facet vocabulary, LLM-authored
+   typed hashed anchors, and the typed correspondence family.
    Do not add implementation-language parsing, adapters, resolvers, LSPs,
    language-specific anchor formats, Git history, or fuzzy matching.
 5. Persist accepted correspondence assertions in the existing per-source world
