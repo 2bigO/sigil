@@ -8,10 +8,14 @@ follows from what you specify, and whether an implementation realizes it.
 It records what a system is, why it exists, how it behaves, and how its
 implementation should be understood and changed over time.
 
-Sigil is designed for humans and coding agents working together. Its purpose is
-to keep system knowledge coherent by breaking a system into components and
-preserving both the public contract and the reasoning behind implementation
-decisions.
+This puts some new superpowers on the table. A Sigil design can **infer facts
+nobody explicitly wrote**, turn intent into **computable obligations**, and
+independently reconstruct the implementation into a second world to ask whether
+the two actually realize each other. Change the code and Sigil can follow its
+semantic correspondence back through the design to show what may be affected.
+Ambiguity stays ambiguity; contradictions become errors; missing realization
+becomes a warning. The model is no longer documentation sitting next to the
+software. **It computes.**
 
 ## Why It Exists
 
