@@ -266,3 +266,206 @@ The governing principle is simple: semanticizers interpret source languages
 and assert irreducible local observations; `sigilc` validates bindings, anchor
 scoping, types, and the fixed ontology; the kernel owns closure; and comparison
 alone joins the current Design and Implementation worlds.
+
+## 7. Concrete `SemanticBridge`: fresh Design to `Closed`
+
+This final walkthrough applies the preceding computation to one concrete
+component. Every identity below is a typed, source-scoped hashed anchor in the
+actual projection; short names make the derivation readable.
+
+### Fresh Design source and Design generators
+
+The selected Design source is authored afresh. Its interface says what the
+component must provide, not how a Rust or Deno implementation will do it:
+
+```sigil
+component SemanticBridge {
+  goal {
+    Compare a Design world with an independently saturated Implementation world.
+  }
+
+  interface {
+    SemanticBridge {
+      Accept a DesignExport and an ImplementationExport, then produce a
+      ComparisonReport.
+    }
+
+    ComparisonReport {
+      Report unresolved obligations, contradictions, and closure state.
+    }
+  }
+}
+```
+
+The fresh Design semanticizer introduces:
+
+```text
+C_bridge = SemanticBridge     [Concept]
+F_report = ComparisonReport   [Interface Facet]
+```
+
+It emits only the irreducible Design facts it observed:
+
+```text
+facetOf(F_report, C_bridge)
+provides(C_bridge, F_report)
+```
+
+The Design kernel, not the semanticizer, computes:
+
+```text
+D_bridge  ── saturate_design ──>  D_bridge*
+
+O_bridge = obligation(C_bridge, provides, F_report)
+```
+
+Assume the rest of this fresh Design scope is internally complete and
+non-contradictory. Its status is therefore 🟢 `Coherent`: `O_bridge` is a
+complete requirement to compare, not a fact already established by code.
+
+### Immutable Implementation binding
+
+`sigilc prepare` captures the selected implementation source bytes and creates
+an immutable binding. Its external semantic input is exactly these descriptors:
+
+| Hash-shortened anchor | Type | Permitted direct target roles |
+| --- | --- | --- |
+| `C_bridge` | `Concept` | `denotes`, `implements` |
+| `F_report` | `Interface Facet` | `denotes`, local `provides` observation |
+
+The binding does not contain `D_bridge`, `D_bridge*`, `O_bridge`,
+`facetOf(F_report, C_bridge)`, or any comparison result. The independent LLM
+gets its captured implementation bytes, this small typed input, and the fixed
+ontology—nothing that can tell it what answer comparison wants.
+
+### Fresh implementation source and direct observations
+
+For this example, the captured Rust source has the following relevant shape:
+
+```rust
+pub struct SemanticBridge {
+    kernel: Kernel,
+}
+
+impl SemanticBridge {
+    pub fn compare(
+        &self,
+        design: DesignExport,
+        implementation: ImplementationExport,
+    ) -> ComparisonReport {
+        self.kernel.compare(design, implementation)
+    }
+}
+```
+
+The LLM interprets that Rust. It chooses local anchor keys for the struct and
+method; ingestion hashes and scopes them to this source binding:
+
+```text
+S_bridge = local `SemanticBridge`          [Concept anchor]
+M_compare = local `SemanticBridge::compare` [Interface Facet anchor]
+```
+
+Its accepted Turtle projection contributes these direct Implementation
+generators and nothing terminal:
+
+```text
+denotes(S_bridge, C_bridge)
+denotes(M_compare, F_report)
+implements(S_bridge, C_bridge)
+factorsThrough(M_compare, S_bridge)
+provides(M_compare, F_report)
+```
+
+The facts have a concrete source-language reading:
+
+```text
+the struct denotes and implements SemanticBridge
+the compare method denotes ComparisonReport
+the method factors through the struct
+the method provides the report behavior
+```
+
+They are still not a comparison result. In particular, the LLM has not
+asserted `realizes(C_bridge, provides, F_report)`.
+
+### Independent Implementation saturation
+
+The fresh Implementation world is only its local generators plus the typed
+external-anchor identities. It does not receive the Design `facetOf` or
+`provides` facts. The fixed law from section 3 fires entirely within `I_bridge`:
+
+```text
+factorsThrough(M_compare, S_bridge)
++ denotes(S_bridge, C_bridge)
++ implements(S_bridge, C_bridge)
++ denotes(M_compare, F_report)
++ provides(M_compare, F_report)
+------------------------------------------------------
+  realizes(C_bridge, provides, F_report)
+```
+
+```text
+I_bridge  ── saturate_implementation ──>  I_bridge*
+
+I_bridge* contains realizes(C_bridge, provides, F_report)
+```
+
+Correspondence alone still proves nothing. Removing the direct local behavior
+`provides(M_compare, F_report)` prevents the theorem even though all anchor
+mappings, the role claim, and method containment remain available.
+
+### The one permitted cross-world check
+
+Only now does the comparator join the independently produced surfaces:
+
+```text
+D_bridge*                               I_bridge*
+     │                                       │
+     ▼                                       ▼
+obligation(C_bridge, provides, F_report)  realizes(C_bridge, provides, F_report)
+                      \                   /
+                       \                 /
+                        └── compare ────┘
+                               │
+                               ▼
+                     satisfied(O_bridge)
+```
+
+With every other finite Design obligation in the selected scope likewise
+matched by a fresh terminal realization and no contradiction, comparison is:
+
+```text
+🟢 Closed
+```
+
+This outcome is not a claim that the LLM, compiler driver, or an external
+worker is trustworthy in the abstract. It is the precise theorem that the
+accepted fresh source observations compose under fixed kernel laws into each
+required realization.
+
+### After a source change
+
+If `SemanticBridge::compare` changes, the captured source bytes no longer
+match this projection's binding. `I_bridge*` and its terminal theorem leave
+current truth immediately:
+
+```text
+fresh D_bridge* + missing/stale implementation projection
+  -> O_bridge has no fresh matching realization
+  -> 🟡 Converged, never Closed
+```
+
+The old projection may still explain the repair surface:
+
+```text
+changed Rust source
+  -> last-known M_compare
+  -> denotes(M_compare, F_report)
+  -> corresponding ComparisonReport Facet
+  -> upstream SemanticBridge and origin anchors
+```
+
+That is impact only. It cannot retain `Closed`, prove `Drift`, or be imported
+into a new `I_bridge*`. A fresh reconstruction repeats the direct-observation
+and saturation steps above against the new binding.
