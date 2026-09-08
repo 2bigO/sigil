@@ -60,9 +60,10 @@ vocabulary's seven contract kinds:
 Goal | Interface | State | Logic | Constraint | Decision | Case
 ```
 
-`Concept` is an existing reusable Sigil semantic type, not a container local to
-one component or contract. Any of the seven contracts may introduce or reuse a
-Concept through its source anchor. A `Facet` is a named, addressable
+`Concept` is an existing Sigil semantic type, not a container local to one
+component or contract. Writing the same Concept identifier in another Sigil
+contract means that same Concept again; a contract can introduce it or refer to
+it. A `Facet` is a named, addressable
 contribution of one contract to a Concept. For example, an Interface Facet
 names an interaction, a Logic Facet names a transformation, a State Facet names
 a lifecycle configuration, and a Constraint or Case Facet names a rule or
@@ -77,10 +78,10 @@ That records `Age → age → age_years` directly, without compiler name matchin
 or identity union.
 
 Design may introduce new typed source anchors. Downstream Design and
-Implementation LLMs receive those anchors, not Design relationships,
-obligations, or conclusions. A binding fingerprints the incoming anchor set;
-the compiler rejects `denotes` targets outside it and treats a changed set as a
-freshness change.
+Implementation LLMs receive those anchors as external semantic input, not `D`,
+Design relationships, obligations, or conclusions. A binding fingerprints the
+incoming anchor set; the compiler rejects `denotes` targets outside it and
+treats a changed set as a freshness change.
 
 ## The computation, exactly
 
@@ -128,8 +129,8 @@ and can still publish at its expected generation.
 sigilc prepare
   -> exact semantic inputs + immutable binding.json
 
-external environment
-  -> opaque production of Turtle
+independent LLM semanticizer
+  -> Turtle
 
 sigilc ingest --binding binding.json
   -> validated, atomically published source projection
@@ -154,7 +155,7 @@ rename.
 | Relevant Design structural/import input changes | Affected Design projection is stale. |
 | Ontology or projection format changes incompatibly | Bound projection is stale. |
 | Incoming source-anchor set changes | Bound downstream projection is stale. |
-| Model, prompt, producer, retry, or execution environment changes | Projection remains fresh; external code may choose to reconstruct it. |
+| LLM model, prompt, or retry configuration changes | Projection remains fresh; an external caller may choose to reconstruct it. |
 
 Publication must reject a stale source binding, an incompatible incoming anchor
 set, or an outdated generation. Interrupted publication leaves no projection that can be
@@ -278,7 +279,7 @@ Design obligations, neighboring implementation bodies, or comparison feedback.
 one implementation source + ontology + frozen incoming anchor set
             |
             v
-independent external semanticization
+independent LLM semanticization
             |
             v
 one accepted local projection of direct observations
@@ -303,10 +304,13 @@ method and create a typed source-local anchor key:
 
 ```turtle
 <urn:sigil:anchor-key:person-age-years>
-  a sigil:ImplementationAnchor ;
+  a sigil:ImplementationAnchor, sigil:LogicFacet ;
   sigil:anchorKey "implementation|Person::age_years|method" ;
   sigil:label "Person::age_years" ;
-  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...> .
+  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...>,
+    <urn:sigil:anchor:incoming-age-years#c63a...> ;
+  sigil:implements <urn:sigil:anchor:incoming-age#91d4...> ;
+  sigil:realizes <urn:sigil:anchor:incoming-age-years#c63a...> .
 ```
 
 During ingestion, the compiler validates the Anchor type and opaque key, then
@@ -347,6 +351,16 @@ It preserves the mapping rather than hiding it in an LLM interpretation.
 | `aliasOf` | Terminology synonym | terminology only | no |
 | `equivalentTo` | Explicit semantic equivalence | yes | only where a rule opts in |
 
+The LLM emits `denotes` for the source-anchor crossover it observed. When code
+also carries stronger meaning, it emits `implements` to a supplied Concept
+anchor and `realizes` to a supplied Facet anchor. These are not identical: one
+Concept can have many Facets, so `implements` gives broad Concept coverage while
+`realizes` identifies the specific behavior, state, constraint, decision, or
+case seen in source. `sigilc` validates target membership and Sigil types; it
+requires `implements` and `realizes` targets to also appear in `denotes`; it
+does not validate the programming-language observation that caused the LLM to
+assert either relation.
+
 The kernel derives broad correspondence/impact reachability from the permitted
 relations. It derives a separate symmetric, transitive closure for explicitly
 asserted `equivalentTo`. It must not use Egglog e-class `union`, RDF `sameAs`,
@@ -364,7 +378,8 @@ An obligation can be satisfied only by an explicit compiler-owned bridge rule.
 For example:
 
 ```text
-ImplementationAnchor(a) + denotes+(a, f) + Facet(f) + a provides C
+ImplementationAnchor(a) + implements(a, c) + realizes(a, f)
+  + Concept(c) + Facet(f) + about(f, c) + a provides C
   -> actual f provides C
 ```
 
@@ -427,12 +442,24 @@ An impact report returns affected surfaces and bounded path witnesses. It does
 not call the affected source stale, assert that documentation is wrong, or
 change any semantic verdict.
 
+### Deferred precision: Facet-granular anchors
+
+The initial binding is source-scoped: a file's accepted anchors become the
+external incoming set for a downstream source. A later capability should select
+and bind incoming anchors at Facet granularity rather than at file granularity.
+That can let one saturation pass distinguish a genuinely broken Facet from the
+broader “this file once denoted these Facets” repair surface. It remains a
+binding/freshness refinement, not a task queue or a way for stale assertions to
+establish current truth.
+
 ## Scope, finiteness, and numerical analysis
 
 Scope is semantic selection: Design roots plus closure, selected Implementation
 sources, and deterministic reporting priority. It is not a request queue,
 predecessor graph, completion record, or scheduling instruction. The external
-environment decides what to reconstruct and when.
+environment decides what to reconstruct and when. Sources whose incoming anchor
+sets already exist are independent and may run concurrently; a downstream
+source waits only for the external anchor set its binding names.
 
 All kernel laws are finite and compiler-owned. Limits bound facts, derivation,
 paths, arithmetic, and reported witnesses. A limit breach is an explicit

@@ -63,7 +63,7 @@ This is the key distinction for a refactor. Suppose a Rust function changes.
 Its previous Implementation projection becomes nonfresh, so it cannot satisfy
 an obligation in the next comparison. Its last accepted projection may still
 be inspected to report: “this changed target last corresponded to these Sigil
-units and origin sections.” That is impact explanation, not stale semantic
+Facets and origin sections.” That is impact explanation, not stale semantic
 truth.
 
 The current store already retains distinct accepted bindings for a source; see
@@ -93,8 +93,10 @@ membership separately from focus order, and reuse unchanged source bindings.
 
 The request-specific meaning is removed. Scope order is never a queue, a
 predecessor relation, a completion claim, or a scheduler instruction. An
-external caller decides which selected stale projections to reconstruct and may
-do independent ones concurrently.
+external caller decides which selected stale projections to reconstruct.
+Sources whose incoming anchor sets already exist are independent and may run
+concurrently; a downstream source waits only for the external anchor set its
+binding names, not for a compiler-owned job lifecycle.
 
 ## Sigil is the shared vocabulary
 
@@ -107,8 +109,9 @@ language keywords are its seven contract kinds:
 Goal | Interface | State | Logic | Constraint | Decision | Case
 ```
 
-A `Concept` is the existing reusable semantic type. Any contract may introduce
-or reuse a Concept through its source anchor. A `Facet` is a named,
+A `Concept` is the existing semantic type. Writing the same Concept identifier
+in another Sigil contract means that same Concept again; a contract can
+introduce it or refer to it. A `Facet` is a named,
 addressable contribution from one of the seven contracts to a Concept: an
 Interface facet may describe an interaction, a Logic facet a transformation, a
 State facet a lifecycle configuration, and a Constraint or Case facet a rule or
@@ -124,10 +127,10 @@ the three source spellings are one compiler identity. The binding fingerprints
 that incoming set; a changed set makes the resulting projection stale.
 
 Design may introduce source anchors for Concepts and Facets. Downstream Design
-and Implementation LLMs receive those anchors, not Design relationships,
-obligations, or conclusions. They use the same Sigil types and predicates when
-a fact is semantically relevant; they need not manufacture all seven contract
-kinds for every source file.
+and Implementation LLMs receive those anchors as external semantic input, not
+`D`, Design relationships, obligations, or conclusions. They use the same
+Sigil types and predicates when a fact is semantically relevant; they need not
+manufacture all seven contract kinds for every source file.
 
 ## Correspondence is asserted Turtle
 
@@ -158,7 +161,10 @@ source namespace; neither step requires source-language parsing:
   a sigil:ImplementationAnchor, sigil:LogicFacet ;
   sigil:anchorKey "implementation|Person::age_years|method" ;
   sigil:label "Person::age_years" ;
-  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...> .
+  sigil:denotes <urn:sigil:anchor:incoming-age#91d4...>,
+    <urn:sigil:anchor:incoming-age-years#c63a...> ;
+  sigil:implements <urn:sigil:anchor:incoming-age#91d4...> ;
+  sigil:realizes <urn:sigil:anchor:incoming-age-years#c63a...> .
 ```
 
 At ingestion, Sigil validates the anchor type and opaque key, then constructs:
@@ -225,12 +231,18 @@ sets. They create local anchors that denote those exact source anchors:
 <urn:sigil:anchor:3c91...#c14a...>
   a sigil:ImplementationAnchor, sigil:LogicFacet ;
   sigil:label "SemanticBridge::compare" ;
-  sigil:denotes <urn:sigil:anchor:31f9...#fa63...> .
+  sigil:denotes <urn:sigil:anchor:31f9...#78c1...>,
+    <urn:sigil:anchor:31f9...#fa63...> ;
+  sigil:implements <urn:sigil:anchor:31f9...#78c1...> ;
+  sigil:realizes <urn:sigil:anchor:31f9...#fa63...> .
 
 <urn:sigil:anchor:71e2...#a421...>
   a sigil:ImplementationAnchor, sigil:LogicFacet ;
   sigil:label "exportComparison" ;
-  sigil:denotes <urn:sigil:anchor:31f9...#fa63...> .
+  sigil:denotes <urn:sigil:anchor:31f9...#78c1...>,
+    <urn:sigil:anchor:31f9...#fa63...> ;
+  sigil:implements <urn:sigil:anchor:31f9...#78c1...> ;
+  sigil:realizes <urn:sigil:anchor:31f9...#fa63...> .
 ```
 
 The same mechanism records terminology across a chain without compiler name
@@ -247,7 +259,7 @@ canonical Sigil types and predicates—not `Age`, `age`, or `age_years` strings.
 An anchor's correspondence alone never satisfies an obligation; a bridge still
 needs the required fresh Implementation facts.
 
-If the Rust source changes, its old `r1` anchor is not reused as current truth.
+If the Rust source changes, its old source anchor is not reused as current truth.
 The impact report may read its last accepted correspondence and produce:
 
 ```text
@@ -331,6 +343,16 @@ The ontology instead gains a common correspondence family with typed members:
 | `aliasOf` | lexical/terminology synonym | terminology only | no |
 | `equivalentTo` | explicitly asserted semantic equivalence | yes | only in explicitly enabled rules |
 
+The LLM emits `denotes` for the source-anchor crossover it observed. When code
+also carries stronger meaning, it emits `implements` to the supplied Concept
+anchor and `realizes` to the supplied Facet anchor. These are not the same:
+one Concept can have many Facets, so `implements` gives broad Concept coverage
+while `realizes` identifies the specific behavior, state, constraint, decision,
+or case seen in source. `sigilc` validates target membership and Sigil types,
+and requires `implements` and `realizes` targets to also appear in `denotes`;
+it does not validate the programming-language observation that caused the LLM
+to assert either relation.
+
 Saturation derives a broad `impact-reachable` closure from correspondence
 relations. It derives a separate symmetric/transitive equivalence closure from
 `equivalentTo`. A rule that matches requirements chooses which closure it is
@@ -384,6 +406,16 @@ changed or missing target binding
 It reports a repair surface and witnesses. It does not declare the origin
 source's bytes stale, alter the current world, or manufacture a semantic
 verdict.
+
+### Deferred precision: Facet-granular anchors
+
+The initial binding is source-scoped: a file's accepted anchors become the
+external incoming set for a downstream source. A later capability should select
+and bind incoming anchors at Facet granularity rather than at file granularity.
+That can let one saturation pass distinguish a genuinely broken Facet from the
+broader “this file once denoted these Facets” repair surface. It must remain a
+binding/freshness refinement, not a task queue or a relaxation of the rule that
+stale assertions never establish current truth.
 
 ## Numerical laws are ranking, never truth
 
