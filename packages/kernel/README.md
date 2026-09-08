@@ -4,10 +4,9 @@
 finite Egglog laws that turn accepted, source-bound RDF assertions into current
 semantic worlds, correspondence/impact results, and crisp comparison outcomes.
 
-It is a Rust package with a library consumed by `sigilc`; it may also expose a
-small `sigil-kernel` binary for inspecting and testing kernel inputs. A Rust
-binary cannot itself be imported, so `sigilc` links the package library while
-the binary is an optional standalone surface.
+It is a Rust library consumed by `sigilc`. No standalone `sigil-kernel` binary
+is part of this design: extraction alone is not a reason to add another command
+surface.
 
 The initial kernel seed is the current
 [`packages/sigilc/src/kernel.egg`](../sigilc/src/kernel.egg). The first
@@ -119,6 +118,22 @@ ingest validates them against the fixed ontology and source binding, then the
 projection store persists the accepted assertions in the corresponding world.
 The assertions remain attributable to the file that produced them.
 
+An Implementation semanticizer uses opaque local placeholders, never a
+language-specific symbol identity:
+
+```turtle
+<urn:sigil:local:a1>
+  a sigil:Implementation ;
+  sigil:label "Person::age_years" ;
+  sigil:implements <urn:sigil:entity:...:Age> .
+```
+
+At ingestion, Sigil scopes each placeholder to the accepted projection binding,
+for example `urn:sigil:projection:<binding-fingerprint>#a1`. The token is
+projection-local; the label and any optional span are documentary. Sigil need
+not parse Rust, Python, TypeScript, or any other implementation language to
+perform this rewrite or validate the resulting graph.
+
 Today, the relevant limits are intentional but insufficient for this model:
 
 - the current Turtle vocabulary is fixed in
@@ -132,18 +147,19 @@ Today, the relevant limits are intentional but insufficient for this model:
   impact graph.
 
 The new kernel makes those limitations explicit extension points. A target
-anchor must be a validated, source-local identity, not an untracked model
-string. If a refactor removes or renames that anchor, native freshness and
-anchor validation report it as unresolved; saturation can still follow its
-last-known correspondence outward to identify the upstream repair surface.
+anchor is an opaque projection-local identity scoped mechanically by ingestion,
+not an untracked model string and not a compiler-verified source-language
+symbol. When source bytes change, its prior mapping is last-known only;
+saturation may follow that mapping outward to identify the upstream repair
+surface until a new projection is accepted.
 
 ## Origin, canonical terminology, and local labels
 
 Identity and spelling are different.
 
-Every source format first produces local anchors and preserves its local labels:
-`age`, `Age`, `height_cm`, or `BMI`. A designated origin or glossary source
-establishes canonical Concept and Unit identities. In a simple chain the
+Every source format first produces opaque local anchors and preserves its local
+labels: `age`, `Age`, `height_cm`, or `BMI`. A designated origin or glossary
+source establishes canonical Concept and Unit identities. In a simple chain the
 initial source is that authority; the authority must be explicit, never inferred
 from whichever file happened to be selected first.
 
@@ -274,21 +290,34 @@ state-machine or persistence anchor can be related and included in impact
 closure. This adds traceability without weakening the existing required-owner
 and exclusive-owner laws.
 
-## Artifact evidence stays small and non-semantic
+## Opaque semanticization boundary
 
-Artifact evidence remains projection provenance, not a correspondence fact and
-not a task ledger. `prepare` generates its schema-1 template beside `job.json`;
-the worker records its process and Turtle attempts; native ingest binds the
-accepted record to the source, generation, and projection.
+`prepare` writes copied semantic inputs and an immutable `binding.json`.
+`ingest --binding binding.json` accepts Turtle only when it describes those
+current inputs and can publish at the binding's expected generation.
 
-See [the projection-store contract](../sigilc/store.sigil),
-[artifact evidence types](../sigilc/src/store.rs), and the external execution
-protocol in
-[compilation-execution.md](../../integrations/skills/sigil/references/compilation-execution.md).
+```text
+sigilc prepare -> immutable semantic inputs + binding.json
+external environment -> any human, model, script, retry, or parallel process
+Turtle -> sigilc ingest --binding binding.json -> accepted projection
+```
 
-Evidence may explain how a correspondence projection was obtained. It never
-enters Egglog, changes a mapping, affects saturation, or satisfies a comparison
-obligation.
+The middle step is opaque to Sigil. It may use one model, many models, a human,
+or a deterministic future semanticizer. Sigil neither validates nor records the
+producer, model, provider, prompt, worker, attempt, retry, log, execution
+receipt, or Turtle-production history.
+
+Freshness depends only on source identity, semantic input binding, ontology,
+projection format, applicable catalog, and publication generation. A better
+model or prompt never makes an accepted projection stale; an external caller
+may reconstruct unchanged inputs whenever it chooses.
+
+The binding is compiler correctness, not a job or lifecycle. It prevents Turtle
+for `foo.rs@H1` from publishing as `foo.rs@H2`, prevents a projection built for
+catalog `C1` from becoming current under incompatible `C2`, and prevents an old
+preparation from overwriting a newer generation. The current implementation of
+this boundary is [Job in store.rs](../sigilc/src/store.rs); it will be renamed
+to `PreparedBinding` as part of the breaking simplification.
 
 ## Migration boundary
 
@@ -299,18 +328,24 @@ The implementation follows this order:
    change.
 2. Preserve all current kernel, Design, Implementation, comparison, scope,
    source, catalog, and store tests while extracting the package.
-3. Extend the ontology, catalog, frontend observations, and Turtle validation
-   with source-local anchors and the typed correspondence family.
-4. Persist accepted correspondence assertions in the existing per-source world
+3. Remove artifact evidence, all `--evidence` handling, generated
+   `evidence.json`, process/attempt fields, and worker-provenance reports.
+   Rename `Job`/`job.json` to `PreparedBinding`/`binding.json` without changing
+   source binding, freshness, or atomic publication rules.
+4. Extend the ontology, catalog, frontend observations, and Turtle validation
+   with compiler-scoped opaque local anchors and the typed correspondence family.
+   Do not add implementation-language parsing, adapters, resolvers, LSPs,
+   language-specific anchor formats, Git history, or fuzzy matching.
+5. Persist accepted correspondence assertions in the existing per-source world
    projections; add current-vs-last-known inspection without allowing stale
    assertions into current compilation.
-5. Add an impact report and its bounded witnesses, then add optional monotone
+6. Add an impact report and its bounded witnesses, then add optional monotone
    numeric ranking.
-6. Remove the request/workflow ledger and all related CLI, contracts, docs, and
-   tests. Scope remains; artifact evidence remains.
+7. Remove the request/workflow ledger and all related CLI, contracts, docs, and
+   tests. Scope remains; artifact evidence does not.
 
 The existing native command and worker protocol is described in
 [packages/sigilc/README.md](../sigilc/README.md) and the repository-owned
 [Sigil skill](../../integrations/skills/sigil/SKILL.md). Those documents must be
 updated alongside the implementation so that no instruction continues to treat
-the compiler as a queue or task ledger.
+the compiler as a queue, task ledger, worker protocol, or provenance recorder.
