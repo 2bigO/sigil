@@ -1,7 +1,11 @@
 # <img src="docs/sigil.png" height="30" /> Sigil
 
-Sigil is a lightweight, rationale-oriented modeling language for software
-systems. It records what a system is, why it exists, how it behaves, and how its
+Sigil is an inferential modeling language (IML).
+It is textual, with a cool 7-word syntax, not visual.
+AI writes it for you, don't worry ;) Unlike descriptive modeling languages,
+Sigil models compile into **world models (Semantic Worlds)** that compute what
+follows from what you specify, and whether an implementation realizes it.
+It records what a system is, why it exists, how it behaves, and how its
 implementation should be understood and changed over time.
 
 Sigil is designed for humans and coding agents working together. Its purpose is
