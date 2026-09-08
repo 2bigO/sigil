@@ -126,6 +126,27 @@ can retain the exact mapping `Age → age → age_years` without pretending that
 the three source spellings are one compiler identity. The binding fingerprints
 that incoming set; a changed set makes the resulting projection stale.
 
+Each incoming-anchor descriptor contains only the information needed to make a
+typed correspondence decision:
+
+```text
+hashed anchor ID
+source-anchor kind: OriginAnchor | DesignAnchor | ImplementationAnchor
+Sigil type: Concept | Facet
+Facet contract kind, when applicable:
+  Goal | Interface | State | Logic | Constraint | Decision | Case
+documentary display label
+allowed mappings:
+  Concept -> denotes, implements
+  Facet   -> denotes, realizes
+```
+
+The descriptor is not a slice of `D`: it contains no Design relationships,
+obligations, or verdict. Its type prevents an `implements` edge to a Facet or a
+`realizes` edge to a Concept. The LLM must not map from lexical similarity
+alone; if a local source construct is ambiguous or unrelated, it omits the
+correspondence.
+
 Design may introduce source anchors for Concepts and Facets. Downstream Design
 and Implementation LLMs receive those anchors as external semantic input, not
 `D`, Design relationships, obligations, or conclusions. They use the same
@@ -181,7 +202,9 @@ through ordinary edits, but the compiler makes no source-language claim that a
 later anchor is the same symbol. Sigil need not parse Rust, Python, TypeScript,
 or any other implementation language to perform this rewrite or validate the
 resulting graph. It validates that each `denotes` target is in the immutable
-incoming anchor set, not that a source-language symbol has a particular name.
+incoming anchor set, that `implements` targets are Concepts, and that
+`realizes` targets are Facets. It never validates that a source-language symbol
+has a particular name.
 
 ### Worked chain: README.md → Sigil → Rust/Deno
 

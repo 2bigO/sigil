@@ -83,6 +83,14 @@ Design relationships, obligations, or conclusions. A binding fingerprints the
 incoming anchor set; the compiler rejects `denotes` targets outside it and
 treats a changed set as a freshness change.
 
+Each incoming-anchor descriptor contains only its hashed ID, source-anchor kind
+(`OriginAnchor`, `DesignAnchor`, or `ImplementationAnchor`), Sigil type
+(`Concept` or `Facet`), Facet contract kind when applicable, documentary label,
+and allowed mappings. A Concept permits `denotes` and `implements`; a Facet
+permits `denotes` and `realizes`. This is not a slice of `D`: it carries no
+Design relationships, obligations, or verdict. The LLM must omit correspondence
+when a local source construct is ambiguous or merely lexically similar.
+
 ## The computation, exactly
 
 For a selected scope, let `D` be the union of assertions from fresh accepted
@@ -326,7 +334,8 @@ well-formed identity. The label and optional source span are documentary. A
 reconstruction can retain useful anchor continuity when the LLM chooses the
 same key, but `sigilc` makes no source-language claim that two anchors denote
 the same symbol. It validates source scoping, graph structure, and that every
-`denotes` target belongs to the immutable incoming anchor set only.
+`denotes` target belongs to the immutable incoming anchor set, `implements`
+targets are Concepts, and `realizes` targets are Facets only.
 
 Origin anchors, Sigil anchors, and Implementation anchors are explicit `sigil:Anchor`
 subtypes and carry canonical Sigil types such as `Concept` or `LogicFacet`.
