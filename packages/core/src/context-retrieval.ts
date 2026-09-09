@@ -28,7 +28,7 @@ import type {
   ResolvedComponent,
   ResolvedSigilWorkspace,
 } from "./model/resolution.ts";
-import type { SemanticUnit } from "./model/source.ts";
+import type { Facet } from "./model/source.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
 import type {
   SigilSectionName,
@@ -1052,7 +1052,7 @@ function addContractEvidence(
 // @sigil implements packages/core/src/context-retrieval.sigil::SigilContextRetrieval::EvidenceUnitConstruction logic
 function addDeclarationEvidence(
   out: EvidenceDraft[],
-  units: readonly SemanticUnit[],
+  units: readonly Facet[],
   kind: EvidenceKind,
   componentName: string,
   rule: string,

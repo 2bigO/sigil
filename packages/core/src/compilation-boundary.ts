@@ -124,7 +124,7 @@ export function selectCompilationBoundary(
   }
 
   const scope = affectedScopeFor(resolved, seed);
-  const affectedUnits = semanticUnits(scope);
+  const affectedUnits = facets(scope);
 
   if (options.exactTarget && seed.kind === "directory") {
     return workspaceFallback(
@@ -163,7 +163,7 @@ export function selectCompilationBoundary(
     return workspaceFallback(
       seed,
       affectedUnits,
-      "The selector resolved no loaded semantic units.",
+      "The selector resolved no loaded Facets.",
     );
   }
 
@@ -544,7 +544,7 @@ function exactTargetFor(
   return { kind: "workspace" };
 }
 
-function semanticUnits(scope: AffectedScope): string[] {
+function facets(scope: AffectedScope): string[] {
   return [...scope.components, ...scope.files].sort();
 }
 

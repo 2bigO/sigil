@@ -11,6 +11,14 @@ component SigilResolutionModel {
       SigilSourceModel and SigilWorkspaceModel provide input shapes. SigilResolution
       and its resolved imports, components, expansions, concepts, namespaces, and
       dependency contexts preserve relationship-resolution output.
+
+      Repeated Concept occurrences preserve their collective identity and each
+      contribution's contract and source location. Imported reuse preserves the
+      originating identity without transferring consumer requirements upstream.
+
+      Concept identity groups related contributions but does not establish
+      behavioral equality. Direct Facets remain in their component's sections
+      without a synthetic Concept entry.
     }
   }
 }

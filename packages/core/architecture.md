@@ -42,7 +42,7 @@ Responsibilities:
 
 - source locations and ranges;
 - document and declaration models;
-- sections, blank-line-delimited semantic units, and attached literal blocks;
+- sections, blank-line-delimited Facets, and attached fenced content;
 - workspace and graph models;
 - diagnostic shape;
 - public result wrappers.
@@ -61,7 +61,7 @@ Responsibilities:
 - parse top-level imports, components, and expands;
 - parse known section boundaries;
 - preserve raw section body lines;
-- create semantic units and preserve attached literal bodies;
+- create Facets and preserve attached literal bodies;
 - recover from malformed structure where practical;
 - emit parser diagnostics.
 
@@ -95,7 +95,7 @@ Canonically renders one valid parsed `.sigil` source in memory.
 Responsibilities:
 
 - wrap ordinary prose at 79 content characters without counting indentation;
-- preserve semantic-unit identity and literal-block source content;
+- preserve Facet identity and embedded-content source content;
 - normalize only presentation outside literal bodies;
 - return formatted source and changed status without filesystem access.
 
@@ -224,7 +224,7 @@ Responsibilities:
 - in-memory filesystem implementation;
 - fixture loading helpers;
 - malformed Sigil examples;
-- assertions for diagnostics and semantic units.
+- assertions for diagnostics and Facets.
 
 Rules:
 
@@ -318,4 +318,4 @@ Required test fixtures include:
 
 Tests should assert diagnostic codes, not only messages.
 
-Tests should assert semantic unit source ranges for representative inputs.
+Tests should assert Facet source ranges for representative inputs.

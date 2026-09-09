@@ -24,6 +24,12 @@ make concept reuse and namespace diagnostics harder to understand.
 
 Concept blocks are flat and cannot contain other concept blocks.
 
+Concept IDs are encouraged for connecting related Facets across contracts,
+especially when a component contains several concepts. They are not mandatory
+syntax: smaller components may use direct Facets, and every contract may mix
+ungrouped Facets with Concept blocks without warnings. Namespace rules apply
+to identifiers that are actually authored; they do not require inventing them.
+
 Each concept identifier belongs directly to the shared namespace of its
 component and matching expands. An imported public concept is available by its
 bare identifier without component qualification or dotted notation.

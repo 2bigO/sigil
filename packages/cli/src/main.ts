@@ -1,26 +1,9 @@
 /** Command-line interface for versioned Sigil 0.7 workspaces. @module */
 import { type HelpTopic, parseArgs } from "./args.ts";
-import {
-  type CompilationEvent,
-  type CompilationHistoryStore,
-  type CompilationReport,
-  type compile,
-  CompilerFailure,
-  FileCompilationHistoryStore,
-  renderCompilationReportMarkdown,
-  resolveCompilationProfile,
-} from "@qoherent/sigil-compiler";
 import { type CommandHandlerOptions, runCommand } from "./commands.ts";
-import {
-  EXIT_CANCELLED,
-  EXIT_RUNTIME,
-  EXIT_USAGE,
-  exitCodeForDiagnostics,
-} from "./exit.ts";
+import { EXIT_RUNTIME, EXIT_USAGE, exitCodeForDiagnostics } from "./exit.ts";
 import { formatResult } from "./formatters.ts";
 import metadata from "../deno.json" with { type: "json" };
-import { compilationCacheDirectory } from "./fs-adapter.ts";
-import { compileWithBundledAdapters } from "./compiler-adapters.ts";
 
 const HELP: Readonly<Record<HelpTopic, string>> = {
   root: `Usage: sigil <command> [options]
@@ -28,16 +11,15 @@ const HELP: Readonly<Record<HelpTopic, string>> = {
 Commands:
   skill             List or install bundled agent skills
   init              Create a workspace configuration
-  config            Set the default profile or add or edit a compilation profile
   version           Report workspace and contract versions
   parse             Parse one Sigil file
+  export            Export structural Design JSON for direct sigilc use
   check             Report workspace diagnostics
   fmt               Format selected Sigil source
   glossary          Inspect reviewed glossary terms and occurrences
   graph             Report the component and import graph
   context           Return context for a component or file
   retrieve          Select deterministic purpose-specific context
-  compile           Evaluate Sigil until red, yellow, or green
   render            Render workspace documentation
 
 Options:
@@ -82,46 +64,6 @@ Options:
   --quiet           Suppress command output
   --help            Show this help
 `,
-  config: `Usage: sigil config <subcommand> [options]
-
-Subcommands:
-  set-default       Set the default and agent compilation profile
-  set-profile       Add or edit a compilation profile
-
-Options:
-  --help            Show this help
-`,
-  "config-set-default":
-    `Usage: sigil config set-default [path] --profile <name> [options]
-
-Options:
-  --profile <name>        Set tools.compile.defaultProfile
-  --agent-profile <name>  Set tools.agent.profile (default: same as --profile)
-  --format <value>        Output json
-  --pretty                Pretty-print JSON output
-  --quiet                 Suppress command output
-  --help                  Show this help
-`,
-  "config-set-profile": `Usage: sigil config set-profile <name> [path] [options]
-
-Options:
-  --extends <base>                    Base profile: standard or critical-system
-  --main <evaluatorId[,evaluatorId ...]>
-                                       Set the profile's main evaluator binding
-  --stage <stageId=evaluatorId[,evaluatorId ...]>
-                                       Bind one stage; may be repeated
-  --disable-stage <stageId>           Disable one stage; may be repeated
-  --evaluator <evaluatorId=provider>  Declare a new evaluator; may be repeated
-  --model <evaluatorId=model>         Set an evaluator's model; may be repeated
-  --implementation-id <evaluatorId=value>
-                                       Set an evaluator's implementation id; may be repeated
-  --implementation-version <evaluatorId=value>
-                                       Set an evaluator's implementation version; may be repeated
-  --format <value>                    Output json
-  --pretty                            Pretty-print JSON output
-  --quiet                             Suppress command output
-  --help                              Show this help
-`,
   version: `Usage: sigil version [path] [options]
 
 Options:
@@ -130,6 +72,17 @@ Options:
   --pretty          Pretty-print JSON output
   --quiet           Suppress command output
   --help            Show this help
+`,
+  export: `Usage: sigil export design [path] [options]
+
+Exports the complete discovered workspace as structural JSON on stdout.
+Use sigilc directly with --frontend and optional --scope for semantic operations.
+
+Options:
+  --root <path>     Use an explicit workspace root
+  --format json    JSON is the only output format
+  --pretty         Pretty-print JSON output
+  --help           Show this help
 `,
   parse: `Usage: sigil parse <file> [options]
 
@@ -206,23 +159,6 @@ Options:
   --quiet             Suppress command output
   --help              Show this help
 `,
-  compile:
-    `Usage: sigil compile [stage] [path] [--component <name> | --file <file> [--position <line:column>] | --directory <dir>] [--exact-target] [options]
-
-Options:
-  stage               Run one stage and its dependency closure
-  --component <name>  Compile one component
-  --file <file>       Compile components represented by one file
-  --position <value>  Select the component enclosing one-based line:column
-  --profile <name>    Select a compilation profile (default: standard)
-  --focus <value>     Evaluate design readiness or implementation alignment
-  --no-cache          Do not consult compilation history
-  --output <file>     Export the selected completed representation
-  --format <value>    Output text, jsonl, or markdown
-  --root <path>       Use an explicit workspace root
-  --quiet             Suppress human output
-  --help              Show this help
-`,
   render: `Usage: sigil render [path] [options]
 
 Options:
@@ -240,28 +176,16 @@ export interface CliRunResult {
   readonly stderr: string;
 }
 
-export interface CliRunOptions extends CommandHandlerOptions {
-  readonly compiler?: typeof compile;
-  readonly compilationHistory?: CompilationHistoryStore;
-  readonly onCompilationEvent?: (line: string) => void | Promise<void>;
-  readonly onCompilationProgress?: (line: string) => void | Promise<void>;
-  readonly signal?: AbortSignal;
-}
-
 /**
  * @sigil implements packages/cli/_module.sigil::SigilCli::CliInvocation interface,logic,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::StructuredOutput interface,constraints
  * @sigil implements packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
- * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
- * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
- * @sigil uses packages/compiler/src/report-markdown.sigil::SigilCompilationReportMarkdown::CompilationReportMarkdown interface
  */
 export async function runCli(
   argv: readonly string[],
-  options: CliRunOptions = {},
+  options: CommandHandlerOptions = {},
 ): Promise<CliRunResult> {
   const parsed = parseArgs(argv);
-  let compilationEvents: CompilationEvent[] | undefined;
   if (parsed.kind === "help") {
     return { exitCode: 0, stdout: HELP[parsed.helpTopic], stderr: "" };
   }
@@ -277,88 +201,6 @@ export async function runCli(
   }
 
   try {
-    if (parsed.request.command === "compile") {
-      const events: CompilationEvent[] = [];
-      compilationEvents = events;
-      const compileWorkspace = options.compiler ?? compileWithBundledAdapters;
-      // Every selector is an affected-scope seed. The compiler resolves the
-      // boundary that actually covers it unless --exact-target is given.
-      const target = parsed.request.component
-        ? {
-          kind: "component" as const,
-          componentName: parsed.request.component,
-        }
-        : parsed.request.file && parsed.request.position
-        ? {
-          kind: "location" as const,
-          filePath: parsed.request.file,
-          ...parsed.request.position,
-        }
-        : parsed.request.file
-        ? { kind: "file" as const, filePath: parsed.request.file }
-        : parsed.request.directory
-        ? {
-          kind: "directory" as const,
-          directoryPath: parsed.request.directory,
-        }
-        : { kind: "workspace" as const };
-      const workspacePath = parsed.request.root ?? parsed.request.path ??
-        Deno.cwd();
-      const report = await compileWorkspace(
-        workspacePath,
-        target,
-        parsed.request.profile ?? await resolveCompilationProfile(
-          workspacePath,
-          parsed.request.agent,
-        ),
-        {
-          exactTarget: parsed.request.exactTarget,
-          requestedStage: parsed.request.stage,
-          focus: parsed.request.focus,
-          noHistory: parsed.request.noCache,
-          history: parsed.request.noCache
-            ? undefined
-            : options.compilationHistory ??
-              (options.compiler ? undefined : new FileCompilationHistoryStore(
-                compilationCacheDirectory(),
-              )),
-          output: parsed.request.output,
-          reportExportRepresentation: parsed.request.format === "markdown"
-            ? "markdown"
-            : "json",
-          signal: options.signal,
-          onEvent: async (event) => {
-            events.push(event);
-            if (
-              parsed.request.format === "jsonl" &&
-              options.onCompilationEvent
-            ) {
-              await options.onCompilationEvent(`${JSON.stringify(event)}\n`);
-            } else if (
-              parsed.request.format !== "jsonl" &&
-              options.onCompilationProgress
-            ) {
-              const progress = compilationProgress(event);
-              if (progress) await options.onCompilationProgress(progress);
-            }
-          },
-        },
-      );
-      const stdout = parsed.request.quiet
-        ? ""
-        : parsed.request.format === "jsonl"
-        ? options.onCompilationEvent
-          ? ""
-          : events.map((event) => JSON.stringify(event)).join("\n") + "\n"
-        : parsed.request.format === "markdown"
-        ? renderCompilationReportMarkdown(report)
-        : formatCompilation(report);
-      return {
-        exitCode: report.status === "green" ? 0 : 1,
-        stdout,
-        stderr: "",
-      };
-    }
     const result = await runCommand(parsed.request, options);
     const formatDifference = result.command === "fmt" && result.check &&
       result.files.some((file) => file.status === "noncanonical");
@@ -370,47 +212,18 @@ export async function runCli(
       stderr: "",
     };
   } catch (error) {
-    const bufferedJsonl = parsed.kind === "ok" &&
-        parsed.request.command === "compile" &&
-        parsed.request.format === "jsonl" &&
-        !options.onCompilationEvent && compilationEvents
-      ? compilationEvents.map((event) => JSON.stringify(event)).join("\n") +
-        (compilationEvents.length ? "\n" : "")
-      : "";
-    if (error instanceof DOMException && error.name === "AbortError") {
-      return {
-        exitCode: EXIT_CANCELLED,
-        stdout: bufferedJsonl,
-        stderr: "Compilation cancelled.\n",
-      };
-    }
     return {
-      // A rejected selector is correctable input, not an infrastructure
-      // failure, so it exits as usage rather than runtime.
-      exitCode: error instanceof CompilerFailure &&
-          error.code === "COMPILER_INVALID_INVOCATION"
-        ? EXIT_USAGE
-        : EXIT_RUNTIME,
-      stdout: bufferedJsonl,
+      exitCode: EXIT_RUNTIME,
+      stdout: "",
       stderr: `${error instanceof Error ? error.message : String(error)}\n`,
     };
   }
 }
 
-if (import.meta.main) {
-  const controller = new AbortController();
-  const cancel = () => controller.abort();
-  Deno.addSignalListener("SIGINT", cancel);
-  const result = await runCli(Deno.args, {
-    signal: controller.signal,
-    onCompilationEvent: async (line) => {
-      await Deno.stdout.write(new TextEncoder().encode(line));
-    },
-    onCompilationProgress: async (line) => {
-      await Deno.stderr.write(new TextEncoder().encode(line));
-    },
-  });
-  Deno.removeSignalListener("SIGINT", cancel);
+export async function runMain(
+  args: readonly string[] = Deno.args,
+): Promise<never> {
+  const result = await runCli(args);
   if (result.stdout) {
     await Deno.stdout.write(new TextEncoder().encode(result.stdout));
   }
@@ -420,31 +233,4 @@ if (import.meta.main) {
   Deno.exit(result.exitCode);
 }
 
-function compilationProgress(event: CompilationEvent): string {
-  if (event.type === "started") return "Compiling Sigil...\n";
-  if (event.type === "stage-started") {
-    return `  ${String(event.payload.stage)}...\n`;
-  }
-  return "";
-}
-
-function formatCompilation(report: CompilationReport): string {
-  const lines = [
-    `${report.status.toUpperCase()} ${
-      report.componentNames.join(", ") || "workspace"
-    }`,
-  ];
-  for (const diagnostic of report.diagnostics) {
-    const location = diagnostic.filePath
-      ? `${diagnostic.filePath}${
-        diagnostic.range
-          ? `:${diagnostic.range.start.line}:${diagnostic.range.start.column}`
-          : ""
-      } `
-      : "";
-    lines.push(
-      `${diagnostic.lifecycle} ${diagnostic.severity} ${diagnostic.code}: ${location}${diagnostic.message}`,
-    );
-  }
-  return `${lines.join("\n")}\n`;
-}
+if (import.meta.main) await runMain();

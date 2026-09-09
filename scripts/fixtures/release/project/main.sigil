@@ -1,0 +1,8 @@
+component ReleaseFixture {
+  goal {
+    Exercise the packaged semantic runtime.
+  }
+  interface {
+    Analyze a deterministic fixture.
+  }
+}

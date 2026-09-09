@@ -26,6 +26,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
+      - uses: dtolnay/rust-toolchain@1.91.1
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -47,6 +48,8 @@ jobs:
           echo "tag=vscode-v$version" >> "$GITHUB_OUTPUT"
       - run: npm test
         working-directory: integrations/editor/vscode
+      - run: deno task build:sigilc
+      - run: deno task build:cli
       - run: xvfb-run -a npm run test:extension
         working-directory: integrations/editor/vscode
       - run: npm run package

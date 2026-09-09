@@ -15,11 +15,10 @@ rationale behind material selected choices.
    technology choices in `constraints`.
 6. Add `decisions` only when durable rationale would help review, maintenance,
    or future agent sessions.
-7. Treat the section body as free-form language content. Concept blocks and
-   labeled fields are not required for validity, and ungrouped decision content
-   does not produce `SIGIL_MISSING_CONCEPT_IDENTIFIER`.
-8. When using the Sigil skill to create or materially edit a decision, use one
-   concise PascalCase concept block and record `Decision` and `Scope`.
+7. Treat the section body as Facets. Concept blocks and labeled fields are not
+   required; ungrouped and mixed Facets are valid without grouping warnings.
+8. Record the choice and scope clearly. Use a Concept ID only when it provides
+   useful cross-contract grouping, not as a required decision wrapper.
 9. Use `Scope` to state the governed boundary and important exclusions without
    enumerating every current dependent.
 10. Add `Assumptions`, `Trade-offs`, `Design issues addressed`,

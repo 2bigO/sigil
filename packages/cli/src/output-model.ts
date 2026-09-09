@@ -3,6 +3,7 @@ import type {
   AgentDependentContext,
   CollectedExpansion,
   ComponentContractView,
+  DesignInput,
   GlossaryContext,
   GlossaryContextProjection,
   GlossaryOccurrence,
@@ -19,11 +20,10 @@ import type {
 } from "@qoherent/sigil-core";
 
 export type CommandResult =
+  | ExportDesignCommandResult
   | SkillListCommandResult
   | SkillInstallCommandResult
   | InitCommandResult
-  | ConfigSetDefaultCommandResult
-  | ConfigSetProfileCommandResult
   | VersionCommandResult
   | ParseCommandResult
   | CheckCommandResult
@@ -33,6 +33,11 @@ export type CommandResult =
   | ContextCommandResult
   | RetrieveCommandResult
   | RenderCommandResult;
+export interface ExportDesignCommandResult {
+  readonly command: "export-design";
+  readonly bundle: DesignInput;
+  readonly diagnostics: readonly SigilDiagnostic[];
+}
 export interface DiagnosticCounts {
   readonly error: number;
   readonly warning: number;
@@ -71,16 +76,6 @@ export interface WorkspaceMetadata {
 }
 export interface InitCommandResult extends WorkspaceMetadata {
   readonly command: "init";
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigSetDefaultCommandResult extends WorkspaceMetadata {
-  readonly command: "config-set-default";
-  readonly config: SigilConfig | null;
-  readonly diagnostics: readonly SigilDiagnostic[];
-}
-export interface ConfigSetProfileCommandResult extends WorkspaceMetadata {
-  readonly command: "config-set-profile";
   readonly config: SigilConfig | null;
   readonly diagnostics: readonly SigilDiagnostic[];
 }

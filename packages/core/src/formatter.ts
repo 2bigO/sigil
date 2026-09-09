@@ -1,6 +1,6 @@
 import type {
   FormatResult,
-  SemanticUnit,
+  Facet,
   SigilDocument,
 } from "./model/source.ts";
 
@@ -38,13 +38,13 @@ export function formatSigilDocument(
 
   const canonical: string[] = [];
   let blank = false;
-  let literalFenceLength: number | undefined;
+  let embeddedFenceLength: number | undefined;
   for (const raw of lines) {
-    if (literalFenceLength !== undefined) {
+    if (embeddedFenceLength !== undefined) {
       canonical.push(raw);
       const close = raw.trim().match(/^(`{3,})$/);
-      if (close && close[1].length >= literalFenceLength) {
-        literalFenceLength = undefined;
+      if (close && close[1].length >= embeddedFenceLength) {
+        embeddedFenceLength = undefined;
         blank = false;
       }
       continue;
@@ -60,7 +60,7 @@ export function formatSigilDocument(
       const opener = line.trim().match(
         /^(`{3,})(?:[A-Za-z][A-Za-z0-9_+.-]*)?$/,
       );
-      if (opener) literalFenceLength = opener[1].length;
+      if (opener) embeddedFenceLength = opener[1].length;
     }
   }
   while (canonical[0] === "") canonical.shift();
@@ -73,14 +73,14 @@ export function formatSigilDocument(
   };
 }
 
-function renderUnit(unit: SemanticUnit): string[] {
+function renderUnit(unit: Facet): string[] {
   const indentation = " ".repeat(Math.max(0, unit.range.start.column - 1));
   const result = wrapProse(unit.prose).map((line) => indentation + line);
-  for (const literal of unit.literalBlocks) {
-    const ticks = "`".repeat(literal.fenceLength);
+  for (const embedded of unit.literalBlocks) {
+    const ticks = "`".repeat(embedded.fenceLength);
     result.push(
-      indentation + ticks + (literal.type ? literal.type : ""),
-      ...literal.sourceLines,
+      indentation + ticks + (embedded.type ? embedded.type : ""),
+      ...embedded.sourceLines,
       indentation + ticks,
     );
   }

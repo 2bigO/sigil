@@ -1,28 +1,25 @@
 # Migrating To Sigil 0.4
 
-Sigil 0.4.0 adds reusable concept identifiers while preserving free-form
-authoring and warning-only migration for existing interfaces.
+Sigil 0.4 introduced reusable Concept identifiers. Current canonical language
+clarifies that they are optional grouping, not a migration requirement for
+ungrouped Interface Facets. Earlier guidance requiring those wrappers is
+superseded by [language.md](../language.md).
 
-1. Set `sigilVersion` to `0.4.0` in `.sigil/config.json`.
-2. Upgrade `@qoherent/sigil-core`, `@qoherent/sigil`, `@qoherent/sigil-lsp`, the
-   VS Code extension, and the Sigil skill to compatible 0.4 releases.
-3. Run `sigil check .` and inspect each
-   `SIGIL_MISSING_CONCEPT_IDENTIFIER` warning. Warnings do not make the command
-   fail.
-4. Group each interface concept under a concise `ConceptIdentifier { ... }`
-   block. A block may name one heavily reused concept or several related lines.
-5. Add blocks in `state`, `logic`, `constraints`, or `cases` only when reusing a
-   concept across the contract is valuable.
-6. Keep identifiers flat, nonempty, unnested, and unique case-insensitively
-   across the component, all matching expands, and accessible imported public
-   concepts. PascalCase without hyphens or underscores is the preferred style.
-7. Reuse imported public concepts by their bare identifiers. Do not add dotted
-   notation, aliases, or local shadowing. Interface reuse re-exposes the same
-   originating identity downstream.
-8. Do not expose or rely on a provider's private expansion concepts through an
-   import; select the provider directly when private implementation context is
-   needed.
-9. Resolve all concept errors and review informational style suggestions.
+1. Use matching core, CLI, LSP, extension, and skill versions for the selected
+   workspace language version.
+2. Keep Facets directly under any contract when no grouping is needed. A contract
+   may mix those Facets with Concept-grouped Facets without a warning.
+3. Add a Concept identifier when it usefully connects the same idea across
+   contracts, especially when a component describes several concepts. Do not
+   repeat a single-concept component's identity just to wrap its Facets.
+4. Keep Concept blocks flat and nonempty. Follow resolved namespace uniqueness;
+   PascalCase without hyphens or underscores is preferred formatting.
+5. Reuse accessible imported public identities instead of inventing equivalent
+   local names. Preserve provider identity and consumer contribution context.
+6. Imports expose public vocabulary, not a provider's private operational
+   Facets. Select the provider directly when private context is needed.
+7. Resolve actual malformed-block and identity-ambiguity diagnostics. Ungrouped
+   Facets are not malformed and do not require warning repair.
 
-Existing ungrouped interfaces remain parseable so authors can migrate
-incrementally. Concept identifiers do not introduce anchoring behavior.
+Concept identifiers provide semantic grouping across contracts. They do not
+make Facets valid, introduce another component, or establish behavioral equality.

@@ -219,18 +219,26 @@ interface {
 ```
 
 `SessionLifecycle` is a reusable concept identifier. A block may contain one
-heavily reused idea or several related semantic units. Concept blocks are flat,
+heavily reused idea or several related Facets. Concept blocks are flat,
 nonempty, and cannot nest.
 
 Identifiers match `[A-Za-z][A-Za-z0-9_-]*`. References are case-sensitive, but
 accessible namespace uniqueness is case-insensitive. PascalCase without
 hyphens or underscores is preferred formatting rather than a validity rule.
 
-Each contiguous ungrouped `interface` region produces
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` as a warning. Ungrouped content remains
-parseable. `state`, `logic`, `constraints`, `decisions`, and `cases` use concept
-blocks only when cross-section reuse is valuable. The Sigil skill uses a named
-concept block for every material decision it authors.
+Concept IDs are encouraged for organizing the several concepts commonly found
+in a component and connecting their Facets across contracts. They are optional
+syntax in every contract, including `interface` and `decisions`: smaller
+components may not need them, and ungrouped Facets can freely mix with grouped
+Facets without warnings. Preserve meaningful groups; avoid mechanical wrappers.
+
+Use the same ID when a concern such as SessionLifecycle connects Interface
+promises, State, Logic, and Cases. Give a distinct concern its own ID rather
+than putting every Facet in one catch-all block. Keep shared guarantees and
+standalone Facets direct where clearer. A Concept need not occur in all seven
+contracts, and its identity does not require a matching class or function in
+code. For concrete use-or-skip guidance, see
+[Concept Identifiers](authoring-conventions.md#concept-identifiers).
 
 A component and all matching expands share one flat namespace. Repeated blocks
 are collective and retain their section and source locations. A concept is
@@ -274,7 +282,7 @@ Every resolved imported name must have a qualifying exact-case use in its
 declaring source. Component names and imported public concepts count in
 `interface`, `state`, `logic`, `constraints`, or `cases`. A matching local
 `expand` and a direct `_module.sigil` surface import also count. Mentions in
-`goal`, `decisions`, literal blocks, comments, annotations, other files,
+`goal`, `decisions`, fenced content, comments, annotations, other files,
 differently cased words, or identifier substrings do not count. An unused
 resolved name is a syntax error reported as `SIGIL_UNUSED_IMPORT`.
 
@@ -343,9 +351,10 @@ decisions {
 }
 ```
 
-For every material decision authored by the skill, use one concise PascalCase
-concept block and record `Decision` and `Scope`. `Context` is not part of the
-current convention. Scope states the governed boundary and important exclusions
+For a material decision, record its choice and scope as Facets. A Concept block
+is optional and useful only when its identity connects related contributions
+across contracts. `Decision` and `Scope` labels may improve clarity but are not
+mandatory syntax. Scope states the governed boundary and important exclusions
 without enumerating every current dependent. Add `Assumptions`, `Trade-offs`,
 `Design issues addressed`,
 `Discarded alternatives`, `Consequences`, and `Revisit when` when materially
@@ -366,24 +375,24 @@ initial convention.
 Use `cases` for examples and acceptance criteria that can be observed from
 outside the component.
 
-## Semantic Units
+## Facets
 
-Each blank-line-delimited prose paragraph inside a section is one semantic unit.
+Each blank-line-delimited prose paragraph inside a section is one Facet.
 Adjacent physical lines belong to that unit, so prose may be rewrapped without
 changing semantic identity. Separate distinct ideas with blank lines. Blank
-lines terminate semantic units and do not create them.
+lines terminate Facets and do not create them.
 
-A concept-block header identifies and groups semantic units but is not itself a
-semantic unit. Each paragraph inside the block records its concept identifier.
+A concept-block header identifies and groups Facets but is not itself a
+Facet. Each paragraph inside the block records its concept identifier.
 
-Prefer one distinct idea per semantic unit. Avoid burying multiple decisions in a
+Prefer one distinct idea per Facet. Avoid burying multiple decisions in a
 paragraph when they may need separate review, diffing, or source mapping.
 
 Ordinary prose has a 79-character content width. Leading indentation does not
 count. Run `sigil fmt [path]` to wrap selected valid sources, or add `--check`
 to verify canonical formatting without writing.
 
-Use a directly attached typed literal block for multiline code, JSON,
+Use a directly attached typed fenced content for multiline code, JSON,
 configuration, diagrams, or other layout-sensitive content:
 
 ````sigil
@@ -414,7 +423,8 @@ When reviewing Sigil, check:
   changing policy colocated with narrower owners?
 - Does every component expose how callers, users, modules, or other parts
   interact with it?
-- Is every interface region grouped under one or more concept identifiers?
+- Have the component's distinct concepts been identified and usefully connected
+  across contracts, while preserving clear ungrouped and mixed Facets?
 - Are repeated concept blocks coherent, flat, nonempty, and unambiguous across
   the accessible import graph?
 - Do imported dependency views exclude private concepts and expands?
@@ -427,9 +437,9 @@ When reviewing Sigil, check:
 - Does each imported name resolve to a matching component in the imported Sigil
   source?
 - Does each resolved imported name have a qualifying use outside `goal`,
-  `decisions`, and literal blocks?
+  `decisions`, and fenced content?
 - Are ordinary prose lines at most 79 content characters excluding indentation?
-- Does every literal block immediately follow its introducing prose?
+- Does every fenced content immediately follow its introducing prose?
 - Does each `expand Name` have a matching `component Name`?
 - Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in
   `expand` rather than inside `component`?

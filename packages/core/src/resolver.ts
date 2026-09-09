@@ -14,7 +14,7 @@ import type {
 import type {
   ComponentDeclaration,
   ExpandDeclaration,
-  SemanticUnit,
+  Facet,
 } from "./model/source.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
 import type { SigilWorkspace } from "./model/workspace.ts";
@@ -546,7 +546,7 @@ function unambiguousAccessibleConcepts(
 }
 
 function referenceRanges(
-  line: SemanticUnit,
+  line: Facet,
   identifier: string,
 ): readonly ResolvedConceptReference["range"][] {
   const ranges: ResolvedConceptReference["range"][] = [];

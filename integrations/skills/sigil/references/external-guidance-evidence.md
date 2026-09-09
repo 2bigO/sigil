@@ -10,7 +10,7 @@ recommended, or not material and acquires evidence that can materially inform
 or improve design decisions, semantic assessment, risks, alternatives, or
 acceptance criteria. It owns evidence acquisition for both design conversation
 and standards-aware review. It does not select project decisions, classify
-review findings, grant approval, or determine a ReviewGate result.
+review findings, grant approval or start a coding workflow.
 
 ## Contents
 
@@ -187,7 +187,7 @@ The packet never:
 - converts advisory practice into a mandatory requirement;
 - claims certification or complete compliance;
 - hides unavailable material behind a confident conclusion;
-- decides whether ReviewGate returns blocked, review-required, or ready.
+- grants permission for product actions or changes the user's authorized scope.
 
 Use these completeness states:
 

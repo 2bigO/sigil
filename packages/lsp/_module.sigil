@@ -71,7 +71,7 @@ component SigilLsp {
       supports full-document semantic tokens for resolved component names
 
       every hover renders resolver-confirmed component and concept references in
-      displayed Sigil semantic-unit prose as inline links to their originating
+      displayed Sigil Facet prose as inline links to their originating
       declarations
     }
 
@@ -188,7 +188,7 @@ expand SigilLsp {
 
       Document symbols preserve declaration and section hierarchy.
 
-      Hover preserves attached LiteralBlock type and body content without
+      Hover preserves attached EmbeddedContent type and body content without
       interpreting it as navigation or glossary evidence.
     }
 
@@ -297,7 +297,7 @@ expand SigilLsp {
       Only resolver-confirmed component and concept references become links;
       unresolved identifiers and ordinary prose remain unchanged.
 
-      LiteralBlock types and bodies never become component, concept, glossary, or
+      EmbeddedContent types and bodies never become component, concept, glossary, or
       ownership navigation.
 
       Human-facing hover source paths use normalized workspace-relative display
@@ -336,12 +336,12 @@ expand SigilLsp {
       Imported-concept hover does not expose private state, logic, constraints,
       decisions, cases, or expansion occurrences.
 
-      Concept features use SemanticUnit prose and never independently scan
-      LiteralBlock content.
+      Concept features use Facet prose and never independently scan
+      EmbeddedContent content.
     }
 
     GlossaryLanguageFeatures {
-      Glossary occurrence features apply only to SemanticUnit prose in loaded .sigil
+      Glossary occurrence features apply only to Facet prose in loaded .sigil
       documents.
 
       The semantic-token legend includes term and preserves non-overlapping UTF-16
@@ -364,7 +364,7 @@ expand SigilLsp {
     }
 
     SourceFormatting {
-      The initial language-server change consumes SemanticUnit and LiteralBlock
+      The initial language-server change consumes Facet and EmbeddedContent
       models without advertising a document-formatting capability.
     }
 
@@ -555,7 +555,7 @@ expand SigilLsp {
       A displayed name without a resolved component or concept identity remains plain
       hover text.
 
-      Apparent component and concept names inside a LiteralBlock produce no
+      Apparent component and concept names inside a EmbeddedContent produce no
       navigation or semantic highlighting.
     }
 

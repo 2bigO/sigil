@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDisciplineGuidance interface
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDiscipline constraints
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::FacetDisciplineGuidance interface
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::FacetDiscipline constraints
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::DecisionRationaleWorkflow interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemanticsGuidance interface
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemantics logic,constraints,cases
@@ -123,17 +123,17 @@ hidden reasoning. Responsibility, accountability, approver, and handoff metadata
 remain outside the convention.
 
 After writing scoped Sigil, repeat the coverage audit against the exact written
-semantic units. A missing material decision blocks implementation readiness
+Facets. A missing material decision blocks implementation readiness
 until the written Sigil is corrected and revalidated.
 
-## Semantic Units, Width, And Literals
+## Facets, Width, And Literals
 
-Treat each blank-line-delimited prose paragraph as one semantic unit. Physical
+Treat each blank-line-delimited prose paragraph as one Facet. Physical
 wrapping inside that paragraph is presentation only. Keep distinct ideas
 separated by blank lines and keep ordinary prose within 79 content characters;
 leading indentation does not count.
 
-Use a directly attached typed literal block when code, JSON, configuration,
+Use a directly attached typed fenced content when code, JSON, configuration,
 data, or a diagram needs multiple physical lines. Put no blank line between the
 introducing prose and opening fence. Literal bodies are preserved and do not
 provide import, concept, glossary, or ownership evidence.
@@ -141,7 +141,7 @@ provide import, concept, glossary, or ownership evidence.
 Every resolved imported name needs a qualifying exact-case use in `interface`,
 `state`, `logic`, `constraints`, or `cases`, or a structural use through a
 matching local `expand`. `goal`, `decisions`, and
-literal blocks are documentary for import-use purposes.
+fenced content are documentary for import-use purposes.
 
 Use `sigil fmt <selected-path> --check` after scoped edits. Apply `sigil fmt`
 only when formatting that selected scope is approved; never infer permission
@@ -149,16 +149,44 @@ for a repository-wide formatting pass.
 
 ## Concept Identifiers
 
-Treat ungrouped `interface` content reported by
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` as a deferred authoring gap. First complete
-the pre-grouping semantic-readiness review from `standards-review.md` against
-the exact ungrouped prose. Do not begin concept reuse discovery, grouping,
-identifier generation, or warning repair while semantic readiness is
-`unassessed` or `correction required`.
+Facets can appear directly under every contract, including `interface`, and may
+mix freely with Concept-grouped Facets. Ungrouped content is not a defect.
+Actively identify the concepts in a component and use Concept IDs to connect
+their Facets across contracts. Real components commonly contain several ideas
+that benefit from that grouping. Smaller components may need no additional
+identifier; preserve useful ungrouped and mixed authoring rather than adding
+wrappers mechanically. Native Design evidence can inform that choice; missing
+reconstruction does not prohibit authoring.
 
-After semantic readiness appears aligned for the selected scope,
-concept-identifier creation, reuse, regrouping, renaming, and warning repair
-are written directly to the scoped Sigil and then revalidated.
+Start with the concerns, not a list of names. Ask which Interface promises,
+State descriptions, Logic steps, Constraints, Decisions, and Cases describe the
+same idea. Prefer a Concept when a reader benefits from following that idea
+across those contributions. Do not wait for the author to request grouping
+when several recurring concerns are already apparent.
+
+| Situation | Authoring move |
+| --- | --- |
+| Request eligibility and result publication each recur across contracts | Use distinct `Admission` and `Publication` Concepts; reuse each ID where its Facets belong. |
+| An accessible provider Concept already names the same concern | Reuse that identity instead of creating a local synonym. |
+| A concern needs a public identity for consumers even before it recurs locally | An Interface Concept can be useful; recurrence is a signal, not a minimum block count. |
+| One small lookup operation already has a clear component identity | Keep its Facets direct unless a separate Concept adds useful identity. |
+| A guarantee applies to the whole operation or spans several concerns | Leave it ungrouped when clearer, alongside the Concept blocks. |
+| Each paragraph, function, or contract would receive its own wrapper | Keep Facets direct or regroup by meaning; those boundaries do not define Concepts. |
+| A responsibility has independent ownership and reasons to change | Consider a separate Component, not a Concept used to conceal an oversized owner. |
+
+For example, Admission can define an eligibility condition and Publication can
+use that condition to guard a result update. Keep the operation signature and
+the promise that unrelated state stays unchanged as direct Facets. The
+explicit condition connects the two concerns; proximity or grouping alone
+does not. One implementation function may realize both Concepts and the direct
+Facets, or several functions may cooperate to realize one Concept.
+
+Reuse a Concept only in contracts with something material to say about it. Do
+not fill all seven contracts, duplicate a shared Facet into every group, or
+invent a catch-all Concept for remaining prose. Grouped and ungrouped Cases
+both describe scenarios, including happy and sad paths, whether tests exist or
+not. Concept identity preserves attribution; it is not a behavioral equality
+proof or an all-or-nothing diagnostic bucket.
 
 Before proposing an identifier:
 
@@ -169,8 +197,8 @@ Before proposing an identifier:
    relevant use cases and established terminology;
 4. traverse transitive importers only when a concept is re-exposed or namespace
    ambiguity must be assessed;
-5. classify each affected interface region as local reuse, imported public
-   reuse, or a new identity.
+5. classify each affected region as remaining ungrouped, local reuse, imported
+   public reuse, or a justified new identity.
 
 Consumer terminology is naming evidence, not reusable identity unless valid
 imports make it accessible. Reuse imported public concepts as bare identifiers.
@@ -204,17 +232,16 @@ After applying a grouping or identifier change:
 1. run `sigil check`;
 2. use `sigil retrieve --purpose architecture` when identity relationships
    changed; use `context` or `graph` only for missing detail;
-3. repeat the semantic-readiness review on the grouped Sigil;
+3. refresh native Design capture and affected reconstruction for semantic review;
 4. investigate any suspected material ambiguity and return to DesignConversation
    in correction mode only when the ambiguity confirms a material problem;
-5. begin glossary candidate extraction only when the final review appears
-   aligned.
+5. inspect relevant glossary changes when requested or materially necessary.
 
-## Semantic Units
+## Facets
 
-- Keep each blank-line-delimited semantic unit focused on one distinct idea.
+- Keep each blank-line-delimited Facet focused on one distinct idea.
 - Separate distinct prose-level ideas with blank lines in every section.
-- Blank lines do not create semantic units.
+- Blank lines do not create Facets.
 - Keep lines in one compact free-form construct adjacent when separation would
   reduce readability.
 - Prefer concise reviewable lines over prose paragraphs.
@@ -236,7 +263,7 @@ move with their owning directories.
 
 Update affected imports after a placement-only move, run
 `sigil check`, and use `graph` or `context` when relationships matter. Any
-semantic-unit change requires written-file validation and design compilation.
+Facet change requires written-file validation and design compilation.
 
 A boundary can outgrow itself as coverage is added. Propose splitting one when
 its contracts serve areas that change for independent reasons, when a reader

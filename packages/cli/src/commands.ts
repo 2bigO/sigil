@@ -30,7 +30,6 @@ export interface CommandHandlerOptions {
  * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallationCommand interface
  * @sigil implements packages/cli/_module.sigil::SigilCli::SkillInstallation logic,constraints,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInitialization interface,logic,cases
- * @sigil implements packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspectionCommand interface
  * @sigil implements packages/cli/_module.sigil::SigilCli::GlossaryInspection logic,cases
@@ -41,6 +40,15 @@ export async function runCommand(
   request: CommandRequest,
   options: CommandHandlerOptions = {},
 ): Promise<CommandResult> {
+  const core = options.core ?? new CoreAdapter();
+  if (request.command === "export-design") {
+    const { bundle } = await core.exportDesign(request.path, request.root);
+    return {
+      command: "export-design",
+      bundle,
+      diagnostics: bundle.diagnostics,
+    };
+  }
   if (request.command === "skill-list") {
     const result = await listInstalledSkills(options.install?.sourceDirectory);
     return {
@@ -58,7 +66,6 @@ export async function runCommand(
     });
     return { command: "skill-install", ...result, diagnostics: [] };
   }
-  const core = options.core ?? new CoreAdapter();
   if (request.command === "init") {
     const result = await core.initConfig(
       request.path,
@@ -68,48 +75,6 @@ export async function runCommand(
     );
     return {
       command: "init",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-set-default") {
-    const result = await core.setDefaultProfile(
-      request.path,
-      request.profile,
-      request.agentProfile,
-    );
-    return {
-      command: "config-set-default",
-      workspaceRoot: result.root,
-      configPath: result.configPath,
-      sigilVersion: result.config?.sigilVersion ?? null,
-      workspaceName: result.config?.workspace.name ?? null,
-      config: result.config,
-      diagnostics: result.diagnostics,
-    };
-  }
-  if (request.command === "config-set-profile") {
-    const result = await core.setProfile(request.path, {
-      profileName: request.profileName,
-      extendsProfile: request.extendsProfile,
-      main: request.main,
-      stages: Object.keys(request.stages).length > 0
-        ? request.stages
-        : undefined,
-      disabledStages: request.disableStages.length > 0
-        ? request.disableStages
-        : undefined,
-      newEvaluators: request.newEvaluators,
-      models: request.models,
-      implementationIds: request.implementationIds,
-      implementationVersions: request.implementationVersions,
-    });
-    return {
-      command: "config-set-profile",
       workspaceRoot: result.root,
       configPath: result.configPath,
       sigilVersion: result.config?.sigilVersion ?? null,
