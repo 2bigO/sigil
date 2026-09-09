@@ -4,7 +4,7 @@ use sigilc::{
     catalog::DesignIdentities,
     frontend::{Entity, EntityType},
     inputs::{self, Binding, DesignSnapshot, SemanticInput},
-    kernel::DesignState,
+    eqval::DesignState,
     sources::capture,
 };
 use std::collections::BTreeMap;

@@ -1,4 +1,4 @@
-# Sigil kernel architecture
+# Sigil Eqval architecture
 
 This is the target architecture for the refactor, not a description of a
 completed implementation. The [README](README.md) owns the direction,
@@ -17,10 +17,10 @@ not a claim that a finalized Rust API or Turtle schema already exists.
 | `packages/core` | Deterministic Sigil parsing, resolution, imports, expands, module assembly, and structural Design export. |
 | External semanticizer | Interpret captured source into fixed, typed, attributable observations; report gaps without asserting compiler verdicts. |
 | `sigilc` | Source selection/capture, incoming descriptors, bindings, data-only ingest, projection publication, freshness, and report presentation. |
-| Kernel library | Typed lowering, independent closure, supported behavior composition, comparison, proof support, and correspondence/impact calculation. |
+| Eqval library | Typed lowering, independent closure, supported behavior composition, comparison, proof support, and correspondence/impact calculation. |
 | External caller | Work scheduling, model invocation, retries, coding, test execution, and delivery records. |
 
-The kernel has no filesystem discovery, model client, task ledger, or worker
+The eqval has no filesystem discovery, model client, task ledger, or worker
 protocol. `sigilc` does not need implementation-language AST adapters, an LSP,
 Git symbol history, or fuzzy name matching to validate its observation format.
 Language neutrality describes the representation, not universal semantic
@@ -32,7 +32,7 @@ Component is the core container; contracts contain Facets. Concept IDs group
 related Facets across contracts and are encouraged wherever they expose the
 several concepts in a real component. Preserve that grouping for reasoning.
 Ungrouped and Concept-grouped Facets may mix in any contract; smaller components
-may need no additional identifier. The kernel must not invent a wrapper merely
+may need no additional identifier. The eqval must not invent a wrapper merely
 to make ungrouped observations addressable.
 
 Retain distinct records for:
@@ -221,7 +221,7 @@ Independent graphs do not share stable e-class IDs. The comparison uses either:
 
 Different e-classes or extracted forms do not prove Different. Extraction picks
 a useful presentation; low cost does not establish truth. Fixed laws and proof
-support belong to the kernel, never accepted source payloads. Native Egglog
+support belong to the eqval, never accepted source payloads. Native Egglog
 proofs cover only supported APIs and primitives; choose a compatible fragment
 against the actual build dependency, as recorded in the [audit](AUDIT.md#egglog-build-and-proof-support).
 
@@ -240,7 +240,7 @@ observations supply links without requiring source-language symbol resolution
 inside the compiler.
 
 The default binding supplies identity/type descriptors, not callee behavior.
-The kernel composes current accepted callee observations later. A callee edit
+The eqval composes current accepted callee observations later. A callee edit
 can therefore invalidate a composed proof without invalidating a caller
 reconstruction that consumed unchanged descriptors. If a future input mode
 supplies behavior summaries to interpretation, their full contents must become

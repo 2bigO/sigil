@@ -3,7 +3,7 @@ use crate::{
     catalog::Catalog,
     design::SourceStatus,
     inputs::{PROJECTION_FORMAT, implementation_identity},
-    kernel::{self, Limits, SaturatedWorld},
+    eqval::{self, Limits, SaturatedWorld},
     sources::{Selection, SourceManifest, discover, hash},
     store::{ArtifactEvidence, Freshness, LockedStore},
     turtle::{Assertion, ontology_fingerprint},
@@ -126,7 +126,7 @@ pub fn assemble_manifest(
 impl Assembly {
     pub fn compile(self, limits: Limits) -> Result<ImplementationReport, String> {
         let facts: Vec<_> = self.assertions.into_iter().collect();
-        let world = kernel::saturate(&facts, limits)?;
+        let world = eqval::saturate(&facts, limits)?;
         let implementation_fingerprint = hash(
             &serde_json::to_vec(&(
                 "sigil-implementation-world-v1",

@@ -60,7 +60,7 @@ component SigilProjectionStore {
       the frontend. Missing projections leave Design Loose unless fresh facts
       already establish Disjoint. Frontend errors produce no completed verdict.
       Validate the complete identity set before freezing a current catalog.
-      Reports identify captured inputs, projection contents and compiled kernel.
+      Reports identify captured inputs, projection contents and compiled eqval.
       Prepare Design context only from its bound source and dependency closure.
     }
 

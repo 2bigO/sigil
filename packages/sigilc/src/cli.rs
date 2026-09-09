@@ -4,7 +4,7 @@ use crate::{
     frontend::DesignInput,
     implementation,
     inputs::{self, DesignSnapshot},
-    kernel::{DesignState, Limits},
+    eqval::{DesignState, Limits},
     request::{self, CompletionDossierInput, ItemState, LifecycleState, RequestDefinition},
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},

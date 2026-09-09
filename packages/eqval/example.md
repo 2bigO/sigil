@@ -126,7 +126,7 @@ and existing Results independently range over the two payloads. This defines
 These are declared fixture domains and assumptions. Equality on them is not
 unrestricted equality for every real request or payload. Extending the claim
 requires supported value semantics and a proof, for example of identity testing
-and unchanged payload forwarding over the larger domain. The kernel must not
+and unchanged payload forwarding over the larger domain. The eqval must not
 infer that extension from the four admission rows below.
 
 ## 4. Reconstruct code without the expected answer
@@ -236,7 +236,7 @@ all 32 combinations; this document has not run that proof.
 
 A larger rule can now recognize the publication behavior from the equivalent
 guard, its mapped action, outcome, and state update. This is the higher-level
-structure the kernel computes. It was not supplied as a terminal capability.
+structure the eqval computes. It was not supplied as a terminal capability.
 
 Correct admission with a wrong payload, a swapped return alternative, or an
 extra visible write is still Different at this operation boundary. That is

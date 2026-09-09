@@ -1,14 +1,14 @@
 component SigilGateDiagnostics {
   goal {
     Explain native gate results to terminal and editor consumers without making
-    a frontend interpret kernel tables or reimplement semantic decisions.
+    a frontend interpret eqval tables or reimplement semantic decisions.
   }
 
   interface {
     NativeFindings {
       Attach versioned presentation diagnostics to Design compilation and
       Implementation comparison. Preserve named states, input identities and
-      subcommand-specific exits. Findings describe existing kernel violations,
+      subcommand-specific exits. Findings describe existing eqval violations,
       unresolved obligations, source freshness and retained frontend diagnostics.
       Expanded-world reports also expose the immutable native artifact links
       carried by accepted projections and a deterministic artifact_report
@@ -18,7 +18,7 @@ component SigilGateDiagnostics {
     }
 
     Attribution {
-      Preserve each finding's side, code, severity, message and finite kernel
+      Preserve each finding's side, code, severity, message and finite eqval
       table witness. Comparison witnesses retain their exact Design obligation.
       Resolve authored-unit identities to physical ranges from the frontend;
       resolve assertion fingerprints to contributing captured source paths.

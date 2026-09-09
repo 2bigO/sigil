@@ -1,6 +1,6 @@
-# Sigil kernel
+# Sigil Eqval
 
-Design says what should happen. Code says what does happen. The kernel's job is
+Design says what should happen. Code says what does happen. The eqval's job is
 not to notice that both mention the same thing. It is to **calculate whether
 their represented behavior is equal**, and show the distinguishing situation
 and source support when it is not.
@@ -192,7 +192,7 @@ actual code boundaries that must change.
 ## Keep the compiler out of the work queue
 
 `sigilc` owns source capture, semantic bindings, freshness, restricted ingest,
-projection publication, scope, comparison, and impact. The kernel owns the
+projection publication, scope, comparison, and impact. The eqval owns the
 calculation. External callers own models, workers, prompts, attempts, retries,
 tests, and scheduling.
 

@@ -4,7 +4,7 @@ use crate::{
     design::{DesignReport, SourceStatus},
     frontend::{DesignInput, Range},
     implementation::ImplementationReport,
-    kernel::DesignWorld,
+    eqval::DesignWorld,
     store::Freshness,
 };
 use serde::Serialize;

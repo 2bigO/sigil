@@ -6,7 +6,7 @@ component SigilWorldClosure {
   interface {
     IndependentComparison {
       Compare finite Design obligations with independently saturated
-      Implementation facts in a third fixed kernel instance. Design facts never
+      Implementation facts in a third fixed eqval instance. Design facts never
       enter Implementation closure or its matching tables. A missing positive
       relation cannot satisfy a prohibition.
       Return Drift for positive disagreement, Converged for unresolved evidence,
@@ -43,7 +43,7 @@ component SigilWorldClosure {
     }
 
     RuntimeIdentity {
-      Fingerprint the actual compiled kernel, lowering code and pinned runtime
+      Fingerprint the actual compiled eqval, lowering code and pinned runtime
       dependencies. Reports identify the engine that produced their evidence.
     }
   }

@@ -1,7 +1,7 @@
 mod support;
 use serde_json::json;
 use sigilc::{
-    kernel::{self, DesignState, Limits},
+    eqval::{self, DesignState, Limits},
     report,
     turtle::{self, ONTOLOGY, TurtleLimits},
 };
@@ -23,7 +23,7 @@ fn findings_are_bounded_deterministic_and_preserve_contradictions_and_missing_lo
     let units: Vec<_> = (0..1005)
         .map(|i| [format!("urn:unit:{i}"), "urn:a".into()])
         .collect();
-    let world = kernel::design(&facts, &units, Limits::default()).unwrap();
+    let world = eqval::design(&facts, &units, Limits::default()).unwrap();
     assert_eq!(world.state, DesignState::Disjoint);
     let mut sources = BTreeMap::new();
     for fact in &facts {

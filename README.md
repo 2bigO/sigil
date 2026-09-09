@@ -137,7 +137,7 @@ The language frontend and semantic compiler have separate responsibilities:
 5. Compile Design and export its identity catalog. Independent Implementation
    workers receive one source file, the fixed ontology and that frozen catalog,
    without Design prose or relationships.
-6. Run `sigilc compare`. The fixed kernel saturates Design and Implementation
+6. Run `sigilc compare`. The fixed eqval saturates Design and Implementation
    separately, derives obligations from Design and compares them with
    Implementation closure. Named states preserve warnings and contradictions.
 
@@ -369,7 +369,7 @@ post-Sigil glossary extraction, and authoring conventions live in the
 host-neutral Sigil skill rather than `sigil-core`. The skill also discovers
 coherent implementation and UI components, distinguishes component contracts
 from implementation-specific expands and trivial mechanics, and helps prepare
-an implementation coverage policy. The native compiler and fixed kernel own
+an implementation coverage policy. The native compiler and fixed eqval own
 semantic closure, obligations and Design-versus-Implementation comparison.
 
 Editor integrations other than VS Code, stricter body semantics, and additional

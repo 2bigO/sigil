@@ -234,7 +234,7 @@ constraints {
 This still has a component owner, contract role, and source location. No
 `NetworkAccessMustGoThroughTheTransportBoundary` Concept is required.
 
-A Concept block is not itself a Facet. It optionally groups Facets; the kernel
+A Concept block is not itself a Facet. It optionally groups Facets; the eqval
 does not introduce Facets by renaming whole blocks. Ungrouped and mixed
 authoring is valid in every contract without grouping diagnostics.
 
@@ -523,14 +523,14 @@ response-authority Constraint and out-of-order Case, with the source locations
 and distinguishing situation that establish the disagreement. It does not mark
 every Facet under Search as wrong.
 
-The [behavior algebra](packages/kernel/behavior_algebra.md) defines the proposed
+The [behavior algebra](packages/eqval/behavior_algebra.md) defines the proposed
 calculation: independently reconstruct design and code meaning, preserve their
 relevant distinctions, and compare at an explicit boundary. Several Concepts
 can participate in that boundary. A property proof is not automatically a
 whole-component proof, and missing or unsupported meaning remains unresolved.
 The calculation is conditional on faithful source interpretation.
 
-Sigil supplies the organization. The kernel still has to do the mathematics.
+Sigil supplies the organization. The eqval still has to do the mathematics.
 
 ## Examples in this repository
 

@@ -3,7 +3,7 @@ use crate::{
     catalog::{self, DesignIdentities, FrozenCatalog},
     frontend::{EntityType, Severity},
     inputs::DesignSnapshot,
-    kernel::{self, DesignState, DesignWorld, Limits},
+    eqval::{self, DesignState, DesignWorld, Limits},
     sources::hash,
     store::{ArtifactEvidence, Freshness, LockedStore},
     turtle::{Assertion, ONTOLOGY, Object, RDF_TYPE, XSD},
@@ -159,7 +159,7 @@ pub fn compile(
             ])
         })
         .collect::<Result<Vec<_>, String>>()?;
-    let mut world = kernel::design(&assertions, &units, limits)?;
+    let mut world = eqval::design(&assertions, &units, limits)?;
     if !all_fresh && world.state == DesignState::Coherent {
         world.state = DesignState::Loose;
     }

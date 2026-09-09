@@ -134,7 +134,7 @@ as directory selection, with current path/metadata checks around hashing.
 Directory and global selections still use the full pruned snapdir walk.
 
 Both `compile implementation` and `compare` report independently compiled worlds
-and their fixed-kernel comparison. Closed (green) and Converged (yellow with
+and their fixed-eqval comparison. Closed (green) and Converged (yellow with
 warnings) exit 0; Drift (red) exits 1. Missing/stale or Disjoint Design prevents
 a usable catalog and returns exit 3 with Implementation and comparison unset;
 the JSON explains the unavailable prerequisite. Inspection and operational exit
@@ -246,13 +246,13 @@ Gate reports include native presentation diagnostics for editor and terminal
 consumers. Design compilation returns `diagnostics`; comparison returns
 Implementation `diagnostics` and retains Design findings in `design.diagnostics`.
 Each contains `items` and an `omitted` count. Findings carry a code, side,
-severity, message, locations and available kernel witnesses. Authored-unit
+severity, message, locations and available eqval witnesses. Authored-unit
 locations retain their physical ranges; assertion-source locations have no
 invented code ranges. Location sides distinguish Design from Implementation.
 
 At most 1000 findings, 8 locations per finding and 8 matching Implementation
 `because` rows per disagreement are returned, with omitted counts. Contradictions
-come before warnings. Full kernel tables remain available separately; truncation
+come before warnings. Full eqval tables remain available separately; truncation
 never changes the named gate state. `assertion_sources` maps direct fact IDs to
 contributing files on both sides. This is bounded attribution, not a complete
 proof tree or an independent check of reconstruction fidelity.

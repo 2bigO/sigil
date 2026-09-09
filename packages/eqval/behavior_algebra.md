@@ -16,9 +16,9 @@ differences that affect behavior and gives equivalent formulations a common
 meaning. Equality is its destination; the units below exist to make that
 calculation possible.
 
-This is a proposed kernel design grounded in the canonical
+This is a proposed eqval design grounded in the canonical
 [language description](../../language.md). It supplies definitions and an
-implementation direction for the kernel proposal and its audit. The examples
+implementation direction for the eqval proposal and its audit. The examples
 are specifications of the proposed computation, not executed proofs or claims
 about features already implemented.
 
@@ -208,7 +208,7 @@ and(equal(input(ResponseId), state(ActiveRequest)),
 These forms describe meaning; they are not source-language syntax. Each input
 and state reference is bound to a resolved identity in the current context.
 
-Operands have types. Operation meaning is fixed by the kernel's supported
+Operands have types. Operation meaning is fixed by the eqval's supported
 vocabulary. An unknown call cannot be treated as a pure expression merely
 because it returns a Boolean.
 
@@ -249,7 +249,7 @@ reducer state, or several cooperating objects. It must independently describe
 how its representation produces the comparison's state quantities.
 
 A representation mapping is an explicit, attributable description, not a
-rename inferred from similar labels. The kernel may evaluate a mapping expressed
+rename inferred from similar labels. The eqval may evaluate a mapping expressed
 with supported expressions; it must not accept a blanket assertion that two
 state machines are equivalent.
 
@@ -413,7 +413,7 @@ also preserves the relationships that the combined boundary can observe.
 
 ## Composition laws
 
-These are the kinds of fixed laws the kernel should own. Application sources
+These are the kinds of fixed laws the eqval should own. Application sources
 supply facts to which laws apply; they do not invent the laws themselves.
 
 ### Pure expression equality
@@ -736,7 +736,7 @@ already supported.
 Source interpretation still matters. A valid equality calculation proves a
 relationship between accepted descriptions. It is conditional on those
 descriptions faithfully representing their sources. The smaller units make
-that interpretation more inspectable and move composition into the kernel;
+that interpretation more inspectable and move composition into the eqval;
 they do not make arbitrary source interpretation infallible.
 
 ## How Egglog should carry the calculation
@@ -756,7 +756,7 @@ Relations associate a Facet or source occurrence with a behavioral expression.
 Expression equality can then help a larger pattern match without erasing the
 different source descriptions that justified it.
 
-For example, after the kernel equates an early-exit admission expression with
+For example, after the eqval equates an early-exit admission expression with
 `and(m, not(c))`, a larger publication rule can match that condition and its
 associated state update and outcome. The high-level behavior is composed from
 observations; it was not supplied as `provides(CancellationSafety)` by the model.
@@ -787,7 +787,7 @@ Return one of three results for each declared comparison:
 | **Different** | A valid distinguishing input, situation, or trace, or another supported refutation. |
 | **Unresolved** | Missing meaning, ambiguous correspondence, unsupported operations, incomplete scope, or exhausted computation prevents either conclusion. |
 
-For finite exhaustive comparison, the kernel must establish that every input
+For finite exhaustive comparison, the eqval must establish that every input
 in the declared domain was considered and that each description supplies its
 complete behavior there. It must check this after completing the relevant
 computation, not infer it from missing rows while facts are still being derived.

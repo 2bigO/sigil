@@ -1,13 +1,13 @@
 use serde_json::json;
 use sigilc::{
-    kernel::{self, Limits, SaturatedWorld},
+    eqval::{self, Limits, SaturatedWorld},
     turtle::{self, ONTOLOGY, TurtleLimits},
 };
 
 fn world(body: &str) -> Result<SaturatedWorld, String> {
     let source = format!("@prefix s: <{ONTOLOGY}> . @prefix : <urn:test:> .\n{body}");
     let facts = turtle::parse(source.as_bytes(), TurtleLimits::default())?;
-    kernel::saturate(&facts, Limits::default())
+    eqval::saturate(&facts, Limits::default())
 }
 
 #[test]
@@ -26,12 +26,12 @@ fn enriches_local_objects_with_cross_file_relations_in_isolated_graphs() {
         )
         .unwrap(),
     );
-    let first = kernel::saturate(&linked, Limits::default()).unwrap();
+    let first = eqval::saturate(&linked, Limits::default()).unwrap();
     assert!(first.tables["reachable"].contains(&vec![json!("urn:a"), json!("urn:c")]));
-    let alone = kernel::saturate(&a, Limits::default()).unwrap();
+    let alone = eqval::saturate(&a, Limits::default()).unwrap();
     assert!(!alone.tables["reachable"].contains(&vec![json!("urn:a"), json!("urn:c")]));
     assert_eq!(sigilc::assertions::encode(&a).unwrap(), a_object);
-    let empty = kernel::saturate(&[], Limits::default()).unwrap();
+    let empty = eqval::saturate(&[], Limits::default()).unwrap();
     assert!(empty.tables["known"].is_empty());
     assert_eq!(empty.kernel_fingerprint, first.kernel_fingerprint);
 }
@@ -92,7 +92,7 @@ fn exhausted_limits_or_unsupported_arithmetic_return_no_completed_world() {
             ..Default::default()
         },
     ] {
-        assert!(kernel::saturate(&[], limits).is_err());
+        assert!(eqval::saturate(&[], limits).is_err());
     }
     assert!(world(":AB a s:Dependency; s:from :A; s:to :B; s:cost 9007199254740991 . :BC a s:Dependency; s:from :B; s:to :C; s:cost 1 .").unwrap_err().contains("arithmetic"));
 }

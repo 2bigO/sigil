@@ -4,7 +4,7 @@ use sigilc::{
     catalog::{Catalog, DesignIdentities},
     frontend::{Entity, EntityType},
     implementation, inputs,
-    kernel::{DesignState, Limits},
+    eqval::{DesignState, Limits},
     sources::{Selection, capture},
     store::{Freshness, LockedStore, StoreLimits},
     turtle::{self, TurtleLimits},

@@ -1,6 +1,6 @@
 use crate::{
     assertions::quote,
-    kernel::{self, DesignState, DesignWorld, Limits, SaturatedWorld},
+    eqval::{self, DesignState, DesignWorld, Limits, SaturatedWorld},
     sources::hash,
 };
 use egglog::EGraph;
@@ -39,7 +39,7 @@ pub struct Comparison {
     pub implementation_contradictions: Vec<Vec<Value>>,
 }
 
-// @sigil implements packages/sigilc/kernel.sigil::SigilWorldClosure::IndependentComparison interface
+// @sigil implements packages/sigilc/eqval.sigil::SigilWorldClosure::IndependentComparison interface
 pub fn compare(
     design: &DesignWorld,
     implementation: &SaturatedWorld,
@@ -51,7 +51,7 @@ pub fn compare(
             "comparison requires independently saturated Design and Implementation worlds".into(),
         );
     }
-    let fingerprint = kernel::fingerprint();
+    let fingerprint = eqval::fingerprint();
     if design.closure.kernel_fingerprint != fingerprint
         || implementation.kernel_fingerprint != fingerprint
     {
@@ -83,7 +83,7 @@ pub fn compare(
         if row.len() != 6 {
             return Err("invalid coverage row".into());
         }
-        // Drop provenance origin from the kernel input, retaining it in the report.
+        // Drop provenance origin from the eqval input, retaining it in the report.
         let args = row[1..].iter().map(string).collect::<Result<Vec<_>, _>>()?;
         program.push_str(&format!("\n(obligation {} {})", quote(&id), args.join(" ")));
         result.obligations.insert(id, row.clone());
@@ -134,10 +134,10 @@ pub fn compare(
     graph
         .parse_and_run_program(Some("sigil-comparison".into()), &program)
         .map_err(|e| e.to_string())?;
-    kernel::fixedpoint(&mut graph, limits, started)?;
-    result.satisfied = ids(kernel::rows(&graph, "satisfied", 1, limits)?)?;
-    result.unresolved = ids(kernel::rows(&graph, "unresolved", 1, limits)?)?;
-    result.disagreements = kernel::rows(&graph, "disagreement", 3, limits)?;
+    eqval::fixedpoint(&mut graph, limits, started)?;
+    result.satisfied = ids(eqval::rows(&graph, "satisfied", 1, limits)?)?;
+    result.unresolved = ids(eqval::rows(&graph, "unresolved", 1, limits)?)?;
+    result.disagreements = eqval::rows(&graph, "disagreement", 3, limits)?;
     result.implementation_contradictions = implementation.tables["violation"].clone();
     result.implementation = Some(
         if !result.disagreements.is_empty() || !result.implementation_contradictions.is_empty() {
@@ -151,7 +151,7 @@ pub fn compare(
             ImplementationState::Converged
         },
     );
-    kernel::check_limits(&graph, limits, started)?;
+    eqval::check_limits(&graph, limits, started)?;
     Ok(result)
 }
 

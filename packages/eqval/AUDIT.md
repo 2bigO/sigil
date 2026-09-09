@@ -1,4 +1,4 @@
-# Kernel audit and migration map
+# Eqval audit and migration map
 
 Date: 2026-09-09.
 
@@ -12,7 +12,7 @@ README, nor an alternate design retained here for implementation to choose from.
 
 The remaining gap is between that target and the existing implementation:
 `packages/sigilc/`, the structural frontend in `packages/core/`, their governing
-contracts, and the current command/skill workflow. No kernel Rust library is
+contracts, and the current command/skill workflow. No eqval Rust library is
 implemented in this folder yet.
 
 This audit is based on the source inspection that motivated the refactor,
@@ -264,7 +264,7 @@ and [explicit Concept connections](behavior_algebra.md#concepts-connect-explicit
 ### P2. Run identity and historical impact need a stronger API boundary
 
 Current sources: [inputs.rs](../sigilc/src/inputs.rs),
-[store.rs](../sigilc/src/store.rs), [kernel.rs](../sigilc/src/kernel.rs), and
+[store.rs](../sigilc/src/store.rs), [eqval.rs](../sigilc/src/eqval.rs), and
 [implementation.rs](../sigilc/src/implementation.rs).
 
 Keep three identities separate:
@@ -357,7 +357,7 @@ code. Canonical language clarifications govern over narrower old specifications.
 | `packages/core` parser, model, resolver, glossary, and module contracts | Reconcile any narrower restrictions with canonical Facets and Interface definitions; preserve scoped identities, collective expands, multiple Concepts, and explicit module assembly. Keep semantic prose interpretation outside deterministic parsing. |
 | [sigilc frontend](../sigilc/src/frontend.rs) and [catalog](../sigilc/src/catalog.rs) | Consume richer native structure, separate accepted semantic public definitions, supply frozen identity/type descriptors, and allow typed local observations. |
 | [Turtle](../sigilc/src/turtle.rs) and [projection encoding](../sigilc/src/assertions.rs) | Fixed eight-unit vocabulary, source occurrences, source roles, strict data-only validation, and typed lowering inputs. |
-| [kernel host](../sigilc/src/kernel.rs), [shared laws](../sigilc/src/kernel.egg), [Design laws](../sigilc/src/design.egg), [comparison laws](../sigilc/src/comparison.egg), [comparison host](../sigilc/src/comparison.rs) | Extract reusable machinery to the new library; replace capability coverage with explicit supported comparison; retain independent graphs and valid structural invariants. |
+| [eqval host](../sigilc/src/eqval.rs), [shared laws](../sigilc/src/kernel.egg), [Design laws](../sigilc/src/design.egg), [comparison laws](../sigilc/src/comparison.egg), [comparison host](../sigilc/src/comparison.rs) | Extract reusable machinery to the new library; replace capability coverage with explicit supported comparison; retain independent graphs and valid structural invariants. |
 | [sources](../sigilc/src/sources.rs), [inputs](../sigilc/src/inputs.rs), [store](../sigilc/src/store.rs) | Exact capture/binding, path-aware membership, accepted-content/run identities, preserved generation/CAS safeguards, and typed last-known inspection. |
 | [Design assembly](../sigilc/src/design.rs), [Implementation assembly](../sigilc/src/implementation.rs), [scope](../sigilc/src/scope.rs) | Target/role isolation, public-input authority, disappearing required membership, and exclusion of stale/history inputs from current computation. |
 | [reports](../sigilc/src/report.rs) and comparison/report tests | Boundary-qualified results, joint witnesses, two-sided source support, explicit gaps, historical locations, and separately bounded presentation. |
@@ -377,7 +377,7 @@ another proposal first.
    Embedded content, public definitions, and ownership-preserving imports/modules.
    Keep interpretation gaps explicit and freeze the complete consumed descriptor
    surface. Do not combine native identity with source-local observation types.
-2. **Create the kernel library and typed input boundary.** Add the new Rust
+2. **Create the eqval library and typed input boundary.** Add the new Rust
    package and move reusable Egglog runtime/limit support out of sigilc. Lower
    data-only observations into the algebra's supported types, with occurrences,
    target/source roles, and independent graphs. Do not freeze the obsolete fact

@@ -1,7 +1,7 @@
 //! Identity validation is separate from graph meaning and source freshness.
 use crate::{
     frontend::{DesignInput, EntityType, encode_identifier, normalized_path},
-    kernel::DesignState,
+    eqval::DesignState,
     sources::hash,
     turtle::{self, Assertion, ONTOLOGY, Object, RDF_TYPE, XSD},
 };

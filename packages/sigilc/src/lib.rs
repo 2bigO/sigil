@@ -7,7 +7,7 @@ pub mod design;
 pub mod frontend;
 pub mod implementation;
 pub mod inputs;
-pub mod kernel;
+pub mod eqval;
 pub mod report;
 pub mod request;
 pub mod scope;

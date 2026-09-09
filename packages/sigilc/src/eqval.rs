@@ -67,7 +67,7 @@ pub fn design(
     Ok(DesignWorld { state, closure })
 }
 
-// @sigil implements packages/sigilc/kernel.sigil::SigilWorldClosure::IsolatedClosure interface
+// @sigil implements packages/sigilc/eqval.sigil::SigilWorldClosure::IsolatedClosure interface
 pub fn saturate(assertions: &[Assertion], limits: Limits) -> Result<SaturatedWorld, String> {
     saturate_world(assertions, None, limits)
 }
@@ -236,7 +236,7 @@ pub(crate) fn check_limits(graph: &EGraph, limits: Limits, started: Instant) -> 
     Ok(())
 }
 
-// @sigil implements packages/sigilc/kernel.sigil::SigilWorldClosure::RuntimeIdentity interface
+// @sigil implements packages/sigilc/eqval.sigil::SigilWorldClosure::RuntimeIdentity interface
 pub fn fingerprint() -> String {
     hash(
         concat!(
@@ -244,7 +244,7 @@ pub fn fingerprint() -> String {
             include_str!("design.egg"),
             include_str!("comparison.egg"),
             include_str!("comparison.rs"),
-            include_str!("kernel.rs"),
+            include_str!("eqval.rs"),
             include_str!("turtle.rs"),
             include_str!("assertions.rs"),
             include_str!("../Cargo.toml"),

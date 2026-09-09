@@ -2,7 +2,7 @@ use serde_json::json;
 use sigilc::{
     catalog::{self, DesignIdentities},
     frontend::DesignInput,
-    kernel::DesignState,
+    eqval::DesignState,
     turtle::{self, Assertion, TurtleLimits},
 };
 use std::collections::BTreeMap;

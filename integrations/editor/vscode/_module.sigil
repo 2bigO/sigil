@@ -216,7 +216,7 @@ expand SigilVsCodeExtension {
       Bound stdout, stderr and process lifetime. Use argv arrays without a shell
       and clean temporary capture files after the child exits. Delete the old
       JSONL lifecycle, profiles, diagnostic history, stage UI and related tests.
-      Do not parse Sigil or interpret kernel tables in the extension.
+      Do not parse Sigil or interpret eqval tables in the extension.
     }
   }
 

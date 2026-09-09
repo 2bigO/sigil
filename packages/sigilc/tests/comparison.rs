@@ -1,6 +1,6 @@
 use sigilc::{
     comparison::{self, FreshInputs, ImplementationState as I},
-    kernel::{self, DesignState as D, Limits},
+    eqval::{self, DesignState as D, Limits},
     turtle::{self, ONTOLOGY, TurtleLimits},
 };
 
@@ -16,8 +16,8 @@ const FRESH: FreshInputs = FreshInputs {
     all_implementation_fresh: true,
 };
 fn compare(d: &str, i: &str, fresh: FreshInputs) -> comparison::Comparison {
-    let d = kernel::design(&facts(d), &[], Limits::default()).unwrap();
-    let i = kernel::saturate(&facts(i), Limits::default()).unwrap();
+    let d = eqval::design(&facts(d), &[], Limits::default()).unwrap();
+    let i = eqval::saturate(&facts(i), Limits::default()).unwrap();
     comparison::compare(&d, &i, fresh, Limits::default()).unwrap()
 }
 
@@ -121,12 +121,12 @@ fn numerical_budgets_and_ownership_use_obligations_without_design_fact_leakage()
 
 #[test]
 fn design_closure_and_previous_runtime_reports_cannot_be_passed_as_implementation() {
-    let d = kernel::design(&facts(":A s:provides :X ."), &[], Limits::default()).unwrap();
+    let d = eqval::design(&facts(":A s:provides :X ."), &[], Limits::default()).unwrap();
     assert!(comparison::compare(&d, &d.closure, FRESH, Limits::default()).is_err());
-    let mut i = kernel::saturate(&[], Limits::default()).unwrap();
+    let mut i = eqval::saturate(&[], Limits::default()).unwrap();
     i.kernel_fingerprint = "old-runtime".into();
     assert!(comparison::compare(&d, &i, FRESH, Limits::default()).is_err());
-    let i = kernel::saturate(&[], Limits::default()).unwrap();
+    let i = eqval::saturate(&[], Limits::default()).unwrap();
     assert!(
         comparison::compare(
             &d,

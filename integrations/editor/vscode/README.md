@@ -43,7 +43,7 @@ The status bar displays Coherent/Loose/Disjoint or Closed/Converged/Drift as
 returned by the native gate. Green and yellow exit 0, red exits 1; missing current
 Design reconstruction leaves comparison unavailable with exit 3 and no
 Implementation state. The editor validates those pairings and displays native
-findings and truncation counts. It does not interpret kernel tables or infer
+findings and truncation counts. It does not interpret eqval tables or infer
 color from absent diagnostics. File-only locations do not invent code ranges.
 
 Save workspace documents before compilation. Edits, disk changes and compilation
