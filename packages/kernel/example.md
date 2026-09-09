@@ -11,9 +11,11 @@ situation in which code disagrees with design.
 
 ## 1. Start with the authored contributions
 
-Component is the core container and can contain arbitrarily many Concepts.
-This example selects one Concept, `Publication`, to keep the calculation small.
-That is a comparison choice, not a one-Concept language restriction.
+Component is the core container; contracts contain Facets. This component
+describes one concept, so its Facets need no additional Concept wrapper.
+Concept IDs are encouraged for distinguishing and connecting the several
+concepts in larger components. This deliberately small example shows that
+equality also works without a redundant grouping identifier.
 
 ```sigil
 component SearchPublication {
@@ -22,71 +24,60 @@ component SearchPublication {
   }
 
   interface {
-    Publication {
-      publish(ResponseId, IncomingResults) returns Published or Ignored.
+    publish(ResponseId, IncomingResults) returns Published or Ignored.
 
-      Published means IncomingResults became the current Results.
+    Published means IncomingResults became the current Results.
 
-      Ignored means the current Results remain unchanged.
-    }
+    Ignored means the current Results remain unchanged.
   }
 }
 
 expand SearchPublication {
   state {
-    Publication {
-      ActiveRequest identifies the request whose response is current.
+    ActiveRequest identifies the request whose response is current.
 
-      Cancelled records whether that request was cancelled.
+    Cancelled records whether that request was cancelled.
 
-      Results holds the currently published result.
-    }
+    Results holds the currently published result.
   }
 
   logic {
-    Publication {
-      When ResponseId equals ActiveRequest and Cancelled is false, replace
-      Results with IncomingResults and return Published.
+    When ResponseId equals ActiveRequest and Cancelled is false, replace
+    Results with IncomingResults and return Published.
 
-      Otherwise preserve Results and return Ignored.
-    }
+    Otherwise preserve Results and return Ignored.
   }
 
   constraints {
-    Publication {
-      Stale or cancelled responses never replace Results.
-    }
+    Stale or cancelled responses never replace Results.
   }
 
   decisions {
-    Publication {
-      Use the active request as authority because responses can arrive out
-      of submission order.
-    }
+    Use the active request as authority because responses can arrive out
+    of submission order.
   }
 
   cases {
-    Publication {
-      An active uncancelled response publishes its IncomingResults.
+    An active uncancelled response publishes its IncomingResults.
 
-      A response for an older request is ignored.
+    A response for an older request is ignored.
 
-      A response for the active request after cancellation is ignored.
-    }
+    A response for the active request after cancellation is ignored.
   }
 }
 ```
 
-Every Publication block contributes to the same resolved Concept. Each
-blank-line-delimited statement is a native Facet, not a new Concept or a
-heading-sized pseudo-Facet. The Goal is an ungrouped Facet. Its ownership and
-contract role remain available without inventing a Concept around it.
+Each blank-line-delimited statement is a native Facet directly under its
+contract. Component ownership, contract role, and the explicit publication
+operation/value relationships connect the contributions. No Concept identifier
+is needed to preserve attribution or calculate their joint meaning.
 
 Interface defines public vocabulary including `publish`, `ResponseId`,
 `IncomingResults`, `Published`, `Ignored`, and `Results`. Those definitions can
 be imported without giving each a Concept block. State and Logic connect the
-same resolved operation, values, and resource. A consumer's extra Facet about
-Publication keeps its consumer context; it does not rewrite the provider.
+same resolved operation, values, and resource. A consumer's additional Facets
+about this public operation keep their consumer context; they do not rewrite
+the provider.
 
 The interpretation supplies smaller units and their connections. It does not
 emit a pre-proved claim that Publication is safe. Goal and Decision guide the
@@ -119,7 +110,7 @@ proof:
 
 | Part | Admission boundary | Operation boundary |
 | --- | --- | --- |
-| Subject | Publication's admission condition | Publication's selected public operation and contributing Facets |
+| Subject | SearchPublication's admission condition | Its selected public operation and contributing Facets |
 | Target | One implementation target at a time | The same target, with its complete supported operation meaning |
 | Inputs | Request-match and cancellation conditions | ResponseId, IncomingResults, and starting ActiveRequest, Cancelled, Results |
 | Observations | Whether publication is admitted | Ordered publication actions, returned alternative, and next relevant state |
@@ -291,8 +282,8 @@ current publishing path to the relevant native contributions:
 | Cancelled-response Case | This represented scenario publishes instead of being ignored. |
 
 These are supported links through the operation, guard, resource, value, and
-outcome. Do not mark every Facet under Publication wrong merely because it
-shares the Concept. The unaffected target may still be Equal; an aggregate
+outcome. Do not mark every Facet in SearchPublication wrong merely because it
+shares the component. The unaffected target may still be Equal; an aggregate
 requiring both targets reports Drift because Python differs.
 
 The removed check has no current span. Its historical location may help explain
@@ -328,7 +319,7 @@ Before edit:
 
 Source edit detected:
   old Python projection excluded from current truth
-  last-known mapping may identify Publication and origin material
+  last-known mapping may identify SearchPublication and origin material
   affected current comparison is Unresolved until sufficient fresh meaning exists
 
 Fresh changed projection accepted:
@@ -349,8 +340,9 @@ invalidate dependent proofs even if the source bytes remain unchanged.
 
 A module may expose SearchPublication alongside other components. That permits
 a public-surface comparison, not an assumption that every exposed behavior is
-implemented. A consumer can reuse Publication and add contextual Facets without
-changing this provider's requirements.
+implemented. A consumer can use its public identifiers and add contextual
+Facets without changing this provider's requirements. No Concept wrapper is
+required for those ungrouped Interface definitions to be public.
 
 Delegating publication to a helper requires the helper's independently
 reconstructed behavior, an explicit call link, argument/state mapping, and

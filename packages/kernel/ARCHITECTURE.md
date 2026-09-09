@@ -28,16 +28,19 @@ coverage of every construct in every language.
 
 ## Native structure and identities
 
-Component is the core container. It can contain arbitrarily many Concepts;
-Facets are the finest native authored contributions. The seven contracts give
-Facets their roles across those Concepts. A Facet may be ungrouped.
+Component is the core container; contracts contain Facets. Concept IDs group
+related Facets across contracts and are encouraged wherever they expose the
+several concepts in a real component. Preserve that grouping for reasoning.
+Ungrouped and Concept-grouped Facets may mix in any contract; smaller components
+may need no additional identifier. The kernel must not invent a wrapper merely
+to make ungrouped observations addressable.
 
 Retain distinct records for:
 
 | Identity or record | Meaning |
 | --- | --- |
 | Component | Resolved owner of a responsibility and its public surface. |
-| Concept | Resolved shared identity across contract contributions and matching expands. |
+| Concept | Optional resolved grouping identity across contract contributions and matching expands. |
 | Facet | Authored contribution with source, contextual owner, contract, optional Concept, and range. |
 | Public identifier | Interface-defined operation, value, event, domain term, or Concept with an originating owner and definition support. |
 | Local anchor | Source-local observation subject, with an appropriate type and explicit correspondence where established. |

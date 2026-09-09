@@ -33,7 +33,7 @@ Sigil already supplies the organization:
 
 ```text
 Component: the owner of a responsibility
-Concept:   the identity shared across contract contributions
+Concept:   optional named grouping across contract contributions
 Facet:     an individual contribution to the design
 Contract:  the role of that contribution
 Export:    public vocabulary established by Interface
@@ -42,21 +42,23 @@ Expand:    additional contributions to the same component
 Module:    an explicit assembly of public component contracts
 ```
 
-The ownership and granularity run **Component -> Concepts -> Facets**. Component
-is the core container and can contain arbitrarily many Concepts. The seven
-contracts provide views across those Concepts; they do not limit a component
-to one Concept or require every Concept to appear in every contract. Facets can
-also contribute directly under a contract without a Concept grouping.
+Component is the core container; contracts contain Facets. Concept IDs expose
+and connect the several concepts commonly present in real components. Encourage
+that cross-contract grouping and preserve it as an explicit input to reasoning.
+Smaller components may need no additional identifier, and every contract may
+freely mix ungrouped Facets and Concept blocks. Equality works with either form;
+useful grouping is an advantage, not a validity prerequisite.
 
 An ordinary Facet ends at one empty line. An Embedded Facet carries fenced
 content in a chosen language or notation. Both contribute meaning under their
 contract and optional Concept. Their representation does not change their owner
 or make their contents automatically executable.
 
-Concept identity is the first connection. `Search` in Interface, State, Logic,
-Constraints, and Cases is the same resolved Concept. Its Facets supply different
-parts of one description. The kernel should preserve that connection rather
-than reconstruct it from similar words later.
+Component ownership and explicit operation/value relationships connect
+ungrouped Facets. Where Concept IDs are useful, `Search` in Interface, State,
+Logic, Constraints, and Cases is the same resolved Concept. Preserve that
+additional grouping rather than reconstructing it from similar words later.
+Do not synthesize a Concept merely because a Facet has no Concept heading.
 
 Exported identifiers inside Interface Facets are connections too. An operation,
 result type, event, or other defined term need not be a Concept block to be
@@ -492,9 +494,11 @@ target, not for an accidental union of all code that mentions the Concept.
 
 ## A complete example across design and code
 
-Use the Search Concept from the language description, narrowed to publication.
-The design says an incoming response may replace Results only when it belongs
-to the active request and that request is not cancelled.
+Use the search publication rule from the language description. This component
+describes one concept, so its Facets sit directly under the contracts without a
+repeated Concept identifier. The design says an incoming response may replace
+Results only when it belongs to the active request and that request is not
+cancelled.
 
 Here is a complete version of that operation's selected behavior:
 
@@ -505,57 +509,45 @@ component SearchPublication {
   }
 
   interface {
-    Publication {
-      publish(ResponseId, IncomingResults) returns Published or Ignored.
+    publish(ResponseId, IncomingResults) returns Published or Ignored.
 
-      Published means IncomingResults became the current Results.
+    Published means IncomingResults became the current Results.
 
-      Ignored means the current Results remain unchanged.
-    }
+    Ignored means the current Results remain unchanged.
   }
 }
 
 expand SearchPublication {
   state {
-    Publication {
-      ActiveRequest identifies the request whose response is current.
+    ActiveRequest identifies the request whose response is current.
 
-      Cancelled records whether that request was cancelled.
+    Cancelled records whether that request was cancelled.
 
-      Results holds the currently published result.
-    }
+    Results holds the currently published result.
   }
 
   logic {
-    Publication {
-      When ResponseId equals ActiveRequest and Cancelled is false, replace
-      Results with IncomingResults and return Published.
+    When ResponseId equals ActiveRequest and Cancelled is false, replace
+    Results with IncomingResults and return Published.
 
-      Otherwise preserve Results and return Ignored.
-    }
+    Otherwise preserve Results and return Ignored.
   }
 
   constraints {
-    Publication {
-      Stale or cancelled responses never replace Results.
-    }
+    Stale or cancelled responses never replace Results.
   }
 
   decisions {
-    Publication {
-      Use the active request as authority because responses can arrive out
-      of submission order.
-    }
+    Use the active request as authority because responses can arrive out
+    of submission order.
   }
 
   cases {
-    Publication {
-      An active uncancelled response publishes its IncomingResults.
+    An active uncancelled response publishes its IncomingResults.
 
-      A response for an older request is ignored.
+    A response for an older request is ignored.
 
-      A response for the active request after cancellation is ignored.
-    }
+    A response for the active request after cancellation is ignored.
   }
 }
 ```
@@ -681,10 +673,10 @@ Changed implementation:
   publish IncomingResults, Return(Published), Results replaced
 ```
 
-The disagreement connects to the shared Publication Concept, the Interface's
-Ignored meaning, the Logic branch, the stale/cancelled Constraint, and the
-cancelled-response Case. Those connections are not several independent guesses
-about a method name. They come from the same represented values and behavior.
+The disagreement connects the component's Interface meaning of Ignored, Logic
+branch, stale/cancelled Constraint, and cancelled-response Case. Those links
+come from the same represented operation, values, and behavior, not guesses
+about a method name or a synthetic Concept wrapper.
 
 The diagnostic can locate the current publishing step and the affected authored
 Facets. A deleted check has no current source span; its old span may appear as

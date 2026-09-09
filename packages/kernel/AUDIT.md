@@ -28,9 +28,10 @@ findings rather than treating this baseline as permanent truth.
 
 ## The adopted design
 
-The core container is Component, containing arbitrarily many Concepts. Concepts
-connect their native Facets across the seven contracts. Facets are the finest
-authored contributions and may also be ungrouped. Ordinary Facets end at an
+The core container is Component; contracts contain Facets. Concept IDs are
+encouraged to group and connect the several concepts commonly present in real
+components. Smaller components may not need them. Ungrouped and grouped Facets
+may freely mix, and no synthetic wrapper is required for comparison. Ordinary Facets end at an
 empty line; Embedded Facets retain their introducing prose and fenced content.
 Interface-defined identifiers are public vocabulary even without Concept blocks.
 Imports and module assembly preserve ownership and do not imply runtime calls.
@@ -47,7 +48,7 @@ not another round of ontology invention:
 
 | Decision now settled | Controlling definition |
 | --- | --- |
-| Preserve Component/Concept/Facet hierarchy and native language identity | [Language foundations](behavior_algebra.md#start-with-the-language-we-have) |
+| Preserve Component ownership, native Facets, and optional Concept grouping | [Language foundations](behavior_algebra.md#start-with-the-language-we-have) |
 | Interpret seven contract roles through the same smaller units | [Contract contributions](behavior_algebra.md#how-each-contract-contributes-to-the-calculation) |
 | Declare the domain and observable boundary before comparing | [Equality](behavior_algebra.md#what-equality-means-here) |
 | Preserve correlated actions, outcomes, values, and next state | [Joint observations](behavior_algebra.md#compare-related-observations-together) |
@@ -222,11 +223,14 @@ Current sources: [design-input.ts](../core/src/design-input.ts),
 [frontend.rs](../sigilc/src/frontend.rs), and
 [catalog.rs](../sigilc/src/catalog.rs).
 
-The frontend already inventories physical semantic units and emits Component
+The frontend already inventories physical Facets and emits Component
 and locally owned Concept entities. `Unit.concept` is text rather than a
 resolved Concept reference per contribution. Entity types do not include
 non-Concept public identifiers defined inside Interface Facets, and the
-transport lacks explicit Embedded Facet representation metadata. The current
+transport lacks explicit Embedded Facet representation metadata. The core
+source model now names Facet, EmbeddedFacet, and its fenced EmbeddedContent;
+the narrower structural Design transport still needs that representation.
+The parser's obsolete ungrouped-Interface warning has been removed. The current
 Implementation catalog also restricts observation subjects in ways that do not
 support the target's independent source-local anchors.
 
@@ -246,7 +250,7 @@ The existing authoring already demonstrates the intended organization:
 
 | Source | What the refactor must preserve |
 | --- | --- |
-| [Parser](../core/src/parser.sigil) | Multiple Concepts; repeated LiteralBlock and ParseResult contributions; prose-unit boundaries and embedded content. |
+| [Parser](../core/src/parser.sigil) | Optional mixed grouping; repeated EmbeddedFacet and ParseResult contributions; native Facet boundaries and embedded content. |
 | [Workspace pipeline](../core/src/pipeline.sigil) | Explicit ordering/assembly ownership; related but differently named Interface and operational Concepts. |
 | [Core model module](../core/src/model/_module.sigil) | Assembly of public model domains without owning their shapes. |
 | [Core package module](../core/_module.sigil) | Nested public assembly without absorbing imported behavior. |
@@ -415,7 +419,7 @@ These specify future implementation checks, not results obtained in this audit.
 | --- | --- |
 | One Component contains several Concepts, each repeated across contracts/expands | Distinct resolved Concepts with collective, separately attributable Facets; no singleton or last-writer rule. |
 | An operation Concept returns a separately defined result Concept | Explicit result relationship; neither Concept is reclassified as a Facet of the other. |
-| Wrapped prose, an empty-line separator, and an ungrouped statement | Native Facet boundaries and optional Concept are preserved. |
+| Wrapped prose, an empty-line separator, and ungrouped/mixed Interface statements | Native Facet boundaries and optional Concept are preserved without grouping warnings or synthetic wrappers. |
 | Embedded content contains blank lines and braces | Introducing prose, notation, body, and ranges remain intact; unsupported interpretation is an explicit gap. |
 | Interface defines a public term without a Concept block | Importable typed identity with defining Facet and originating owner; ordinary prose words are not all exports. |
 | Consumer adds Facets about an imported Concept | Consumer obligations retain their context; provider meaning is not rewritten upstream. |

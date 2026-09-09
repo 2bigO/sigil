@@ -28,19 +28,18 @@ executed compiler result.
 
 ## Start with Sigil, not another organizing language
 
-The semantic granularity is **Component -> Concepts -> Facets**.
-
-Component is the core container. It can contain arbitrarily many Concepts.
-Each Concept connects its own Facets across the seven contracts. Contracts give
-contributions their roles; they do not allocate one Concept per component or
-one Facet per contract. Facets can also appear directly under a contract.
+Component is the core container; contracts contain Facets. Concept IDs group
+related Facets across contracts and should be used to expose the several
+concepts that real components commonly contain. Preserve that authored grouping
+as a first-class connection for the calculation. Smaller components may not
+need another identifier, and every contract can freely mix ungrouped and
+Concept-grouped Facets without warnings or artificial wrappers.
 
 ```text
 Component
-  Concept A: its Interface, State, Logic, Constraint, Decision, Case Facets
-  Concept B: its own contributions and relationships
-  More Concepts as needed
-  Ungrouped Facets
+  Contracts containing Facets
+  Optional Concept A grouping related Facets across contracts
+  Optional Concept B distinguishing another set of contributions
 ```
 
 A Concept's identity is resolved, not guessed from spelling. Imported Concepts
