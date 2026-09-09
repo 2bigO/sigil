@@ -22,13 +22,18 @@ export interface EmbeddedContent {
   readonly indentation: number;
 }
 
-/** A native contribution, optionally grouped under a cross-contract Concept. */
+/**
+ * A native contribution with component ownership and a contract role.
+ * Prefer Concept grouping for recurring concerns; keep shared guarantees and
+ * clear standalone contributions direct, including alongside grouped Facets.
+ */
 export interface Facet {
   readonly filePath: string;
   readonly range: SourceRange;
   readonly ownerKind: SigilFormKind;
   readonly ownerName: string;
   readonly sectionName: SigilSectionName;
+  /** Absent for a direct Facet; consumers must not invent a wrapper identity. */
   readonly conceptIdentifier?: string;
   readonly prose: string;
   readonly sourceLines: readonly string[];
@@ -45,6 +50,17 @@ export function isEmbeddedFacet(facet: Facet): facet is EmbeddedFacet {
   return facet.literalBlocks.length > 0;
 }
 
+/**
+ * One authored occurrence grouping Facets about a named concern, not a Facet.
+ * Reuse its resolved ID across relevant contracts and matching expands: for
+ * example, Admission connects eligibility rules and cancellation scenarios,
+ * while Publication connects result updates and their outcomes.
+ *
+ * A useful public identity can also justify a Concept before it recurs locally.
+ * Small single-concern components may need none. Do not create one per function
+ * or paragraph, require all seven contracts, or wrap shared direct Facets.
+ * Grouping neither requires matching code structure nor proves behavior.
+ */
 export interface ConceptBlock {
   readonly identifier: string;
   readonly range: SourceRange;
@@ -52,6 +68,7 @@ export interface ConceptBlock {
   readonly units: readonly Facet[];
 }
 
+/** A contract freely mixing direct Facets and any number of Concept blocks. */
 export interface Section {
   readonly name: SigilSectionName;
   readonly range: SourceRange;
@@ -68,6 +85,7 @@ export interface ImportDeclaration {
   readonly range: SourceRange;
 }
 
+/** Core ownership container; Concepts are useful granularity, not a required tier. */
 export interface ComponentDeclaration {
   readonly kind: "component";
   readonly name: string;

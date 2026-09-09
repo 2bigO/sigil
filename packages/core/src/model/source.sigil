@@ -22,6 +22,14 @@ component SigilSourceModel {
       isEmbeddedFacet identifies the content-bearing form. Existing serialized
       units and literalBlocks field names remain stable while their TypeScript
       types use native Facet terminology.
+
+      Component is the ownership container. A contract can freely mix direct
+      Facets and multiple Concept blocks; an absent Concept identifier does not
+      require a synthetic wrapper identity.
+
+      Type documentation encourages Concepts for recurring cross-contract concerns
+      and useful public identities while preserving direct shared guarantees and
+      small single-concern components without redundant grouping.
     }
   }
 }

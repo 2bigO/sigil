@@ -124,6 +124,11 @@ export interface ResolvedComponent {
   readonly conceptNamespace: ResolvedConceptNamespace;
 }
 
+/**
+ * Origin identity shared by related Concept occurrences across contracts.
+ * Reuse an accessible imported identity when meaning matches; consumer Facets
+ * retain their context rather than becoming provider-owned requirements.
+ */
 export interface ConceptIdentity {
   readonly identifier: string;
   readonly normalizedIdentifier: string;
@@ -139,6 +144,11 @@ export interface ResolvedConceptOccurrence {
   readonly block: ConceptBlock;
 }
 
+/**
+ * Collective occurrences of one Concept, retaining each contract and location.
+ * Identity groups contributions; it does not make their meanings equivalent.
+ * Direct Facets remain on their sections, outside this collection.
+ */
 export interface ResolvedConcept {
   readonly identity: ConceptIdentity;
   readonly identifier: string;
