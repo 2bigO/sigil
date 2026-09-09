@@ -232,6 +232,14 @@ syntax in every contract, including `interface` and `decisions`: smaller
 components may not need them, and ungrouped Facets can freely mix with grouped
 Facets without warnings. Preserve meaningful groups; avoid mechanical wrappers.
 
+Use the same ID when a concern such as SessionLifecycle connects Interface
+promises, State, Logic, and Cases. Give a distinct concern its own ID rather
+than putting every Facet in one catch-all block. Keep shared guarantees and
+standalone Facets direct where clearer. A Concept need not occur in all seven
+contracts, and its identity does not require a matching class or function in
+code. For concrete use-or-skip guidance, see
+[Concept Identifiers](authoring-conventions.md#concept-identifiers).
+
 A component and all matching expands share one flat namespace. Repeated blocks
 are collective and retain their section and source locations. A concept is
 public when it occurs in `interface`; otherwise it remains private.

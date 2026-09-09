@@ -155,8 +155,38 @@ Actively identify the concepts in a component and use Concept IDs to connect
 their Facets across contracts. Real components commonly contain several ideas
 that benefit from that grouping. Smaller components may need no additional
 identifier; preserve useful ungrouped and mixed authoring rather than adding
-wrappers mechanically. Native Design evidence can
-inform that choice; missing reconstruction does not prohibit authoring.
+wrappers mechanically. Native Design evidence can inform that choice; missing
+reconstruction does not prohibit authoring.
+
+Start with the concerns, not a list of names. Ask which Interface promises,
+State descriptions, Logic steps, Constraints, Decisions, and Cases describe the
+same idea. Prefer a Concept when a reader benefits from following that idea
+across those contributions. Do not wait for the author to request grouping
+when several recurring concerns are already apparent.
+
+| Situation | Authoring move |
+| --- | --- |
+| Request eligibility and result publication each recur across contracts | Use distinct `Admission` and `Publication` Concepts; reuse each ID where its Facets belong. |
+| An accessible provider Concept already names the same concern | Reuse that identity instead of creating a local synonym. |
+| A concern needs a public identity for consumers even before it recurs locally | An Interface Concept can be useful; recurrence is a signal, not a minimum block count. |
+| One small lookup operation already has a clear component identity | Keep its Facets direct unless a separate Concept adds useful identity. |
+| A guarantee applies to the whole operation or spans several concerns | Leave it ungrouped when clearer, alongside the Concept blocks. |
+| Each paragraph, function, or contract would receive its own wrapper | Keep Facets direct or regroup by meaning; those boundaries do not define Concepts. |
+| A responsibility has independent ownership and reasons to change | Consider a separate Component, not a Concept used to conceal an oversized owner. |
+
+For example, Admission can define an eligibility condition and Publication can
+use that condition to guard a result update. Keep the operation signature and
+the promise that unrelated state stays unchanged as direct Facets. The
+explicit condition connects the two concerns; proximity or grouping alone
+does not. One implementation function may realize both Concepts and the direct
+Facets, or several functions may cooperate to realize one Concept.
+
+Reuse a Concept only in contracts with something material to say about it. Do
+not fill all seven contracts, duplicate a shared Facet into every group, or
+invent a catch-all Concept for remaining prose. Grouped and ungrouped Cases
+both describe scenarios, including happy and sad paths, whether tests exist or
+not. Concept identity preserves attribution; it is not a behavioral equality
+proof or an all-or-nothing diagnostic bucket.
 
 Before proposing an identifier:
 

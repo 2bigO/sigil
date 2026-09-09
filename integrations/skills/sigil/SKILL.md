@@ -41,6 +41,23 @@ material decision that available evidence cannot resolve. Read
 [language syntax](references/sigil-format.md) when writing contracts. Reuse
 accessible identities and keep each responsibility with its owner.
 
+## Make recurring concepts explicit
+
+When authoring or reviewing Sigil, actively look for concerns whose Facets recur
+across contracts: request lifecycle, selection, cancellation, publication,
+authorization. Prefer Concept IDs when they make those connections explicit;
+real components commonly have several. Reuse the same resolved identifier for
+the same concern across contracts and matching expands, and reuse accessible
+imported identities when their meaning matches.
+
+Keep shared component-wide promises and standalone Facets ungrouped where that
+is clearer. Mix them with Concept blocks in the same contract. A small component
+with one clear concern may need no Concept wrapper. Do not manufacture one per
+function, paragraph, or contract, or require every Concept in all seven
+contracts. Grouping identifies related meaning; it does not prescribe code
+structure or prove behavior. Use the selection examples in
+[authoring conventions](references/authoring-conventions.md#concept-identifiers).
+
 ## Use the native flow
 
 Read [compilation execution](references/compilation-execution.md) for the exact

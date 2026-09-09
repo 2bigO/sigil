@@ -36,6 +36,9 @@ ConceptIdentifierWorkflow {
       discovers reusable identities across the complete component, matching expands,
       accessible imports, and relevant direct consumers
 
+      proactively recommends Concept IDs for recurring cross-contract concerns and
+      useful public identities, with concrete guidance for leaving Facets ungrouped
+
       checks deterministic concept diagnostics before proposing identifiers
 
       uses one proposal-only concept-identifier subagent when subagents are available
@@ -116,8 +119,14 @@ ConceptIdentifierWorkflow {
       Traverse transitive importers only when a concept is re-exposed or namespace
       ambiguity must be assessed.
 
-      Classify each affected region as local reuse, imported public reuse, or a new
-      identity.
+      Classify each affected region as remaining ungrouped, local reuse, imported
+      public reuse, or a justified new identity.
+
+      Prefer grouping when several contracts describe the same concern. Recurrence
+      is a useful signal, not a minimum occurrence count for a public identity.
+
+      Keep shared component-wide promises direct when clearer and express links
+      between Concepts through the actual operations, conditions, and values.
 
       Give the proposal-only subagent the affected regions, complete component and
       expands, local occurrences, imported candidates, consumer evidence, and graph
@@ -198,6 +207,12 @@ ConceptIdentifierWorkflow {
       Actively identify the concepts in a component and use Concept identifiers to
       connect their Facets across contracts. Preserve ungrouped and mixed Facets;
       smaller components may need no additional grouping identifier.
+
+      Do not manufacture a Concept per function, Facet, or contract, require each
+      Concept in all seven contracts, or group remaining prose under a catch-all ID.
+
+      Concept grouping does not dictate implementation decomposition or establish
+      behavioral equality. Related Facets retain their contract roles and support.
 
       Consumer terminology is naming evidence but is not reusable identity unless
       accessible through valid imports.
@@ -335,6 +350,15 @@ ModuleIndexFile {
 ConceptIdentifierWorkflow {
       The same idea in an interface and matching expand reuses one collective
       identifier.
+
+      A component with recurring admission and publication concerns uses two
+      Concepts while keeping its operation signature and shared guarantees direct.
+
+      A small single-concern component keeps clear direct Facets without a wrapper
+      that only repeats its component identity.
+
+      A public concern can receive an Interface Concept identity for consumer reuse
+      without filler occurrences in the remaining contracts.
 
       An accessible imported public identity is reused instead of creating a synonym.
 
