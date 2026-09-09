@@ -11,11 +11,16 @@ situation in which code disagrees with design.
 
 ## 1. Start with the authored contributions
 
-Component is the core container; contracts contain Facets. This component
-describes one concept, so its Facets need no additional Concept wrapper.
-Concept IDs are encouraged for distinguishing and connecting the several
-concepts in larger components. This deliberately small example shows that
-equality also works without a redundant grouping identifier.
+Component is the core container; contracts contain Facets. This example uses
+two Concepts: `Admission` groups the eligibility decision, and `Publication`
+groups the result update and outcomes. Each identifier connects its Facets
+across contracts and the component's expand. Ungrouped Facets describe the
+public operation and shared guarantees alongside those groups.
+
+These are two concerns within one component, not two components or necessarily
+two functions. Concept IDs are useful here because the concerns recur across
+contracts. A smaller component can express its behavior entirely with ungrouped
+Facets; no synthetic Concept is needed in either case.
 
 ```sigil
 component SearchPublication {
@@ -26,30 +31,58 @@ component SearchPublication {
   interface {
     publish(ResponseId, IncomingResults) returns Published or Ignored.
 
-    Published means IncomingResults became the current Results.
+    Admission {
+      Eligibility is the Boolean decision controlling whether publish may
+      replace Results.
+    }
 
-    Ignored means the current Results remain unchanged.
+    Publication {
+      Published means IncomingResults became the current Results.
+
+      Ignored means the current Results remain unchanged.
+    }
   }
 }
 
 expand SearchPublication {
   state {
-    ActiveRequest identifies the request whose response is current.
+    Admission {
+      ActiveRequest identifies the request whose response is current.
 
-    Cancelled records whether that request was cancelled.
+      Cancelled records whether that request was cancelled.
+    }
 
-    Results holds the currently published result.
+    Publication {
+      Results holds the currently published result.
+    }
   }
 
   logic {
-    When ResponseId equals ActiveRequest and Cancelled is false, replace
-    Results with IncomingResults and return Published.
+    publish evaluates Eligibility against the starting state.
 
-    Otherwise preserve Results and return Ignored.
+    Admission {
+      Eligibility is true exactly when ResponseId equals ActiveRequest and
+      Cancelled is false.
+    }
+
+    Publication {
+      When Eligibility is true, replace Results with IncomingResults and
+      return Published.
+
+      Otherwise preserve Results and return Ignored.
+    }
   }
 
   constraints {
-    Stale or cancelled responses never replace Results.
+    publish leaves ActiveRequest and Cancelled unchanged.
+
+    Admission {
+      Stale or cancelled responses never replace Results.
+    }
+
+    Publication {
+      Ignored performs no publication and leaves Results unchanged.
+    }
   }
 
   decisions {
@@ -58,26 +91,57 @@ expand SearchPublication {
   }
 
   cases {
-    An active uncancelled response publishes its IncomingResults.
-
     A response for an older request is ignored.
 
-    A response for the active request after cancellation is ignored.
+    Admission {
+      A response for the active request after cancellation is ignored.
+    }
+
+    Publication {
+      An active uncancelled response publishes its IncomingResults and
+      returns Published.
+    }
   }
 }
 ```
 
-Each blank-line-delimited statement is a native Facet directly under its
-contract. Component ownership, contract role, and the explicit publication
-operation/value relationships connect the contributions. No Concept identifier
-is needed to preserve attribution or calculate their joint meaning.
+Within each contract or Concept block, an empty line separates ordinary Facets;
+wrapped lines remain part of the same Facet. A Concept block groups Facets; it
+is not itself a Facet. Repeated `Admission` blocks resolve to one Concept owned
+by SearchPublication, and repeated `Publication` blocks resolve to another.
+The two Concept identities remain distinct. Ungrouped Facets belong directly
+to the component in their contract role, not to an implicit third Concept.
 
-Interface defines public vocabulary including `publish`, `ResponseId`,
-`IncomingResults`, `Published`, `Ignored`, and `Results`. Those definitions can
-be imported without giving each a Concept block. State and Logic connect the
-same resolved operation, values, and resource. A consumer's additional Facets
-about this public operation keep their consumer context; they do not rewrite
-the provider.
+The groups organize interpretation and provenance; they do not prescribe
+runtime structure. Their contributions connect through explicit meanings:
+Publication's branch consumes the Eligibility decision defined by Admission,
+and both concern the ungrouped `publish` operation. Merely sharing a component
+would not establish that connection. Nor does sharing a Concept ID make its
+State, Logic, Constraint, and Case Facets interchangeable or equal.
+
+Interface exposes the Concept IDs `Admission` and `Publication` as well as
+the identifiers defined within its Facets, including the ungrouped `publish`,
+`ResponseId`, and `IncomingResults`, and the grouped `Eligibility`, `Published`,
+and `Ignored`. Resolved references connect the Results resource across the
+contracts. Importing public vocabulary does not require wrapping every
+definition in a Concept. A consumer's additional Facets keep their consumer
+context; they do not rewrite the provider.
+
+The accepted interpretation retains these separate contributions:
+
+| Native contribution | Smaller meaning used by the calculation |
+| --- | --- |
+| Ungrouped Interface operation | Operation identity, input values, and returned alternatives. |
+| Admission State and Logic Facets | Reads of ActiveRequest and Cancelled, request equality, Boolean negation and conjunction, and the Eligibility condition. |
+| Publication State and Logic Facets | Results resource, guarded publication action, returned outcome, and next Results value. |
+| Ungrouped Constraint Facet | Frame condition: ActiveRequest and Cancelled are unchanged on both branches. |
+| Grouped Constraints | Properties of the connected operation, not extra runtime actions. |
+| Grouped and ungrouped Cases | Scenario conditions and expected joint observations, not additional execution branches. |
+
+Each smaller unit retains its supporting Facet occurrence, contract role,
+component owner, and Concept identity when present. A unit derived by
+composition may depend on several such occurrences. It must not lose the
+ungrouped contribution or be arbitrarily assigned to just one Concept.
 
 The interpretation supplies smaller units and their connections. It does not
 emit a pre-proved claim that Publication is safe. Goal and Decision guide the
@@ -110,7 +174,7 @@ proof:
 
 | Part | Admission boundary | Operation boundary |
 | --- | --- | --- |
-| Subject | SearchPublication's admission condition | Its selected public operation and contributing Facets |
+| Subject | Eligibility, supported by Admission's Facets | publish, supported by both Concepts and ungrouped Facets |
 | Target | One implementation target at a time | The same target, with its complete supported operation meaning |
 | Inputs | Request-match and cancellation conditions | ResponseId, IncomingResults, and starting ActiveRequest, Cancelled, Results |
 | Observations | Whether publication is admitted | Ordered publication actions, returned alternative, and next relevant state |
@@ -126,7 +190,7 @@ and existing Results independently range over the two payloads. This defines
 These are declared fixture domains and assumptions. Equality on them is not
 unrestricted equality for every real request or payload. Extending the claim
 requires supported value semantics and a proof, for example of identity testing
-and unchanged payload forwarding over the larger domain. The eqval must not
+and unchanged payload forwarding over the larger domain. Eqval must not
 infer that extension from the four admission rows below.
 
 ## 4. Reconstruct code without the expected answer
@@ -178,6 +242,18 @@ only through explicit supported links.
 
 ## 5. Calculate admission
 
+On the Design side, lowering follows the explicit definition of Eligibility
+in Admission. Publication's reference to that resolved value connects the
+decision to its guarded update. The ungrouped operation establishes the inputs
+and call boundary. Eqval does not conjoin every Facet in a Concept or treat the
+two Concept groups as an execution sequence.
+
+On the Implementation side, neither snippet needs a class, function, or variable
+named Admission, Publication, or Eligibility. The observed branch conditions
+provide the decision expression. Authorized correspondence connects subjects
+and values; fixed laws establish behavioral equality, not matching Concept
+names. The source-local code anchors remain distinct from the Design anchors.
+
 Let `m` mean the response matches the active request and `c` mean Cancelled.
 Independent lowering yields:
 
@@ -228,6 +304,13 @@ still supplies an outcome and unchanged state. Overlapping deterministic
 branches with conflicting results are a model conflict, not alternatives to
 merge away.
 
+This composition uses Admission's decision, Publication's guarded update and
+outcomes, and the ungrouped frame condition. The frame condition supplies the
+Design's unchanged ActiveRequest and Cancelled entries; independent code
+analysis must establish those entries for each target. Proving Admission alone
+cannot establish Publication or the frame condition. Conversely, an unresolved
+payload mapping can leave the operation Unresolved while admission is Equal.
+
 The comparator compares complete joint observations, not independent sets of
 writes, outcomes, and states. It must preserve that Published goes with
 publication of the incoming payload, and Ignored goes with no publication and
@@ -236,7 +319,7 @@ all 32 combinations; this document has not run that proof.
 
 A larger rule can now recognize the publication behavior from the equivalent
 guard, its mapped action, outcome, and state update. This is the higher-level
-structure the eqval computes. It was not supplied as a terminal capability.
+structure Eqval computes. It was not supplied as a terminal capability.
 
 Correct admission with a wrong payload, a swapped return alternative, or an
 extra visible write is still Different at this operation boundary. That is
@@ -276,15 +359,21 @@ current publishing path to the relevant native contributions:
 
 | Contribution | What the witness disagrees with |
 | --- | --- |
-| Interface Facet defining Ignored | The rejected case does not preserve Results and return the required alternative. |
-| Logic Facets | The changed branch admits a situation that belongs to the otherwise-preserve path. |
-| Constraint Facet | A cancelled response replaces Results. |
-| Cancelled-response Case | This represented scenario publishes instead of being ignored. |
+| Admission's Eligibility Logic Facet | The changed decision admits an active cancelled response. |
+| Publication's otherwise Logic Facet and Interface definition of Ignored | In a situation where Design requires rejection, code publishes instead of preserving Results and returning Ignored. |
+| Admission's Constraint Facet | A cancelled response replaces Results. |
+| Admission's cancelled-response Case | This represented scenario publishes instead of being ignored. |
 
 These are supported links through the operation, guard, resource, value, and
 outcome. Do not mark every Facet in SearchPublication wrong merely because it
 shares the component. The unaffected target may still be Equal; an aggregate
 requiring both targets reports Drift because Python differs.
+
+The same witness does not refute the ungrouped frame condition: the changed code
+still preserves ActiveRequest and Cancelled. The ungrouped stale-response Case
+and Publication's happy-path Case also still hold in this example. Their own
+supported comparisons establish that; passing them does not cancel the sad-path
+counterexample. A Concept group is not an all-or-nothing diagnostic bucket.
 
 The removed check has no current span. Its historical location may help explain
 the edit, but the fresh witness points to the current admitting/publishing path
@@ -340,9 +429,12 @@ invalidate dependent proofs even if the source bytes remain unchanged.
 
 A module may expose SearchPublication alongside other components. That permits
 a public-surface comparison, not an assumption that every exposed behavior is
-implemented. A consumer can use its public identifiers and add contextual
-Facets without changing this provider's requirements. No Concept wrapper is
-required for those ungrouped Interface definitions to be public.
+implemented. Its public assembly preserves SearchPublication ownership and the
+distinct Admission and Publication identities rather than merging similarly
+named Concepts from other components. A consumer can import those Concept IDs
+or identifiers defined in Interface Facets, including the ungrouped operation,
+and add contextual Facets without changing this provider's requirements. No
+Concept wrapper is required for those ungrouped definitions to be public.
 
 Delegating publication to a helper requires the helper's independently
 reconstructed behavior, an explicit call link, argument/state mapping, and
