@@ -99,8 +99,90 @@ It is the human-authored surface from which the Semantic World is compiled.
 
 ---
 
-The canonical language definition lives in
-[spec/sigil-language.md](spec/sigil-language.md).
+```ts
+component SearchPublication {
+  goal {
+    Keep displayed Results aligned with the active uncancelled request.
+  }
+
+  interface {
+    publish(ResponseId, IncomingResults) returns Published or Ignored.
+
+    Admission {
+      Eligibility is the Boolean decision controlling whether publish may
+      replace Results.
+    }
+
+    Publication {
+      Published means IncomingResults became the current Results.
+
+      Ignored means the current Results remain unchanged.
+    }
+  }
+}
+
+expand SearchPublication {
+  state {
+    Admission {
+      ActiveRequest identifies the request whose response is current.
+
+      Cancelled records whether that request was cancelled.
+    }
+
+    Publication {
+      Results holds the currently published result.
+    }
+  }
+
+  logic {
+    publish evaluates Eligibility against the starting state.
+
+    Admission {
+      Eligibility is true exactly when ResponseId equals ActiveRequest and
+      Cancelled is false.
+    }
+
+    Publication {
+      When Eligibility is true, replace Results with IncomingResults and
+      return Published.
+
+      Otherwise preserve Results and return Ignored.
+    }
+  }
+
+  constraints {
+    publish leaves ActiveRequest and Cancelled unchanged.
+
+    Admission {
+      Stale or cancelled responses never replace Results.
+    }
+
+    Publication {
+      Ignored performs no publication and leaves Results unchanged.
+    }
+  }
+
+  decisions {
+    Use the active request as authority because responses can arrive out
+    of submission order.
+  }
+
+  cases {
+    A response for an older request is ignored.
+
+    Admission {
+      A response for the active request after cancellation is ignored.
+    }
+
+    Publication {
+      An active uncancelled response publishes its IncomingResults and
+      returns Published.
+    }
+  }
+}
+```
+
+Read [more about the syntax here.](language.md)
 
 ## What Just Changed
 
