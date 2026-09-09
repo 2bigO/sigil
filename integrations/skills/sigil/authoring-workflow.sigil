@@ -195,8 +195,9 @@ ModuleIndexFile {
     }
 
 ConceptIdentifierWorkflow {
-      Repair missing concept identifiers from inspected meaning and accessible
-      identities, then refresh current native Design inputs for semantic review.
+      Actively identify the concepts in a component and use Concept identifiers to
+      connect their Facets across contracts. Preserve ungrouped and mixed Facets;
+      smaller components may need no additional grouping identifier.
 
       Consumer terminology is naming evidence but is not reusable identity unless
       accessible through valid imports.
@@ -204,7 +205,7 @@ ConceptIdentifierWorkflow {
       The subagent reports each region, grouping decision, new or reused status,
       occurrences, graph paths, rejected alternatives, and proposed concise names.
 
-      Concept creation, reuse, regrouping, renaming, and warning repair are written
+      Authorized Concept creation, reuse, regrouping, and renaming are written
       directly to scoped Sigil, then return to DesignCompilationReview.
 
       Concept-identifier work does not invoke anchor persistence, proposal, or

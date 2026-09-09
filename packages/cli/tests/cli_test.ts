@@ -355,19 +355,40 @@ Deno.test("check returns 1 for Sigil diagnostics and 0 for a valid empty workspa
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
  */
-Deno.test("check reports missing interface concepts as warning-only", async () => {
-  const root = await makeWorkspace("concept-warning");
+Deno.test("check accepts ungrouped and mixed Interface Facets without warnings", async () => {
+  const root = await makeWorkspace("optional-concepts");
   try {
-    await Deno.writeTextFile(`${root}/contract.sigil`, validSigil("Feature"));
-    const result = await runCli(["check", root, "--format", "json"]);
-    assertEquals(result.exitCode, EXIT_OK);
-    const output = parseJson(result.stdout);
-    assertEquals(output.diagnosticCounts.error, 0);
-    assertEquals(output.diagnosticCounts.warning, 1);
-    assertHasCode(
-      output.diagnostics,
-      "SIGIL_MISSING_CONCEPT_IDENTIFIER",
-    );
+    const sources = [
+      validSigil("Feature"),
+      `component Feature {
+  goal {
+    Read and update records.
+  }
+
+  interface {
+    Record is a stored value.
+
+    Reading {
+      read() returns Record.
+    }
+
+    Writing {
+      write(Record) updates the stored value.
+    }
+
+    Operations complete synchronously.
+  }
+}
+`,
+    ];
+    for (const source of sources) {
+      await Deno.writeTextFile(`${root}/contract.sigil`, source);
+      const result = await runCli(["check", root, "--format", "json"]);
+      assertEquals(result.exitCode, EXIT_OK);
+      const output = parseJson(result.stdout);
+      assertEquals(output.diagnosticCounts.error, 0);
+      assertEquals(output.diagnosticCounts.warning, 0);
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -534,8 +555,8 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
       },
       {
         severity: "warning",
-        code: "SIGIL_MISSING_CONCEPT_IDENTIFIER",
-        message: "Missing identifier.",
+        code: "SIGIL_UNUSED_IMPORT",
+        message: "Unused import.",
         filePath: `${winRoot}/pkg/b.sigil`,
       },
       {
@@ -555,7 +576,7 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
   );
   assert(
     winText.includes(
-      "warning SIGIL_MISSING_CONCEPT_IDENTIFIER C:/repo/pkg/b.sigil: Missing identifier.",
+      "warning SIGIL_UNUSED_IMPORT C:/repo/pkg/b.sigil: Unused import.",
     ),
     winText,
   );

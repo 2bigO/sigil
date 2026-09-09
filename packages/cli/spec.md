@@ -116,10 +116,8 @@ Exit codes should be stable:
 - `3`: host/runtime failure such as unreadable input outside normal Sigil
   diagnostics.
 
-Warnings alone should not produce exit code `1`. In particular,
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` must be visible in human and JSON output
-while preserving exit code `0` when no errors exist, so users and agents can act
-on it.
+Warnings alone should not produce exit code `1`. Ungrouped Facets and mixed
+ungrouped/Concept-grouped contracts are valid and produce no grouping warning.
 
 ## 7. Commands
 
@@ -346,8 +344,7 @@ Version 0.7 is acceptable when tests or scripted checks demonstrate that
 - report diagnostics with stable codes;
 - return exit code `1` when error diagnostics exist;
 - return exit code `0` when only warnings or no diagnostics exist;
-- surface `SIGIL_MISSING_CONCEPT_IDENTIFIER` to users and agents without a
-  nonzero exit code;
+- accept ungrouped and mixed Concept-grouped Interface Facets without warnings;
 - emit graph JSON with file and expansion edges;
 - emit context JSON for `--component Auth`;
 - emit resolved concept namespaces in context JSON;

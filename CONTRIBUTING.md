@@ -401,10 +401,11 @@ reflects the branch you have checked out. Reinstall with
 with locking enabled. Let Deno update it as a result of a real dependency
 change, review that diff like any other, and do not hand-edit it.
 
-**`SIGIL_MISSING_CONCEPT_IDENTIFIER` warnings from `sigil check`.** Interface
-content is not grouped under a concept identifier. This is an authoring gap in
-the `.sigil` file, not a tooling failure, and repairing it is a semantic change
-that goes through the proposal gate.
+**Concept grouping.** Facets can appear directly under any contract or mix with
+Concept-grouped Facets. Ungrouped Interface content is not an authoring gap.
+Concept IDs provide optional grouping across contracts, especially when a
+component describes several concepts. Do not add redundant wrappers to satisfy
+older tooling or guidance.
 
 **`Ownership annotation references section X without a matching occurrence` from
 `sigil context`.** An `@sigil implements` annotation claims a section the

@@ -149,10 +149,14 @@ for a repository-wide formatting pass.
 
 ## Concept Identifiers
 
-Inspect the meaning of ungrouped `interface` content reported by
-`SIGIL_MISSING_CONCEPT_IDENTIFIER`, then group coherent concepts directly in the
-scoped authored file. Native Design evidence can inform review when available;
-missing reconstruction does not prohibit authoring or require an evaluator stage.
+Facets can appear directly under every contract, including `interface`, and may
+mix freely with Concept-grouped Facets. Ungrouped content is not a defect.
+Actively identify the concepts in a component and use Concept IDs to connect
+their Facets across contracts. Real components commonly contain several ideas
+that benefit from that grouping. Smaller components may need no additional
+identifier; preserve useful ungrouped and mixed authoring rather than adding
+wrappers mechanically. Native Design evidence can
+inform that choice; missing reconstruction does not prohibit authoring.
 
 Before proposing an identifier:
 
@@ -163,8 +167,8 @@ Before proposing an identifier:
    relevant use cases and established terminology;
 4. traverse transitive importers only when a concept is re-exposed or namespace
    ambiguity must be assessed;
-5. classify each affected interface region as local reuse, imported public
-   reuse, or a new identity.
+5. classify each affected region as remaining ungrouped, local reuse, imported
+   public reuse, or a justified new identity.
 
 Consumer terminology is naming evidence, not reusable identity unless valid
 imports make it accessible. Reuse imported public concepts as bare identifiers.

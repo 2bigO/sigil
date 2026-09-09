@@ -49,7 +49,7 @@ Responsibilities:
 - resolve `_module.sigil` as an explicit index in any included directory;
 - keep every component public through explicit-file imports;
 - collect component expansions;
-- diagnose ungrouped interface concepts without making warnings fatal;
+- preserve ungrouped and Concept-grouped Facets, freely mixed in any contract;
 - build the workspace graph;
 - produce diagnostics;
 - expose agent and human projection primitives.

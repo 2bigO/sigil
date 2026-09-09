@@ -429,10 +429,9 @@ chosen course. It may describe context, scope, assumptions, trade-offs, design
 issues addressed, discarded alternatives, consequences, and revisit
 conditions.
 
-The section body remains free-form. The language does not require concept
-blocks, labeled fields, or a complete rationale schema. Ungrouped decision
-content is valid and does not produce
-`SIGIL_MISSING_CONCEPT_IDENTIFIER`.
+The section body remains free-form. The language does not require Concept
+blocks, labeled fields, or a complete rationale schema. Ungrouped Facets are
+valid without grouping diagnostics in every contract, including Interface.
 
 When present, decision scope states the boundary where a chosen course applies
 and its important exclusions without attempting to enumerate every current
@@ -502,12 +501,12 @@ matching `expand` share one flat concept namespace. Repeated blocks with the
 same identifier are collective: they add occurrences in their original
 sections and source locations and do not override one another.
 
-Every semantic concept in `interface` should be placed in a concept block. Each
-contiguous ungrouped interface region produces one
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` warning. The document remains valid and CLI
-checks still exit successfully when no error diagnostics exist. Other sections
-may introduce concept identifiers when a concept is useful across sections;
-they do not require all content to be grouped.
+Concept identifiers are optional grouping across contracts, useful for
+distinguishing several concepts within a component. Facets can appear directly
+under any contract, and ungrouped Facets can freely mix with Concept blocks.
+A component describing one concept normally needs no repeated Concept heading.
+Ungrouped Interface content is not an authoring gap and produces no grouping
+warning. Do not introduce an identifier merely to wrap a contract's Facets.
 
 A concept is public when it occurs in `interface`. A concept that occurs only in
 `state`, `logic`, `constraints`, `decisions`, or `cases` is private. Imports
@@ -531,7 +530,6 @@ Concept identifiers do not define anchor syntax or anchor behavior.
 
 Concept diagnostics include:
 
-- `SIGIL_MISSING_CONCEPT_IDENTIFIER` as a warning for ungrouped interface content;
 - `SIGIL_INVALID_CONCEPT_IDENTIFIER` for invalid identifier syntax;
 - `SIGIL_EMPTY_CONCEPT_BLOCK` for an empty block;
 - `SIGIL_NESTED_CONCEPT_BLOCK` for a nested block;

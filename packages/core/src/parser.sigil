@@ -64,7 +64,10 @@ expand SigilParser {
     }
 
     ConceptIdentity {
-      Report one warning for each contiguous ungrouped interface region.
+      Accept Facets directly under every contract without requiring Concept blocks.
+
+      Preserve mixed ungrouped and Concept-grouped Facets in source order without
+      a grouping warning.
 
       Reject invalid identifiers, empty concept blocks, and nested concept blocks.
     }
@@ -141,8 +144,8 @@ expand SigilParser {
     }
 
     SourceDocument {
-      A decisions section preserves grouped and ungrouped Facets without a
-      missing-concept-identifier diagnostic.
+      A decisions section preserves grouped and ungrouped Facets without a grouping
+      diagnostic.
     }
 
     SourceRecovery {
@@ -159,13 +162,15 @@ expand SigilParser {
     }
 
     ConceptIdentity {
-      A contiguous ungrouped interface region produces one
-      SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
+      An interface containing only ungrouped Facets produces no grouping diagnostic.
+
+      An interface mixing ungrouped Facets and Concept blocks preserves both without
+      requiring additional identifiers.
 
       A concept block with several blank-line-delimited paragraphs preserves one
       identity and every Facet.
 
-      Ungrouped non-interface content produces no missing-identifier warning.
+      Ungrouped Facets are valid in every contract, including interface.
 
       Empty and nested concept blocks are invalid.
     }

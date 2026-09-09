@@ -375,7 +375,11 @@ Deno.test("parses the canonical Sigil version and preserves Facets", async () =>
   const result = parseSigilDocument("examples/promise/promise.sigil", source, {
     sigilVersion: SIGIL_VERSION,
   });
-  assertHasCode(result.diagnostics, "SIGIL_MISSING_CONCEPT_IDENTIFIER");
+  assertNoErrors(result.diagnostics);
+  assertEquals(
+    result.diagnostics.filter((item) => item.severity === "warning").length,
+    0,
+  );
   const goal = result.document.components[0].sections.find((section) =>
     section.name === "goal"
   );
@@ -2541,7 +2545,7 @@ component Consumer {
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
-Deno.test("parses flat concept blocks and diagnoses interface authoring gaps", () => {
+Deno.test("preserves mixed Interface Facets and optional Concept groups", () => {
   const source = `component Account {
   goal {
     Authenticate users.
@@ -2580,10 +2584,8 @@ expand Account {
     sigilVersion: SIGIL_VERSION,
   });
   assertEquals(
-    parsed.diagnostics.filter((item) =>
-      item.code === "SIGIL_MISSING_CONCEPT_IDENTIFIER"
-    ).length,
-    2,
+    parsed.diagnostics.filter((item) => item.severity === "warning").length,
+    0,
   );
   assertHasCode(parsed.diagnostics, "SIGIL_CONCEPT_IDENTIFIER_STYLE");
   assertNoErrors(parsed.diagnostics);
@@ -2591,6 +2593,11 @@ expand Account {
     item.name === "interface"
   );
   assert(iface);
+  assertEquals(iface.units.length, 4);
+  assertEquals(iface.units[0].prose, "ungrouped first");
+  assertEquals(iface.units[0].conceptIdentifier, undefined);
+  assertEquals(iface.units[3].prose, "ungrouped second");
+  assertEquals(iface.units[3].conceptIdentifier, undefined);
   assertEquals(iface.concepts.length, 1);
   assertEquals(iface.concepts[0].identifier, "SessionLifecycle");
   assertEquals(iface.concepts[0].units.length, 2);
@@ -2601,7 +2608,7 @@ expand Account {
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
-Deno.test("reports each blank-line-separated ungrouped interface region", () => {
+Deno.test("preserves blank-line-separated ungrouped Interface Facets without warnings", () => {
   const source = `component Account {
   goal {
     Authenticate users.
@@ -2617,13 +2624,16 @@ Deno.test("reports each blank-line-separated ungrouped interface region", () => 
   const parsed = parseSigilDocument("account.sigil", source, {
     sigilVersion: SIGIL_VERSION,
   });
-  assertEquals(
-    parsed.diagnostics.filter((item) =>
-      item.code === "SIGIL_MISSING_CONCEPT_IDENTIFIER"
-    ).length,
-    2,
+  assertEquals(parsed.diagnostics.length, 0);
+  const iface = parsed.document.components[0].sections.find((item) =>
+    item.name === "interface"
   );
-  assertNoErrors(parsed.diagnostics);
+  assert(iface);
+  assertEquals(iface.concepts.length, 0);
+  assertEquals(iface.units.length, 2);
+  assertEquals(iface.units[0].prose, "first ungrouped region");
+  assertEquals(iface.units[1].prose, "second ungrouped region");
+  assert(iface.units.every((facet) => facet.conceptIdentifier === undefined));
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
@@ -2658,12 +2668,7 @@ expand Payments {
     sigilVersion: SIGIL_VERSION,
   });
   assertNoErrors(parsed.diagnostics);
-  assertEquals(
-    parsed.diagnostics.filter((item) =>
-      item.code === "SIGIL_MISSING_CONCEPT_IDENTIFIER"
-    ).length,
-    0,
-  );
+  assertEquals(parsed.diagnostics.length, 0);
   const decisions = parsed.document.expands[0].sections.find((item) =>
     item.name === "decisions"
   );
@@ -2673,6 +2678,68 @@ expand Payments {
   assertEquals(decisions.concepts[0].units.length, 3);
   assertEquals(decisions.units.at(-1)?.prose, "Free-form decision note.");
   assertEquals(decisions.units.at(-1)?.conceptIdentifier, undefined);
+});
+
+// @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
+Deno.test("preserves mixed Facets and Embedded Facets in all seven contracts", () => {
+  const contract = (name: string) => `  ${name} {
+    First contribution.
+
+    Shared {
+      Grouped contribution.
+    }
+
+    Structured contribution:
+    \`\`\`json
+    {
+      "enabled": true
+
+    }
+    \`\`\`
+
+    Last contribution.
+  }`;
+  const source = `component Mixed {
+${["goal", "interface"].map(contract).join("\n\n")}
+}
+
+expand Mixed {
+${["state", "logic", "constraints", "decisions", "cases"].map(contract).join("\n\n")}
+}
+`;
+  const parsed = parseSigilDocument("mixed.sigil", source, {
+    sigilVersion: SIGIL_VERSION,
+  });
+  assertEquals(parsed.diagnostics.length, 0);
+  const sections = [
+    ...parsed.document.components[0].sections,
+    ...parsed.document.expands[0].sections,
+  ];
+  assertEquals(sections.length, 7);
+  for (const section of sections) {
+    assertEquals(section.units.length, 4);
+    assertEquals(section.concepts.length, 1);
+    assertEquals(section.concepts[0].identifier, "Shared");
+    const [first, grouped, embedded, last] = section.units;
+    assertEquals(first.prose, "First contribution.");
+    assertEquals(first.conceptIdentifier, undefined);
+    assertEquals(grouped.prose, "Grouped contribution.");
+    assertEquals(grouped.conceptIdentifier, "Shared");
+    assertEquals(section.concepts[0].units[0], grouped);
+    assert(isEmbeddedFacet(embedded));
+    assertEquals(embedded.prose, "Structured contribution:");
+    assertEquals(embedded.conceptIdentifier, undefined);
+    assertEquals(embedded.literalBlocks.length, 1);
+    assertEquals(embedded.literalBlocks[0].type, "json");
+    assert(embedded.literalBlocks[0].body.includes("\n\n"));
+    assert(embedded.range.start.line < embedded.literalBlocks[0].range.start.line);
+    assertEquals(embedded.range.end.line, embedded.literalBlocks[0].range.end.line);
+    assertEquals(last.prose, "Last contribution.");
+    assertEquals(last.conceptIdentifier, undefined);
+    assert(!isEmbeddedFacet(first));
+    assert(!isEmbeddedFacet(grouped));
+    assert(!isEmbeddedFacet(last));
+  }
 });
 
 // @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases

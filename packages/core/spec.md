@@ -265,8 +265,8 @@ Version 0.7 is acceptable when tests demonstrate that `sigil-core` can:
 - format prose idempotently at 79 content characters while preserving literal
   bodies and structural indentation;
 - collect matching expansions for resolved components;
-- warn once per contiguous ungrouped interface region while keeping the source
-  parseable;
+- preserve ungrouped and Concept-grouped Facets in source order without grouping
+  diagnostics in any contract;
 - resolve public imported concepts as bare identifiers and keep private concepts
   inaccessible to dependents;
 - project each direct dependency contract and decision section once for agent

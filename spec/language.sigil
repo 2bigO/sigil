@@ -130,7 +130,6 @@ component SigilLanguage {
       literal without introduction       SIGIL_LITERAL_WITHOUT_INTRODUCTION error   retain the literal in a recovered Facet
       invalid literal type               SIGIL_INVALID_LITERAL_TYPE        error    retain the literal and supplied type
       unclosed literal at EOF             SIGIL_UNCLOSED_LITERAL_BLOCK      error    retain body through EOF, then finalize enclosing forms
-      ungrouped interface region          SIGIL_MISSING_CONCEPT_IDENTIFIER warning  retain every unit; resume at the region boundary
       ```
 
       after source-scan diagnostics, required-section diagnostics follow component
@@ -149,11 +148,8 @@ component SigilLanguage {
       range at column one of that construct's opening line; an unclosed literal
       diagnostic spans its opening-fence line
 
-      a contiguous ungrouped interface region begins with the first free semantic
-      unit after a section open, concept close, or prior region boundary and ends
-      before a blank line, concept header, section close, or EOF; its warning spans
-      from the first retained unit start through the last retained unit end and is
-      emitted when that boundary is reached
+      ungrouped Facets and Concept-grouped Facets can coexist in every contract;
+      preserve their source order and ranges without a grouping diagnostic
 
       a detached or unintroduced literal creates one Facet under the current
       component or expand, section, and concept when present, with empty normalized
@@ -184,6 +180,9 @@ component SigilLanguage {
     ConceptIdentity {
       a concept block groups one or more related Facets under a reusable
       identifier
+
+      Concept identifiers are optional cross-contract grouping; a component
+      describing one concept normally needs only Facets directly under contracts
 
       a concept is public when it occurs in interface and otherwise remains private
       to its component and matching expands
@@ -322,6 +321,9 @@ expand SigilLanguage {
 
     ConceptIdentity {
       Concept blocks are flat and cannot nest.
+
+      No contract requires Concept blocks. A contract may freely mix ungrouped
+      Facets and Concept-grouped Facets.
 
       Every concept block contains at least one Facet.
 
@@ -782,11 +784,12 @@ expand SigilLanguage {
       In `A😀B` on line two, B begins at source column four and LSP character three;
       the end of a CRLF-terminated line excludes both newline code units.
 
-      A contiguous ungrouped interface region produces one
-      SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
+      An interface containing only ungrouped Facets produces no grouping diagnostic.
 
-      Two free interface paragraphs separated by a blank line remain retained and
-      produce two warnings, each spanning only its paragraph's Facet.
+      Two free interface paragraphs separated by a blank line remain two Facets.
+
+      Ungrouped Facets before and after a Concept block retain source order and
+      remain ungrouped without a diagnostic.
 
       An empty or nested concept block is invalid.
 

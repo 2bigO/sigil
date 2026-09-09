@@ -17,30 +17,46 @@ clarifications. It takes precedence over narrower descriptions in
 `spec/sigil-language.md` and current tooling limitations. Examples explain the
 language; they do not claim every described compiler capability is implemented.
 
-## Component -> Concepts -> Facets
+## Components own contracts; Concepts group Facets
 
-**Component is the core container.** It owns a coherent responsibility and can
-contain arbitrarily many Concepts. Each Concept groups Facets about an
-identifiable part of that design.
+**Component is the core container. Contracts contain Facets.** A Facet can go
+directly under any contract. No Concept identifier is required, including in
+Interface.
+
+**Use Concept IDs actively to organize a component's meaning.** Real components
+often involve several concepts: a request, its lifecycle, result selection,
+publication authority. Naming those groups lets Interface, State, Logic,
+Constraints, and Cases refer to the same ideas without relying on paragraph
+position or repeated explanations.
+
+Look for those cross-contract connections when authoring. A good Concept ID
+makes related Facets easier to find, reuse, and reason about. It is more than
+a heading. Smaller components may describe one cohesive concept clearly enough
+through their own boundary and need no additional grouping; individual Facets
+can also remain ungrouped inside a larger component.
 
 ```text
-Component SearchPanel
-  Concept Search
-    Facets about submission, cancellation, state, response handling
-  Concept Selection
-    Facets about choosing and clearing a result
-  Other Concepts as needed
-  Ungrouped Facets
+Component
+  Contract
+    Facet
+    Concept A { Facets }
+    Another ungrouped Facet
+    Concept B { Facets }
+  Another contract
+    Facet
+    Concept A { More Facets about A }
 ```
 
-Contracts give those contributions their roles. In source, Concept blocks sit
-inside contracts; repeating a resolved Concept across contracts connects its
-Facets. The diagram above shows semantic granularity, not extra nesting syntax.
+This is optional grouping, not a mandatory `Component -> Concept -> Facet`
+ladder. A contract can freely mix ungrouped and Concept-grouped Facets. A
+component can use zero, one, or arbitrarily many Concept IDs. Prefer meaningful
+grouping where it exposes the design's structure; do not manufacture wrappers
+just to satisfy a template or a warning.
 
 | Primitive | Meaning |
 | --- | --- |
 | **Component** | Ownership boundary for a responsibility. Not necessarily one class, file, or process. |
-| **Concept** | Named semantic identity shared across contract contributions. A component can have as many as it needs. |
+| **Concept** | Named grouping that connects an idea's Facets across contracts. Use it to organize the several concepts that real components commonly contain. |
 | **Facet** | Individual authored contribution, grouped under a Concept or directly under a contract. |
 | **Embedded Facet** | A contribution expressed through introducing prose and fenced content in a chosen notation. |
 | **Contract** | The role of a contribution: Goal, Interface, State, Logic, Constraint, Decision, or Case. |
@@ -84,6 +100,8 @@ component SearchPanel {
   }
 
   interface {
+    Results is the ordered collection of matching records.
+
     Search {
       submit(Query) starts a search and produces Results or SearchError.
 
@@ -101,7 +119,10 @@ component SearchPanel {
 
 SearchPanel owns the component responsibility. Search and Selection are two
 Concepts within it. The statements about submit, cancel, choose, and clear are
-Facets. Neither Concept needs its own component merely to have an identity.
+Facets. The Results definition is an ungrouped Facet in the same Interface.
+Search and Selection justify named grouping because later contracts describe
+their different behavior. Neither needs its own component merely to have an
+identity.
 
 A component can describe a parser, a screen, a data model, a workflow, or an
 architectural boundary. A source file is a storage choice, not its definition.
@@ -213,9 +234,9 @@ constraints {
 This still has a component owner, contract role, and source location. No
 `NetworkAccessMustGoThroughTheTransportBoundary` Concept is required.
 
-Current implementation terms such as `SemanticUnit` and `LiteralBlock` do not
-change the language model. A Concept block is not itself a Facet, and the kernel
-does not introduce Facets by renaming whole blocks.
+A Concept block is not itself a Facet. It optionally groups Facets; the kernel
+does not introduce Facets by renaming whole blocks. Ungrouped and mixed
+authoring is valid in every contract without grouping diagnostics.
 
 ## Embedded Facets: use the notation that fits
 
@@ -301,25 +322,24 @@ component RecordSearch {
   }
 
   interface {
-    Search {
-      Query is the caller's search text and selected filters.
+    Query is the caller's search text and selected filters.
 
-      Result is one matching record.
+    Result is one matching record.
 
-      Results is the ordered collection of matching Result records.
+    Results is the ordered collection of matching Result records.
 
-      SearchError describes why a request could not complete.
+    SearchError describes why a request could not complete.
 
-      submit(Query) produces Results or SearchError.
-    }
+    submit(Query) produces Results or SearchError.
   }
 }
 ```
 
-Search is a public Concept. Query, Result, Results, SearchError, and submit are
-public identifiers defined within its Facets. None needs a separate Concept
-block merely to be exported. Concept and exported identifier are related notions,
-not synonyms.
+This small RecordSearch example describes one cohesive concept without needing
+another grouping identifier. Query, Result, Results, SearchError, and submit are public identifiers
+defined by its ungrouped Interface Facets. If an Interface also uses named
+Concepts, those identifiers are public too. Concept and exported identifier
+are related notions, not synonyms; export does not depend on grouping.
 
 Definition matters. Every English word in Interface is not an export. Mentioning
 an imported identifier does not declare another owner for it. Interface is the
@@ -516,7 +536,8 @@ Sigil supplies the organization. The kernel still has to do the mathematics.
 
 | Source | What to inspect |
 | --- | --- |
-| [Parser](packages/core/src/parser.sigil) | Multiple Concepts; LiteralBlock across Logic, Constraints, and Cases; ParseResult connecting public results to parsing and recovery scenarios. |
+| [Parser](packages/core/src/parser.sigil) | Multiple Concepts; EmbeddedFacet across Logic, Constraints, and Cases; ParseResult connecting public results to parsing and recovery scenarios. |
+| [Source model](packages/core/src/model/source.ts) | Facet and EmbeddedFacet represent complete authored contributions; EmbeddedContent holds the fenced payload. Legacy serialized field names remain transport details. |
 | [Workspace pipeline](packages/core/src/pipeline.sigil) | Explicit stage ordering, result assembly, and diagnostic deduplication, with stage behavior retained by separate owners. |
 | [Model module](packages/core/src/model/_module.sigil) | Public assembly of independently owned model domains. |
 | [Core package module](packages/core/_module.sigil) | Nested assembly of model and operational surfaces without taking over their responsibilities. |

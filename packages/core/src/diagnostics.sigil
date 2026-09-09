@@ -101,8 +101,8 @@ expand SigilDiagnostics {
 
       An imports-only _module.sigil produces SIGIL_MODULE_WITHOUT_COMPONENT.
 
-      A contiguous ungrouped interface region produces warning
-      SIGIL_MISSING_CONCEPT_IDENTIFIER.
+      Ungrouped and mixed Concept-grouped Facets produce no grouping diagnostic in
+      any contract.
 
       An identifier outside [A-Za-z][A-Za-z0-9_-]* produces error
       SIGIL_INVALID_CONCEPT_IDENTIFIER.

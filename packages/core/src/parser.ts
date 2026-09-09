@@ -46,7 +46,6 @@ interface SectionDraft {
   startLine: number;
   units: Facet[];
   concepts: ConceptBlock[];
-  ungroupedUnits: Facet[];
   freeformBraceDepth: number;
 }
 
@@ -117,7 +116,6 @@ export function parseSigilDocument(
     );
     section.units.push(unit);
     if (concept) owner.units.push(unit);
-    else section.ungroupedUnits.push(unit);
     paragraph = undefined;
   };
 
@@ -173,7 +171,6 @@ export function parseSigilDocument(
 
       if (trimmed.length === 0) {
         flushParagraph();
-        reportUngroupedInterfaceRegion(section, filePath, diagnostics);
         blankBeforeCurrent = true;
         continue;
       }
@@ -206,7 +203,6 @@ export function parseSigilDocument(
         !concept && trimmed === "}" && section.freeformBraceDepth === 0 &&
         !paragraph
       ) {
-        reportUngroupedInterfaceRegion(section, filePath, diagnostics);
         form.sections.push(finishSection(section, lineNumber, line.length));
         section = undefined;
         blankBeforeCurrent = false;
@@ -226,7 +222,6 @@ export function parseSigilDocument(
             { filePath, range: lineRange(lineNumber, line) },
           ));
         } else {
-          reportUngroupedInterfaceRegion(section, filePath, diagnostics);
           validateConceptIdentifier(
             header.identifier,
             lineNumber,
@@ -277,7 +272,6 @@ export function parseSigilDocument(
             startLine: lineNumber,
             units: [],
             concepts: [],
-            ungroupedUnits: [],
             freeformBraceDepth: 0,
           };
         } else {
@@ -363,7 +357,6 @@ export function parseSigilDocument(
     form.sections.push(
       finishSection(section, lines.length, lines.at(-1)?.length ?? 1),
     );
-    reportUngroupedInterfaceRegion(section, filePath, diagnostics);
   }
   if (form) {
     diagnostics.push(diagnostic(
@@ -553,31 +546,6 @@ function finishConcept(
     },
     units: concept.units,
   });
-}
-
-function reportUngroupedInterfaceRegion(
-  section: SectionDraft,
-  filePath: string,
-  diagnostics: SigilDiagnostic[],
-): void {
-  if (
-    section.name !== "interface" || section.ungroupedUnits.length === 0
-  ) {
-    section.ungroupedUnits = [];
-    return;
-  }
-  const first = section.ungroupedUnits[0];
-  const last = section.ungroupedUnits.at(-1)!;
-  diagnostics.push(diagnostic(
-    "SIGIL_MISSING_CONCEPT_IDENTIFIER",
-    "Interface content should be grouped under one or more concept identifiers.",
-    {
-      severity: "warning",
-      filePath,
-      range: { start: first.range.start, end: last.range.end },
-    },
-  ));
-  section.ungroupedUnits = [];
 }
 
 function validateConceptIdentifier(

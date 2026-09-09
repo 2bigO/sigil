@@ -127,10 +127,12 @@ Imports declare component dependencies. Do not repeat them in `interface`.
 Implementation-hiding rules and forbidden internal access belong in
 `constraints` unless they define an externally observable promise.
 
-Review interface meaning and repair missing concept identifiers using accessible
-identities. Validate grouping and use current native evidence; repeated identifiers
-must describe one coherent concept. Imported provider expands remain outside the
-consumer's public dependency context.
+Review Interface meaning and actively identify useful cross-contract Concept
+groups, reusing accessible identities. Real components often need several such
+groups. Ungrouped Facets and mixed grouping remain valid, and smaller components
+may need no additional identifier.
+Repeated identifiers must describe one coherent concept. Imported provider
+expands remain outside the consumer's public dependency context.
 
 For UI components, also check when applicable:
 

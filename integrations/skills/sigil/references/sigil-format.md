@@ -226,11 +226,11 @@ Identifiers match `[A-Za-z][A-Za-z0-9_-]*`. References are case-sensitive, but
 accessible namespace uniqueness is case-insensitive. PascalCase without
 hyphens or underscores is preferred formatting rather than a validity rule.
 
-Each contiguous ungrouped `interface` region produces
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` as a warning. Ungrouped content remains
-parseable. `state`, `logic`, `constraints`, `decisions`, and `cases` use concept
-blocks only when cross-section reuse is valuable. The Sigil skill uses a named
-concept block for every material decision it authors.
+Concept IDs are encouraged for organizing the several concepts commonly found
+in a component and connecting their Facets across contracts. They are optional
+syntax in every contract, including `interface` and `decisions`: smaller
+components may not need them, and ungrouped Facets can freely mix with grouped
+Facets without warnings. Preserve meaningful groups; avoid mechanical wrappers.
 
 A component and all matching expands share one flat namespace. Repeated blocks
 are collective and retain their section and source locations. A concept is
@@ -343,9 +343,10 @@ decisions {
 }
 ```
 
-For every material decision authored by the skill, use one concise PascalCase
-concept block and record `Decision` and `Scope`. `Context` is not part of the
-current convention. Scope states the governed boundary and important exclusions
+For a material decision, record its choice and scope as Facets. A Concept block
+is optional and useful only when its identity connects related contributions
+across contracts. `Decision` and `Scope` labels may improve clarity but are not
+mandatory syntax. Scope states the governed boundary and important exclusions
 without enumerating every current dependent. Add `Assumptions`, `Trade-offs`,
 `Design issues addressed`,
 `Discarded alternatives`, `Consequences`, and `Revisit when` when materially
@@ -414,7 +415,8 @@ When reviewing Sigil, check:
   changing policy colocated with narrower owners?
 - Does every component expose how callers, users, modules, or other parts
   interact with it?
-- Is every interface region grouped under one or more concept identifiers?
+- Have the component's distinct concepts been identified and usefully connected
+  across contracts, while preserving clear ungrouped and mixed Facets?
 - Are repeated concept blocks coherent, flat, nonempty, and unambiguous across
   the accessible import graph?
 - Do imported dependency views exclude private concepts and expands?
