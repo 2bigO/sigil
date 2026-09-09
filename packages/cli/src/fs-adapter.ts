@@ -1,4 +1,8 @@
-import type { SigilFileSystem } from "@qoherent/sigil-core";
+import {
+  joinPath,
+  normalizePath,
+  type SigilFileSystem,
+} from "@qoherent/sigil-core";
 
 // @sigil uses packages/core/src/filesystem.sigil::SigilFileSystem::FileSystemPort interface,constraints,cases
 export class DenoSigilFileSystem implements SigilFileSystem {
@@ -30,22 +34,12 @@ export class DenoSigilFileSystem implements SigilFileSystem {
     await Deno.writeTextFile(path, source);
   }
 
-  async atomicReplaceTextFile(path: string, source: string): Promise<void> {
-    const tempPath = `${path}.tmp-${crypto.randomUUID()}`;
-    await Deno.writeTextFile(tempPath, source, { createNew: true });
-    try {
-      await Deno.rename(tempPath, path);
-    } catch (error) {
-      await Deno.remove(tempPath).catch(() => {});
-      throw error;
-    }
-  }
-
   async makeDirectory(path: string): Promise<void> {
     await Deno.mkdir(path, { recursive: true });
   }
 }
 
+// @sigil implements packages/cli/_module.sigil::SigilCli::SourceDiscovery interface
 async function collectFiles(path: string, files: string[]): Promise<void> {
   let stat: Deno.FileInfo;
   try {
@@ -63,56 +57,12 @@ async function collectFiles(path: string, files: string[]): Promise<void> {
   if (!stat.isDirectory) return;
 
   for await (const entry of Deno.readDir(path)) {
-    if (entry.name === ".git" || entry.isSymlink) continue;
+    if (
+      entry.name === ".git" || entry.isSymlink ||
+      (path.split("/").at(-1) === ".sigil" &&
+        (!entry.isFile ||
+          !["config.json", "local.json", "glossary.json"].includes(entry.name)))
+    ) continue;
     await collectFiles(joinPath(path, entry.name), files);
   }
-}
-
-export function normalizePath(path: string): string {
-  const normalized = path.replaceAll("\\", "/").replace(/\/+/g, "/");
-  if (normalized === "") return ".";
-  const absolute = normalized.startsWith("/");
-  const parts: string[] = [];
-  for (const part of normalized.split("/")) {
-    if (part === "" || part === ".") continue;
-    if (part === "..") {
-      if (parts.length > 0 && parts[parts.length - 1] !== "..") {
-        parts.pop();
-      } else if (!absolute) {
-        parts.push(part);
-      }
-      continue;
-    }
-    parts.push(part);
-  }
-  const joined = parts.join("/");
-  if (absolute) return `/${joined}`;
-  return joined || ".";
-}
-
-export function joinPath(...parts: string[]): string {
-  return normalizePath(parts.filter(Boolean).join("/"));
-}
-
-export function compilationCacheDirectory(): string {
-  const environment = (name: string): string | undefined => {
-    try {
-      return Deno.env.get(name);
-    } catch {
-      return undefined;
-    }
-  };
-  const home = environment(
-    Deno.build.os === "windows" ? "USERPROFILE" : "HOME",
-  );
-  if (!home) {
-    throw new Error(
-      "Cannot determine the OS user cache directory for compilation history.",
-    );
-  }
-  return Deno.build.os === "darwin"
-    ? joinPath(home, "Library", "Caches", "sigil", "compiler")
-    : Deno.build.os === "windows"
-    ? joinPath(home, "AppData", "Local", "Sigil", "Cache", "compiler")
-    : joinPath(home, ".cache", "sigil", "compiler");
 }

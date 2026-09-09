@@ -34,7 +34,7 @@ Expected skill behavior:
    in `decisions`, not as an accident to reproduce.
 9. State loading, empty, error, retry, stale, and cancelled behavior for every
    request a surface issues, and treat missing async cases as a
-   semantic-readiness gap.
+   contract coherence gap.
 10. Treat keyboard operation, focus order, roles and labels, live-region
     announcements, reduced motion, and target size as binding constraints
     rather than presentation preferences.
@@ -60,5 +60,3 @@ Expected skill behavior:
 20. Supply the inventory as the presentation concern list for the
     implementation coverage map rather than building a parallel coverage
     process.
-21. Present the exact proposed Sigil to `ReviewGate(action: sigil-change)` and
-    leave files unchanged until it returns ready.

@@ -10,7 +10,7 @@ import type {
   ResolvedConcept,
   ResolvedSigilWorkspace,
   Section,
-  SemanticUnit,
+  Facet,
   SigilDiagnostic,
   SigilDocument,
   SigilFileSystem,
@@ -505,14 +505,14 @@ function componentReferences(
     });
   }
 
-  const semanticUnits = [
+  const facets = [
     ...document.components,
     ...document.expands,
   ].flatMap((declaration) =>
     declaration.sections.flatMap((section) => section.units)
   );
   const sourceLines = source.split(/\r?\n/);
-  for (const unit of semanticUnits) {
+  for (const unit of facets) {
     for (let offset = 0; offset < unit.sourceLines.length; offset++) {
       const sourceLine = sourceLines[unit.range.start.line - 1 + offset] ?? "";
       const lineRange = {
@@ -815,19 +815,19 @@ async function componentMarkdown(
     `Source: \`${markdown.displayPath(component.filePath)}\``,
     "",
     "**Goal**",
-    ...markdownList(await markdown.semanticUnits(goal?.units ?? [])),
+    ...markdownList(await markdown.facets(goal?.units ?? [])),
     "",
     "**Interface**",
-    ...markdownList(await markdown.semanticUnits(iface?.units ?? [])),
+    ...markdownList(await markdown.facets(iface?.units ?? [])),
   ];
   if (includeExpansions && component.expansions.expands.length) {
     lines.push("", "**Collected expansions**");
     for (const expansion of component.expansions.expands) {
       lines.push("", `\`${markdown.displayPath(expansion.filePath)}\``);
       for (const section of expansion.declaration.sections) {
-        const semanticUnits = await markdown.semanticUnits(section.units);
+        const facets = await markdown.facets(section.units);
         lines.push(
-          `- **${section.name}:** ${semanticUnits.join(" ")}`,
+          `- **${section.name}:** ${facets.join(" ")}`,
         );
       }
     }
@@ -910,7 +910,7 @@ async function conceptMarkdown(
     `Origin: ${originLink} in \`${markdown.displayPath(identity.filePath)}\``,
   ];
   for (const occurrence of reference.concept.occurrences) {
-    const semanticUnits = await markdown.semanticUnits(occurrence.block.units);
+    const facets = await markdown.facets(occurrence.block.units);
     const occurrenceComponent = markdown.component(
       occurrence.componentName,
       occurrence.filePath,
@@ -923,7 +923,7 @@ async function conceptMarkdown(
       `**${occurrence.sectionName}** — ${occurrenceComponentLink} in \`${
         markdown.displayPath(occurrence.filePath)
       }\``,
-      ...markdownList(semanticUnits),
+      ...markdownList(facets),
     );
   }
   return lines.join("\n");
@@ -1014,11 +1014,11 @@ class HoverMarkdownRenderer {
     return lines;
   }
 
-  async semanticUnits(units: readonly SemanticUnit[]): Promise<string[]> {
-    return await Promise.all(units.map((unit) => this.semanticUnit(unit)));
+  async facets(units: readonly Facet[]): Promise<string[]> {
+    return await Promise.all(units.map((unit) => this.facet(unit)));
   }
 
-  async semanticUnit(unit: SemanticUnit): Promise<string> {
+  async facet(unit: Facet): Promise<string> {
     const allReferences = await this.#referencesFor(unit.filePath);
     const rendered: string[] = [];
     for (let offset = 0; offset < unit.sourceLines.length; offset++) {
@@ -1046,9 +1046,9 @@ class HoverMarkdownRenderer {
       }
       rendered.push(result);
     }
-    for (const literal of unit.literalBlocks) {
+    for (const embedded of unit.literalBlocks) {
       rendered.push(
-        `\n\`\`\`${literal.type ?? ""}\n${literal.body}\n\`\`\``,
+        `\n\`\`\`${embedded.type ?? ""}\n${embedded.body}\n\`\`\``,
       );
     }
     return rendered.join(" ");

@@ -4,11 +4,11 @@ import type {
   ConceptBlock,
   ExpandDeclaration,
   ImportDeclaration,
-  LiteralBlock,
+  EmbeddedContent,
   ParseOptions,
   ParseResult,
   Section,
-  SemanticUnit,
+  Facet,
   SigilDocument,
 } from "./model/source.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
@@ -31,7 +31,7 @@ const SECTION_NAMES = new Set<SigilSectionName>([
 ]);
 const CONCEPT_IDENTIFIER = /^[A-Za-z][A-Za-z0-9_-]*$/;
 const PREFERRED_CONCEPT_IDENTIFIER = /^[A-Z][A-Za-z0-9]*$/;
-const LITERAL_TYPE = /^[A-Za-z][A-Za-z0-9_+.-]*$/;
+const EMBEDDED_LANGUAGE = /^[A-Za-z][A-Za-z0-9_+.-]*$/;
 const PROSE_WIDTH = 79;
 
 interface FormDraft {
@@ -44,16 +44,15 @@ interface FormDraft {
 interface SectionDraft {
   name: SigilSectionName;
   startLine: number;
-  units: SemanticUnit[];
+  units: Facet[];
   concepts: ConceptBlock[];
-  ungroupedUnits: SemanticUnit[];
   freeformBraceDepth: number;
 }
 
 interface ConceptDraft {
   identifier: string;
   startLine: number;
-  units: SemanticUnit[];
+  units: Facet[];
   braceDepth: number;
 }
 
@@ -61,14 +60,14 @@ interface ParagraphDraft {
   startLine: number;
   endLine: number;
   lines: string[];
-  literalBlocks: LiteralBlock[];
+  literalBlocks: EmbeddedContent[];
 }
 
 /*
  * @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocumentParsing interface
  * @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
- * @sigil implements packages/core/src/parser.sigil::SigilParser::LiteralBlock logic,constraints,cases
- * @sigil implements packages/core/src/parser.sigil::SigilParser::SemanticUnit constraints,cases
+ * @sigil implements packages/core/src/parser.sigil::SigilParser::EmbeddedFacet logic,constraints,cases
+ * @sigil implements packages/core/src/parser.sigil::SigilParser::Facet constraints,cases
  */
 export function parseSigilDocument(
   filePath: string,
@@ -108,7 +107,7 @@ export function parseSigilDocument(
   const flushParagraph = (): void => {
     if (!paragraph || !form || !section) return;
     const owner = concept ?? section;
-    const unit = makeSemanticUnit(
+    const unit = makeFacet(
       filePath,
       paragraph,
       form,
@@ -117,7 +116,6 @@ export function parseSigilDocument(
     );
     section.units.push(unit);
     if (concept) owner.units.push(unit);
-    else section.ungroupedUnits.push(unit);
     paragraph = undefined;
   };
 
@@ -138,8 +136,8 @@ export function parseSigilDocument(
               ? "SIGIL_DETACHED_LITERAL_BLOCK"
               : "SIGIL_LITERAL_WITHOUT_INTRODUCTION",
             blankBeforeCurrent && hadPriorContent
-              ? "A literal block must immediately follow its introducing prose without a blank line."
-              : "A literal block requires preceding prose in the same section or concept block.",
+              ? "A embedded block must immediately follow its introducing prose without a blank line."
+              : "A embedded block requires preceding prose in the same section or concept block.",
             { filePath, range: lineRange(lineNumber, line) },
           ));
           paragraph = {
@@ -149,14 +147,14 @@ export function parseSigilDocument(
             literalBlocks: [],
           };
         }
-        if (fence.type !== undefined && !LITERAL_TYPE.test(fence.type)) {
+        if (fence.type !== undefined && !EMBEDDED_LANGUAGE.test(fence.type)) {
           diagnostics.push(diagnostic(
             "SIGIL_INVALID_LITERAL_TYPE",
-            `Invalid literal type ${JSON.stringify(fence.type)}.`,
+            `Invalid embedded language ${JSON.stringify(fence.type)}.`,
             { filePath, range: lineRange(lineNumber, line) },
           ));
         }
-        const parsed = parseLiteralBlock(
+        const parsed = parseEmbeddedContent(
           lines,
           index,
           fence,
@@ -173,7 +171,6 @@ export function parseSigilDocument(
 
       if (trimmed.length === 0) {
         flushParagraph();
-        reportUngroupedInterfaceRegion(section, filePath, diagnostics);
         blankBeforeCurrent = true;
         continue;
       }
@@ -206,7 +203,6 @@ export function parseSigilDocument(
         !concept && trimmed === "}" && section.freeformBraceDepth === 0 &&
         !paragraph
       ) {
-        reportUngroupedInterfaceRegion(section, filePath, diagnostics);
         form.sections.push(finishSection(section, lineNumber, line.length));
         section = undefined;
         blankBeforeCurrent = false;
@@ -226,7 +222,6 @@ export function parseSigilDocument(
             { filePath, range: lineRange(lineNumber, line) },
           ));
         } else {
-          reportUngroupedInterfaceRegion(section, filePath, diagnostics);
           validateConceptIdentifier(
             header.identifier,
             lineNumber,
@@ -277,7 +272,6 @@ export function parseSigilDocument(
             startLine: lineNumber,
             units: [],
             concepts: [],
-            ungroupedUnits: [],
             freeformBraceDepth: 0,
           };
         } else {
@@ -300,6 +294,10 @@ export function parseSigilDocument(
     }
 
     if (trimmed.length === 0) continue;
+    // Managed companion views carry documentary metadata in a line comment.
+    // Comments are ignored by the parser and therefore cannot become semantic
+    // intent or executable directives.
+    if (trimmed.startsWith("//")) continue;
     const importMatch = trimmed.match(
       /^@(.+?)\s+import\s+\{\s*([^}]+?)\s*\}\s*$/,
     );
@@ -359,7 +357,6 @@ export function parseSigilDocument(
     form.sections.push(
       finishSection(section, lines.length, lines.at(-1)?.length ?? 1),
     );
-    reportUngroupedInterfaceRegion(section, filePath, diagnostics);
   }
   if (form) {
     diagnostics.push(diagnostic(
@@ -419,13 +416,13 @@ function openingFence(
   return { fenceLength: match[1].length, type: type || undefined };
 }
 
-function parseLiteralBlock(
+function parseEmbeddedContent(
   lines: readonly string[],
   startIndex: number,
   opener: { fenceLength: number; type?: string },
   filePath: string,
   diagnostics: SigilDiagnostic[],
-): { block: LiteralBlock; endIndex: number } {
+): { block: EmbeddedContent; endIndex: number } {
   const openingLine = lines[startIndex];
   const indentation = firstColumn(openingLine) - 1;
   const bodyLines: string[] = [];
@@ -444,7 +441,7 @@ function parseLiteralBlock(
   if (!closed) {
     diagnostics.push(diagnostic(
       "SIGIL_UNCLOSED_LITERAL_BLOCK",
-      "Literal block is missing a closing backtick fence.",
+      "embedded content is missing a closing backtick fence.",
       { filePath, range: lineRange(startIndex + 1, openingLine) },
     ));
   }
@@ -471,24 +468,24 @@ function parseLiteralBlock(
   };
 }
 
-function makeSemanticUnit(
+function makeFacet(
   filePath: string,
   paragraph: ParagraphDraft,
   form: FormDraft,
   sectionName: SigilSectionName,
   conceptIdentifier?: string,
-): SemanticUnit {
+): Facet {
   const prose = paragraph.lines.map((line) => line.trim()).join(" ");
-  const lastLiteral = paragraph.literalBlocks.at(-1);
+  const lastEmbedded = paragraph.literalBlocks.at(-1);
   const lastSourceLine = paragraph.lines.at(-1) ?? "";
   return {
     filePath,
     range: {
       start: paragraph.lines.length > 0
         ? lineRange(paragraph.startLine, paragraph.lines[0]).start
-        : lastLiteral?.range.start ??
+        : lastEmbedded?.range.start ??
           singlePointRange(paragraph.startLine).start,
-      end: lastLiteral?.range.end ??
+      end: lastEmbedded?.range.end ??
         lineRange(paragraph.endLine, lastSourceLine).end,
     },
     ownerKind: form.kind,
@@ -536,7 +533,7 @@ function finishConcept(
   if (concept.units.length === 0) {
     diagnostics.push(diagnostic(
       "SIGIL_EMPTY_CONCEPT_BLOCK",
-      `Concept block ${concept.identifier} must contain at least one semantic unit.`,
+      `Concept block ${concept.identifier} must contain at least one Facet.`,
       { filePath, range },
     ));
   }
@@ -549,31 +546,6 @@ function finishConcept(
     },
     units: concept.units,
   });
-}
-
-function reportUngroupedInterfaceRegion(
-  section: SectionDraft,
-  filePath: string,
-  diagnostics: SigilDiagnostic[],
-): void {
-  if (
-    section.name !== "interface" || section.ungroupedUnits.length === 0
-  ) {
-    section.ungroupedUnits = [];
-    return;
-  }
-  const first = section.ungroupedUnits[0];
-  const last = section.ungroupedUnits.at(-1)!;
-  diagnostics.push(diagnostic(
-    "SIGIL_MISSING_CONCEPT_IDENTIFIER",
-    "Interface content should be grouped under one or more concept identifiers.",
-    {
-      severity: "warning",
-      filePath,
-      range: { start: first.range.start, end: last.range.end },
-    },
-  ));
-  section.ungroupedUnits = [];
 }
 
 function validateConceptIdentifier(

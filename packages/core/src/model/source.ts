@@ -11,7 +11,8 @@ export type {
   SourceRange,
 } from "./language.ts";
 
-export interface LiteralBlock {
+/** Fenced payload; the introducing prose belongs to its enclosing Facet. */
+export interface EmbeddedContent {
   readonly type?: string;
   readonly body: string;
   readonly sourceLines: readonly string[];
@@ -21,30 +22,59 @@ export interface LiteralBlock {
   readonly indentation: number;
 }
 
-export interface SemanticUnit {
+/**
+ * A native contribution with component ownership and a contract role.
+ * Prefer Concept grouping for recurring concerns; keep shared guarantees and
+ * clear standalone contributions direct, including alongside grouped Facets.
+ */
+export interface Facet {
   readonly filePath: string;
   readonly range: SourceRange;
   readonly ownerKind: SigilFormKind;
   readonly ownerName: string;
   readonly sectionName: SigilSectionName;
+  /** Absent for a direct Facet; consumers must not invent a wrapper identity. */
   readonly conceptIdentifier?: string;
   readonly prose: string;
   readonly sourceLines: readonly string[];
-  readonly literalBlocks: readonly LiteralBlock[];
+  /** Legacy serialized field name; nonempty content makes this an EmbeddedFacet. */
+  readonly literalBlocks: readonly EmbeddedContent[];
 }
 
+/** Introducing prose and fenced content together form one Embedded Facet. */
+export interface EmbeddedFacet extends Facet {
+  readonly literalBlocks: readonly [EmbeddedContent, ...EmbeddedContent[]];
+}
+
+export function isEmbeddedFacet(facet: Facet): facet is EmbeddedFacet {
+  return facet.literalBlocks.length > 0;
+}
+
+/**
+ * One authored occurrence grouping Facets about a named concern, not a Facet.
+ * Reuse its resolved ID across relevant contracts and matching expands: for
+ * example, Admission connects eligibility rules and cancellation scenarios,
+ * while Publication connects result updates and their outcomes.
+ *
+ * A useful public identity can also justify a Concept before it recurs locally.
+ * Small single-concern components may need none. Do not create one per function
+ * or paragraph, require all seven contracts, or wrap shared direct Facets.
+ * Grouping neither requires matching code structure nor proves behavior.
+ */
 export interface ConceptBlock {
   readonly identifier: string;
   readonly range: SourceRange;
   readonly bodyRange: SourceRange;
-  readonly units: readonly SemanticUnit[];
+  readonly units: readonly Facet[];
 }
 
+/** A contract freely mixing direct Facets and any number of Concept blocks. */
 export interface Section {
   readonly name: SigilSectionName;
   readonly range: SourceRange;
   readonly bodyRange: SourceRange;
-  readonly units: readonly SemanticUnit[];
+  /** Facets in source order, including both ungrouped and Concept-grouped ones. */
+  readonly units: readonly Facet[];
   readonly concepts: readonly ConceptBlock[];
 }
 
@@ -55,6 +85,7 @@ export interface ImportDeclaration {
   readonly range: SourceRange;
 }
 
+/** Core ownership container; Concepts are useful granularity, not a required tier. */
 export interface ComponentDeclaration {
   readonly kind: "component";
   readonly name: string;

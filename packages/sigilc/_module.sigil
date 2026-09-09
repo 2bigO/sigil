@@ -1,0 +1,37 @@
+@packages/core/src/design-input.sigil import { SigilDesignInput }
+
+component SigilSemanticCompiler {
+  goal {
+    Derive disposable Design and Implementation worlds using fixed semantic
+    laws while keeping language interpretation and external workers separate.
+  }
+
+  interface {
+    FrontendBoundary {
+      Accept the closed, versioned structural bundle from SigilDesignInput.
+      Reject unknown fields at every level, malformed source paths, duplicate
+      identities, dangling ownership and import references, and invalid ranges.
+      The TypeScript frontend owns parsing and language resolution. Rust owns
+      input identity and semantic interpretation of validated assertions.
+    }
+  }
+}
+
+expand SigilSemanticCompiler {
+  constraints {
+    FrontendBoundary {
+      No obligations, semantic closure, rules, implementation evidence, model
+      configuration or production metadata can enter through frontend transport.
+      Unit inventory records physical authored ranges without asserting their
+      meaning. Invalid input never supplies a completed semantic verdict.
+    }
+  }
+
+  cases {
+    FrontendBoundary {
+      Reject a semantic result inserted at either the bundle or entity level.
+      Preserve valid unresolved imports and units with null owners so diagnostics
+      can explain failed language resolution without inventing identities.
+    }
+  }
+}

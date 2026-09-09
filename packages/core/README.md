@@ -29,8 +29,8 @@ Platform context lives in
 Responsibilities:
 
 - parse `.sigil` files;
-- preserve source locations and semantic units;
-- preserve attached typed literal blocks outside structural and reference
+- preserve source locations and Facets;
+- preserve attached typed fenced content outside structural and reference
   interpretation;
 - report strict per-name unused imports;
 - canonically wrap prose at 79 content characters without counting indentation;
@@ -49,7 +49,7 @@ Responsibilities:
 - resolve `_module.sigil` as an explicit index in any included directory;
 - keep every component public through explicit-file imports;
 - collect component expansions;
-- diagnose ungrouped interface concepts without making warnings fatal;
+- preserve ungrouped and Concept-grouped Facets, freely mixed in any contract;
 - build the workspace graph;
 - produce diagnostics;
 - expose agent and human projection primitives.

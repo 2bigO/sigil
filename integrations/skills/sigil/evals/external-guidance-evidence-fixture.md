@@ -52,15 +52,13 @@ Expected skill behavior:
     choosing one.
 17. Stop research when applicability, environment match, material claims,
     limitations, freshness, and conflicts are proportionally established.
-18. Keep the evidence packet nonbinding and separate from project decisions,
-    finding classification, and ReviewGate authority.
-19. Reuse evidence only while its question, boundary, environment, jurisdiction,
+18. Reuse evidence only while its question, boundary, environment, jurisdiction,
     risk, source status, and applicability assumptions remain unchanged.
-20. Verify packet currency and applicability again when standards review
+19. Verify packet currency and applicability again when standards review
     consumes design-conversation evidence.
-21. Keep packets conversation-scoped by default and require a separate explicit
+20. Keep packets conversation-scoped by default and require a separate explicit
     decision before creating a persistent repository artifact.
-22. Show directly relevant source identity during design recommendations and
+21. Show directly relevant source identity during design recommendations and
     complete source records during standards review.
-23. Permit only limited source identity and version in Sigil when needed for
+22. Permit only limited source identity and version in Sigil when needed for
     durable rationale or a revisit condition, without URLs or compliance claims.

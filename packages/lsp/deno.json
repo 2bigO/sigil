@@ -18,7 +18,7 @@
   },
   "tasks": {
     "start": "deno run --allow-read src/main.ts",
-    "test": "deno test --allow-read --allow-run",
+    "test": "deno test --allow-read --allow-write --allow-run",
     "publish:dry-run": "deno publish --dry-run"
   },
   "compilerOptions": {

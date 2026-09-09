@@ -25,8 +25,8 @@ It must:
 - parse and validate strict `.sigil/config.json` using the canonical Sigil
   version;
 - parse and validate optional strict `.sigil/glossary.json` schema version 1;
-- preserve source locations and semantic units;
-- preserve attached literal blocks as uninterpreted content;
+- preserve source locations and Facets;
+- preserve attached fenced content as uninterpreted content;
 - diagnose every resolved imported name without qualifying local use;
 - provide deterministic in-memory formatting at 79 prose content characters;
 - resolve non-overlapping path-glob glossary contexts;
@@ -85,7 +85,7 @@ Version 0.7 must not implement:
 
 Anchors remain outside `sigil-core`. The historical design in ADR-011 described
 them through a separate deterministic `sigil-indexer` package that consumes core
-semantic-unit and workspace models.
+Facet and workspace models.
 
 ## 4. Public Interface Requirements
 
@@ -121,7 +121,9 @@ The model should include typed concepts equivalent to:
 - `ComponentDeclaration`;
 - `ExpandDeclaration`;
 - `Section`;
-- `SemanticUnit`;
+- `Facet`;
+- `EmbeddedFacet`;
+- `EmbeddedContent`;
 - `ConceptBlock`;
 - `WorkspaceGlossary`;
 - `GlossaryTerm`;
@@ -145,7 +147,7 @@ The model should include typed concepts equivalent to:
 order while returning only accepted terms and occurrences recognized in the
 selected source files.
 
-`SemanticUnit` must include:
+`Facet` must include:
 
 - file path;
 - source range;
@@ -155,7 +157,12 @@ selected source files.
 - optional concept identifier;
 - normalized prose;
 - original physical lines;
-- attached literal blocks.
+- attached fenced content.
+
+An `EmbeddedFacet` includes introducing prose and nonempty `EmbeddedContent`.
+The fenced payload alone is not the native Facet. Existing serialized `units`
+and `literalBlocks` field names remain stable; they do not define language
+primitives. `isEmbeddedFacet` narrows the complete content-bearing Facet.
 
 `SigilDiagnostic` must include:
 
@@ -235,15 +242,15 @@ paths.
 Every resolved imported name must have qualifying local use in `interface`,
 `state`, `logic`, `constraints`, or `cases`, through a matching local `expand`,
 or through direct `_module.sigil` surface exposure. Documentary mentions in
-`goal`, `decisions`, literal blocks, comments, and annotations do not count.
+`goal`, `decisions`, fenced content, comments, and annotations do not count.
 
 ## 9. Acceptance Scenarios
 
 Version 0.7 is acceptable when tests demonstrate that `sigil-core` can:
 
 - parse `examples/promise/promise.sigil`;
-- preserve semantic units with owner, section, normalized prose, original
-  physical lines, attached literal blocks, file, and source range;
+- preserve Facets with owner, section, normalized prose, original
+  physical lines, attached fenced content, file, and source range;
 - discover the repository `.sigil/config.json` from nested targets that remain
   in the root workspace;
 - discover Promise and Slotted through their independent example configs;
@@ -254,12 +261,12 @@ Version 0.7 is acceptable when tests demonstrate that `sigil-core` can:
 - keep omitted components importable through explicit `.sigil` paths;
 - resolve `examples/slotted/auth.sigil` imports from the Slotted workspace root;
 - diagnose each resolved imported name without qualifying use;
-- exclude literal-block content from import, concept, and glossary references;
+- exclude embedded-content content from import, concept, and glossary references;
 - format prose idempotently at 79 content characters while preserving literal
   bodies and structural indentation;
 - collect matching expansions for resolved components;
-- warn once per contiguous ungrouped interface region while keeping the source
-  parseable;
+- preserve ungrouped and Concept-grouped Facets in source order without grouping
+  diagnostics in any contract;
 - resolve public imported concepts as bare identifiers and keep private concepts
   inaccessible to dependents;
 - project each direct dependency contract and decision section once for agent

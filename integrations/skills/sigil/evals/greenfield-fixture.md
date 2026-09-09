@@ -45,7 +45,7 @@ Expected skill behavior:
     before creating a local component or concept.
 17. Confirm that the Sigil decomposition can guide generated implementation into
     cohesive owning modules.
-18. Apply semantic-readiness, standards, coherence, and modularity review,
+18. Inspect applicable standards, contract coherence and component ownership,
     verifying the currency and applicability of evidence created during
     conversation.
 19. Recheck affected related-Sigil coherence before synthesis.
@@ -54,5 +54,3 @@ Expected skill behavior:
     result in the file.
 22. Treat the missing Sigil coverage as a reason to collaborate with the user on
     the affected Sigil before adding implementation.
-23. Implement only when `ReviewGate(action: implementation)` is ready for the
-    validated written Sigil and exact implementation scope.

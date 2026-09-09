@@ -65,9 +65,9 @@ component SigilWorkspaceGlossary {
 
       the longest matching phrase wins
 
-      occurrences resolve only inside SemanticUnit prose
+      occurrences resolve only inside Facet prose
 
-      structural syntax, LiteralBlock types and bodies, inline code, and URLs do not
+      structural syntax, EmbeddedContent types and bodies, inline code, and URLs do not
       contain glossary occurrences
     }
   }
@@ -87,7 +87,7 @@ expand SigilWorkspaceGlossary {
 
     TermRecognition {
       Order effective canonical and alias spellings by descending length before
-      scanning each eligible semantic unit.
+      scanning each eligible Facet.
 
       Accept a match only when adjacent characters are not Unicode letters, numbers,
       or underscore.

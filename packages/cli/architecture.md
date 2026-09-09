@@ -28,7 +28,8 @@ collected expansions independently.
 - Treat human text output as convenience, not API.
 - Keep command modules thin over `sigil-core`.
 - Keep Deno filesystem and process APIs at the outer edge.
-- Never mutate `.sigil` files in version 0.7.
+- Keep semantic compilation in native `sigilc`, invoked directly by its caller.
+  Export structural Design through core without semantic lowering or forwarding.
 - Keep CLI behavior deterministic and non-interactive.
 
 ## 3. Internal Modules
@@ -76,7 +77,7 @@ Owns command handlers.
 Responsibilities:
 
 - implement `skill list`, `skill install`, `parse`, `check`, `graph`, `context`,
-  and `render`;
+  `retrieve`, `render`, configuration, and structural Design export;
 - call `sigil-core` through shared helpers;
 - return typed command result objects;
 - avoid command-specific duplication of parser and resolver behavior.
@@ -86,6 +87,10 @@ Rules:
 - may depend on `args`, `core-adapter`, `installer`, `output-model`, and `exit`;
 - must not write directly to stdout or stderr;
 - must not directly call Deno filesystem APIs.
+
+Language handlers use core directly. Structural Design export supplies raw input
+for native sigilc. No semantic handler, compiler forwarding command, profile
+selector, retained event stream or provider dispatch remains in this package.
 
 ### `core-adapter`
 
@@ -344,6 +349,9 @@ Required scenarios:
 - invalid arguments return exit code `2`;
 - runtime filesystem failures return exit code `3`;
 - JSON output includes stable diagnostic codes.
+- structural export preserves captured buffers and emits the closed core bundle;
+- removed compile/config/provider/doctor commands reject usage;
+- language operations require no semantic runtime or model configuration.
 
 Tests should snapshot JSON shapes only after the output contract is
 intentionally stable.

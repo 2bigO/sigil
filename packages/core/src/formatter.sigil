@@ -6,7 +6,7 @@
 component SigilFormatter {
   goal {
     Produce a deterministic canonical representation of valid Sigil source without
-    changing resolved semantic units or literal content.
+    changing resolved Facets or literal content.
 
     Give command-line and future host consumers one reusable formatter independent
     from filesystem mutation and presentation.
@@ -30,15 +30,15 @@ expand SigilFormatter {
     Formatting {
       Validate that SigilParser produced no error diagnostics before formatting.
 
-      Wrap SemanticUnit prose at 79 content characters without counting leading
+      Wrap Facet prose at 79 content characters without counting leading
       indentation.
 
-      Retain one blank line between distinct prose semantic units.
+      Retain one blank line between distinct prose Facets.
 
       Place an attached opening fence directly after its introducing prose without an
       intervening blank line.
 
-      Preserve LiteralBlock source lines, internal blank lines, trailing whitespace,
+      Preserve EmbeddedContent source lines, internal blank lines, trailing whitespace,
       and relative indentation.
 
       Compare the rendered source with the input to derive changed status.
@@ -54,12 +54,12 @@ expand SigilFormatter {
       Formatting does not repair unresolved imports, invalid structure, or semantic
       problems.
 
-      Formatting removes trailing whitespace outside LiteralBlock bodies.
+      Formatting removes trailing whitespace outside EmbeddedContent bodies.
 
       Prose wrapping occurs only at whitespace boundaries and never changes
-      SemanticUnit identity.
+      Facet identity.
 
-      Structural lines, fence delimiters, and LiteralBlock bodies are excluded from
+      Structural lines, fence delimiters, and EmbeddedContent bodies are excluded from
       prose-width wrapping.
 
       Formatting does not normalize structural indentation.
@@ -88,7 +88,7 @@ expand SigilFormatter {
   decisions {
     DeterministicFormatting {
       Decision: Canonically render valid Sigil with 79-character prose content width
-      while preserving structural indentation, semantic units, and literal values.
+      while preserving structural indentation, Facets, and literal values.
 
       Scope: Governs reusable in-memory source formatting; excludes source selection,
       filesystem mutation, semantic repair, and host presentation.
@@ -110,14 +110,14 @@ expand SigilFormatter {
 
   cases {
     Formatting {
-      Rewrapping one prose semantic unit preserves its normalized prose and semantic
+      Rewrapping one prose Facet preserves its normalized prose and semantic
       identity.
 
       Six leading spaces do not reduce the 79-character prose-content allowance.
 
       Introducing prose and its opening fence remain adjacent.
 
-      A LiteralBlock retains internal blank lines, unmatched braces, and relative
+      A EmbeddedContent retains internal blank lines, unmatched braces, and relative
       indentation.
 
       Formatting canonical source returns identical bytes and changed false.

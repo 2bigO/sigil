@@ -24,8 +24,8 @@ component SigilRetrievalMarkdown {
       Each selected component renders Goal, Interface, State, Logic, Constraints,
       Decisions, Cases, Ownership, and Links in that order when each section has
       content. Each Goal, State, Logic, Constraints, Decisions, and Cases
-      SemanticUnit is one list entry whose content is that unit's semantic text. Each
-      Interface SemanticUnit is one list entry of that unit's semantic text under
+      Facet is one list entry whose content is that unit's semantic text. Each
+      Interface Facet is one list entry of that unit's semantic text under
       Interface or under its concept heading.
 
       Interface content renders under a concept heading only when the projection
@@ -40,17 +40,17 @@ component SigilRetrievalMarkdown {
       path follows as a Source line whose text is Source, colon, space, then the
       path. Its stable identity follows as an Identity line whose text is Identity,
       colon, space, then the identity. It then renders Goal and Interface when those
-      sections have SemanticUnits. A module-context component also renders
-      Constraints and Decisions when those summary sections have SemanticUnits. Goal,
+      sections have Facets. A module-context component also renders
+      Constraints and Decisions when those summary sections have Facets. Goal,
       Interface, Constraints, and Decisions use emphasis labels rather than section
       headings and omit a label when that section is empty. Interface uses the same
       concept-heading rule as the selected component. Each Goal, Interface,
-      Constraints, or Decisions SemanticUnit is one list entry of that unit's
+      Constraints, or Decisions Facet is one list entry of that unit's
       semantic text.
 
       Component-owned OwnershipLinks render in the selected Ownership section.
       Concept-owned OwnershipLinks render only under that concept after that
-      concept's Interface SemanticUnits. Ownership uses an advisory implements, uses,
+      concept's Interface Facets. Ownership uses an advisory implements, uses,
       or tests link to its repository-relative implementation file at its one-based
       entrypoint line and column. The link has a start location only, never an end
       range, and does not promise ownership, completeness, or current alignment. The
@@ -202,7 +202,7 @@ component SigilRetrievalMarkdown {
 
       A selected-declaration link does not appear under Links.
 
-      A concept that has OwnershipLinks and no Interface SemanticUnits still emits
+      A concept that has OwnershipLinks and no Interface Facets still emits
       the Interface heading and that concept heading so those OwnershipLinks have a
       parent.
     }

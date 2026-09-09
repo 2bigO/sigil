@@ -34,6 +34,11 @@ not belong here. Unknown configuration, workspace, and file keys are rejected.
 Each `tools` value must be a namespaced JSON object; core preserves but does not
 interpret it.
 
+`sigil init` writes an empty tools object. The removed compiler's provider,
+evaluator, profile and migration configuration has no consumer or compatibility
+schema. Native sigilc accepts explicit inputs and limits on its own command line;
+model configuration and orchestration remain external.
+
 `workspace.members` is the sole authority for additional project roots in the
 workspace. Each entry is a unique, non-root, non-overlapping,
 workspace-relative directory. Package manifests and repository workspace

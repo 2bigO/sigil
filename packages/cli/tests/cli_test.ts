@@ -1,21 +1,15 @@
 import {
+  normalizePath,
   type RetrievalProjection,
   SIGIL_CORE_VERSION,
   SIGIL_VERSION,
   type SigilFileSystem,
 } from "@qoherent/sigil-core";
-import {
-  type CompilationReport,
-  type CompilationScopeSeed,
-  type CompileOptions,
-  CompilerFailure,
-  renderCompilationReportMarkdown,
-} from "@qoherent/sigil-compiler";
 import { CoreAdapter } from "../src/core-adapter.ts";
-import { DenoSigilFileSystem, normalizePath } from "../src/fs-adapter.ts";
+import metadata from "../deno.json" with { type: "json" };
+import { DenoSigilFileSystem } from "../src/fs-adapter.ts";
 import { resolveInstalledSkillsDirectory } from "../src/installer.ts";
 import { runCli } from "../src/main.ts";
-import { compileWithBundledAdapters } from "../src/compiler-adapters.ts";
 import type { CheckRequest } from "../src/args.ts";
 import { formatResult } from "../src/formatters.ts";
 import { renderRetrieveMarkdown } from "../src/markdown.ts";
@@ -26,27 +20,6 @@ import {
   EXIT_RUNTIME,
   EXIT_USAGE,
 } from "../src/exit.ts";
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
-Deno.test("a rejected selector exits as usage, not runtime", async () => {
-  const root = await makeWorkspace("exit-status");
-  try {
-    const run = (code: "COMPILER_INVALID_INVOCATION" | "COMPILER_FAILED") =>
-      runCli(["compile", root], {
-        compiler: () => Promise.reject(new CompilerFailure(code, "rejected")),
-      });
-    // A correctable selector is an invocation error the caller can fix.
-    const invalid = await run("COMPILER_INVALID_INVOCATION");
-    assert(invalid.stderr.includes("rejected"));
-    assertEquals(invalid.exitCode, EXIT_USAGE);
-    // Every other failure stays a runtime error.
-    const failed = await run("COMPILER_FAILED");
-    assert(failed.stderr.includes("rejected"));
-    assertEquals(failed.exitCode, EXIT_RUNTIME);
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
 
 // @sigil tests packages/cli/src/retrieval-markdown.sigil::SigilRetrievalMarkdown::RetrievalMarkdownProjection interface,constraints,cases
 Deno.test("retrieve Markdown renders module context and escaped ownership links", () => {
@@ -129,192 +102,6 @@ Deno.test("retrieve Markdown renders module context and escaped ownership links"
   assert(markdown.includes("## Module Context"));
   assert(markdown.includes("### Workspace"));
   assert(markdown.includes("- **component** — A coherent system part."));
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("CLI bundle registers the standalone OpenCode adapter", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-opencode-bundle-" });
-  try {
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: "0.7.0",
-        workspace: { name: "opencode-bundle", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            adapter: {
-              provider: "opencode",
-              implementationId: "builtin.opencode-cli",
-              implementationVersion: "0.7.1",
-            },
-          },
-        },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {
-  goal {
-    Explain the example.
-  }
-}
-`,
-    );
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(report.profile.evaluators[0].provider, "opencode");
-    assertEquals(
-      report.profile.evaluators[0].implementationId,
-      "builtin.opencode-cli",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("CLI bundle registers the standalone Pi adapter", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-pi-bundle-" });
-  try {
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: "0.7.0",
-        workspace: { name: "pi-bundle", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            adapter: {
-              provider: "pi",
-              implementationId: "builtin.pi-cli",
-              implementationVersion: "0.7.1",
-            },
-          },
-        },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {
-  goal {
-    Explain the example.
-  }
-}
-`,
-    );
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(report.profile.evaluators[0].provider, "pi");
-    assertEquals(
-      report.profile.evaluators[0].implementationId,
-      "builtin.pi-cli",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("CLI bundle registers the standalone Claude adapter", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-claude-bundle-" });
-  try {
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: "0.7.0",
-        workspace: { name: "claude-bundle", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            adapter: {
-              provider: "claude",
-              implementationId: "builtin.claude-cli",
-              implementationVersion: "0.7.1",
-            },
-          },
-        },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {
-  goal {
-    Explain the example.
-  }
-}
-`,
-    );
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(report.profile.evaluators[0].provider, "claude");
-    assertEquals(
-      report.profile.evaluators[0].implementationId,
-      "builtin.claude-cli",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("two models of one provider bundle as distinct evaluators", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-codex-identities-" });
-  try {
-    const evaluator = (model: string) => ({
-      provider: "codex",
-      model,
-      implementationId: "builtin.codex-cli",
-      implementationVersion: "0.7.1",
-    });
-    await Deno.mkdir(`${root}/.sigil`);
-    await Deno.writeTextFile(
-      `${root}/.sigil/config.json`,
-      JSON.stringify({
-        sigilVersion: SIGIL_VERSION,
-        workspace: { name: "codex-identities", members: [] },
-        files: { include: ["**/*.sigil"], exclude: [] },
-        tools: {
-          compile: {
-            evaluators: {
-              fast: evaluator("gpt-5-mini"),
-              deep: evaluator("gpt-5"),
-            },
-            profiles: { "critical-system": { evaluatorIds: ["fast", "deep"] } },
-          },
-        },
-      }),
-    );
-    await Deno.writeTextFile(
-      `${root}/main.sigil`,
-      `component Example {\n  goal {\n    Explain the example.\n  }\n}\n`,
-    );
-    // Sharing one identity would reject this before compilation starts.
-    const report = await compileWithBundledAdapters(
-      root,
-      { kind: "workspace" },
-      "critical-system",
-      { requestedStage: "deterministic-foundation", disableHistory: true },
-    );
-    assertEquals(
-      report.profile.evaluators.map((item) => item.model).join(","),
-      "gpt-5-mini,gpt-5",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
 });
 
 /*
@@ -428,6 +215,7 @@ Deno.test("init creates defaults, accepts a custom name, and refuses overwrite",
       await Deno.readTextFile(`${root}/.sigil/config.json`),
     );
     assertEquals(config.workspace.name, "example");
+    assertEquals(JSON.stringify(config.tools), "{}");
     assertEquals(config.workspace.members.length, 0);
     assertEquals(config.sigilVersion, SIGIL_VERSION);
     assert(config.files.include.includes("**/*.sigil"));
@@ -495,422 +283,6 @@ Deno.test("init defaults workspace name to directory basename", async () => {
   }
 });
 
-// @sigil tests packages/cli/src/config-authoring.sigil::SigilConfigAuthoring::SeededDefaults interface,logic,cases
-Deno.test("init seeds all four evaluators, their profiles, and standard defaults", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-init-seeded-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(config.tools.agent.profile, "standard");
-    assertEquals(config.tools.compile.defaultProfile, "standard");
-    assertEquals(
-      Object.keys(config.tools.compile.evaluators).sort().join(","),
-      "claude,codex,opencode,pi",
-    );
-    assertEquals(config.tools.compile.evaluators.codex.provider, "codex");
-    assertEquals(config.tools.compile.profiles.standard.main[0], "codex");
-    assertEquals(config.tools.compile.profiles.claude.extends, "standard");
-    assertEquals(config.tools.compile.profiles.claude.main[0], "claude");
-    assertEquals(config.tools.compile.budgets.maxCommands, 512);
-    assertEquals(config.tools.compile.limits.sessionTtlMs, 86_400_000);
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-default switches the default and agent profile", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-default-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const first = await runCli([
-      "config",
-      "set-default",
-      root,
-      "--profile",
-      "claude",
-      "--format",
-      "json",
-    ]);
-    assertEquals(first.exitCode, EXIT_OK);
-    let config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(config.tools.compile.defaultProfile, "claude");
-    assertEquals(config.tools.agent.profile, "claude");
-
-    const second = await runCli([
-      "config",
-      "set-default",
-      root,
-      "--profile",
-      "claude",
-      "--agent-profile",
-      "standard",
-      "--format",
-      "json",
-    ]);
-    assertEquals(second.exitCode, EXIT_OK);
-    config = JSON.parse(await Deno.readTextFile(`${root}/.sigil/config.json`));
-    assertEquals(config.tools.compile.defaultProfile, "claude");
-    assertEquals(config.tools.agent.profile, "standard");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-default discovers an ancestor ConfigFile for descendant targets", async () => {
-  const root = await Deno.makeTempDir({
-    prefix: "sigil-config-default-ancestor-",
-  });
-  const descendant = `${root}/nested/workspace`;
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    await Deno.mkdir(descendant, { recursive: true });
-
-    const fromCurrentDirectory = await runCli([
-      "config",
-      "set-default",
-      "--profile",
-      "claude",
-      "--format",
-      "json",
-    ], { core: new CoreAdapter({ currentDirectory: descendant }) });
-    assertEquals(fromCurrentDirectory.exitCode, EXIT_OK);
-
-    const fromDescendantPath = await runCli([
-      "config",
-      "set-default",
-      descendant,
-      "--profile",
-      "standard",
-      "--format",
-      "json",
-    ]);
-    assertEquals(fromDescendantPath.exitCode, EXIT_OK);
-
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(config.tools.compile.defaultProfile, "standard");
-    assertEquals(config.tools.agent.profile, "standard");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-default rejects an unknown profile and a missing ConfigFile", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-default-bad-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const unknown = await runCli([
-      "config",
-      "set-default",
-      root,
-      "--profile",
-      "nightly",
-      "--format",
-      "json",
-    ]);
-    assertEquals(unknown.exitCode, EXIT_DIAGNOSTICS);
-    assertHasCode(
-      parseJson(unknown.stdout).diagnostics,
-      "SIGIL_CONFIG_UNKNOWN_PROFILE",
-    );
-
-    const missing = await Deno.makeTempDir({
-      prefix: "sigil-config-missing-",
-    });
-    try {
-      const result = await runCli([
-        "config",
-        "set-default",
-        missing,
-        "--profile",
-        "standard",
-        "--format",
-        "json",
-      ]);
-      assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
-      assertHasCode(
-        parseJson(result.stdout).diagnostics,
-        "SIGIL_CONFIG_NOT_FOUND",
-      );
-    } finally {
-      await Deno.remove(missing, { recursive: true });
-    }
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-profile creates a new profile bound to an existing evaluator and sets its model", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-profile-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const result = await runCli([
-      "config",
-      "set-profile",
-      "nightly",
-      root,
-      "--extends",
-      "standard",
-      "--main",
-      "claude",
-      "--model",
-      "claude=claude-opus-5",
-      "--format",
-      "json",
-    ]);
-    assertEquals(result.exitCode, EXIT_OK);
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(config.tools.compile.profiles.nightly.extends, "standard");
-    assertEquals(config.tools.compile.profiles.nightly.main[0], "claude");
-    assertEquals(
-      config.tools.compile.evaluators.claude.model,
-      "claude-opus-5",
-    );
-    assertEquals(config.tools.compile.profiles.standard.main[0], "codex");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-profile overrides one stage and leaves other fields unchanged", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-stage-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const result = await runCli([
-      "config",
-      "set-profile",
-      "standard",
-      root,
-      "--stage",
-      "architecture-design=claude",
-      "--format",
-      "json",
-    ]);
-    assertEquals(result.exitCode, EXIT_OK);
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(
-      config.tools.compile.profiles.standard.stages["architecture-design"][0],
-      "claude",
-    );
-    assertEquals(config.tools.compile.profiles.standard.main[0], "codex");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-profile re-enables a stage across separate invocations", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-stage-rebind-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const disabled = await runCli([
-      "config",
-      "set-profile",
-      "standard",
-      root,
-      "--disable-stage",
-      "architecture-design",
-      "--disable-stage",
-      "semantic-readiness",
-      "--format",
-      "json",
-    ]);
-    assertEquals(disabled.exitCode, EXIT_OK);
-
-    const rebound = await runCli([
-      "config",
-      "set-profile",
-      "standard",
-      root,
-      "--stage",
-      "architecture-design=claude",
-      "--format",
-      "json",
-    ]);
-    assertEquals(rebound.exitCode, EXIT_OK);
-
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(
-      config.tools.compile.profiles.standard.stages["architecture-design"][0],
-      "claude",
-    );
-    assertEquals(
-      config.tools.compile.profiles.standard.disabledStages.join(","),
-      "semantic-readiness",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-profile declares two new evaluators bound to different stages in one invocation", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-multi-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const result = await runCli([
-      "config",
-      "set-profile",
-      "review",
-      root,
-      "--stage",
-      "semantic-readiness=reviewer-a",
-      "--stage",
-      "architecture-design=reviewer-b",
-      "--evaluator",
-      "reviewer-a=claude",
-      "--evaluator",
-      "reviewer-b=claude",
-      "--format",
-      "json",
-    ]);
-    assertEquals(result.exitCode, EXIT_OK);
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(
-      config.tools.compile.evaluators["reviewer-a"].provider,
-      "claude",
-    );
-    assertEquals(
-      config.tools.compile.evaluators["reviewer-b"].provider,
-      "claude",
-    );
-    assertEquals(
-      config.tools.compile.profiles.review.stages["semantic-readiness"][0],
-      "reviewer-a",
-    );
-    assertEquals(
-      config.tools.compile.profiles.review.stages["architecture-design"][0],
-      "reviewer-b",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-profile rejects an unconfigured evaluatorId and a stage/disable-stage conflict", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-reject-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const unknownEvaluator = await runCli([
-      "config",
-      "set-profile",
-      "standard",
-      root,
-      "--stage",
-      "architecture-design=ghost",
-      "--format",
-      "json",
-    ]);
-    assertEquals(unknownEvaluator.exitCode, EXIT_DIAGNOSTICS);
-    assertHasCode(
-      parseJson(unknownEvaluator.stdout).diagnostics,
-      "SIGIL_CONFIG_UNKNOWN_EVALUATOR",
-    );
-
-    const conflict = await runCli([
-      "config",
-      "set-profile",
-      "standard",
-      root,
-      "--stage",
-      "architecture-design=claude",
-      "--disable-stage",
-      "architecture-design",
-      "--format",
-      "json",
-    ]);
-    assertEquals(conflict.exitCode, EXIT_DIAGNOSTICS);
-    assertHasCode(
-      parseJson(conflict.stdout).diagnostics,
-      "SIGIL_CONFIG_STAGE_CONFLICT",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-profile without --stage or --disable-stage leaves an existing profile's stages and disabledStages absent", async () => {
-  const root = await Deno.makeTempDir({ prefix: "sigil-config-nostage-" });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const result = await runCli([
-      "config",
-      "set-profile",
-      "standard",
-      root,
-      "--implementation-version",
-      "claude=0.7.2",
-      "--format",
-      "json",
-    ]);
-    assertEquals(result.exitCode, EXIT_OK);
-    const config = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    assertEquals(config.tools.compile.profiles.standard.main[0], "codex");
-    assertEquals("stages" in config.tools.compile.profiles.standard, false);
-    assertEquals(
-      "disabledStages" in config.tools.compile.profiles.standard,
-      false,
-    );
-    assertEquals(
-      config.tools.compile.evaluators.claude.implementationVersion,
-      "0.7.2",
-    );
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationConfigurationCommand interface,logic,constraints,cases
-Deno.test("config set-default rejects an unknown profile while preserving the workspace's sigilVersion and workspaceName", async () => {
-  const root = await Deno.makeTempDir({
-    prefix: "sigil-config-default-metadata-",
-  });
-  try {
-    assertEquals((await runCli(["init", root])).exitCode, EXIT_OK);
-    const seeded = JSON.parse(
-      await Deno.readTextFile(`${root}/.sigil/config.json`),
-    );
-    const result = await runCli([
-      "config",
-      "set-default",
-      root,
-      "--profile",
-      "nightly",
-      "--format",
-      "json",
-    ]);
-    assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
-    const json = parseJson(result.stdout);
-    assertHasCode(json.diagnostics, "SIGIL_CONFIG_UNKNOWN_PROFILE");
-    assertEquals(json.sigilVersion, seeded.sigilVersion);
-    assertEquals(json.workspaceName, seeded.workspace.name);
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::ArtifactVersionOwnership constraints
@@ -925,7 +297,7 @@ Deno.test("version reports tool and resolved contract versions", async () => {
   ]);
   assertEquals(result.exitCode, EXIT_OK);
   const json = parseJson(result.stdout);
-  assertEquals(json.cliVersion, "0.7.1");
+  assertEquals(json.cliVersion, metadata.version);
   assertEquals(json.coreVersion, SIGIL_CORE_VERSION);
   assertEquals(json.sigilVersion, SIGIL_VERSION);
 });
@@ -983,19 +355,40 @@ Deno.test("check returns 1 for Sigil diagnostics and 0 for a valid empty workspa
  * @sigil tests packages/cli/_module.sigil::SigilCli::WorkspaceInspection interface,logic,cases
  * @sigil tests packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
  */
-Deno.test("check reports missing interface concepts as warning-only", async () => {
-  const root = await makeWorkspace("concept-warning");
+Deno.test("check accepts ungrouped and mixed Interface Facets without warnings", async () => {
+  const root = await makeWorkspace("optional-concepts");
   try {
-    await Deno.writeTextFile(`${root}/contract.sigil`, validSigil("Feature"));
-    const result = await runCli(["check", root, "--format", "json"]);
-    assertEquals(result.exitCode, EXIT_OK);
-    const output = parseJson(result.stdout);
-    assertEquals(output.diagnosticCounts.error, 0);
-    assertEquals(output.diagnosticCounts.warning, 1);
-    assertHasCode(
-      output.diagnostics,
-      "SIGIL_MISSING_CONCEPT_IDENTIFIER",
-    );
+    const sources = [
+      validSigil("Feature"),
+      `component Feature {
+  goal {
+    Read and update records.
+  }
+
+  interface {
+    Record is a stored value.
+
+    Reading {
+      read() returns Record.
+    }
+
+    Writing {
+      write(Record) updates the stored value.
+    }
+
+    Operations complete synchronously.
+  }
+}
+`,
+    ];
+    for (const source of sources) {
+      await Deno.writeTextFile(`${root}/contract.sigil`, source);
+      const result = await runCli(["check", root, "--format", "json"]);
+      assertEquals(result.exitCode, EXIT_OK);
+      const output = parseJson(result.stdout);
+      assertEquals(output.diagnosticCounts.error, 0);
+      assertEquals(output.diagnosticCounts.warning, 0);
+    }
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -1162,8 +555,8 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
       },
       {
         severity: "warning",
-        code: "SIGIL_MISSING_CONCEPT_IDENTIFIER",
-        message: "Missing identifier.",
+        code: "SIGIL_UNUSED_IMPORT",
+        message: "Unused import.",
         filePath: `${winRoot}/pkg/b.sigil`,
       },
       {
@@ -1183,7 +576,7 @@ Deno.test("check location rendering handles ranges, missing ranges, and path sty
   );
   assert(
     winText.includes(
-      "warning SIGIL_MISSING_CONCEPT_IDENTIFIER C:/repo/pkg/b.sigil: Missing identifier.",
+      "warning SIGIL_UNUSED_IMPORT C:/repo/pkg/b.sigil: Unused import.",
     ),
     winText,
   );
@@ -2815,7 +2208,7 @@ Deno.test("usage errors include help for the longest recognized command path", a
 Deno.test("version flag reports CLI information", async () => {
   const version = await runCli(["--version"]);
   assertEquals(version.exitCode, EXIT_OK);
-  assertEquals(version.stdout, "0.7.1\n");
+  assertEquals(version.stdout, `${metadata.version}\n`);
   assertEquals(version.stderr, "");
 });
 
@@ -3006,7 +2399,7 @@ Deno.test("executable subprocess returns version JSON", async () => {
   assertEquals(output.code, EXIT_OK);
   assertEquals(
     JSON.parse(new TextDecoder().decode(output.stdout)).cliVersion,
-    "0.7.1",
+    metadata.version,
   );
 });
 
@@ -3097,322 +2490,6 @@ class UnreadableImplementationFileSystem implements SigilFileSystem {
     return this.#base.listFiles(root);
   }
 }
-
-/*
- * @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
- * @sigil tests packages/cli/_module.sigil::SigilCli::ExitStatus constraints,cases
- */
-Deno.test("compile preserves JSONL events and compiler status exits", async () => {
-  const report: CompilationReport = {
-    reportVersion: 3,
-    runId: "run-1",
-    workspaceRoot: "/workspace",
-    target: { kind: "workspace" },
-    requestedScope: { kind: "workspace" },
-    selection: {
-      strategy: "exact-target",
-      affectedSemanticUnits: [],
-      coveredSemanticUnits: [],
-      uncoveredSemanticUnits: [],
-    },
-    componentNames: ["Example"],
-    status: "yellow",
-    startedAt: "2026-01-01T00:00:00.000Z",
-    completedAt: "2026-01-01T00:00:01.000Z",
-    sourceFingerprint: "source",
-    profile: {
-      name: "standard",
-      criticalSystem: false,
-      contextBudgetChars: 900_000,
-      agentInputBudgetChars: 900_000,
-      limits: {
-        maxCompilationRequestChars: 900_000,
-        maxAgentInputChars: 900_000,
-        sessionTtlMs: 86_400_000,
-        providerCleanupMs: 5_000,
-      },
-      executionBudgets: {
-        elapsedTimeMs: 180_000,
-        maxCommands: 64,
-        maxCommandOutputChars: 200_000,
-        maxInputTokens: 200_000,
-        maxOutputTokens: 20_000,
-      },
-      stages: [],
-      evaluators: [],
-      fingerprint: "profile",
-    },
-    stages: [],
-    diagnostics: [],
-  };
-  let requestedStage: string | undefined;
-  const result = await runCli([
-    "compile",
-    "semantic-readiness",
-    "../..",
-    "--format",
-    "jsonl",
-  ], {
-    compiler: async (_workspace, _target, _profileName, options) => {
-      requestedStage = options?.requestedStage;
-      await options?.onEvent?.({
-        protocolVersion: 1,
-        runId: "run-1",
-        sequence: 1,
-        type: "completed",
-        payload: { report },
-      });
-      return report;
-    },
-  });
-  assertEquals(result.exitCode, EXIT_DIAGNOSTICS);
-  const event = JSON.parse(result.stdout.trim());
-  assertEquals(event.type, "completed");
-  assertEquals(event.payload.report.status, "yellow");
-  assertEquals(requestedStage, "semantic-readiness");
-
-  const resolvedReport: CompilationReport = {
-    ...report,
-    status: "green",
-    diagnostics: [{
-      code: "SEMANTIC_AMBIGUITY",
-      fingerprint: "finding",
-      severity: "warning",
-      stage: "semantic-readiness",
-      skill: "semantic-readiness@1",
-      message: "The ambiguity was corrected.",
-      filePath: "main.sigil",
-      semanticSubjects: [],
-      evidence: "The prior report contained the finding.",
-      impact: "No current impact remains.",
-      correction: "No further correction is required.",
-      evaluator: "default",
-      lifecycle: "resolved",
-    }],
-  };
-  const human = await runCli(["compile", "../..", "--no-cache"], {
-    compiler: () => Promise.resolve(resolvedReport),
-  });
-  assertEquals(human.exitCode, EXIT_OK);
-  assert(human.stdout.includes("resolved warning SEMANTIC_AMBIGUITY"));
-
-  let exportRepresentation: CompileOptions["reportExportRepresentation"];
-  const markdown = await runCli([
-    "compile",
-    "../..",
-    "--format",
-    "markdown",
-    "--output",
-    "/tmp/report.md",
-  ], {
-    compiler: (_workspace, _target, _profile, options) => {
-      exportRepresentation = options?.reportExportRepresentation;
-      return Promise.resolve(resolvedReport);
-    },
-  });
-  assertEquals(markdown.exitCode, EXIT_OK);
-  assertEquals(
-    markdown.stdout,
-    renderCompilationReportMarkdown(resolvedReport),
-  );
-  assertEquals(exportRepresentation, "markdown");
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,cases
-Deno.test("compile resolves configured default and agent profiles before standard", async () => {
-  const root = await makeWorkspace("profile-resolution");
-  await Deno.writeTextFile(
-    `${root}/.sigil/config.json`,
-    JSON.stringify({
-      sigilVersion: SIGIL_VERSION,
-      workspace: { name: "profile-resolution", members: [] },
-      files: { include: ["**/*.sigil"] },
-      tools: {
-        agent: { profile: "agent-review" },
-        compile: { defaultProfile: "workspace-default" },
-      },
-    }),
-  );
-  const selected: string[] = [];
-  const compiler = (
-    _workspace: string,
-    _target: CompilationScopeSeed | undefined,
-    profile: string,
-  ) => {
-    selected.push(profile);
-    return Promise.resolve(
-      { status: "green", diagnostics: [] } as unknown as CompilationReport,
-    );
-  };
-  try {
-    assertEquals(
-      (await runCli(["compile", root, "--quiet"], { compiler })).exitCode,
-      EXIT_OK,
-    );
-    assertEquals(
-      (await runCli(["compile", root, "--agent", "--quiet"], { compiler }))
-        .exitCode,
-      EXIT_OK,
-    );
-    assertEquals(selected[0], "workspace-default");
-    assertEquals(selected[1], "agent-review");
-  } finally {
-    await Deno.remove(root, { recursive: true });
-  }
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,constraints,cases
-Deno.test("compile rejects incompatible output formats", async () => {
-  const result = await runCli(["compile", "--format", "json"]);
-  assertEquals(result.exitCode, EXIT_USAGE);
-  assert(result.stderr.includes("--format must be text, jsonl, or markdown"));
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade interface,logic,constraints,cases
-Deno.test("compile delegates design and implementation focus to the compiler", async () => {
-  const focuses: Array<string | undefined> = [];
-  const report: CompilationReport = {
-    reportVersion: 3,
-    runId: "run-focus",
-    workspaceRoot: "/workspace",
-    target: { kind: "workspace" },
-    requestedScope: { kind: "workspace" },
-    selection: {
-      strategy: "exact-target",
-      affectedSemanticUnits: [],
-      coveredSemanticUnits: [],
-      uncoveredSemanticUnits: [],
-    },
-    componentNames: [],
-    status: "green",
-    startedAt: "2026-01-01T00:00:00.000Z",
-    completedAt: "2026-01-01T00:00:01.000Z",
-    sourceFingerprint: "source",
-    profile: {
-      name: "standard",
-      criticalSystem: false,
-      contextBudgetChars: 1,
-      agentInputBudgetChars: 1,
-      limits: {
-        maxCompilationRequestChars: 1,
-        maxAgentInputChars: 1,
-        sessionTtlMs: 1,
-        providerCleanupMs: 1,
-      },
-      executionBudgets: {
-        elapsedTimeMs: 1,
-        maxCommands: 1,
-        maxCommandOutputChars: 1,
-        maxInputTokens: 1,
-        maxOutputTokens: 1,
-      },
-      stages: [],
-      evaluators: [],
-      fingerprint: "profile",
-    },
-    stages: [],
-    diagnostics: [],
-  };
-  const compiler = (
-    _workspace: string,
-    _target: CompilationScopeSeed | undefined,
-    _profileName: string,
-    options: CompileOptions = {},
-  ) => {
-    focuses.push(options.focus);
-    return Promise.resolve(report);
-  };
-
-  assertEquals(
-    (await runCli(["compile", "--focus", "design"], {
-      compiler,
-    })).exitCode,
-    EXIT_OK,
-  );
-  assertEquals(
-    (await runCli(["compile", "--focus", "implementation"], {
-      compiler,
-    })).exitCode,
-    EXIT_OK,
-  );
-  assertEquals(focuses[0], "design");
-  assertEquals(focuses[1], "implementation");
-
-  const combined = await runCli([
-    "compile",
-    "semantic-readiness",
-    "--focus",
-    "design",
-  ]);
-  assertEquals(combined.exitCode, EXIT_USAGE);
-  assert(combined.stderr.includes("either a positional stage or --focus"));
-
-  const unknown = await runCli(["compile", "--focus", "unknown"]);
-  assertEquals(unknown.exitCode, EXIT_USAGE);
-  assert(unknown.stderr.includes("--focus must be design or implementation"));
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade logic,cases
-Deno.test("compile maps file positions to exact location targets", async () => {
-  let target: unknown;
-  const result = await runCli([
-    "compile",
-    "../..",
-    "--file",
-    "details.sigil",
-    "--position",
-    "12:7",
-  ], {
-    compiler: (_workspace, selected) => {
-      target = selected;
-      return Promise.reject(new Error("stop after target capture"));
-    },
-  });
-  assertEquals(result.exitCode, EXIT_RUNTIME);
-  assertEquals(
-    JSON.stringify(target),
-    JSON.stringify({
-      kind: "location",
-      filePath: "details.sigil",
-      line: 12,
-      column: 7,
-    }),
-  );
-
-  const invalid = await runCli([
-    "compile",
-    "--position",
-    "0:7",
-  ]);
-  assertEquals(invalid.exitCode, EXIT_USAGE);
-  assert(invalid.stderr.includes("one-based line:column"));
-});
-
-// @sigil tests packages/cli/_module.sigil::SigilCli::CompilationFacade constraints,cases
-Deno.test("compile preserves a failed terminal event in buffered JSONL", async () => {
-  const result = await runCli(["compile", "--format", "jsonl"], {
-    compiler: async (_workspace, _target, _profileName, options) => {
-      await options?.onEvent?.({
-        protocolVersion: 1,
-        runId: "run-failed",
-        sequence: 1,
-        type: "failed",
-        payload: {
-          code: "COMPILER_PROFILE_EVALUATORS_REQUIRED",
-          message: "Two evaluators are required.",
-        },
-      });
-      throw new Error("Two evaluators are required.");
-    },
-  });
-  assertEquals(result.exitCode, EXIT_RUNTIME);
-  const event = JSON.parse(result.stdout.trim());
-  assertEquals(event.type, "failed");
-  assertEquals(
-    event.payload.code,
-    "COMPILER_PROFILE_EVALUATORS_REQUIRED",
-  );
-});
 
 /*
  * @sigil tests packages/cli/_module.sigil::SigilCli::SourceFormatting logic,constraints,cases

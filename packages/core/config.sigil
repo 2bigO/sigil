@@ -47,8 +47,8 @@ expand SigilWorkspaceConfig {
     LocalToolConfiguration {
       A missing LocalConfigFile preserves the ConfigFile tools object.
 
-      A LocalConfigFile can replace one compiler adapter model while retaining all
-      other shared tools.compile fields.
+      A LocalConfigFile can replace one host-local tool setting while retaining all
+      other shared tools fields.
 
       A LocalConfigFile cannot alter workspace membership or Sigil source selection.
     }

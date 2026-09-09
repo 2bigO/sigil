@@ -429,10 +429,9 @@ chosen course. It may describe context, scope, assumptions, trade-offs, design
 issues addressed, discarded alternatives, consequences, and revisit
 conditions.
 
-The section body remains free-form. The language does not require concept
-blocks, labeled fields, or a complete rationale schema. Ungrouped decision
-content is valid and does not produce
-`SIGIL_MISSING_CONCEPT_IDENTIFIER`.
+The section body remains free-form. The language does not require Concept
+blocks, labeled fields, or a complete rationale schema. Ungrouped Facets are
+valid without grouping diagnostics in every contract, including Interface.
 
 When present, decision scope states the boundary where a chosen course applies
 and its important exclusions without attempting to enumerate every current
@@ -481,7 +480,7 @@ interface {
 }
 ```
 
-`SessionLifecycle` identifies the concept described by the semantic units in
+`SessionLifecycle` identifies the concept described by the Facets in
 the block. A block may represent a single concept with many uses throughout the
 contract or group several lines that are reused together.
 
@@ -502,12 +501,12 @@ matching `expand` share one flat concept namespace. Repeated blocks with the
 same identifier are collective: they add occurrences in their original
 sections and source locations and do not override one another.
 
-Every semantic concept in `interface` should be placed in a concept block. Each
-contiguous ungrouped interface region produces one
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` warning. The document remains valid and CLI
-checks still exit successfully when no error diagnostics exist. Other sections
-may introduce concept identifiers when a concept is useful across sections;
-they do not require all content to be grouped.
+Concept identifiers are optional grouping across contracts, useful for
+distinguishing several concepts within a component. Facets can appear directly
+under any contract, and ungrouped Facets can freely mix with Concept blocks.
+A component describing one concept normally needs no repeated Concept heading.
+Ungrouped Interface content is not an authoring gap and produces no grouping
+warning. Do not introduce an identifier merely to wrap a contract's Facets.
 
 A concept is public when it occurs in `interface`. A concept that occurs only in
 `state`, `logic`, `constraints`, `decisions`, or `cases` is private. Imports
@@ -531,24 +530,23 @@ Concept identifiers do not define anchor syntax or anchor behavior.
 
 Concept diagnostics include:
 
-- `SIGIL_MISSING_CONCEPT_IDENTIFIER` as a warning for ungrouped interface content;
 - `SIGIL_INVALID_CONCEPT_IDENTIFIER` for invalid identifier syntax;
 - `SIGIL_EMPTY_CONCEPT_BLOCK` for an empty block;
 - `SIGIL_NESTED_CONCEPT_BLOCK` for a nested block;
 - `SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER` for case-insensitive namespace collisions;
 - `SIGIL_CONCEPT_IDENTIFIER_STYLE` as an informational formatting suggestion.
 
-## 9. Semantic Units
+## 9. Facets
 
 Inside each section, each blank-line-delimited prose paragraph is one semantic
-unit. Adjacent physical prose lines belong to the same semantic unit and
+unit. Adjacent physical prose lines belong to the same Facet and
 normalize to one space between their content. Rewrapping those physical lines
 does not change semantic identity.
 
-A concept-block header identifies and groups semantic units but is not itself a
-semantic unit. Each paragraph inside the block records the concept identifier.
+A concept-block header identifies and groups Facets but is not itself a
+Facet. Each paragraph inside the block records the concept identifier.
 
-A semantic unit is a:
+A Facet is a:
 
 - source unit;
 - interpretation unit;
@@ -557,10 +555,10 @@ A semantic unit is a:
 - possible anchor target.
 
 Blank lines are allowed for readability.
-Blank lines terminate semantic units and do not create semantic units.
+Blank lines terminate Facets and do not create Facets.
 
 Separate distinct prose-level semantic ideas with blank lines in every section.
-Prefer one distinct idea per semantic unit. Avoid burying multiple decisions in
+Prefer one distinct idea per Facet. Avoid burying multiple decisions in
 a paragraph when those decisions may need separate review, diffing, or source
 mapping.
 
@@ -578,7 +576,7 @@ Section bodies may use clear free-form notation, including:
 
 The notation should remain coherent inside a project. Multiline code,
 configuration, data, diagrams, or other content that must preserve physical
-layout belongs in an attached literal block:
+layout belongs in an attached fenced content:
 
 ````sigil
 Configuration is represented by this JSON:
@@ -589,12 +587,12 @@ Configuration is represented by this JSON:
 ```
 ````
 
-Three or more backticks open a literal block. The opener may be followed by one
+Three or more backticks open a fenced content. The opener may be followed by one
 optional type matching `[A-Za-z][A-Za-z0-9_+.-]*`. The closing fence contains
 at least as many backticks as the opener and no other content.
 
 The opening fence must directly follow its introducing prose with no blank line.
-The prose and attached literal block form one semantic unit. Literal bodies
+The prose and attached fenced content form one Facet. Literal bodies
 preserve blank lines, braces, apparent Sigil syntax, and relative indentation.
 They do not create component, concept, import, glossary, ownership, or other
 semantic references.
@@ -654,7 +652,7 @@ Section names are fixed.
 
 Section bodies are free-form text.
 
-Concept blocks must use a valid identifier, contain at least one semantic unit,
+Concept blocks must use a valid identifier, contain at least one Facet,
 remain unnested, and be unambiguous across the component's accessible namespace.
 
 The conventional section order is recommended but not semantically required.
@@ -679,7 +677,7 @@ Examples, acceptance criteria, and externally observable edge cases belong in `c
 
 ## 11. Recommended Style
 
-Write concise, reviewable semantic units.
+Write concise, reviewable Facets.
 
 Keep each blank-line-delimited paragraph focused on one idea.
 
@@ -849,7 +847,7 @@ Larger examples live in:
 ## 13. Historical Platform Proposal: Anchors
 
 Anchors are a rejected historical platform proposal for connecting Sigil
-semantic units to implementation evidence.
+Facets to implementation evidence.
 
 An anchor would not change the meaning of a Sigil line.
 It would record traceability between specification intent and implementation evidence.

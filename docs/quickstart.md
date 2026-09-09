@@ -1,85 +1,88 @@
 # Quickstart
 
-Zero to a checked contract. Every command is copy-paste; the reasoning is in
-[Setting Up A Project](setting-up-a-project.md).
+Sigil keeps authored contracts and independently reconstructed implementation
+worlds separate. `sigil` parses and exports the language; `sigilc` derives native
+semantic states from externally supplied assertions. It does not start a model
+or own your coding loop.
 
-## 1. Install
+## 1. Install both tools
 
-No release is published yet, so install from source. Requires
-[Deno](https://docs.deno.com/runtime/getting_started/installation/); if `deno`
-is not found after installing it, open a new terminal.
+Standalone releases ship `sigil`, `sigilc` and the skill catalog together. See
+[installation](../README.md). They require no Deno, Node, Rust or source checkout
+at runtime. For repository development, build the two executables:
 
 ```sh
-git clone https://github.com/qoherent/sigil.git
-cd sigil
-deno task --cwd packages/cli install
-sigil --version
+deno task build:sigilc
+deno task build:cli
+build/sigil --version
+packages/sigilc/target/debug/sigilc --version
 ```
 
-Use `git@github.com:qoherent/sigil.git` instead if you have SSH keys set up for
-GitHub.
+Use the appropriate executable paths, or put their directories on PATH. Their
+versions are independent; an archive version is not the native compiler version.
 
-## 2. Set up your repository
+## 2. Initialize a workspace
+
+From the intended repository root:
 
 ```sh
-cd /path/to/your-repo
 sigil init . --name your-repo
-sigil skill install
+sigil skill install --project
 ```
 
-If the repository vendors dependencies or commits generated code, add those
-paths to `files.exclude` in `.sigil/config.json` now — Sigil reads every
-supported source file under the root as evidence, and on a large repository that
-is the difference between working and failing outright.
+Review `.sigil/config.json` and its authored-source include/exclude patterns.
+Keep `.sigil/worlds/` ignored: it is disposable generated native state. Native
+Implementation selection is separate from language configuration; exclude vendor,
+build and operational files from that comparison as appropriate.
 
-```json
-"exclude": [
-  ".git/**", "node_modules/**", "build/**", "coverage/**",
-  ".venv/**", "vendor/**", "**/bindata.go"
-]
+## 3. Author and inspect a boundary
+
+Write `notifier.sigil` beside its owner:
+
+```sigil
+component Notifier {
+  goal {
+    Deliver notifications to recipients over email.
+  }
+  interface {
+    Send {
+      Deliver one message and report delivery failure to the caller.
+    }
+  }
+}
 ```
-
-## 3. Model one boundary
-
-No CLI command writes a contract. Ask your coding agent, which the skill in step
-2 taught to author Sigil:
-
-> Adopt Sigil for the `<module>` in this repository.
-
-Start with one area that has a clear entry point and few dependents. One
-boundary at a time, not a survey of the whole repository.
-
-## 4. Check it
 
 ```sh
-sigil check .                              # validates every contract
-sigil context . --component <Name>         # the contract with its code
+sigil check . --format json
+sigil context . --component Notifier --format markdown
 ```
 
-`0 error` means the contract and its annotations are valid. That is the whole
-loop — everything above runs offline with no other tools installed.
+Language checks validate syntax, imports and configuration. They do not establish
+semantic coherence or implementation delivery.
 
-### Optionally, review the design
+## 4. Use the native flow
 
-`sigil compile .` goes further and judges whether the design is coherent, but it
-runs its review stages through an AI CLI that you install separately. The
-default profile uses `codex`; without it the run reports
-
-```
-RED
-unchanged information COMPILER_EVALUATOR_INCOMPLETE: Could not start codex.
-```
-
-which means the evaluator is missing, not that the design is wrong. Install one
-of `codex`, `claude`, `opencode`, or `pi`, then point Sigil at it:
+Capture current authored input into an external working directory:
 
 ```sh
-sigil config set-default . --profile claude
+mkdir -p /tmp/sigil-quickstart
+sigil export design . > /tmp/sigil-quickstart/frontend.json
+sigilc compile design --frontend /tmp/sigil-quickstart/frontend.json
 ```
 
-## Next
+Without independent source reconstructions, this can report Loose with missing
+projection warnings. That is not evidence that implementation is complete.
+Follow the skill's [native compilation protocol](../integrations/skills/sigil/references/compilation-execution.md)
+for ordered scope, freshness, preparation, external worker inputs, ingestion,
+catalog export and comparison. Refresh captured inputs after changes.
 
-Repeat step 3 for the next boundary. When you want to know why any of this is
-shaped the way it is — exclusions, ownership annotations, evaluator profiles,
-adopting across an existing codebase — read
-[Setting Up A Project](setting-up-a-project.md).
+Design gates return Coherent or Loose with exit 0 and Disjoint with exit 1.
+Implementation gates return Closed or Converged with exit 0 and Drift with exit 1.
+Loose and Converged are yellow with warnings. Usage is exit 2; runtime or
+unavailable comparison is exit 3. Inspection exits have their own meanings.
+
+Each independent Implementation worker receives only captured source bytes,
+fixed ontology and frozen identity catalog. Keep Design prose, neighboring code,
+job descriptors and repair feedback out of its inputs. The external host owns
+model calls, isolation, coding and iteration. Actual checks and removal evidence
+remain necessary alongside semantic comparison.

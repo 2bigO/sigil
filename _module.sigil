@@ -1,7 +1,7 @@
 @spec/language.sigil import { SigilLanguage, SigilWorkspaceConfig }
 @packages/core import { SigilCore }
 @packages/cli import { SigilCli }
-@packages/compiler import { SigilCompiler }
+@packages/sigilc import { SigilSemanticCompiler }
 @packages/lsp import { SigilLsp }
 @integrations/editor/vscode import { SigilVsCodeExtension }
 @integrations/skills/sigil import { SigilSkill }
@@ -57,15 +57,12 @@ component Sigil {
       review, explicit approval, and Sigil-guided implementation
     }
 
-    AgenticCompilation {
-      provides profile-scoped, evidence-backed compilation through shared compiler,
-      CLI, CI, and editor surfaces while keeping selected workspace sources read-only
-
-      treats externally supplied CLI adapters and providers as user-selected,
-      self-declared integrations whose workspace behavior the compiler cannot verify
-
-      distinguishes compilation status from human design approval and implementation
-      authorization
+    SemanticCompilation {
+      Use SigilCli for authored-language operations and structural Design export.
+      Invoke SigilSemanticCompiler through standalone sigilc for deterministic
+      preparation, ingestion, freshness, catalog and semantic gates.
+      External workers interpret captured source; models do not supply verdicts.
+      Keep source editing and orchestration outside both compiler binaries.
     }
 
   }
@@ -86,13 +83,15 @@ expand Sigil {
 
     SkillWorkflow {
       The host skill applies semantic judgment, conducts design and review
-      conversations, and uses ReviewGate for scoped approval of Sigil changes and
-      implementation.
+      conversations, and honors the user's existing authorization for scoped
+      Sigil and implementation.
     }
 
-    AgenticCompilation {
-      SigilCompiler combines deterministic SigilCore evidence with bounded agentic
-      evaluation while thin host façades present the shared result.
+    SemanticCompilation {
+      SigilCore parses and resolves authored Sigil. SigilSemanticCompiler validates
+      its structural bundle and source-local Turtle, then saturates Design and
+      Implementation separately under fixed laws. Design yields obligations;
+      comparison checks those obligations against Implementation closure.
     }
   }
 
@@ -135,15 +134,15 @@ expand Sigil {
       before semantic Sigil edits or implementation.
     }
 
-    AgenticCompilation {
-      Agentic compilation remains outside SigilCore. SigilCompiler reads the selected
-      workspace without changing its sources and may write only declared
-      report/export destinations plus compiler-owned proposal and session state;
-      external evaluator or provider behavior is outside the root deterministic write
-      guarantee.
-
-      Green status is scoped to one source snapshot, profile, stage set, and
-      evaluator environment.
+    SemanticCompilation {
+      Native sigilc owns semantic laws, content identity and disposable worlds.
+      Independent Implementation workers receive exactly one captured source,
+      the fixed ontology and the frozen Design identity catalog, without Design
+      prose or relationships. No provider framework, compiler facade, receipt
+      verifier, accepted-world store or legacy event protocol remains.
+      Coherent and Loose Design exit 0; Disjoint exits 1. Closed and Converged
+      Implementation exit 0; Drift exits 1. Usage and runtime/unavailable results
+      are not semantic verdicts. Gate success never proves software delivery.
     }
 
     ReleaseMaturity {
@@ -153,22 +152,15 @@ expand Sigil {
   }
 
   decisions {
-    AgenticCompilation {
-      Decision: Introduce a separate shared compiler for profile-scoped agentic
-      evaluation while retaining deterministic semantics in SigilCore.
-
-      Scope: Governs compiler, CLI, CI, and editor compilation surfaces; excludes
-      human approval and implementation authorization.
-
-      Trade-offs: The platform gains a provider-adapter and report-version
-      compatibility boundary.
-
-      Design issues addressed: Designers need an iterative compiler-like path from
-      errors through warnings to green without conflating model judgment with
-      deterministic language facts.
-
-      Consequences: Every host consumes the same evidence-backed compilation protocol
-      and status semantics.
+    SemanticCompilation {
+      Decision: Keep language interpretation in the existing frontend and put
+      deterministic semantic compilation in one Rust binary.
+      Scope: Governs compiler, CLI, CI and editor boundaries; external workers own
+      model calls and independent reconstruction, and external workflows own edits.
+      Trade-offs: Callers pass a captured structural bundle explicitly; native
+      sigilc does not parse the authored Sigil language or invoke its frontend.
+      Consequences: Delete the TypeScript compiler and adapter packages rather
+      than preserve compatibility dispatch or duplicate semantic laws.
     }
   }
 
@@ -188,11 +180,12 @@ expand Sigil {
       requiring a duplicate root-contract version edit.
     }
 
-    AgenticCompilation {
-      The same source snapshot and effective profile produce one shared report
-      contract across CLI, CI, and VS Code.
-
-      A green compilation result remains subject to explicit human design approval.
+    SemanticCompilation {
+      The language CLI exports structural Design without a semantic runtime.
+      Native preparation and ingestion produce disposable source-local objects;
+      global closure derives shared meaning without a model-owned verdict.
+      The editor consumes native named states and diagnostics directly.
+      A scoped green result never authorizes deployment or proves full delivery.
     }
   }
 }

@@ -5,57 +5,87 @@ $DefaultVersion = "__SIGIL_VERSION__"
 $Version = if ($env:SIGIL_VERSION) { $env:SIGIL_VERSION } else { $DefaultVersion }
 $InstallRoot = if ($env:SIGIL_INSTALL_DIR) { $env:SIGIL_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA "Sigil" }
 $BinDir = if ($env:SIGIL_BIN_DIR) { $env:SIGIL_BIN_DIR } else { Join-Path $InstallRoot "bin" }
+if (-not [Environment]::Is64BitOperatingSystem) { throw "Sigil supports only 64-bit Windows." }
+if ($env:PROCESSOR_ARCHITECTURE -notin @("AMD64", "ARM64")) { throw "Unsupported Windows architecture: $env:PROCESSOR_ARCHITECTURE" }
 
-if (-not [Environment]::Is64BitOperatingSystem) {
-  throw "Sigil supports only 64-bit Windows."
-}
-if ($env:PROCESSOR_ARCHITECTURE -notin @("AMD64", "x86")) {
-  throw "Unsupported Windows architecture: $env:PROCESSOR_ARCHITECTURE"
-}
-
-$Asset = "sigil-x86_64-pc-windows-msvc.zip"
-$Base = "https://github.com/$Repository/releases/download/cli-v$Version"
+$Archive = $env:SIGIL_ARCHIVE_PATH
+$Checksums = $env:SIGIL_CHECKSUMS_PATH
+if ([bool]$Archive -xor [bool]$Checksums) { throw "SIGIL_ARCHIVE_PATH and SIGIL_CHECKSUMS_PATH must be supplied together." }
 $Temp = Join-Path ([IO.Path]::GetTempPath()) "sigil-$([guid]::NewGuid())"
 New-Item -ItemType Directory -Path $Temp | Out-Null
-
 try {
-  Invoke-WebRequest -Uri "$Base/$Asset" -OutFile (Join-Path $Temp $Asset)
-  Invoke-WebRequest -Uri "$Base/checksums.txt" -OutFile (Join-Path $Temp "checksums.txt")
-  $Line = Get-Content (Join-Path $Temp "checksums.txt") | Where-Object { $_ -match "\s+$([regex]::Escape($Asset))$" } | Select-Object -First 1
+  if (-not $Archive) {
+    $Asset = "sigil-x86_64-pc-windows-msvc.zip"
+    $Base = "https://github.com/$Repository/releases/download/cli-v$Version"
+    $Archive = Join-Path $Temp $Asset
+    $Checksums = Join-Path $Temp "checksums.txt"
+    Invoke-WebRequest -Uri "$Base/$Asset" -OutFile $Archive
+    Invoke-WebRequest -Uri "$Base/checksums.txt" -OutFile $Checksums
+  } else {
+    if (-not (Test-Path $Archive -PathType Leaf) -or -not (Test-Path $Checksums -PathType Leaf)) { throw "Local installer inputs do not exist." }
+  }
+  $Asset = [IO.Path]::GetFileName($Archive)
+  $Line = Get-Content $Checksums | Where-Object { $_ -match "\s+$([regex]::Escape($Asset))$" } | Select-Object -First 1
   if (-not $Line) { throw "Checksum entry for $Asset is missing." }
   $Expected = ($Line -split "\s+")[0].ToLowerInvariant()
-  $Actual = (Get-FileHash (Join-Path $Temp $Asset) -Algorithm SHA256).Hash.ToLowerInvariant()
+  $Actual = (Get-FileHash $Archive -Algorithm SHA256).Hash.ToLowerInvariant()
   if ($Actual -ne $Expected) { throw "Checksum verification failed for $Asset." }
-
-  Expand-Archive -Path (Join-Path $Temp $Asset) -DestinationPath $Temp
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  $Zip = [IO.Compression.ZipFile]::OpenRead($Archive)
+  try {
+    foreach ($Entry in $Zip.Entries) {
+      $Name = $Entry.FullName.Replace('\', '/')
+      if ([IO.Path]::IsPathRooted($Name) -or $Name -match '(^|/)\.\.?(/|$)' -or $Name.Contains('//')) {
+        throw "Archive contains an unsafe path: $Name"
+      }
+      if ($Name -ne "sigil-$Version" -and -not $Name.StartsWith("sigil-$Version/")) {
+        throw "Archive contains an unexpected top-level path: $Name"
+      }
+      $UnixType = (($Entry.ExternalAttributes -shr 16) -band 0xF000)
+      if ($UnixType -eq 0xA000) { throw "Archive contains a symbolic link: $Name" }
+    }
+  } finally {
+    $Zip.Dispose()
+  }
+  Expand-Archive -Path $Archive -DestinationPath $Temp
   $Source = Join-Path $Temp "sigil-$Version"
   $Executable = Join-Path $Source "bin\sigil.exe"
+  $Compiler = Join-Path $Source "bin\sigilc.exe"
   if (-not (Test-Path $Executable -PathType Leaf)) { throw "Archive does not contain bin\sigil.exe." }
-
+  if (-not (Test-Path $Compiler -PathType Leaf)) { throw "Archive does not contain bin\sigilc.exe." }
+  if (Test-Path (Join-Path $Source "lib\sigil\runtime")) { throw "Archive contains obsolete runtime payloads." }
+  if (Get-ChildItem $Source -Recurse -Force | Where-Object { $_.LinkType }) { throw "Archive contains a symbolic link." }
+  $Prefix = $Actual.Substring(0, 16)
   $Versions = Join-Path $InstallRoot "versions"
-  $Destination = Join-Path $Versions $Version
+  $Destination = Join-Path $Versions "$Version-$Prefix"
   New-Item -ItemType Directory -Force -Path $Versions, $BinDir | Out-Null
-  $Replacement = Join-Path $Versions ".sigil-$Version-$PID"
-  if (Test-Path $Replacement) { Remove-Item -Recurse -Force $Replacement }
-  Move-Item $Source $Replacement
-  if (Test-Path $Destination) { Remove-Item -Recurse -Force $Destination }
-  Move-Item $Replacement $Destination
-
-  $Wrapper = Join-Path $BinDir "sigil.cmd"
-  $WrapperTemp = "$Wrapper.$PID"
-  Set-Content -Path $WrapperTemp -Encoding Ascii -Value "@echo off`r`n`"$Destination\bin\sigil.exe`" %*"
-  Move-Item -Force $WrapperTemp $Wrapper
-
-  $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-  $Parts = @($UserPath -split ";" | Where-Object { $_ })
-  if ($Parts -notcontains $BinDir) {
-    [Environment]::SetEnvironmentVariable("Path", (($Parts + $BinDir) -join ";"), "User")
-    $env:Path = "$env:Path;$BinDir"
-    Write-Host "Added $BinDir to your user PATH. Open a new terminal to use it."
+  if (Test-Path $Destination) {
+    $Files = @(Get-ChildItem $Source -File -Recurse -Force)
+    $Existing = @(Get-ChildItem $Destination -File -Recurse -Force)
+    if ($Files.Count -ne $Existing.Count -or (Get-ChildItem $Destination -Recurse -Force | Where-Object { $_.LinkType })) { throw "Existing installation differs from verified archive." }
+    foreach ($File in $Files) {
+      $Relative = $File.FullName.Substring($Source.Length).TrimStart('\', '/')
+      $InstalledFile = Join-Path $Destination $Relative
+      if (-not (Test-Path $InstalledFile -PathType Leaf) -or (Get-FileHash $InstalledFile -Algorithm SHA256).Hash -ne (Get-FileHash $File.FullName -Algorithm SHA256).Hash) { throw "Existing installation differs from verified archive: $Relative" }
+    }
+  } else {
+    Move-Item $Source $Destination
+  }
+  $LanguageVersion = & (Join-Path $Destination "bin\sigil.exe") --version
+  if ($LASTEXITCODE -ne 0 -or $LanguageVersion -ne $Version) { throw "Language executable version check failed." }
+  & (Join-Path $Destination "bin\sigilc.exe") --version | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw "Native compiler failed; existing installation remains selected." }
+  foreach ($Name in @("sigil", "sigilc")) {
+    $Wrapper = Join-Path $BinDir "$Name.cmd"
+    $WrapperTemp = "$Wrapper.$PID.tmp"
+    $Body = "@echo off`r`n@chcp 65001 >nul`r`n`"$(Join-Path $Destination "bin\$Name.exe")`" %*`r`n"
+    [IO.File]::WriteAllText($WrapperTemp, $Body, [Text.UTF8Encoding]::new($false))
+  }
+  foreach ($Name in @("sigil", "sigilc")) {
+    $Wrapper = Join-Path $BinDir "$Name.cmd"
+    Move-Item -Force "$Wrapper.$PID.tmp" $Wrapper
   }
   Write-Host "Installed Sigil $Version to $Destination"
-  Write-Host "Run: sigil skill install"
-}
-finally {
+} finally {
   if (Test-Path $Temp) { Remove-Item -Recurse -Force $Temp }
 }

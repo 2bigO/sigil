@@ -15,10 +15,11 @@
 @packages/core/src/implementation-ownership.sigil import { SigilImplementationOwnership }
 @packages/core/src/compilation-boundary.sigil import { SigilCompilationBoundary }
 @packages/core/src/context-retrieval.sigil import { SigilContextRetrieval }
+@packages/core/src/design-input.sigil import { SigilDesignInput }
 
 component SigilCore {
   goal {
-    Provide the deterministic semantic engine shared by Sigil command-line,
+    Provide the deterministic language implementation shared by Sigil command-line,
     language-server, editor, and agent integrations.
 
     Compose source interpretation, configuration, workspace loading, glossary
@@ -35,7 +36,11 @@ component SigilCore {
       SigilFileSystem, SigilParser, SigilFormatter, SigilPath, SigilWorkspaceLoader,
       SigilResolver, SigilGraphBuilder, SigilWorkspaceResolutionPipeline,
       SigilProjections, SigilGlossaryEngine, SigilImplementationOwnership, and
-      SigilContextRetrieval
+      SigilContextRetrieval and SigilDesignInput.
+
+      Export structural Design transport through the core package. Parsing and
+      resolution remain language operations; the export never invokes sigilc,
+      reconstructs semantic assertions or presents compiler verdicts.
 
       hosts consume those cohesive contracts without reimplementing source
       interpretation, workspace rules, relationship resolution, or projections

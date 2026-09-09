@@ -52,7 +52,7 @@ StandardsReview {
       conversation before reusing it.
 
       Classify each current finding and present compatible changes as exact proposed
-      semantic units.
+      Facets.
 
       Preserve current Sigil and request a decision when guidance potentially or
       definitely conflicts.

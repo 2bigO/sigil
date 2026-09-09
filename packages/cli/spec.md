@@ -28,6 +28,7 @@ Version 0.7 must provide commands to:
 - initialize a non-interactive versioned workspace config;
 - report CLI, core, and Sigil versions.
 - surface concept-identifier diagnostics and resolved concept namespaces.
+- export the complete structural Design bundle for direct native `sigilc` use.
 
 Version 0.7 should favor predictable, machine-readable behavior over rich
 terminal UI.
@@ -45,14 +46,17 @@ Version 0.7 must not implement:
 - watch mode;
 - generated diagrams;
 - anchors or code/spec synchronization;
-- automatic repository-wide source mutation.
+- automatic mutation of authored source or implementation files.
 
 Anchors remain outside the implemented 0.5 surface. The rejected historical
 anchor surface is defined below and does not change the 0.6 acceptance criteria.
 
 ## 4. Runtime And Dependency Requirements
 
-`sigil-cli` should use Deno TypeScript.
+The source package is implemented in TypeScript and Deno modules. Standalone
+archives ship the compiled `sigil` language CLI beside the native `sigilc`
+binary; archive consumers do not need a separately installed TypeScript or
+egglog runtime.
 
 `sigil-cli` must depend on `sigil-core` for:
 
@@ -112,10 +116,8 @@ Exit codes should be stable:
 - `3`: host/runtime failure such as unreadable input outside normal Sigil
   diagnostics.
 
-Warnings alone should not produce exit code `1`. In particular,
-`SIGIL_MISSING_CONCEPT_IDENTIFIER` must be visible in human and JSON output
-while preserving exit code `0` when no errors exist, so users and agents can act
-on it.
+Warnings alone should not produce exit code `1`. Ungrouped Facets and mixed
+ungrouped/Concept-grouped contracts are valid and produce no grouping warning.
 
 ## 7. Commands
 
@@ -158,7 +160,7 @@ Required output data:
 - imports;
 - components;
 - expands;
-- semantic units;
+- Facets;
 - diagnostics.
 
 This command should not load or resolve a full workspace unless a later option
@@ -188,7 +190,7 @@ beneath the requested directory, and delegates canonical rendering to
 `sigil-core`.
 
 Formatting wraps ordinary prose at 79 content characters without counting
-leading indentation. It preserves semantic-unit identity and literal-block
+leading indentation. It preserves Facet identity and embedded-content
 content. Every selected source must parse and resolve without errors before any
 file is written.
 
@@ -286,6 +288,20 @@ command must never overwrite an existing config.
 Reports CLI and core package versions and—when a workspace resolves—the
 workspace name and configured Sigil version.
 
+### `sigil export design [path]`
+
+Use core's `loadDesignInput` to emit the raw closed structural JSON bundle.
+The optional path locates the complete workspace; use native `--scope` for focus.
+Preserve captured source/config/glossary text and diagnostics without display-path
+rewriting or a CLI envelope. Support `--root`, `--pretty` and `--format json`;
+reject quiet suppression and non-JSON formats. Language errors return 1 with the
+bundle; runtime failures return 3 without partial output. Export invokes no model
+or semantic compiler. Use `sigilc` directly for semantic operations.
+
+The legacy `sigil semantic` group is removed, including beam/accepted-world,
+managed-view, retained handoff, receipt and TS7 verification commands. Invocation
+returns ordinary invalid usage, with no forwarding or migration route.
+
 ## 8. Output Contracts
 
 JSON output should be stable enough for agents, CI, and snapshot tests.
@@ -309,10 +325,12 @@ The adapter should:
 - check path existence;
 - list files recursively under the workspace root;
 - normalize paths consistently with `sigil-core` expectations;
+- list only config.json, local.json and glossary.json inside metadata directories;
 - ignore `.git` directories by default.
 
-The adapter should not skip `.sigil` files based on package or integration
-boundaries.
+The adapter should not skip authored `.sigil` files based on package or
+integration boundaries. This language CLI performs no semantic artifact writes;
+models/operators invoke sigilc directly for preparation, ingestion and gates.
 
 ## 10. Acceptance Scenarios
 
@@ -326,8 +344,7 @@ Version 0.7 is acceptable when tests or scripted checks demonstrate that
 - report diagnostics with stable codes;
 - return exit code `1` when error diagnostics exist;
 - return exit code `0` when only warnings or no diagnostics exist;
-- surface `SIGIL_MISSING_CONCEPT_IDENTIFIER` to users and agents without a
-  nonzero exit code;
+- accept ungrouped and mixed Concept-grouped Interface Facets without warnings;
 - emit graph JSON with file and expansion edges;
 - emit context JSON for `--component Auth`;
 - emit resolved concept namespaces in context JSON;
@@ -348,7 +365,12 @@ entrypoint as commands grow.
 Keep command shaping separate from `sigil-core` data models so the core API
 remains reusable by LSP and editor integrations.
 
-Do not add interactive prompts in version 0.7.
+Commands remain non-interactive. Model interaction and orchestration are external.
+Init creates missing workspace metadata, fmt explicitly formats authored source,
+and skill installation writes the selected skill destinations. Semantic commands,
+provider/profile authoring, migrations, compiler events and runtime doctor are
+removed, with no forwarding command. Init writes an empty tools object; normal
+workspace configuration discovery, validation and version reporting remain.
 
 ## 12. Historical Anchor Command Proposal
 
@@ -357,7 +379,7 @@ The following rejected design is retained for history. Version 0.7 has no
 
 ### `sigil anchors candidates [path] --component <name>`
 
-Read-only. Returns the selected component, collected expansions, semantic-unit
+Read-only. Returns the selected component, collected expansions, Facet
 locators, and no more than twenty deterministically ordered TypeScript
 candidates per line. Each candidate reports inspectable ordering signals. The
 command does not invoke a model.

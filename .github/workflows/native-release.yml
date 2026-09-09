@@ -2,72 +2,327 @@ name: Publish native CLI release
 
 on:
   push:
-    tags:
-      - cli-v*
+    tags: ["cli-v*"]
   workflow_dispatch:
     inputs:
       version:
         description: Exact CLI manifest version to release
         required: true
         type: string
+      publish:
+        description: Publish a GitHub release after every target consumer passes
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: native-cli-${{ github.ref }}-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: aarch64-apple-darwin
+            runner: macos-15
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
-      - uses: actions/setup-node@v4
+      - uses: dtolnay/rust-toolchain@1.91.1
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: integrations/editor/vscode/package-lock.json
-      - run: npm ci
-        working-directory: integrations/editor/vscode
-      - name: Resolve and validate version
-        id: version
+          targets: ${{ matrix.target }}
+      - name: Assert runner identity
+        shell: bash
+        run: |
+          deno eval 'console.log(`${Deno.build.os}/${Deno.build.arch}`)'
+          case '${{ matrix.target }}' in
+            *linux*) test "$(uname -s)" = Linux ;;
+            *apple*) test "$(uname -s)" = Darwin ;;
+            *windows*) test "$(uname -s)" = MINGW64_NT* || test "${RUNNER_OS}" = Windows ;;
+          esac
+      - name: Build, smoke test, and stage archive
         shell: bash
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
+          version="$INPUT_VERSION"; if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
+          deno run --allow-read --allow-write --allow-run --allow-env scripts/build-cli-release.ts --target '${{ matrix.target }}' --version "$version" --output "$RUNNER_TEMP/release"
+          mkdir -p "release-${{ matrix.target }}"
+          cp "$RUNNER_TEMP/release"/* "release-${{ matrix.target }}/"
+          printf '%s\n' '{"target":"${{ matrix.target }}","status":"smoke-tested"}' > "release-${{ matrix.target }}/test-summary.json"
+      - name: Build source-independent artifact consumer
+        shell: bash
+        run: |
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            consumer="$RUNNER_TEMP/release-consumer.exe"
+          else
+            consumer="$RUNNER_TEMP/release-consumer"
+          fi
+          rustc --edition 2021 -O scripts/fixtures/release-consumer/main.rs -o "$consumer"
+          mkdir -p "release-${{ matrix.target }}/consumer" "release-${{ matrix.target }}/fixture/project"
+          cp "$consumer" "release-${{ matrix.target }}/consumer/"
+          cp scripts/fixtures/release/project/main.sigil "release-${{ matrix.target }}/fixture/project/"
+          cp scripts/fixtures/release/project/fixture-config.json "release-${{ matrix.target }}/fixture/project/"
+      - name: Offline Linux x64 archive smoke
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          docker pull ubuntu:24.04
           version="$INPUT_VERSION"
           if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
-          actual="$(deno eval 'const value=JSON.parse(await Deno.readTextFile("packages/cli/deno.json")); console.log(value.version)')"
-          [[ "$version" == "$actual" ]] || { echo "Release $version does not match CLI manifest $actual" >&2; exit 1; }
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "tag=cli-v$version" >> "$GITHUB_OUTPUT"
-      - run: deno task fmt
-      - run: deno task lint
-      - run: deno task check
-      - run: deno task test:core
-      - run: deno task test:compiler
-      - run: deno task test:compiler-adapter-opencode
-      - run: deno task test:compiler-adapter-pi
-      - run: deno task test:cli
-      - name: Build native archives
-        run: deno run --allow-read --allow-write --allow-run scripts/build-cli-release.ts --version '${{ steps.version.outputs.version }}'
+          docker run --rm --network none \
+            -e "SIGIL_RELEASE_VERSION=$version" \
+            -v "$RUNNER_TEMP/release:/release:ro" \
+            -v "$GITHUB_WORKSPACE/scripts/fixtures/release:/fixtures:ro" \
+            ubuntu:24.04 bash -eu -o pipefail -s <<'EOF'
+          mkdir -p /tmp/sigil /tmp/fixture/.sigil
+          tar -xzf /release/sigil-x86_64-unknown-linux-gnu.tar.gz -C /tmp/sigil
+          cli="/tmp/sigil/sigil-$SIGIL_RELEASE_VERSION/bin/sigil"
+          test -x "$cli"
+          test "$("$cli" --version)" = "$SIGIL_RELEASE_VERSION"
+          compiler="/tmp/sigil/sigil-$SIGIL_RELEASE_VERSION/bin/sigilc"
+          "$compiler" --version
+          cp /fixtures/project/main.sigil /tmp/fixture/main.sigil
+          cp /fixtures/project/fixture-config.json /tmp/fixture/.sigil/config.json
+          "$cli" export design /tmp/fixture --root /tmp/fixture > /tmp/frontend.json
+          "$compiler" compile design --root /tmp/fixture --frontend /tmp/frontend.json | grep -q '"state": "Loose"'
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigil-release-${{ matrix.target }}
+          path: release-${{ matrix.target }}
+          if-no-files-found: error
+
+  artifact-consumer:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-24.04
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+          - target: aarch64-apple-darwin
+            runner: macos-15
+          - target: x86_64-pc-windows-msvc
+            runner: windows-2025
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sigil-release-${{ matrix.target }}
+          path: ${{ runner.temp }}/release-artifact
+      - name: Assert runner identity
+        shell: bash
+        run: |
+          case '${{ matrix.target }}' in
+            *linux*) test "$(uname -s)" = Linux ;;
+            *apple*) test "$(uname -s)" = Darwin ;;
+            *windows*) test "${RUNNER_OS}" = Windows ;;
+          esac
+      - name: Extract tested archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            artifact="$(cygpath -u "$RUNNER_TEMP/release-artifact")"
+            extracted="$(cygpath -u "$RUNNER_TEMP/release-extracted")"
+          else
+            artifact="$RUNNER_TEMP/release-artifact"
+            extracted="$RUNNER_TEMP/release-extracted"
+          fi
+          archive="$(find "$artifact" -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -n 1)"
+          test -n "$archive"
+          mkdir -p "$extracted"
+          if [[ "$archive" = *.zip ]]; then
+            if [[ "${RUNNER_OS}" = Windows ]]; then
+              archive_native="$(cygpath -w "$archive")"
+              extracted_native="$(cygpath -w "$extracted")"
+              SIGIL_ARCHIVE_NATIVE="$archive_native" \
+                SIGIL_EXTRACTED_NATIVE="$extracted_native" \
+                powershell.exe -NoProfile -NonInteractive -Command \
+                '$ErrorActionPreference = "Stop"; Expand-Archive -LiteralPath $env:SIGIL_ARCHIVE_NATIVE -DestinationPath $env:SIGIL_EXTRACTED_NATIVE -Force'
+            else
+              unzip -q "$archive" -d "$extracted"
+            fi
+          else
+            tar -xzf "$archive" -C "$extracted"
+          fi
+          distribution="$(find "$extracted" -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          test -n "$distribution"
+          consumer="$(find "$artifact/consumer" -maxdepth 1 -type f | head -n 1)"
+          test -n "$consumer"
+          fixture="$artifact/fixture/project"
+          test -f "$fixture/main.sigil"
+          test -f "$fixture/fixture-config.json"
+          if [[ "${RUNNER_OS}" != Windows ]]; then
+            chmod +x "$consumer"
+          fi
+          "$consumer" --distribution "$distribution" --fixture "$fixture"
+      - name: Exercise local installer and reinstall protection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            temp_root="$(cygpath -u "$RUNNER_TEMP")"
+            artifact="$temp_root/release-artifact"
+            install_root="$temp_root/sigil-install-root"
+            bin_root="$temp_root/sigil-bin-root"
+          else
+            artifact="$RUNNER_TEMP/release-artifact"
+            install_root="$RUNNER_TEMP/sigil-install-root"
+            bin_root="$RUNNER_TEMP/sigil-bin-root"
+          fi
+          archive="$(find "$artifact" -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) | head -n 1)"
+          checksums="$artifact/checksums.txt"
+          mkdir -p "$install_root" "$bin_root"
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            archive_native="$(cygpath -w "$archive")"
+            checksums_native="$(cygpath -w "$checksums")"
+            install_root_native="$(cygpath -w "$install_root")"
+            bin_root_native="$(cygpath -w "$bin_root")"
+            installer_native="$(cygpath -w "$artifact/install.ps1")"
+            run_install() {
+              SIGIL_ARCHIVE_PATH="$archive_native" \
+                SIGIL_CHECKSUMS_PATH="$checksums_native" \
+                SIGIL_INSTALL_DIR="$install_root_native" \
+                SIGIL_BIN_DIR="$bin_root_native" \
+                pwsh -NoProfile -ExecutionPolicy Bypass -File "$installer_native"
+            }
+            run_install
+            compiler_wrapper="$bin_root_native/sigilc.cmd"
+            pwsh -NoProfile -Command "& '$compiler_wrapper' --version"
+            wrapper="$bin_root_native/sigil.cmd"
+            version_one="$(pwsh -NoProfile -Command "& '$wrapper' --version")"
+            run_install
+            version_two="$(pwsh -NoProfile -Command "& '$wrapper' --version")"
+            test "$version_one" = "$version_two"
+            bad_checksums="$artifact/checksums-invalid.txt"
+            archive_name="$(basename "$archive")"
+            awk -v name="$archive_name" '{ if ($2 == name) { $1 = (substr($1, 1, 1) == "0" ? "1" : "0") substr($1, 2) } print }' "$checksums" > "$bad_checksums"
+            bad_checksums_native="$(cygpath -w "$bad_checksums")"
+            if SIGIL_ARCHIVE_PATH="$archive_native" \
+              SIGIL_CHECKSUMS_PATH="$bad_checksums_native" \
+              SIGIL_INSTALL_DIR="$install_root_native" \
+              SIGIL_BIN_DIR="$bin_root_native" \
+              pwsh -NoProfile -ExecutionPolicy Bypass -File "$installer_native"; then
+              echo "invalid checksum was silently accepted" >&2
+              exit 1
+            fi
+            test "$(pwsh -NoProfile -Command "& '$wrapper' --version")" = "$version_one"
+            installed_license="$(pwsh -NoProfile -Command "(Get-ChildItem -LiteralPath '$install_root_native' -Filter LICENSE -Recurse | Select-Object -First 1).FullName")"
+            test -n "$installed_license"
+            pwsh -NoProfile -Command "Add-Content -LiteralPath '$installed_license' -Value 'tampered'"
+            if run_install; then
+              echo "corrupt existing installation was silently accepted" >&2
+              exit 1
+            fi
+            test "$(pwsh -NoProfile -Command "& '$wrapper' --version")" = "$version_one"
+          else
+            installer="$artifact/install.sh"
+            chmod +x "$installer"
+            run_install() {
+              SIGIL_ARCHIVE_PATH="$archive" \
+                SIGIL_CHECKSUMS_PATH="$checksums" \
+                SIGIL_INSTALL_DIR="$install_root" \
+                SIGIL_BIN_DIR="$bin_root" \
+                "$installer"
+            }
+            run_install
+            "$bin_root/sigilc" --version
+            version_one="$("$bin_root/sigil" --version)"
+            run_install
+            version_two="$("$bin_root/sigil" --version)"
+            test "$version_one" = "$version_two"
+            bad_checksums="$artifact/checksums-invalid.txt"
+            archive_name="$(basename "$archive")"
+            awk -v name="$archive_name" '{ if ($2 == name) { $1 = (substr($1, 1, 1) == "0" ? "1" : "0") substr($1, 2) } print }' "$checksums" > "$bad_checksums"
+            if SIGIL_ARCHIVE_PATH="$archive" \
+              SIGIL_CHECKSUMS_PATH="$bad_checksums" \
+              SIGIL_INSTALL_DIR="$install_root" \
+              SIGIL_BIN_DIR="$bin_root" \
+              "$installer"; then
+              echo "invalid checksum was silently accepted" >&2
+              exit 1
+            fi
+            test "$("$bin_root/sigil" --version)" = "$version_one"
+            installed_license="$(find "$install_root/versions" -name LICENSE -print -quit)"
+            test -n "$installed_license"
+            printf '%s\n' tampered >> "$installed_license"
+            if run_install; then
+              echo "corrupt existing installation was silently accepted" >&2
+              exit 1
+            fi
+            test "$("$bin_root/sigil" --version)" = "$version_one"
+          fi
+      - name: Write consumer summary
+        shell: bash
+        run: |
+          summary="$RUNNER_TEMP/consumer-summary.json"
+          if [[ "${RUNNER_OS}" = Windows ]]; then
+            summary="$(cygpath -u "$summary")"
+          fi
+          printf '%s\n' '{"target":"${{ matrix.target }}","artifactConsumer":true,"installerConsumer":true,"status":"passed"}' > "$summary"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sigil-consumer-${{ matrix.target }}
+          path: ${{ runner.temp }}/consumer-summary.json
+
+  publish:
+    if: ${{ github.event_name == 'push' || inputs.publish == true }}
+    needs: [build, artifact-consumer]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sigil-release-*
+          merge-multiple: true
+          path: build/release
+      - name: Combine checksums and installers
+        shell: bash
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="$INPUT_VERSION"; if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
+          find build/release -name checksums.txt -delete
+          for asset in build/release/*.tar.gz build/release/*.zip; do
+            [[ -f "$asset" ]] || continue
+            (cd build/release && sha256sum "${asset##*/}")
+          done | sort -k2 > build/release/checksums.txt
+          sed "s/__SIGIL_VERSION__/$version/g" install.sh > build/release/install.sh
+          sed "s/__SIGIL_VERSION__/$version/g" install.ps1 > build/release/install.ps1
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ inputs.version || github.ref_name }}
+        shell: bash
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" build/release/* --clobber
-            gh release edit "$TAG" --title "Sigil CLI $VERSION" --latest
-          else
-            gh release create "$TAG" build/release/* \
-              --verify-tag \
-              --title "Sigil CLI $VERSION" \
-              --generate-notes \
-              --latest
-          fi
+          version="$VERSION"; version="${version#cli-v}"
+          tag="cli-v$version"
+          gh release create "$tag" \
+            build/release/*.tar.gz build/release/*.zip \
+            build/release/checksums.txt build/release/install.sh build/release/install.ps1 \
+            --verify-tag --title "Sigil CLI $version" --generate-notes --latest
