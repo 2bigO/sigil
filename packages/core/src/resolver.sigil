@@ -96,7 +96,7 @@ expand SigilResolver {
 
       Re-expose an imported identity when reused in a matching expand interface.
 
-      Scan semantic-unit prose against unambiguous accessible concepts and record
+      Scan Facet prose against unambiguous accessible concepts and record
       each exact-case whole-word match in ResolvedConceptNamespace.references.
 
       Diagnose different accessible identities whose names compare equal without
@@ -182,7 +182,7 @@ expand SigilResolver {
 
       An imported public concept referenced in logic uses its provider import.
 
-      A provider name appearing only in a LiteralBlock does not use its import.
+      A provider name appearing only in a EmbeddedContent does not use its import.
 
       A resolved direct ModuleIndexFile import without a qualifying semantic or
       structural use produces SIGIL_UNUSED_IMPORT.

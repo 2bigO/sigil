@@ -4,10 +4,10 @@ Sigil 0.6 changes language interpretation. Update
 `.sigil/config.json` from `0.5.0` to `0.6.0` only after reviewing the source
 changes below with a compatible CLI and core.
 
-## 1. Preserve semantic-unit boundaries
+## 1. Preserve Facet boundaries
 
-In 0.5, every non-empty physical line was a separate semantic unit. In 0.6,
-each blank-line-delimited prose paragraph is one semantic unit, and adjacent
+In 0.5, every non-empty physical line was a separate Facet. In 0.6,
+each blank-line-delimited prose paragraph is one Facet, and adjacent
 physical lines are wrapping of that same idea.
 
 Add a blank line between adjacent old lines that must remain independently
@@ -21,13 +21,13 @@ component references and imported public concepts count in `interface`,
 `state`, `logic`, `constraints`, or `cases`. A matching local `expand` or a
 direct `#module.sigil` surface import also counts.
 
-Mentions in `goal`, `decisions`, literal blocks, comments, annotations, other
+Mentions in `goal`, `decisions`, fenced content, comments, annotations, other
 files, differently cased words, and identifier substrings do not count. Remove
 accidental imports. When a real dependency is missing from the operational
 contract, state its actual use in a qualifying section. Do not add a fabricated
 reference merely to silence `SIGIL_UNUSED_IMPORT`.
 
-## 3. Convert layout-sensitive content to literal blocks
+## 3. Convert layout-sensitive content to fenced content
 
 Attach multiline code, JSON, configuration, data, or diagrams directly to
 introducing prose:

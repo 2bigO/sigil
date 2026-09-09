@@ -219,7 +219,7 @@ interface {
 ```
 
 `SessionLifecycle` is a reusable concept identifier. A block may contain one
-heavily reused idea or several related semantic units. Concept blocks are flat,
+heavily reused idea or several related Facets. Concept blocks are flat,
 nonempty, and cannot nest.
 
 Identifiers match `[A-Za-z][A-Za-z0-9_-]*`. References are case-sensitive, but
@@ -274,7 +274,7 @@ Every resolved imported name must have a qualifying exact-case use in its
 declaring source. Component names and imported public concepts count in
 `interface`, `state`, `logic`, `constraints`, or `cases`. A matching local
 `expand` and a direct `_module.sigil` surface import also count. Mentions in
-`goal`, `decisions`, literal blocks, comments, annotations, other files,
+`goal`, `decisions`, fenced content, comments, annotations, other files,
 differently cased words, or identifier substrings do not count. An unused
 resolved name is a syntax error reported as `SIGIL_UNUSED_IMPORT`.
 
@@ -366,24 +366,24 @@ initial convention.
 Use `cases` for examples and acceptance criteria that can be observed from
 outside the component.
 
-## Semantic Units
+## Facets
 
-Each blank-line-delimited prose paragraph inside a section is one semantic unit.
+Each blank-line-delimited prose paragraph inside a section is one Facet.
 Adjacent physical lines belong to that unit, so prose may be rewrapped without
 changing semantic identity. Separate distinct ideas with blank lines. Blank
-lines terminate semantic units and do not create them.
+lines terminate Facets and do not create them.
 
-A concept-block header identifies and groups semantic units but is not itself a
-semantic unit. Each paragraph inside the block records its concept identifier.
+A concept-block header identifies and groups Facets but is not itself a
+Facet. Each paragraph inside the block records its concept identifier.
 
-Prefer one distinct idea per semantic unit. Avoid burying multiple decisions in a
+Prefer one distinct idea per Facet. Avoid burying multiple decisions in a
 paragraph when they may need separate review, diffing, or source mapping.
 
 Ordinary prose has a 79-character content width. Leading indentation does not
 count. Run `sigil fmt [path]` to wrap selected valid sources, or add `--check`
 to verify canonical formatting without writing.
 
-Use a directly attached typed literal block for multiline code, JSON,
+Use a directly attached typed fenced content for multiline code, JSON,
 configuration, diagrams, or other layout-sensitive content:
 
 ````sigil
@@ -427,9 +427,9 @@ When reviewing Sigil, check:
 - Does each imported name resolve to a matching component in the imported Sigil
   source?
 - Does each resolved imported name have a qualifying use outside `goal`,
-  `decisions`, and literal blocks?
+  `decisions`, and fenced content?
 - Are ordinary prose lines at most 79 content characters excluding indentation?
-- Does every literal block immediately follow its introducing prose?
+- Does every fenced content immediately follow its introducing prose?
 - Does each `expand Name` have a matching `component Name`?
 - Are details such as `state`, `logic`, `constraints`, `decisions`, and `cases` kept in
   `expand` rather than inside `component`?

@@ -16,12 +16,12 @@ component SigilLanguage {
 
     SourceDocument {
       accepts UTF-8 .sigil source containing imports, components, expands, sections,
-      concept blocks, semantic units, and attached literal blocks
+      concept blocks, Facets, and attached fenced content
 
       interprets structural forms through SourceGrammar and malformed input through
       SourceRecovery
 
-      preserves recovered declarations, semantic units, literal blocks, concept
+      preserves recovered declarations, Facets, fenced content, concept
       identities, original physical lines, and source ranges
 
       returns structural diagnostics and the deterministic partial document defined
@@ -53,8 +53,8 @@ component SigilLanguage {
       concept-block  = concept-header { blank | prose-unit } "}" line-end ;
       concept-header = header-text ws-opt "{" line-end ;
       section-header = name ws-opt "{" line-end ;
-      prose-unit     = prose-line { newline prose-line } [ newline literal-block ] line-end ;
-      literal-block  = opening-fence newline { literal-line newline } closing-fence line-end ;
+      prose-unit     = prose-line { newline prose-line } [ newline embedded-content ] line-end ;
+      embedded-content  = opening-fence newline { literal-line newline } closing-fence line-end ;
       opening-fence  = backticks [ fence-info ] ;
       closing-fence  = backticks ;
       fence-info     = physical-line ;
@@ -126,8 +126,8 @@ component SigilLanguage {
       unclosed concept at EOF            SIGIL_PARSE_STRUCTURE             error    finalize concept at EOF, then enclosing section and form
       unclosed section at EOF            SIGIL_PARSE_STRUCTURE             error    finalize section at EOF, then enclosing form
       unclosed component or expand       SIGIL_PARSE_STRUCTURE             error    finalize the declaration at EOF
-      detached literal block             SIGIL_DETACHED_LITERAL_BLOCK      error    retain the literal in a recovered semantic unit
-      literal without introduction       SIGIL_LITERAL_WITHOUT_INTRODUCTION error   retain the literal in a recovered semantic unit
+      detached fenced content             SIGIL_DETACHED_LITERAL_BLOCK      error    retain the literal in a recovered Facet
+      literal without introduction       SIGIL_LITERAL_WITHOUT_INTRODUCTION error   retain the literal in a recovered Facet
       invalid literal type               SIGIL_INVALID_LITERAL_TYPE        error    retain the literal and supplied type
       unclosed literal at EOF             SIGIL_UNCLOSED_LITERAL_BLOCK      error    retain body through EOF, then finalize enclosing forms
       ungrouped interface region          SIGIL_MISSING_CONCEPT_IDENTIFIER warning  retain every unit; resume at the region boundary
@@ -137,7 +137,7 @@ component SigilLanguage {
       declaration order and emit missing goal before missing interface for each
       component
 
-      every retained declaration, section, concept, semantic unit, literal block, and
+      every retained declaration, section, concept, Facet, fenced content, and
       diagnostic preserves its deterministic source range
 
       unsupported-version diagnostics use the zero-width start of the source;
@@ -155,7 +155,7 @@ component SigilLanguage {
       from the first retained unit start through the last retained unit end and is
       emitted when that boundary is reached
 
-      a detached or unintroduced literal creates one semantic unit under the current
+      a detached or unintroduced literal creates one Facet under the current
       component or expand, section, and concept when present, with empty normalized
       prose and physical prose lines, the literal as its sole attachment, and the
       literal's complete range; each contiguous malformed fence creates a separate
@@ -182,7 +182,7 @@ component SigilLanguage {
     }
 
     ConceptIdentity {
-      a concept block groups one or more related semantic units under a reusable
+      a concept block groups one or more related Facets under a reusable
       identifier
 
       a concept is public when it occurs in interface and otherwise remains private
@@ -237,17 +237,17 @@ component SigilLanguage {
       acceptance scenarios
     }
 
-    SemanticUnitDiscipline {
+    FacetDiscipline {
       each blank-line-delimited prose paragraph expresses one distinct idea
 
       physical wrapping inside one paragraph does not change semantic identity
 
-      blank lines terminate semantic units and do not themselves create semantic
+      blank lines terminate Facets and do not themselves create semantic
       units
     }
 
-    LiteralBlock {
-      three or more backticks open a literal block and may be followed by one
+    EmbeddedContent {
+      three or more backticks open a fenced content and may be followed by one
       optional type token matching [A-Za-z][A-Za-z0-9_+.-]*
 
       a closing fence contains at least as many backticks as its opener and no other
@@ -323,7 +323,7 @@ expand SigilLanguage {
     ConceptIdentity {
       Concept blocks are flat and cannot nest.
 
-      Every concept block contains at least one semantic unit.
+      Every concept block contains at least one Facet.
 
       Concept identifiers match [A-Za-z][A-Za-z0-9_-]* and contain no spaces.
 
@@ -339,7 +339,7 @@ expand SigilLanguage {
       shadowing.
 
       Reusing an imported concept in a matching expand preserves its originating
-      identity while keeping importer semantic units contextual to the importer.
+      identity while keeping importer Facets contextual to the importer.
 
       A same-named concept declared on the importing component remains a distinct
       local identity and is ambiguous with the imported identity.
@@ -353,7 +353,7 @@ expand SigilLanguage {
       Reusing an imported concept in a matching expand interface re-exposes the same
       identity to downstream importers.
 
-      Provider context never includes semantic units contributed by consumers.
+      Provider context never includes Facets contributed by consumers.
 
       An exact-case accessible identifier in semantic content resolves as a reference
       only when the immediately preceding and following characters, when present, are
@@ -478,19 +478,19 @@ expand SigilLanguage {
       was selected.
     }
 
-    SemanticUnitDiscipline {
+    FacetDiscipline {
       Distinct prose-level ideas are separated by blank lines in every section.
 
-      Adjacent wrapped prose lines normalize to one semantic unit with one source
+      Adjacent wrapped prose lines normalize to one Facet with one source
       range and retained original physical lines.
 
-      A literal block attaches to the immediately preceding prose semantic unit.
+      A fenced content attaches to the immediately preceding prose Facet.
     }
 
-    LiteralBlock {
+    EmbeddedContent {
       A blank line between introducing prose and its opening fence is invalid.
 
-      A literal block without preceding prose in the same section or concept block is
+      A fenced content without preceding prose in the same section or concept block is
       invalid.
 
       Structural indentation equal to the opening-fence indentation is removed from
@@ -538,7 +538,7 @@ expand SigilLanguage {
     SourceDocument {
       Decision: Define a complete line-oriented structural grammar and deterministic
       recovery matrix while preserving blank-line-delimited prose and attached
-      literal blocks as source-ranged semantic units.
+      fenced content as source-ranged Facets.
 
       Scope: Governs parsing and recovered document representation; excludes
       host-assisted semantic judgment.
@@ -598,7 +598,7 @@ expand SigilLanguage {
     }
 
     SemanticParagraphs {
-      Decision: Make each blank-line-delimited prose paragraph one semantic unit
+      Decision: Make each blank-line-delimited prose paragraph one Facet
       whose physical wrapping may change without changing identity.
 
       Scope: Governs free-form content in every component and expand section;
@@ -608,7 +608,7 @@ expand SigilLanguage {
       line-based interpretation requires review.
 
       Design issues addressed: A deterministic formatter cannot wrap prose safely
-      when every physical line creates a different semantic unit.
+      when every physical line creates a different Facet.
 
       Discarded alternatives: Preserving physical-line identity and adding
       continuation punctuation were rejected.
@@ -628,7 +628,7 @@ expand SigilLanguage {
       content is unavailable to semantic reference and glossary scanning.
 
       Design issues addressed: Multiline code and data currently collide with brace
-      tracking, semantic-unit separation, and line-width formatting.
+      tracking, Facet separation, and line-width formatting.
 
       Discarded alternatives: Treating each literal line as prose, interpreting
       literal braces, and inventing format-specific section syntax were rejected.
@@ -786,14 +786,14 @@ expand SigilLanguage {
       SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
 
       Two free interface paragraphs separated by a blank line remain retained and
-      produce two warnings, each spanning only its paragraph's semantic unit.
+      produce two warnings, each spanning only its paragraph's Facet.
 
       An empty or nested concept block is invalid.
 
-      Wrapped prose with no blank separator produces one semantic unit.
+      Wrapped prose with no blank separator produces one Facet.
 
       Introducing prose immediately followed by a typed fence produces one semantic
-      unit with one attached literal block.
+      unit with one attached fenced content.
 
       Four leading backticks followed by json use a four-backtick opening delimiter
       and the supplied literal type json.
@@ -801,7 +801,7 @@ expand SigilLanguage {
       A blank-line-detached, unintroduced, invalidly typed, or unclosed fence is
       invalid.
 
-      Two contiguous unintroduced fences produce two empty-prose semantic units, each
+      Two contiguous unintroduced fences produce two empty-prose Facets, each
       ranged over and attached to its own retained literal.
 
       Multiple prose braces on one line contribute their net left-to-right depth
@@ -878,7 +878,7 @@ expand SigilLanguage {
 
       An imported public concept reused in logic uses its provider import.
 
-      A provider name occurring only inside a literal block does not use its import.
+      A provider name occurring only inside a fenced content does not use its import.
 
       A provider name in comment-shaped ordinary constraints prose uses its import.
 
@@ -901,7 +901,7 @@ expand SigilLanguage {
 
       Two component names differing only by case are not duplicates.
 
-      Two logic sections contribute their semantic units in source order.
+      Two logic sections contribute their Facets in source order.
     }
 
     SectionSemantics {
@@ -920,7 +920,7 @@ expand SigilLanguage {
     }
 
     FormattingStyle {
-      Rewrapping one prose semantic unit at 79 content characters preserves its
+      Rewrapping one prose Facet at 79 content characters preserves its
       semantic identity.
 
       Six leading spaces do not reduce the 79-character prose-content allowance.

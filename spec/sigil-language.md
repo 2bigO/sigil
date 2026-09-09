@@ -481,7 +481,7 @@ interface {
 }
 ```
 
-`SessionLifecycle` identifies the concept described by the semantic units in
+`SessionLifecycle` identifies the concept described by the Facets in
 the block. A block may represent a single concept with many uses throughout the
 contract or group several lines that are reused together.
 
@@ -538,17 +538,17 @@ Concept diagnostics include:
 - `SIGIL_AMBIGUOUS_CONCEPT_IDENTIFIER` for case-insensitive namespace collisions;
 - `SIGIL_CONCEPT_IDENTIFIER_STYLE` as an informational formatting suggestion.
 
-## 9. Semantic Units
+## 9. Facets
 
 Inside each section, each blank-line-delimited prose paragraph is one semantic
-unit. Adjacent physical prose lines belong to the same semantic unit and
+unit. Adjacent physical prose lines belong to the same Facet and
 normalize to one space between their content. Rewrapping those physical lines
 does not change semantic identity.
 
-A concept-block header identifies and groups semantic units but is not itself a
-semantic unit. Each paragraph inside the block records the concept identifier.
+A concept-block header identifies and groups Facets but is not itself a
+Facet. Each paragraph inside the block records the concept identifier.
 
-A semantic unit is a:
+A Facet is a:
 
 - source unit;
 - interpretation unit;
@@ -557,10 +557,10 @@ A semantic unit is a:
 - possible anchor target.
 
 Blank lines are allowed for readability.
-Blank lines terminate semantic units and do not create semantic units.
+Blank lines terminate Facets and do not create Facets.
 
 Separate distinct prose-level semantic ideas with blank lines in every section.
-Prefer one distinct idea per semantic unit. Avoid burying multiple decisions in
+Prefer one distinct idea per Facet. Avoid burying multiple decisions in
 a paragraph when those decisions may need separate review, diffing, or source
 mapping.
 
@@ -578,7 +578,7 @@ Section bodies may use clear free-form notation, including:
 
 The notation should remain coherent inside a project. Multiline code,
 configuration, data, diagrams, or other content that must preserve physical
-layout belongs in an attached literal block:
+layout belongs in an attached fenced content:
 
 ````sigil
 Configuration is represented by this JSON:
@@ -589,12 +589,12 @@ Configuration is represented by this JSON:
 ```
 ````
 
-Three or more backticks open a literal block. The opener may be followed by one
+Three or more backticks open a fenced content. The opener may be followed by one
 optional type matching `[A-Za-z][A-Za-z0-9_+.-]*`. The closing fence contains
 at least as many backticks as the opener and no other content.
 
 The opening fence must directly follow its introducing prose with no blank line.
-The prose and attached literal block form one semantic unit. Literal bodies
+The prose and attached fenced content form one Facet. Literal bodies
 preserve blank lines, braces, apparent Sigil syntax, and relative indentation.
 They do not create component, concept, import, glossary, ownership, or other
 semantic references.
@@ -654,7 +654,7 @@ Section names are fixed.
 
 Section bodies are free-form text.
 
-Concept blocks must use a valid identifier, contain at least one semantic unit,
+Concept blocks must use a valid identifier, contain at least one Facet,
 remain unnested, and be unambiguous across the component's accessible namespace.
 
 The conventional section order is recommended but not semantically required.
@@ -679,7 +679,7 @@ Examples, acceptance criteria, and externally observable edge cases belong in `c
 
 ## 11. Recommended Style
 
-Write concise, reviewable semantic units.
+Write concise, reviewable Facets.
 
 Keep each blank-line-delimited paragraph focused on one idea.
 
@@ -849,7 +849,7 @@ Larger examples live in:
 ## 13. Historical Platform Proposal: Anchors
 
 Anchors are a rejected historical platform proposal for connecting Sigil
-semantic units to implementation evidence.
+Facets to implementation evidence.
 
 An anchor would not change the meaning of a Sigil line.
 It would record traceability between specification intent and implementation evidence.

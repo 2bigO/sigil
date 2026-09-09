@@ -35,7 +35,7 @@ expand SigilDesignInput {
   cases {
     PhysicalInventory {
       A component and its expansion in different files produce separate source
-      inventories with shared owner identity. Prose and literal blocks remain
+      inventories with shared owner identity. Prose and fenced content remain
       present in the captured source even when no model interprets them.
     }
 

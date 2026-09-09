@@ -127,7 +127,7 @@ expand SigilCompilationBoundary {
     }
 
     WorkspaceFallback {
-      Fall back to the workspace when the seed resolves to no loaded semantic unit,
+      Fall back to the workspace when the seed resolves to no loaded Facet,
       and when no candidate covers the complete affected scope.
 
       Record the reason for the fallback in the selection evidence.

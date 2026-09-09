@@ -1,6 +1,6 @@
 <!--
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDisciplineGuidance interface
-@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::SemanticUnitDiscipline constraints
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::FacetDisciplineGuidance interface
+@sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::FacetDiscipline constraints
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::DecisionRationaleWorkflow interface,logic,constraints,cases
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemanticsGuidance interface
 @sigil implements integrations/skills/sigil/authoring-workflow.sigil::SigilAuthoringWorkflow::ImportSemantics logic,constraints,cases
@@ -123,17 +123,17 @@ hidden reasoning. Responsibility, accountability, approver, and handoff metadata
 remain outside the convention.
 
 After writing scoped Sigil, repeat the coverage audit against the exact written
-semantic units. A missing material decision blocks implementation readiness
+Facets. A missing material decision blocks implementation readiness
 until the written Sigil is corrected and revalidated.
 
-## Semantic Units, Width, And Literals
+## Facets, Width, And Literals
 
-Treat each blank-line-delimited prose paragraph as one semantic unit. Physical
+Treat each blank-line-delimited prose paragraph as one Facet. Physical
 wrapping inside that paragraph is presentation only. Keep distinct ideas
 separated by blank lines and keep ordinary prose within 79 content characters;
 leading indentation does not count.
 
-Use a directly attached typed literal block when code, JSON, configuration,
+Use a directly attached typed fenced content when code, JSON, configuration,
 data, or a diagram needs multiple physical lines. Put no blank line between the
 introducing prose and opening fence. Literal bodies are preserved and do not
 provide import, concept, glossary, or ownership evidence.
@@ -141,7 +141,7 @@ provide import, concept, glossary, or ownership evidence.
 Every resolved imported name needs a qualifying exact-case use in `interface`,
 `state`, `logic`, `constraints`, or `cases`, or a structural use through a
 matching local `expand`. `goal`, `decisions`, and
-literal blocks are documentary for import-use purposes.
+fenced content are documentary for import-use purposes.
 
 Use `sigil fmt <selected-path> --check` after scoped edits. Apply `sigil fmt`
 only when formatting that selected scope is approved; never infer permission
@@ -203,11 +203,11 @@ After applying a grouping or identifier change:
    in correction mode only when the ambiguity confirms a material problem;
 5. inspect relevant glossary changes when requested or materially necessary.
 
-## Semantic Units
+## Facets
 
-- Keep each blank-line-delimited semantic unit focused on one distinct idea.
+- Keep each blank-line-delimited Facet focused on one distinct idea.
 - Separate distinct prose-level ideas with blank lines in every section.
-- Blank lines do not create semantic units.
+- Blank lines do not create Facets.
 - Keep lines in one compact free-form construct adjacent when separation would
   reduce readability.
 - Prefer concise reviewable lines over prose paragraphs.
@@ -229,7 +229,7 @@ move with their owning directories.
 
 Update affected imports after a placement-only move, run
 `sigil check`, and use `graph` or `context` when relationships matter. Any
-semantic-unit change requires written-file validation and design compilation.
+Facet change requires written-file validation and design compilation.
 
 A boundary can outgrow itself as coverage is added. Propose splitting one when
 its contracts serve areas that change for independent reasons, when a reader

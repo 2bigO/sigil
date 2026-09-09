@@ -92,7 +92,7 @@ with evidence, return to DesignConversation in the applicable mode. Record missi
 proof that rationale or implementation delivery is complete.
 
 After validated written Sigil is updated, repeat the audit against the exact resulting
-semantic units. Successful CLI validation never substitutes for this audit.
+Facets. Successful CLI validation never substitutes for this audit.
 
 ### Goal Clarity
 
@@ -330,7 +330,7 @@ material intent that evidence cannot settle.
 Before editing, present:
 
 - the finding and why it applies;
-- the exact proposed semantic unit or lines;
+- the exact proposed Facet or lines;
 - the target file, component, and section;
 - the source record in the review summary;
 - whether the suggestion is blocking or optional.
@@ -424,7 +424,7 @@ Report unavailable material, remaining uncertainty, and whether it blocks.
 
 ### Proposed Sigil Edits
 
-Show exact semantic units and their target sections without editing first.
+Show exact Facets and their target sections without editing first.
 Include required decision blocks and the decision-rationale coverage map.
 
 ### Material decisions

@@ -162,7 +162,7 @@ Required output data:
 - imports;
 - components;
 - expands;
-- semantic units;
+- Facets;
 - diagnostics.
 
 This command should not load or resolve a full workspace unless a later option
@@ -192,7 +192,7 @@ beneath the requested directory, and delegates canonical rendering to
 `sigil-core`.
 
 Formatting wraps ordinary prose at 79 content characters without counting
-leading indentation. It preserves semantic-unit identity and literal-block
+leading indentation. It preserves Facet identity and embedded-content
 content. Every selected source must parse and resolve without errors before any
 file is written.
 
@@ -382,7 +382,7 @@ The following rejected design is retained for history. Version 0.7 has no
 
 ### `sigil anchors candidates [path] --component <name>`
 
-Read-only. Returns the selected component, collected expansions, semantic-unit
+Read-only. Returns the selected component, collected expansions, Facet
 locators, and no more than twenty deterministically ordered TypeScript
 candidates per line. Each candidate reports inspectable ordering signals. The
 command does not invoke a model.

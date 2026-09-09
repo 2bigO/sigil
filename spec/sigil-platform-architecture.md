@@ -18,7 +18,7 @@ tool:
 
 - parse and understand `.sigil` files;
 - resolve workspace imports and component relationships;
-- preserve semantic units and source locations;
+- preserve Facets and source locations;
 - expose focused context to agents and automation;
 - expose readable and navigable views to humans;
 - support host-specific integrations without making any host the center of the
@@ -94,8 +94,8 @@ core model.
 The core must own:
 
 - parsing top-level Sigil structure;
-- preserving source ranges, blank-line-delimited semantic units, and attached
-  literal blocks;
+- preserving source ranges, blank-line-delimited Facets, and attached
+  fenced content;
 - validating reviewed glossary data and projecting deterministic term
   occurrences;
 - resolving imports from a workspace root;
@@ -205,11 +205,11 @@ Rationale: Separate interpretations would drift and make trust worse.
 Tradeoff: The shared core needs careful boundaries before host integrations
 grow.
 
-### ADR-004: Preserve Semantic Units As First-Class Data
+### ADR-004: Preserve Facets As First-Class Data
 
-Decision: Every blank-line-delimited prose paragraph becomes one semantic unit
+Decision: Every blank-line-delimited prose paragraph becomes one Facet
 with source location, retained physical lines, and any directly attached
-literal block.
+fenced content.
 
 Rationale: This supports review, diagnostics, formatter-safe physical wrapping,
 and code/spec drift detection.
@@ -287,7 +287,7 @@ Status: Rejected; no active Sigil contract.
 
 Historical proposal: Keep `.sigil` source human-authored, generate attributed
 Receipts from deterministic facts and host contributions, keep models outside
-core, reuse one semantic-unit identity across Receipts and anchors, and preserve
+core, reuse one Facet identity across Receipts and anchors, and preserve
 human approval as an independent action.
 
 Discussion: See
@@ -312,7 +312,7 @@ Guardrail: all surfaces use `sigil-core`.
 
 ### Losing Source Fidelity
 
-If source locations and semantic units are not preserved from the beginning,
+If source locations and Facets are not preserved from the beginning,
 anchors and drift detection become expensive later.
 
 Guardrail: source ranges are core parser output, not metadata added later.

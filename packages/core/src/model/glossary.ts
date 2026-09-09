@@ -11,7 +11,7 @@ export type {
   SourceLocation,
   SourceRange,
 } from "./language.ts";
-export type { SemanticUnit, SigilDocument } from "./source.ts";
+export type { Facet, SigilDocument } from "./source.ts";
 export type { SigilWorkspace } from "./workspace.ts";
 
 export type GlossaryScope =

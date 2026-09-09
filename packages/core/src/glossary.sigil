@@ -75,7 +75,7 @@ expand SigilGlossaryEngine {
     }
 
     TermRecognition {
-      Scan recovered SemanticUnit prose while excluding inline code and URLs.
+      Scan recovered Facet prose while excluding inline code and URLs.
 
       Emit non-overlapping occurrences in deterministic source order.
     }
@@ -121,7 +121,7 @@ expand SigilGlossaryEngine {
 
       Unknown prose remains ordinary text without a missing-glossary-term diagnostic.
 
-      LiteralBlock type and body content are excluded without independently tracking
+      EmbeddedContent type and body content are excluded without independently tracking
       fence state.
     }
 
@@ -149,7 +149,7 @@ expand SigilGlossaryEngine {
       Longest-first matching emits one workspace root occurrence rather than
       overlapping workspace and workspace root occurrences.
 
-      A glossary spelling appearing only inside a LiteralBlock produces no
+      A glossary spelling appearing only inside a EmbeddedContent produces no
       occurrence.
     }
 

@@ -291,15 +291,15 @@ expand SigilContextRetrieval {
 
       After the complete purpose-specific non-glossary Sigil evidence set reaches a
       fixed point, derive GlossaryContextProjection from its normalized paths. The
-      only eligible recognition text is recovered SemanticUnit prose represented by
+      only eligible recognition text is recovered Facet prose represented by
       selected-contract, selected-expansion, dependency-contract,
       dependency-decision, importer-contract, cycle-contract, module-index-summary,
-      or public-concept-origin evidence; inline code, URLs, literal blocks,
+      or public-concept-origin evidence; inline code, URLs, fenced content,
       diagnostics, generated context text, and implementation source are ineligible.
 
       Use only source-ranged occurrences already returned by SigilGlossaryEngine.
       Select one canonical term and definition when an agentContext true occurrence
-      overlaps the exact source range of an eligible selected SemanticUnit. Do not
+      overlaps the exact source range of an eligible selected Facet. Do not
       rescan normalized EvidenceUnit text or match whole files. Architecture-specific
       eligible evidence can therefore add glossary terms. Do not serialize glossary
       occurrence records or unrelated bounded-context entries.
@@ -310,7 +310,7 @@ expand SigilContextRetrieval {
 
       Select the containing module index for every seed, direct dependency, direct
       importer component, and cycle member. Select its local component goal and
-      interface plus every constraints and decisions SemanticUnit owned by the exact
+      interface plus every constraints and decisions Facet owned by the exact
       module-index component's matching expand, without following the module index
       imports as new dependencies. Those exact owned occurrences are the complete
       boundary-wide set; no semantic classifier or inference narrows them.
@@ -441,7 +441,7 @@ expand SigilContextRetrieval {
       empty edge path.
 
       A glossary definition is the sole exception to per-seed emission. Collect every
-      inclusion reason for an eligible selected SemanticUnit whose exact range
+      inclusion reason for an eligible selected Facet whose exact range
       overlaps an occurrence of that term. Choose one triggering reason by fewest
       edges, lexicographically earliest edge sequence under complete RetrievalEdge
       ordering, triggering EvidenceUnit order, then seed-node order. Emit exactly one
@@ -574,28 +574,28 @@ expand SigilContextRetrieval {
     }
 
     EvidenceUnitConstruction {
-      Create one EvidenceUnit for each selected recovered Sigil SemanticUnit, never
-      one per whole section or declaration. Use the SemanticUnit's exact normalized
+      Create one EvidenceUnit for each selected recovered Sigil Facet, never
+      one per whole section or declaration. Use the Facet's exact normalized
       workspace-relative path, source range, owner component or expand identity,
       section identity, optional concept identity, normalized prose, and attached
-      literal-block source content.
+      embedded-content source content.
 
-      selected-contract uses each selected goal or interface SemanticUnit owned by a
-      seed declaration. selected-expansion uses every SemanticUnit owned by a
+      selected-contract uses each selected goal or interface Facet owned by a
+      seed declaration. selected-expansion uses every Facet owned by a
       matching expansion of a seed or cycle member. dependency-contract uses each
-      selected goal or interface SemanticUnit owned by a direct-dependency
-      declaration, and dependency-decision uses each selected decisions SemanticUnit
+      selected goal or interface Facet owned by a direct-dependency
+      declaration, and dependency-decision uses each selected decisions Facet
       owned by that declaration or its matching expansions. importer-contract uses
-      each selected goal or interface SemanticUnit owned by a direct-importer
-      declaration. cycle-contract uses each selected goal or interface SemanticUnit
+      each selected goal or interface Facet owned by a direct-importer
+      declaration. cycle-contract uses each selected goal or interface Facet
       owned by a cycle-member declaration that has not already received an earlier
-      kind. module-index-summary uses each selected goal or interface SemanticUnit
+      kind. module-index-summary uses each selected goal or interface Facet
       owned by the exact module-index declaration plus each selected constraints or
-      decisions SemanticUnit owned by that module-index component's matching expand.
-      public-concept-origin uses each selected SemanticUnit inside the exact
+      decisions Facet owned by that module-index component's matching expand.
+      public-concept-origin uses each selected Facet inside the exact
       originating public concept occurrence that has not received an earlier kind.
 
-      Construct one unit for a selected SemanticUnit even when it has several
+      Construct one unit for a selected Facet even when it has several
       selection roles, and assign only the first applicable EvidenceKind from
       RetrievalOrdering. The descriptions above define applicability; they do not
       create a second unit for another role.
@@ -612,10 +612,10 @@ expand SigilContextRetrieval {
       RetrievalDiagnosticVocabulary; included dependency-owned diagnostics preserve
       their supplied severity, code, and message without rewriting.
 
-      An empty section emits no EvidenceUnit. A structurally recovered SemanticUnit
+      An empty section emits no EvidenceUnit. A structurally recovered Facet
       remains eligible when its owning document is loaded; its existing diagnostics
       remain separate evidence and no missing text or range is inferred. Attached
-      literal blocks remain part of their owning SemanticUnit and never become
+      fenced content remain part of their owning Facet and never become
       independent evidence units.
     }
 
@@ -991,8 +991,8 @@ expand SigilContextRetrieval {
 
       A glossary term contributes one definition when an agentContext true,
       source-ranged occurrence returned by SigilGlossaryEngine overlaps eligible
-      recovered prose in a selected SemanticUnit. A spelling found only in inline
-      code, a URL, a literal block, a diagnostic, generated context, or
+      recovered prose in a selected Facet. A spelling found only in inline
+      code, a URL, a fenced content, a diagnostic, generated context, or
       implementation source contributes no definition.
     }
 

@@ -3,7 +3,7 @@
 
 component SigilAuthoringWorkflow {
   goal {
-    Author coherent Sigil boundaries, semantic units, concept identities, imports,
+    Author coherent Sigil boundaries, Facets, concept identities, imports,
     module indexes, and durable decision rationale as an initial written draft,
     then revise it from provisional design evidence.
   }
@@ -41,14 +41,14 @@ ConceptIdentifierWorkflow {
       uses one proposal-only concept-identifier subagent when subagents are available
     }
 
-SemanticUnitDisciplineGuidance {
-      SemanticUnitDisciplineGuidance adapts SemanticUnitDiscipline into authoring
+FacetDisciplineGuidance {
+      FacetDisciplineGuidance adapts FacetDiscipline into authoring
       guidance.
 
-      preserves one distinct idea per blank-line-delimited semantic unit and allows
+      preserves one distinct idea per blank-line-delimited Facet and allows
       physical prose wrapping without changing semantic identity
 
-      places an attached LiteralBlock directly after its introducing prose without a
+      places an attached EmbeddedContent directly after its introducing prose without a
       blank line
 
       limits ordinary prose to 79 content characters without counting leading
@@ -181,7 +181,7 @@ ImportSemantics {
     }
 
 ModuleIndexFile {
-      Every semantic unit in ModuleIndexFile applies to the indexed directory or
+      Every Facet in ModuleIndexFile applies to the indexed directory or
       configured boundary as a whole.
 
       Material operational logic, mutable state, detailed lifecycle behavior, and
@@ -211,13 +211,13 @@ ConceptIdentifierWorkflow {
       reconciliation behavior.
     }
 
-SemanticUnitDiscipline {
+FacetDiscipline {
       Concept blocks group coherent identities without merging distinct semantic
       ideas into one unit.
 
       Goal and decisions references never satisfy strict import use.
 
-      LiteralBlock content remains excluded from import, concept, glossary, and
+      EmbeddedContent content remains excluded from import, concept, glossary, and
       ownership reference evidence.
     }
 
@@ -287,7 +287,7 @@ DecisionRationaleWorkflow {
       reconstructable choices.
 
       Trade-offs: Every material write requires an additional coverage review and may
-      require more semantic units.
+      require more Facets.
 
       Design issues addressed: Material workflow choices previously advanced without
       coverage because decision authoring described record format but not its audit.

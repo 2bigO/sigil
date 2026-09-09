@@ -11,7 +11,8 @@ export type {
   SourceRange,
 } from "./language.ts";
 
-export interface LiteralBlock {
+/** Fenced payload; the introducing prose belongs to its enclosing Facet. */
+export interface EmbeddedContent {
   readonly type?: string;
   readonly body: string;
   readonly sourceLines: readonly string[];
@@ -21,7 +22,8 @@ export interface LiteralBlock {
   readonly indentation: number;
 }
 
-export interface SemanticUnit {
+/** A native contribution, optionally grouped under a cross-contract Concept. */
+export interface Facet {
   readonly filePath: string;
   readonly range: SourceRange;
   readonly ownerKind: SigilFormKind;
@@ -30,21 +32,32 @@ export interface SemanticUnit {
   readonly conceptIdentifier?: string;
   readonly prose: string;
   readonly sourceLines: readonly string[];
-  readonly literalBlocks: readonly LiteralBlock[];
+  /** Legacy serialized field name; nonempty content makes this an EmbeddedFacet. */
+  readonly literalBlocks: readonly EmbeddedContent[];
+}
+
+/** Introducing prose and fenced content together form one Embedded Facet. */
+export interface EmbeddedFacet extends Facet {
+  readonly literalBlocks: readonly [EmbeddedContent, ...EmbeddedContent[]];
+}
+
+export function isEmbeddedFacet(facet: Facet): facet is EmbeddedFacet {
+  return facet.literalBlocks.length > 0;
 }
 
 export interface ConceptBlock {
   readonly identifier: string;
   readonly range: SourceRange;
   readonly bodyRange: SourceRange;
-  readonly units: readonly SemanticUnit[];
+  readonly units: readonly Facet[];
 }
 
 export interface Section {
   readonly name: SigilSectionName;
   readonly range: SourceRange;
   readonly bodyRange: SourceRange;
-  readonly units: readonly SemanticUnit[];
+  /** Facets in source order, including both ungrouped and Concept-grouped ones. */
+  readonly units: readonly Facet[];
   readonly concepts: readonly ConceptBlock[];
 }
 

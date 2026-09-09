@@ -9,7 +9,7 @@ import type {
   ResolvedGlossaryContext,
   WorkspaceGlossary,
 } from "./model/glossary.ts";
-import type { SemanticUnit, SigilDocument } from "./model/source.ts";
+import type { Facet, SigilDocument } from "./model/source.ts";
 import type { SigilDiagnostic } from "./model/diagnostics.ts";
 import type { SourceLocation, SourceRange } from "./model/language.ts";
 import type { SigilWorkspace } from "./model/workspace.ts";
@@ -507,7 +507,7 @@ function mergeEffectiveTerms(
 }
 
 function matchUnit(
-  unit: SemanticUnit,
+  unit: Facet,
   spellings: readonly { spelling: string; term: GlossaryTerm }[],
 ): GlossaryOccurrence[] {
   const occurrences: GlossaryOccurrence[] = [];
@@ -529,7 +529,7 @@ function matchUnit(
 }
 
 function matchUnitLine(
-  unit: SemanticUnit,
+  unit: Facet,
   text: string,
   lineNumber: number,
   column: number,

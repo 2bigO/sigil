@@ -30,6 +30,7 @@ import {
   supportedImplementationSourceGlobPatterns,
 } from "../src/mod.ts";
 import { buildSigilGraph } from "../src/graph.ts";
+import { isEmbeddedFacet } from "../src/model/source.ts";
 
 /*
  * @sigil tests packages/core/_module.sigil::SigilCore::PackageVersionOwnership constraints
@@ -41,12 +42,12 @@ Deno.test("separates the core artifact and language contract versions", () => {
 });
 
 /*
- * @sigil tests packages/core/src/parser.sigil::SigilParser::SemanticUnit constraints,cases
- * @sigil tests packages/core/src/parser.sigil::SigilParser::LiteralBlock logic,constraints,cases
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::Facet constraints,cases
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::EmbeddedFacet logic,constraints,cases
  * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::Formatting interface,logic,cases
  * @sigil tests packages/core/src/formatter.sigil::SigilFormatter::DeterministicFormatting constraints
  */
-Deno.test("parses semantic paragraphs and attached literal blocks and formats idempotently", () => {
+Deno.test("parses Facets and Embedded Facets and formats idempotently", () => {
   const source = `component Example {
   goal {
     Describe a configuration whose prose is deliberately long enough that the formatter must wrap it without counting indentation toward the content width.
@@ -73,6 +74,10 @@ Deno.test("parses semantic paragraphs and attached literal blocks and formats id
   assertNoErrors(parsed.diagnostics);
   const goal = parsed.document.components[0].sections[0];
   assertEquals(goal.units.length, 1);
+  assert(isEmbeddedFacet(goal.units[0]));
+  assertEquals(goal.units[0].conceptIdentifier, undefined);
+  assert(goal.units[0].prose.startsWith("Describe a configuration"));
+  assert(!isEmbeddedFacet(parsed.document.components[0].sections[1].units[0]));
   assertEquals(goal.units[0].literalBlocks[0].type, "json");
   assert(goal.units[0].literalBlocks[0].body.includes('"enabled": true'));
   const formatted = formatSigilDocument(parsed.document, source);
@@ -215,7 +220,7 @@ component InternalIndex {
 });
 
 /*
- * @sigil tests packages/core/src/parser.sigil::SigilParser::LiteralBlock constraints,cases
+ * @sigil tests packages/core/src/parser.sigil::SigilParser::EmbeddedFacet constraints,cases
  * @sigil tests packages/core/src/parser.sigil::SigilParser::FormattingStyle constraints,cases
  */
 Deno.test("diagnoses invalid literal attachment and prose width", () => {
@@ -363,7 +368,7 @@ Deno.test("normalizes and walks POSIX and Windows paths", () => {
  * @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocumentParsing interface
  * @sigil tests packages/core/src/parser.sigil::SigilParser::SourceDocument logic,constraints,cases
  */
-Deno.test("parses the canonical Sigil version and preserves semantic units", async () => {
+Deno.test("parses the canonical Sigil version and preserves Facets", async () => {
   const source = await Deno.readTextFile(
     new URL("../../../examples/promise/promise.sigil", import.meta.url),
   );

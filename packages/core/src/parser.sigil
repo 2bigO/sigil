@@ -5,7 +5,7 @@ component SigilParser {
   goal {
     Interpret one versioned Sigil source into a source-faithful partial document.
 
-    Preserve useful declarations, concepts, semantic units, attached literal
+    Preserve useful declarations, concepts, Facets, attached literal
     blocks, original physical lines, and ranges whenever malformed structure
     permits deterministic recovery.
   }
@@ -36,14 +36,14 @@ expand SigilParser {
       blocks or labeled fields.
 
       Combine adjacent prose physical lines into one blank-line-delimited
-      SemanticUnit.
+      Facet.
 
-      Associate each semantic unit inside a concept block with that identifier.
+      Associate each Facet inside a concept block with that identifier.
 
-      Preserve non-empty free semantic units outside concept blocks.
+      Preserve non-empty free Facets outside concept blocks.
 
-      Parse an immediately adjacent backtick fence as a LiteralBlock attached to its
-      preceding prose semantic unit.
+      Parse an immediately adjacent backtick fence as a EmbeddedContent attached to its
+      preceding prose Facet.
 
       Dedent literal body lines by the opening-fence indentation when present while
       preserving additional indentation.
@@ -69,8 +69,8 @@ expand SigilParser {
       Reject invalid identifiers, empty concept blocks, and nested concept blocks.
     }
 
-    LiteralBlock {
-      Reject a detached, unintroduced, invalidly typed, or unclosed literal block.
+    EmbeddedFacet {
+      Reject a detached, unintroduced, invalidly typed, or unclosed fenced content.
 
       Ignore braces and apparent Sigil structure inside literal bodies.
     }
@@ -108,14 +108,14 @@ expand SigilParser {
       Concept body content remains free-form except for structural brace tracking.
     }
 
-    SemanticUnit {
-      Blank lines terminate prose semantic units while physical wrapping does not.
+    Facet {
+      Blank lines terminate prose Facets while physical wrapping does not.
 
-      SemanticUnit prose joins wrapped physical lines with one normalized space and
+      Facet prose joins wrapped physical lines with one normalized space and
       retains the original lines and complete range.
     }
 
-    LiteralBlock {
+    EmbeddedFacet {
       Literal type tokens match [A-Za-z][A-Za-z0-9_+.-]*.
 
       Literal bodies create no semantic references and are exempt from prose-width
@@ -133,7 +133,7 @@ expand SigilParser {
 
   cases {
     ParseResult {
-      Valid source returns recovered declarations and semantic units without error
+      Valid source returns recovered declarations and Facets without error
       diagnostics.
 
       An unclosed component returns its recoverable content with a source-ranged
@@ -141,7 +141,7 @@ expand SigilParser {
     }
 
     SourceDocument {
-      A decisions section preserves grouped and ungrouped semantic units without a
+      A decisions section preserves grouped and ungrouped Facets without a
       missing-concept-identifier diagnostic.
     }
 
@@ -163,25 +163,25 @@ expand SigilParser {
       SIGIL_MISSING_CONCEPT_IDENTIFIER warning.
 
       A concept block with several blank-line-delimited paragraphs preserves one
-      identity and every semantic unit.
+      identity and every Facet.
 
       Ungrouped non-interface content produces no missing-identifier warning.
 
       Empty and nested concept blocks are invalid.
     }
 
-    SemanticUnit {
-      Two adjacent wrapped prose lines produce one semantic unit.
+    Facet {
+      Two adjacent wrapped prose lines produce one Facet.
 
-      A blank line between prose paragraphs produces two semantic units.
+      A blank line between prose paragraphs produces two Facets.
     }
 
-    LiteralBlock {
+    EmbeddedFacet {
       Introducing prose immediately followed by a json fence produces one semantic
-      unit with one attached LiteralBlock.
+      unit with one attached EmbeddedContent.
 
-      Blank lines and unmatched braces inside a LiteralBlock do not close its
-      semantic unit or enclosing Sigil forms.
+      Blank lines and unmatched braces inside a EmbeddedContent do not close its
+      Facet or enclosing Sigil forms.
 
       A blank line before an opening fence produces SIGIL_DETACHED_LITERAL_BLOCK.
 

@@ -29,8 +29,8 @@ Platform context lives in
 Responsibilities:
 
 - parse `.sigil` files;
-- preserve source locations and semantic units;
-- preserve attached typed literal blocks outside structural and reference
+- preserve source locations and Facets;
+- preserve attached typed fenced content outside structural and reference
   interpretation;
 - report strict per-name unused imports;
 - canonically wrap prose at 79 content characters without counting indentation;

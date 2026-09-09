@@ -27,7 +27,7 @@ export type {
   ExpandDeclaration,
   ImportDeclaration,
   Section,
-  SemanticUnit,
+  Facet,
 } from "./source.ts";
 export type { SigilWorkspace } from "./workspace.ts";
 export type { ImportedComponentEdge, SigilGraph } from "./graph.ts";
