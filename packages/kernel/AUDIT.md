@@ -9,6 +9,14 @@ frontend in `packages/core/`. Egglog and Snapdir were inspected in
 `repos/egglog/` and `repos/snapdir/`, including executable Rust implementation,
 not just documentation. Sigil's vendored Snapdir integration was also inspected.
 
+The language authority for this revision is [language.md](../../language.md),
+including the author's clarifications about native Facets, Embedded Facets,
+shared Concept identity, and Interface exports. Older specifications and current
+frontend limitations are evidence of migration work, not reasons to narrow that
+language. The proposed computation is defined in
+[behavior_algebra.md](behavior_algebra.md); this audit applies it to the refactor
+and existing implementation rather than maintaining a competing algebra.
+
 This is a static architecture and source audit. No compiler runs, tests,
 benchmarks, or independent semantic reconstructions were performed. Examples
 and acceptance checks below are proposals, not reported execution results.
@@ -20,13 +28,27 @@ Egglog supplies compositional inference and equality reasoning. Keep the
 proposal's independent worlds, opaque semanticization, typed correspondence,
 disposable projection store, and removal of compiler-owned orchestration.
 
-The critical addition is a small, typed **behavioral algebra** between accepted
-observations and terminal realizations. Use relational identities for source
-anchors and e-classes for behavioral terms. Attach derivation witnesses to both.
-Start with a finite publication-guard model, then extend to an explicit
-publication protocol. This makes the first release demonstrate a behavioral
-equivalence and a precisely located counterexample, rather than only a richer
-graph of model-asserted capability claims.
+Build the kernel around **Concept-linked Facets interpreted through the seven
+contracts**. Concept identity connects the contributions; each Facet supplies
+an attributable statement; its contract determines that statement's role.
+Interface-defined identifiers connect operations, values, and results across
+imports. Components retain ownership, and module indexes assemble public
+surfaces without absorbing their imported behavior.
+
+Below that language structure, use the algebra's small units: values,
+expressions, conditions, state descriptions, observable actions, outcomes,
+steps, and relationships. Use relational identities for source attribution and
+e-classes for behavioral terms that fixed laws can actually equate. Start with
+the algebra's SearchPublication example: first prove its admission decision,
+then its joint actions, outcome, and next state. A removed cancellation check
+must produce a distinguishing scenario linked to the affected native Facets.
+Apply the same machinery to PreparedBinding after the observation and proof
+path works.
+
+The controlling definitions are
+[language foundations](behavior_algebra.md#start-with-the-language-we-have),
+[the small units](behavior_algebra.md#the-small-units-underneath-the-contracts),
+and [the first useful implementation](behavior_algebra.md#the-first-useful-implementation).
 
 The defensible product claim is:
 
@@ -36,6 +58,11 @@ The defensible product claim is:
 > design obligations and source observations. Missing information remains
 > unresolved.
 
+“Equal” means equal at the stated boundary and domain, as defined in
+[what equality means](behavior_algebra.md#what-equality-means-here). It does
+not mean equal source syntax, matching labels, equal numbers of Facets, or
+coverage of the same capability names.
+
 The proof is conditional on the accepted reconstructions faithfully representing
 the sources. Hashing proves which inputs were bound; graph validation proves
 admissibility; Egglog proves consequences of those inputs and laws. None of
@@ -44,6 +71,48 @@ This boundary need not weaken the useful capability, but it must be part of
 what `Closed` means.
 
 ## Findings, in priority order
+
+### P1. The proposal confuses a native Concept block with an individual Facet
+
+Proposal: [example.md, concrete SemanticBridge](example.md#7-concrete-semanticbridge-fresh-design-to-closed).
+Canonical language: [Concepts](../../language.md#one-concept-several-views) and
+[Facets](../../language.md#facets-are-the-statements-not-just-the-headings).
+
+The example declares both `SemanticBridge { ... }` and `ComparisonReport { ... }`
+inside Interface, then identifies `ComparisonReport` as an Interface Facet of
+the SemanticBridge Concept. Under the clarified language, both headings declare
+Concepts. The statements inside them are their native Facets.
+
+The distinction changes the graph, not just terminology. The example contains:
+
+```text
+C_bridge = Concept SemanticBridge
+C_report = Concept ComparisonReport
+F_compare = Facet describing acceptance of exports and production of a report
+F_contents = Facet describing the report's contents
+
+F_compare contributes to C_bridge
+F_contents contributes to C_report
+F_compare describes an interaction whose result refers to C_report
+```
+
+The relation between the two Concepts comes from the Facet's meaning. It must
+not be implemented by reclassifying the result Concept as a Facet. The same
+applies to repeated Concept blocks across Interface, State, Logic, Constraints,
+Decisions, and Cases: they share Concept identity while retaining their
+individual Facets and source occurrences.
+
+**Change:** correct the README, architecture, canonical example, ontology, and
+frontend transport around native Facets before adopting the proposed anchor
+schema. An ordinary Facet ends at one empty line; an Embedded Facet retains
+its fenced content and notation. One Facet can lower to several algebra units,
+all with the same source support. A Concept need not have one artificially
+named Facet per contract.
+
+The relevant algebra definitions are
+[language foundations](behavior_algebra.md#start-with-the-language-we-have),
+[contract contributions](behavior_algebra.md#how-each-contract-contributes-to-the-calculation),
+and [connections within and between Concepts](behavior_algebra.md#concepts-connect-explicit-relationships-finish-the-connection).
 
 ### P1. The canonical composition still delegates the behavioral judgment to the LLM
 
@@ -78,7 +147,15 @@ branches, data flow, returns, and ownership; let fixed laws compose them into
 the behavioral claim. Do not rename a model's `immutable` or `safe` assertion
 into a supposedly lower-level generator.
 
-### P1. Obligation coverage is conformance, not equality
+Concretely, use the algebra's
+[expressions](behavior_algebra.md#expressions-calculate-without-changing-the-world),
+[steps](behavior_algebra.md#steps-put-the-pieces-together), and
+[sequential composition](behavior_algebra.md#sequential-behavior). A derived
+admission condition is a stronger result than an asserted capability, but it
+still does not establish the operation's writes or returned value. Match the
+full behavior required by the relevant Facets.
+
+### P1. Obligation coverage does not establish behavioral equality
 
 Proposal: [ARCHITECTURE.md, computation and comparison](ARCHITECTURE.md#the-computation-exactly).
 Current seed: [comparison.rs, `compare`](../sigilc/src/comparison.rs).
@@ -106,6 +183,46 @@ behavior open should not require equality of everything the implementation does.
 **Change:** retain `Drift`, `Converged`, and `Closed` as aggregate statuses, but
 report the obligation's mode, domain, assumptions, proof, and coverage.
 `Closed` must not silently upgrade capability coverage into program equality.
+
+Use the algebra's exact definition of
+[equality at a boundary](behavior_algebra.md#what-equality-means-here) and its
+[treatment of partial statements](behavior_algebra.md#do-not-ask-a-partial-statement-to-specify-a-whole-program).
+A Constraint can require that a particular bad event never occurs while
+leaving other behavior open. Equality of that event/property view is a precise
+result; equality of the whole operation would be a stronger, unsupported claim.
+
+Every result should identify the native Facets defining its boundary. Global
+`Closed` must be qualified by the selected scope and its declared requirements.
+Several separately proved properties establish full public behavior equality
+only if their combined observations retain every distinction that boundary
+can observe.
+
+### P1. Matching Facets independently can lose correlations between their observations
+
+The proposed tuple matcher has no representation for a correlated result,
+effect sequence, or next state. It can match that a status and a payload are
+provided without establishing that they occur together in the required way.
+
+The algebra's [joint-observation example](behavior_algebra.md#compare-related-observations-together)
+shows the failure:
+
+```text
+Design:          (Ready, value) or (Failed, error)
+Implementation:  (Ready, error) or (Failed, value)
+```
+
+Each individual field has the same possible values; the pairs are different.
+Likewise, finding both validation and publication does not show that validation
+precedes publication. Finding a rejected outcome does not show that the
+rejected path preserved state.
+
+**Change:** preserve a joint `(ordered actions, outcome, next relevant state)`
+for each condition and input. Conditions, parameters, resources, and operation
+identities connect the Facets within a Concept. Do not independently pool
+observations across branches, operations, implementation targets, or source
+generations. See [steps](behavior_algebra.md#steps-put-the-pieces-together),
+[alternatives](behavior_algebra.md#alternatives), and
+[state transitions](behavior_algebra.md#state-transitions-and-repeated-interactions).
 
 ### P1. A blanket prohibition on e-class union prevents the proposed equality capability
 
@@ -137,6 +254,14 @@ unless explicitly declared a trusted assumption, it is a candidate to prove.
 Equating behavior terms does not erase source attribution when attribution is
 kept outside the quotient.
 
+Follow [how Egglog carries the calculation](behavior_algebra.md#how-egglog-should-carry-the-calculation).
+The term families above are illustrative implementation types, not another
+language or permission to equate unsupported protocols. Begin with the
+algebra's [pure-expression laws](behavior_algebra.md#pure-expression-equality):
+purity and totality are premises, not consequences of a Boolean result type.
+Extraction chooses a representative after calculation; its cost is not evidence
+of truth, and unequal representatives are not a counterexample.
+
 ### P1. “Exactly where” requires proof support and source occurrences from the beginning
 
 Proposal: optional documentary spans and deferred Facet precision.
@@ -152,7 +277,9 @@ not reconstruct a full proof tree. Some violation rules retain only one of
 the contradictory facts' IDs.
 
 That cannot reliably explain a disagreement composed across several methods
-and files. Facet-sized cache bindings alone would not repair it.
+and files. Facet-sized cache bindings alone would not repair it. The native
+Facet must already be an attributable source unit before its interpretation
+is decomposed into several observations.
 
 **Change:** preserve three different identities:
 
@@ -174,6 +301,13 @@ an exhausted proof computation may not masquerade as a completed proof.
 For a missing operation, point to the failed design obligation and current
 enclosing implementation observation, with historical locations explicitly
 marked historical. Do not fabricate a current line for deleted code.
+
+For an Embedded Facet, retain its introducing prose, notation, and fenced-body
+range. A supported interpretation can identify a more precise subrange inside
+the diagram or snippet; otherwise point to the whole Embedded Facet. Unsupported
+embedded meaning is an explicit gap, not an empty behavior that matches another
+empty behavior. See [contract contributions](behavior_algebra.md#how-each-contract-contributes-to-the-calculation)
+and [required result support](behavior_algebra.md#what-the-result-must-retain).
 
 ### P1. Negative requirements and loss of behavior need explicit semantics
 
@@ -201,6 +335,12 @@ submitted model and faithfulness to source remain separate questions.
 Emit `Drift` only for a positive contradictory observation, a valid
 counterexample, or another supported refutation. Otherwise emit an explicit
 unresolved reason. This distinction is essential to honest change diagnostics.
+
+The algebra's [result definitions](behavior_algebra.md#complete-calculations-honest-results)
+also require completeness checks after the relevant computation finishes.
+Neither unfinished saturation nor an accidentally empty input domain counts as
+coverage. A valid local refutation can survive unrelated unresolved meaning;
+an incomplete overall world is not a reason to hide an established violation.
 
 ### P1. The proposed realization tuple loses which implementation must satisfy it
 
@@ -265,30 +405,62 @@ this as current at validation, not permanently current or an atomic snapshot.
 An actual point-in-time tree guarantee requires a quiescent source or filesystem
 snapshot. This distinction should be explicit, not hidden in the word “fresh.”
 
-### P2. Concept identity in the proposal conflicts with the current language boundary
+### P2. The current frontend and catalog carry less than the canonical language
 
-Proposal: “Writing the same Concept identifier in another Sigil contract means
-that same Concept again.” Current language:
-[language.sigil, `ConceptIdentity`](../../spec/language.sigil),
-[ADR-015](../../spec/decisions/adr-015-flat-concept-identifier-namespace.md),
-[ADR-016](../../spec/decisions/adr-016-contextual-imported-concept-reuse.md), and
-[design-input.ts](../core/src/design-input.ts).
+Current transport: [design-input.ts](../core/src/design-input.ts),
+[frontend.rs](../sigilc/src/frontend.rs), and
+[catalog.rs](../sigilc/src/catalog.rs). Canonical definitions:
+[shared Concepts](../../language.md#one-concept-several-views) and
+[Interface exports](../../language.md#interface-gives-the-vocabulary-a-passport).
 
-The current language has a flat namespace per component and matching expands,
-with specific rules for preserving imported Concept identities. A same-named
-local declaration can be a distinct, ambiguous identity. Consumer contributions
-also remain contextual; they must not extend the provider upstream.
+The earlier audit treated cross-contract Concept identity as a questionable
+proposal against an older specification. That assessment was too narrow.
+Shared identity is a foundation of Sigil, already visible in the repeated
+`LiteralBlock` Concept in [parser.sigil](../core/src/parser.sigil) and
+`DesignConversation` in the [skill contract](../../integrations/skills/sigil/design-conversation.sigil).
+The task is to preserve that identity through transport and calculation.
 
-**Change:** carry resolved Concept identity, contextual owner, source occurrence,
-contract kind, and origin unit separately. A Facet belongs to a resolved Concept
-in an explicit contract context. Preserve that context in obligations and
-implementation-target selection. Do not globally equate Concept names or
-globally collect consumer facets. If global identity is an intended language
-change, specify it as such rather than presenting it as existing semantics.
+The current frontend already inventories physical semantic units and exports
+resolved Component and locally owned Concept entities. However, `Unit.concept`
+is only text. It does not transport the resolved Concept reference for each
+contribution. Its entity types are only Component and Concept; there is no
+public-identifier category for an operation or domain term defined within an
+Interface Facet. It also lacks explicit Embedded Facet representation metadata.
+These are implementation gaps, not restrictions on the language.
 
-The frontend currently exports `Unit.concept` as text, not a resolved Concept
-reference. Add the resolved reference through the existing resolver. This is a
-Sigil-language frontend improvement, not an implementation-language parser.
+**Change:** preserve the following distinctions through frontend, accepted
+Design observations, and outgoing descriptors:
+
+| Native meaning | Required representation |
+| --- | --- |
+| Shared Concept | Resolved originating identity, independent of the contract occurrence using it. |
+| Facet | Authored unit, contextual component owner, contract kind, optional resolved Concept, and source range. |
+| Embedded Facet | The same ownership and attribution, plus introducing prose, notation, and fenced content. |
+| Interface-defined identifier | Typed public identity, defining Facet, originating owner, and source-supported definition. A Concept block is not required. |
+| Imported reference | The provider's identity and its visibility in this consumer, not a new same-spelled declaration. |
+| Matching expand | Additional contributions to its resolved component, with their own source occurrences; no last-writer override. |
+| Module assembly | Explicitly exposed component surface with original ownership, separate from runtime invocation. |
+
+Use the existing Sigil resolver for structural identities and scopes. Keep
+structural export of Facets distinct from interpreting definitions inside their
+prose: the deterministic frontend need not become an arbitrary-language meaning
+extractor. Accepted Design interpretation can supply typed, source-supported
+public definitions, validated against their Interface owner and accessible
+scope. Ambiguous definition/reference distinctions remain unresolved. Do not
+export every prose word, invent new `export` syntax, or force authors to wrap
+every public term in a Concept.
+
+A consumer contribution about an imported Concept retains consumer context and
+does not rewrite its provider upstream. Conversely, independently declared
+same-spelled Concepts in unrelated scopes do not become one identity. These
+are scoping rules around the shared primitive, not objections to it.
+
+Do not force every implementation expression, branch, or local variable into a
+fake Concept or Facet merely to fit the proposal's two-type descriptors. Local
+observations have the algebra's own types and explicit correspondence to
+applicable native/public identities. An ungrouped native Facet remains valid.
+See [language foundations](behavior_algebra.md#start-with-the-language-we-have)
+and [explicit connections](behavior_algebra.md#concepts-connect-explicit-relationships-finish-the-connection).
 
 ### P2. Cross-file composition needs an explicit linkage surface
 
@@ -310,6 +482,16 @@ callee behavior later, callee edits need not invalidate the caller projection.
 These two designs have different freshness consequences. Choose explicitly.
 Handle recursive source dependencies as a declared boundary; do not imply that
 every incoming-anchor graph can be prepared in a simple topological order.
+
+Sigil already contributes the public linkage vocabulary through Interface and
+imports. Reuse it rather than infer a second design namespace from code names.
+Still distinguish an imported name, an exposed component, and an actual call.
+The [core module](../core/_module.sigil) assembles public contracts; the
+[workspace pipeline](../core/src/pipeline.sigil) separately owns stage ordering,
+result assembly, and diagnostic deduplication. Only the latter Facets describe
+that runtime sequence. This is the algebra's distinction between
+[relationships](behavior_algebra.md#relationships-structure-also-has-meaning)
+and [component/module composition](behavior_algebra.md#component-and-module-composition).
 
 ## What the actual Egglog implementation enables
 
@@ -371,27 +553,92 @@ The current restricted `.egg` encoder/reader in
 [assertions.rs](../sigilc/src/assertions.rs) should continue to reject executable
 rules, includes, arbitrary expressions, and compiler-derived verdicts.
 
-Extend the fixed ontology with a deliberately small observation vocabulary:
+Extend the fixed ontology with the algebra's
+[eight small units](behavior_algebra.md#the-small-units-underneath-the-contracts),
+not a separate instruction set for each contract or programming language:
 
-| Observation family | Examples | Compiler responsibility |
+| Algebra unit | Examples | Compiler responsibility |
 | --- | --- | --- |
-| Identity | Local anchor, direct `denotes`, contextual Concept/Facet | Validate ownership, types, supplied references, mapping cardinality. |
-| Pure expressions | Input, literal, comparison, Boolean operator | Validate operand roles and types; lower into terms. |
-| Control flow | Branch, true/false successor, return, explicit unknown call | Validate graph shape; derive reachable paths and path conditions. |
-| Effects | Read, write, publish, fail, resource argument | Preserve ordering, resource identity, and failure behavior. |
-| Attribution | Source occurrence, byte range, excerpt digest | Bind to captured bytes and retain support. |
+| Value | Boolean, defined name, finite alternative, record, resource | Preserve type, payload, identity, and value distinctions. Missing, null, empty, and unknown are not interchangeable. |
+| Expression | Input/state reference, field selection, admitted pure operation | Check operand types and roles; lower to fixed terms with explicit numerical or other value meaning. |
+| Condition | Branch guard, scenario domain, forbidden-state predicate | Evaluate the Boolean meaning while retaining its role. A code guard does not create a Design precondition. |
+| State description | Active request, cancellation flag, public Results | Validate explicit representation mappings and preserve history relevant to later interactions. |
+| Observable action | Publish a value, write a resource, emit an event | Preserve target, contents, order, and repetition at the declared boundary. |
+| Outcome | Return a value, fail, remain pending, diverge | Keep these distinct; never encode unsupported meaning as an outcome. |
+| Step | Guarded actions, outcome, and next state | Compose paths without losing their joint behavior; check the supported fragment's closure. |
+| Relationship | Owns, exposes, invokes, contributes | Validate endpoint types and scope; distinguish namespace assembly from runtime behavior. |
 
 New classes and predicates should be canonical `sigil:` vocabulary, not a
 Rust-specific AST. Reified expression nodes fit Turtle; native lowering can
-construct Egglog terms after graph validation. The seven contract kinds classify
-requirements, but are not a sufficient instruction set for reasoning about
-behavior. A Logic Facet and a Constraint Facet can refer to the same underlying
-behavior expression.
+construct Egglog terms after graph validation. Branch and successor observations
+can be a source-local way to describe steps without becoming new Sigil language
+primitives. Source identity, occurrence support, contract role, and production
+versus test role accompany these observations; they are not extra behavior laws.
 
 For the first fragment, require acyclic, typed expression graphs and explicit
 unknown nodes. Reject ambiguous operand cardinality and wrong-side assertions.
 Do not union conflicting observations to “repair” them. Open or conflicting
-models must not produce behavioral equality.
+meaning relevant to a selected boundary must not produce behavioral equality.
+
+### Use the seven contracts as interpretation roles
+
+The contracts are not merely labels on otherwise identical `provides` facts.
+They tell interpretation what a contribution does. Apply
+[the algebra's contract definitions](behavior_algebra.md#how-each-contract-contributes-to-the-calculation)
+as follows:
+
+| Contract | What the refactor should calculate | What must not substitute for that calculation |
+| --- | --- | --- |
+| Goal | An explicitly defined outcome/property view under its applicable conditions. | Turning qualitative purpose into invented executable requirements or claiming it has been proved because its text is present. |
+| Interface | Public operation/value identities and joint result, failure, action, and state meaning. | A matching signature, Concept heading, or result-type name. |
+| State | Relevant quantities and configurations under a supported, attributable representation mapping. | Equal state labels while hidden state changes later behavior. |
+| Logic | Pure calculations, conditions, guarded steps, sequencing, and supported delegation. | Finding every named operation without establishing arguments, order, continuation, or callee behavior. |
+| Constraint | A predicate on states, steps, traces, or complete structural relationships. | Missing positive facts as proof of a prohibition, or a restriction reported as whole-operation equality. |
+| Decision | Applicable choices and assumptions connected to their rationale and binding restrictions. | Treating discarded alternatives as requirements, or silently turning rationale into a new Constraint. |
+| Case | Given conditions, actions, and expected observations for a concrete scenario or an explicitly quantified family. | Requiring a test file, equating test names, or generalizing a happy-path example to every input. |
+
+One Facet may supply several units; several Facets may jointly define one
+operation. Keep an interpretation disposition for every selected native Facet:
+represented meaning, interpretive context, or an explicit gap. Context is not a
+hidden success state: if the selected claim needs an observable interpretation
+that is still missing, that comparison remains Unresolved.
+
+Shared Concept identity gives a reliable starting connection, not permission
+to combine unrelated operations under that Concept. Bind each condition,
+action, state quantity, and outcome to the operation and resources it concerns.
+Connections between different Concepts can be equally important: the pipeline's
+Interface `WorkspaceResolution` and operational `WorkspaceResolutionPipeline`
+need their explicit operation/result relationship, not forced name equality.
+
+### Cases, tests, and Embedded Facets retain their roles
+
+Use the algebra's [Case decomposition](behavior_algebra.md#cases-and-tests-use-the-same-smaller-units):
+
+```text
+given:   starting-state and input condition
+actions: operation or operation sequence
+expect:  required observation or predicate on the resulting trace
+```
+
+Happy paths, sad paths, cancellation, recovery, and boundary scenarios all fit
+these units. A concrete scenario, a family of scenarios, a required outcome,
+and a permitted outcome have different quantifiers. Preserve them rather than
+guessing a universal rule from a representative example.
+
+Production behavior, test expectations, and mock behavior must stay separate
+even when they share a Concept or inhabit one file. The compiler can compare
+what a test sets up and asserts with a Case, and independently compare the
+production operation with that Case. Test-source correspondence is not proof
+of test execution or of production behavior; a mock cannot satisfy a missing
+production callee. This opens a useful scenario-coverage capability without
+making tests the definition of Cases.
+
+An Embedded Facet uses its surrounding contract's role. A Mermaid transition
+diagram can supply state and step observations; a JSON Interface shape can
+supply value meanings; code in Cases can describe a scenario. Neither the fence
+label nor code-like syntax changes Design material into production evidence.
+Unsupported notation or ambiguous transitions remain visible gaps. The kernel
+compares the resulting supported units, not the raw diagram syntax.
 
 ### Independent closures and the comparison boundary
 
@@ -407,12 +654,26 @@ R  = compare(O, summaries(I*))
 The comparator needs a richer input than `(Concept, predicate, Facet)`:
 
 ```text
-obligation(id, context, concept, facet, target, mode, domain, expectedBehavior)
-summary(target, localAnchor, behavior, support, modelStatus)
+boundary(subject, target, inputs, assumptions, observations, valueMeanings)
+obligation(id, boundary, contributingFacets, mode, expectedBehavior)
+summary(target, operation, sourceRole, behavior, support, modelStatus)
 ```
 
 These are logical record shapes, not a prescribed public Rust API. Keep semantic
-contents typed and provenance separate from identity matching.
+contents typed and provenance separate from identity matching. The subject can
+include an ungrouped Facet or several related Concepts. Several contributing
+Facets do not imply several independent comparisons if their observations are
+coupled. Fix the boundary before examining a mismatch; do not hide the mismatch
+by deleting an observation or importing an implementation-only precondition.
+
+Implementation reconstruction receives captured source, fixed vocabulary, and
+authorized identity/type descriptors, not the Design's expected conditions,
+Cases, result tables, or comparison feedback. Descriptor labels must not become
+a channel for smuggling those expected behaviors into the independent reading.
+Markdown-to-Sigil correspondence likewise supplies identities, not an assumption
+that the later description is faithful or more complete. Missing Markdown
+meaning must not be filled from the desired target. See
+[independent reconstruction](behavior_algebra.md#keep-the-two-reconstructions-independent).
 
 Independent e-graphs do not share stable e-class IDs. Never compare their
 internal IDs or stringify their chosen representatives and call that equality.
@@ -430,76 +691,96 @@ effectful call that happens to return a Boolean. Floating-point expressions,
 overflow, exceptions, mutation, aliasing, and nondeterminism require their own
 semantics before corresponding algebraic laws become admissible.
 
-### First executable capability: publication admission
+Use [Equal, Different, and Unresolved](behavior_algebra.md#complete-calculations-honest-results)
+for the actual boundary calculation. Existing aggregate names can remain as
+presentation, with `Drift` carrying a supported refutation, `Converged` retaining
+unresolved obligations, and `Closed` requiring the declared mode's completed
+proofs plus coherent Design and current required inputs. A scope containing
+only capability checks must not advertise behavioral equality. Design coherence
+also remains a judgment about represented requirements, not a certification
+that prose interpretation is infallible.
 
-Use `PreparedBinding`, the proposal's own example, but make its first Facet
-narrow and actually decidable:
+### First executable capability: the algebra's publication example
 
-> When the other publication prerequisites hold, admission is allowed exactly
-> when source, incoming anchors, and expected generation match.
+Use [SearchPublication](behavior_algebra.md#a-complete-example-across-design-and-code)
+as the initial example, replacing the audit's earlier PreparedBinding-first
+recommendation. It exercises native Concept reuse, several contracts, public
+identifiers, happy/sad scenarios, and independent Markdown/Python/TypeScript
+formulations without first needing a model of filesystem concurrency.
 
-Let `s`, `a`, and `g` denote those three pure checks. The selected domain is
-all eight Boolean assignments. Input-slot correspondence is typed and explicit;
-their spelling does not establish identity.
+The shared `Publication` Concept connects Interface result meanings, State
+quantities, Logic branches, the stale/cancelled Constraint, and Cases. The Goal
+and Decision explain the observable intent and authority choice; they do not
+invent extra runtime behavior. Explicit `publish`, `ResponseId`, `Results`, and
+result-alternative identities complete the connections.
 
-Design independently lowers to:
-
-```text
-admit_D(s, a, g) = s AND a AND g
-```
-
-A correct implementation could use early exits:
-
-```text
-if NOT s: return Reject
-if NOT a: return Reject
-if NOT g: return Reject
-return Admit
-```
-
-The implementation semanticizer emits the local checks, branches, successor
-edges, and return values. It does not emit `provides(ImmutableBinding)` or
-`equivalentTo(design)`. Fixed laws reconstruct the decision expression:
+**Milestone A: admission equality.** Apply
+[the four-input decision calculation](behavior_algebra.md#first-calculate-the-admission-condition):
 
 ```text
-admit_I = If(s, If(a, If(g, true, false), false), false)
+m = ResponseId equals ActiveRequest
+c = Cancelled
+
+Design:              and(m, not(c))
+Python early exits:  if(not(m), false, if(c, false, true))
+TypeScript branch:   and(m, not(c))
 ```
 
-Boolean laws such as `If(p, true, false) = p` and
-`If(p, q, false) = And(p, q)`, restricted to pure total Boolean terms, prove
-the correspondence to the Design expression. Egglog congruence carries the
-inner equalities outward. Exhaustive evaluation of the eight assignments
-supplies a complete equality check for this fragment and a way to produce
-counterexamples. This is exhaustive finite semantics, not sampled tests.
+Establish matching input meanings and pure, total checks. The finite Boolean
+table can decide equality completely for this admission boundary. Fixed laws
+and Egglog congruence explain the equivalence of the different formulations.
+The model emits checks, branches, and values, never the terminal verdict.
 
-Now remove the generation rejection branch. The fresh implementation lowers to:
+This result does not establish any branch's writes or returned value. It also
+does not by itself prove request-identity equality across arbitrary source
+types: that meaning must be established or the assumption stated.
 
-```text
-admit_I_changed(s, a, g) = s AND a
+**Milestone B: full selected operation equality.** Follow
+[joint operation comparison](behavior_algebra.md#then-compare-the-full-selected-operation):
 
-counterexample:
-  s = true, a = true, g = false
-  Design outcome         = Reject
-  Implementation outcome = Admit
-```
+| Condition | Ordered actions | Outcome | Next relevant state |
+| --- | --- | --- | --- |
+| `m AND NOT c` | Publish IncomingResults to Results | `Return(Published)` | Results becomes IncomingResults; ActiveRequest and Cancelled unchanged. |
+| Otherwise | None | `Return(Ignored)` | Unchanged. |
 
-The kernel can refute equality without asking the LLM whether the change
-violates the design. Report the admission Facet, its authored range, the
-current admitting return/path, the facts that support it, and the failed input
-assignment. The previous generation-check span may be shown as historical
-impact evidence, but contributes nothing to this fresh counterexample.
+Source-supported mapping must establish that the local assignment changes the
+public Results resource. Preserve the payload, result alternative, and next
+state together. The example assumes infallible ordinary assignment, no hidden
+getter/setter effects, and no concurrent state mutation; these cannot silently
+be generalized to arbitrary code. Use finite request/payload domains initially,
+or separately establish symbolic identity and unchanged-value forwarding. The
+four Boolean rows alone cannot prove behavior over every possible payload.
 
-Do not call this proof of the entire immutable-publication protocol. The next
-step models expected-generation checks, lock scope, temporary writes, commit,
-failure, and index visibility as a finite transition system. A transition
-summary must preserve order and failure effects: finding both a check and a
-write somewhere is insufficient. Protocol equality or safety then has an
-explicit observation boundary, for example whether stale input can become an
-index-visible accepted projection.
+This stronger calculation catches a wrong published value, an extra visible
+write, a swapped return alternative, or state mutation on the ignored branch
+even when admission remains equal. Those are genuinely new capabilities beyond
+tuple coverage.
 
-The same machinery can later recognize repeated guard patterns and delegated
-operations across functions. Candidate pattern recognition may be broad;
-accepting a semantic rewrite must still require its complete side conditions.
+**Disagreeing edit:** removing cancellation produces admission `m`. The
+[distinguishing situation](behavior_algebra.md#a-disagreeing-edit-has-a-small-witness)
+is an active but cancelled request with incoming Results different from current
+Results. Design ignores it and preserves state; the changed implementation
+publishes it and returns Published. The compiler derives the disagreement from
+fresh behavior, not from a textual diff or an LLM's judgment of the edit.
+
+Report the current publishing path and the native Interface, Logic, Constraint,
+and Case Facets whose represented observations it contradicts. Do not simply
+mark every Facet under Publication wrong. Each reported connection needs its
+own semantic support. The removed check's old span is historical context only.
+
+**Transfer to PreparedBinding afterward.** Its source-match, incoming-anchor,
+and expected-generation guards can use the same pure-decision machinery.
+Proving actual publication safety additionally needs explicit state and steps
+for lock scope, validation, temporary writes, commit, failure, and index
+visibility. A generation check somewhere before a write does not prove atomic
+compare-and-swap or prevent a race. Model supported transitions and assumptions
+before claiming that protocol's equality; unsupported concurrent interleavings
+remain Unresolved. See [repeated interactions](behavior_algebra.md#state-transitions-and-repeated-interactions).
+
+Repeated guards and larger helper compositions become recognizable because
+their expressions and joint steps are represented, not because `provides` was
+renamed. Pattern discovery can suggest candidates; accepting a rewrite still
+requires every side condition and independently supported callee behavior.
 
 ## Freshness and change impact as separate computations
 
@@ -527,6 +808,15 @@ downstream observations that consumed only those descriptors can be reusable.
 If the provider is stale or Disjoint, matching descriptor hashes alone must
 not manufacture a current authoritative Design surface. Recompute obligations
 against current Design independently of that reuse decision.
+
+The same rule applies to Interface-defined identifiers and nested module
+surfaces. Bind the full descriptor payload actually consumed, not just a list
+of exported spellings. A type, ownership, or visibility change can matter with
+unchanged labels. An altered provider behavior need not force reinterpretation
+of a caller that consumed only unchanged identities, but it must invalidate
+any composed proof that used the old behavior. This is the algebra's separation
+between [independent inputs](behavior_algebra.md#keep-the-two-reconstructions-independent)
+and [result support](behavior_algebra.md#what-the-result-must-retain).
 
 ### Preserve source membership, not just surviving files
 
@@ -581,15 +871,19 @@ that can turn a failed behavioral proof into success through direct `provides`.
 
 | Step | Exact boundary to change | Concrete result |
 | --- | --- | --- |
-| 1. Tighten the proposal | Kernel README, ARCHITECTURE, example; governing Sigil contracts | Define scoped equality/refinement, separate anchor identity from term equality, require source support, specify target quantifiers and Concept context. |
+| 1. Align the proposal with native language and algebra | Kernel README, ARCHITECTURE, example; governing Sigil contracts | Correct Concept/Facet examples, include Interface-defined exports and ungrouped/Embedded Facets, distinguish module exposure from invocation, and adopt the algebra's boundary/result definitions. |
 | 2. Extract the computation | New `packages/kernel/Cargo.toml` and `src/lib.rs`; current `sigilc/src/kernel.rs`, three `.egg` programs, `comparison.rs` | A Rust library with typed Design/Implementation inputs and result surfaces; no filesystem, scheduling, or worker dependencies. Move reusable runtime/limit code without freezing the old fact schema as public API. |
-| 3. Add typed local observations and occurrences | `sigilc/src/turtle.rs`, `assertions.rs`, `catalog.rs`, `frontend.rs`; `core/src/design-input.ts`; new kernel observation/lowering module | Arbitrary-language source anchors, expression/control-flow observations, mechanically checked ranges, and fixed typed lowering. Preserve required authored-unit inventory. |
-| 4. Deliver the publication-admission proof | New kernel Boolean laws/evaluation and proof output; `sigilc/src/comparison.rs`, `report.rs`; replace the canonical example | Equivalent early exits and conjunction close; omitted generation check yields a concrete counterexample and two-sided locations. No capability assertion is sufficient for this obligation. |
-| 5. Integrate freshness and impact | `sigilc/src/sources.rs`, `inputs.rs`, `store.rs`, `design.rs`, `implementation.rs`, scope/report code | Path-aware captured manifests, immutable incoming descriptor bindings, target-specific coverage, validated last-known impact, proof invalidation on accepted-content changes. |
+| 3. Preserve native units and lower typed observations | `sigilc/src/turtle.rs`, `assertions.rs`, `catalog.rs`, `frontend.rs`; `core/src/design-input.ts`; new kernel observation/lowering module | Resolved per-Facet Concept references, public definition identities, local observations in the eight-unit vocabulary, production/test roles, checked ranges, and explicit interpretation gaps. |
+| 4a. Deliver finite pure-decision equality | New kernel Boolean laws/evaluation and proof output; `sigilc/src/comparison.rs`, `report.rs`; replacement canonical example | SearchPublication early exits and conjunction prove equal for the declared domain; removing cancellation yields a witness and two-sided source support. Follow the algebra's admission example. |
+| 4b. Deliver finite guarded-operation equality | Kernel steps, value/state mappings, joint comparison and support | Compare actions, outcomes, payloads, and next state together. Detect correct admission with a wrong write or result. Follow the algebra's full selected operation, without silently widening the finite domain. |
+| 5. Integrate freshness and impact | `sigilc/src/sources.rs`, `inputs.rs`, `store.rs`, `design.rs`, `implementation.rs`, scope/report code | Path-aware captured manifests, complete consumed descriptor bindings, module/public-surface dependencies, target-specific results, validated last-known impact, and proof invalidation on accepted-content changes. |
 | 6. Remove the retired process surface | `sigilc/src/request.rs`, request branches in `cli.rs`, artifact fields/methods in store and reports; current CLI docs/contracts and repository-owned Sigil skill | `PreparedBinding`/`binding.json`, opaque external semanticization, no `--evidence`, worker receipts, or request ledger. Keep generation checks, locking, restricted ingest, and scope. |
-| 7. Expand one domain at a time | Kernel protocol laws and explicit exported implementation anchors | Publication-protocol safety/equality and cross-file composition from current callee observations. Add arithmetic or broader state semantics only with a declared theory and meaningful counterexamples. |
+| 7. Expand one domain at a time | Kernel protocol laws, scenario comparison, and explicit exported implementation anchors | Case/test expectation comparison with separate production evidence; cross-file composition from current callees; PreparedBinding protocol claims only under represented state/concurrency semantics. Add arithmetic and broader state only with explicit theories. |
 
-Steps 2-5 form the first useful vertical slice. Process cleanup may be developed
+Steps 1-5 form the first useful vertical slice. Step 4a is a narrow mathematical
+milestone; step 4b is the first joint-operation capability. Their controlling
+scope is [the algebra's first useful implementation](behavior_algebra.md#the-first-useful-implementation),
+not an assertion that the whole repository becomes decidable. Process cleanup may be developed
 alongside them, but its size must not substitute for demonstrating the new
 semantic capability. Authoritative docs and skill instructions must switch with
 the command boundary; the currently installed worker/evidence workflow describes
@@ -608,9 +902,26 @@ These are implementation acceptance criteria, not tests run during this audit.
 
 | Scenario | Required result |
 | --- | --- |
+| One Concept appears in several contracts and matching expands | One resolved Concept with separately attributable Facets and collective, non-overriding contributions. |
+| Interface contains both SemanticBridge and ComparisonReport Concept blocks | Two Concepts connected by the operation's result relationship; neither block is reclassified as a Facet of the other. |
+| Adjacent prose lines, an empty-line separator, and an ungrouped statement | Native Facet boundaries and optional Concept are preserved, not replaced by heading-sized anchors. |
+| An Embedded Facet contains blank lines and braces | Preserve its introducing prose, notation, fenced body, and source support; unsupported meaning remains explicit. |
+| Interface defines Results or publish inside a Facet without its own Concept block | The defined public identity is importable with its originating owner; ordinary prose words are not automatically exports. |
+| A nested module explicitly assembles imported components | Compute the declared public surface without sweeping the directory, transferring ownership, or inventing runtime calls. |
 | Conjunction and pure early-return guards encode the same function | Equality proof for every input in the finite domain; source anchors remain distinct. |
 | Repeated guard expressions occur in several local constructs | Shared behavioral equivalence with separately preserved occurrences. |
-| Generation check is removed | Fresh counterexample `s=true,a=true,g=false`; failed Design Facet and current admitting path. |
+| Cancellation check is removed | Fresh counterexample `m=true,c=true`; current publishing path and affected native Facets, with differing Results for the state-change witness. |
+| Admission is correct but the branch writes a different payload or returns the wrong alternative | Admission remains Equal; the larger operation boundary is Different with a joint witness. |
+| Status and payload each match, but their allowed pairs are crossed | Different joint result, despite equal individual value sets. |
+| Ignored branch writes state, repeats a write, or changes observable action order | Different when the declared boundary observes that distinction; no set-based erasure of action order or repetition. |
+| A Boolean-returning call has effects, failure, or possible nontermination | Pure-total rewrites do not apply; represent the behavior or return Unresolved. |
+| Two state representations agree now but hide a distinction affecting a later interaction | No repeated-interaction equality without a sufficient state mapping and transition proof. |
+| A partial prohibition is proved | Equality of its specified property view, not automatically the whole operation. |
+| Design permits alternatives but implementation supplies only a subset | Report conformance if that mode is selected; do not report set equality. |
+| A happy or sad Case has no test file | Compare the specified scenario against production meaning; absence of a test does not erase the Case. |
+| A test asserts the expected result but production or its helper is wrong/missing | Test/Case expectation correspondence cannot satisfy production behavior; mocks retain their separate role. |
+| A Case gives one example or leaves must/may ambiguous | Keep its actual domain or report ambiguity; no invented universal claim. |
+| A Decision documents a rejected alternative | Preserve rationale without creating an implementation obligation for that alternative. |
 | Method retains its name/signature but returns a fixed success | Behavioral mismatch, even when all correspondence remains valid. |
 | Only `denotes`, `implements`, containment, or coarse `provides` is supplied | Behavioral obligation remains unresolved. |
 | Unknown external helper or missing branch observation | Open model; no equality or absence-based safety proof. |
@@ -618,6 +929,9 @@ These are implementation acceptance criteria, not tests run during this audit.
 | Symbolic search fails to equate two roots | Unresolved unless a valid refutation exists; never inequality from different e-class IDs. |
 | Rust is correct and Deno is empty or incorrect | Separate target results; Rust cannot discharge Deno's obligation. |
 | Consumer adds a Facet to a reused Concept | Provider context remains unchanged; consumer obligation retains its owner. |
+| Two operations share a Concept, or unrelated owners use the same spelling | No cross-operation obligation satisfaction or global lexical identity merge. |
+| A code guard excludes the failing case but Design does not | Do not shrink the permitted domain to make the implementation equal. |
+| A helper moves behind a public import | Compose only from established linkage, argument/state mapping, compatible assumptions, target membership, and fresh callee behavior. |
 | Same-size edit, rename, duplicate-file removal, or newly selected source | Path-aware capture/membership changes are handled; directory child checksum alone is never the gate. |
 | Source changes after preparation or publication generation advances | Ingest rejects the obsolete binding; no stale facts enter current closure. |
 | Source changes after capture while a comparison runs | Report remains tied to captured inputs; currentness validation detects ordinary drift or leaves currentness unavailable. |
@@ -627,6 +941,8 @@ These are implementation acceptance criteria, not tests run during this audit.
 | Code was deleted | Failed obligation and historical location remain explainable; no invented current span. |
 | Proof display hits its output bound | Omission is explicit and complete proof remains addressable if computed. |
 | Semantic computation hits a resource bound | Incomplete/operational result; no completed equality claim. |
+| Both models have unknown behavior, or the selected domain is accidentally empty | No covered-operation equality from matching gaps or vacuity. |
+| Unrelated meaning is unresolved but a current trace violates an explicit prohibition | Report the supported local disagreement and the unresolved remainder separately. |
 | Cache is deleted | Reconstructed equivalent observations yield equivalent semantic results; historical impact may be unavailable. |
 
 Finite vocabulary does not imply finite term generation. Begin with bounded
@@ -639,7 +955,13 @@ limits between iterations, so those checks are not hard per-iteration memory
 or wall-clock bounds. Keep explicit incomplete outcomes and measure the chosen
 fragment before widening it.
 
-The first milestone is reached when the compiler can derive a behavior that
-was not directly asserted, prove its equality to the independent design model,
-and expose the exact counterexample and source support after a disagreeing edit.
-That is the capability that justifies this refactor.
+The first useful operation milestone is reached when Sigil and Markdown meaning
+can be compared with independently reconstructed, differently structured code;
+the compiler derives the joint behavior rather than accepting its capability
+name; and a disagreeing edit produces a distinguishing situation with current
+code support and affected native Facets. Each proof names its boundary, domain,
+assumptions, source bindings, and laws, as required by
+[the algebra's result contract](behavior_algebra.md#what-the-result-must-retain).
+
+That is the capability that justifies this refactor: calculate what observation
+changed, under which input, and which authored contributions required otherwise.
