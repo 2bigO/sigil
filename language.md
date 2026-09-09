@@ -26,6 +26,7 @@ they are not a claim that every described capability is implemented today.
 | **Contract** | Gives a contribution its semantic role: Goal, Interface, State, Logic, Constraint, Decision, or Case. |
 | **Concept** | Gives one semantic idea an identity shared across contracts. |
 | **Facet** | States one part of the design, directly under a contract or grouped under a Concept. |
+| **Embedded Facet** | Expresses a contribution in fenced content using a language or notation suited to it. |
 | **Expand** | Adds operational detail to an existing component. |
 | **Export** | Makes public vocabulary available across a component boundary. Interface definitions establish exports. |
 | **Import** | Brings another component's public contract and exported vocabulary into scope. |
@@ -168,10 +169,13 @@ That statement still has meaning, ownership, a contract kind, and a source
 location. A Concept block gives related Facets a reusable shared identity; it
 is not what makes their contents Facets in the first place.
 
-The ordinary shape is one statement line per Facet. A Facet may also be
-multiline. Its semantic boundary is the authored contribution, not every
-physical line inside its representation. Keep distinct statements separate so
-they can be discussed, compared, and located independently.
+One empty line ends an ordinary Facet. Adjacent prose lines continue the same
+Facet; a newline alone does not end it. Use one empty line to
+separate contributions that should be discussed, compared, and located
+independently.
+
+An Embedded Facet uses fenced content instead. These are the two forms: a
+Facet and an Embedded Facet.
 
 The existing parser and frontend use terms such as `SemanticUnit` and
 `LiteralBlock`. Those implementation terms do not make Facet an invented
@@ -181,7 +185,7 @@ structure; it does not introduce Facets by naming an entire Concept block.
 ### A Facet can draw, calculate, or speak another language
 
 Prose is convenient, but some ideas are better expressed as a diagram, a
-formula, a data shape, or a piece of code. A multiline Facet can include a
+formula, a data shape, or a piece of code. An Embedded Facet uses a
 triple-backtick block with a language label:
 
 ````sigil
@@ -203,9 +207,10 @@ expand SearchPanel {
 }
 ````
 
-The introducing statement and diagram express one multiline Facet. The diagram
-does not become a collection of new Sigil declarations because it contains
-arrows, labels, or braces.
+The introducing statement and diagram express one Embedded Facet. Blank lines
+inside its fenced body do not end it; its closing fence delimits the embedded
+content. The diagram does not become a collection of new Sigil declarations
+because it contains arrows, labels, or braces.
 
 The embedded language may be Mermaid, TypeScript, Rust, SQL, JSON, mathematics,
 or another notation suited to the idea. Sigil preserves that representation;
