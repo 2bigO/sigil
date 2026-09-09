@@ -7,10 +7,12 @@ they behave, and the reasons behind their boundaries. The writing stays close
 to how people explain software. The structure makes those explanations
 addressable, reusable, and connected.
 
-The central idea is small: **name a Concept, then describe its Facets through
-seven contracts.** Another contract can pick up the same Concept and add
-another part of its meaning. Another component can import its public vocabulary.
-A module can assemble those components into a larger design.
+The central container is the **Component**. A Component can contain arbitrarily
+many Concepts; each Concept groups Facets about one identifiable part of that
+component's design. The seven contracts give those Facets their roles. Another
+contract can pick up any of the same Concepts and add another part of their
+meaning. Another component can import the public vocabulary. A module can
+assemble those components into a larger design.
 
 This document records the intended language, including the author's
 clarifications about native Facets and Interface exports. Those clarifications
@@ -35,6 +37,40 @@ they are not a claim that every described capability is implemented today.
 A Component is an ownership boundary. A Concept is a shared semantic identity.
 A Facet is an actual contribution to the design. Keeping those roles distinct
 lets one idea travel through a system without losing who said what about it.
+
+## Component, Concepts, Facets: the levels of detail
+
+The semantic granularity is **Component -> Concepts -> Facets**. Component is
+the core container, not a wrapper around a single Concept. There is no
+one-Concept-per-component rule or fixed limit on the number of Concepts a
+component can contain. A search component might contain Search, Selection,
+SearchError, and ResultOrdering, each with its own Facets and relationships.
+
+Contracts cut across that organization. Interface can describe several
+Concepts; State, Logic, Constraints, Decisions, and Cases can return to those
+same Concepts as needed. Repeating Search in another contract adds Facets to
+Search, not a second Search and not another component.
+
+```text
+Component SearchPanel
+  Concept Search
+    Interface Facets: submit and cancel promises
+    State Facets: request lifecycle
+    Logic Facets: response handling
+    Constraint Facets: publication restrictions
+    Case Facets: success, failure, cancellation
+  Concept Selection
+    Interface Facets: selecting and clearing a result
+    Case Facets: selection behavior
+  Other Concepts as the design needs them
+  Ungrouped Facets contributed directly under contracts
+```
+
+This is a picture of semantic organization, not extra nesting syntax. In the
+source, Concept blocks sit inside contracts. Facets may also sit directly
+under a contract when no Concept grouping is useful. Facets are the finest
+native authored contributions; breaking their meaning into smaller units for
+calculation does not introduce another authored container level.
 
 ## Seven contracts, seven useful questions
 
@@ -75,6 +111,12 @@ component SearchPanel {
 
       cancel() cancels the active search.
     }
+
+    Selection {
+      choose(Result) selects one result from the current Results.
+
+      clear() removes the current selection without changing Results.
+    }
   }
 }
 
@@ -114,6 +156,12 @@ expand SearchPanel {
 
       An older response arriving after a newer result leaves that result intact.
     }
+
+    Selection {
+      Choosing a current Result makes it the selected result.
+
+      Clearing the selection leaves the current Results available.
+    }
   }
 }
 ```
@@ -121,6 +169,10 @@ expand SearchPanel {
 Every `Search { ... }` above refers to **the same Concept**. Interface does not
 create an interface-shaped Search while State creates an unrelated state-shaped
 Search. The identifier connects their Facets.
+
+`Selection` is another Concept in the same SearchPanel component, with its own
+Interface and Case Facets. Search and Selection do not become the same Concept
+because they share a component, and neither must appear in every contract.
 
 Those contributions accumulate. A later block does not replace an earlier
 one. The cancellation operation, loading condition, response-order restriction,
@@ -492,8 +544,9 @@ export model described above.
 Sigil hands the compiler a design that is already organized:
 
 ```text
-Component owns the responsibility.
-Concept connects contributions across contracts.
+Component is the core container and owns the responsibility.
+Its arbitrarily many Concepts organize finer-grained parts of that design.
+Each Concept connects its contributions across contracts.
 Facet carries an individual statement or structured representation.
 Contract tells the compiler what role that Facet plays.
 Interface exports reusable public meaning.
