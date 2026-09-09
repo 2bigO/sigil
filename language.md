@@ -1,108 +1,59 @@
 # Sigil: give the design a language
 
-Sigil gives a software design somewhere to live besides someone's memory.
+You search for `cat`. Then you change your mind and search for `capybara`.
 
-It describes the things a system contains, the promises they make, the ways
-they behave, and the reasons behind their boundaries. The writing stays close
-to how people explain software. The structure makes those explanations
-addressable, reusable, and connected.
+The capybaras arrive. A moment later, the slower first request finishes and
+replaces them with cats.
 
-The central container is the **Component**. A Component can contain arbitrarily
-many Concepts; each Concept groups Facets about one identifiable part of that
-component's design. The seven contracts give those Facets their roles. Another
-contract can pick up any of the same Concepts and add another part of their
-meaning. Another component can import the public vocabulary. A module can
-assemble those components into a larger design.
+Every request succeeded. The screen is still wrong.
 
-This document records the intended language, including the author's
-clarifications about native Facets and Interface exports. Those clarifications
-take precedence over narrower descriptions in `spec/sigil-language.md` and
-over current implementation limitations. Examples explain language semantics;
-they are not a claim that every described capability is implemented today.
+Somewhere, somebody knew the rule: **an old response must not replace the latest
+results.** Perhaps they said it in a meeting. Perhaps it survived in a review
+comment. Perhaps it was obvious to everyone until the person who found it
+obvious left the team.
 
-## Meet the pieces
+Sigil gives that rule somewhere to live:
 
-| Piece | Its job |
-| --- | --- |
-| **Component** | Names a coherent responsibility and presents its public contract. |
-| **Contract** | Gives a contribution its semantic role: Goal, Interface, State, Logic, Constraint, Decision, or Case. |
-| **Concept** | Gives one semantic idea an identity shared across contracts. |
-| **Facet** | States one part of the design, directly under a contract or grouped under a Concept. |
-| **Embedded Facet** | Expresses a contribution in fenced content using a language or notation suited to it. |
-| **Expand** | Adds operational detail to an existing component. |
-| **Export** | Makes public vocabulary available across a component boundary. Interface definitions establish exports. |
-| **Import** | Brings another component's public contract and exported vocabulary into scope. |
-| **Module index** | Assembles an explicit public surface from locally declared and imported components. |
-
-A Component is an ownership boundary. A Concept is a shared semantic identity.
-A Facet is an actual contribution to the design. Keeping those roles distinct
-lets one idea travel through a system without losing who said what about it.
-
-## Component, Concepts, Facets: the levels of detail
-
-The semantic granularity is **Component -> Concepts -> Facets**. Component is
-the core container, not a wrapper around a single Concept. There is no
-one-Concept-per-component rule or fixed limit on the number of Concepts a
-component can contain. A search component might contain Search, Selection,
-SearchError, and ResultOrdering, each with its own Facets and relationships.
-
-Contracts cut across that organization. Interface can describe several
-Concepts; State, Logic, Constraints, Decisions, and Cases can return to those
-same Concepts as needed. Repeating Search in another contract adds Facets to
-Search, not a second Search and not another component.
-
-```text
-Component SearchPanel
-  Concept Search
-    Interface Facets: submit and cancel promises
-    State Facets: request lifecycle
-    Logic Facets: response handling
-    Constraint Facets: publication restrictions
-    Case Facets: success, failure, cancellation
-  Concept Selection
-    Interface Facets: selecting and clearing a result
-    Case Facets: selection behavior
-  Other Concepts as the design needs them
-  Ungrouped Facets contributed directly under contracts
+```sigil
+constraints {
+  Search {
+    A response from a replaced request must not overwrite current Results.
+  }
+}
 ```
 
-This is a picture of semantic organization, not extra nesting syntax. In the
-source, Concept blocks sit inside contracts. Facets may also sit directly
-under a contract when no Concept grouping is useful. Facets are the finest
-native authored contributions; breaking their meaning into smaller units for
-calculation does not introduce another authored container level.
+That is not a comment asking politely to be remembered. It is an addressable
+part of a design, connected to the search operation, its state, its failure
+scenarios, and the reason this rule exists.
 
-## Seven contracts, seven useful questions
+Let's build the rest of that picture.
 
-Sigil has seven contract kinds. Their source spellings are `goal`, `interface`,
-`state`, `logic`, `constraints`, `decisions`, and `cases`.
+## Give the idea a home
 
-| Contract | The question it answers | What belongs here |
-| --- | --- | --- |
-| **Goal** | Why does this exist? | Purpose, responsibility, intended outcomes, the need being served. |
-| **Interface** | What can others use or observe? | Operations, inputs, outputs, events, errors, public Concepts, and vocabulary dependents can reference. |
-| **State** | What situations can it be in? | Meaningful data, configurations, modes, and lifecycle conditions. |
-| **Logic** | How does it behave? | Flows, transformations, algorithms, guards, sequencing, and transitions. |
-| **Constraint** | What must remain true? | Invariants, prohibitions, bounds, ownership, architectural rules, and binding choices. |
-| **Decision** | Why was this approach chosen? | Context, alternatives, assumptions, trade-offs, consequences, and reasons to revisit. |
-| **Case** | What happens in this situation? | Happy paths, sad paths, examples, edge conditions, recovery, and observable scenarios. |
+The central container in Sigil is a **Component**. It owns a responsibility:
+searching records, displaying a screen, parsing a language, conducting a design
+conversation. It does not have to correspond to one class, file, or process.
 
-These contracts describe different aspects of the same design. They are not
-seven unrelated documents, and a Concept does not need an appearance in every
-one to be useful.
+Inside a component, **Concepts** name the parts worth talking about. A search
+panel might have Search, Selection, ResultOrdering, and SearchError. There is
+no fixed limit and no one-Concept-per-component rule. Use as many as the design
+needs.
 
-A Constraint can say that retries are bounded. A Decision can explain why the
-bound was chosen. A Case can describe what happens when it is reached. Together
-they tell a much better story than three disconnected sentences.
+Inside those Concepts, **Facets** say particular things about them.
 
-## One Concept, several views
+```text
+Component -> Concepts -> Facets
+```
 
-Consider a search screen:
+Think of zooming in: the search panel, its selection behavior, the promise that
+clearing a selection leaves the results alone.
+
+Here is the panel's public face:
 
 ```sigil
 component SearchPanel {
   goal {
-    Help the user find a record without losing their place in the application.
+    Help someone find a record and choose the one they need.
   }
 
   interface {
@@ -119,7 +70,45 @@ component SearchPanel {
     }
   }
 }
+```
 
+One component. Two Concepts. Several Facets. Search and Selection are related,
+but they are not the same thing, and neither needs a component of its own just
+to get a name.
+
+You may have noticed another layer in the source: `goal` and `interface`. Those
+are **contracts**. They tell us what question a contribution answers.
+
+## Ask seven good questions
+
+A design gets easier to understand when it answers more than "what functions
+are in this file?"
+
+Sigil has seven contracts:
+
+| Contract | Ask this | Write about |
+| --- | --- | --- |
+| `goal` | Why does this exist? | Purpose, responsibility, intended outcomes. |
+| `interface` | What can someone use or observe? | Operations, inputs, results, events, errors, and public vocabulary. |
+| `state` | What situations can it be in? | Data that matters, configurations, modes, lifecycle conditions. |
+| `logic` | How does it behave? | Calculations, guards, flows, ordering, delegation, transitions. |
+| `constraints` | What must remain true? | Invariants, prohibitions, bounds, ownership rules. |
+| `decisions` | Why this approach? | Choices, alternatives, assumptions, trade-offs, reasons to reconsider. |
+| `cases` | What happens in this situation? | Happy paths, sad paths, examples, edge conditions, recovery. |
+
+These are seven views of a design, not seven unrelated documents. Each contract
+can discuss several Concepts. Each Concept can appear in whichever contracts
+have something useful to say about it.
+
+There is no prize for filling every box. A Concept with one useful Facet is
+better than seven paragraphs written to satisfy a template.
+
+## Same Concept, next chapter
+
+The public declaration tells a caller what the panel promises. An **expand**
+tells more of the story about that same component:
+
+```sigil
 expand SearchPanel {
   state {
     Search {
@@ -143,8 +132,8 @@ expand SearchPanel {
 
   decisions {
     Search {
-      Keep the latest request authoritative so slow responses cannot rewind
-      the user's search.
+      Keep the latest request authoritative because responses can arrive
+      out of order.
     }
   }
 
@@ -166,38 +155,31 @@ expand SearchPanel {
 }
 ```
 
-Every `Search { ... }` above refers to **the same Concept**. Interface does not
-create an interface-shaped Search while State creates an unrelated state-shaped
-Search. The identifier connects their Facets.
+Follow `Search` through those sections. It is **the same Concept every time**.
+Interface describes its public operations. State describes its situations.
+Logic describes its behavior. Constraint, Decision, and Case tell us what must
+hold, why, and what that means when the network has other plans.
 
-`Selection` is another Concept in the same SearchPanel component, with its own
-Interface and Case Facets. Search and Selection do not become the same Concept
-because they share a component, and neither must appear in every contract.
+`Selection` has its own thread through Interface and Cases. Sharing a component
+does not mix its Facets into Search's Facets.
 
-Those contributions accumulate. A later block does not replace an earlier
-one. The cancellation operation, loading condition, response-order restriction,
-and failure scenario remain individually attributable parts of one design.
+This is why identifiers matter: they connect contributions without asking the
+reader to guess whether five differently worded paragraphs concern the same
+thing.
 
-Concept identity follows the language's resolved scope. Repeating an accessible
-Concept across the contracts of its component and matching expands preserves
-that identity. Imported Concepts retain their originating identity when reused
-in the appropriate consumer context. Coincidentally spelling two unrelated
-local declarations the same way does not silently merge their owners.
+Names still have scope. Reusing an accessible Concept in its component and
+matching expands preserves its identity. Two unrelated components independently
+naming something `Search` do not accidentally become roommates. Imports make
+cross-component sharing explicit; we will get to those shortly.
 
-Concept blocks are flat. Their identifiers provide the shared identity; their
-bodies contain Facets. Nesting another Concept inside a Concept is not how
-Sigil expresses relationships. Use separate Concepts and describe the
-relationship between them.
+Concept blocks are flat: they contain Facets, not nested Concepts. If two
+Concepts are related, give each its own name and describe the relationship.
+`Selection` can refer to a `Result` without nesting a Result Concept inside it.
 
-Names should be recognizable and reusable. `Search` is usually more useful
-than a name that attempts to squeeze the entire paragraph into one identifier.
+## The paragraphs have a job too
 
-## Facets are the statements, not just the headings
-
-**Facet is a native language primitive.** The statements under a contract are
-Facets, whether or not a Concept groups them.
-
-In this fragment, `Search` is the Concept and the two statements are two Facets:
+A **Facet** is an individual contribution to the design. Not the Concept heading;
+the statement underneath it.
 
 ```sigil
 constraints {
@@ -209,7 +191,18 @@ constraints {
 }
 ```
 
-A Facet can also appear directly under its contract:
+`Search` is one Concept. Those are two Facets.
+
+**One empty line ends an ordinary Facet.** A newline alone does not: you can wrap
+a sentence over adjacent lines without breaking it into separate contributions.
+A Facet can contain several related clauses; it is an authored unit, not a
+requirement to put every verb in its own paragraph.
+
+Facets are the finest native pieces you write. They can be discussed, connected,
+and located individually. A compiler may break their meaning into smaller
+calculations, but you do not have to write that machinery into your design.
+
+A Facet does not need a Concept heading when grouping it would add nothing:
 
 ```sigil
 constraints {
@@ -217,28 +210,16 @@ constraints {
 }
 ```
 
-That statement still has meaning, ownership, a contract kind, and a source
-location. A Concept block gives related Facets a reusable shared identity; it
-is not what makes their contents Facets in the first place.
+That is still a Facet, with its component owner and contract role. You do not
+need to invent `NetworkAccessMustGoThroughTheTransportBoundary` just to give the
+sentence permission to exist.
 
-One empty line ends an ordinary Facet. Adjacent prose lines continue the same
-Facet; a newline alone does not end it. Use one empty line to
-separate contributions that should be discussed, compared, and located
-independently.
+## Sometimes the right sentence is a diagram
 
-An Embedded Facet uses fenced content instead. These are the two forms: a
-Facet and an Embedded Facet.
+Try describing a state machine entirely in prose. At some point, an arrow
+starts looking very attractive.
 
-The existing parser and frontend use terms such as `SemanticUnit` and
-`LiteralBlock`. Those implementation terms do not make Facet an invented
-kernel-only abstraction. The kernel consumes the language's Facets and their
-structure; it does not introduce Facets by naming an entire Concept block.
-
-### A Facet can draw, calculate, or speak another language
-
-Prose is convenient, but some ideas are better expressed as a diagram, a
-formula, a data shape, or a piece of code. An Embedded Facet uses a
-triple-backtick block with a language label:
+An **Embedded Facet** lets you use the notation that fits:
 
 ````sigil
 expand SearchPanel {
@@ -259,31 +240,61 @@ expand SearchPanel {
 }
 ````
 
-The introducing statement and diagram express one Embedded Facet. Blank lines
-inside its fenced body do not end it; its closing fence delimits the embedded
-content. The diagram does not become a collection of new Sigil declarations
-because it contains arrows, labels, or braces.
+The introducing prose and fenced content make one Embedded Facet. The opening
+triple backticks name its language; the closing fence ends the embedded content.
+Blank lines inside the fence do not end the Facet. Braces and arrows inside it
+do not become new Sigil declarations.
 
-The embedded language may be Mermaid, TypeScript, Rust, SQL, JSON, mathematics,
-or another notation suited to the idea. Sigil preserves that representation;
-the label tells its reader how to interpret it. A fenced body is not
-automatically executed by the compiler.
+Mermaid is one choice. A Facet can speak JSON, SQL, TypeScript, Rust, mathematics,
+or another notation suited to the idea. You do not have to translate a clear
+diagram into awkward prose just to keep it in the design.
 
-A Facet's **contract** still determines its role. A TypeScript snippet in Cases
-can illustrate a scenario. A JSON shape in Interface can define a public
-representation. A Mermaid diagram in Logic can describe a flow. The notation
-does not turn all three into implementation code.
+The surrounding contract still supplies the role. JSON in Interface can define
+a public shape. Code in Cases can illustrate a scenario. A diagram in Logic
+can describe a flow. A language label is not an instruction to execute the
+block, and code-shaped design is not automatically production code.
 
-## Interface gives the vocabulary a passport
+So there are two forms to reach for: an ordinary Facet, or an Embedded Facet.
+Same design, different means of expression.
 
-Interface publishes more than a list of callable functions.
+## A promise outside, the details nearby
 
-**Identifiers defined in Interface are exported vocabulary.** This includes
-Concept identifiers and meaningful identifiers or domain keywords defined
-inside their Facets. Those names are available for other Sigils to import and
-use in their own descriptions.
+A `component` declaration contains **Goal and Interface**: why it exists and
+what it makes available. An `expand` contributes **State, Logic, Constraints,
+Decisions, and Cases**.
 
-For example:
+They describe the same component. An expand is not a subclass, replacement, or
+second owner. Several matching expands add their contributions collectively.
+A later file cannot win an argument by overwriting an earlier Facet. Conflicting
+promises remain a design conflict, not a file-order trick.
+
+An expand can live beside the code whose behavior it explains. If it lives in
+another file, it imports its component so the attachment is explicit:
+
+```sigil
+@search/panel.sigil import { SearchPanel }
+
+expand SearchPanel {
+  logic {
+    Selection {
+      Choosing a different Result replaces the previous selection.
+    }
+  }
+}
+```
+
+The public promise can stay easy to find without requiring every operational
+detail to live in the same long document.
+
+## Give the vocabulary a passport
+
+Eventually, another screen wants to use search. It should not have to invent
+its own definition of Results and hope the two definitions stay friends.
+
+**Interface definitions are exports.** That includes Concept identifiers, but
+also operations, names, and domain keywords defined inside their Facets.
+
+Suppose the reusable search provider says:
 
 ```sigil
 component RecordSearch {
@@ -295,7 +306,9 @@ component RecordSearch {
     Search {
       Query is the caller's search text and selected filters.
 
-      Results is the ordered collection of matching records.
+      Result is one matching record.
+
+      Results is the ordered collection of matching Result records.
 
       SearchError describes why a request could not complete.
 
@@ -305,22 +318,16 @@ component RecordSearch {
 }
 ```
 
-`Search` is a public Concept. `Query`, `Results`, `SearchError`, and `submit`
-are identifiers defined in its public Facets. They are not required to have
-their own Concept blocks merely to become part of the exported vocabulary.
-An exported identifier and a Concept are therefore related notions, but not
-synonyms.
+`Search` is a public Concept. `Query`, `Result`, `Results`, `SearchError`, and
+`submit` are public identifiers defined within its Facets. None needs a Concept
+block of its own merely to be exported.
 
-Definition matters. Every English word in an Interface does not become an
-export. The vocabulary consists of identifiers the Interface establishes and
-references whose existing identity is already known. Merely mentioning an
-imported name does not declare a second owner for it.
+Definition is the important word. Interface does not export every English word
+it contains. Nor does mentioning an imported identifier declare a second owner
+for it. There is no extra `export` ceremony here: Interface establishes the
+public vocabulary.
 
-This is the language's export mechanism at the semantic level. The examples
-use Interface declarations and named imports; they do not invent a separate
-`export` statement or a second declaration language inside prose.
-
-### Imports bring the public meaning into scope
+A consumer imports the component:
 
 ```sigil
 @search/record-search.sigil import { RecordSearch }
@@ -340,79 +347,89 @@ component SearchPage {
 }
 ```
 
-The import makes RecordSearch's public contract and exported vocabulary
-available to SearchPage. `Query` and `Results` are connected references, not
-two new local terms guessed from similar spelling.
+Now Query and Results mean the provider's Query and Results. They are connected
+references, not fresh local definitions wearing familiar names. The component
+import carries its public contract and exported vocabulary into scope.
 
-Imports resolve from the workspace root through `@path`. An explicit `.sigil`
-path selects that source. A directory path resolves through its `_module.sigil`.
-The examples use component imports to carry their public vocabulary; this
-document does not prescribe additional fine-grained import syntax.
+`@path` resolves from the workspace root. An explicit `.sigil` path selects that
+source; a directory path resolves through its `_module.sigil`.
 
-An import establishes access to public meaning. It does not copy a provider's
-private State, Logic, Constraints, Decisions, or Cases into the consumer's own
-contract. Nor does it prove that the consumer calls a particular implementation
-function at runtime. Those relationships need their own Facets or observations.
+### Share the name, keep the owner
 
-### Public identity, local contribution
+A consumer can add Facets about an imported Concept in its own context. The
+Concept keeps its originating identity; the contribution belongs to the
+consumer.
 
-A consumer can contribute Facets about an imported Concept in its own context.
-The Concept keeps its identity, while the new contribution keeps its consumer
-ownership. For example, a consumer's display restriction on Results does not
-silently rewrite the search provider's result-production contract.
+For example, a page may add a presentation restriction about an imported Search
+Concept. That does not rewrite the provider's search behavior upstream. The
+page owns its presentation promise; the provider still owns producing results.
 
-This distinction keeps dependency direction understandable: consumers learn the
-provider's public meaning; providers do not change whenever a consumer adds
-local detail.
+Imports bring public meaning, not a copy of every private State, Logic,
+Constraint, Decision, and Case. Names introduced only in operational contracts
+remain private unless they are also part of Interface. Exporting a Concept does
+not expose all its private Facets.
 
-Names introduced only in operational contracts remain private unless they are
-also part of the public Interface. Exporting a Concept does not export every
-private Facet that happens to describe it.
+And an import is not a runtime call. Knowing what another component offers and
+actually invoking it are different relationships. Write the latter where the
+behavior requires it.
 
-## Components and expands: the promise and the detail
+## Let the neighborhood introduce itself
 
-A component declares a coherent system part. It can describe an API, a screen,
-a parser, a data model, a workflow, a library, or an architectural boundary.
-It need not correspond to one class, source file, or running process.
-
-The public declaration contains Goal and Interface:
+A feature often grows into several components. `_module.sigil` gives that group
+an explicit public introduction:
 
 ```sigil
-component Name {
+@search/record-search.sigil import { RecordSearch }
+@search/search-page.sigil import { SearchPage }
+
+component SearchFeature {
   goal {
-    The responsibility this component exists to fulfill.
+    Assemble record search and its application-facing presentation.
   }
 
   interface {
-    PublicConcept {
-      The promise available to a dependent.
+    SearchFeatureSurface {
+      Provide RecordSearch and SearchPage through their owning contracts.
     }
   }
 }
 ```
 
-An `expand Name` contributes State, Logic, Constraints, Decisions, and Cases.
-It describes the same component in more detail. It can sit next to the code it
-explains even when the public declaration lives elsewhere.
+A consumer can then address the directory:
 
-Multiple matching expands contribute collectively. They do not select a
-winner, overwrite one another, or create subclasses. A cross-file expand
-imports its owning component so that the attachment is explicit.
+```sigil
+@search import { SearchFeature, RecordSearch }
+```
 
-Conflicting Facets remain a design conflict. File order cannot make an
-invariant disappear.
+The module exposes its locally declared components and component names resolved
+through its explicit imports. It does not rummage through every file below the
+directory and export whatever it finds. Explicit file imports remain available.
 
-Some Facets are ungrouped, some Concepts span several contracts, and others
-appear only once. The structure should express the design that exists, without
-requiring authors to fill seven boxes for every idea.
+Modules can assemble other modules. A model module can gather several domains;
+a package module can gather that model surface alongside parsers and workflows.
+The picture gets larger without flattening everyone's responsibilities into
+one giant component.
 
-## Cases are where the design meets a situation
+RecordSearch still owns search. SearchPage still owns presentation. The module
+owns the assembly and whatever additional responsibility its own Facets state.
+Saying "provide search" in the module is not a replacement for the actual search
+contract.
 
-A Case describes a scenario. It may establish an initial situation, an action
-or sequence of actions, and an expected result or observable trace.
+Nor is it a secret execution plan. Exposing a parser and formatter does not
+mean parsing calls formatting. A pipeline can explicitly say which operations
+run in which order. Namespace assembly and runtime composition both matter;
+they just answer different questions.
 
-Happy paths belong here. So do rejection, cancellation, retry, empty results,
-partial failure, and awkward timing:
+## Tell the story when things go wrong
+
+Back to our cats and capybaras.
+
+The ordinary search demo probably worked. The interesting Case was the one
+where requests finished in the wrong order.
+
+A **Case** describes a scenario: a starting situation, an action or sequence of
+actions, and an expected result or observable trace. Happy paths belong here.
+So do cancellation, empty results, partial failure, recovery, and awkward timing.
 
 ```sigil
 cases {
@@ -430,22 +447,25 @@ cases {
 }
 ```
 
-These are design Facets even before a test suite exists. A reader can use them
-to understand the component, and a semantic compiler can compare them against
-reconstructed behavior.
+Cases exist before a test suite does. They help a reader walk through the design
+and give a semantic compiler situations to compare with reconstructed behavior.
 
-Tests can exercise Cases. Their setup, actions, and assertions can be matched
-to the scenario's initial conditions, stimulus, and expected outcome. That
-opens useful questions: is this Case exercised, does the test assert the right
-result, and does the implementation permit the described behavior?
+Tests can exercise Cases. Their setup, actions, and assertions offer useful
+connections: does this test cover that scenario? Does it expect the right
+result? What happens in production?
 
-Those questions are distinct from whether a test was executed and passed.
-Cases are not test files, test names are not semantic matches, and representative
-scenarios do not automatically specify every possible execution.
+Those are separate questions. A matching test name proves nothing. A test's
+assertion is not proof that production behaves that way, and reading a test is
+not running it. A concrete example also does not silently become a requirement
+about every possible input. Say "every stale response" when that is the rule;
+say what happened in one situation when that is the example.
 
-## Decisions remember why; Constraints keep the rule
+## Remember why, without making yesterday's bad idea a requirement
 
-Suppose a component uses a single authority for publishing results:
+Someone will eventually ask why the latest request gets to be authoritative.
+It may even be you, six months from now, looking at a tempting simplification.
+
+Keep the rule and the reason close, but give them their proper roles:
 
 ```sigil
 constraints {
@@ -465,124 +485,70 @@ decisions {
 }
 ```
 
-The shared `ResultAuthority` Concept connects the binding rule to its rationale.
-Removing the rationale would lose understanding. Removing the Constraint would
-lose the explicit requirement. They serve different purposes.
+The shared ResultAuthority Concept connects the two. The Constraint says what
+must hold. The Decision remembers why it was chosen and which alternative lost.
 
-Decision Facets can describe assumptions, alternatives, trade-offs, scope,
-consequences, and revisit conditions. They do not need a rigid form with every
-field completed. A discarded alternative is not an instruction to implement it.
+A Decision can record assumptions, trade-offs, consequences, scope, and reasons
+to revisit. It does not need a form with every field filled in. Most importantly,
+a discarded alternative is not an instruction to implement it.
 
-## `_module.sigil`: assemble the neighborhood
+The useful future conversation is "does this reason still hold?", not "who put
+this annoying check here?"
 
-A directory often contains several cohesive components. `_module.sigil` gives
-that directory an explicit assembly surface:
+## Now the compiler has a better question
 
-```sigil
-@search/record-search.sigil import { RecordSearch }
-@search/search-page.sigil import { SearchPage }
+A pile of prose can say what a system should do. Sigil also gives those
+statements identities, roles, owners, and connections.
 
-component SearchFeature {
-  goal {
-    Assemble record search and its application-facing presentation.
-  }
+That lets us ask more than whether the code mentions Search or exposes a method
+called `submit`. We can ask whether an old response is allowed to replace
+Results, and connect the answer to the exact Facets that say otherwise.
 
-  interface {
-    SearchFeatureSurface {
-      Provide RecordSearch and SearchPage through their owning contracts.
-    }
-  }
-}
-```
+A useful explanation might read:
 
-A consumer can address that assembly through a directory import:
+> An older response can reach this publishing step. That disagrees with Search's
+> response-order Constraint and its out-of-order Case. Here are the design
+> statements and the code observations that establish the difference.
 
-```sigil
-@search import { SearchFeature, RecordSearch }
-```
+That is the direction of Sigil's [behavior algebra](packages/kernel/behavior_algebra.md):
+compare independently reconstructed design and code meaning at a declared
+boundary, rather than equating names or counting matching promises. The
+calculation depends on faithful source interpretation; a shared identifier is
+a connection, not a proof of correctness. Unsupported or missing meaning must
+stay unresolved.
 
-The module index contributes its local components and the component names
-resolved by its explicit imports. It does not automatically sweep every file
-below the directory into the public surface. An explicit file import can still
-address a public component in its own source.
+One Concept's Facets are not all equivalent merely because they share its name.
+They contribute different parts of a behavior. Several Concepts can participate
+in the same operation. The point of the structure is to make those connections
+available for reasoning without losing the individual statements behind them.
 
-Module assembly can be layered. One module can assemble several domain modules,
-and a package module can assemble that model surface alongside operational
-components. This gives the design a higher-level composition structure while
-each imported component keeps its own Concepts, Facets, and responsibilities.
+## Take a look around
 
-A module's own Facets explain the assembly boundary and any responsibilities
-it actually owns. They do not replace the imported contracts with a vague
-summary. A summary saying “provide search” does not discharge every promise
-inside RecordSearch.
+Sigil also describes itself. These are good places to follow a Concept through
+more than one contract:
 
-Keep namespace assembly and runtime composition distinct. A module can expose
-a parser and a formatter without claiming that parsing calls formatting. A
-pipeline can explicitly own calling stages in order. Both are compositions,
-but they mean different things.
-
-## The repository already tells this story
-
-These are concrete examples of the language in use:
-
-| Example | What to notice |
+| Visit | Follow the thread |
 | --- | --- |
-| [Parser](packages/core/src/parser.sigil) | `LiteralBlock` connects Logic, Constraints, and Cases. `ParseResult` connects the public result to successful parsing and recovery scenarios. |
-| [Workspace pipeline](packages/core/src/pipeline.sigil) | Imported resolver, graph, and glossary components retain their behavior; the pipeline owns ordering, assembly, and diagnostic deduplication. |
-| [Core model module](packages/core/src/model/_module.sigil) | A public model namespace is assembled from independently owned domain contracts. |
-| [Core package module](packages/core/_module.sigil) | The package assembles both that model module and operational components without absorbing their responsibilities. |
-| [Design conversation](integrations/skills/sigil/design-conversation.sigil) | `DesignConversation` spans Interface, State, Logic, Constraints, and Cases, showing that the structure also describes a workflow. |
-| [Skill module](integrations/skills/sigil/_module.sigil) | Imported workflow components form a portable public surface while operational policy remains with each owner. |
+| [The parser](packages/core/src/parser.sigil) | `LiteralBlock` appears in Logic, Constraints, and Cases. `ParseResult` connects the public result to parsing and recovery. |
+| [The workspace pipeline](packages/core/src/pipeline.sigil) | Separate owners supply resolution, graph, and glossary behavior; the pipeline owns ordering and assembly. |
+| [The model module](packages/core/src/model/_module.sigil) and [core package module](packages/core/_module.sigil) | Watch modules assemble other surfaces without taking over their responsibilities. |
+| [The design conversation](integrations/skills/sigil/design-conversation.sigil) | `DesignConversation` connects Interface, State, Logic, Constraints, and Cases. A component can describe a workflow, not just an API. |
+| [The skill module](integrations/skills/sigil/_module.sigil) | Several workflows become one public assembly while keeping their own contracts. |
 
-These files are examples of existing authoring, not substitutes for the language
-semantics clarified here. In particular, a tool that currently recognizes only
-Concept headings as public vocabulary has not captured the full Interface
-export model described above.
+## Leave a thread someone can pick up
 
-## What this gives a semantic compiler
+Start with a responsibility. Give it a Component. Name the Concepts that help
+people talk about it, and write their Facets where the right question is being
+asked.
 
-Sigil hands the compiler a design that is already organized:
+You do not need seven sections of filler. You need the promise, the behavior,
+the rule people might accidentally break, the situation that makes it matter,
+and, when it helps, the reason you chose it.
 
-```text
-Component is the core container and owns the responsibility.
-Its arbitrarily many Concepts organize finer-grained parts of that design.
-Each Concept connects its contributions across contracts.
-Facet carries an individual statement or structured representation.
-Contract tells the compiler what role that Facet plays.
-Interface exports reusable public meaning.
-Imports connect the public contracts.
-Module indexes assemble larger public surfaces.
-```
+Let a diagram do a diagram's job. Let imports carry established vocabulary.
+Let a Case admit that the network sometimes delivers yesterday's answer last.
 
-The compiler should use that structure before inventing another organizing
-system. A Search Concept's Interface operation, State configurations, Logic
-transitions, Constraint, and Cases are connected inputs for reasoning.
+The next person should not have to reconstruct your meeting to understand your
+design.
 
-For example, a reconstructed implementation might let an old response publish.
-A useful explanation can connect that behavior to the affected Search Concept,
-the response-authority Constraint, and the out-of-order Case, while pointing
-to the individual Facets and code observations that establish the disagreement.
-
-Sharing a Concept identity makes those checks possible; it does not assert
-that all its Facets are equivalent. The compiler must derive their relationships
-under explicit semantic laws. Likewise, public exports establish shared
-vocabulary, not evidence that code implements its promises.
-
-This is the foundation for a behavior algebra: preserve the language's native
-identities, contributions, ownership, and visibility, then give each contract
-kind appropriate primitives and laws for composing them.
-
-## Write it so someone can pick up the thread
-
-Choose one coherent responsibility per component. Name Concepts when their
-identity helps connect or reuse meaning. Give separate Facets to statements
-that deserve separate discussion. Put public definitions in Interface, behavior
-in Logic, binding restrictions in Constraints, and their reasons in Decisions.
-
-Use Cases to walk through what happens, including when things go wrong. Use a
-diagram or another embedded language when it expresses the idea more clearly
-than another paragraph. Let imports carry established vocabulary instead of
-renaming the same idea at every boundary.
-
-A good Sigil lets the next reader continue the design without first having to
-reconstruct the conversation that created it.
+They should be able to pick up the thread.

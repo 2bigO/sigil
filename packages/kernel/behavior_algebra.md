@@ -22,6 +22,11 @@ implementation direction for the kernel proposal and its audit. The examples
 are specifications of the proposed computation, not executed proofs or claims
 about features already implemented.
 
+This document owns the semantic definitions. The [README](README.md) gives the
+refactor direction, [architecture](ARCHITECTURE.md) specifies how to carry the
+calculation, [example](example.md) follows it end to end, and [audit](AUDIT.md)
+maps the remaining implementation work. They describe the same target design.
+
 ## Start with the language we have
 
 Sigil already supplies the organization:
@@ -36,6 +41,12 @@ Import:    access to another component's public meaning
 Expand:    additional contributions to the same component
 Module:    an explicit assembly of public component contracts
 ```
+
+The ownership and granularity run **Component -> Concepts -> Facets**. Component
+is the core container and can contain arbitrarily many Concepts. The seven
+contracts provide views across those Concepts; they do not limit a component
+to one Concept or require every Concept to appear in every contract. Facets can
+also contribute directly under a contract without a Concept grouping.
 
 An ordinary Facet ends at one empty line. An Embedded Facet carries fenced
 content in a chosen language or notation. Both contribute meaning under their

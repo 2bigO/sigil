@@ -1,471 +1,368 @@
-# Canonical end-to-end example
+# From a publication promise to a distinguishing scenario
 
-This is the normative, end-to-end computation for the redesigned kernel. It
-does not describe the stale Rust implementation or a compatibility path from
-it.
+This is the end-to-end example for the current refactor design. It applies the
+[behavior algebra](behavior_algebra.md#a-complete-example-across-design-and-code)
+through the [architecture](ARCHITECTURE.md). It specifies a proposed calculation;
+it is not an executed proof or a claim about today's compiler.
 
-> LLMs emit irreducible, source-bound generators. The kernel computes finite
-> closure under fixed composition laws. Comparison checks terminal
-> realizations.
+The useful result is small and concrete: differently written publication logic
+has the same selected behavior, and removing cancellation produces an exact
+situation in which code disagrees with design.
 
-For one selected scope:
+## 1. Start with the authored contributions
 
-```text
-D   = direct generators from fresh Design projections
-I   = direct generators from fresh Implementation projections
-D*  = saturate_design(D)
-I*  = saturate_implementation(I)
-O   = obligations(D*)
-R   = compare(O, I*)
-```
-
-The central invariant is absolute:
-
-```text
-Never: saturate(D union I)
-Never: let D or D* enter Implementation saturation
-Never: let I or I* rewrite Design obligations
-Always: compare the two independently saturated worlds
-```
-
-## 1. Design creates a finite requirement
-
-Suppose a Design source introduces these typed, source-scoped anchors:
-
-```text
-C = PreparedBinding    [Concept]
-F = ImmutableBinding   [Interface Facet]
-```
-
-The Design semanticizer supplies only direct Design generators:
-
-```text
-facetOf(F, C)
-provides(C, F)
-```
-
-`facetOf(F, C)` says that `F` is a named Interface contribution to `C`.
-`provides(C, F)` is Design meaning: `PreparedBinding` is required to provide
-that interface. Neither fact says that an implementation already does so.
-
-Design saturation and obligation projection are compiler-owned:
-
-```text
-D  ── Design composition ──>  D*  ── obligation projection ──>  O
-
-O42 = obligation(C, provides, F)
-```
-
-The semanticizer does not emit `O42`, and it never chooses a Design status.
-`Coherent` means that Design has no contradiction and has determined its full,
-finite requirement surface; it does **not** mean that Implementation has
-satisfied that surface.
-
-## 2. The Implementation binding exposes anchors, not Design
-
-An Implementation semanticizer receives its exact captured source bytes, the
-fixed Sigil ontology, and an immutable incoming-anchor set containing `C` and
-`F`. It does **not** receive `D`, `D*`, `O42`, `facetOf(F, C)`,
-`provides(C, F)`, any other Design relationships, or comparison feedback.
-
-The relevant binding descriptors are intentionally small:
-
-| External anchor | Sigil type | Direct assertions it may target |
-| --- | --- | --- |
-| `C` | `Concept` | `denotes`, `implements` |
-| `F` | `Interface Facet` | `denotes`, typed local behavior such as `provides` |
-
-The semanticizer creates opaque local anchor keys. Ingestion hashes each key
-inside the captured source namespace, so the resulting anchors are safe local
-identities without parsing Rust, Python, TypeScript, or any other source
-language. Labels and spans are documentary, never identity.
-
-For an illustrative future implementation source, the semanticizer observes:
-
-```text
-S = local struct PreparedBinding         [local Concept anchor]
-M = local PreparedBinding::write_binding [local Interface Facet anchor]
-```
-
-It emits only these direct Implementation generators:
-
-```text
-denotes(S, C)
-denotes(M, F)
-implements(S, C)
-factorsThrough(M, S)
-provides(M, F)
-```
-
-Their roles are deliberately distinct:
-
-- `denotes` is a direct local-to-external anchor mapping. It is never
-  transitive.
-- `implements(S, C)` is a direct typed role claim: this local struct implements
-  the supplied Concept.
-- `factorsThrough(M, S)` is a local structural observation: the method's
-  behavior belongs to the struct's implementation surface.
-- `provides(M, F)` is the LLM's direct source-language observation that the
-  method provides the supplied Interface Facet.
-
-The LLM never asserts `correspondsTo` or `realizes`. The kernel derives
-`correspondsTo` as broad correspondence closure for impact, and derives
-`realizes` only as a terminal theorem.
-
-## 3. The two worlds stay separate
-
-Before either closure has finished, the worlds look like this:
-
-```text
-DESIGN: D                              IMPLEMENTATION: I
-
-F ───── facetOf ─────> C               M ── factorsThrough ──> S
-C ───── provides ────> F               M ── denotes ─────────> F
-                                        M ── provides ────────> F
-                                        S ── denotes ─────────> C
-                                        S ── implements ──────> C
-```
-
-The identical `C` and `F` labels on each side denote the same immutable
-external anchors. They do not copy the Design edges into `I`: in particular,
-`facetOf(F, C)` stays in `D*` and is never an Implementation-saturation input.
-
-The fixed Implementation composition law is therefore entirely local to `I`:
-
-```text
-factorsThrough(M, S)
-+ denotes(S, C)
-+ implements(S, C)
-+ denotes(M, F)
-+ provides(M, F)
-----------------------------------------------
-  realizes(C, provides, F)
-```
-
-This is the terminal theorem of `I*`. It is the only form of `realizes` in
-this model:
-
-```text
-realizes(Concept, predicate, Facet)
-```
-
-No direct mapping alone proves it. If `provides(M, F)` is absent, the theorem
-does not fire even when `denotes`, `implements`, and `factorsThrough` are all
-present. Conversely, the law does not need to import `facetOf(F, C)` from
-Design: the later comparison requires the exact same `(C, provides, F)` tuple
-that Design independently projected as an obligation.
-
-```text
-I  ── Implementation composition ──>  I*
-
-I* contains realizes(C, provides, F)
-```
-
-## 4. Comparison is the only cross-world join
-
-The fixed comparator sees only the finite obligation surface from `D*` and the
-terminal realization surface from fresh `I*`:
-
-```text
-O42 = obligation(C, provides, F)
-I*  = realizes(C, provides, F)
-
-obligation(s, p, o) + realizes(s, p, o)
-----------------------------------------
-                 satisfied(obligation)
-```
-
-```text
-              D*                                   I*
-               │                                    │
-               ▼                                    ▼
-  obligation(C, provides, F)          realizes(C, provides, F)
-               \                                    /
-                \                                  /
-                 └──── fixed realization check ───┘
-                                   │
-                                   ▼
-                            satisfied(O42)
-```
-
-There are six named semantic outcomes across the two stages:
-
-| Stage | State | Meaning |
-| --- | --- | --- |
-| Design | 🔴 `Disjoint` | Current Design contradicts a hard invariant; it has no usable outgoing anchor set or comparison. |
-| Design | 🟡 `Loose` | Current Design is non-contradictory but its own required structure is unresolved; no result may be `Closed`. |
-| Design | 🟢 `Coherent` | Current Design is non-contradictory and has a complete finite obligation surface. |
-| Compare | 🔴 `Drift` | Fresh `I*` establishes a contradiction of a Design obligation or prohibition. |
-| Compare | 🟡 `Converged` | No contradiction is established, but an obligation is unresolved, Design is `Loose`, or required current input is unavailable. |
-| Compare | 🟢 `Closed` | Design is `Coherent`, every finite obligation has a fresh terminal realization, and no contradiction exists. |
-
-Thus this example becomes `Closed` only when `D*` is `Coherent`, `I*` derives
-the terminal theorem above for `O42` and every other obligation in scope, and
-the comparator finds no contradiction. A missing `provides(M, F)` produces
-`Converged`, never `Closed`; a contradictory terminal fact produces `Drift`.
-
-## 5. Correspondence and impact are different from truth
-
-Across a source chain, direct mappings preserve terminology without erasing
-local identities:
-
-```text
-origin anchor Age  <── denotes ──  Sigil anchor age
-Sigil anchor age   <── denotes ──  Rust anchor age_years
-
-kernel closure: correspondsTo(age_years, Age)
-```
-
-`denotes` remains exactly as asserted. The broad `correspondsTo` relation is
-compiler-derived and may be transitive; it is useful for impact witnesses but
-cannot satisfy an obligation. No Egglog e-class union, RDF `sameAs`, or blanket
-identity merge is involved.
-
-When a source changes, its former projection is stale. The compiler may use
-its last accepted direct mappings and derived correspondence only to say what
-may need repair:
-
-```text
-changed implementation source
-  -> last-known local anchor M
-  -> last-known denotes(M, F)
-  -> last-known correspondence closure
-  -> affected Interface Facet F and upstream origin anchors
-```
-
-That historical path never enters `D`, `I`, `D*`, `I*`, `O`, or `R`. Stale
-anchors cannot satisfy `O42`, produce `Closed`, or prove `Drift`.
-
-## 6. The whole computation
-
-```text
-Design source                         Implementation source
-     │                                      │
-     ▼                                      ▼
-independent LLM                     independent LLM
-     │                                      │
-     ▼                                      ▼
-direct generators D                 direct generators I
-     │                                      │
-     ▼                                      ▼
-saturate_design                     saturate_implementation
-     │                                      │
-     ▼                                      ▼
-D*                                  I* terminal realizations
-     │                                      │
-     ▼                                      │
-obligations O ─────── compare ──────────────┘
-                       │
-                       ▼
-             🔴 Drift | 🟡 Converged | 🟢 Closed
-
-changed or missing source ──> last-known correspondence ──> impact only
-```
-
-The governing principle is simple: semanticizers interpret source languages
-and assert irreducible local observations; `sigilc` validates bindings, anchor
-scoping, types, and the fixed ontology; the kernel owns closure; and comparison
-alone joins the current Design and Implementation worlds.
-
-## 7. Concrete `SemanticBridge`: fresh Design to `Closed`
-
-This final walkthrough applies the preceding computation to one concrete
-component. Every identity below is a typed, source-scoped hashed anchor in the
-actual projection; short names make the derivation readable.
-
-### Fresh Design source and Design generators
-
-The selected Design source is authored afresh. Its interface says what the
-component must provide, not how a Rust or Deno implementation will do it:
+Component is the core container and can contain arbitrarily many Concepts.
+This example selects one Concept, `Publication`, to keep the calculation small.
+That is a comparison choice, not a one-Concept language restriction.
 
 ```sigil
-component SemanticBridge {
+component SearchPublication {
   goal {
-    Compare a Design world with an independently saturated Implementation world.
+    Keep displayed Results aligned with the active uncancelled request.
   }
 
   interface {
-    SemanticBridge {
-      Accept a DesignExport and an ImplementationExport, then produce a
-      ComparisonReport.
-    }
+    Publication {
+      publish(ResponseId, IncomingResults) returns Published or Ignored.
 
-    ComparisonReport {
-      Report unresolved obligations, contradictions, and closure state.
+      Published means IncomingResults became the current Results.
+
+      Ignored means the current Results remain unchanged.
+    }
+  }
+}
+
+expand SearchPublication {
+  state {
+    Publication {
+      ActiveRequest identifies the request whose response is current.
+
+      Cancelled records whether that request was cancelled.
+
+      Results holds the currently published result.
+    }
+  }
+
+  logic {
+    Publication {
+      When ResponseId equals ActiveRequest and Cancelled is false, replace
+      Results with IncomingResults and return Published.
+
+      Otherwise preserve Results and return Ignored.
+    }
+  }
+
+  constraints {
+    Publication {
+      Stale or cancelled responses never replace Results.
+    }
+  }
+
+  decisions {
+    Publication {
+      Use the active request as authority because responses can arrive out
+      of submission order.
+    }
+  }
+
+  cases {
+    Publication {
+      An active uncancelled response publishes its IncomingResults.
+
+      A response for an older request is ignored.
+
+      A response for the active request after cancellation is ignored.
     }
   }
 }
 ```
 
-The fresh Design semanticizer introduces:
+Every Publication block contributes to the same resolved Concept. Each
+blank-line-delimited statement is a native Facet, not a new Concept or a
+heading-sized pseudo-Facet. The Goal is an ungrouped Facet. Its ownership and
+contract role remain available without inventing a Concept around it.
 
-```text
-C_bridge = SemanticBridge     [Concept]
-F_report = ComparisonReport   [Interface Facet]
-```
+Interface defines public vocabulary including `publish`, `ResponseId`,
+`IncomingResults`, `Published`, `Ignored`, and `Results`. Those definitions can
+be imported without giving each a Concept block. State and Logic connect the
+same resolved operation, values, and resource. A consumer's extra Facet about
+Publication keeps its consumer context; it does not rewrite the provider.
 
-It emits only the irreducible Design facts it observed:
+The interpretation supplies smaller units and their connections. It does not
+emit a pre-proved claim that Publication is safe. Goal and Decision guide the
+interpretation; the explicit Interface, Logic, Constraint, and Case meanings
+establish the behavior to compare.
 
-```text
-facetOf(F_report, C_bridge)
-provides(C_bridge, F_report)
-```
+## 2. A different source can say the same thing
 
-The Design kernel, not the semanticizer, computes:
+An independently interpreted Markdown requirement might say:
 
-```text
-D_bridge  ── saturate_design ──>  D_bridge*
+> Publish a response only if its request is still active and has not been
+> cancelled. Return Published after replacing Results. Otherwise leave Results
+> unchanged and return Ignored.
 
-O_bridge = obligation(C_bridge, provides, F_report)
-```
+The Markdown source has its own anchors and source occurrences. Accepted
+correspondence connects its operation and values to the selected public
+vocabulary without merging source identities. Compare Markdown meaning and
+Sigil meaning at an explicit common boundary if fidelity between those design
+sources is required. Do not combine their assertions and call the combined
+model evidence that they agree.
 
-Assume the rest of this fresh Design scope is internally complete and
-non-contradictory. Its status is therefore 🟢 `Coherent`: `O_bridge` is a
-complete requirement to compare, not a fact already established by code.
+A shorter requirement saying only "ignore stale responses" does not establish
+all the outcomes above. It can support its property view; missing meaning must
+not be filled from the desired Sigil or code answer.
 
-### Immutable Implementation binding
+## 3. Declare what the comparison observes
 
-`sigilc prepare` captures the selected implementation source bytes and creates
-an immutable binding. Its external semantic input is exactly these descriptors:
+Use two boundaries rather than letting a guard proof impersonate an operation
+proof:
 
-| Hash-shortened anchor | Type | Permitted direct target roles |
+| Part | Admission boundary | Operation boundary |
 | --- | --- | --- |
-| `C_bridge` | `Concept` | `denotes`, `implements` |
-| `F_report` | `Interface Facet` | `denotes`, local `provides` observation |
+| Subject | Publication's admission condition | Publication's selected public operation and contributing Facets |
+| Target | One implementation target at a time | The same target, with its complete supported operation meaning |
+| Inputs | Request-match and cancellation conditions | ResponseId, IncomingResults, and starting ActiveRequest, Cancelled, Results |
+| Observations | Whether publication is admitted | Ordered publication actions, returned alternative, and next relevant state |
+| Assumptions | Corresponding pure, total Boolean meanings | Corresponding request equality, ordinary infallible assignment, no hidden getter/setter effects, no concurrent state mutation |
+| Value meanings | Boolean | Explicit request identities, result payloads, and Published/Ignored alternatives |
 
-The binding does not contain `D_bridge`, `D_bridge*`, `O_bridge`,
-`facetOf(F_report, C_bridge)`, or any comparison result. The independent LLM
-gets its captured implementation bytes, this small typed input, and the fixed
-ontology—nothing that can tell it what answer comparison wants.
+For a first fully finite operation fixture, choose request identities
+`{r0, r1}`, result payloads `{v0, v1}`, and Boolean cancellation. ResponseId and
+ActiveRequest independently range over the two request identities; IncomingResults
+and existing Results independently range over the two payloads. This defines
+32 input/starting-state combinations, not a sample of an unstated larger domain.
 
-### Fresh implementation source and direct observations
+These are declared fixture domains and assumptions. Equality on them is not
+unrestricted equality for every real request or payload. Extending the claim
+requires supported value semantics and a proof, for example of identity testing
+and unchanged payload forwarding over the larger domain. The kernel must not
+infer that extension from the four admission rows below.
 
-For this example, the captured Rust source has the following relevant shape:
+## 4. Reconstruct code without the expected answer
 
-```rust
-pub struct SemanticBridge {
-    kernel: Kernel,
+Python can use early returns:
+
+```python
+def publish(state, response_id, incoming):
+    if response_id != state.active_request:
+        return Ignored
+    if state.cancelled:
+        return Ignored
+    state.results = incoming
+    return Published
+```
+
+TypeScript can use a positive branch:
+
+```typescript
+function publish(state, responseId, incoming) {
+  if (responseId === state.activeRequest && !state.cancelled) {
+    state.results = incoming;
+    return Published;
+  }
+  return Ignored;
 }
-
-impl SemanticBridge {
-    pub fn compare(
-        &self,
-        design: DesignExport,
-        implementation: ImplementationExport,
-    ) -> ComparisonReport {
-        self.kernel.compare(design, implementation)
-    }
-}
 ```
 
-The LLM interprets that Rust. It chooses local anchor keys for the struct and
-method; ingestion hashes and scopes them to this source binding:
+These snippets illustrate control flow, not complete executable fixtures. Their
+language-specific equality and object operations are not assumed identical
+merely because they look alike. Each independent reconstruction must establish
+its supported mapping and state the assumptions needed by the comparison.
+
+The implementation semanticizer receives its captured source, fixed observation
+vocabulary, and authorized identity/type descriptors. It does not receive the
+Sigil prose, expected guard, Cases, tables, or verdict. It emits source-local
+inputs, reads, checks, branches, assignments, and outcomes with source support.
+No direct `provides(CancellationSafety)` or equality assertion is accepted as
+the operation's proof.
+
+The accepted local mapping must identify the assignment's target as the public
+Results resource and its assigned value as IncomingResults. The compiler does
+not label every assignment `publish`. Unknown correspondence or hidden effects
+leave the relevant comparison Unresolved.
+
+Python and TypeScript are separate targets here. Neither supplies the other's
+missing branch or behavior. Within one target, cooperating files may compose
+only through explicit supported links.
+
+## 5. Calculate admission
+
+Let `m` mean the response matches the active request and `c` mean Cancelled.
+Independent lowering yields:
 
 ```text
-S_bridge = local `SemanticBridge`          [Concept anchor]
-M_compare = local `SemanticBridge::compare` [Interface Facet anchor]
+Design:              and(m, not(c))
+Python early exits:  if(not(m), false, if(c, false, true))
+TypeScript branch:   and(m, not(c))
 ```
 
-Its accepted Turtle projection contributes these direct Implementation
-generators and nothing terminal:
+For pure, total Boolean expressions, fixed laws reduce the Python structure:
 
 ```text
-denotes(S_bridge, C_bridge)
-denotes(M_compare, F_report)
-implements(S_bridge, C_bridge)
-factorsThrough(M_compare, S_bridge)
-provides(M_compare, F_report)
+if(c, false, true) = not(c)
+if(not(m), false, not(c)) = and(not(not(m)), not(c))
+not(not(m)) = m
 ```
 
-The facts have a concrete source-language reading:
+Egglog congruence carries the inner equalities into the larger term. None of
+these unions merges source anchors or imports Design requirements into the
+Implementation closure.
+
+The complete admission table is:
+
+| Matches active request | Cancelled | Design admission | Python admission | TypeScript admission |
+| --- | --- | --- | --- | --- |
+| false | false | false | false | false |
+| false | true | false | false | false |
+| true | false | true | true | true |
+| true | true | false | false | false |
+
+A completed calculation of these tables establishes equality of the Boolean
+admission function. Symbolic proof supplies an explanation of the different
+formulations. This establishes neither the written payload nor the returned
+alternative; those belong to the next comparison.
+
+## 6. Compose the complete selected operation
+
+For each permitted input and starting state, reconstruct the joint result:
+
+| Guard | Ordered actions | Outcome | Next relevant state |
+| --- | --- | --- | --- |
+| `m AND NOT c` | `publish(Results, IncomingResults)` | `Return(Published)` | Results = IncomingResults; ActiveRequest and Cancelled unchanged |
+| Otherwise | None | `Return(Ignored)` | Unchanged |
+
+Each independent model must cover the whole declared finite domain with its
+complete behavior. A missing branch is not an empty branch. An explicit no-op
+still supplies an outcome and unchanged state. Overlapping deterministic
+branches with conflicting results are a model conflict, not alternatives to
+merge away.
+
+The comparator compares complete joint observations, not independent sets of
+writes, outcomes, and states. It must preserve that Published goes with
+publication of the incoming payload, and Ignored goes with no publication and
+unchanged state. For the finite fixture, the proposed proof obligation covers
+all 32 combinations; this document has not run that proof.
+
+A larger rule can now recognize the publication behavior from the equivalent
+guard, its mapped action, outcome, and state update. This is the higher-level
+structure the kernel computes. It was not supplied as a terminal capability.
+
+Correct admission with a wrong payload, a swapped return alternative, or an
+extra visible write is still Different at this operation boundary. That is
+why the operation milestone is separate from the Boolean milestone.
+
+## 7. Remove cancellation and calculate the disagreement
+
+After removing Python's cancellation branch, fresh implementation meaning has
+admission `m`, rather than `and(m, not(c))`.
+
+A distinguishing situation inside the declared fixture domain is:
 
 ```text
-the struct denotes and implements SemanticBridge
-the compare method denotes ComparisonReport
-the method factors through the struct
-the method provides the report behavior
+ResponseId = r0
+ActiveRequest = r0
+Cancelled = true
+Results = v0
+IncomingResults = v1
+
+Design:
+  actions: none
+  outcome: Return(Ignored)
+  next Results: v0
+
+Changed Python:
+  actions: publish(Results, v1)
+  outcome: Return(Published)
+  next Results: v1
 ```
 
-They are still not a comparison result. In particular, the LLM has not
-asserted `realizes(C_bridge, provides, F_report)`.
+The fresh comparison is Different. It does not depend on a textual diff, the
+old projection, or asking the model whether cancellation was required.
 
-### Independent Implementation saturation
+The report retains the boundary, target, finite domain, assumptions, current
+source bindings, laws, and premise support. Its explanation connects the
+current publishing path to the relevant native contributions:
 
-The fresh Implementation world is only its local generators plus the typed
-external-anchor identities. It does not receive the Design `facetOf` or
-`provides` facts. The fixed law from section 3 fires entirely within `I_bridge`:
+| Contribution | What the witness disagrees with |
+| --- | --- |
+| Interface Facet defining Ignored | The rejected case does not preserve Results and return the required alternative. |
+| Logic Facets | The changed branch admits a situation that belongs to the otherwise-preserve path. |
+| Constraint Facet | A cancelled response replaces Results. |
+| Cancelled-response Case | This represented scenario publishes instead of being ignored. |
+
+These are supported links through the operation, guard, resource, value, and
+outcome. Do not mark every Facet under Publication wrong merely because it
+shares the Concept. The unaffected target may still be Equal; an aggregate
+requiring both targets reports Drift because Python differs.
+
+The removed check has no current span. Its historical location may help explain
+the edit, but the fresh witness points to the current admitting/publishing path
+and the authored Facets. Exact support need not identify a unique minimal fix.
+
+## 8. Cases and tests ask related but different questions
+
+The cancelled-response Case becomes:
 
 ```text
-factorsThrough(M_compare, S_bridge)
-+ denotes(S_bridge, C_bridge)
-+ implements(S_bridge, C_bridge)
-+ denotes(M_compare, F_report)
-+ provides(M_compare, F_report)
-------------------------------------------------------
-  realizes(C_bridge, provides, F_report)
+given:   ResponseId = ActiveRequest AND Cancelled
+actions: publish(ResponseId, IncomingResults)
+expect:  Return(Ignored), no publication, unchanged relevant state
 ```
+
+This is a family of scenarios, including the witness above. A concrete Case
+would instead select a particular input/starting state. Keep required and
+permitted outcomes distinct; ambiguity is not permission to invent a universal
+requirement.
+
+A test can independently describe the same setup, invocation, and assertions.
+The compiler can compare those expectations with the Case. A test that asserts
+Ignored but mocks the real publication operation does not establish production
+behavior, and no static comparison says the test was executed. Happy and sad
+Cases remain meaningful even when no test file exists.
+
+## 9. Follow a change through freshness and impact
 
 ```text
-I_bridge  ── saturate_implementation ──>  I_bridge*
+Before edit:
+  accepted source bindings -> complete supported comparison -> Equal
 
-I_bridge* contains realizes(C_bridge, provides, F_report)
+Source edit detected:
+  old Python projection excluded from current truth
+  last-known mapping may identify Publication and origin material
+  affected current comparison is Unresolved until sufficient fresh meaning exists
+
+Fresh changed projection accepted:
+  recompute independent Python meaning
+  derive distinguishing situation -> Different
 ```
 
-Correspondence alone still proves nothing. Removing the direct local behavior
-`provides(M_compare, F_report)` prevents the theorem even though all anchor
-mappings, the role claim, and method containment remain available.
+Impact is available before fresh semantic understanding. It says which surfaces
+may be affected, not that the design must change or its source bytes are stale.
+Historical paths require compatible binding/generation support. They cannot
+retain Equal or prove the fresh discrepancy.
 
-### The one permitted cross-world check
+Results name captured manifests. Currentness is checked at validation; Snapdir
+hashing does not freeze the source tree. Changes to accepted content or laws
+invalidate dependent proofs even if the source bytes remain unchanged.
 
-Only now does the comparator join the independently produced surfaces:
+## 10. Carry the capability outward without overstating it
 
-```text
-D_bridge*                               I_bridge*
-     │                                       │
-     ▼                                       ▼
-obligation(C_bridge, provides, F_report)  realizes(C_bridge, provides, F_report)
-                      \                   /
-                       \                 /
-                        └── compare ────┘
-                               │
-                               ▼
-                     satisfied(O_bridge)
-```
+A module may expose SearchPublication alongside other components. That permits
+a public-surface comparison, not an assumption that every exposed behavior is
+implemented. A consumer can reuse Publication and add contextual Facets without
+changing this provider's requirements.
 
-With every other finite Design obligation in the selected scope likewise
-matched by a fresh terminal realization and no contradiction, comparison is:
+Delegating publication to a helper requires the helper's independently
+reconstructed behavior, an explicit call link, argument/state mapping, and
+compatible assumptions. Its name or signature cannot supply that behavior.
 
-```text
-🟢 Closed
-```
+PreparedBinding's source-match, incoming-anchor, and expected-generation guards
+can later use the same pure-decision laws. Its actual publication safety also
+requires ordering, failure, locking, and concurrent-publication semantics.
+Finding a check before a write is not proof of atomic compare-and-swap.
 
-This outcome is not a claim that the LLM, compiler driver, or an external
-worker is trustworthy in the abstract. It is the precise theorem that the
-accepted fresh source observations compose under fixed kernel laws into each
-required realization.
-
-### After a source change
-
-If `SemanticBridge::compare` changes, the captured source bytes no longer
-match this projection's binding. `I_bridge*` and its terminal theorem leave
-current truth immediately:
-
-```text
-fresh D_bridge* + missing/stale implementation projection
-  -> O_bridge has no fresh matching realization
-  -> 🟡 Converged, never Closed
-```
-
-The old projection may still explain the repair surface:
-
-```text
-changed Rust source
-  -> last-known M_compare
-  -> denotes(M_compare, F_report)
-  -> corresponding ComparisonReport Facet
-  -> upstream SemanticBridge and origin anchors
-```
-
-That is impact only. It cannot retain `Closed`, prove `Drift`, or be imported
-into a new `I_bridge*`. A fresh reconstruction repeats the direct-observation
-and saturation steps above against the new binding.
+The completion criterion is the algebra's
+[first useful implementation](behavior_algebra.md#the-first-useful-implementation):
+compute the supported behavior, compare it under a declared boundary, and
+explain exactly which observation differs and which current source contributions
+establish that difference. Missing semantics remains Unresolved.

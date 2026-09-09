@@ -1,622 +1,413 @@
 # Sigil kernel architecture
 
-This is the evergreen operational architecture for the Sigil semantic
-compiler. [README.md](README.md) records the design decisions and migration
-direction; this document defines the stable computation model those decisions
-produce. It describes the intended architecture where the kernel has been
-extracted as a Rust library and the correspondence extension exists. Current
-implementation locations are linked where they are useful seeds, not as a
-claim that every target feature has already landed.
+This is the target architecture for the refactor, not a description of a
+completed implementation. The [README](README.md) owns the direction,
+[behavior algebra](behavior_algebra.md) owns semantic definitions, and
+[AUDIT.md](AUDIT.md) records remaining implementation gaps. The
+[example](example.md) follows one calculation through these boundaries.
 
-## Purpose and boundary
+Canonical language semantics come from [language.md](../../language.md).
+Logical records and function names below specify responsibilities; they are
+not a claim that a finalized Rust API or Turtle schema already exists.
 
-Sigil compiles source-bound semantic assertions. It is not a language parser,
-LLM runtime, task queue, worker scheduler, evidence store, or lifecycle
-tracker.
+## Ownership boundaries
 
-```text
-source files + structural frontend input
-       + accepted Turtle projections
-       + compiler-owned Egglog laws
-                         |
-                         v
-          current semantic worlds and diagnostics
-```
-
-The independent LLM semanticizer interprets a source language and returns
-Turtle. `sigilc` validates the Turtle as a graph under the fixed ontology and
-exact source/input binding; it does not validate Rust, Python, TypeScript,
-Deno, or another source language's AST or symbol table.
-
-The kernel is a Rust library. `sigilc` is its filesystem/compiler driver:
-
-```text
-sigilc                         kernel
-------                         ------
-source capture                 Egglog laws
-binding and freshness          saturation
-Turtle parsing/validation      obligation derivation
-projection publication         comparison
-scope assembly                 correspondence and impact closure
-CLI/report formatting          bounded semantic witnesses
-```
-
-The seed laws are currently in
-[kernel.egg](../sigilc/src/kernel.egg),
-[design.egg](../sigilc/src/design.egg), and
-[comparison.egg](../sigilc/src/comparison.egg). Their Rust host is currently
-[kernel.rs](../sigilc/src/kernel.rs). They are reusable source material, not a
-compatibility contract: the current one-shot behavior is being replaced by the
-canonical model in [example.md](example.md).
-
-## Canonical Sigil vocabulary
-
-All semantically meaningful accepted Turtle assertions use the canonical
-`sigil:` vocabulary, whether their source was Sigil, Markdown, Rust, Deno,
-Python, or another language. This vocabulary is the type system for
-saturation, not a global spelling catalog. The seven Sigil keywords are the
-vocabulary's seven contract kinds:
-
-```text
-Goal | Interface | State | Logic | Constraint | Decision | Case
-```
-
-`Concept` is an existing Sigil semantic type, not a container local to one
-component or contract. Writing the same Concept identifier in another Sigil
-contract means that same Concept again; a contract can introduce it or refer to
-it. A `Facet` is a named, addressable
-contribution of one contract to a Concept. For example, an Interface Facet
-names an interaction, a Logic Facet names a transformation, a State Facet names
-a lifecycle configuration, and a Constraint or Case Facet names a rule or
-observable outcome. The Design structural fact `facetOf(Facet, Concept)`
-records that contribution without collapsing either anchor's identity.
-
-Components organize contracts. Concepts and their Facets deliberately cross
-contract, component, and source-language boundaries through explicit source
-anchor chains. Each binding supplies the LLM with an immutable incoming anchor
-set: typed, hashed anchors accepted from the preceding source surface. The LLM
-creates typed local anchors and links every relevant crossover with `denotes`.
-That records `Age → age → age_years` directly, without compiler name matching
-or identity union.
-
-Design may introduce new typed source anchors. Downstream Design and
-Implementation LLMs receive those anchors as external semantic input, not `D`,
-Design relationships, obligations, or conclusions. A binding fingerprints the
-incoming anchor set; the compiler rejects `denotes` targets outside it and
-treats a changed set as a freshness change.
-
-Each incoming-anchor descriptor contains only its hashed ID, source-anchor kind
-(`OriginAnchor`, `DesignAnchor`, or `ImplementationAnchor`), Sigil type
-(`Concept` or `Facet`), Facet contract kind when applicable, documentary label,
-and allowed mappings. A Concept permits `denotes` and `implements`; a Facet
-permits `denotes` and direct typed local behavior such as `provides`. This is
-not a slice of `D`: it carries no Design relationships, obligations, or verdict.
-The LLM must omit correspondence when a local source construct is ambiguous or
-merely lexically similar.
-
-## The computation, exactly
-
-For a selected scope, let `D` be the union of assertions from fresh accepted
-Design projections and `I` the union of assertions from fresh accepted
-Implementation projections. The kernel performs three separate computations:
-
-```text
-D* = saturate_design(D)
-I* = saturate_implementation(I)
-O  = obligations(D*)
-R  = compare(O, I*)
-```
-
-`D*` and `I*` are independently derived closures, not authored files and not
-persisted task state. `O` is the finite set of compiler-derived Design
-obligations. `R` is the comparison result and its bounded diagnostic witnesses.
-The comparison is a third, fixed semantic program; it is neither an LLM review
-nor a union of the two worlds.
-
-This separation is non-negotiable:
-
-```text
-Never: saturate(D union I)
-Never: use stale assertions in D, I, D*, I*, O, or R
-Always: derive Design meaning and Implementation meaning independently,
-        then match only the allowed facts through fixed rules.
-```
-
-It prevents Design assertions from manufacturing implementation facts and
-prevents implementation assertions from rewriting the Design's obligations.
-
-## Inputs, bindings, and projection lifetime
-
-The filesystem is the source of truth. The generated `.sigil/worlds` store is a
-disposable cache of accepted projections and their input bindings. `snapdir`
-captures current source bytes and `sigilc` checks whether a cached projection
-is still usable for the current compilation.
-
-`prepare` materializes caller-requested copied semantic input plus an immutable
-`binding.json` for the external semanticizer. This handoff is not world-store
-state.
-`ingest --binding binding.json` accepts Turtle only if it matches that binding
-and can still publish at its expected generation.
-
-```text
-sigilc prepare
-  -> exact semantic inputs + immutable binding.json
-
-independent LLM semanticizer
-  -> Turtle
-
-sigilc ingest --binding binding.json
-  -> validated, atomically published source projection
-```
-
-The binding is compiler correctness, not a job. It includes the normalized
-source path and captured source identity, the ontology and projection-format
-versions, and the semantic input needed for the projection side. A binding also
-includes the immutable incoming-anchor-set fingerprint supplied to its LLM.
-The expected publication generation prevents an old preparation from
-overwriting a newer projection.
-
-The existing seeds are [inputs.rs](../sigilc/src/inputs.rs),
-[sources.rs](../sigilc/src/sources.rs), and
-[store.rs](../sigilc/src/store.rs). The historical `Job`/`job.json` names become
-`PreparedBinding`/`binding.json`; no lifecycle semantics travel with that
-rename.
-
-| Input change | Effect |
+| Owner | Responsibilities |
 | --- | --- |
-| Target source bytes change or source disappears | Its projection is stale or absent. |
-| Relevant Design structural/import input changes | Affected Design projection is stale. |
-| Ontology or projection format changes incompatibly | Bound projection is stale. |
-| Incoming source-anchor set changes | Bound downstream projection is stale. |
-| LLM model, prompt, or retry configuration changes | Projection remains fresh; an external caller may choose to reconstruct it. |
+| `packages/core` | Deterministic Sigil parsing, resolution, imports, expands, module assembly, and structural Design export. |
+| External semanticizer | Interpret captured source into fixed, typed, attributable observations; report gaps without asserting compiler verdicts. |
+| `sigilc` | Source selection/capture, incoming descriptors, bindings, data-only ingest, projection publication, freshness, and report presentation. |
+| Kernel library | Typed lowering, independent closure, supported behavior composition, comparison, proof support, and correspondence/impact calculation. |
+| External caller | Work scheduling, model invocation, retries, coding, test execution, and delivery records. |
 
-Publication must reject a stale source binding, an incompatible incoming anchor
-set, or an outdated generation. Interrupted publication leaves no projection that can be
-treated as current. Removing `.sigil/worlds` is safe: it loses cache and
-last-known impact context, never semantic authority.
+The kernel has no filesystem discovery, model client, task ledger, or worker
+protocol. `sigilc` does not need implementation-language AST adapters, an LSP,
+Git symbol history, or fuzzy name matching to validate its observation format.
+Language neutrality describes the representation, not universal semantic
+coverage of every construct in every language.
 
-### Filesystem shape and flow
+## Native structure and identities
 
-The live repository currently has this **abbreviated** shape. `tmp` and
-`workflow` are legacy compiler-owned material to remove; they are shown so the
-boundary is concrete, not because the target architecture retains them.
+Component is the core container. It can contain arbitrarily many Concepts;
+Facets are the finest native authored contributions. The seven contracts give
+Facets their roles across those Concepts. A Facet may be ungrouped.
 
-```text
-.sigil/
-├── config.json
-├── glossary.json
-├── tmp/                 legacy prepared jobs, Turtle attempts, evidence, audits
-├── workflow/            legacy request ledger, inputs, reports, archive
-└── worlds/              generated semantic cache
-    ├── .lock
-    ├── design/          accepted Design projections
-    ├── implementation/  accepted Implementation projections
-    └── index.json       bindings, generations, and freshness
-```
+Retain distinct records for:
 
-After the simplification, the compiler-owned layout is only:
-
-```text
-.sigil/
-├── config.json
-├── glossary.json
-└── worlds/
-    ├── .lock
-    ├── design/
-    ├── implementation/
-    └── index.json
-```
-
-The external caller chooses the handoff location. That path, and any adjacent
-temporary files or logs, are not compiler state or semantic authority. The
-immutable binding contents are an explicit `ingest` input, not a cached world.
-After ingestion, the store retains only the accepted projection's input
-fingerprint and publication generation; the caller may discard its handoff.
-
-The retired flow treated semanticization as a managed work process:
-
-```text
-BEFORE — retired compiler-owned process
-
-request queue -> job.json -> worker -> attempt/evidence -> ingest
-      |                                                  |
-      +-------------- workflow ledger <-----------------+
-                         |
-                         v
-                    compile/report
-```
-
-The target flow contains only semantic correctness inputs and accepted facts:
-
-```text
-AFTER — compiler-owned semantic flow
-
-source bytes + frontend/incoming anchors
-             |
-             v
-  prepare -> immutable binding.json -> independent LLM semanticizer -> Turtle
-                                                    |
-                                                    v
-                               ingest validates binding and publishes projection
-                                                    |
-                                                    v
-                      fresh Design / Implementation projections in worlds/
-                                                    |
-                                                    v
-                             D -> D* -> O       I -> I* -> terminal realization facts
-                                      \                 /
-                                       \               /
-                                        \--> compare --+--> Drift | Converged | Closed
-
-                 changed or missing source -> last-known correspondence -> impact only
-```
-
-`compare` consumes only fresh `D*`, `O`, and `I*`. `impact` may inspect a
-stale source's last accepted correspondence, but it cannot feed that data back
-into comparison.
-
-## Design world
-
-The structural Sigil frontend exports authored contracts, imports, ownership,
-and other allowed structure. The LLM semanticizer turns the selected source
-material into Design Turtle; native ingestion validates it. Scope includes the
-selected Design roots and their required import/ownership closure before `D`
-is assembled. The source and selection foundations are
-[frontend.rs](../sigilc/src/frontend.rs),
-[design.rs](../sigilc/src/design.rs), and
-[scope.rs](../sigilc/src/scope.rs).
-
-`saturate_design` applies only compiler-owned Design laws. It derives
-reachability, contradictions, required capabilities, ownership consequences,
-numeric constraints, and obligations. It does not consume Implementation
-assertions.
-
-The Design result is one of:
-
-| State | Meaning |
+| Identity or record | Meaning |
 | --- | --- |
-| 🔴 `Disjoint` | Current Design facts contradict a hard invariant. No usable outgoing anchor set or comparison result exists. |
-| 🟡 `Loose` | Design is non-contradictory but its own required structure is unresolved, so its obligation surface is incomplete. A provisional outgoing anchor set may be exported. |
-| 🟢 `Coherent` | Design has no contradiction and a complete finite obligation surface. Its outgoing anchor set is authoritative. |
+| Component | Resolved owner of a responsibility and its public surface. |
+| Concept | Resolved shared identity across contract contributions and matching expands. |
+| Facet | Authored contribution with source, contextual owner, contract, optional Concept, and range. |
+| Public identifier | Interface-defined operation, value, event, domain term, or Concept with an originating owner and definition support. |
+| Local anchor | Source-local observation subject, with an appropriate type and explicit correspondence where established. |
+| Occurrence | One location of an accepted observation in a particular source binding. |
+| Comparison boundary | Subject, target, inputs, assumptions, observations, and value meanings. |
 
-`Loose` is deliberately not green: even if the Implementation happens to cover
-every currently derivable obligation, the final comparison cannot be `Closed`.
-If a `Loose` Design becomes `Coherent` without an outgoing-anchor-set identity change,
-compatible fresh Implementation projections may be reused and only the
-closures, obligations, and comparison recomputed.
+Concept identity follows resolved scope. Reusing an imported Concept retains its
+origin; additional Facets remain contributions in the consumer's context.
+Same-spelled unrelated Concepts do not merge. Different Concepts can be linked
+by an operation's input/result, a resource, or another explicit relationship.
+Sharing a component or Concept is not enough to connect unrelated operations.
 
-## Implementation world
+An ordinary Facet ends at an empty line. An Embedded Facet preserves its
+introducing prose, notation, and fenced content; blank lines inside the fence
+do not create new Facets. The frontend exports native units and source ranges.
+Accepted interpretation may break one unit into several algebra observations,
+all retaining that unit's provenance.
 
-Each Implementation projection is source-local. Its LLM receives only the
-exact target source bytes, fixed ontology, and frozen incoming source-anchor
-set needed to create direct typed assertions. It does not receive Design
-relationships, Design obligations, neighboring implementation bodies, or
-comparison feedback.
+### Public definitions and assembly
 
-```text
-one implementation source + ontology + frozen incoming anchor set
-            |
-            v
-independent LLM semanticization
-            |
-            v
-one accepted local projection of direct observations
-```
+Interface exports Concepts and identifiers defined within Facets. Definition
+is not every prose word, and mentioning an imported name does not create a new
+owner. The frontend supplies structural inventory and resolution. Accepted
+Design interpretation supplies source-supported definitions inside prose when
+structural parsing alone cannot determine them. Validate their defining
+Interface, owner, types, visibility, and references; keep ambiguity unresolved.
+Do not invent a second export syntax or require a Concept block for each term.
 
-All fresh selected local projections are assembled as `I`, then
-`saturate_implementation(I)` derives the permitted global consequences. A
-change to one implementation file invalidates that file's projection, not its
-neighbors merely because they import it or expose a changed name. Global
-meaning is recomputed from the reusable fresh projections plus the reconstructed
-one. An incoming-anchor-set change invalidates projections built against the old
-set.
+Component imports bring public meaning into scope. They do not copy private
+operational Facets into a consumer. Module indexes assemble local components
+and explicit imported component names, preserving ownership through nested
+assemblies. They do not recursively export every file in a directory.
 
-The compiler has no implementation-language adapter, AST parser, symbol
-resolver, LSP dependency, Git symbol history, or fuzzy name matcher. A comment
-or lexical similarity does not independently establish an implementation fact.
+`exposes`, source import, and runtime `invokes` are distinct relationships.
+Public-surface equality needs a complete inventory for its selected boundary;
+it does not prove the exposed components' runtime behavior. A pipeline's
+explicit invocation ordering requires its own composition proof.
 
-## Typed hashed anchors and canonical identity
+### Incoming descriptors and local anchors
 
-The LLM semanticizer may observe a source-language construct such as a Rust
-method and create a typed source-local anchor key:
+An immutable incoming descriptor surface contains authorized identity, kind,
+owner/scope, necessary type information, a documentary label, and permitted
+mapping roles. It may describe native Concepts, Facets, public identifiers,
+and authorized implementation anchors. Do not constrain every branch, value,
+or operation to be a fake Concept or Facet.
 
-```turtle
-<urn:sigil:anchor-key:person>
-  a sigil:ImplementationAnchor, sigil:Concept ;
-  sigil:anchorKey "implementation|Person|type" ;
-  sigil:label "Person" ;
-  sigil:denotes <urn:sigil:anchor:incoming-person#91d4...> ;
-  sigil:implements <urn:sigil:anchor:incoming-person#91d4...> .
+Descriptors carry identity/type information, not expected Design behavior.
+They exclude expected branch conditions, Case contents, required result tables,
+obligation edges, and comparison feedback. Labels must not smuggle those
+requirements into the independent reading.
 
-<urn:sigil:anchor-key:person-age-years>
-  a sigil:ImplementationAnchor, sigil:InterfaceFacet ;
-  sigil:anchorKey "implementation|Person::age_years|method" ;
-  sigil:label "Person::age_years" ;
-  sigil:denotes <urn:sigil:anchor:incoming-age-years#c63a...> ;
-  sigil:factorsThrough <urn:sigil:anchor-key:person> ;
-  sigil:provides <urn:sigil:anchor:incoming-age-years#c63a...> .
-```
-
-During ingestion, the compiler validates the Anchor type and opaque key, then
-constructs the source-scoped identity mechanically:
+Native structural identities come from Sigil resolution. For a source-local
+anchor introduced by interpretation, ingest scopes and hashes an opaque key:
 
 ```text
-source namespace = sha256(versioned normalized workspace-relative source path)
-anchor identity  = source namespace # sha256(versioned anchor key)
+sourceNamespace = hash(version, normalized workspace-relative path)
+localAnchorId   = hash(sourceNamespace, versioned typed local key)
 ```
 
-The LLM chooses the key; the compiler owns the hash, source namespace, and
-well-formed identity. The label and optional source span are documentary. A
-reconstruction can retain useful anchor continuity when the LLM chooses the
-same key, but `sigilc` makes no source-language claim that two anchors denote
-the same symbol. It validates source scoping, graph structure, and that every
-`denotes` target belongs to the immutable incoming anchor set, `implements`
-targets are Concepts, and direct local semantic observations such as `provides`
-target compatible Facets.
+The compiler validates the key and namespace, not the identity of a Rust or
+Python symbol. A later reconstruction choosing the same key may preserve
+address continuity; it does not prove semantic continuity. Bind current use
+of that anchor to the accepted projection containing it.
 
-Origin anchors, Sigil anchors, and Implementation anchors are explicit `sigil:Anchor`
-subtypes and carry canonical Sigil types such as `Concept` or `LogicFacet`.
-They stay distinct from other source anchors. An explicit authority—often an
-origin document or glossary—introduces the first anchors; source-local labels
-such as `age`, `Age`, and `age_years` remain local presentation until accepted
-`denotes` edges map them across the chain.
+## Observation transport and typed lowering
 
-## Typed correspondence
+Turtle remains data transport. Persist a restricted data-only projection in the
+world store; reject executable Egglog rules, includes, arbitrary expressions,
+unknown vocabulary, wrong-side claims, and compiler verdicts at ingest.
 
-Accepted Turtle contains direct, typed correspondence assertions. The kernel
-derives broader correspondence from them; it does not hide direct mappings in
-an LLM interpretation.
+The fixed vocabulary describes the algebra's
+[eight units](behavior_algebra.md#the-small-units-underneath-the-contracts):
 
-| Relation | Meaning | Impact closure | Obligation matching |
-| --- | --- | ---: | ---: |
-| `correspondsTo` | Compiler-derived broad/transitive correspondence closure; never accepted Turtle | yes | no |
-| `denotes` | LLM-asserted direct local-to-supplied-anchor mapping; never transitive | yes | no |
-| `implements` | LLM-asserted typed local role claim about a denoted Concept | yes | no |
-| `factorsThrough` | LLM-asserted local structural observation | no | no |
-| `provides` | LLM-asserted typed local behavioral observation | no | no by itself |
-| `realizes` | Compiler-derived terminal fact: `realizes(Concept, predicate, Facet)` | no | yes, through the fixed comparator |
-| `specifies` | Sigil material gives structured meaning | yes | no by itself |
-| `refines` | Narrower representation | yes | only where a rule opts in |
-| `aliasOf` | Terminology synonym | terminology only | no |
-| `equivalentTo` | Explicit semantic equivalence | yes | only where a rule opts in |
-
-The LLM emits `denotes` for the source-anchor crossover it observed. When code
-also carries stronger meaning, it emits `implements` to a supplied Concept,
-local structural facts such as `factorsThrough`, and typed local behavior such
-as `provides` to a supplied Facet. These remain irreducible observations.
-`realizes` is reserved for the terminal fact derived by a fixed Implementation
-composition law. `sigilc` validates target membership and Sigil types, and
-requires `implements` and typed local Facet observations to have compatible
-direct `denotes` mappings; it does not validate the programming-language
-observation that caused the LLM to assert them.
-
-The target Egglog closure begins with the direct mapping and derives the broad
-relation explicitly:
-
-```text
-denotes(a, b)                         -> correspondsTo(a, b)
-correspondsTo(a, b) + correspondsTo(b, c)
-                                      -> correspondsTo(a, c)
-```
-
-Thus `Age ←denotes— age ←denotes— age_years` yields derived
-`correspondsTo(age_years, Age)`, while neither direct `denotes` assertion is
-rewritten or treated as transitive. The current and historical `kernel.egg`
-contain no `correspondsTo` relation, so this adds no legacy Egglog behavior to
-preserve. `equivalentTo` retains its separate explicitly asserted symmetric /
-transitive closure. The kernel must not use Egglog e-class `union`, RDF
-`sameAs`, or another blanket identity mechanism.
-
-### Canonical composition: PreparedBinding
-
-The full north-star walkthrough is [example.md](example.md). It intentionally
-uses two local implementation anchors rather than hiding containment in one
-symbol:
-
-```text
-C = PreparedBinding      [Concept]
-F = ImmutableBinding     [Interface Facet]
-S = struct PreparedBinding
-M = PreparedBinding::write_binding
-```
-
-Fresh Design generators include `facetOf(F, C)` and `provides(C, F)`, from
-which `D*` projects `O42 = obligation(C, provides, F)`. The Implementation LLM
-observes only its source plus external typed anchors `C` and `F`, and supplies:
-
-```text
-denotes(S, C) + denotes(M, F)
-implements(S, C)
-factorsThrough(M, S) + provides(M, F)
-```
-
-The mappings and role claims are direct source observations. The last is the
-specific local behavioral observation. `facetOf(F, C)` remains in `D*`; it is
-not an Implementation input. A fixed Implementation composition law derives
-the terminal theorem of fresh `I*`:
-
-```text
-factorsThrough(M, S) + denotes(S, C) + implements(S, C)
-  + denotes(M, F) + provides(M, F)
-  -> realizes(C, provides, F)
-```
-
-Comparison is then only:
-
-```text
-obligation(C, provides, F) + realizes(C, provides, F)
-  -> satisfied(O42)
-```
-
-If the LLM asserts only `denotes`, `implements`, or `factorsThrough`, the
-composition law does not fire: terminal
-`realizes(C, provides, F)` is absent and `O42` remains unresolved. `sigilc`
-validates the incoming target membership and types, not whether the Rust method
-really provides the binding. That source-language judgment belongs to the LLM;
-the fixed law defines exactly how accepted local observations compose. The LLM
-never asserts `realizes` directly.
-`specifies`, `aliasOf`, and derived `correspondsTo` never satisfy an obligation
-by themselves.
-
-All seven contract kinds remain first-class in the shared vocabulary. `State`
-already has `initialState`, `transitionsTo`, owner, and exclusivity laws; State
-Facets and typed anchors may participate in correspondence and impact without
-weakening those laws.
-
-## Comparison states
-
-`compare(O, I*)` uses current, independently saturated facts only. Its result
-is one of:
-
-| State | Meaning |
+| Unit | Required distinctions |
 | --- | --- |
-| 🔴 `Drift` | `I*` establishes a fact that contradicts a Design obligation or prohibition. |
-| 🟡 `Converged` | No contradiction is established, but one or more obligations are unresolved, the Design is `Loose`, or required current input is unavailable. |
-| 🟢 `Closed` | Design is `Coherent`; every finite obligation has a matching fresh terminal realization in `I*`; and no contradiction exists. |
+| Value | Types, finite alternatives and payloads, resource identity, explicit numerical meanings; missing/null/empty are distinct. |
+| Expression | Pure calculation, typed operands, input/state references, and admitted operation semantics. |
+| Condition | Boolean meaning plus its role as guard, domain condition, state predicate, or scenario restriction. |
+| State description | Relevant quantities and an explicit representation mapping that retains future-relevant history. |
+| Observable action | Kind, target, contents, ordering, and repetition. |
+| Outcome | Return, failure, pending, or divergence as supported; unknown meaning is not an outcome. |
+| Step | Starting state/input, guard, ordered actions, outcome, and next state together. |
+| Relationship | Typed ownership, exposure, invocation, contribution, and other admitted structural connections. |
 
-Missing information cannot manufacture `Closed`. An empty Implementation
-projection cannot satisfy a positive requirement or prove a negative
-prohibition. Exhausted limits or unavailable prerequisite inputs produce an
-incomplete/operational result, never a successful semantic conclusion.
+The vocabulary may define an outcome or relationship before the first evaluator
+supports all its uses. Unsupported reachable meaning produces Unresolved, not
+an approximation silently accepted as exact behavior.
 
-## Current truth and last-known impact
+Validate references, operand cardinality, types, graph shape, and source support
+before lowering to terms. For the initial evaluator, require finite domains and
+acyclic expressions/steps. Check supported branch coverage and model closure
+after derivation finishes. A supplied `complete=true` is not proof of either
+closure or faithful source reconstruction.
 
-Current truth and impact have different epistemic roles.
+Every selected native Facet retains represented meaning, interpretive context,
+or an explicit gap. Qualitative Goals and Decision rationale need not become
+invented instructions. If a selected comparison requires an interpretation
+still missing from them, that comparison remains Unresolved.
+
+Production observations, test expectations, mock behavior, and Design examples
+have distinct roles, even within one source file. An Embedded Facet's contract
+and source role govern its meaning, not its programming-language label. See
+[Cases and tests](behavior_algebra.md#cases-and-tests-use-the-same-smaller-units).
+
+## Independent computation
+
+For selected, current accepted observations:
 
 ```text
-current comparison
-fresh D -> D* -> O
-fresh I -> I*
-O + I* -> Closed | Converged | Drift
-
-impact
-changed or missing source
-  -> last accepted projection for that source
-  -> last-known correspondence closure
-  -> affected typed source anchors and origin anchors
+D*   = close_design(D)
+I*t  = close_implementation(I for target t)
+O    = derive_comparison_obligations(D*, declared boundaries and targets)
+R(q) = compare(selected Design meaning, selected target meaning, q)
 ```
 
-Last-known data may say that an edited Rust file *might affect* a typed source
-anchor or an origin Markdown section because the prior accepted projection
-mapped it there.
-It cannot enter `D`, `I`, saturation, obligation derivation, comparison, or a
-current status. Reconstructing the source may recreate source-scoped hashed
-anchors when the LLM chooses the same keys, and always creates a new current
-mapping; the older mapping remains only historical cache context until eviction
-or `clean`.
+Each target is an explicit set of cooperating implementation sources. Required
+alternative backends are separate targets. Do not pool Rust and Deno facts to
+create a fictional implementation. Any `each`/`any` target-selection policy is
+explicit; an aggregate selection rule does not equate distinct targets.
 
-An impact report returns affected surfaces and bounded path witnesses. It does
-not call the affected source stale, assert that documentation is wrong, or
-change any semantic verdict.
+Design and Implementation meaning are derived independently. Never saturate
+`D union I`, let code rewrite Design requirements, or let Design assertions
+supply missing implementation behavior. A non-Sigil origin document can be
+compared with Sigil meaning in its own declared comparison; combining both as
+premises is not proof that one faithfully expresses the other.
 
-### Deferred precision: Facet-granular anchors
+An obligation names its boundary and all contributing native Facets. It is not
+restricted to one Concept or a `(Concept, provides, Facet)` tuple. A source
+semanticizer cannot discharge it by asserting `safe`, `immutable`, `provides`,
+or a terminal `realizes` verdict.
 
-The initial binding is source-scoped: a file's accepted anchors become the
-external incoming set for a downstream source. A later capability should select
-and bind incoming anchors at Facet granularity rather than at file granularity.
-That can let one saturation pass distinguish a genuinely broken Facet from the
-broader “this file once denoted these Facets” repair surface. It remains a
-binding/freshness refinement, not a task queue or a way for stale assertions to
-establish current truth.
+### Equality and complete observations
 
-## Scope, finiteness, and numerical analysis
+Apply [the algebra's definition](behavior_algebra.md#what-equality-means-here):
 
-Scope is semantic selection: Design roots plus closure, selected Implementation
-sources, and deterministic reporting priority. It is not a request queue,
-predecessor graph, completion record, or scheduling instruction. The external
-environment decides what to reconstruct and when. Sources whose incoming anchor
-sets already exist are independent and may run concurrently; a downstream
-source waits only for the external anchor set its binding names.
+```text
+For every x in the declared domain Xq:
+  Bq(D, x) = Bq(I, x)
 
-All kernel laws are finite and compiler-owned. Limits bound facts, derivation,
-paths, arithmetic, and reported witnesses. A limit breach is an explicit
-incomplete/operational diagnostic; the kernel never silently truncates a world
-and declares it closed.
+One stateful observation:
+  (ordered observable actions, outcome, next relevant state)
+```
 
-The current seed's numerical laws illustrate the allowed form:
+Keep correlations, including between fields, branch conditions, action
+payloads, results, and state. A property view can be compared without claiming
+whole-operation equality. Inclusion of permitted behaviors is conformance,
+not equality. Never narrow the domain or hide an observable after discovering
+a discrepancy.
 
-- minimum `distance` across dependency paths;
-- maximum propagated `peak-risk`;
-- bounded arithmetic and crisp latency-budget constraints.
+State correspondence is explicit and source-supported. Repeated-interaction
+claims require related starting states and preservation of the correspondence
+through every supported step, with all future-relevant history represented.
+One-call output equality alone is insufficient.
 
-Correspondence may similarly derive minimum `impact-distance`, maximum
-`impact-risk`, and diagnostic-only coverage counts. Monotone `min`/`max` merge
-laws are safe fixed-point computations. Scores rank and explain an already
-determined repair surface; they never make an obligation true.
+### Where Egglog equality belongs
 
-See [egg.md](../../egg.md) for the Egglog model and
-[turtle.rs](../sigilc/src/turtle.rs) for finite input validation.
+```text
+Never union:
+  Components, Concepts, Facets, public identities,
+  source anchors, occurrences, obligations
 
-## What the compiler deliberately does not retain
+May equate under fixed sound laws:
+  typed expressions and supported behavior descriptions
+```
 
-The compiler owns source identity, semantic input binding, projection
-freshness, accepted assertions, correspondence, world assembly, saturation,
-obligations, comparison, and impact. It does not retain or model:
+Use relations for reachability, ownership, source support, and correspondence.
+Use term equality for substitutable meaning. Pure Boolean laws require purity
+and totality; a Boolean-returning call may still fail, mutate state, or diverge.
+Arithmetic laws require explicit range, overflow, units, and rounding semantics.
 
-- jobs, queues, requests, scope completion, or work assignment;
-- worker processes, models, providers, prompts, retries, attempts, or logs;
-- artifact evidence, receipt bundles, or Turtle-attempt history; or
-- an execution/provenance side channel that duplicates any of the above.
+Independent graphs do not share stable e-class IDs. The comparison uses either:
 
-An external harness can record those details for its own debugging and
-orchestration. They have no role in freshness or semantic truth. Changing an
-external model or prompt therefore never invalidates an accepted projection.
+1. Complete finite behavior tables, produced independently and compared in
+   canonical input order with complete joint outputs.
+2. A separate law-only equality query over selected typed term descriptions,
+   under the same established assumptions. Both terms are query subjects;
+   their equality is never an input axiom.
 
-## Cross-source chaining reference
+Different e-classes or extracted forms do not prove Different. Extraction picks
+a useful presentation; low cost does not establish truth. Fixed laws and proof
+support belong to the kernel, never accepted source payloads. Native Egglog
+proofs cover only supported APIs and primitives; choose a compatible fragment
+against the actual build dependency, as recorded in the [audit](AUDIT.md#egglog-build-and-proof-support).
 
-The [README.md → Sigil → Rust/Deno worked chain](README.md#worked-chain-readmemd--sigil--rustdeno)
-is the concrete reference for a source-bound terminology path: distinct
-Markdown, Sigil, Rust, and Deno anchors preserve their local identities while
-direct `denotes` edges make the chain explainable. It is also a future
-regression fixture: a mixed-language reconstruction must retain attributable
-per-source mappings and derive the expected `correspondsTo` witness without
-parsing any implementation language or merging anchor identities.
+### Composition without borrowed conclusions
 
-That example remains in the README while it explains the current refactor. If
-the refactor changes the README after this architecture is realized, move the
-full chaining example here and keep it as an evergreen kernel regression case.
+Sequential composition connects the first operation's result and next state to
+the next operation's inputs/state, preserving actions and the outcomes that
+actually continue. Alternatives retain their guards and complete branch
+behavior. A missing branch is not a no-op.
 
-## Required invariants and regression cases
+Cross-file composition requires an explicit call link, argument mapping,
+compatible value/state meaning, assumptions, target membership, and a fresh
+independently reconstructed callee. Initially unknown external calls remain
+Unresolved. Later, exported implementation anchors and source-local reference
+observations supply links without requiring source-language symbol resolution
+inside the compiler.
 
-The kernel and `sigilc` integration must preserve these checks:
+The default binding supplies identity/type descriptors, not callee behavior.
+The kernel composes current accepted callee observations later. A callee edit
+can therefore invalidate a composed proof without invalidating a caller
+reconstruction that consumed unchanged descriptors. If a future input mode
+supplies behavior summaries to interpretation, their full contents must become
+binding inputs. Recursive dependencies are not assumed to be topologically
+preparable or supported by the initial evaluator.
 
-- A Design contradiction yields `Disjoint`; unresolved required Design meaning
-  yields `Loose`; a complete non-contradictory Design yields `Coherent`.
-- `D* = saturate_design(D)`, `I* = saturate_implementation(I)`, and
-  `compare(obligations(D*), I*)` remain separate calls and graphs.
-- A positive Implementation disagreement yields `Drift`; an absence of
-  contradiction without sufficient coverage yields `Converged`; only coherent,
-  fully fresh coverage yields `Closed`.
-- A source edit, deletion, incompatible ontology/format change,
-  incoming-anchor-set change, or publication race prevents obsolete projection
-  assertions from becoming current.
-- A source edit may use its prior projection only to report last-known impact.
-- Design import closure invalidates affected Design inputs; downstream
-  freshness is local to its source binding and frozen incoming anchor set.
-- A mixed-language repository works without compiler language adapters.
-- Unknown incoming anchors, malformed typed anchor keys, invalid incoming-anchor
-  set changes, wrong-side assertions, path escapes, Egglog rules,
-  includes, and non-finite numeric input are rejected at ingestion.
-- Typed correspondence retains distinct source-anchor nodes and their Sigil
-  types; no alias, `denotes`, `implements`, `factorsThrough`, or local
-  behavioral observation silently proves a requirement. Only a terminal
-  `realizes(Concept, predicate, Facet)` theorem can match an obligation.
-- Equivalent normalized fixtures reconstruct equivalent worlds after cache
-  deletion. Compiler determinism and semanticizer repeatability are separate
-  properties.
+## Results and diagnostics
 
-## Related documents
+Each comparison produces [Equal, Different, or Unresolved](behavior_algebra.md#complete-calculations-honest-results).
+An exact finite calculation proves completeness of the calculation on the
+accepted model, not completeness of an LLM's interpretation of source.
 
-- [Kernel README](README.md): rationale, correspondence design, and migration
-  order.
-- [Canonical end-to-end example](example.md): normative generators, closures,
-  terminal realization, comparison, and impact flow.
-- [sigilc README](../sigilc/README.md): current command-facing compiler driver.
-- [scope contract](../sigilc/scope.sigil): current semantic selection behavior.
-- [projection store contract](../sigilc/store.sigil): current binding/history
-  model.
-- [language grammar](../../spec/language.sigil): authored Sigil language.
+Existing display states can remain as aggregates with explicit modes:
 
-When an implementation changes this architecture, update this document and the
-kernel README in the same change. Do not restore retired orchestration or
-artifact-evidence concepts through a new compiler API.
+| State | Target meaning |
+| --- | --- |
+| Design `Disjoint` | Represented Design contradicts a required invariant; no usable comparison surface for that scope. |
+| Design `Loose` | Required Design meaning or structure is unresolved; no aggregate `Closed`. |
+| Design `Coherent` | The selected represented Design requirement surface is complete and non-contradictory under the supported checks. |
+| Compare `Drift` | A supported current disagreement exists against a usable requirement. |
+| Compare `Converged` | No disagreement is established, but required comparisons or inputs remain unresolved. |
+| Compare `Closed` | Coherent Design, current required inputs, and completed proofs in every declared comparison mode. |
+
+A capability-only or property-only scope cannot advertise whole-behavior
+equality through `Closed`. A valid local refutation may be reported while
+unrelated meaning remains unresolved. Missing facts, two unknown nodes, or a
+resource limit cannot supply equality or absence-based safety. An intentionally
+empty domain is explicitly vacuous, not counted as covered operation behavior.
+
+### Support is part of the result
+
+Keep fact identity separate from occurrence and proof identity:
+
+```text
+factId       = hash(normalized typed observation)
+occurrenceId = hash(accepted source binding, factId, span/occurrence key)
+derivation   = law ID + substitution + premise references + conclusion
+```
+
+Store the accepted projection context for every proof premise. One fact may
+have multiple occurrences and alternative derivations. Equality must not erase
+the separate Design/code sources that support it.
+
+For behavior-bearing observations, retain source byte ranges and excerpt
+digests checked against captured bytes. Location validation verifies the range,
+not the meaning attributed to it. Embedded Facets retain their full authored
+range and any supported finer subrange.
+
+Every result retains subject, target, boundary, domain, assumptions, source
+bindings, accepted projection identities, and law/runtime identity. A Different
+result additionally retains the distinguishing situation and the support for
+the differing observation. Point to affected native Facets and the current code
+path, not every Facet sharing a Concept.
+
+A removed operation has no current span. Report the requirement, the supported
+current enclosing behavior or missing input, and any old location marked
+historical. Exact source support does not promise a unique root cause or a
+mathematically minimal edit. Bound display separately from computation: a
+truncated presentation links to complete support if computed; incomplete proof
+computation never becomes a completed theorem.
+
+## Capture, binding, and freshness
+
+Snapdir discovers and hashes. `sigilc` captures the immutable semantic input
+payload actually supplied for reconstruction, including the source bytes.
+Bind path-aware selected membership, not just directory content digests.
+
+A projection binding includes source path/content, side/source role, observation
+ontology and format, relevant frontend/context input, and the full incoming
+descriptors consumed. A prepared publication also carries its expected store
+generation. Accepted projection identity additionally includes the accepted
+observation/occurrence content; run identity includes selected targets,
+boundaries, projection identities, laws, and actual runtime/build identity.
+
+| Change | Required invalidation |
+| --- | --- |
+| Source or consumed semantic input changes | Affected reconstruction and dependent proofs. |
+| Accepted observations change under unchanged source/binding | Dependent closures and proofs. |
+| Laws/runtime change with compatible observation meaning | Recompute affected calculation; no automatic model rerun. |
+| Observation meaning/schema changes incompatibly | Incompatible reconstructions and their proofs. |
+| Selected membership, boundary, target policy, or assumptions change | Affected comparison run and any newly required inputs. |
+| External model/prompt changes | No automatic invalidation of accepted semantics; callers may request reconstruction. |
+
+Provider authority/freshness is checked separately from descriptor content
+identity. An identical list of names from a stale provider is not an
+authoritative current public surface.
+
+### Content identity is not an atomic source snapshot
+
+Snapdir's directory child checksum deduplicates digests and does not bind names
+or multiplicity. Use Sigil's path-aware source manifest. Capture the actual
+bytes and recheck required source and membership inputs before publication and
+before labeling a report current.
+
+A source tree can change while sequential hashes are computed. Store locking
+protects projection publication, not source files from editors. Report the
+captured manifest and currentness at validation; if validation detects change
+or cannot establish currentness, mark stale/unavailable. An atomic point-in-time
+tree guarantee requires a quiescent source or filesystem snapshot input mode.
+Do not infer it from several matching hashes or a stat-based CopyGuard.
+
+### Publication and disposable state
+
+The target protocol is:
+
+```text
+prepare -> copied semantic inputs + immutable binding.json
+external interpretation -> Turtle
+ingest --binding binding.json -> validated accepted projection
+```
+
+This is a proposed replacement for the current process-oriented CLI. Handoff
+files live where the external caller chooses, not as compiler job state.
+Ingest validates source/input binding, restricted data, and expected generation;
+store publication preserves locking and atomic accepted-cache visibility. It
+rejects obsolete preparation rather than overwriting a newer generation.
+
+The generated `.sigil/worlds/` store retains accepted projections, semantic
+bindings, checksums, generations, and available history. It does not retain
+worker receipts, attempts, evidence bundles, requests, or task completion.
+`clean` explicitly resets that disposable cache and may lose historical impact.
+Equivalent accepted observations must still produce equivalent semantic results.
+
+## Scope and historical impact
+
+Scope selects Design roots and their import/ownership closure, implementation
+target membership, and reporting priority. Order is not a task queue. A removed
+required target cannot disappear into vacuous success, and an old cache entry
+outside selected scope cannot create a new requirement.
+
+Keep separate typed inputs for current truth and history:
+
+```text
+Current: occurrence -> observation -> derivation -> comparison result
+History: changed/deleted source -> prior anchor -> correspondence -> Facet/origin
+```
+
+`denotes` is direct accepted correspondence to an authorized anchor.
+`correspondsTo` is derived broad reachability, useful for attribution and impact,
+not a semantic rewrite. Neither `implements` role claims, containment, lexical
+aliases, nor asserted equivalence candidates discharge behavioral obligations.
+
+A historical path must carry compatible accepted bindings/generations at every
+hop. Do not splice unrelated generations into a path that never existed. When
+compatible history is absent, report candidate impact or unavailable history.
+History never enters current closure, comparison, or a fresh disagreement.
+Impact means a source may affect a design surface, not that the design's bytes
+became stale or that a requirement is wrong.
+
+Use bounded witnesses and cycle detection. Optional distance/risk scores rank
+an already established impact surface; they never decide validity. Explicit
+numeric constraints are different: with a supported numerical theory they can
+be actual logical obligations, not merely ranking scores.
+
+## Implementation envelope
+
+The first supported calculations are the algebra's
+[finite pure decisions and finite guarded operations](behavior_algebra.md#the-first-useful-implementation).
+Generation must be finite by construction; a finite constructor vocabulary or
+fixed rule list is not sufficient. Avoid unrestricted expansion and redundant
+associative/commutative permutations when a complete finite method suffices.
+
+Unknown calls, unsupported mappings, unrepresented effects, recursion, loops,
+concurrency, and nontermination cannot silently disappear. Bounds belong in
+the claimed domain. Runtime exhaustion produces an explicit incomplete result;
+iteration-level host checks must not be advertised as hard per-iteration memory
+or wall-clock enforcement.
+
+Deliver the [publication example](example.md) before claiming broader protocol
+support. Then follow the [implementation sequence](AUDIT.md#implementation-sequence),
+updating the outside contracts, CLI, and skill alongside each implemented
+boundary. No legacy tuple matcher may turn a failed or unresolved behavioral
+comparison into success.
