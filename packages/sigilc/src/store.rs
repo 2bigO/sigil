@@ -18,9 +18,6 @@ pub const ARTIFACT_EVIDENCE_VERSION: u32 = 1;
 
 const WORLDS: &str = ".sigil/worlds";
 const INDEX: &str = ".sigil/worlds/index.json";
-const WORKFLOW_STATE: &str = ".sigil/workflow/request.json";
-const WORKFLOW_ARCHIVE: &str = ".sigil/workflow/archive";
-const WORKFLOW_INPUTS: &str = ".sigil/workflow/inputs";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -344,65 +341,6 @@ impl LockedStore {
 
     pub fn entries(&self) -> &BTreeMap<String, Entry> {
         &self.index.entries
-    }
-
-    /// Read the single native scoped-request ledger while holding the same
-    /// workspace lock used for projection inspection and publication.
-    pub(crate) fn workflow_state(&self) -> Result<Option<Vec<u8>>, String> {
-        let path = sources::checked_path(&self.root, WORKFLOW_STATE)?;
-        match fs::read(path) {
-            Ok(bytes) => {
-                if bytes.len() as u64 > self.limits.max_index_bytes {
-                    Err("scoped request state exceeds byte limit".into())
-                } else {
-                    Ok(Some(bytes))
-                }
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e.to_string()),
-        }
-    }
-
-    /// Atomically replace the native scoped-request ledger. This state is
-    /// intentionally separate from `.sigil/worlds`, which remains disposable
-    /// projection cache data.
-    pub(crate) fn publish_workflow_state(&self, bytes: &[u8]) -> Result<(), String> {
-        if bytes.len() as u64 > self.limits.max_index_bytes {
-            return Err("scoped request state exceeds byte limit".into());
-        }
-        atomic_write(&self.root, WORKFLOW_STATE, bytes)
-    }
-
-    /// Keep the structural input used by a durable request outside caller-owned
-    /// temporary directories. Unlike worlds, this is request replay input.
-    pub(crate) fn publish_workflow_frontend(
-        &self,
-        fingerprint: &str,
-        bytes: &[u8],
-    ) -> Result<String, String> {
-        if bytes.len() as u64 > self.limits.max_index_bytes {
-            return Err("scoped request frontend capture exceeds byte limit".into());
-        }
-        if !checksum(fingerprint) {
-            return Err("invalid scoped request frontend fingerprint".into());
-        }
-        let path = format!("{WORKFLOW_INPUTS}/{fingerprint}.json");
-        atomic_write(&self.root, &path, bytes)?;
-        Ok(path)
-    }
-
-    /// Preserve the current request under its immutable fingerprint, then clear
-    /// the single active request slot. Request history stays native and separate
-    /// from disposable projection worlds.
-    pub(crate) fn archive_workflow_state(&self, fingerprint: &str) -> Result<String, String> {
-        let state = self
-            .workflow_state()?
-            .ok_or_else(|| "no scoped request exists; run request create".to_owned())?;
-        let archive = format!("{WORKFLOW_ARCHIVE}/{fingerprint}.json");
-        atomic_write(&self.root, &archive, &state)?;
-        fs::remove_file(sources::checked_path(&self.root, WORKFLOW_STATE)?)
-            .map_err(|e| e.to_string())?;
-        Ok(archive)
     }
 
     pub fn deleted_sources(
