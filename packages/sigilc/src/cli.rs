@@ -7,9 +7,7 @@ use crate::{
     eqval::{DesignState, Limits},
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},
-    store::{
-        Freshness, Job, LockedStore, StoreLimits,
-    },
+    store::{Freshness, LockedStore, PreparedBinding, StoreLimits},
     turtle::{self, TurtleLimits},
 };
 use serde::Serialize;
@@ -53,7 +51,7 @@ pub fn run(args: &[&str]) -> Output {
             "--root",
             "--frontend",
             "--source",
-            "--job",
+            "--binding",
             "--turtle",
         ],
         _ => &[
@@ -122,8 +120,8 @@ pub fn run(args: &[&str]) -> Output {
     } else {
         None
     };
-    let job_path = if command == "ingest" {
-        Some(required("--job")?)
+    let binding_path = if command == "ingest" {
+        Some(required("--binding")?)
     } else {
         None
     };
@@ -135,7 +133,7 @@ pub fn run(args: &[&str]) -> Output {
     let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
     if [
         Some(frontend),
-        job_path,
+        binding_path,
         turtle_path,
         options.get("--limits").copied(),
         options.get("--selection").copied(),
@@ -222,7 +220,7 @@ pub fn run(args: &[&str]) -> Output {
             "prepare" => {
                 design::valid_frontend(&snapshot).map_err(runtime)?;
                 let source = source.unwrap();
-                let job = store
+                let binding = store
                     .prepare(snapshot.binding(source).map_err(runtime)?)
                     .map_err(runtime)?;
                 let out = Path::new(out.unwrap());
@@ -239,21 +237,21 @@ pub fn run(args: &[&str]) -> Output {
                 .map_err(runtime)?;
                 write_new(&out.join("ontology.json"), &turtle::ontology_document())
                     .map_err(runtime)?;
-                write_new(&out.join("job.json"), &job).map_err(runtime)?;
+                write_new(&out.join("binding.json"), &binding).map_err(runtime)?;
                 json(
                     0,
-                    &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"input_fingerprint":job.binding.fingerprint()}),
+                    &serde_json::json!({"version":1,"binding":out.join("binding.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"input_fingerprint":binding.binding.fingerprint()}),
                 )
             }
             "ingest" => {
                 design::valid_frontend(&snapshot).map_err(runtime)?;
                 let source = source.unwrap();
-                let job_ref = job_path.unwrap();
+                let binding_ref = binding_path.unwrap();
                 let turtle_ref = turtle_path.unwrap();
-                let job: Job = serde_json::from_slice(&read(job_ref, 16_000_000).map_err(runtime)?)
+                let binding: PreparedBinding = serde_json::from_slice(&read(binding_ref, 16_000_000).map_err(runtime)?)
                     .map_err(|e| runtime(e.to_string()))?;
-                if job.binding.side() != "design" || job.binding.source.path != source {
-                    return Err((2, "job does not bind the requested Design source".into()));
+                if binding.binding.side() != "design" || binding.binding.source.path != source {
+                    return Err((2, "binding does not bind the requested Design source".into()));
                 }
                 let facts = turtle::parse(
                     &read(
@@ -265,9 +263,9 @@ pub fn run(args: &[&str]) -> Output {
                 )
                 .map_err(runtime)?;
                 catalog::validate_design(source, snapshot.input(), &facts).map_err(runtime)?;
-                let binding = snapshot.binding(source).map_err(runtime)?;
+                let current = snapshot.binding(source).map_err(runtime)?;
                 let generation = store
-                    .publish(&job, &binding, &facts)
+                    .publish(&binding, &current, &facts)
                     .map_err(runtime)?;
                 json(
                     0,
@@ -359,26 +357,26 @@ fn run_implementation(
             .map_err(runtime)?;
         let binding = inputs::implementation(&captured, catalog);
         if command == "prepare" {
-            let job = store.prepare(binding).map_err(runtime)?;
+            let prepared = store.prepare(binding).map_err(runtime)?;
             let out = Path::new(options["--out"]);
             fs::create_dir(out).map_err(|e| runtime(e.to_string()))?;
             write_bytes_new(&out.join("source"), &captured.bytes).map_err(runtime)?;
             write_new(&out.join("ontology.json"), &turtle::ontology_document()).map_err(runtime)?;
             write_new(&out.join("catalog.json"), catalog).map_err(runtime)?;
-            write_new(&out.join("job.json"), &job).map_err(runtime)?;
+            write_new(&out.join("binding.json"), &prepared).map_err(runtime)?;
             return json(
                 0,
-                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"input_fingerprint":job.binding.fingerprint()}),
+                &serde_json::json!({"version":1,"binding":out.join("binding.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"input_fingerprint":prepared.binding.fingerprint()}),
             );
         }
-        let job_ref = options["--job"];
+        let binding_ref = options["--binding"];
         let turtle_ref = options["--turtle"];
-        let job: Job = serde_json::from_slice(&read(job_ref, 16_000_000).map_err(runtime)?)
+        let prepared: PreparedBinding = serde_json::from_slice(&read(binding_ref, 16_000_000).map_err(runtime)?)
             .map_err(|e| runtime(e.to_string()))?;
-        if job.binding.side() != "implementation" || job.binding.source.path != source {
+        if prepared.binding.side() != "implementation" || prepared.binding.source.path != source {
             return Err((
                 2,
-                "job does not bind the requested Implementation source".into(),
+                "binding does not bind the requested Implementation source".into(),
             ));
         }
         let facts = turtle::parse(
@@ -392,7 +390,7 @@ fn run_implementation(
         .map_err(runtime)?;
         catalog.validate_implementation(&facts).map_err(runtime)?;
         let generation = store
-            .publish(&job, &binding, &facts)
+            .publish(&prepared, &binding, &facts)
             .map_err(runtime)?;
         return json(
             0,
@@ -538,14 +536,14 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
         || message.starts_with("frontend context changed:")
     {
         return Some(
-            "recapture the structural Design export and run prepare again; do not reuse this job or Turtle",
+            "recapture the structural Design export and run prepare again; do not reuse this binding or Turtle",
         );
     }
     if message.starts_with("prepared semantic inputs no longer match current inputs")
         || message.starts_with("projection generation changed;")
     {
         return Some(
-            "run prepare again and submit the returned Turtle with its new caller-held job.json",
+            "run prepare again and submit the returned Turtle with its new caller-held binding.json",
         );
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {

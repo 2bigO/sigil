@@ -44,8 +44,8 @@ fn publish(root: &Workspace, out: &str, turtle: &str) {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            &format!("{out}/job.json"),
+            "--binding",
+            &format!("{out}/binding.json"),
             "--turtle",
             "facts.ttl",
         ],
@@ -134,7 +134,7 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
     let root = workspace();
     result(
         &root,
-        &["prepare", "design", "--source", "a.sigil", "--out", "job"],
+        &["prepare", "design", "--source", "a.sigil", "--out", "binding"],
         0,
     );
     root.write(
@@ -148,8 +148,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -168,8 +168,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -191,8 +191,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -211,8 +211,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -233,8 +233,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -258,8 +258,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -280,8 +280,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -299,8 +299,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -322,8 +322,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -344,8 +344,8 @@ fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
             "design",
             "--source",
             "a.sigil",
-            "--job",
-            "job/job.json",
+            "--binding",
+            "binding/binding.json",
             "--turtle",
             "facts.ttl",
         ],
@@ -369,19 +369,19 @@ fn preparation_omits_unbound_design_files_and_never_overwrites_a_directory() {
     root.write("frontend.json", &serde_json::to_vec(&input).unwrap());
     result(
         &root,
-        &["prepare", "design", "--source", "a.sigil", "--out", "job"],
+        &["prepare", "design", "--source", "a.sigil", "--out", "binding"],
         0,
     );
-    let prepared = std::fs::read_to_string(root.0.join("job/design.json")).unwrap();
+    let prepared = std::fs::read_to_string(root.0.join("binding/design.json")).unwrap();
     assert!(!prepared.contains("secret"));
     assert!(!prepared.contains("unrelated.sigil"));
-    assert!(root.0.join("job/job.json").is_file());
-    assert!(root.0.join("job/ontology.json").is_file());
-    assert!(!root.0.join("job/evidence.json").exists());
+    assert!(root.0.join("binding/binding.json").is_file());
+    assert!(root.0.join("binding/ontology.json").is_file());
+    assert!(!root.0.join("binding/evidence.json").exists());
     assert_eq!(
         run(
             &root,
-            &["prepare", "design", "--source", "a.sigil", "--out", "job"]
+            &["prepare", "design", "--source", "a.sigil", "--out", "binding"]
         )
         .status
         .code(),
@@ -415,7 +415,7 @@ fn empty_scope_and_runtime_limits_never_fabricate_success() {
 #[test]
 fn deleted_index_entries_are_reported_and_never_assembled() {
     let root = workspace();
-    publish(&root, "job", "");
+    publish(&root, "binding", "");
     std::fs::remove_file(root.0.join("a.sigil")).unwrap();
     root.write(
         "frontend.json",

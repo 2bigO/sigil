@@ -1,4 +1,4 @@
-//! Small disposable index and atomic per-source publication. No job registry.
+//! Small disposable index and atomic per-source publication. No task registry.
 use crate::{
     assertions,
     frontend::normalized_path,
@@ -20,7 +20,7 @@ const INDEX: &str = ".sigil/worlds/index.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Job {
+pub struct PreparedBinding {
     pub version: u32,
     pub binding: Binding,
     pub expected_generation: Option<String>,
@@ -148,13 +148,13 @@ impl LockedStore {
     }
 
     /// Return a descriptor to the external caller before it supplies Turtle.
-    pub fn prepare(&self, binding: Binding) -> Result<Job, String> {
+    pub fn prepare(&self, binding: Binding) -> Result<PreparedBinding, String> {
         compatible(&binding)?;
         self.check_live(&binding)?;
         let expected_generation = self
             .entry_for(&binding)
             .map(|(_, entry)| entry.generation.clone());
-        Ok(Job {
+        Ok(PreparedBinding {
             version: 2,
             binding,
             expected_generation,
@@ -164,21 +164,21 @@ impl LockedStore {
     // @sigil implements packages/sigilc/store.sigil::SigilProjectionStore::ProjectionPublication interface
     pub fn publish(
         &mut self,
-        job: &Job,
+        prepared: &PreparedBinding,
         current: &Binding,
         facts: &[Assertion],
     ) -> Result<String, String> {
         compatible(current)?;
         let key = object_key(current)?;
-        if job.version != 2 || job.binding != *current {
+        if prepared.version != 2 || prepared.binding != *current {
             return Err("prepared semantic inputs no longer match current inputs".into());
         }
         if self
             .entry_for(current)
             .map(|(_, entry)| entry.generation.as_str())
-            != job.expected_generation.as_deref()
+            != prepared.expected_generation.as_deref()
         {
-            return Err("projection generation changed; prepare a new job".into());
+            return Err("projection generation changed; prepare a new binding".into());
         }
         self.check_live(current)?;
         if facts.len() > self.limits.assertions.max_assertions {
