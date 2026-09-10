@@ -130,7 +130,7 @@ fn design_cli_distinguishes_missing_empty_interpreted_and_disjoint_worlds() {
 }
 
 #[test]
-fn design_cli_rejects_stale_jobs_and_unbound_or_foreign_identity() {
+fn design_cli_rejects_stale_bindings_and_unbound_or_foreign_identity() {
     let root = workspace();
     result(
         &root,

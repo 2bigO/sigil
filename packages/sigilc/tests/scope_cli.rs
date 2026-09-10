@@ -193,7 +193,7 @@ fn scoped_pipeline_excludes_unrelated_contradictions_and_reuses_objects_across_r
 }
 
 #[test]
-fn scoped_jobs_keep_three_worker_inputs_and_gate_exits() {
+fn scoped_bindings_keep_three_interpreter_inputs_and_gate_exits() {
     let root = workspace();
     publish(&root, "design", "a.sigil", "a", PROVIDES, true);
     publish(&root, "design", "b.sigil", "b", "", true);
