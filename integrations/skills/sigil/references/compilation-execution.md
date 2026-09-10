@@ -50,6 +50,8 @@ dependency-invalid rows into new directories.
 ```sh
 sigilc prepare design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source architecture/a.sigil --out .sigil/tmp/<run-id>/design-a
 sigilc ingest design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source architecture/a.sigil --binding .sigil/tmp/<run-id>/design-a/binding.json --turtle .sigil/tmp/<run-id>/design-a/result.ttl
+sigilc prepare design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source architecture/b.sigil --out .sigil/tmp/<run-id>/design-b
+sigilc ingest design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json --source architecture/b.sigil --binding .sigil/tmp/<run-id>/design-b/binding.json --turtle .sigil/tmp/<run-id>/design-b/result.ttl
 sigilc compile design --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
 sigilc entities --frontend .sigil/tmp/<run-id>/frontend.json --scope .sigil/tmp/<run-id>/scope.json
 ```

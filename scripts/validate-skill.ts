@@ -166,10 +166,8 @@ try {
       );
       assert((await Deno.stat(binding)).isFile, `Missing binding: ${binding}`);
     }
-    const report = await run(
-      command,
-      command.startsWith("sigilc stale design") ? 1 : 0,
-    );
+    const expected = command.startsWith("sigilc stale design") ? 1 : 0;
+    const report = await run(command, expected);
     if (command.startsWith("sigilc scope")) {
       equal(report.scope.design.focus_order, scope.design.paths);
       const unavailable = await run(
