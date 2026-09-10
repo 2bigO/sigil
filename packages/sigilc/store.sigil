@@ -81,7 +81,7 @@ component SigilProjectionStore {
       fingerprint, including the Implementation Design-catalog identity.
       Reuse a retained projection only when its complete binding is fresh for the
       current operation. Do not key this cache by worker or scope identity, and
-      do not turn it into a history or workflow ledger.
+      do not turn it into an external-work ledger.
     }
 
     IndexedAssembly {

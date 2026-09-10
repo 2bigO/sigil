@@ -1,4 +1,4 @@
-//! Small disposable index and atomic per-source publication. No task registry.
+//! Small disposable index and atomic per-source publication. No external-work registry.
 use crate::{
     assertions,
     frontend::normalized_path,
@@ -17,6 +17,7 @@ use std::{
 
 const WORLDS: &str = ".sigil/worlds";
 const INDEX: &str = ".sigil/worlds/index.json";
+const INDEX_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -93,7 +94,7 @@ impl LockedStore {
         let (root, lock) = acquire(root)?;
         let index = match fs::symlink_metadata(sources::checked_path(&root, INDEX)?) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Index {
-                version: 2,
+                version: INDEX_VERSION,
                 entries: BTreeMap::new(),
             },
             Err(e) => return Err(e.to_string()),
@@ -102,7 +103,7 @@ impl LockedStore {
             )
             .map_err(|e| format!("invalid projection index: {e}"))?,
         };
-        if index.version != 2 {
+        if index.version != INDEX_VERSION {
             return Err("unsupported projection index version".into());
         }
         for (key, entry) in &index.entries {

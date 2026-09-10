@@ -39,8 +39,10 @@ external interpretation, its attempts, or its outcome.
 The generated `.sigil/worlds/` cache is disposable and ignored. Its index keeps
 semantic bindings, checksums, generations, accepted projections, and available
 history. It does not contain tasks, requests, worker records, or completion
-evidence. `sigilc clean --root DIR` removes generated worlds while preserving
-authored files and caller-owned preparation directories.
+evidence. The index schema is versioned; after upgrading from an older compiler,
+run `sigilc clean --root DIR` once before rebuilding worlds. The command removes
+generated worlds while preserving authored files and caller-owned preparation
+directories.
 
 New Design domain entities use the IRI
 `urn:sigil:entity:<encodeURIComponent(source path)>:<encodeURIComponent(local name)>`.
