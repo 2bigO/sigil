@@ -8,8 +8,7 @@ use crate::{
     scope::{ResolvedScope, Scope},
     sources::{self, Selection},
     store::{
-        ARTIFACT_EVIDENCE_VERSION, ArtifactEvidenceInput, Freshness, Job, LockedStore,
-        StoreLimits,
+        Freshness, Job, LockedStore, StoreLimits,
     },
     turtle::{self, TurtleLimits},
 };
@@ -56,7 +55,6 @@ pub fn run(args: &[&str]) -> Output {
             "--source",
             "--job",
             "--turtle",
-            "--evidence",
         ],
         _ => &[
             "--root",
@@ -134,17 +132,11 @@ pub fn run(args: &[&str]) -> Output {
     } else {
         None
     };
-    let evidence_path = if command == "ingest" {
-        options.get("--evidence").copied()
-    } else {
-        None
-    };
     let root = PathBuf::from(options.get("--root").copied().unwrap_or("."));
     if [
         Some(frontend),
         job_path,
         turtle_path,
-        evidence_path,
         options.get("--limits").copied(),
         options.get("--selection").copied(),
         options.get("--scope").copied(),
@@ -248,20 +240,14 @@ pub fn run(args: &[&str]) -> Output {
                 write_new(&out.join("ontology.json"), &turtle::ontology_document())
                     .map_err(runtime)?;
                 write_new(&out.join("job.json"), &job).map_err(runtime)?;
-                write_new(
-                    &out.join("evidence.json"),
-                    &artifact_evidence_template(out, &out.join("job.json")),
-                )
-                .map_err(runtime)?;
                 json(
                     0,
-                    &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"evidence_template":out.join("evidence.json"),"input_fingerprint":job.binding.fingerprint()}),
+                    &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("design.json"),out.join("ontology.json")],"input_fingerprint":job.binding.fingerprint()}),
                 )
             }
             "ingest" => {
                 design::valid_frontend(&snapshot).map_err(runtime)?;
                 let source = source.unwrap();
-                let evidence = parse_evidence(evidence_path)?;
                 let job_ref = job_path.unwrap();
                 let turtle_ref = turtle_path.unwrap();
                 let job: Job = serde_json::from_slice(&read(job_ref, 16_000_000).map_err(runtime)?)
@@ -279,16 +265,13 @@ pub fn run(args: &[&str]) -> Output {
                 )
                 .map_err(runtime)?;
                 catalog::validate_design(source, snapshot.input(), &facts).map_err(runtime)?;
-                validate_ingest_evidence(evidence.as_ref(), job_ref, turtle_ref)
-                    .map_err(runtime)?;
                 let binding = snapshot.binding(source).map_err(runtime)?;
                 let generation = store
-                    .publish(&job, &binding, &facts, evidence)
+                    .publish(&job, &binding, &facts)
                     .map_err(runtime)?;
-                let artifact = store.artifact(&binding).cloned();
                 json(
                     0,
-                    &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len(),"artifact":artifact}),
+                    &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
                 )
             }
             "stale" => {
@@ -383,14 +366,9 @@ fn run_implementation(
             write_new(&out.join("ontology.json"), &turtle::ontology_document()).map_err(runtime)?;
             write_new(&out.join("catalog.json"), catalog).map_err(runtime)?;
             write_new(&out.join("job.json"), &job).map_err(runtime)?;
-            write_new(
-                &out.join("evidence.json"),
-                &artifact_evidence_template(out, &out.join("job.json")),
-            )
-            .map_err(runtime)?;
             return json(
                 0,
-                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"evidence_template":out.join("evidence.json"),"input_fingerprint":job.binding.fingerprint()}),
+                &serde_json::json!({"version":1,"job":out.join("job.json"),"inputs":[out.join("source"),out.join("ontology.json"),out.join("catalog.json")],"input_fingerprint":job.binding.fingerprint()}),
             );
         }
         let job_ref = options["--job"];
@@ -413,15 +391,12 @@ fn run_implementation(
         )
         .map_err(runtime)?;
         catalog.validate_implementation(&facts).map_err(runtime)?;
-        let evidence = parse_evidence(options.get("--evidence").copied())?;
-        validate_ingest_evidence(evidence.as_ref(), job_ref, turtle_ref).map_err(runtime)?;
         let generation = store
-            .publish(&job, &binding, &facts, evidence)
+            .publish(&job, &binding, &facts)
             .map_err(runtime)?;
-        let artifact = store.artifact(&binding).cloned();
         return json(
             0,
-            &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len(),"artifact":artifact}),
+            &serde_json::json!({"version":1,"source":source,"generation":generation,"assertions":facts.len()}),
         );
     }
     let assembly = if let Some(scope) = scope {
@@ -530,56 +505,11 @@ fn write_bytes_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
     file.write_all(bytes).map_err(|e| e.to_string())
 }
 
-fn artifact_evidence_template(out: &Path, job: &Path) -> serde_json::Value {
-    serde_json::json!({
-        "version": ARTIFACT_EVIDENCE_VERSION,
-        "preparation": out,
-        "job": job,
-        "worker": "replace-with-worker-record",
-        "ingest": "replace-with-exact-ingest-command",
-        "attempts": [{
-            "turtle": "replace-with-submitted-turtle",
-            "result": "replace-with-ingest-result",
-            "exit": null
-        }]
-    })
-}
-
 fn runtime(message: String) -> (u8, String) {
     match ingest_hint(&message) {
         Some(hint) => (3, format!("{message}\nhint: {hint}")),
         None => (3, message),
     }
-}
-
-fn validate_ingest_evidence(
-    evidence: Option<&ArtifactEvidenceInput>,
-    job: &str,
-    turtle: &str,
-) -> Result<(), String> {
-    let Some(evidence) = evidence else {
-        return Ok(());
-    };
-    evidence.validate()?;
-    if evidence.job != job {
-        return Err("artifact evidence job reference does not match --job".into());
-    }
-    if evidence
-        .attempts
-        .last()
-        .is_none_or(|attempt| attempt.turtle != turtle)
-    {
-        return Err("artifact evidence final Turtle reference does not match --turtle".into());
-    }
-    Ok(())
-}
-
-fn parse_evidence(path: Option<&str>) -> Result<Option<ArtifactEvidenceInput>, (u8, String)> {
-    path.map(|path| {
-        serde_json::from_slice::<ArtifactEvidenceInput>(&read(path, 1_000_000).map_err(runtime)?)
-            .map_err(|e| runtime(format!("invalid artifact evidence: {e}")))
-    })
-    .transpose()
 }
 
 fn ingest_hint(message: &str) -> Option<&'static str> {
@@ -616,11 +546,6 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     {
         return Some(
             "run prepare again and submit the returned Turtle with its new caller-held job.json",
-        );
-    }
-    if message.contains("artifact evidence") {
-        return Some(
-            "start from prepare's evidence.json and replace its placeholders. Exact shape: {\"version\":1,\"preparation\":\"reference\",\"job\":\"reference\",\"worker\":\"reference\",\"ingest\":\"reference\",\"attempts\":[{\"turtle\":\"reference\",\"result\":\"reference\",\"exit\":null}]}. Each earlier rejected attempt has a numeric exit; only the final submitted attempt has exit null",
         );
     }
     if message.starts_with("foreign or changed reserved declaration: urn:sigil:unit:") {
@@ -715,14 +640,6 @@ mod tests {
         assert!(hint.contains("at most one sigil:relation"));
     }
 
-    #[test]
-    fn artifact_evidence_hint_shows_the_initial_schema() {
-        let hint = ingest_hint("artifact evidence requires at least one ingest attempt")
-            .expect("artifact evidence failures have an actionable repair hint");
-        assert!(hint.contains("evidence.json"));
-        assert!(hint.contains("\"version\":1"));
-        assert!(hint.contains("\"exit\":null"));
-    }
 }
 fn json(code: u8, value: &impl Serialize) -> Output {
     Ok((

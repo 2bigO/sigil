@@ -11,12 +11,12 @@ Commands:
   scope --frontend FILE --scope FILE
   ontology [--format text|json]
   prepare design --frontend FILE --source PATH --out NEW_DIR [--scope FILE]
-  ingest design --frontend FILE --source PATH --job FILE --turtle FILE|- [--evidence FILE] [--scope FILE]
+  ingest design --frontend FILE --source PATH --job FILE --turtle FILE|- [--scope FILE]
   stale design --frontend FILE [--scope FILE]
   compile design --frontend FILE [--scope FILE] [--limits FILE] [--allow-empty]
   entities --frontend FILE [--scope FILE] [--limits FILE] [--allow-empty]
   prepare implementation --frontend FILE --source PATH --out NEW_DIR [--scope FILE]
-  ingest implementation --frontend FILE --source PATH --job FILE --turtle FILE|- [--evidence FILE] [--scope FILE]
+  ingest implementation --frontend FILE --source PATH --job FILE --turtle FILE|- [--scope FILE]
   stale implementation --frontend FILE (--selection FILE | --scope FILE)
   compile implementation --frontend FILE (--selection FILE | --scope FILE)
   compare --frontend FILE (--selection FILE | --scope FILE) [--limits FILE]

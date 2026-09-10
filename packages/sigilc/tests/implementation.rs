@@ -45,7 +45,7 @@ fn publish(root: &Workspace, store: &mut LockedStore, catalog: &Catalog, path: &
     let job = store.prepare(binding.clone()).unwrap();
     let facts = facts(body);
     catalog.validate_implementation(&facts).unwrap();
-    store.publish(&job, &binding, &facts, None).unwrap();
+    store.publish(&job, &binding, &facts).unwrap();
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn cached_identity_is_revalidated_and_aggregate_inputs_are_bounded() {
     let binding = inputs::implementation(&capture(&root.0, "a.rs", 100).unwrap(), &catalog);
     let job = store.prepare(binding.clone()).unwrap();
     store
-        .publish(&job, &binding, &facts(":Unknown s:uses :B ."), None)
+        .publish(&job, &binding, &facts(":Unknown s:uses :B ."))
         .unwrap();
     assert!(
         implementation::assemble(&root.0, &selection(), &catalog, &store, 100)
