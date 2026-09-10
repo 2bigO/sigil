@@ -11,7 +11,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 getrandom = "0.3.4"
 regex = "1"
-snapdir-core = { git = "ssh://git@github.com/qoherent/snapdir.git", rev = "b5e5780" }
+snapdir-core = { git = "https://github.com/qoherent/snapdir.git", rev = "b5e5780" }
 # Keep hashing cross-compilable without platform-specific assembler tools.
 blake3 = { version = "1.8.5", features = ["pure"] }
 rio_api = "0.8.5"
