@@ -22,7 +22,7 @@ Commands:
   compare --frontend FILE (--selection FILE | --scope FILE) [--limits FILE]
   clean [--root DIR]
 
-Scope and semantic compilation workflow:
+Scope and semantic compilation flow:
   1. Export structural input: sigil export design . > frontend.json
   2. Resolve ordered roots: sigilc scope --frontend frontend.json --scope scope.json
   3. Inspect freshness: sigilc stale design --frontend frontend.json --scope scope.json

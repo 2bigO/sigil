@@ -1,7 +1,7 @@
 component SigilComparisonScope {
   goal {
     Focus native Design and Implementation comparison on explicit source
-    membership so external workflows can remove temporary scope assembly.
+    membership so callers do not need duplicate scope assembly.
   }
 
   interface {
@@ -19,14 +19,14 @@ component SigilComparisonScope {
     FocusOrder {
       Preserve the caller's explicit root order as focus priority. Do not sort
       it away during normalization or replace it with filesystem discovery order.
-      Return that order from scoped commands so the frontend and external loop
+      Return that order from scoped commands so the frontend and caller
       can see what to address first and next without a temporary priority table.
       Report dependency additions deterministically after the requested roots,
       retaining their inclusion reasons without displacing explicit priorities.
       Identify requested order separately from unordered effective membership.
       Reprioritization changes order identity, not unchanged semantic bindings.
-      Order guides external work; sigilc does not schedule workers, execute coding
-      tasks or infer that an earlier entry has been completed.
+      Order guides caller priority; sigilc does not schedule interpretation or
+      infer that an earlier entry has been completed.
     }
 
     DesignMembership {
@@ -41,7 +41,7 @@ component SigilComparisonScope {
       Do not silently drop unresolved references or errors. When unresolved
       imports require conservative full-bundle membership, report that widening.
       Preserve applicable configuration, glossary context and global diagnostics.
-      Do not infer source membership from temporary prose or task metadata.
+      Do not infer source membership from temporary prose or caller metadata.
     }
 
     ScopedComparison {
@@ -67,18 +67,10 @@ expand SigilComparisonScope {
       Reuse a projection when its existing complete semantic binding is unchanged.
       A changed effective Design identity catalog still invalidates Implementation
       projections under the existing full-catalog binding policy.
-      Scoping never gives Implementation workers Design prose or relationships;
+      Scoping never gives Implementation interpreters Design prose or relationships;
       their inputs remain captured source, fixed ontology and identity catalog.
     }
 
-    WorkflowBoundary {
-      A focused comparison reports only its effective source membership.
-      It does not establish delivery of the whole refactor, test completion or
-      code removal. Keep final whole-scope delivery checks external.
-      Implement scope resolution in sigilc. Do not preserve the TypeScript
-      compiler package, introduce a wrapper or migrate temporary task tables
-      into a compiler-owned planning framework.
-    }
   }
 
   cases {
@@ -100,29 +92,17 @@ expand SigilComparisonScope {
     }
 
     ObservedPriority {
-      In the refactor loop, scope implementation had to be placed before export
-      extraction and legacy deletion. Making that order explicit in the temporary
-      Todo list exposed a requirement through real use: unordered membership
-      could name the same work but could not communicate what comes first.
-      Treat this as learning by observation: a necessary fact supplied by the
-      temporary loop becomes a native requirement, then is implemented, exercised
-      on the original task and adopted before duplicate bookkeeping is removed.
-      This observation motivates FocusOrder; use native output on subsequent
-      work and retire duplicate focus-priority bookkeeping once it supplies the
-      same information. Preserve equivalent caller-defined
-      priority in native scope output so a resumed external loop can recover it.
+      Preserve caller-defined priority in native scope output so callers can
+      address selected roots in the reported order without maintaining a second
+      focus-priority table.
       Selecting roots A then B reports A first. Reprioritizing B then A reports
       B first without invalidating otherwise identical per-source projections.
       Repeated runs preserve order even when frontend or filesystem enumeration
-      changes. The external workflow still establishes which work is complete.
+      changes. The caller still establishes which interpretation is complete.
 
       Focus order is a priority and reporting order, not a demand to serialize
-      independent reconstructions. After one stale report, a coding agent may
-      prepare and spawn bounded concurrent subagents for independent nonfresh
-      sources in one released item. Native publication stays authoritative and
-      the next ordered item still waits for the predecessor's full terminal
-      gate. This was observed when serial source turns dominated a real
-      reconstruction cycle even though native commands were fast.
+      independent reconstructions. External callers may prepare independent
+      sources concurrently while native publication remains authoritative.
     }
 
     ScopeLimits {

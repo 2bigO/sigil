@@ -593,7 +593,7 @@ fn ingest_hint(message: &str) -> Option<&'static str> {
     }
     if message.starts_with("unknown source-bound unit identity:") {
         return Some(
-            "assert only authored-unit IRIs explicitly present in the prepared source/catalog inputs; do not derive a unit ID from a Rust item or path. If this source has no supported catalog-bound assertion, submit valid zero-fact Turtle and keep the evidence attempt",
+            "assert only authored-unit IRIs explicitly present in the prepared source/catalog inputs; do not derive a unit ID from a Rust item or path. If this source has no supported catalog-bound assertion, submit a valid zero-fact Turtle result",
         );
     }
     if message == "contract relation must name a fixed entity predicate" {
