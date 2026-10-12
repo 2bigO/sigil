@@ -40,6 +40,9 @@ fn sha256(bytes: &[u8]) -> String {
 
 struct Run {
     ws: Workspace,
+    /// Each Facet's prose as `prepare` presented it, independent of anything
+    /// the check later writes.
+    presented: std::cell::RefCell<BTreeMap<String, String>>,
 }
 
 struct Prepared {
@@ -73,6 +76,7 @@ impl Run {
     fn new() -> Self {
         Self {
             ws: Workspace::new(),
+            presented: Default::default(),
         }
     }
 
@@ -115,6 +119,9 @@ impl Run {
             })
             .collect();
         let prepared = Prepared { targets };
+        self.presented
+            .borrow_mut()
+            .extend(prepared.targets.iter().cloned());
         let mut artifact = rows(&prepared);
         for (facet, _) in &prepared.targets {
             if !artifact.contains(&format!("{facet:?}")) {
@@ -629,6 +636,12 @@ fn every_unit_stays_addressable_whatever_its_coverage() {
             .pointer(unit["context"].as_str().unwrap())
             .unwrap();
         assert_eq!(context["prose"].as_str().unwrap().trim(), prose.trim());
+        // And it is the prose `prepare` presented for that Facet, which the
+        // evidence did not produce.
+        if let Some(presented) = run.presented.borrow().get(unit["facet"].as_str().unwrap()) {
+            let words = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+            assert_eq!(words(presented), words(&prose));
+        }
     }
 }
 
@@ -1090,5 +1103,227 @@ fn sources_whose_paths_differ_only_by_a_separator_keep_separate_artifacts() {
     assert_eq!(
         nested.evidence["artifacts"]["view"]["file"],
         name(&nested, "reviewView")
+    );
+}
+
+// ------------------------------------------------- obligations and groups
+
+const JOURNAL_LEDGER_SOURCE: &str = "component Ledger {
+  goal {
+    Ledger keeps a *journal*.
+  }
+  interface {
+    Ledger provides an *entry*.
+  }
+}
+";
+
+const ENTRY_BILLING_SOURCE: &str = "@ledger.sigil from Ledger import { entry }
+component Billing {
+  goal {
+    Billing depends on Ledger for an entry behind each charge.
+  }
+  interface {
+    Billing provides a *charge*.
+  }
+}
+";
+
+const LOOSE_SHOP_SOURCE: &str = "@billing.sigil from Billing import { charge }
+component Shop {
+  goal {
+    Shop depends on Billing and hands charging to it.
+  }
+  interface {
+    Shop offers each charge Billing makes.
+  }
+  logic {
+    Shop takes an order, then charges it.
+  }
+}
+";
+
+/// Every obligation state, a note two findings share, a duplicate stated in
+/// three units, and a claim the laws already derive. Unit and claim placement
+/// is checked against what `prepare` presented and where each row was written,
+/// not against the evidence's own pointers.
+#[test]
+fn obligations_notes_and_groups_reach_the_view_as_the_rows_placed_them() {
+    let run = Run::new();
+    run.write("ledger.sigil", JOURNAL_LEDGER_SOURCE);
+    run.write("billing.sigil", ENTRY_BILLING_SOURCE);
+    run.write("shop.sigil", LOOSE_SHOP_SOURCE);
+    run.read("ledger.sigil", &|p| {
+        let goal = p.facet("journal");
+        let iface = p.facet("Ledger provides");
+        format!(
+            "(claim {goal:?} \"Ledger\" \"requires\" \"journal\" \"required\" \"true\")
+(claim {iface:?} \"Ledger\" \"provides\" \"entry\" \"required\" \"true\")
+"
+        )
+    });
+    run.read("billing.sigil", &|p| {
+        let goal = p.facet("depends on Ledger for");
+        let iface = p.facet("Billing provides");
+        format!(
+            "(claim {goal:?} \"Billing\" \"dependsOn\" \"Ledger\" \"required\" \"true\")
+(claim {goal:?} \"Billing\" \"requires\" \"entry\" \"required\" \"true\")
+(claim {goal:?} \"Billing\" \"provides\" \"charge\" \"required\" \"true\")
+(claim {iface:?} \"Billing\" \"provides\" \"charge\" \"required\" \"true\")
+"
+        )
+    });
+    run.read("shop.sigil", &|p| {
+        let goal = p.facet("Shop depends");
+        let iface = p.facet("Shop offers");
+        let logic = p.facet("takes an order");
+        format!(
+            "(claim {goal:?} \"Shop\" \"dependsOn\" \"Billing\" \"required\" \"true\")
+(claim {goal:?} \"Shop\" \"delegates\" \"Billing\" \"required\" \"true\")
+(claim {iface:?} \"Billing\" \"provides\" \"charge\" \"required\" \"true\")
+(claim {iface:?} \"Shop\" \"provides\" \"charge\" \"required\" \"true\")
+(step {logic:?} \"1\")
+(step {logic:?} \"2\")
+(claim {logic:?} \"step:1\" \"to\" \"step:2\" \"required\" \"true\")
+"
+        )
+    });
+    let checked = run.check(None);
+    let presented = run.presented.borrow();
+    let words = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    // Each unit's bytes are the prose `prepare` presented for its Facet.
+    let units = checked.entries("units");
+    assert_eq!(units.len(), presented.len());
+    for unit in units {
+        let facet = unit["facet"].as_str().unwrap();
+        let bytes = fs::read(run.ws.0.join(unit["source"].as_str().unwrap())).unwrap();
+        let resolved = resolve(&checked.evidence, unit["alias"].as_str().unwrap(), &bytes)
+            .expect("every unit resolves");
+        assert_eq!(words(&resolved), words(&presented[facet]), "{facet}");
+    }
+    // Each claim sits under the unit its row was written for.
+    let facet_of_unit: BTreeMap<&str, &str> = units
+        .iter()
+        .map(|u| (u["alias"].as_str().unwrap(), u["facet"].as_str().unwrap()))
+        .collect();
+    let written_in = |claim: &str| -> &str {
+        let entry = checked
+            .entries("claims")
+            .iter()
+            .find(|c| c["alias"] == claim)
+            .unwrap();
+        &presented[facet_of_unit[entry["unit"].as_str().unwrap()]]
+    };
+    let claim = |relation: &str, subject: &str, object: &str| {
+        checked.claim(|b| {
+            b["relation"] == relation
+                && b["subject"].as_str().unwrap().ends_with(subject)
+                && b["object"].as_str().unwrap().ends_with(object)
+        })
+    };
+    assert!(written_in(&claim("requires", "Ledger", "journal")).contains("journal"));
+    assert!(written_in(&claim("requires", "Billing", "entry")).contains("depends on Ledger"));
+    assert!(written_in(&claim("provides", "Shop", "charge")).contains("Shop offers"));
+
+    // A filled and an unmet obligation, each labelled, and the unmet finding
+    // names only the unmet one.
+    let obligation = |claim: &str| -> (String, bool) {
+        let entry = checked
+            .entries("obligations")
+            .iter()
+            .find(|o| o["claim"] == claim)
+            .unwrap_or_else(|| panic!("an obligation for {claim}"));
+        (
+            entry["alias"].as_str().unwrap().to_owned(),
+            entry["filled"].as_bool().unwrap(),
+        )
+    };
+    let (filled, is_filled) = obligation(&claim("requires", "Billing", "entry"));
+    let (unmet, is_filled_too) = obligation(&claim("requires", "Ledger", "journal"));
+    assert!(is_filled && !is_filled_too);
+    assert!(
+        checked.line(&filled).ends_with("· filled"),
+        "{}",
+        checked.view
+    );
+    assert!(
+        checked.line(&unmet).ends_with("· unmet"),
+        "{}",
+        checked.view
+    );
+    let unmet_findings: Vec<&Value> = checked
+        .entries("findings")
+        .iter()
+        .filter(|f| !f["obligations"].as_array().unwrap().is_empty())
+        .collect();
+    assert_eq!(unmet_findings.len(), 1, "{}", checked.view);
+    assert_eq!(unmet_findings[0]["obligations"], serde_json::json!([unmet]));
+    let unmet_line = checked.line(unmet_findings[0]["alias"].as_str().unwrap());
+    assert!(!unmet_line.contains("note"), "{unmet_line}");
+
+    // Two steps that reach no end share one note, written once.
+    let unreached: Vec<&str> = checked
+        .view
+        .lines()
+        .filter(|l| l.contains("unreached-step"))
+        .collect();
+    assert_eq!(unreached.len(), 2, "{}", checked.view);
+    let note = |line: &str| line.rsplit("· ").next().unwrap().to_owned();
+    assert_eq!(note(unreached[0]), note(unreached[1]));
+    let label = format!("{}:", note(unreached[0]));
+    assert_eq!(
+        checked
+            .view
+            .lines()
+            .filter(|l| l.starts_with(&label))
+            .count(),
+        1,
+        "{}",
+        checked.view
+    );
+
+    // One proposition stated in three units folds into one group of three.
+    let groups: Vec<&Value> = checked
+        .entries("simplifications")
+        .iter()
+        .filter(|s| s["kind"] == "duplicate-proposition")
+        .collect();
+    assert_eq!(groups.len(), 1, "{}", checked.view);
+    let members: BTreeSet<&str> = groups[0]["claims"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap())
+        .collect();
+    assert_eq!(members.len(), 3);
+    let in_units: BTreeSet<&str> = checked
+        .entries("claims")
+        .iter()
+        .filter(|c| members.contains(c["alias"].as_str().unwrap()))
+        .map(|c| c["unit"].as_str().unwrap())
+        .collect();
+    assert_eq!(in_units.len(), 3, "the three claims sit in three units");
+    assert!(
+        groups[0]["context"].as_array().unwrap().len() >= 2,
+        "the group keeps every pair it folds"
+    );
+
+    // A claim the laws already derive is marked as such.
+    let subsumed = checked
+        .entries("simplifications")
+        .iter()
+        .find(|s| s["kind"] == "subsumed-claim")
+        .unwrap_or_else(|| panic!("a subsumed-claim candidate: {}", checked.view));
+    assert_eq!(
+        subsumed["claims"],
+        serde_json::json!([claim("provides", "Shop", "charge")])
+    );
+    assert!(
+        checked
+            .line(subsumed["alias"].as_str().unwrap())
+            .ends_with("(already derived by another route)"),
+        "{}",
+        checked.view
     );
 }
