@@ -1048,3 +1048,47 @@ fn a_conclusion_witnessed_by_a_component_or_graph_still_names_its_premises() {
         assert!(line.contains(" · from "), "{line}");
     }
 }
+
+// ------------------------------------------------------------- file names
+
+#[test]
+fn sources_whose_paths_differ_only_by_a_separator_keep_separate_artifacts() {
+    let run = Run::new();
+    run.write(
+        "a/b.sigil",
+        "component Nested {\n  goal {\n    Stay nested.\n  }\n}\n",
+    );
+    run.write(
+        "a_b.sigil",
+        "component Flat {\n  goal {\n    Stay flat.\n  }\n}\n",
+    );
+    run.read("a/b.sigil", &|_| String::new());
+    run.read("a_b.sigil", &|_| String::new());
+
+    let nested = run.check(Some("a/b.sigil"));
+    let flat = run.check(Some("a_b.sigil"));
+    let name = |checked: &Checked, key: &str| {
+        PathBuf::from(checked.summary[key].as_str().unwrap())
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned()
+    };
+    assert_eq!(name(&nested, "report"), "a%2Fb.sigil.linked.json");
+    assert_eq!(name(&flat, "report"), "a_b.sigil.linked.json");
+    for key in ["report", "judgmentContext", "reviewView", "reviewEvidence"] {
+        assert_ne!(name(&nested, key), name(&flat, key), "{key}");
+    }
+    // The second check overwrote nothing the first wrote.
+    assert_eq!(nested.report["source"], "a/b.sigil");
+    let reread: Value =
+        serde_json::from_slice(&fs::read(nested.summary["report"].as_str().unwrap()).unwrap())
+            .unwrap();
+    assert_eq!(reread["source"], "a/b.sigil");
+    // The evidence names its own file and the view by the same encoded names.
+    assert_eq!(
+        nested.evidence["artifacts"]["view"]["file"],
+        name(&nested, "reviewView")
+    );
+}

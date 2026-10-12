@@ -617,8 +617,23 @@ pub(crate) fn encode(value: &impl Serialize) -> Result<Vec<u8>, String> {
 }
 
 /// The file name an artifact for `source` takes under the store.
+///
+/// Percent-encodes only the characters a file name cannot carry, and `%`
+/// itself, so two sources never share a name (`a/b.sigil` and `a_b.sigil`
+/// once did) and a name without them, such as `workspace`, stays as written.
 pub(crate) fn file_name(source: &str, suffix: &str) -> String {
-    format!("{}{suffix}", source.replace(['/', '\\', ':'], "_"))
+    let mut name = String::with_capacity(source.len() + suffix.len());
+    for c in source.chars() {
+        match c {
+            '%' => name.push_str("%25"),
+            '/' => name.push_str("%2F"),
+            '\\' => name.push_str("%5C"),
+            ':' => name.push_str("%3A"),
+            c => name.push(c),
+        }
+    }
+    name.push_str(suffix);
+    name
 }
 
 /// Write bytes already encoded under the store this component owns.

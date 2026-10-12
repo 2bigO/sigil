@@ -32,6 +32,9 @@
   report computed coverage separately from advisory findings. A review that used
   computed claims returns a `computed_evidence` extension of
   `sigil-design-review/v1`; without `sigilc` both continue source-only and say so.
+- Claims artifact file names percent-encode `/`, `\`, `:` and `%` in a source
+  path instead of replacing them with `_`, so `a/b.sigil` and `a_b.sigil` no
+  longer write to the same file. Names without those characters are unchanged.
 - Each inferred conclusion in the review evidence names its `premises`: the
   claims and conclusions its law combined, also shown in the view after
   `from`. Conclusions witnessed by a component or graph, such as dependency

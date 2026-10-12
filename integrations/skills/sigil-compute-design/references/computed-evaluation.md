@@ -64,7 +64,9 @@ resolve. The report (version 6) lists `unread` units by source, component,
 section, and Facet ids, and `unresolvedImports`. It is written to
 `<store>/claims/workspace.linked.json`, or `<store>/claims/<source>.linked.json`
 with `--source`, with a matching `.linked.context.json`; ingest's files are
-never overwritten. `incomplete` and `disjoint` exit 1; `loose` and `coherent`
+never overwritten. In a file name, `/`, `\`, `:` and `%` in the source path are
+percent-encoded (`a/b.sigil` becomes `a%2Fb.sigil`), so no two sources share
+one. Read the paths from check's result rather than building them. `incomplete` and `disjoint` exit 1; `loose` and `coherent`
 exit 0.
 
 Beside them, check writes a review view (`.linked.review.md`) and its evidence
