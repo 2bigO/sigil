@@ -633,6 +633,98 @@ fn every_unit_stays_addressable_whatever_its_coverage() {
 }
 
 #[test]
+fn a_refused_reading_and_an_unresolved_import_reach_the_evidence_and_the_view() {
+    let run = design();
+    run.write(
+        "lonely.sigil",
+        "@missing.sigil from Nowhere import { Thing }
+component Lonely {
+  goal {
+    Wait for a provider.
+  }
+}
+",
+    );
+    run.read("lonely.sigil", &|_| String::new());
+
+    // Rewrite one stored Rooms reading so it names an entity outside its
+    // source's request. Its recorded context still matches, so the memo
+    // reuses it without admitting it.
+    let state = run.check(None).unit("Rooms owns the mark")["facet"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let memo = run.ws.0.join(".sigil/claims/interpretations");
+    let mut corrupted = 0;
+    for entry in fs::read_dir(&memo).unwrap().flatten() {
+        let text = fs::read_to_string(entry.path()).unwrap();
+        if text.contains(&state) && text.contains("\"Rooms\"") {
+            fs::write(entry.path(), text.replace("\"Rooms\"", "\"Ghost\"")).unwrap();
+            corrupted += 1;
+        }
+    }
+    assert_eq!(corrupted, 1);
+    let checked = run.check(None);
+
+    // The refused unit is refused in the evidence, the totals and the view,
+    // and the view carries the report's refusal reason.
+    let refused = checked.unit("Rooms owns the mark");
+    assert_eq!(refused["coverage"], "refused", "{refused}");
+    let alias = refused["alias"].as_str().unwrap();
+    assert!(checked.line(alias).contains("refused"), "{}", checked.view);
+    assert!(
+        checked.evidence["scope"]["coverage"]["refused"]
+            .as_u64()
+            .unwrap()
+            >= 1
+    );
+    let entry = checked
+        .entries("unread")
+        .iter()
+        .find(|u| u["units"].as_array().unwrap().iter().any(|a| a == alias))
+        .expect("the refused unit is listed as unread");
+    let reported = checked
+        .report
+        .pointer(entry["report"].as_str().unwrap())
+        .expect("unread pointer resolves");
+    let refusal = reported["refusal"].as_str().unwrap();
+    assert!(refusal.contains("Ghost"), "{reported}");
+    let lines: Vec<&str> = checked
+        .view
+        .lines()
+        .filter(|l| l.starts_with("Refused ") && l.contains(alias))
+        .collect();
+    assert_eq!(lines.len(), 1, "{}", checked.view);
+    assert!(lines[0].contains(refusal), "{}", lines[0]);
+
+    // The unresolved import is counted, pointed at in the report, and named
+    // in the view.
+    let imports = checked.report["unresolvedImports"].as_array().unwrap();
+    assert!(!imports.is_empty(), "{}", checked.report);
+    assert_eq!(
+        checked.evidence["scope"]["coverage"]["unresolvedImports"],
+        imports.len()
+    );
+    let pointers = checked.entries("unresolvedImports");
+    assert_eq!(pointers.len(), imports.len());
+    for pointer in pointers {
+        let import = checked
+            .report
+            .pointer(pointer.as_str().unwrap())
+            .expect("unresolved-import pointer resolves");
+        assert_eq!(import["source"], "lonely.sigil", "{import}");
+    }
+    assert!(
+        checked
+            .view
+            .lines()
+            .any(|l| l.starts_with("Unresolved import in lonely.sigil")),
+        "{}",
+        checked.view
+    );
+}
+
+#[test]
 fn a_source_filter_narrows_findings_but_not_the_computation_context() {
     let run = design();
     let whole = run.check(None);
