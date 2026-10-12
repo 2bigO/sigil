@@ -37,12 +37,28 @@ full judgment context as a substitute for the view; read one entry of it, or of
 the report, through the pointer the evidence file gives for an alias.
 
 Keep evidence reads few, because every extra step re-reads everything before
-it. Check the bundle hashes in one command and read the view once. Gather the
-prose you need in as few commands as you can: when the whole design is in
-scope and its sources are small, read each source once rather than many byte
-ranges, and never read the same passage twice. Never open the judgment
-context, the report, or the evidence file whole; select the entries you need
-in one batched query.
+it. Check the bundle hashes in one command and read the view once. Do not read
+source files whole: the view stands in for them. Fetch only the prose of the
+units a finding, a coverage gap, or a consequential uncertainty needs, all in
+one batch, and never read the same passage twice. Never open the judgment
+context, the report, or the evidence file whole. This reads several units'
+verified prose at once; set the two paths to the evidence file and the
+directory holding the sources it names:
+
+```sh
+python3 - EVIDENCE ROOT U12 U40 <<'PY'
+import hashlib, json, sys
+evidence, root, *aliases = sys.argv[1:]
+units = {u["alias"]: u for u in json.load(open(evidence))["units"]}
+for alias in aliases:
+    where = units[alias]["location"]
+    data = open(f"{root}/{where['source']}", "rb").read()
+    if hashlib.sha256(data).hexdigest() != where["source_digest"]:
+        print(alias, "SOURCE CHANGED"); continue
+    r = where["range"]
+    print(f"--- {alias} {where['source']}\n{data[r['start']:r['end']].decode()}")
+PY
+```
 
 Claims are one reading of the prose, not the design. Read the unit's prose
 before you:

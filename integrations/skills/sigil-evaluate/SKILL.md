@@ -15,8 +15,9 @@ supply a frozen review bundle; use it and run no computation. For direct
 review, first run the review preparation of the sibling
 [computed evaluation](../sigil-compute-design/SKILL.md) skill for the review
 scope. It may write temporary files and the claims cache, never design
-sources. Read the bundle's compact view whole and read source prose through
-its verified byte ranges where judgment needs it. When computation is
+sources. Read the bundle's compact view whole instead of the source files, and
+read only the prose your judgment needs, in one batch, through its verified
+byte ranges; the design review reference shows how. When computation is
 unavailable, review from the sources and say computed coverage is unavailable.
 
 Read [design review](references/design-review.md) before assessing the design.
