@@ -247,10 +247,8 @@ fn derive(request: &Request, facts: &[Fact], world: &Saturated) -> Vec<Finding> 
     // component's the flow's component can never answer it; say so, because the
     // fix is the guarantee in that component's interface.
     let graph_owner: BTreeMap<String, String> = world
-        .table("entity")
-        .iter()
-        .filter(|row| text(row, 1) == "Graph")
-        .map(|row| (text(row, 0), text(row, 3)))
+        .graphs()
+        .map(|graph| (graph.id, graph.owner))
         .collect();
     for row in world.table("unguarded-flow") {
         let (claim, graph, object) = (text(row, 0), text(row, 1), text(row, 2));
