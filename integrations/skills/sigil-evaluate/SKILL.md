@@ -36,8 +36,9 @@ otherwise continue review and report the specific unavailable validation.
 Read the evaluator-owned [review contract](references/review-contract.md) to
 receive delegated inputs or return a revision-bound report or portable handoff.
 For direct review, its direct-input route preserves the same evidence fields
-without creating files. Return exact assessed inputs, material findings, coverage,
-and limitations even when findings are empty. Missing evidence, interrupted
+in place, creating no files beyond the computed-evidence preparation above.
+Return exact assessed inputs, material findings, coverage, and limitations even
+when findings are empty. Missing evidence, interrupted
 execution, and malformed reports cannot become a clean assessment.
 
 Do not modify design files, compare implementation code, invent policy, or claim

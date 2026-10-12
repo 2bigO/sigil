@@ -49,10 +49,16 @@ authority comes exclusively from the installed sibling understanding pack.
 
 ### Direct input and additional context
 
-A direct evaluator does not create or change files. If the caller has provided
-captures, use them. Otherwise read the original sources and record their exact
-byte digests with `captured_path: null` and `capture_mode: in_place`; scope the
-assessment to those bytes. A caller preparing a later delegated review must
+A direct evaluator does not create or change files. The one exception is
+computed evidence: its review preparation through `sigil-compute-design` may
+write temporary files, its private store, and the workspace's claims cache,
+never a design source. A delegated evaluator runs no preparation. If the caller
+has provided captures, use them. Otherwise read the original sources and record
+their exact byte digests with `captured_path: null` and `capture_mode: in_place`;
+scope the assessment to those bytes. In a direct review, `computed_evidence`
+bundle and dependency entries take the same shape: their original store or
+workspace path, `captured_path: null`, `capture_mode: in_place`, and the SHA-256
+of the bytes actually read. A caller preparing a later delegated review must
 capture them before dispatch. For pasted text, identify the supplied message
 and state inability to establish file-byte identity if the host cannot do so;
 such a report cannot establish freshness for automatic corrections.
@@ -153,7 +159,8 @@ context actually informed design judgment. The request's existing `scope` may
 identify the writer's mechanical snapshot by path and digest. A live workspace
 whose relevant source or configuration differs cannot establish mechanical
 coverage of that earlier capture. Direct evaluation records in-place evidence
-without creating files; the caller can retain the returned observations later.
+and creates no files beyond the computed-evidence preparation above; the caller
+can retain the returned observations later.
 
 Do not disguise an interrupted, cancelled, missing, or malformed report as empty
 findings. The caller treats missing required fields, unverifiable identities,
