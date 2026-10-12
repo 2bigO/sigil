@@ -635,6 +635,14 @@ pub(crate) fn store_bytes(
     Ok(path)
 }
 
+/// The name a string enum serializes to, such as a state or a finding class.
+pub(crate) fn serde_name(value: &impl Serialize) -> String {
+    serde_json::to_value(value)
+        .ok()
+        .and_then(|v| v.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
 /// Attach a repeat comparison to a report.
 ///
 /// Additive by construction: it sets a field the report otherwise omits and

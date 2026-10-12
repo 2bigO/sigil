@@ -273,6 +273,12 @@ pub fn build(request: &Request, facts: &[Fact], world: &Saturated, identity: Ide
     }
 }
 
+/// A candidate where two units author the same proposition.
+pub const DUPLICATE_PROPOSITION: &str = "duplicate-proposition";
+
+/// A candidate where the laws already derive what a claim states.
+pub const SUBSUMED_CLAIM: &str = "subsumed-claim";
+
 /// Smaller formulations that may keep every promise. Proposed, never ruled on.
 fn candidates(world: &Saturated, origin: &BTreeMap<&str, &Fact>) -> Vec<Candidate> {
     let mut out = BTreeSet::new();
@@ -288,7 +294,7 @@ fn candidates(world: &Saturated, origin: &BTreeMap<&str, &Fact>) -> Vec<Candidat
             .filter_map(|id| origin.get(*id).map(|f| f.facet.clone()))
             .collect();
         out.insert(Candidate {
-            kind: "duplicate-proposition".into(),
+            kind: DUPLICATE_PROPOSITION.into(),
             claims: vec![a, b],
             facets,
             detail:
@@ -319,7 +325,7 @@ fn candidates(world: &Saturated, origin: &BTreeMap<&str, &Fact>) -> Vec<Candidat
             .filter_map(|id| origin.get(id.as_str()).map(|f| f.facet.clone()))
             .collect();
         out.insert(Candidate {
-            kind: "subsumed-claim".into(),
+            kind: SUBSUMED_CLAIM.into(),
             claims,
             facets,
             detail: format!(

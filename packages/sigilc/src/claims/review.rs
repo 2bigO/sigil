@@ -13,8 +13,10 @@
 //! the check already derived. Only exact repeats are folded together, each
 //! keeping every place it came from.
 use super::{
-    context::{CONTEXT_VERSION, Context, Coverage, Obligation},
-    findings::{Class, Identity, REPORT_VERSION, Report, State},
+    context::{
+        CONTEXT_VERSION, Context, Coverage, DUPLICATE_PROPOSITION, Obligation, SUBSUMED_CLAIM,
+    },
+    findings::{Class, Identity, REPORT_VERSION, Report, State, serde_name},
     identity::Body,
     link::{Linked, SourceEvidence, WORKSPACE},
     program::{self, Saturated, text},
@@ -189,12 +191,25 @@ pub struct UnitEntry {
     /// The owning component's alias.
     pub component: String,
     pub section: String,
-    /// interpreted, read-without-commitment, uninterpreted, unread or refused.
-    pub coverage: String,
+    pub coverage: UnitCoverage,
     /// The unit's prose as exact UTF-8 bytes of the source the check loaded.
     pub location: Option<Location>,
     /// A JSON pointer into the judgment context.
     pub context: String,
+}
+
+/// How far the check got with one unit, with what is unread or refused taking
+/// precedence over the context's own account.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum UnitCoverage {
+    Interpreted,
+    ReadWithoutCommitment,
+    Uninterpreted,
+    /// No valid stored reading.
+    Unread,
+    /// A stored reading that admission refused.
+    Refused,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -364,16 +379,8 @@ pub fn build(inputs: &Inputs) -> Bundle {
         steps,
     };
     let unit_alias = |facet: &str| names.units.get(facet).cloned().unwrap_or_default();
-    let unit_of_claim: BTreeMap<&str, &str> = context
-        .units
-        .iter()
-        .flat_map(|u| {
-            u.asserted
-                .iter()
-                .map(|a| (a.claim.as_str(), u.facet.as_str()))
-        })
-        .collect();
-    let at = |claim: &str| match unit_of_claim.get(claim) {
+    let facet_of_claim = |claim: &str| claim_at.get(claim).map(|(u, _)| &context.units[*u].facet);
+    let at = |claim: &str| match facet_of_claim(claim) {
         Some(facet) => format!("{}@{}", names.claim(claim), unit_alias(facet)),
         None => names.claim(claim),
     };
@@ -391,12 +398,12 @@ pub fn build(inputs: &Inputs) -> Bundle {
         })
         .collect();
     let coverage = |facet: &str, coverage: Coverage| match unread_of.get(facet) {
-        Some(true) => "refused",
-        Some(false) => "unread",
+        Some(true) => UnitCoverage::Refused,
+        Some(false) => UnitCoverage::Unread,
         None => match coverage {
-            Coverage::Interpreted => "interpreted",
-            Coverage::ReadWithoutCommitment => "read-without-commitment",
-            Coverage::Uninterpreted => "uninterpreted",
+            Coverage::Interpreted => UnitCoverage::Interpreted,
+            Coverage::ReadWithoutCommitment => UnitCoverage::ReadWithoutCommitment,
+            Coverage::Uninterpreted => UnitCoverage::Uninterpreted,
         },
     };
     let unresolved = report.unresolved_imports.as_deref().unwrap_or_default();
@@ -411,11 +418,11 @@ pub fn build(inputs: &Inputs) -> Bundle {
     };
     for unit in &context.units {
         match coverage(&unit.facet, unit.coverage) {
-            "interpreted" => totals.interpreted += 1,
-            "read-without-commitment" => totals.read_without_commitment += 1,
-            "uninterpreted" => totals.uninterpreted += 1,
-            "unread" => totals.unread += 1,
-            _ => totals.refused += 1,
+            UnitCoverage::Interpreted => totals.interpreted += 1,
+            UnitCoverage::ReadWithoutCommitment => totals.read_without_commitment += 1,
+            UnitCoverage::Uninterpreted => totals.uninterpreted += 1,
+            UnitCoverage::Unread => totals.unread += 1,
+            UnitCoverage::Refused => totals.refused += 1,
         }
     }
 
@@ -431,29 +438,44 @@ pub fn build(inputs: &Inputs) -> Bundle {
         })
         .collect();
 
+    // Each source is hashed once, however many units it holds.
+    let digests: BTreeMap<&str, String> = input
+        .sources
+        .iter()
+        .map(|s| (s.path.as_str(), sha256(s.text.as_bytes())))
+        .collect();
+    let input_unit: BTreeMap<&str, &crate::structure::Unit> =
+        input.units.iter().map(|u| (u.id.as_str(), u)).collect();
     let mut units: Vec<UnitEntry> = context
         .units
         .iter()
         .enumerate()
-        .map(|(u, unit)| UnitEntry {
-            alias: unit_alias(&unit.facet),
-            facet: unit.facet.clone(),
-            source: input
-                .units
-                .iter()
-                .find(|i| i.id == unit.facet)
-                .map(|i| i.source.clone())
-                .unwrap_or_default(),
-            component: names.of(&unit.component),
-            section: unit.section.clone(),
-            coverage: coverage(&unit.facet, unit.coverage).to_owned(),
-            location: Location::design(input, &unit.facet),
-            context: format!("/units/{u}"),
+        .map(|(u, unit)| {
+            let located = input_unit.get(unit.facet.as_str());
+            UnitEntry {
+                alias: unit_alias(&unit.facet),
+                facet: unit.facet.clone(),
+                source: located.map(|i| i.source.clone()).unwrap_or_default(),
+                component: names.of(&unit.component),
+                section: unit.section.clone(),
+                coverage: coverage(&unit.facet, unit.coverage),
+                location: located.and_then(|i| {
+                    let digest = digests.get(i.source.as_str())?;
+                    Some(Location::with_digest(
+                        "design",
+                        &i.source,
+                        digest.clone(),
+                        i.prose_range.clone(),
+                    ))
+                }),
+                context: format!("/units/{u}"),
+            }
         })
         .collect();
     units.sort_by(|a, b| number(&a.alias).cmp(&number(&b.alias)));
 
-    let mut claims: Vec<ClaimEntry> = claim_at
+    // Claim aliases follow `claim_at`'s order, so these come out in alias order.
+    let claims: Vec<ClaimEntry> = claim_at
         .iter()
         .map(|(id, (u, a))| ClaimEntry {
             alias: names.claim(id),
@@ -462,7 +484,6 @@ pub fn build(inputs: &Inputs) -> Bundle {
             context: format!("/units/{u}/asserted/{a}"),
         })
         .collect();
-    claims.sort_by(|a, b| number(&a.alias).cmp(&number(&b.alias)));
 
     // Conclusions the laws inferred. One a claim states directly is that claim
     // again, so it is not repeated.
@@ -488,23 +509,18 @@ pub fn build(inputs: &Inputs) -> Bundle {
         if law == "asserted" {
             continue;
         }
-        let key = (text(row, 0), text(row, 1), text(row, 2));
         let witness = text(row, 4);
-        let pointers = derived_at
-            .get(&(
-                key.0.clone(),
-                key.1.clone(),
-                key.2.clone(),
-                law.clone(),
-                witness.clone(),
-            ))
-            .cloned()
-            .unwrap_or_default();
-        inferred.entry(key).or_default().insert(Derivation {
-            law,
-            witness,
-            context: pointers,
-        });
+        let full = (text(row, 0), text(row, 1), text(row, 2), law, witness);
+        let pointers = derived_at.get(&full).cloned().unwrap_or_default();
+        let (subject, relation, object, law, witness) = full;
+        inferred
+            .entry((subject, relation, object))
+            .or_default()
+            .insert(Derivation {
+                law,
+                witness,
+                context: pointers,
+            });
     }
     let conclusions: Vec<ConclusionEntry> = inferred
         .into_iter()
@@ -565,13 +581,15 @@ pub fn build(inputs: &Inputs) -> Bundle {
         .iter()
         .enumerate()
         .map(|(n, finding)| {
-            let mut units: BTreeSet<String> = finding
+            // Unit aliases follow facet order, so a set of facets is already
+            // in alias order.
+            let mut facets: BTreeSet<&str> = finding
                 .claims
                 .iter()
-                .filter_map(|c| unit_of_claim.get(c.as_str()).map(|f| unit_alias(f)))
+                .filter_map(|c| facet_of_claim(c).map(String::as_str))
                 .collect();
             if names.units.contains_key(&finding.object) {
-                units.insert(unit_alias(&finding.object));
+                facets.insert(&finding.object);
             }
             let obligations = if finding.class == Class::UnmetObligation {
                 raised
@@ -588,8 +606,7 @@ pub fn build(inputs: &Inputs) -> Bundle {
             } else {
                 Vec::new()
             };
-            let mut units: Vec<String> = units.into_iter().collect();
-            units.sort_by_key(|a| number(a));
+            let units = facets.into_iter().map(&unit_alias).collect();
             FindingEntry {
                 alias: format!("F{}", n + 1),
                 report: format!("/findings/{n}"),
@@ -716,7 +733,7 @@ fn simplifications(context: &Context, names: &Names) -> Vec<(SimplificationEntry
         root
     }
     for candidate in &context.simplification {
-        if candidate.kind == "duplicate-proposition"
+        if candidate.kind == DUPLICATE_PROPOSITION
             && let [first, rest @ ..] = candidate.claims.as_slice()
         {
             for other in rest {
@@ -740,7 +757,7 @@ fn simplifications(context: &Context, names: &Names) -> Vec<(SimplificationEntry
         members.entry(root).or_default().insert(id);
     }
     for (n, candidate) in context.simplification.iter().enumerate() {
-        let claims: BTreeSet<String> = if candidate.kind == "duplicate-proposition" {
+        let claims: BTreeSet<String> = if candidate.kind == DUPLICATE_PROPOSITION {
             candidate
                 .claims
                 .first()
@@ -817,10 +834,7 @@ fn render(view: &View) -> String {
     ));
     line(format!(
         "State: {}. Findings: {}. Units: {} (interpreted {}, read-without-commitment {}, uninterpreted {}, unread {}, refused {}). Unresolved imports: {}.",
-        serde_json::to_value(scope.state)
-            .ok()
-            .and_then(|v| v.as_str().map(str::to_owned))
-            .unwrap_or_default(),
+        serde_name(&scope.state),
         scope.findings,
         totals.units,
         totals.interpreted,
@@ -890,7 +904,10 @@ fn render(view: &View) -> String {
         }
         let mut text = format!(
             "{} {} {} · {}",
-            entry.alias, entry.component, entry.section, entry.coverage
+            entry.alias,
+            entry.component,
+            entry.section,
+            serde_name(&entry.coverage)
         );
         if !program::commits(&entry.section) {
             text.push_str(" · non-committing");
@@ -899,7 +916,7 @@ fn render(view: &View) -> String {
         // A flow reads in step order: each step, then what it does and what
         // guards it. Every other claim comes first.
         let mut asserted: Vec<_> = unit.asserted.iter().collect();
-        asserted.sort_by_key(|a| {
+        asserted.sort_by_cached_key(|a| {
             let place = match &a.body {
                 Body::Step { ordinal } => (*ordinal, 0),
                 Body::Claim { subject, .. } => names.steps.get(subject).map_or((0, 0), |o| (*o, 1)),
@@ -965,10 +982,7 @@ fn render(view: &View) -> String {
     // A detail sentence shared by many findings is written once, as a note.
     let mut notes: Vec<&str> = Vec::new();
     for (entry, finding) in evidence.findings.iter().zip(&report.findings) {
-        let class = serde_json::to_value(finding.class)
-            .ok()
-            .and_then(|v| v.as_str().map(str::to_owned))
-            .unwrap_or_default();
+        let class = serde_name(&finding.class);
         let mut text = format!(
             "{} {class} {}: {} → {}",
             entry.alias,
@@ -1031,7 +1045,7 @@ fn render(view: &View) -> String {
         for (entry, ids) in evidence.simplifications.iter().zip(grouped.iter()) {
             let claims: Vec<String> = ids.iter().map(|id| at(id)).collect();
             let mut text = format!("{} {}: {}", entry.alias, entry.kind, claims.join(", "));
-            if entry.kind == "subsumed-claim" {
+            if entry.kind == SUBSUMED_CLAIM {
                 text.push_str(" (already derived by another route)");
             }
             line(text);

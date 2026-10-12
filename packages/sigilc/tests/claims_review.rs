@@ -173,7 +173,7 @@ impl Checked {
         let found: Vec<&str> = self
             .view
             .lines()
-            .filter(|l| l.trim_start().split_whitespace().next() == Some(alias))
+            .filter(|l| l.split_whitespace().next() == Some(alias))
             .collect();
         assert_eq!(
             found.len(),

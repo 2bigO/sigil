@@ -1835,10 +1835,13 @@ Deno.test("skill discovery resolves valid skills from the source installation", 
   assertEquals(legacy.compatibility.requirements.sigilcVersion, "^0.1.0");
   assertEquals(legacy.compatibility.languageCompatible, false);
   assertEquals(legacy.compatibility.runtimeValidation, "not-run");
+  const catalog: {
+    name: string;
+    compatibility: { requirements: { requiredSkills: string[] } };
+  }[] = parseJson(listed.stdout).catalog;
   const requires = (name: string) =>
-    parseJson(listed.stdout).catalog.find((s: { name: string }) =>
-      s.name === name
-    ).compatibility.requirements.requiredSkills.join(",");
+    catalog.find((s) => s.name === name)!.compatibility.requirements
+      .requiredSkills.join(",");
   assertEquals(
     requires("sigil-evaluate"),
     "sigil-understand,sigil-compute-design",
