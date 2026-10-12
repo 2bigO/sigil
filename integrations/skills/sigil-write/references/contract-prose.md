@@ -182,10 +182,13 @@ A new Tag that only one Facet uses is often a synonym in disguise. Check the
 inventory again before keeping it.
 
 A computed review lists names the prose relies on that no Tag in its Facet
-covers. Treat each as a candidate for this order, not as a list to clear.
-Reuse or import when the name means an existing Tag, define one Tag when it
-names a real subject or object no Tag covers, and leave context wording such as
-a framework name or "who is acting" as prose.
+covers. Run each through this order. Reuse or import when the name means an
+existing Tag. Define one Tag when the name is the subject or object of a
+promise and no Tag covers it, even when it reads as ordinary wording: in
+"Cancelling a pending booking releases its range", `range` is the object, and
+without a Tag the check cannot see a promise elsewhere about the same range.
+Leave only context wording, such as a framework name or "who is acting", as
+prose.
 
 If a concept seems to belong to a Component outside your authored scope, and
 that Component does not define it, the owner is a design question. Record it as

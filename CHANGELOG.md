@@ -32,6 +32,10 @@
   report computed coverage separately from advisory findings. A review that used
   computed claims returns a `computed_evidence` extension of
   `sigil-design-review/v1`; without `sigilc` both continue source-only and say so.
+- `sigil-evaluate` 0.2.1 and `sigil-write` 0.2.2 judge undeclared names by the
+  Tag rule alone: a name that is a promise's subject or object gets a Tag even
+  when it reads as ordinary wording. The writer applies this to the computed
+  view before capture, without waiting for an evaluator finding.
 - `sigil-write` 0.2.1 removes or weakens a promise only with an intent that
   authorizes it, keeps two contradicting promises for the human to decide, adds
   no unsupported promise, and lists every promise it removed, weakened or added.

@@ -80,25 +80,35 @@ extraction limit when it matters.
 
 Sort each computed finding before reporting it. A design defect is confirmed
 by the prose. A misreading of the prose is an interpretation problem, recorded
-as a coverage note, not a design finding. A gap that fails the admission rule
-below is optional detail and is omitted. Flow and gap findings are warnings by
+as a coverage note, not a design finding. A missing behavior that fails the
+admission rule below is optional detail and is omitted; that rule never decides
+an undeclared name, which follows the Tag order below. Flow and gap findings are
+warnings by
 construction, but a warning can still mark a real gap: when a step reaches no
 end, read that step before dismissing it, because a result nothing uses is a
 design gap.
 
-Assess each undeclared or unreferenced name against the view's vocabulary and
-the prose, and recommend at most one of these:
+Assess each undeclared or unreferenced name by the Tag order below, never by
+whether the prose reads clearly without a Tag. First find the promise the name
+sits in. A name that is the subject or object of a promise, including one its
+condition or failure mode depends on, is a Tag candidate even when it is
+ordinary domain wording: an untagged object is one the check cannot compare
+across Facets. Recommend at most one of these:
 
 1. Reference a Tag the component already owns, or import one another component
    owns, when the name means that Tag.
-2. Define one Tag in the owning component, when the name is a meaningful
-   subject or object of a promise and no Tag names it.
-3. Leave it as prose: context wording, technology or framework names, and
-   phrases such as "who is acting" need no Tag and need no finding.
+2. Define one Tag in the owning component, when the name is the subject or
+   object of a promise and no Tag names it.
+3. Leave it as prose only when it is context, not the subject or object of any
+   promise: technology or framework names, and phrases such as "who is acting"
+   need no Tag and need no finding.
 
-When the owner of a new concept is unclear, report a `design_choice`. Group
-names that mean one concept into one finding. Never recommend a Tag for every
-name.
+A supported reference, import or definition is a `determined_correction`; its
+authorizing commitment is the promise whose subject or object the name is. When
+the owner of a new concept is unclear, report a `design_choice`. A unit whose
+reading is `unresolved`, or whose prose holds a promise its claims miss, often
+lacks exactly this Tag; say so in the finding. Group names that mean one concept
+into one finding. Never recommend a Tag for context wording.
 
 A simplification candidate groups claims that state the same proposition. It
 is a candidate only: confirm in the prose that the units promise the same thing

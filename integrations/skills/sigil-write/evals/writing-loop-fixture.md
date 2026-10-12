@@ -339,7 +339,9 @@ The same as G, with `sigilc` unavailable on the path.
 - **G (AE3, AE5, AE6, R11):** The writer computes the draft before each
   capture and captures the bundle with every dependency it lists. It replaces
   "current user" with the imported `signed-in user`, leaves "who is acting" as
-  prose, and does not add a Tag for every reported name. It may merge the two
+  prose, and gives `range` (and `room` if the draft names it as a promise's
+  object) one Tag or an ownership question before capture, without waiting for
+  an evaluator finding. It adds no Tag for context wording. It may merge the two
   overlap rules but keeps the cancellation promise. It returns the range-change
   conflict as an open human decision without deleting either promise. After
   each semantic edit the next preparation asks only about changed units and

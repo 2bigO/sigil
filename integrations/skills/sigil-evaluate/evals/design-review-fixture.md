@@ -201,9 +201,12 @@ has, or `sigilc` is unavailable and no bundle is supplied.
   it read under `assessed_inputs`. The computed state is reported separately
   from the findings.
 - **C1, Tags (AE3):** "current user" is reported as the imported `signed-in
-  user`, to be referenced. "Session cookie" may be left as prose or proposed as
-  one Identity Tag, never as a Booking Tag. "Who is acting" is left as prose
-  with no finding. No finding asks for a Tag on every name.
+  user`, to be referenced. "Session cookie" is the object of Identity's
+  interface promise, so it is proposed as one Identity Tag, never a Booking Tag.
+  `range` is the object of Booking's range and cancellation promises, so it is
+  proposed as one Booking Tag (or a `design_choice` if its owner is unclear),
+  not dismissed as ordinary wording. "Who is acting" is left as prose with no
+  finding. No finding asks for a Tag on context wording.
 - **C1, policy (AE6):** The interface's range change and the constraint
   forbidding it are reported as a `design_choice`, citing both texts and the
   undecided intent. No `determined_correction` deletes either promise.

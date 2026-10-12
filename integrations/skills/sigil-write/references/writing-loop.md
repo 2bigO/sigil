@@ -56,6 +56,12 @@ the view, report, and context files. If they differ, the workspace changed
 during preparation: run it once more. If it still differs, record computed
 coverage as unavailable and continue.
 
+Before capture, apply the Tag order in [contract prose](contract-prose.md) to
+every undeclared or unreferenced name the view lists for the authored scope.
+The Tag rule determines these corrections, so they need no evaluator finding;
+an evaluator that calls such a name ordinary wording does not cancel them.
+Recompute after the edit.
+
 If `sigilc` is missing or too old, or the preparation fails, continue the loop
 from the sources and record computed coverage as unavailable with the reason.
 Do not install a compiler or interpret the prose into claims yourself.
@@ -135,11 +141,12 @@ Before removing or weakening any promise, name the existing intent or commitment
 that authorizes the removal. With none, the promise stays. Never add a promise
 that no intent, source, or supported correction states.
 
-For a finding about an undeclared or unreferenced name, follow the Tag order in
+For an undeclared or unreferenced name, follow the Tag order in
 [contract prose](contract-prose.md): reference or import the existing Tag the
-name means, define one Tag in the owner only for a meaningful subject or object
-no Tag names, and leave context wording as prose. Do not turn every reported
-phrase into a Tag. An unclear owner stays a question for the human.
+name means, define one Tag in the owner when the name is the subject or object
+of a promise and no Tag names it, and leave only context wording as prose. That
+the prose reads clearly without a Tag is not a reason to skip one. Do not turn
+context phrases into Tags. An unclear owner stays a question for the human.
 
 An incomplete report can contain supported findings, but cannot certify omitted
 scope. Never treat its missing coverage as an empty findings list. Apply only
