@@ -238,6 +238,9 @@ pub struct Derivation {
     pub witness: String,
     /// Pointers into the judgment context, where a unit carries it.
     pub context: Vec<String>,
+    /// Aliases of the claims and conclusions the law combined, so a conclusion
+    /// whose witness is a component or graph still leads to its support.
+    pub premises: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -306,6 +309,50 @@ impl Names {
             .cloned()
             .unwrap_or_else(|| format!("{id:?}"))
     }
+}
+
+/// The claims and conclusions one derivation combined, read back from the law
+/// that produced it in `claims.egg`.
+fn premises(
+    stated_by: &BTreeMap<(String, String, String), Vec<String>>,
+    (subject, _, object): (&String, &String, &String),
+    law: &str,
+    witness: &str,
+    own: &str,
+) -> Vec<String> {
+    let fact = |s: &str, p: &str, o: &str| (s.to_owned(), p.to_owned(), o.to_owned());
+    let facts: Vec<(String, String, String)> = match law {
+        "dependency-direct" => vec![fact(subject, "dependsOn", object)],
+        "dependency-transitive" => vec![
+            fact(subject, "reachable", witness),
+            fact(witness, "dependsOn", object),
+        ],
+        "delegated-capability" => vec![
+            fact(subject, "delegates", witness),
+            fact(witness, "provides", object),
+        ],
+        "flow-end-direct" => vec![fact(subject, "to", object)],
+        // The next step reaches an end by any of its own derivations.
+        "flow-end-transitive" => std::iter::once(fact(subject, "to", object))
+            .chain(
+                stated_by
+                    .keys()
+                    .filter(|(s, p, _)| s == object && p == "flow-end")
+                    .cloned(),
+            )
+            .collect(),
+        _ => Vec::new(),
+    };
+    let mut found: Vec<String> = facts
+        .iter()
+        .filter_map(|f| stated_by.get(f))
+        .flatten()
+        .filter(|alias| alias.as_str() != own)
+        .cloned()
+        .collect();
+    found.sort_by(|a, b| (&a[..1], number(a)).cmp(&(&b[..1], number(b))));
+    found.dedup();
+    found
 }
 
 fn aliases<'a>(
@@ -503,37 +550,63 @@ pub fn build(inputs: &Inputs) -> Bundle {
                 .push(format!("/units/{u}/derived/{d}"));
         }
     }
-    let mut inferred: BTreeMap<(String, String, String), BTreeSet<Derivation>> = BTreeMap::new();
+    type Fact = (String, String, String);
+    let mut inferred: BTreeMap<Fact, BTreeSet<(String, String, Vec<String>)>> = BTreeMap::new();
+    // The aliases that state each fact: the claims asserting it, then the
+    // conclusion inferring it.
+    let mut stated_by: BTreeMap<Fact, Vec<String>> = BTreeMap::new();
     for row in world.table("because") {
         let law = text(row, 3);
+        let witness = text(row, 4);
+        let fact = (text(row, 0), text(row, 1), text(row, 2));
         if law == "asserted" {
+            if let Some(alias) = names.claims.get(&witness) {
+                stated_by.entry(fact).or_default().push(alias.clone());
+            }
             continue;
         }
-        let witness = text(row, 4);
-        let full = (text(row, 0), text(row, 1), text(row, 2), law, witness);
+        let full = (fact.0, fact.1, fact.2, law, witness);
         let pointers = derived_at.get(&full).cloned().unwrap_or_default();
         let (subject, relation, object, law, witness) = full;
         inferred
             .entry((subject, relation, object))
             .or_default()
-            .insert(Derivation {
-                law,
-                witness,
-                context: pointers,
-            });
+            .insert((law, witness, pointers));
+    }
+    for (n, fact) in inferred.keys().enumerate() {
+        stated_by
+            .entry(fact.clone())
+            .or_default()
+            .push(format!("D{}", n + 1));
     }
     let conclusions: Vec<ConclusionEntry> = inferred
-        .into_iter()
+        .iter()
         .enumerate()
-        .map(
-            |(n, ((subject, relation, object), derivations))| ConclusionEntry {
-                alias: format!("D{}", n + 1),
-                subject,
-                relation,
-                object,
-                derivations: derivations.into_iter().collect(),
-            },
-        )
+        .map(|(n, ((subject, relation, object), derivations))| {
+            let alias = format!("D{}", n + 1);
+            let derivations = derivations
+                .iter()
+                .map(|(law, witness, context)| Derivation {
+                    premises: premises(
+                        &stated_by,
+                        (subject, relation, object),
+                        law,
+                        witness,
+                        &alias,
+                    ),
+                    law: law.clone(),
+                    witness: witness.clone(),
+                    context: context.clone(),
+                })
+                .collect();
+            ConclusionEntry {
+                alias,
+                subject: subject.clone(),
+                relation: relation.clone(),
+                object: object.clone(),
+                derivations,
+            }
+        })
         .collect();
 
     let mut raised: Vec<(&Obligation, (usize, usize))> = context
@@ -947,14 +1020,27 @@ fn render(view: &View) -> String {
                 .iter()
                 .map(|d| d.law.as_str())
                 .collect();
-            line(format!(
+            let mut premises: Vec<&str> = Vec::new();
+            for derivation in &conclusion.derivations {
+                for premise in &derivation.premises {
+                    if !premises.contains(&premise.as_str()) {
+                        premises.push(premise);
+                    }
+                }
+            }
+            let mut text = format!(
                 "{} {} {} {} ({})",
                 conclusion.alias,
                 names.of(&conclusion.subject),
                 conclusion.relation,
                 names.of(&conclusion.object),
                 laws.into_iter().collect::<Vec<_>>().join(", ")
-            ));
+            );
+            if !premises.is_empty() {
+                text.push_str(" · from ");
+                text.push_str(&premises.join(" "));
+            }
+            line(text);
         }
     }
 

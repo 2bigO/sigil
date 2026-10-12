@@ -77,7 +77,10 @@ bytes in temporary storage outside authored Sigil and source discovery. With
 computed evidence, also capture the review view, evidence file, report, and
 judgment context, and every source and configuration file the evidence file
 lists, at their original relative paths. Record them under the contract's
-`computed_evidence`, kept apart from the semantic inputs. Hash
+`computed_evidence`, kept apart from the semantic inputs. Each captured
+dependency must have the SHA-256 the evidence file's `inputs` records, and each
+file it records as absent must still be absent; otherwise a source changed
+after the check, so prepare again before capture. Hash
 the saved bytes using host tools and retain their original locations and source
 root. Preserve relative layout where possible; retain explicit mappings even
 then. Capture conversational intent as an identified immutable input. Include

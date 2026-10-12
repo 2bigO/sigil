@@ -32,7 +32,8 @@ private store, and the workspace's claims cache; it never edits design sources.
 
 Read the review view whole. It lists every unit with its coverage, every claim
 under its unit, the inferred conclusions, obligations, findings, and
-simplification candidates, all by aliases local to that bundle. Do not load the
+simplification candidates, all by aliases local to that bundle. A conclusion
+names the claims and conclusions it was inferred from after `from`. Do not load the
 full judgment context as a substitute for the view; read one entry of it, or of
 the report, through the pointer the evidence file gives for an alias.
 

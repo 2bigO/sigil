@@ -88,7 +88,7 @@ by `sigil-compute-design`'s review preparation. It holds:
 | `state` | The final linked check's state and `workspaceDigest`. |
 | `source_root` | The original workspace root the check ran against. |
 | `bundle` | The review view, evidence file, report, and judgment context: each with its original store path, `captured_path`, and `sha256`. |
-| `dependencies` | Every source and configuration file the evidence file's `inputs` names, with original path, captured path, and `sha256`; an absent configuration file is listed as absent. |
+| `dependencies` | Every source and configuration file the evidence file's `inputs` names, with original path, captured path, and `sha256` of the captured bytes, which must equal the digest `inputs` records; an absent configuration file is listed as absent. |
 | `authority` | The `sigilc` identity from the evidence file, its guidance fingerprint and vocabulary generation, and the `sigil-compute-design` skill version. |
 | `coverage` | The evidence file's coverage totals, and the unread units inside and outside the review scope. |
 
@@ -102,9 +102,13 @@ one.
 A delegated evaluator uses the supplied bundle and runs no computation against
 `captured_root`. Before reading it, it checks every `bundle` and `dependencies`
 hash against the captured bytes and checks that the evidence file's own
-`artifacts` hashes match the captured view, report, and context. Any mismatch
-leaves computed coverage unavailable for that request; the source-grounded
-assessment may continue.
+`artifacts` hashes match the captured view, report, and context. It also checks
+that `dependencies` are exactly the evidence file's `inputs`: the same relative
+paths, the same SHA-256 for each, and the same files absent. A source edited
+after the check but before capture passes the first checks with new bytes the
+view does not describe; only this comparison catches it. Any mismatch leaves
+computed coverage unavailable for that request; the source-grounded assessment
+may continue.
 
 ## Report
 

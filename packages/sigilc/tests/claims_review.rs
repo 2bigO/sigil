@@ -910,3 +910,141 @@ fn the_evidence_records_the_bytes_the_check_loaded_not_what_is_on_disk_later() {
         sha256(bundle.view.as_bytes())
     );
 }
+
+// ------------------------------------------------------------ conclusions
+
+const LEDGER_SOURCE: &str = "component Ledger {
+  interface {
+    Ledger provides an *entry*.
+  }
+}
+";
+
+const BILLING_SOURCE: &str = "@ledger.sigil from Ledger import { entry }
+component Billing {
+  goal {
+    Billing depends on Ledger.
+  }
+  interface {
+    Billing provides a *charge*.
+  }
+}
+";
+
+const SHOP_SOURCE: &str = "@billing.sigil from Billing import { charge }
+component Shop {
+  goal {
+    Shop depends on Billing and hands charging to it.
+  }
+  logic {
+    Shop takes an order, then charges it, and the charge ends the order.
+  }
+}
+";
+
+#[test]
+fn a_conclusion_witnessed_by_a_component_or_graph_still_names_its_premises() {
+    let run = Run::new();
+    run.write("ledger.sigil", LEDGER_SOURCE);
+    run.write("billing.sigil", BILLING_SOURCE);
+    run.write("shop.sigil", SHOP_SOURCE);
+    run.read("ledger.sigil", &|p| {
+        let iface = p.facet("Ledger provides");
+        format!("(claim {iface:?} \"Ledger\" \"provides\" \"entry\" \"required\" \"true\")\n")
+    });
+    run.read("billing.sigil", &|p| {
+        let goal = p.facet("depends on Ledger");
+        let iface = p.facet("Billing provides");
+        format!(
+            "(claim {goal:?} \"Billing\" \"dependsOn\" \"Ledger\" \"required\" \"true\")
+(claim {iface:?} \"Billing\" \"provides\" \"charge\" \"required\" \"true\")
+"
+        )
+    });
+    run.read("shop.sigil", &|p| {
+        let goal = p.facet("Shop depends");
+        let logic = p.facet("takes an order");
+        format!(
+            "(claim {goal:?} \"Shop\" \"dependsOn\" \"Billing\" \"required\" \"true\")
+(claim {goal:?} \"Shop\" \"delegates\" \"Billing\" \"required\" \"true\")
+(step {logic:?} \"1\")
+(step {logic:?} \"2\")
+(claim {logic:?} \"step:1\" \"to\" \"step:2\" \"required\" \"true\")
+(end {logic:?} \"2\")
+"
+        )
+    });
+    let checked = run.check(None);
+
+    let claim = |relation: &str, subject: &str| {
+        checked.claim(|b| {
+            b["relation"] == relation && b["subject"].as_str().unwrap().ends_with(subject)
+        })
+    };
+    let step = |ordinal: u64| -> String {
+        let alias = checked.claim(|b| b["kind"] == "step" && b["ordinal"] == ordinal);
+        checked
+            .entries("claims")
+            .iter()
+            .find(|c| c["alias"] == alias.as_str())
+            .unwrap()["id"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    // The premises of the one derivation by `law` about `subject`, and the
+    // alias of the conclusion it supports.
+    let derived = |law: &str, subject: &str| -> (String, Vec<String>) {
+        let found: Vec<(String, Vec<String>)> = checked
+            .entries("conclusions")
+            .iter()
+            .filter(|c| c["subject"].as_str().unwrap().ends_with(subject))
+            .flat_map(|c| {
+                c["derivations"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|d| d["law"] == law)
+                    .map(|d| {
+                        let premises = d["premises"].as_array().unwrap();
+                        (
+                            c["alias"].as_str().unwrap().to_owned(),
+                            premises
+                                .iter()
+                                .map(|a| a.as_str().unwrap().to_owned())
+                                .collect(),
+                        )
+                    })
+            })
+            .collect();
+        assert_eq!(found.len(), 1, "one {law} derivation about {subject}");
+        found[0].clone()
+    };
+
+    let (shop_reaches_billing, premises) = derived("dependency-direct", "Shop");
+    assert_eq!(premises, [claim("dependsOn", "Shop")]);
+    let (_, premises) = derived("dependency-direct", "Billing");
+    assert_eq!(premises, [claim("dependsOn", "Billing")]);
+    let (_, premises) = derived("dependency-transitive", "Shop");
+    assert_eq!(
+        premises,
+        [claim("dependsOn", "Billing"), shop_reaches_billing]
+    );
+    let (_, premises) = derived("delegated-capability", "Shop");
+    assert_eq!(
+        premises,
+        [claim("delegates", "Shop"), claim("provides", "Billing")]
+    );
+
+    let (first, second) = (step(1), step(2));
+    let (second_ends, premises) = derived("flow-end-direct", &second);
+    assert_eq!(premises, [claim("to", &second)]);
+    let (_, premises) = derived("flow-end-transitive", &first);
+    assert_eq!(premises, [claim("to", &first), second_ends]);
+
+    // The view names each conclusion's premises on its line.
+    for c in checked.entries("conclusions") {
+        let line = checked.line(c["alias"].as_str().unwrap());
+        assert!(line.contains(" · from "), "{line}");
+    }
+}

@@ -32,6 +32,15 @@
   report computed coverage separately from advisory findings. A review that used
   computed claims returns a `computed_evidence` extension of
   `sigil-design-review/v1`; without `sigilc` both continue source-only and say so.
+- Each inferred conclusion in the review evidence names its `premises`: the
+  claims and conclusions its law combined, also shown in the view after
+  `from`. Conclusions witnessed by a component or graph, such as dependency
+  reachability, delegated capabilities and flow ends, previously had no
+  pointer to their support.
+- `sigil-evaluate` 0.2.4 and `sigil-write` 0.2.4 require each captured
+  dependency to match the digest the evidence file's `inputs` records, so a
+  source edited between the check and capture cannot pass as current.
+  `sigil-compute-design` 0.5.1 documents conclusion premises.
 - `sigil-evaluate` 0.2.3 judges each step that reaches no end on its own, as a
   result nothing uses, and sets aside a name only as an existing Tag or as
   context wording. It never counts a Decisions note as keeping an undecided

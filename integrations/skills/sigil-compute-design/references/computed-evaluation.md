@@ -73,7 +73,9 @@ entity, unit, claim, inferred conclusion, obligation, finding and
 simplification group of the workspace by a short alias that is local to that
 check, and lists coverage. The evidence file maps each alias to its full
 identity, to a JSON pointer into the report or context, and for a unit to the
-exact UTF-8 byte range and SHA-256 of the source bytes the check read. It also
+exact UTF-8 byte range and SHA-256 of the source bytes the check read. Each
+inferred conclusion also names the claims and conclusions its law combined, in
+the view after `from`. It also
 records every loaded source and configuration file by SHA-256, absent files
 included, and the SHA-256 of the view, report and context files. With
 `--source`, only the findings narrow; units, claims and coverage stay the
