@@ -9,7 +9,9 @@ creation, cancellation, and any enforced restrictions; run records belong
 outside the design workspace under validation.
 
 Advisory design review is a different job, kept by `sigil-evaluate`. This loop's
-only outputs are the ingest state and the findings report.
+only outputs are the ingest state and the findings report. The review
+preparation action below is how `sigil-evaluate` and `sigil-write` get current
+computed evidence before they judge; the judging stays theirs.
 
 ## The tool surface
 
@@ -55,7 +57,8 @@ that moved.
 
 Check prints a structured result with `version`, `scope`, `state`,
 `findings`, `unreadUnits`, `unresolvedImports`, `report`, `judgmentContext`,
-`workspaceDigest`, `vocabularyGeneration`, and `guidanceFingerprint`. Its state
+`reviewView`, `reviewEvidence`, `workspaceDigest`, `vocabularyGeneration`, and
+`guidanceFingerprint`. Its state
 adds `incomplete`: some unit has no valid reading, or an import does not
 resolve. The report (version 6) lists `unread` units by source, component,
 section, and Facet ids, and `unresolvedImports`. It is written to
@@ -63,6 +66,18 @@ section, and Facet ids, and `unresolvedImports`. It is written to
 with `--source`, with a matching `.linked.context.json`; ingest's files are
 never overwritten. `incomplete` and `disjoint` exit 1; `loose` and `coherent`
 exit 0.
+
+Beside them, check writes a review view (`.linked.review.md`) and its evidence
+file (`.linked.review.json`). The view carries no prose: it names every
+entity, unit, claim, inferred conclusion, obligation, finding and
+simplification group of the workspace by a short alias that is local to that
+check, and lists coverage. The evidence file maps each alias to its full
+identity, to a JSON pointer into the report or context, and for a unit to the
+exact UTF-8 byte range and SHA-256 of the source bytes the check read. It also
+records every loaded source and configuration file by SHA-256, absent files
+included, and the SHA-256 of the view, report and context files. With
+`--source`, only the findings narrow; units, claims and coverage stay the
+workspace's.
 
 Stored interpretations live under `<store>/claims/interpretations`. The
 findings report and the judgment context are written under `<store>/claims`.
@@ -168,6 +183,64 @@ A source whose stored reading a dependency's changed interface refused is
 unread in step 2, so the run re-reads it once. The next run finds it valid and
 launches no reader for it. With no edits since the last full run, the queue is
 empty, no reader launches, and the check hands back the same report.
+
+## Review preparation
+
+`sigil-evaluate` and `sigil-write` run this action before an advisory review.
+It is internal to them: a person who asks for a computed check gets the
+one-source loop or the full-design action, never this. It follows the same
+rules for the private store, the child handoff, the re-ask and the write-back
+as the full-design action.
+
+The caller names the review scope: the whole design, or one or more exact
+workspace-relative sources. It may name the private store to use.
+
+1. Seed the private store from the workspace's
+   `.sigil/claims/interpretations/`, as above.
+2. Run `check` with no `--source`, the workspace as `--root` and the private
+   store as `--store`. Its `unread` list is the work queue, grouped by source.
+   For the whole design, keep every source in the queue. For selected sources,
+   keep only theirs and leave every other source unread, even one a selected
+   source imports. Never read a source only to make the overall state pass.
+3. For each source left in the queue, prepare into a fresh empty preparation
+   directory, launch one fresh child only when prepare reports
+   `requestedUnits` greater than zero, ingest, and re-ask what ingest left
+   unread, exactly as the full-design action does. A source whose reader,
+   prepare, or ingest fails is recorded as failed, and the rest still run. An
+   empty queue launches no reader.
+4. Run `check` again with no `--source` over the same private store. This
+   final check is the computed evidence. Never narrow it with `--source`.
+5. Write back what the run read, as below.
+
+The final check is recognized by the linked-check rules under "Recognize a
+completed ingest". In addition, its result names `reviewView` and
+`reviewEvidence` under the private store, and the evidence file's `artifacts`
+give the SHA-256 of the exact view, report and context files beside it.
+
+Hand back to the caller, not to a person:
+
+- The computation: `workspace`, the final check's `state`, its
+  `workspaceDigest`, the private store, and the `report`, `judgmentContext`,
+  `reviewView` and `reviewEvidence` paths.
+- The review scope as requested.
+- Each source the run prepared, with how many readers it needed (zero when
+  prepare requested nothing), and each failed source with the step that failed
+  and why.
+- The unread units inside the scope and those outside it, each with its source
+  and its last refusal reason if it has one.
+
+The state is the workspace's. An `incomplete` state caused only by units
+outside the scope leaves the selected sources' own readings complete; the
+caller decides what that means for its assessment. Unread units inside the
+scope are a gap in the evidence for that scope. The state and findings always
+come from the final check; an ingest result is never relabeled as a linked one.
+
+When the compact view is unavailable — `sigilc` is missing, the final check's
+result names no `reviewView` or `reviewEvidence`, or the evidence hashes do not
+match the files — hand back what was observed and name the missing piece. A
+matched linked report without a review view is still a computed state, which
+the caller keeps while recording the compact view as unavailable. Never build
+a view from the context yourself, and never install or upgrade `sigilc`.
 
 ## Write back what the run read
 
@@ -280,7 +353,7 @@ For a linked `check`, the same rules apply with the check's result: the
 report's `source` equals the result's `scope` and its `state` equals the
 result's, `linked.workspaceDigest` equals the result's `workspaceDigest`, its
 `identity` carries the `guidanceFingerprint` and `vocabularyGeneration` the
-result names, and both paths lie under the private store.
+result names, and every path the result names lies under the private store.
 
 Anything else — a bare exit code, an old report, a malformed payload, a
 mismatch, or an operational failure — supplies no design state. Retain the
@@ -313,6 +386,8 @@ After a completed ingest, hand back:
 - The selected source, and the preparation identity: the binding digest, the
   workspace digest, and the seeded store the result describes.
 
+Review preparation hands back to its caller as its own section describes.
+
 Comparison states — Drift, Converged, Closed — are not this loop's states and
 must not appear as one. The state is the selected source's; a source reached
 only as an import is context, not a covered design.
@@ -322,7 +397,7 @@ only as an import is context, not a covered design.
 This loop evaluates an existing Sigil 0.9 design. It does not author, revise,
 or delete design files, and a 0.7 contract or a greenfield design is not its
 input. `sigil-write` still delegates its review to `sigil-evaluate`; this
-skill is not the writer's reviewer. The claims binary does not read skills:
+skill prepares the evidence for that review and never judges it. The claims binary does not read skills:
 `sigil-understand` and `sigil-egglog` stay host-loaded for the child, as
 [design-language authority](../../sigil-understand/SKILL.md) and
 [claims-dialect background](../../sigil-egglog/SKILL.md).

@@ -1,6 +1,6 @@
 ---
 name: sigil-compute-design
-description: Run the claims loop on an existing Sigil 0.9 design and hand back the ingest state — Coherent, Loose, Disjoint, or Incomplete — with the computed findings report, re-asking a unit the first reading got wrong, or, for the whole design, read every unread source and hand back the linked check's state, which may also be Incomplete. Use only when the request names design claims, `sigilc check`, computed design findings or checks, or this skill; a generic request to review or evaluate a design stays on `sigil-evaluate`.
+description: Run the claims loop on an existing Sigil 0.9 design and hand back the ingest state — Coherent, Loose, Disjoint, or Incomplete — with the computed findings report, re-asking a unit the first reading got wrong, or, for the whole design, read every unread source and hand back the linked check's state, which may also be Incomplete. Use only when the request names design claims, `sigilc check`, computed design findings or checks, or this skill; a generic request to review or evaluate a design stays on `sigil-evaluate`, which runs this skill's review preparation itself.
 ---
 
 # Computed design evaluation
@@ -25,6 +25,13 @@ and hands back its state (Coherent, Loose, Disjoint, or Incomplete) and report.
 Both actions copy the readings they added back to the workspace store, so the
 next run of either asks only about what changed. The contract's full-design
 section owns the steps.
+
+Review preparation is a third action, run only by `sigil-evaluate` and
+`sigil-write` before an advisory review. It reads what is unread in the review
+scope — the whole design, or the selected sources only — then runs one
+unfiltered linked check and hands its state, report, judgment context, review
+view and evidence file back to that caller. It never judges the design. The
+contract's review preparation section owns the steps.
 
 The loop's interpretation is one fresh child with no inherited conversation,
 loaded with the installed [understanding](../sigil-understand/SKILL.md) and

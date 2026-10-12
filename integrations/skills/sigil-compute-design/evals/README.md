@@ -66,7 +66,11 @@ Use this fixture:
   the full-design action: a second run with no edits launching no reader, a
   failed reader leaving an `incomplete` handback that names its source, a
   refused dependent reading re-read once and not again, and the one-source loop
-  running no linked check while writing back what it read.
+  running no linked check while writing back what it read. Scenario 16 covers
+  review preparation for `sigil-evaluate` and `sigil-write`: an unchanged rerun
+  launching no reader, a selected source read beside unrelated unread sources,
+  an edit asking only for the changed unit, a refused unit inside the scope, and
+  a compiler that writes no review view.
 
 ## Fault injection and limits
 

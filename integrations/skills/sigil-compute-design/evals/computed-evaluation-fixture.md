@@ -498,6 +498,63 @@ report the ingest state and findings.
 - 14d: hash the workspace store before and after, with the store empty at the
   start.
 
+## Scenario 16: review preparation for an advisory caller
+
+Each variant is an independent run with a fresh host, a fresh workspace and a
+workspace store the observer hashes before and after. The host is told it is
+running review preparation for `sigil-evaluate`: the request is the caller's
+handoff, not a person's. Inputs are scenario 14's `rooms.sigil` and
+`booking.sigil`, plus:
+
+### Input: `calendar.sigil`
+
+```sigil
+component Calendar {
+  goal {
+    Show each *booking slot* on a calendar.
+  }
+}
+```
+
+### Request 16a given to the host agent
+
+Use `$sigil-compute-design` to run review preparation for an advisory review of
+the whole design, and hand the computed evidence back to the caller. Then run
+the same preparation again with no edits between the two runs.
+
+### Request 16b given to the host agent
+
+Use `$sigil-compute-design` to run review preparation for an advisory review of
+`booking.sigil` only, and hand the computed evidence back to the caller. The
+workspace store starts empty.
+
+### Request 16c given to the host agent
+
+Use `$sigil-compute-design` to run review preparation for an advisory review of
+the whole design. After that run, the observer rewrites the interface Facet of
+`booking.sigil` so it says something different. Run the same preparation
+again.
+
+### Request 16d given to the host agent
+
+Use `$sigil-compute-design` to run review preparation for an advisory review of
+`booking.sigil` only. The runner makes every reader for `booking.sigil` name a
+thing the design does not declare in its constraints Facet (injected).
+
+### Request 16e given to the host agent
+
+Use `$sigil-compute-design` to run review preparation for an advisory review of
+the whole design. The runner supplies a `sigilc` whose `check` result names no
+`reviewView` or `reviewEvidence` (an older build, or controlled replay of one).
+
+### Host events (observer only)
+
+- 16a, 16c: hash the workspace's `.sigil/claims/interpretations/` after each
+  run, and record every prepare's `requestedUnits`.
+- 16b: record which sources were prepared.
+- 16d: the injected mistake is labeled injected in the record.
+- 16e: record which binary was used and how its result differs.
+
 ## Acceptance notes for the observer
 
 - **1a:** The response is advisory review of the design's meaning and
@@ -619,6 +676,30 @@ report the ingest state and findings.
   file was written or edited by the host: each ingested file's bytes match what
   its child produced, and each ingest's `identity.interpretations` digest
   matches that file.
+- **16a (AE1):** The first run's unfiltered check finds all three sources
+  unread; each is prepared, read by one fresh child and ingested; a second
+  unfiltered check runs; the readings are written back. The handback names the
+  final check's state, `workspaceDigest`, private store and its four paths
+  (`report`, `judgmentContext`, `reviewView`, `reviewEvidence`), and the
+  evidence file's `artifacts` hashes match those files. The second run's first
+  check has nothing unread, so no prepare runs and no child is created; its
+  final check reports the same state and workspace digest, and the workspace
+  store is unchanged.
+- **16b:** Only `booking.sigil` is prepared and read. `rooms.sigil` and
+  `calendar.sigil` stay unread: the final check is `incomplete`, and the
+  handback lists their units as unread outside the scope while saying the
+  selected source's own units were read. No check runs with `--source`.
+- **16c (AE2):** After the edit, the first check lists only the edited unit as
+  unread. Only `booking.sigil` is prepared, and its prepare reports that unit
+  alone as requested; the other sources need no reader. The final check
+  reflects the new reading, and the changed reading is written back.
+- **16d:** The refused unit is re-asked at most twice, each time by a fresh
+  child. The final check still runs and its evidence is handed back, with the
+  unit listed as unread inside the scope with its last refusal reason. The
+  host writes no rows.
+- **16e:** The final check's state and report are handed back as observed, and
+  the handback names the compact view as unavailable because the result named
+  no view. The host builds no view from the context and installs nothing.
 - **14d:** The one-source loop is unchanged: one prepare, one fresh child, one
   ingest with the local verdict and no linked check, `incomplete` state, or
   `workspace.linked.json`. The readings it stored are copied into the
