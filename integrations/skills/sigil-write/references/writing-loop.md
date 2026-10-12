@@ -122,11 +122,18 @@ For a valid, fresh report, evaluate each suggestion against its cited evidence:
   label alone is not authority to rewrite policy.
 - **Design choice:** Preserve the affected commitment and state the consequential
   decision still owned by the human. Do not ask them to choose again when the
-  supplied intent already determines the correction.
+  supplied intent already determines the correction. When two promises
+  contradict each other and no intent chooses between them, both stay in the
+  draft, unchanged, and the conflict goes back to the human as a question.
+  Deleting both sides is not a resolution.
 - **Evidence gap:** Retrieve relevant accessible local or linked context using
   available authorized tools. Add it to captured inputs and delegate again.
   Ask for evidence only after retrieval is unavailable, naming what is missing
   and the meaning it prevents evaluating. Do not infer a missing adopted policy.
+
+Before removing or weakening any promise, name the existing intent or commitment
+that authorizes the removal. With none, the promise stays. Never add a promise
+that no intent, source, or supported correction states.
 
 For a finding about an undeclared or unreferenced name, follow the Tag order in
 [contract prose](contract-prose.md): reference or import the existing Tag the
@@ -166,6 +173,9 @@ the current work with the exact human decision, unavailable evidence, delegation
 failure, or repeated issue that prevents further progress. Every exit includes:
 
 - The current draft or its accessible path and revision identity.
+- Every promise removed, weakened, or added, each with its authority. The
+  list must describe the edits actually made; a conflict reported as undecided
+  must still be present in the draft.
 - Resolved findings and how their commitments were preserved; rejected suggestions
   with reasons; remaining findings and their consequence.
 - Actual independent review coverage tied to assessed inputs, its freshness, and

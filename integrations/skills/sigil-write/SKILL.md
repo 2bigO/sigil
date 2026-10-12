@@ -41,7 +41,9 @@ Apply supported corrections and commitment-preserving simplifications without
 another approval request. Retrieve accessible missing evidence yourself. Preserve
 consequential undecided policy for the human and stop repeated or oscillating
 findings with the issue visible. Never delete a meaningful promise to silence review
-or a computed finding.
+or a computed finding. Remove or weaken a promise only with an intent that
+authorizes it, keep promises that contradict each other and ask the human, and
+add no promise that no intent or source states.
 
 Return the current draft, the Tags it reused, imported, and newly defined,
 resolved and remaining findings, the last computed state and coverage, and

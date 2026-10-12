@@ -32,6 +32,9 @@
   report computed coverage separately from advisory findings. A review that used
   computed claims returns a `computed_evidence` extension of
   `sigil-design-review/v1`; without `sigilc` both continue source-only and say so.
+- `sigil-write` 0.2.1 removes or weakens a promise only with an intent that
+  authorizes it, keeps two contradicting promises for the human to decide, adds
+  no unsupported promise, and lists every promise it removed, weakened or added.
 
 - Rename `sigil-compute` to `sigil-compute-design` (0.4.0). Its reading,
   re-ask and store write-back behavior stays the same; it now invokes the
