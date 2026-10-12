@@ -40,8 +40,8 @@ The host supplies delegation; this skill adds no model runtime or service.
 Apply supported corrections and commitment-preserving simplifications without
 another approval request. Retrieve accessible missing evidence yourself. Preserve
 consequential undecided policy for the human and stop repeated or oscillating
-findings with the issue visible. Never delete a meaningful promise to silence review
-or a computed finding. Remove or weaken a promise only with an intent that
+findings with the issue visible. Never delete a meaningful promise, or a word
+the check flags, to silence review or a computed finding. Remove or weaken a promise only with an intent that
 authorizes it, keep promises that contradict each other and ask the human, and
 add no promise that no intent or source states.
 

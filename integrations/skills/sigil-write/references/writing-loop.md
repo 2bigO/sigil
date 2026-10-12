@@ -130,8 +130,10 @@ For a valid, fresh report, evaluate each suggestion against its cited evidence:
   decision still owned by the human. Do not ask them to choose again when the
   supplied intent already determines the correction. When two promises
   contradict each other and no intent chooses between them, both stay in the
-  draft, unchanged, and the conflict goes back to the human as a question.
-  Deleting both sides is not a resolution.
+  draft with their meaning unchanged, and the conflict goes back to the human
+  as a question. Tag corrections to their wording still apply. Deleting both
+  sides is not a resolution, and neither is replacing them with a Decisions
+  note that the choice is open: Decisions commit nothing.
 - **Evidence gap:** Retrieve relevant accessible local or linked context using
   available authorized tools. Add it to captured inputs and delegate again.
   Ask for evidence only after retrieval is unavailable, naming what is missing
@@ -147,6 +149,9 @@ name means, define one Tag in the owner when the name is the subject or object
 of a promise and no Tag names it, and leave only context wording as prose. That
 the prose reads clearly without a Tag is not a reason to skip one. Do not turn
 context phrases into Tags. An unclear owner stays a question for the human.
+Never make a name warning go away by deleting the word: dropping the subject or
+object of a promise changes the promise and needs an intent that authorizes
+it.
 
 An incomplete report can contain supported findings, but cannot certify omitted
 scope. Never treat its missing coverage as an empty findings list. Apply only

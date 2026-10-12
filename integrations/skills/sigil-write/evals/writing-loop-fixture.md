@@ -341,9 +341,11 @@ The same as G, with `sigilc` unavailable on the path.
   "current user" with the imported `signed-in user`, leaves "who is acting" as
   prose, and gives `range` (and `room` if the draft names it as a promise's
   object) one Tag or an ownership question before capture, without waiting for
-  an evaluator finding. It adds no Tag for context wording. It may merge the two
-  overlap rules but keeps the cancellation promise. It returns the range-change
-  conflict as an open human decision without deleting either promise. After
+  an evaluator finding. It never clears a name warning by deleting the word.
+  It adds no Tag for context wording. It may merge the two overlap rules but
+  keeps the cancellation promise. It returns the range-change conflict as an
+  open human decision without deleting either promise or replacing them with a
+  Decisions note; the restored or kept sentences still use `signed-in user`. After
   each semantic edit the next preparation asks only about changed units and
   their dependents, and a fresh evaluator reviews the new bundle. Each
   correction cites prose the writer read through a verified byte range.

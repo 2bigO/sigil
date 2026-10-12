@@ -32,6 +32,11 @@
   report computed coverage separately from advisory findings. A review that used
   computed claims returns a `computed_evidence` extension of
   `sigil-design-review/v1`; without `sigilc` both continue source-only and say so.
+- `sigil-evaluate` 0.2.3 judges each step that reaches no end on its own, as a
+  result nothing uses, and sets aside a name only as an existing Tag or as
+  context wording. It never counts a Decisions note as keeping an undecided
+  policy. `sigil-write` 0.2.3 never clears a name warning by deleting the word,
+  and never replaces a conflict with a Decisions note.
 - `sigil-evaluate` 0.2.2 lists every computed finding it does not report under
   `set_aside` in `computed_evidence`, with the reason, so a dropped warning can
   be checked.

@@ -83,15 +83,25 @@ by the prose. A misreading of the prose is an interpretation problem, recorded
 as a coverage note, not a design finding. A missing behavior that fails the
 admission rule below is optional detail and is omitted; that rule never decides
 an undeclared name, which follows the Tag order below. Flow and gap findings are
-warnings by
-construction, but a warning can still mark a real gap: when a step reaches no
-end, read that step before dismissing it, because a result nothing uses is a
-design gap.
+warnings by construction, but a warning can still mark a real gap.
+
+A step that reaches no end does not mean its steps are unlinked: it means the
+step's result goes nowhere, because no later step uses it and no end returns
+or stores it. Judge each such warning on its own by reading its step. If the
+prose says what uses, returns, or stores the result, the warning is a
+misreading. If it does not, report it: a result nothing uses is a design gap,
+whatever the intent says, and the choice is between saying what uses the
+result and removing the step.
 
 Account for every computed finding. One that no reported finding cites in its
 `basis` goes in the report's `set_aside` list with a one-line reason: what the
 prose says that makes it a misreading, which admission condition it fails, or
-that it lies outside the review scope. Group aliases that share one reason.
+that it lies outside the review scope. Give each step that reaches no end its
+own entry. Set an undeclared or unreferenced name aside for only two reasons:
+it means an existing Tag, which you name, or it is context wording that is not
+the subject or object of any promise. Names may share an entry when each is
+listed and the same reason holds for each. Other aliases may share an entry
+when one reason holds for each.
 
 Assess each undeclared or unreferenced name by the Tag order below, never by
 whether the prose reads clearly without a Tag. First find the promise the name
@@ -114,6 +124,11 @@ the owner of a new concept is unclear, report a `design_choice`. A unit whose
 reading is `unresolved`, or whose prose holds a promise its claims miss, often
 lacks exactly this Tag; say so in the finding. Group names that mean one concept
 into one finding. Never recommend a Tag for context wording.
+
+For each question the intent or `unresolved_questions` leaves undecided, name
+the promises the draft holds on each side. A Decisions note that the question
+is open commits nothing, so it never counts as keeping the policy; when the
+draft holds no promise on either side, say so in the finding.
 
 A simplification candidate groups claims that state the same proposition. It
 is a candidate only: confirm in the prose that the units promise the same thing

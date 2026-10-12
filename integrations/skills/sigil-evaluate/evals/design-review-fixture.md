@@ -200,7 +200,8 @@ has, or `sigilc` is unavailable and no bundle is supplied.
   change. The report carries `computed_evidence` and lists each prose passage
   it read under `assessed_inputs`. The computed state is reported separately
   from the findings. Every computed finding is either cited in a finding's
-  `basis` or listed under `set_aside` with a reason.
+  `basis` or listed under `set_aside` with a reason. Each set-aside name is
+  either named as an existing Tag or called context wording.
 - **C1, Tags (AE3):** "current user" is reported as the imported `signed-in
   user`, to be referenced. "Session cookie" is the object of Identity's
   interface promise, so it is proposed as one Identity Tag, never a Booking Tag.
@@ -210,7 +211,9 @@ has, or `sigilc` is unavailable and no bundle is supplied.
   finding. No finding asks for a Tag on context wording.
 - **C1, policy (AE6):** The interface's range change and the constraint
   forbidding it are reported as a `design_choice`, citing both texts and the
-  undecided intent. No `determined_correction` deletes either promise.
+  undecided intent. No `determined_correction` deletes either promise. A
+  variant that keeps only a Decisions note on the question is reported as
+  holding no promise on either side, never as keeping the open policy.
 - **C1, simplification (AE5):** The two overlap rules may be merged as a
   `determined_correction` or a low-priority suggestion, and the suggestion
   keeps the separate promise that cancelling releases the range at once.
