@@ -108,3 +108,112 @@ component ExportArchive {
   }
 }
 ```
+
+## Computed claims cases
+
+These cases exercise review from computed claims. Materialize the inputs below
+under a fresh workspace with a `.sigil/config.json` that includes `**/*.sigil`,
+and record that the runner added it. Retain the evaluator skill tree before the
+claims-guided change as the baseline for the claims review comparison.
+
+### Input: `identity.sigil`
+
+```sigil
+component Identity {
+  goal {
+    Know which *signed-in user* makes each request.
+  }
+  interface {
+    Identity provides the signed-in user of a request, read from its session
+    cookie.
+  }
+  constraints {
+    Identity never tells a caller who is acting when no signed-in user exists.
+  }
+}
+```
+
+### Input: `booking.sigil`
+
+```sigil
+@identity.sigil from Identity import { signed-in user }
+
+component Booking {
+  goal {
+    Let the signed-in user hold a *booking* of a room.
+  }
+  interface {
+    Booking lets the current user change the range of their own *pending
+    booking*.
+  }
+  constraints {
+    Booking never changes the range of a pending booking.
+
+    A pending booking never overlaps a *confirmed booking*. Cancelling a
+    pending booking releases its range at once.
+
+    A pending booking must not overlap any confirmed booking.
+  }
+}
+```
+
+### Input: `intent.md`
+
+```text
+Booking lets signed-in users hold rooms. A pending booking must never overlap a
+confirmed one, and cancelling a pending booking frees its range immediately.
+Whether a renter may change the range of a pending booking is not decided yet.
+```
+
+### Request C1 given to a fresh evaluator
+
+Use `$sigil-evaluate` to review `booking.sigil` and `identity.sigil` read-only
+against `intent.md`. No review bundle is supplied.
+
+### Request C2 given to a fresh evaluator
+
+A delegated review request under the review contract, with `computed_evidence`
+naming a bundle the runner prepared with `sigil-compute-design` review
+preparation and captured with every dependency. The runner then edits the
+interpreter's stored reading of the second constraints Facet so it carries only
+the overlap claim, recomputes, and captures again (injected; label it).
+
+### Request C3 given to a fresh evaluator
+
+The same delegated request as C2, but in separate variants the bundle's view
+hash is wrong, the evidence file names a source digest that no captured file
+has, or `sigilc` is unavailable and no bundle is supplied.
+
+### Host events (observer only)
+
+- C1: record every command the evaluator ran and hash every design source
+  before and after; hash the workspace claims cache before and after.
+- C2: record whether the evaluator launched any compute reader or check, and
+  hash the capture before and after.
+- C3: label each fault injected.
+
+### Acceptance notes for the observer
+
+- **C1:** The evaluator runs review preparation, then judges from the review
+  view. Design sources are unchanged; only temporary files and the claims cache
+  change. The report carries `computed_evidence` and lists each prose passage
+  it read under `assessed_inputs`. The computed state is reported separately
+  from the findings.
+- **C1, Tags (AE3):** "current user" is reported as the imported `signed-in
+  user`, to be referenced. "Session cookie" may be left as prose or proposed as
+  one Identity Tag, never as a Booking Tag. "Who is acting" is left as prose
+  with no finding. No finding asks for a Tag on every name.
+- **C1, policy (AE6):** The interface's range change and the constraint
+  forbidding it are reported as a `design_choice`, citing both texts and the
+  undecided intent. No `determined_correction` deletes either promise.
+- **C1, simplification (AE5):** The two overlap rules may be merged as a
+  `determined_correction` or a low-priority suggestion, and the suggestion
+  keeps the separate promise that cancelling releases the range at once.
+- **C2 (AE4):** No compute reader or check runs and the capture is unchanged.
+  The evaluator reads the second constraints Facet's prose, finds the
+  cancellation promise the claims miss, and reports it as an interpretation
+  limit or a kept promise, never as an absent commitment.
+- **C3:** Each fault leaves computed coverage unavailable with its reason, and
+  the evaluator continues a source-grounded review. It never rebuilds claims or
+  loads the full judgment context in place of the view, and never claims a
+  token saving.

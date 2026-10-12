@@ -21,8 +21,10 @@ the existing CLI and sigilc builds and exercises the legacy 0.7 protocol.
 
 ## Prepare an observed run
 
-1. Copy all three foundation skill directories together to a temporary catalog
-   outside repository source discovery. Include every reference and metadata file.
+1. Copy the foundation skill directories together to a temporary catalog
+   outside repository source discovery: `sigil-understand`, `sigil-evaluate`,
+   `sigil-write`, and `sigil-compute-design` with its `sigil-egglog`. Include
+   every reference and metadata file.
 2. Materialize a fixture's fenced input blocks under a separate temporary workspace
    at their named paths. Preserve bytes and relative layout. Keep the fixture's
    observer notes out of the tested agent's accessible inputs.
@@ -45,7 +47,9 @@ Use these fixtures:
 - [Design evaluation](../../sigil-evaluate/evals/design-review-fixture.md): sufficient
   compact design, contradiction, ownership conflict, simplification and missing policy.
 - [Writing loop](writing-loop-fixture.md): corrections, unresolved choices, evidence
-  retrieval, freshness, progress, and handoff.
+  retrieval, freshness, progress, and handoff. Its computed claims cases G–I
+  cover computing each draft, capturing the review bundle, Tag corrections from
+  undeclared names, stale computed evidence, and unavailable `sigilc`.
 - [Mechanical validation](mechanical-validation-fixture.md): compatible CLI use,
   scoped formatting, read-only evaluation, unavailable tooling, and exact-revision
   evidence. Run these with their own CLI availability; older offline cases remain

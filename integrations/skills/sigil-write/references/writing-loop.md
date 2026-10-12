@@ -40,6 +40,26 @@ meaningful writing and review if tooling or mechanical coverage is unavailable.
 Then run the [contract prose](contract-prose.md) checklist over the authored
 scope and fix failures in the prose before capture.
 
+## Compute the draft
+
+After the mechanical pass, run the review preparation of
+[`sigil-compute-design`](../../sigil-compute-design/references/computed-evaluation.md)
+on the original workspace, for the review scope. A new design is drafted first;
+computation needs a draft to read. The preparation reuses every valid stored
+reading and asks only about units that changed or depend on a change. Its
+temporary files and claims cache are its own; it does not touch design sources.
+
+Check the handback before using it. The evidence file's `inputs` must list the
+same sources and configuration files, with the same SHA-256, as the workspace
+holds now; absent files must still be absent. Its `artifacts` hashes must match
+the view, report, and context files. If they differ, the workspace changed
+during preparation: run it once more. If it still differs, record computed
+coverage as unavailable and continue.
+
+If `sigilc` is missing or too old, or the preparation fails, continue the loop
+from the sources and record computed coverage as unavailable with the reason.
+Do not install a compiler or interpret the prose into claims yourself.
+
 ## Capture and delegate
 
 The sibling evaluator's [review contract](../../sigil-evaluate/references/review-contract.md)
@@ -47,7 +67,11 @@ is the sole request/report definition. Use its required fields and identity,
 mapping, authority, freshness, and handoff rules; do not invent a reduced protocol.
 
 Before dispatch, capture the exact draft, provider/linked context, and intent
-bytes in temporary storage outside authored Sigil and source discovery. Hash
+bytes in temporary storage outside authored Sigil and source discovery. With
+computed evidence, also capture the review view, evidence file, report, and
+judgment context, and every source and configuration file the evidence file
+lists, at their original relative paths. Record them under the contract's
+`computed_evidence`, kept apart from the semantic inputs. Hash
 the saved bytes using host tools and retain their original locations and source
 root. Preserve relative layout where possible; retain explicit mappings even
 then. Capture conversational intent as an identified immutable input. Include
@@ -90,7 +114,9 @@ with the latest draft and available handoff.
 For a valid, fresh report, evaluate each suggestion against its cited evidence:
 
 - **Determined correction:** Confirm the authorizing commitment actually settles
-  the change, and check which independent promises it must preserve. Apply that
+  the change, and check which independent promises it must preserve. Read the
+  affected prose yourself first, through the bundle's verified byte range when
+  the finding cites aliases, so a misread claim never drives an edit. Apply that
   correction or equivalent simplification autonomously. No user approval is
   needed. Reject unsupported suggestions with a concrete reason; a disposition
   label alone is not authority to rewrite policy.
@@ -102,13 +128,19 @@ For a valid, fresh report, evaluate each suggestion against its cited evidence:
   Ask for evidence only after retrieval is unavailable, naming what is missing
   and the meaning it prevents evaluating. Do not infer a missing adopted policy.
 
+For a finding about an undeclared or unreferenced name, follow the Tag order in
+[contract prose](contract-prose.md): reference or import the existing Tag the
+name means, define one Tag in the owner only for a meaningful subject or object
+no Tag names, and leave context wording as prose. Do not turn every reported
+phrase into a Tag. An unclear owner stays a question for the human.
+
 An incomplete report can contain supported findings, but cannot certify omitted
 scope. Never treat its missing coverage as an empty findings list. Apply only
 findings whose evidence and freshness can be established under the shared
 contract; preserve the remaining coverage limitation.
 
 After any semantic edit or change to relevant context, repeat the mechanical
-pass before capture and delegate fresh review.
+pass, compute the draft again, capture, and delegate fresh review.
 Freshness uses exact bytes, so recapture and reassess changed files even when an
 edit appears cosmetic before claiming that their current bytes were reviewed.
 
@@ -126,7 +158,7 @@ evidence, or proposed edits oscillate between previous states, stop that cycle.
 Explain the remaining issue and why another pass cannot resolve it. A rejected
 unsupported suggestion need not be repeatedly retried on identical inputs;
 retain its reason in the outcome. Removing an obligation solely to eliminate a
-diagnostic is never progress. Do not leave unrelated supported corrections undone
+diagnostic or a computed finding is never progress. Do not leave unrelated supported corrections undone
 because one finding requires human input.
 
 Finish when a fresh assessment has no actionable material findings, or return
@@ -142,6 +174,8 @@ failure, or repeated issue that prevents further progress. Every exit includes:
 - Mechanical commands, actual scope and input identities, outcomes and diagnostics,
   or the specific reason validation was unavailable; keep these separate from
   independent semantic review coverage.
+- The computed state, workspace digest, and coverage of the last computation,
+  or why it was unavailable; keep it separate from the advisory findings.
 - The precise blocker or question when unfinished, and the shared contract's
   portable handoff with retained exact captures when delegation cannot complete.
 

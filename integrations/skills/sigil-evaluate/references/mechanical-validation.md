@@ -69,7 +69,11 @@ sigil fmt /absolute/workspace/search/panel.sigil --root /absolute/workspace --ch
 Use multiple explicit targets when supported, or one read-only invocation per
 file otherwise. Never run writing `fmt`, fixes, installers, or `init` in an
 evaluator. Direct evaluation creates no files, including evidence logs; return
-the observations for the caller to retain.
+the observations for the caller to retain. The one exception is computed
+evidence: a direct review's preparation through `sigil-compute-design` may
+write temporary files, its private store, and the workspace's claims cache.
+It never writes a design source, and a delegated evaluator runs no
+preparation at all.
 
 Bare `sigil fmt` selects the current directory. At the workspace root it selects
 all included workspace sources; in a nested directory it selects included sources

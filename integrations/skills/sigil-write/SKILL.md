@@ -29,16 +29,22 @@ Use the shared [mechanical validation](../sigil-evaluate/references/mechanical-v
 guidance to check, apply supported fixes, format only authored files, and recheck
 before capture. Use compatible available tooling; otherwise continue and report
 mechanical validation as unavailable.
-After a new draft or semantic revision, invoke a fresh read-only sub-agent using
-the sibling [evaluator](../sigil-evaluate/SKILL.md) and exact captured inputs.
+After a new draft or semantic revision, compute it with the review preparation
+of the sibling [computed evaluation](../sigil-compute-design/SKILL.md) skill,
+capture the resulting review bundle with the draft, and invoke a fresh
+read-only sub-agent using the sibling [evaluator](../sigil-evaluate/SKILL.md)
+and those exact captured inputs. When computation is unavailable, continue
+and report it unavailable.
 The host supplies delegation; this skill adds no model runtime or service.
 
 Apply supported corrections and commitment-preserving simplifications without
 another approval request. Retrieve accessible missing evidence yourself. Preserve
 consequential undecided policy for the human and stop repeated or oscillating
-findings with the issue visible. Never delete a meaningful promise to silence review.
+findings with the issue visible. Never delete a meaningful promise to silence review
+or a computed finding.
 
 Return the current draft, the Tags it reused, imported, and newly defined,
-resolved and remaining findings, and actual fresh review coverage. If
+resolved and remaining findings, the last computed state and coverage, and
+actual fresh review coverage. If
 delegation is unavailable or incomplete, return an independently unreviewed
 draft and portable handoff; a same-agent pass cannot replace it.

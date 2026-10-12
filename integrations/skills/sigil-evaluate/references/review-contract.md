@@ -24,6 +24,7 @@ is host-neutral.
 | `inputs` | All selected drafts, provider/linked context, and intent evidence, with identities below. |
 | `evaluator_skill` | Available evaluator entrypoint and version or digest; include shared language-pack identity. |
 | `read_only` | Instructions prohibiting source edits, plus the actual host restrictions and allowed read roots. Say when restriction is instructions only. |
+| `computed_evidence` | Required when the review uses computed claims; absent for a source-only review. See below. |
 
 Each input identity contains `role` (`draft`, `context`, or `intent`),
 `original_path`, `captured_path`, and `sha256` of the exact bytes at the captured
@@ -68,10 +69,45 @@ Read relevant language-pack files and report the pack manifest identity under
 `authority`; this distinguishes language authority from project context. A
 changed authority also invalidates reuse of the report.
 
+### Computed evidence
+
+`computed_evidence` is a versioned extension of `sigil-design-review/v1`. It
+names a frozen review bundle from one unfiltered linked `sigilc check`, prepared
+by `sigil-compute-design`'s review preparation. It holds:
+
+| Field | Content |
+| --- | --- |
+| `version` | `sigil-computed-evidence/v1` |
+| `computation_scope` | `workspace`, plus the review scope it was prepared for: the whole design or the selected sources. |
+| `state` | The final linked check's state and `workspaceDigest`. |
+| `source_root` | The original workspace root the check ran against. |
+| `bundle` | The review view, evidence file, report, and judgment context: each with its original store path, `captured_path`, and `sha256`. |
+| `dependencies` | Every source and configuration file the evidence file's `inputs` names, with original path, captured path, and `sha256`; an absent configuration file is listed as absent. |
+| `authority` | The `sigilc` identity from the evidence file, its guidance fingerprint and vocabulary generation, and the `sigil-compute-design` skill version. |
+| `coverage` | The evidence file's coverage totals, and the unread units inside and outside the review scope. |
+
+`dependencies` are what the computation read; they are not `assessed_inputs`,
+which still means the evidence the evaluator actually inspected. A source
+passage retrieved through the bundle joins `assessed_inputs` with the digest of
+the captured file it was read from. The bundle freezes the readings used by one
+assessment: a later cache update neither changes it nor certifies a different
+one.
+
+A delegated evaluator uses the supplied bundle and runs no computation against
+`captured_root`. Before reading it, it checks every `bundle` and `dependencies`
+hash against the captured bytes and checks that the evidence file's own
+`artifacts` hashes match the captured view, report, and context. Any mismatch
+leaves computed coverage unavailable for that request; the source-grounded
+assessment may continue.
+
 ## Report
 
 Return `protocol`, `status` (`complete` or `incomplete`), `scope`, `source_root`,
-`assessed_inputs`, `authority`, `findings`, `coverage`, and `limitations`.
+`assessed_inputs`, `authority`, `findings`, `coverage`, and `limitations`. A
+review that used computed claims also returns `computed_evidence`, echoing the
+verified bundle, dependency, and authority identities it used. A report without
+it is a source-only review: it remains valid, but cannot establish computed
+coverage.
 `source_root` records the original absolute workspace root actually used for
 root-relative resolution. In a delegated report it must exactly match the
 request's `source_root`; a missing or unequal value makes the report incomplete
@@ -92,6 +128,7 @@ Each finding includes:
 | Field | Content |
 | --- | --- |
 | `id` | Local diagnostic identifier for discussion. |
+| `basis` | Optional, with computed evidence: the bundle aliases (`F3`, `C12`, `U7`, …) the finding rests on. Aliases are local to the bundle and never replace `location` or `evidence`. |
 | `location` | Original source path and line range, component/contract, or precise affected scope. |
 | `evidence` | Supporting input identities and exact quoted text or precise anchors; both sides for contradictions. |
 | `consequence` | Observable behavior, ownership, or readability impact. |
@@ -128,7 +165,10 @@ an independent evaluator run.
 
 Before applying any correction or claiming coverage of the current draft, the
 caller checks **all** current draft, intent, provider, and linked context bytes
-against `assessed_inputs`, as well as authority identity. Include context the
+against `assessed_inputs`, as well as authority identity. With
+`computed_evidence`, it also checks current workspace source membership and
+bytes against `dependencies`, the bundle hashes, the original root, and the
+computation authority; any change makes the computed coverage stale. Include context the
 evaluator retrieved beyond the original request. Verify original-to-capture
 mapping and source root as well: a relocation that changes resolution can change
 meaning even when individual file bytes are unchanged. Missing or changed input

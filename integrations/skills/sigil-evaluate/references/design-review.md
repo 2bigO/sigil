@@ -21,6 +21,74 @@ the affected conclusion and missing source. Do not manufacture its content or
 call the affected scope clean. Background links do not need retrieval unless
 they affect the selected assessment.
 
+## Start from computed claims
+
+When current computed evidence is available, start from it. A delegated
+request supplies it under the [review contract](review-contract.md). For direct
+review, run the review preparation in
+[`sigil-compute-design`](../../sigil-compute-design/references/computed-evaluation.md)
+for the review scope first. That preparation may write temporary files, its
+private store, and the workspace's claims cache; it never edits design sources.
+
+Read the review view whole. It lists every unit with its coverage, every claim
+under its unit, the inferred conclusions, obligations, findings, and
+simplification candidates, all by aliases local to that bundle. Do not load the
+full judgment context as a substitute for the view; read one entry of it, or of
+the report, through the pointer the evidence file gives for an alias.
+
+Claims are one reading of the prose, not the design. Read the unit's prose
+before you:
+
+- suggest any semantic correction or simplification, and cite that prose
+  together with every independent promise the change keeps;
+- judge a unit that is unread, refused, read without commitment, or
+  uninterpreted, when its prose could carry a consequential promise in scope;
+- rely on a claim whose meaning, modality, or conditions are uncertain, or
+  suspect a promise the claims do not show — even in an `interpreted` unit.
+
+To read a unit's prose, take its `location` from the evidence file, check that
+the source file you read has the SHA-256 it names, and read that UTF-8 byte
+range. Any mismatch means the bytes are not the ones the check read: say so,
+and do not read a different revision through that alias. Record every passage
+you read under `assessed_inputs`. A unit with no claims is still in the
+assessment; claims alone cannot prove that no promise was missed, so state the
+extraction limit when it matters.
+
+Sort each computed finding before reporting it. A design defect is confirmed
+by the prose. A misreading of the prose is an interpretation problem, recorded
+as a coverage note, not a design finding. A gap that fails the admission rule
+below is optional detail and is omitted. Flow and gap findings are warnings by
+construction.
+
+Assess each undeclared or unreferenced name against the view's vocabulary and
+the prose, and recommend at most one of these:
+
+1. Reference a Tag the component already owns, or import one another component
+   owns, when the name means that Tag.
+2. Define one Tag in the owning component, when the name is a meaningful
+   subject or object of a promise and no Tag names it.
+3. Leave it as prose: context wording, technology or framework names, and
+   phrases such as "who is acting" need no Tag and need no finding.
+
+When the owner of a new concept is unclear, report a `design_choice`. Group
+names that mean one concept into one finding. Never recommend a Tag for every
+name.
+
+A simplification candidate groups claims that state the same proposition. It
+is a candidate only: confirm in the prose that the units promise the same thing
+and that merging them keeps every promise about a different state, audience,
+or failure mode.
+
+Report the computed state and coverage separately from your findings. Neither
+a passing check nor an empty finding list shows the design is sufficient.
+Findings in the view outside the requested scope are context, not an
+assessment of their sources.
+
+If computed evidence is unavailable — `sigilc` is missing or too old, the
+preparation fails, or the bundle does not verify — continue a source-grounded
+review and record computed coverage as unavailable with the reason. Do not
+interpret the prose into claims yourself or treat the full context as the view.
+
 ## Admission and restraint
 
 Use [mechanical validation](mechanical-validation.md) for compatible tool

@@ -26,6 +26,12 @@
   names every unit, claim and finding by a short alias and carries no prose; the
   evidence maps each alias to its identity and the exact source bytes the check
   read. Report 6, context 1 and exit codes are unchanged.
+- `sigil-compute-design` 0.5.0 adds review preparation. `sigil-evaluate` 0.2.0
+  and `sigil-write` 0.2.0 now require it: they compute the design first, judge
+  from the compact review view, read prose through its verified byte ranges, and
+  report computed coverage separately from advisory findings. A review that used
+  computed claims returns a `computed_evidence` extension of
+  `sigil-design-review/v1`; without `sigilc` both continue source-only and say so.
 
 - Rename `sigil-compute` to `sigil-compute-design` (0.4.0). Its reading,
   re-ask and store write-back behavior stays the same; it now invokes the

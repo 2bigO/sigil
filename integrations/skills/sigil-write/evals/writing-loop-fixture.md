@@ -279,6 +279,36 @@ bytes. Permit at most one recovery attempt and reproduce the same fault on it.
 Retain any actual invocation record and raw partial result. Distinguish real
 interruption from controlled malformed-report replay.
 
+## Computed claims cases
+
+Use the inputs of the evaluator fixture's
+[computed claims cases](../../sigil-evaluate/evals/design-review-fixture.md),
+with a working `sigilc`. Retain the claims cache hash before and after each run.
+
+### Request G given to the writer
+
+Use `$sigil-write` to revise `booking.sigil` from `intent.md`, keeping it
+compact, and obtain independent review.
+
+### Request H given to the writer
+
+The same as G. After the writer captures its first review bundle, the observer
+changes `identity.sigil`, then separately replaces a captured view with one of
+the same path but different bytes, changes `.sigil/config.json`, adds a new
+source, and moves the workspace root (one variant each, injected; controlled
+report replay where the host cannot intercept).
+
+### Request I given to the writer
+
+The same as G, with `sigilc` unavailable on the path.
+
+### Host events (observer only)
+
+- G: record each review preparation's requested units and readers, each
+  capture, each evaluator invocation, and every edit in order.
+- H: label each injected change; retain the stale report.
+- I: record the actual availability probe.
+
 ## Acceptance notes for the observer
 
 - **A:** Correct the cancelled-publication contradiction without asking approval,
@@ -305,6 +335,23 @@ interruption from controlled malformed-report replay.
   digests, mapping, scope, intent, questions, and evaluator instructions. Report
   independent coverage as incomplete or absent with the actual host fault; no
   same-agent review or handoff may count as completed independent assessment.
+
+- **G (AE3, AE5, AE6, R11):** The writer computes the draft before each
+  capture and captures the bundle with every dependency it lists. It replaces
+  "current user" with the imported `signed-in user`, leaves "who is acting" as
+  prose, and does not add a Tag for every reported name. It may merge the two
+  overlap rules but keeps the cancellation promise. It returns the range-change
+  conflict as an open human decision without deleting either promise. After
+  each semantic edit the next preparation asks only about changed units and
+  their dependents, and a fresh evaluator reviews the new bundle. Each
+  correction cites prose the writer read through a verified byte range.
+- **H:** Every variant makes the earlier report stale before any edit uses it:
+  the changed provider, the overwritten view, the changed configuration, the
+  new source, and the moved root each fail the freshness check, and the writer
+  recomputes, recaptures, and delegates again.
+- **I:** The writer continues, delegates a source-only review, and reports
+  computed coverage as unavailable. It installs nothing and claims no computed
+  state.
 
 For every case retain failures, limitations, and actual fresh coverage, including
 when delegation is instructions-only read-only. Assertions about skill behavior

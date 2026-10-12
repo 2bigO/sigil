@@ -11,8 +11,12 @@ import {
 export const FOUNDATION_SKILLS: Readonly<Record<string, readonly string[]>> = {
   "sigil-align": ["sigil-understand", "sigil-evaluate", "sigil-write"],
   "sigil-understand": [],
-  "sigil-evaluate": ["sigil-understand"],
-  "sigil-write": ["sigil-understand", "sigil-evaluate"],
+  "sigil-evaluate": ["sigil-understand", "sigil-compute-design"],
+  "sigil-write": [
+    "sigil-understand",
+    "sigil-evaluate",
+    "sigil-compute-design",
+  ],
   "sigil-egglog": [],
   "sigil-compute-design": ["sigil-understand", "sigil-egglog"],
   "sigil-compute-align": [
