@@ -19,6 +19,14 @@
   located findings and Incomplete states.
 
 
+- `sigilc check` also writes a compact review view
+  (`<scope>.linked.review.md`) and its evidence file
+  (`<scope>.linked.review.json`) beside the linked report and judgment context,
+  and names both in its result as `reviewView` and `reviewEvidence`. The view
+  names every unit, claim and finding by a short alias and carries no prose; the
+  evidence maps each alias to its identity and the exact source bytes the check
+  read. Report 6, context 1 and exit codes are unchanged.
+
 - Rename `sigil-compute` to `sigil-compute-design` (0.4.0). Its reading,
   re-ask and store write-back behavior stays the same; it now invokes the
   merged `sigilc` binary. The installed catalog and live callers use the new name.

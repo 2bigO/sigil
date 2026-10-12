@@ -1,0 +1,820 @@
+//! The review view: the linked check's computed evidence in a form a judge can
+//! read whole, with an evidence file that maps every alias in it back to exact
+//! identities and source bytes.
+//!
+//! Each test drives the `sigilc` binary against a real `.sigil` workspace,
+//! except the last, which builds the bundle from a design loaded in-process so
+//! it can change a file between loading and emitting.
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::PathBuf,
+    process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
+mod support;
+use support::Workspace;
+
+fn claims(args: &[&str]) -> (i32, Value, String) {
+    let output = Command::new(env!("CARGO_BIN_EXE_sigilc"))
+        .args(args)
+        .output()
+        .expect("sigilc runs");
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    (
+        output.status.code().unwrap_or(-1),
+        serde_json::from_str(&stdout).unwrap_or(Value::Null),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+fn sha256(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
+struct Run {
+    ws: Workspace,
+}
+
+struct Prepared {
+    targets: Vec<(String, String)>,
+}
+
+impl Prepared {
+    /// The one presented target whose prose holds `needle`.
+    fn facet(&self, needle: &str) -> String {
+        let found: Vec<_> = self
+            .targets
+            .iter()
+            .filter(|(_, prose)| prose.contains(needle))
+            .collect();
+        assert_eq!(found.len(), 1, "one Facet holds `{needle}`: {found:?}");
+        found[0].0.clone()
+    }
+}
+
+/// What one `check` wrote, read back from disk.
+struct Checked {
+    code: i32,
+    summary: Value,
+    view: String,
+    evidence: Value,
+    report: Value,
+    context: Value,
+}
+
+impl Run {
+    fn new() -> Self {
+        Self {
+            ws: Workspace::new(),
+        }
+    }
+
+    fn write(&self, path: &str, text: &str) {
+        self.ws.write(path, text.as_bytes());
+    }
+
+    fn root(&self) -> &str {
+        self.ws.0.to_str().unwrap()
+    }
+
+    /// Prepare a source and answer it with `rows`, plus a `reading` for every
+    /// presented Facet the rows do not name, so every unit is stored.
+    fn read(&self, source: &str, rows: &dyn Fn(&Prepared) -> String) {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let out = self.ws.0.join(format!("prep-{n}"));
+        let (code, summary, stderr) = claims(&[
+            "prepare",
+            "--source",
+            source,
+            "--out",
+            out.to_str().unwrap(),
+            "--root",
+            self.root(),
+        ]);
+        assert_eq!(code, 0, "{summary}{stderr}");
+        let request: Value =
+            serde_json::from_slice(&fs::read(out.join("request.json")).unwrap()).unwrap();
+        let targets = request["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|r| r["context"] != true)
+            .map(|r| {
+                (
+                    r["facet"].as_str().unwrap().to_owned(),
+                    r["prose"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect();
+        let prepared = Prepared { targets };
+        let mut artifact = rows(&prepared);
+        for (facet, _) in &prepared.targets {
+            if !artifact.contains(&format!("{facet:?}")) {
+                artifact.push_str(&format!("(reading {facet:?} \"no-commitment\")\n"));
+            }
+        }
+        let file = self.ws.0.join(format!("result-{n}.egg"));
+        fs::write(&file, artifact).unwrap();
+        let (code, summary, stderr) = claims(&[
+            "ingest",
+            "--binding",
+            out.join("binding.json").to_str().unwrap(),
+            "--claims",
+            file.to_str().unwrap(),
+            "--root",
+            self.root(),
+        ]);
+        assert!(code <= 1, "{summary}{stderr}");
+        assert_eq!(summary["refusalCount"], 0, "{summary}");
+    }
+
+    fn check(&self, source: Option<&str>) -> Checked {
+        let mut args = vec!["check", "--root", self.root()];
+        if let Some(source) = source {
+            args.extend(["--source", source]);
+        }
+        let (code, summary, stderr) = claims(&args);
+        assert!(code <= 1, "{summary}{stderr}");
+        let read = |key: &str| {
+            fs::read(
+                summary[key]
+                    .as_str()
+                    .unwrap_or_else(|| panic!("check names its {key}: {summary}")),
+            )
+            .unwrap()
+        };
+        let json = |key: &str| serde_json::from_slice::<Value>(&read(key)).unwrap();
+        Checked {
+            code,
+            view: String::from_utf8(read("reviewView")).unwrap(),
+            evidence: json("reviewEvidence"),
+            report: json("report"),
+            context: json("judgmentContext"),
+            summary,
+        }
+    }
+}
+
+impl Checked {
+    fn entries(&self, list: &str) -> &Vec<Value> {
+        self.evidence[list].as_array().unwrap()
+    }
+
+    /// The line of the view an alias opens.
+    fn line(&self, alias: &str) -> &str {
+        let found: Vec<&str> = self
+            .view
+            .lines()
+            .filter(|l| l.trim_start().split_whitespace().next() == Some(alias))
+            .collect();
+        assert_eq!(
+            found.len(),
+            1,
+            "one line opens with {alias}:\n{}",
+            self.view
+        );
+        found[0]
+    }
+
+    /// The alias of the one claim whose context body satisfies `pick`.
+    fn claim(&self, pick: impl Fn(&Value) -> bool) -> String {
+        let found: Vec<String> = self
+            .entries("claims")
+            .iter()
+            .filter(|c| {
+                pick(
+                    &self
+                        .context
+                        .pointer(c["context"].as_str().unwrap())
+                        .expect("claim pointer resolves")["body"],
+                )
+            })
+            .map(|c| c["alias"].as_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(found.len(), 1, "one claim matches: {found:?}");
+        found[0].clone()
+    }
+
+    fn alias_of(&self, list: &str, field: &str, id: &str) -> String {
+        self.entries(list)
+            .iter()
+            .find(|e| e[field] == id)
+            .unwrap_or_else(|| panic!("{list} names {id}"))["alias"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    }
+
+    fn entity(&self, label: &str) -> String {
+        let found: Vec<&Value> = self
+            .entries("entities")
+            .iter()
+            .filter(|e| e["label"] == label)
+            .collect();
+        assert_eq!(found.len(), 1, "one entity labelled {label}");
+        found[0]["alias"].as_str().unwrap().to_owned()
+    }
+
+    /// The unit entry whose prose holds `needle`.
+    fn unit(&self, needle: &str) -> &Value {
+        let found: Vec<&Value> = self
+            .entries("units")
+            .iter()
+            .filter(|u| {
+                self.context
+                    .pointer(u["context"].as_str().unwrap())
+                    .unwrap()["prose"]
+                    .as_str()
+                    .unwrap()
+                    .contains(needle)
+            })
+            .collect();
+        assert_eq!(found.len(), 1, "one unit holds `{needle}`");
+        found[0]
+    }
+}
+
+/// A unit's prose, read from `bytes` only when they are the bytes the
+/// evidence names. An alias the evidence does not carry resolves to nothing.
+fn resolve(evidence: &Value, alias: &str, bytes: &[u8]) -> Option<String> {
+    let unit = evidence["units"]
+        .as_array()?
+        .iter()
+        .find(|u| u["alias"] == alias)?;
+    let location = &unit["location"];
+    if location["source_digest"] != sha256(bytes) {
+        return None;
+    }
+    let (start, end) = (
+        location["range"]["start"].as_u64()? as usize,
+        location["range"]["end"].as_u64()? as usize,
+    );
+    String::from_utf8(bytes.get(start..end)?.to_vec()).ok()
+}
+
+const ROOMS: &str = "rooms.sigil";
+const BOOKING: &str = "booking.sigil";
+const CALENDAR: &str = "calendar.sigil";
+
+const ROOMS_SOURCE: &str = "component Rooms {
+  goal {
+    Own the room catalog.
+  }
+  interface {
+    Rooms exposes a *mark* on every room.
+  }
+  state {
+    Rooms owns the mark of every room.
+  }
+  logic {
+    Rooms archives a room by setting the mark.
+  }
+  constraints {
+    Rooms keeps every room addressable.
+
+    Rooms reads the marker once and never imports framework code.
+  }
+  decisions {
+    Rooms lets an owner restore the mark.
+  }
+}
+";
+
+const BOOKING_SOURCE: &str = "@rooms.sigil from Rooms import { mark }
+component Booking {
+  goal {
+    Book a room.
+  }
+  logic {
+    Booking sets the mark when a booking is cancelled.
+  }
+  constraints {
+    Booking owns the mark, and only Booking may set it.
+  }
+}
+";
+
+/// Never read, so its units stay unread.
+const CALENDAR_SOURCE: &str = "component Calendar {
+  goal {
+    Show the room calendar.
+  }
+}
+";
+
+/// Every body variant the vocabulary admits, plus one proposition authored in
+/// two units and a claim in a non-committing role.
+fn rooms_rows(p: &Prepared) -> String {
+    let interface = p.facet("Rooms exposes");
+    let state = p.facet("Rooms owns the mark");
+    let logic = p.facet("Rooms archives");
+    let addressable = p.facet("addressable");
+    let marker = p.facet("marker");
+    let decisions = p.facet("restore");
+    format!(
+        "(claim {interface:?} \"Rooms\" \"provides\" \"mark\" \"required\" \"true\")
+(measure {interface:?} \"mark\" \"latencyMs\" \"250\")
+(claim {state:?} \"Rooms\" \"owns\" \"mark\" \"required\" \"true\")
+(claim {state:?} \"Rooms\" \"provides\" \"mark\" \"required\" \"true\")
+(step {logic:?} \"1\")
+(claim {logic:?} \"step:1\" \"writes\" \"mark\" \"required\" \"true\")
+(guard {logic:?} \"step:1\" \"input\" \"roomId\")
+(end {logic:?} \"1\")
+(reading {addressable:?} \"unresolved\")
+(undeclared {marker:?} \"mark\")
+(undeclared {marker:?} \"framework code\")
+(claim {decisions:?} \"Rooms\" \"excludes\" \"mark\" \"permitted\" \"false\")
+"
+    )
+}
+
+/// Booking claims the mark exclusively while Rooms owns it.
+fn booking_rows(p: &Prepared) -> String {
+    let goal = p.facet("Book a room");
+    let rule = p.facet("Booking owns the mark");
+    let logic = p.facet("Booking sets the mark");
+    format!(
+        "(claim {goal:?} \"Booking\" \"dependsOn\" \"Rooms\" \"required\" \"true\")
+(claim {rule:?} \"Booking\" \"owns\" \"mark\" \"required\" \"true\")
+(property {rule:?} \"mark\" \"exclusive\" \"true\")
+(step {logic:?} \"1\")
+(claim {logic:?} \"step:1\" \"writes\" \"mark\" \"required\" \"true\")
+(end {logic:?} \"1\")
+"
+    )
+}
+
+fn design() -> Run {
+    let run = Run::new();
+    run.write(ROOMS, ROOMS_SOURCE);
+    run.write(BOOKING, BOOKING_SOURCE);
+    run.write(CALENDAR, CALENDAR_SOURCE);
+    run.read(ROOMS, &rooms_rows);
+    run.read(BOOKING, &booking_rows);
+    run
+}
+
+/// Every alias the view mentions.
+fn aliases_in(view: &str) -> BTreeSet<String> {
+    let token = regex::Regex::new(r"\b[EUCDOFS][0-9]+\b").unwrap();
+    token
+        .find_iter(view)
+        .map(|m| m.as_str().to_owned())
+        .collect()
+}
+
+// ------------------------------------------------------------------- AE7
+
+#[test]
+fn check_writes_a_deterministic_view_whose_every_alias_resolves() {
+    let run = design();
+    let first = run.check(None);
+    assert_eq!(first.code, 1, "an ownership conflict: {}", first.summary);
+    assert_eq!(first.summary["state"], "disjoint");
+
+    // The existing artifacts keep their schemas and versions.
+    let report: sigilc::claims::findings::Report =
+        serde_json::from_value(first.report.clone()).unwrap();
+    assert_eq!(report.version, 6);
+    let context: sigilc::claims::context::Context =
+        serde_json::from_value(first.context.clone()).unwrap();
+    assert_eq!(context.version, 1);
+    assert!(context.units.iter().all(|u| !u.prose.is_empty()));
+
+    // Every alias in the view is defined by the evidence, and no definition
+    // goes unused by it.
+    let defined: BTreeSet<String> = [
+        "entities",
+        "units",
+        "claims",
+        "conclusions",
+        "obligations",
+        "findings",
+        "simplifications",
+    ]
+    .iter()
+    .flat_map(|list| first.entries(list))
+    .map(|e| e["alias"].as_str().unwrap().to_owned())
+    .collect();
+    assert_eq!(aliases_in(&first.view), defined, "{}", first.view);
+
+    // The evidence binds the exact bytes of the view, report and context.
+    let artifact = |key: &str, name: &str| {
+        let entry = &first.evidence["artifacts"][key];
+        let path = PathBuf::from(first.summary[name].as_str().unwrap());
+        assert_eq!(entry["file"], path.file_name().unwrap().to_str().unwrap());
+        assert_eq!(entry["sha256"], sha256(&fs::read(path).unwrap()), "{key}");
+    };
+    artifact("view", "reviewView");
+    artifact("report", "report");
+    artifact("context", "judgmentContext");
+    assert_eq!(
+        first.evidence["computation"]["workspaceDigest"],
+        first.summary["workspaceDigest"]
+    );
+
+    // An unchanged workspace and store produce the same bytes.
+    let second = run.check(None);
+    assert_eq!(second.view, first.view);
+    assert_eq!(second.evidence, first.evidence);
+
+    // The view is much smaller than the context it summarises.
+    let context_bytes = serde_json::to_vec(&first.context).unwrap().len();
+    assert!(first.view.len() * 2 < context_bytes, "{}", first.view);
+}
+
+#[test]
+fn every_body_variant_survives_rendering_and_independent_promises_stay_apart() {
+    let run = design();
+    let checked = run.check(None);
+    let mark = checked.entity("mark");
+    let rooms = checked.entity("Rooms");
+
+    let line = |pick: &dyn Fn(&Value) -> bool| checked.line(&checked.claim(pick)).to_owned();
+    let is = |kind: &'static str| move |b: &Value| b["kind"] == kind;
+
+    // A permitted claim expected not to hold keeps both columns.
+    let excluded = line(&|b| b["relation"] == "excludes");
+    assert!(
+        excluded.contains(&format!("{rooms} excludes {mark}")),
+        "{excluded}"
+    );
+    assert!(excluded.contains("permitted"), "{excluded}");
+    assert!(excluded.contains("expected false"), "{excluded}");
+    // A required claim expected to hold is the unmarked default.
+    let owned =
+        line(&|b| b["relation"] == "owns" && b["subject"].as_str().unwrap().ends_with("Rooms"));
+    assert!(owned.ends_with(&format!("{rooms} owns {mark}")), "{owned}");
+
+    let measure = line(&is("measure"));
+    assert!(
+        measure.contains(&format!("{mark} latencyMs = 250")),
+        "{measure}"
+    );
+    let property = line(&is("property"));
+    assert!(
+        property.contains(&format!("{mark} exclusive = true")),
+        "{property}"
+    );
+    let reading = line(&|b| b["kind"] == "reading" && b["outcome"] == "unresolved");
+    assert!(reading.contains("reading unresolved"), "{reading}");
+
+    // A step is named by its claim alias wherever a row names it.
+    let rooms_logic = checked.unit("Rooms archives")["facet"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let step_alias = checked
+        .entries("claims")
+        .iter()
+        .find(|c| {
+            let body = &checked
+                .context
+                .pointer(c["context"].as_str().unwrap())
+                .unwrap()["body"];
+            body["kind"] == "step" && c["unit"] == checked.alias_of("units", "facet", &rooms_logic)
+        })
+        .unwrap()["alias"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(checked.line(&step_alias).contains("step 1"));
+    let guard = line(&is("guard"));
+    assert!(
+        guard.contains("guard step 1: input = \"roomId\""),
+        "{guard}"
+    );
+    let writes = checked
+        .view
+        .lines()
+        .filter(|l| l.contains(&format!("{step_alias}:step1 writes {mark}")))
+        .count();
+    assert_eq!(writes, 1, "{}", checked.view);
+
+    let undeclared = line(&|b| b["kind"] == "undeclared" && b["declared"].is_null());
+    assert!(
+        undeclared.contains("undeclared \"framework code\""),
+        "{undeclared}"
+    );
+    let unreferenced = line(&|b| b["kind"] == "undeclared" && !b["declared"].is_null());
+    assert!(
+        unreferenced.contains("undeclared \"mark\""),
+        "{unreferenced}"
+    );
+    assert!(unreferenced.contains(&mark), "{unreferenced}");
+
+    // One proposition authored in two units stays two claims under two units,
+    // and a simplification group names both.
+    let provides: Vec<String> = checked
+        .entries("claims")
+        .iter()
+        .filter(|c| {
+            checked
+                .context
+                .pointer(c["context"].as_str().unwrap())
+                .unwrap()["body"]["relation"]
+                == "provides"
+        })
+        .map(|c| c["alias"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(provides.len(), 2);
+    let units: BTreeSet<String> = checked
+        .entries("claims")
+        .iter()
+        .filter(|c| provides.contains(&c["alias"].as_str().unwrap().to_owned()))
+        .map(|c| c["unit"].as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(units.len(), 2, "the two claims sit in two units");
+    let group = checked
+        .entries("simplifications")
+        .iter()
+        .find(|s| s["kind"] == "duplicate-proposition")
+        .expect("a duplicate-proposition group");
+    let mut members: Vec<String> = group["claims"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c.as_str().unwrap().to_owned())
+        .collect();
+    members.sort();
+    let mut expected = provides.clone();
+    expected.sort();
+    assert_eq!(members, expected);
+    for alias in &provides {
+        assert!(
+            checked
+                .line(group["alias"].as_str().unwrap())
+                .contains(alias.as_str()),
+            "{}",
+            checked.view
+        );
+    }
+
+    // Every finding is listed with its claims, and the ownership conflict
+    // reaches the view.
+    assert_eq!(
+        checked.entries("findings").len(),
+        checked.report["findings"].as_array().unwrap().len()
+    );
+    assert!(
+        checked.view.contains("exclusive-ownership"),
+        "{}",
+        checked.view
+    );
+}
+
+// ------------------------------------------------------------------- AE4
+
+#[test]
+fn every_unit_stays_addressable_whatever_its_coverage() {
+    let run = design();
+    let checked = run.check(None);
+    let units = checked.entries("units");
+    assert_eq!(
+        units.len(),
+        checked.context["units"].as_array().unwrap().len(),
+        "one entry per context unit"
+    );
+
+    let coverage = |needle: &str| {
+        checked.unit(needle)["coverage"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    assert_eq!(coverage("Rooms exposes"), "interpreted");
+    assert_eq!(coverage("Own the room catalog"), "read-without-commitment");
+    assert_eq!(coverage("Show the room calendar"), "unread");
+    assert_eq!(coverage("restore the mark"), "interpreted");
+
+    // Every unit's line in the view carries its coverage, and a
+    // non-committing role says so.
+    for unit in units {
+        let line = checked.line(unit["alias"].as_str().unwrap());
+        assert!(line.contains(unit["coverage"].as_str().unwrap()), "{line}");
+    }
+    let decisions = checked.unit("restore the mark")["alias"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(checked.line(&decisions).contains("non-committing"));
+    assert_eq!(checked.evidence["scope"]["coverage"]["unread"], 1);
+
+    // A unit with no claim and no finding still resolves to its exact prose.
+    let calendar = checked.unit("Show the room calendar");
+    assert_eq!(
+        resolve(
+            &checked.evidence,
+            calendar["alias"].as_str().unwrap(),
+            CALENDAR_SOURCE.as_bytes()
+        )
+        .as_deref()
+        .map(str::trim),
+        Some("Show the room calendar.")
+    );
+    for unit in units {
+        let bytes = fs::read(run.ws.0.join(unit["source"].as_str().unwrap())).unwrap();
+        let prose = resolve(&checked.evidence, unit["alias"].as_str().unwrap(), &bytes)
+            .expect("every unit resolves against the bytes the check read");
+        let context = checked
+            .context
+            .pointer(unit["context"].as_str().unwrap())
+            .unwrap();
+        assert_eq!(context["prose"].as_str().unwrap().trim(), prose.trim());
+    }
+}
+
+#[test]
+fn a_source_filter_narrows_findings_but_not_the_computation_context() {
+    let run = design();
+    let whole = run.check(None);
+    let filtered = run.check(Some(CALENDAR));
+
+    assert!(
+        filtered.summary["reviewView"]
+            .as_str()
+            .unwrap()
+            .ends_with("calendar.sigil.linked.review.md")
+    );
+    assert_eq!(filtered.evidence["scope"]["reportFilter"], CALENDAR);
+    assert!(whole.evidence["scope"]["reportFilter"].is_null());
+    assert_eq!(filtered.evidence["scope"]["computation"], "workspace");
+    assert!(
+        filtered.view.contains("report filter: calendar.sigil"),
+        "{}",
+        filtered.view
+    );
+
+    // Calendar authored only the gap its own unread goal leaves, yet the view
+    // still carries every unit, claim and coverage gap of the workspace.
+    assert_eq!(
+        filtered.entries("findings").len(),
+        filtered.report["findings"].as_array().unwrap().len()
+    );
+    assert!(filtered.entries("findings").len() < whole.entries("findings").len());
+    assert!(
+        !filtered.view.contains("exclusive-ownership"),
+        "{}",
+        filtered.view
+    );
+    assert!(whole.view.contains("exclusive-ownership"));
+    for list in ["units", "claims", "entities"] {
+        assert_eq!(filtered.entries(list), whole.entries(list), "{list}");
+    }
+    assert_eq!(
+        filtered.evidence["scope"]["coverage"],
+        whole.evidence["scope"]["coverage"]
+    );
+}
+
+#[test]
+fn moving_prose_reuses_readings_but_changes_exact_source_identity() {
+    let run = design();
+    let before = run.check(None);
+
+    // Rewrap one Facet and move the file's text down a line: the readings
+    // still hold, but every byte coordinate moved.
+    let moved = format!(
+        "\n{}",
+        ROOMS_SOURCE.replace(
+            "Rooms owns the mark of every room.",
+            "Rooms owns the mark\n    of every room."
+        )
+    );
+    run.write(ROOMS, &moved);
+    let after = run.check(None);
+    assert_eq!(after.summary["unreadUnits"], before.summary["unreadUnits"]);
+    assert_eq!(
+        after.evidence["computation"]["identity"]["interpretations"],
+        before.evidence["computation"]["identity"]["interpretations"],
+        "every reading was reused"
+    );
+
+    let state = |checked: &Checked| checked.unit("Rooms owns the mark").clone();
+    let (old, new) = (state(&before), state(&after));
+    assert_eq!(
+        old["facet"], new["facet"],
+        "content identity survives the move"
+    );
+    assert_ne!(
+        old["location"]["source_digest"],
+        new["location"]["source_digest"]
+    );
+    assert_ne!(old["location"]["range"], new["location"]["range"]);
+
+    // The old bundle cannot read the new revision, and the new one can.
+    let bytes = moved.as_bytes();
+    assert_eq!(
+        resolve(&before.evidence, old["alias"].as_str().unwrap(), bytes),
+        None
+    );
+    assert_eq!(
+        resolve(&after.evidence, new["alias"].as_str().unwrap(), bytes)
+            .as_deref()
+            .map(str::trim),
+        Some("Rooms owns the mark\n    of every room.")
+    );
+    assert_eq!(resolve(&after.evidence, "U999", bytes), None);
+
+    let digest = |checked: &Checked| -> BTreeMap<String, String> {
+        checked.evidence["inputs"]["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| {
+                (
+                    s["path"].as_str().unwrap().to_owned(),
+                    s["sha256"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect()
+    };
+    let (old, new) = (digest(&before), digest(&after));
+    assert_ne!(old[ROOMS], new[ROOMS]);
+    assert_eq!(new[ROOMS], sha256(bytes));
+    assert_eq!(old[BOOKING], new[BOOKING]);
+}
+
+#[test]
+fn the_evidence_records_the_bytes_the_check_loaded_not_what_is_on_disk_later() {
+    use sigilc::claims::{context, findings, link, program, review};
+
+    let run = design();
+    let store = run.ws.0.join(".sigil");
+    let (input, basis) = run.ws.load();
+    let loaded = fs::read(run.ws.0.join(".sigil/config.json")).unwrap();
+
+    // The configuration changes after the design was loaded, and a source is
+    // added that the loaded design never saw.
+    run.write(".sigil/config.json", &format!("{}\n", support::CONFIG));
+    run.write(
+        "late.sigil",
+        "component Late {\n  goal {\n    Arrive late.\n  }\n}\n",
+    );
+
+    let linked = link::link(&input, &basis, &store).unwrap();
+    let world = program::saturate(
+        &linked.request,
+        &linked.facts,
+        sigilc::engine::Limits::default(),
+    )
+    .unwrap();
+    let mut report = findings::linked_report(&linked, &world, None);
+    findings::locate(&mut report, &input, &linked.facts);
+    let context = context::build(
+        &linked.request,
+        &linked.facts,
+        &world,
+        report.identity.clone(),
+    );
+    let bundle = review::build(&review::Inputs {
+        input: &input,
+        linked: &linked,
+        world: &world,
+        report: &report,
+        context: &context,
+        filter: None,
+        report_artifact: review::Artifact::new("workspace.linked.json", b"report"),
+        context_artifact: review::Artifact::new("workspace.linked.context.json", b"context"),
+    });
+    let evidence = serde_json::to_value(&bundle.evidence).unwrap();
+
+    let context_files: BTreeMap<String, Value> = evidence["inputs"]["context"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| (c["path"].as_str().unwrap().to_owned(), c.clone()))
+        .collect();
+    let config = &context_files[".sigil/config.json"];
+    assert_eq!(config["present"], true);
+    assert_eq!(config["sha256"], sha256(&loaded));
+    assert_ne!(
+        config["sha256"],
+        sha256(&fs::read(run.ws.0.join(".sigil/config.json")).unwrap())
+    );
+    // Absent optional context is recorded as absent, not left out.
+    let glossary = &context_files[".sigil/glossary.json"];
+    assert_eq!(glossary["present"], false);
+    assert!(glossary["sha256"].is_null());
+
+    let sources: BTreeSet<&str> = evidence["inputs"]["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| s["path"].as_str().unwrap())
+        .collect();
+    assert_eq!(sources, BTreeSet::from([BOOKING, CALENDAR, ROOMS]));
+    assert_eq!(evidence["artifacts"]["report"]["sha256"], sha256(b"report"));
+    assert_eq!(
+        evidence["artifacts"]["view"]["sha256"],
+        sha256(bundle.view.as_bytes())
+    );
+}

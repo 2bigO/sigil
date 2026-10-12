@@ -233,7 +233,11 @@ component SigilComputedClaims {
       the promise that raised it and where that promise is stated. Propose
       simplification candidates without ruling on them. Carry the prose an entry
       refers to, which for a Logic entry is every Facet of its section, so a
-      consumer needs no access to the sources.
+      consumer needs no access to the sources. Beside the linked check's
+      context, write a *review view* that names every unit, claim, conclusion,
+      finding and coverage gap by an alias local to that check and carries no
+      prose, with an evidence file mapping each alias to its full identity and
+      the exact source bytes the check read.
     }
 
     ClaimsCommands {

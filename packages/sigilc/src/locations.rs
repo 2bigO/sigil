@@ -11,6 +11,14 @@ pub struct Location {
     pub source_digest: String,
     pub range: Range,
 }
+/// The lowercase hex SHA-256 of exact bytes.
+pub fn sha256(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
+}
+
 // @sigil implements packages/sigilc/align.sigil::SigilImplementationClaims::LocatedFindings interface
 impl Location {
     pub fn new(side: &str, source: &str, bytes: &[u8], range: Range) -> Self {
@@ -18,10 +26,7 @@ impl Location {
             side: side.into(),
             source: source.into(),
             coordinate_system: "utf8-bytes".into(),
-            source_digest: Sha256::digest(bytes)
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect(),
+            source_digest: sha256(bytes),
             range,
         }
     }

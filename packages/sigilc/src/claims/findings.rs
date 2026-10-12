@@ -606,11 +606,31 @@ pub(crate) fn store(
     source: &str,
     suffix: &str,
 ) -> Result<PathBuf, String> {
-    let dir = store_path(root);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let path = dir.join(format!("{}{suffix}", source.replace(['/', '\\', ':'], "_")));
+    store_bytes(&encode(value)?, root, source, suffix)
+}
+
+/// The exact bytes `store` writes for a value.
+pub(crate) fn encode(value: &impl Serialize) -> Result<Vec<u8>, String> {
     let mut bytes = serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?;
     bytes.push(b'\n');
+    Ok(bytes)
+}
+
+/// The file name an artifact for `source` takes under the store.
+pub(crate) fn file_name(source: &str, suffix: &str) -> String {
+    format!("{}{suffix}", source.replace(['/', '\\', ':'], "_"))
+}
+
+/// Write bytes already encoded under the store this component owns.
+pub(crate) fn store_bytes(
+    bytes: &[u8],
+    root: &Path,
+    source: &str,
+    suffix: &str,
+) -> Result<PathBuf, String> {
+    let dir = store_path(root);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let path = dir.join(file_name(source, suffix));
     std::fs::write(&path, bytes).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(path)
 }
