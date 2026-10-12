@@ -123,12 +123,12 @@ component Identity {
   goal {
     Know which *signed-in user* makes each request.
   }
+  constraints {
+    Identity never tells a caller who is acting when no signed-in user exists.
+  }
   interface {
     Identity provides the signed-in user of a request, read from its session
     cookie.
-  }
-  constraints {
-    Identity never tells a caller who is acting when no signed-in user exists.
   }
 }
 ```
@@ -142,17 +142,17 @@ component Booking {
   goal {
     Let the signed-in user hold a *booking* of a room.
   }
-  interface {
-    Booking lets the current user change the range of their own *pending
-    booking*.
-  }
   constraints {
-    Booking never changes the range of a pending booking.
+    Booking never changes the range of a *pending booking*.
 
     A pending booking never overlaps a *confirmed booking*. Cancelling a
     pending booking releases its range at once.
 
     A pending booking must not overlap any confirmed booking.
+  }
+  interface {
+    Booking lets the current user change the range of their own pending
+    booking.
   }
 }
 ```
