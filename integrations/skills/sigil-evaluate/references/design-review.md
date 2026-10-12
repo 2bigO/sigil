@@ -88,6 +88,11 @@ construction, but a warning can still mark a real gap: when a step reaches no
 end, read that step before dismissing it, because a result nothing uses is a
 design gap.
 
+Account for every computed finding. One that no reported finding cites in its
+`basis` goes in the report's `set_aside` list with a one-line reason: what the
+prose says that makes it a misreading, which admission condition it fails, or
+that it lies outside the review scope. Group aliases that share one reason.
+
 Assess each undeclared or unreferenced name by the Tag order below, never by
 whether the prose reads clearly without a Tag. First find the promise the name
 sits in. A name that is the subject or object of a promise, including one its

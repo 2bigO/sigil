@@ -111,9 +111,11 @@ assessment may continue.
 Return `protocol`, `status` (`complete` or `incomplete`), `scope`, `source_root`,
 `assessed_inputs`, `authority`, `findings`, `coverage`, and `limitations`. A
 review that used computed claims also returns `computed_evidence`, echoing the
-verified bundle, dependency, and authority identities it used. A report without
-it is a source-only review: it remains valid, but cannot establish computed
-coverage.
+verified bundle, dependency, and authority identities it used, and `set_aside`:
+one entry per group of computed findings no reported finding cites in its
+`basis`, with their aliases and the reason they were not reported. A report
+without `computed_evidence` is a source-only review: it remains valid, but
+cannot establish computed coverage.
 `source_root` records the original absolute workspace root actually used for
 root-relative resolution. In a delegated report it must exactly match the
 request's `source_root`; a missing or unequal value makes the report incomplete

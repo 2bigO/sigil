@@ -199,7 +199,8 @@ has, or `sigilc` is unavailable and no bundle is supplied.
   view. Design sources are unchanged; only temporary files and the claims cache
   change. The report carries `computed_evidence` and lists each prose passage
   it read under `assessed_inputs`. The computed state is reported separately
-  from the findings.
+  from the findings. Every computed finding is either cited in a finding's
+  `basis` or listed under `set_aside` with a reason.
 - **C1, Tags (AE3):** "current user" is reported as the imported `signed-in
   user`, to be referenced. "Session cookie" is the object of Identity's
   interface promise, so it is proposed as one Identity Tag, never a Booking Tag.
