@@ -11,23 +11,24 @@ in the skills because of them.
 - **Cost: higher, not lower.** On the Slotted design, every review that
   started from computed claims read more tokens (360k to 1.02M) than every
   review that read the sources (218k to 308k).
-- **Quality on Slotted: the same or slightly steadier.** Slotted has four
-  planted problems. Every claims-based review found three of them. The
-  source-only reviews found three, three and one. No review found the fourth.
+- **Quality on Slotted: steadier, and complete after the last guidance fix.**
+  Slotted has four planted problems. The first four claims-based reviews found
+  three each; the source-only reviews found three, three and one. The fifth
+  claims-based review, with `sigil-evaluate` 0.2.3, found all four.
 - **Quality on a small Booking design: better.** The claims-based review
   noticed that "current user" should be the existing `signed-in user` Tag, and
   read a promise the claims had missed. The source-only review did neither.
 - **Reusing earlier readings works.** A second run with no edits started no
   new reading at all.
-- **No judge reported the unused digest step, and now we know why.** A rerun
-  that had to list every warning it set aside dismissed all five "step reaches
-  no end" warnings as one group, misreading them as missing links between
-  steps. Two of the five are the planted problem; three point elsewhere.
-- **The writer needed two fixes, and both only partly hold.** Its first run
-  deleted both sides of a policy conflict it should have left to a person, and
-  ignored two untagged words the check flagged. In the third run it tagged
-  `range`, but it dropped the word "room" instead of tagging it. It deleted the
-  conflict again and restored it only at the end.
+- **Why the unused digest step was missed, and the fix.** A judge that had to
+  list every warning it set aside dismissed all five "step reaches no end"
+  warnings as one group, misreading them as missing links between steps. After
+  the guidance explained the warning and asked for each to be judged on its
+  own, the next judge reported the digest steps.
+- **The writer needed three rounds of fixes.** Its runs deleted a policy
+  conflict it should have left to a person, ignored untagged words the check
+  flagged, and once cleared a warning by deleting the word. The fourth run, with
+  `sigil-write` 0.2.3, did none of these. It was also the cheapest writer run.
 
 ## Terms used here
 
@@ -82,6 +83,7 @@ is reported on its own.
 | J1r2-proposed | claims-based, second guidance | 360,303 | 11 | 95 s |
 | J1r3-proposed | claims-based, third guidance | 1,018,025 | 17 | 331 s |
 | J1r4-proposed | claims-based, lists set-aside warnings | 515,299 | 15 | 952 s |
+| J1r5-proposed | claims-based, judges each dead-end step | 534,439 | 13 | 282 s |
 
 "Tokens read" adds up everything the judge read on every turn, including text
 it had already read. Most of it was served from the model's cache.
@@ -106,19 +108,19 @@ That is one run per guidance version, not three matched pairs.
 
 ### 2. What the reviews found on Slotted
 
-| Planted problem | J1-b | J2-b | J3-b | J1-p | J1r2-p | J1r3-p | J1r4-p |
-| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| Booking and Rooms both claim to own the archived-room mark | yes | yes | no | yes | yes | yes | yes |
-| Booking both offers and forbids changing a pending request's range | yes | yes | yes | yes | yes | yes | yes |
-| Calendar needs a renter display name nobody provides | yes | yes | no | yes | yes | yes | yes |
-| A Calendar step computes a digest that nothing uses | no | no | no | no | no | no | no |
+| Planted problem | J1-b | J2-b | J3-b | J1-p | J1r2-p | J1r3-p | J1r4-p | J1r5-p |
+| --- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| Booking and Rooms both claim to own the archived-room mark | yes | yes | no | yes | yes | yes | yes | yes |
+| Booking both offers and forbids changing a pending request's range | yes | yes | yes | yes | yes | yes | yes | yes |
+| Calendar needs a renter display name nobody provides | yes | yes | no | yes | yes | yes | yes | yes |
+| A Calendar step computes a digest that nothing uses | no | no | no | no | no | no | no | yes |
 
 (b = source-only, p = claims-based.)
 
-- No judge found the unused digest step, even though the review view lists it
-  as a warning. We added a line to the guidance asking the judge to read such a
-  step before dismissing it; that change did not make the next judge find it.
-  See "Why the digest step was missed" below.
+- Until J1r5, no judge found the unused digest step, even though the review
+  view lists it as a warning. A line asking the judge to read such a step
+  before dismissing it did not help. See "Why the digest step was missed"
+  below.
 - The judges disagreed on who decides the range question. Four called it a
   decision for a person. J3-baseline and J1r2-proposed instead proposed
   deleting the offer, citing Booking's own text that the requested range stays
@@ -159,6 +161,30 @@ Identity.
 
 J1r4 took 952 s, much longer than J1r3, but read about half as many tokens. We
 did not look into the time.
+
+**The fix** (`sigil-evaluate` 0.2.3):
+- The guidance now says what the warning means: the step's result goes
+  nowhere, because no later step uses it and no end returns or stores it.
+- The judge reads each such step on its own. If the prose says what uses,
+  returns or stores the result, the warning is a misreading. If not, it is a
+  design gap, whatever the intent says.
+- A name can be set aside for only two reasons: it means an existing Tag
+  (named), or it is context wording.
+
+**J1r5**, with that fix, on the same evidence:
+- It reported both digest steps (`F40`, `F43`) as decisions for a person:
+  "State what uses or stores the read items, or remove the step if it has no
+  effect."
+- It set aside the other three such warnings, citing the prose that ends each
+  flow: Booking's steps "commit", and SharedKernel checks the grid first. It
+  put the two Booking warnings in one entry, although the guidance asks for one
+  entry each.
+- It proposed Tags for 19 names that are objects of promises, such as `date
+  range`, `party size` and `overlap`. It set aside the other 40 as context
+  wording, Decisions wording or an existing Tag. A few reasons mix "existing
+  Tag" and "context" without naming the Tag.
+- It read about the same number of tokens as J1r4 (534k), so it still costs
+  more than a source-only review.
 
 ### 3. The small Booking design
 
@@ -267,6 +293,31 @@ applies this to the check's warnings itself, before any judge sees the draft.
   for wrong paths in the evidence echo, once for a missing read-only note.
   That accounts for part of the extra cost.
 
+**Fix** (`sigil-write` 0.2.3, `sigil-evaluate` 0.2.3):
+- The writer never clears a name warning by deleting the word.
+- It never replaces a conflict with a Decisions note, because Decisions commit
+  nothing.
+- Kept conflict sentences still get Tag corrections.
+- The judge never counts a Decisions note as keeping an undecided policy.
+
+**Fourth run (G4-writer)**, two helpers, 343 s. The host read 2.0M tokens and
+the helpers 0.76M, the cheapest writer run so far.
+[Before and after](evidence/claims-guided-review/G4-writer-booking.diff).
+
+- **Both sides of the conflict stayed** from start to finish, and the one
+  judge returned the question to the person.
+- **"current user" became `signed-in user`** in the kept sentence.
+- **`range` got a Tag, `booking range`,** shared by the range-change and
+  cancellation promises. The duplicate overlap rule was merged.
+- **"room" stays untagged, and the word stays.** This time the reader produced
+  no warning for it, so neither the writer nor the judge acted on it. The
+  writer acts on names only when the check flags them.
+- The reader again recorded no prohibition for "Booking never changes the
+  booking range", so the check could not compute the conflict. The judge
+  found it in the prose.
+- One run is not proof. G3 shows the earlier failures can come back in a
+  long run.
+
 ## What changed in the skills because of these runs
 
 | Commit | Change |
@@ -277,6 +328,7 @@ applies this to the check's warnings itself, before any judge sees the draft.
 | `ac9482e` | Review contract allows preparation to write its cache files. |
 | `11ed05d` | Undeclared names follow the Tag rule; writer acts on them itself. |
 | `25849fb` | Judge lists every computed warning it does not report, with a reason (`sigil-evaluate` 0.2.2). |
+| `649c758` | Judge reads each dead-end step singly and limits reasons for dropping names; writer never deletes a flagged word or replaces a conflict with a note (both 0.2.3). |
 
 ## Not tested
 
