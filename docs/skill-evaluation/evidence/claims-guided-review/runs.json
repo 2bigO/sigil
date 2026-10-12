@@ -363,6 +363,33 @@
         "reasoning_output_tokens": 0
       },
       "commands": 7
+    },
+    "G2-writer": {
+      "catalog": "proposed-r4",
+      "catalogCommit": "12582d6",
+      "hostTurns": 75,
+      "exit": 0,
+      "elapsedSeconds": 1412.2,
+      "host": {
+        "input_tokens": 6766755,
+        "cached_input_tokens": 6570240,
+        "output_tokens": 41130,
+        "reasoning_output_tokens": 21168
+      },
+      "hostModels": [
+        "gpt-6-luna/high"
+      ],
+      "children": 7,
+      "childModels": [
+        "gpt-6-luna/high"
+      ],
+      "childUsage": {
+        "input_tokens": 2067069,
+        "cached_input_tokens": 1827840,
+        "output_tokens": 40176,
+        "reasoning_output_tokens": 17505
+      },
+      "commands": 39
     }
   }
 }

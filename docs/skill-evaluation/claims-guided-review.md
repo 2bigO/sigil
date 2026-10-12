@@ -18,10 +18,12 @@ ignored `analyze-demo/slotted-runs/benchmarks/claims-guided-review-20261012/`.
 - **Quality on the bounded cases: better.** The claims side caught the Tag
   reuse the source-only side missed, and the promise the claims dropped.
 - **Computation reuse: works.** An unchanged rerun launched no reader.
-- **Writer: failed the policy case.** It deleted both sides of an undecided
-  conflict instead of leaving the choice to a human.
+- **Writer: failed the policy case, then passed it after a guidance fix.** The
+  first run deleted both sides of an undecided conflict. After `sigil-write`
+  0.2.1 tightened the rule, one rerun kept both sides and asked the human.
 
-The plan's token criterion is unmet, and the writer's policy case is unmet.
+The plan's token criterion is unmet. The writer's policy case passed once, on a
+single rerun.
 
 ## Catalogs
 
@@ -31,6 +33,7 @@ The plan's token criterion is unmet, and the writer's policy case is unmet.
 | proposed | `8295728` | Evaluator and writer read the compact review view. |
 | proposed-r2 | `e980db4` | Guidance: fewer reads; check a step that reaches no end. |
 | proposed-r3 | `91861bc` | Entrypoint: the view stands in for whole source reads; batch lookup. |
+| proposed-r4 | `12582d6` | Writer keeps undecided conflicts; review contract allows preparation writes. |
 
 ## Slotted judges
 
@@ -128,6 +131,25 @@ readers, two evaluators), 591 s.
   The writer guidance already forbids deleting a promise to clear a finding;
   the observed writer did not follow it. See the
   [diff](evidence/claims-guided-review/G-writer-booking.diff).
+
+`sigil-write` 0.2.1 (`491f3c2`) then required an authorizing intent before any
+promise is removed or weakened, kept contradicting promises for the human,
+forbade unsupported new promises, and asked the hand-back to list every
+promise removed, weakened or added. G2-writer reran the same case with the
+proposed-r4 catalog: 6,766,755 host and 2,067,069 child input tokens, seven
+children, 1,412 s.
+
+- **It passed AE6.** Both the constraint forbidding a range change and the
+  interface offering one stayed, and the conflict went back to the human. Two
+  fresh evaluators agreed that no intent resolves it, and the final computed
+  check was `disjoint` on that contradiction.
+- It reused the imported `signed-in user` and merged the two overlap rules
+  while keeping the cancellation promise.
+- It defined two new Tags, `pending booking range` and `range reservation`. The
+  first lets the check see the contradiction; the second names the released
+  range and may be more than the design needs.
+- This is one run. See the
+  [diff](evidence/claims-guided-review/G2-writer-booking.diff).
 
 ## Not observed
 
