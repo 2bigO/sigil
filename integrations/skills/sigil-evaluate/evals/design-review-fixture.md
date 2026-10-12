@@ -114,7 +114,8 @@ component ExportArchive {
 These cases exercise review from computed claims. Materialize the inputs below
 under a fresh workspace with a `.sigil/config.json` that includes `**/*.sigil`,
 and record that the runner added it. Retain the evaluator skill tree before the
-claims-guided change as the baseline for the claims review comparison.
+claims-guided change as the baseline for the
+[claims review comparison](claims-review-fixture.md).
 
 ### Input: `identity.sigil`
 

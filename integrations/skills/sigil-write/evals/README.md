@@ -50,6 +50,9 @@ Use these fixtures:
   retrieval, freshness, progress, and handoff. Its computed claims cases G–I
   cover computing each draft, capturing the review bundle, Tag corrections from
   undeclared names, stale computed evidence, and unavailable `sigilc`.
+- [Claims review comparison](../../sigil-evaluate/evals/claims-review-fixture.md):
+  matched source-only and computed-claims reviews, with judge input usage and
+  quality recorded per run.
 - [Mechanical validation](mechanical-validation-fixture.md): compatible CLI use,
   scoped formatting, read-only evaluation, unavailable tooling, and exact-revision
   evidence. Run these with their own CLI availability; older offline cases remain

@@ -14,3 +14,8 @@ observation.
 The [2026-09-23 observations](evidence/sigil-compute/observations.md) retain the
 skill name, tool versions and limits actually observed then. Their evidence
 paths and bytes are unchanged.
+
+Review preparation (0.5.0) was observed on 2026-10-12 as part of the
+[claims-guided review comparison](claims-guided-review.md): a cold whole-design
+run, an unchanged rerun with no reader, a selected-source run, and a compiler
+that writes no review view (controlled replay).
