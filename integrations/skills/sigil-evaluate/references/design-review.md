@@ -36,6 +36,14 @@ simplification candidates, all by aliases local to that bundle. Do not load the
 full judgment context as a substitute for the view; read one entry of it, or of
 the report, through the pointer the evidence file gives for an alias.
 
+Keep evidence reads few, because every extra step re-reads everything before
+it. Check the bundle hashes in one command and read the view once. Gather the
+prose you need in as few commands as you can: when the whole design is in
+scope and its sources are small, read each source once rather than many byte
+ranges, and never read the same passage twice. Never open the judgment
+context, the report, or the evidence file whole; select the entries you need
+in one batched query.
+
 Claims are one reading of the prose, not the design. Read the unit's prose
 before you:
 
@@ -58,7 +66,9 @@ Sort each computed finding before reporting it. A design defect is confirmed
 by the prose. A misreading of the prose is an interpretation problem, recorded
 as a coverage note, not a design finding. A gap that fails the admission rule
 below is optional detail and is omitted. Flow and gap findings are warnings by
-construction.
+construction, but a warning can still mark a real gap: when a step reaches no
+end, read that step before dismissing it, because a result nothing uses is a
+design gap.
 
 Assess each undeclared or unreferenced name against the view's vocabulary and
 the prose, and recommend at most one of these:
