@@ -1,6 +1,6 @@
 @integrations/editor/vscode/_module.sigil from SigilVsCodeExtension import { ExtensionPackage }
 @packages/lsp/_module.sigil from SigilLsp import { LspPackage }
-@packages/sigilc/_module.sigil from SigilSemanticCompiler import { SourceTrees, language interpretation }
+@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { SourceTrees, language interpretation }
 @packages/cli/_module.sigil from SigilCli import { CliInvocation }
 @packages/core/_module.sigil from SigilCore import { CorePackage }
 @spec/language.sigil from SigilWorkspaceConfig import { WorkspaceBoundary, ConfigFile }

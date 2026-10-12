@@ -1,7 +1,7 @@
 @integrations/editor/vscode/_module.sigil from SigilVsCodeExtension import { ExtensionPackage, installable VSIX, VSIX }
 @packages/cli/src/installer.sigil from SkillInstaller import { SkillCatalog, SkillCompatibility }
 @packages/sigilc/claims.sigil from SigilComputedClaims import { ClaimsCommands }
-@packages/sigilc/_module.sigil from SigilSemanticCompiler import { SourceTrees }
+@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { SourceTrees }
 @_module.sigil from Sigil import { ArtifactVersionOwnership }
 @packages/cli/_module.sigil from SigilCli import { CliInvocation }
 
