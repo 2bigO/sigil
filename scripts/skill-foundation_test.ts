@@ -224,6 +224,62 @@ Deno.test("computed alignment declares its composed loop dependencies and valida
   }
 });
 
+Deno.test("review and writing depend on computation, which depends on neither", async () => {
+  equal(FOUNDATION_SKILLS["sigil-evaluate"], [
+    "sigil-understand",
+    "sigil-compute-design",
+  ]);
+  equal(FOUNDATION_SKILLS["sigil-write"], [
+    "sigil-understand",
+    "sigil-evaluate",
+    "sigil-compute-design",
+  ]);
+  equal(FOUNDATION_SKILLS["sigil-compute-design"], [
+    "sigil-understand",
+    "sigil-egglog",
+  ]);
+  const catalog = await Deno.makeTempDir({
+    prefix: "sigil computed review 空 ",
+  });
+  try {
+    await copyTree(join(root, "integrations/skills"), catalog);
+    await validateFoundation(catalog);
+
+    // Computation must not point back at its callers.
+    const compute = join(catalog, "sigil-compute-design/SKILL.md");
+    const original = await Deno.readTextFile(compute);
+    await Deno.writeTextFile(
+      compute,
+      original + "\n[Reviewer](../sigil-evaluate/SKILL.md)\n",
+    );
+    await rejects(
+      () => validateFoundation(catalog),
+      /outside declared foundation dependencies/,
+    );
+    await Deno.writeTextFile(compute, original);
+
+    // Review and writing both need the computed evaluation sibling and,
+    // through it, the claims dialect.
+    for (const missing of ["sigil-compute-design", "sigil-egglog"]) {
+      await Deno.rename(
+        join(catalog, missing),
+        join(catalog, `gone-${missing}`),
+      );
+      await rejects(
+        () => validateFoundation(catalog),
+        /Missing foundation skill/,
+      );
+      await Deno.rename(
+        join(catalog, `gone-${missing}`),
+        join(catalog, missing),
+      );
+    }
+    await validateFoundation(catalog);
+  } finally {
+    await Deno.remove(catalog, { recursive: true });
+  }
+});
+
 async function fixture(run: (directory: string) => Promise<void>) {
   const directory = await Deno.makeTempDir({ prefix: "sigil foundation 空 " });
   try {

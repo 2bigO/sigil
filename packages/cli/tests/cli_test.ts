@@ -1835,6 +1835,22 @@ Deno.test("skill discovery resolves valid skills from the source installation", 
   assertEquals(legacy.compatibility.requirements.sigilcVersion, "^0.1.0");
   assertEquals(legacy.compatibility.languageCompatible, false);
   assertEquals(legacy.compatibility.runtimeValidation, "not-run");
+  const requires = (name: string) =>
+    parseJson(listed.stdout).catalog.find((s: { name: string }) =>
+      s.name === name
+    ).compatibility.requirements.requiredSkills.join(",");
+  assertEquals(
+    requires("sigil-evaluate"),
+    "sigil-understand,sigil-compute-design",
+  );
+  assertEquals(
+    requires("sigil-write"),
+    "sigil-understand,sigil-evaluate,sigil-compute-design",
+  );
+  assertEquals(
+    requires("sigil-compute-design"),
+    "sigil-understand,sigil-egglog",
+  );
 });
 
 Deno.test("skill real bundle retains sibling references in global and project links and relocated copies", async () => {

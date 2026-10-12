@@ -34,7 +34,10 @@ trade-offs, and preserve source identities for resumption. On return, reread
 current sources before using the answer. Route an authorized contract revision
 through [sigil-write](../sigil-write/SKILL.md), including its independent
 [sigil-evaluate](../sigil-evaluate/SKILL.md) design review, then reassess the
-implementation. The evaluator itself remains read-only and design-only.
+implementation. The evaluator itself remains read-only and design-only. That
+review computes the design with `sigilc` when it can; when it cannot, it
+continues from the sources and reports computed coverage as unavailable, which
+does not block alignment.
 
 Return the reviewed Component and evidence scope, code changes, resolved and
 remaining findings, checks actually run and their results, and specific coverage

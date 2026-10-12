@@ -750,7 +750,7 @@ alignment skill, its computed partner, and one egglog language skill:
 | Skill | Use it to |
 | --- | --- |
 | [sigil-understand](integrations/skills/sigil-understand/SKILL.md) | Explain intent, contract roles, Tag ownership, and relevant context. |
-| [sigil-evaluate](integrations/skills/sigil-evaluate/SKILL.md) | Review design read-only for consequential problems and useful simplification. |
+| [sigil-evaluate](integrations/skills/sigil-evaluate/SKILL.md) | Review design read-only from its computed claims for consequential problems and useful simplification. |
 | [sigil-compute-design](integrations/skills/sigil-compute-design/SKILL.md) | Run the claims loop on an existing design and hand back the computed Coherent, Loose, Disjoint, or Incomplete ingest state with findings, distinct from advisory review. |
 | [sigil-write](integrations/skills/sigil-write/SKILL.md) | Write compact contracts and apply supported corrections through independent delegated review. |
 | [sigil-align](integrations/skills/sigil-align/SKILL.md) | Review and repair a selected component's implementation against its accepted contract, then report code and test evidence. |
@@ -766,6 +766,12 @@ at 0.1.0 with no design-skill dependency. Install the complete catalog with
 `sigil-egglog`; it routes only explicit claims or computed-check requests, so a
 generic review stays on `sigil-evaluate`. It needs the `sigilc` binary and
 a host that can delegate a fresh child.
+`sigil-evaluate` (0.2.0) requires `sigil-understand` and `sigil-compute-design`;
+`sigil-write` (0.2.0) also requires `sigil-evaluate`. Before judging, they run
+`sigil-compute-design`'s review preparation, which reuses stored readings and
+ends with one linked `sigilc check`. The judge reads that check's compact
+review view and reads prose through its verified byte ranges. Without `sigilc`
+both continue from the sources and report computed coverage as unavailable.
 `sigil-compute-align` starts at 0.1.0 and requires `sigil-compute-design`,
 `sigil-understand`, and `sigil-egglog`, plus `sigilc` and fresh-child delegation.
 It needs configured implementation selection and proposes excludes as output only;
@@ -774,7 +780,8 @@ a plain implementation review stays on `sigil-align`.
 Use it for implementation conformance and determinate code repairs; use
 `sigil-evaluate` for read-only design review. A consequential contract change
 routes through `sigil-write` and independent design review. `sigil-align`
-uses contract, code, and test evidence; it does not require `sigilc`.
+uses contract, code, and test evidence; it does not require `sigilc`, and a
+design review it routes through `sigil-write` continues source-only without it.
 
 Writing and evaluation use a verified compatible CLI when available. The writer
 runs `check`, formats only authored files, and rechecks before capturing inputs
