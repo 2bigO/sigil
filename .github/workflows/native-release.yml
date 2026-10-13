@@ -348,6 +348,9 @@ jobs:
     if: ${{ github.repository == 'qoherent/sigil' && (github.event_name == 'push' || inputs.publish == true) }}
     needs: [build, artifact-consumer]
     runs-on: ubuntu-24.04
+    # The release App's secrets live in this environment, which only cli-v*
+    # tags may deploy to, so a workflow on any other branch cannot read them.
+    environment: release
     permissions:
       contents: write
     env:
@@ -364,12 +367,16 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
-      - name: Assert the checkout is the release tag
+      - name: Assert the checkout is the release tag, on main
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           version="${VERSION#cli-v}"
           tag="cli-v$version"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$tag^{commit}")"
+          git fetch --no-tags "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" main
+          git merge-base --is-ancestor HEAD FETCH_HEAD || { echo "$tag is not on main; merge it first" >&2; exit 1; }
       - uses: actions/download-artifact@v4
         with:
           pattern: sigil-release-*
@@ -398,7 +405,11 @@ jobs:
           version="${VERSION#cli-v}"
           tag="cli-v$version"
           if gh release view "$tag" >/dev/null 2>&1; then
-            echo "Release $tag already exists; reusing it."
+            echo "Release $tag already exists; reusing it and making sure every asset is on it."
+            gh release upload "$tag" \
+              build/release/*.tar.gz build/release/*.zip \
+              build/release/checksums.txt build/release/install.sh build/release/install.ps1 \
+              --clobber
           else
             gh release create "$tag" \
               build/release/*.tar.gz build/release/*.zip \
@@ -411,6 +422,8 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-workflows: write
       - name: Advance the release branch
         env:
           APP_TOKEN: ${{ steps.release-app.outputs.token }}
@@ -427,7 +440,10 @@ jobs:
           version="${VERSION#cli-v}"
           tag="cli-v$version"
           latest="$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name 2>/dev/null || true)"
-          if [[ "$latest" = "$tag" ]]; then
+          branch_tip="$(git ls-remote origin refs/heads/release | cut -f1)"
+          if [[ "$branch_tip" != "$(git rev-parse HEAD)" ]]; then
+            echo "The release branch has moved past $tag; leaving Latest alone."
+          elif [[ "$latest" = "$tag" ]]; then
             echo "$tag is already the latest release."
           else
             gh release edit "$tag" --latest

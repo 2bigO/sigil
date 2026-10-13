@@ -1,14 +1,20 @@
 import { deepStrictEqual as equal, rejects } from "node:assert/strict";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { advanceReleaseBranch } from "./advance-release-branch.ts";
+
+async function emptyConfig(): Promise<string> {
+  return await Deno.makeTempFile({ prefix: "sigil-gitconfig-" });
+}
 
 const GIT_ENV = {
   GIT_AUTHOR_NAME: "test",
   GIT_AUTHOR_EMAIL: "test@example.com",
   GIT_COMMITTER_NAME: "test",
   GIT_COMMITTER_EMAIL: "test@example.com",
-  GIT_CONFIG_GLOBAL: "/dev/null",
-  GIT_CONFIG_SYSTEM: "/dev/null",
+  // An empty file, not /dev/null, so this works on Windows runners too.
+  GIT_CONFIG_GLOBAL: await emptyConfig(),
+  GIT_CONFIG_NOSYSTEM: "1",
 };
 
 async function git(cwd: string, ...args: string[]): Promise<string> {
@@ -194,7 +200,7 @@ Deno.test("a shallow clone names the missing history instead of calling it a hot
         "1",
         "--branch",
         "cli-v0.9.1",
-        `file://${remote}`,
+        pathToFileURL(remote).href,
         shallow,
       );
       equal(await git(shallow, "rev-parse", "--is-shallow-repository"), "true");
@@ -206,5 +212,39 @@ Deno.test("a shallow clone names the missing history instead of calling it a hot
     } finally {
       await Deno.remove(join(shallow, ".."), { recursive: true });
     }
+  });
+});
+
+Deno.test("a descendant tag whose version equals the release tip's is refused", async () => {
+  await withFixture(async ({ remote, work, commit }) => {
+    await commit("0.9.0"); // the tip's manifest already says 0.9.0
+    await git(work, "tag", "cli-v0.8.0");
+    await advanceReleaseBranch({ repo: work, tag: "cli-v0.8.0" });
+    const tip = await remoteRelease(remote);
+
+    await commit("0.9.0");
+    await git(work, "tag", "cli-v0.9.0");
+    await rejects(
+      advanceReleaseBranch({ repo: work, tag: "cli-v0.9.0" }),
+      /not newer/,
+    );
+    equal(await remoteRelease(remote), tip);
+  });
+});
+
+Deno.test("a release tip whose CLI version cannot be read refuses to move", async () => {
+  await withFixture(async ({ remote, work, commit }) => {
+    await commit("not-a-version");
+    await git(work, "tag", "cli-v0.8.0");
+    await advanceReleaseBranch({ repo: work, tag: "cli-v0.8.0" });
+    const tip = await remoteRelease(remote);
+
+    await commit("0.9.0");
+    await git(work, "tag", "cli-v0.9.0");
+    await rejects(
+      advanceReleaseBranch({ repo: work, tag: "cli-v0.9.0" }),
+      /cannot read the CLI version/,
+    );
+    equal(await remoteRelease(remote), tip);
   });
 });

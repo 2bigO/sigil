@@ -135,20 +135,34 @@ async function editPinFile(
   await Deno.writeTextFile(path, edit(await Deno.readTextFile(path)));
 }
 
+async function cliVersion(copy: string): Promise<string> {
+  const manifest = JSON.parse(
+    await Deno.readTextFile(join(copy, "packages/cli/deno.json")),
+  );
+  return manifest.version;
+}
+
+/** Rewrites every pinned installer URL, whatever release it currently names. */
+function repin(text: string, replacement: string): string {
+  const next = text.replaceAll(
+    /releases\/download\/cli-v[^/\s]+\//g,
+    replacement,
+  );
+  assert(next !== text, "the contract has no pinned installer URL to rewrite");
+  return next;
+}
+
 Deno.test("an installer pin naming another release fails and names the file", async () => {
   await withCopy(async (copy) => {
+    const version = await cliVersion(copy);
     await editPinFile(
       copy,
-      (text) =>
-        text.replaceAll(
-          "releases/download/cli-v0.9.0/",
-          "releases/download/cli-v0.8.0/",
-        ),
+      (text) => repin(text, "releases/download/cli-v0.0.1/"),
     );
     const errors = await checkPluginManifests(copy);
     equal(errors.length, 2);
     assert(errors.every((error) => error.startsWith(`${INSTALLER_PIN_FILE}:`)));
-    assert(errors[0].includes("cli-v0.8.0") && errors[0].includes("0.9.0"));
+    assert(errors[0].includes("cli-v0.0.1") && errors[0].includes(version));
   });
 });
 
@@ -156,15 +170,18 @@ Deno.test("a latest-release installer URL in the contract fails", async () => {
   await withCopy(async (copy) => {
     await editPinFile(
       copy,
-      (text) =>
-        text.replaceAll(
-          "releases/download/cli-v0.9.0/",
-          "releases/latest/download/",
-        ),
+      (text) => repin(text, "releases/latest/download/"),
     );
     const errors = await checkPluginManifests(copy);
     assert(errors.some((error) => error.includes("releases/latest/download")));
     assert(errors.every((error) => error.startsWith(`${INSTALLER_PIN_FILE}:`)));
+  });
+});
+
+Deno.test("a missing pin file fails and is named", async () => {
+  await withCopy(async (copy) => {
+    await Deno.remove(join(copy, INSTALLER_PIN_FILE));
+    equal(await checkPluginManifests(copy), [`${INSTALLER_PIN_FILE}: missing`]);
   });
 });
 

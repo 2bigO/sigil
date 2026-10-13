@@ -91,3 +91,9 @@ Every host skipped the BLAKE3 check of the interpretations digest because
 `b3sum` was not on the permitted PATH; they verified the other report identity
 fields. `base.sigil` has a `SIGIL_SECTION_ORDER` diagnostic that the loop does
 not act on; it comes from the fixture's input, not from this change.
+
+After these runs, a review of the change tightened the contract's wording
+without changing its steps: a failed install is judged by the installer's output
+and by `sigilc --version`, not the exit code; the mismatch offer is asked once
+and never blocks; a newer `sigil` raises no offer; and the release is named only
+by the installer URLs. These wording changes were not observed again.

@@ -13,7 +13,7 @@ Pick your agent:
 | Claude Code | [claude-code.md](claude-code.md) | Yes | Opt in |
 | Codex | [codex.md](codex.md) | No, per user only | No |
 | OpenCode | [opencode.md](opencode.md) | Yes | No |
-| Pi | [pi.md](pi.md) | Yes | On `pi update` |
+| Pi | [pi.md](pi.md) | Yes | Remove and reinstall |
 | Cursor | [cursor.md](cursor.md) | Manual copy only | Not documented |
 | Gemini CLI and Antigravity | [gemini-antigravity.md](gemini-antigravity.md) | No, per user only | Gemini CLI on request; Antigravity no |
 

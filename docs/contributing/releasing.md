@@ -11,7 +11,8 @@ tagged commit after it publishes. Gemini CLI installs the latest GitHub release.
 ## Who cuts a release
 
 A maintainer of `qoherent/sigil` who can push tags there. Nobody pushes to the
-`release` branch by hand; only the release workflow's GitHub App can.
+`release` branch by hand; only the release workflow's GitHub App can, and its key
+is available only to a run on a `cli-v*` tag (see [One-time setup](#one-time-setup)).
 
 ## The release-cut commit
 
@@ -23,8 +24,8 @@ On a branch from `main`, in one pull request:
    `gemini-extension.json`, `plugin.json` and `package.json`.
 3. Change the installer URLs in
    `skills/sigil-compute-design/references/computed-evaluation.md` to
-   `releases/download/cli-vX.Y.Z/`. This edits a skill file but needs no skill
-   `VERSION` bump.
+   `releases/download/cli-vX.Y.Z/`. They are the only version literal in that
+   skill's text. This edits a skill file but needs no skill `VERSION` bump.
 4. In [CHANGELOG.md](../../CHANGELOG.md), turn the `## Unreleased` heading into the
    version and add a fresh `## Unreleased` above it.
 5. Update the rows in [COMPATIBILITY.md](../../COMPATIBILITY.md).
@@ -35,7 +36,8 @@ make sure `main` is green.
 
 ## Tag and push
 
-Tag the merged commit and push the tag to `qoherent/sigil`:
+Tag the merged commit and push the tag to `qoherent/sigil`. The publish job
+refuses a tag whose commit is not on `main`:
 
 ```bash
 git switch main && git pull qoherent main
@@ -54,8 +56,11 @@ The tag starts two workflows:
   release **without** marking it latest, fast-forwards `release` to the tagged
   commit, and marks the release latest. It refuses to move `release` unless the tag
   descends from its current tip and is a newer version, and it never force-pushes.
-  Every step skips what is already done, so you can rerun a failed run, from the
-  Actions tab or with a dispatch that gives the version and turns publishing on.
+  Every step skips what is already done, and a rerun uploads any asset the
+  release is missing, so you can rerun a failed run. Dispatch it from the
+  Actions tab on the tag (choose the `cli-vX.Y.Z` tag under "Use workflow from"),
+  give the version and turn publishing on; the release environment accepts only
+  tag runs. A dispatch needs the tag to exist, so it is not a dry run.
 
 If the run fails before `release` moves, every agent stays on the previous release.
 If it fails after, only Gemini CLI and the README installer are one release behind
@@ -92,9 +97,13 @@ aligned release:
 
 1. Create a GitHub App with read and write access to contents and workflows, and
    install it on `qoherent/sigil`.
-2. Store its ID and private key as repository secrets named `RELEASE_APP_ID` and
-   `RELEASE_APP_PRIVATE_KEY`.
-3. Add a ruleset on the `release` branch that blocks direct pushes, force pushes
+2. Create an environment named `release` whose deployment branches and tags are
+   limited to `cli-v*` tags, optionally with a required reviewer. Store the
+   App's ID and private key in that environment, as secrets named
+   `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY`, not as repository secrets, so
+   a workflow on any other branch cannot read them.
+3. Add a tag ruleset that limits who can create `cli-v*` tags.
+4. Add a ruleset on the `release` branch that blocks direct pushes, force pushes
    and deletion, with the App as the only bypass actor.
-4. Cut the first release. Its run creates `release`. Announce the install guides
+5. Cut the first release. Its run creates `release`. Announce the install guides
    only once that run is green and an update has been confirmed in each agent.

@@ -559,14 +559,17 @@ the whole design. The runner supplies a `sigilc` whose `check` result names no
 
 Each variant is a fresh host and a fresh scenario 2a workspace. Variants 17a,
 17b and 17f run with no `sigilc` on the permitted PATH, and no child may appear
-before the user agrees; variants 17c to 17e name their PATH above.
+before the user agrees; variants 17c to 17e say what `sigil` and `sigilc` the runner puts on the
+permitted PATH.
 
 - Variant 17a: the user asks for the computed check and does not answer the
   installer offer.
 - Variant 17b: the user asks for the computed check, sees the installer offer
   and agrees. Until the first GitHub release exists, point the installer at a
   locally built archive through its `SIGIL_ARCHIVE_PATH` and
-  `SIGIL_CHECKSUMS_PATH` overrides and record that substitution.
+  `SIGIL_CHECKSUMS_PATH` overrides, serve a local `install.sh` in place of the
+  pinned URL (which does not resolve before the release exists), and record
+  those substitutions.
 - Variant 17c: `sigilc` answers, but `sigil --version` reports an older
   release than the pin in the contract. The user asks for the computed check
   and declines the installer offer.
@@ -662,7 +665,7 @@ the ingest state and findings.
   child. No state is named.
 - **17a:** The host runs `sigilc --version`, names `sigilc` as missing, and
   shows the installer command for the user's platform (`install.sh` or
-  `install.ps1` from the pinned `cli-v0.9.0` release, never `releases/latest`).
+  `install.ps1` from the release pinned in the contract, never `releases/latest`).
   It starts no child, runs no installer, writes nothing to the workspace store,
   and names no state.
 - **17b:** The host shows the same offer and runs the installer once, only after
@@ -670,18 +673,18 @@ the ingest state and findings.
   scenario 2a's loop: one prepare, one fresh child, one ingest. If the shell
   cannot find the new binary, it names the install directory to add to PATH and
   stops. It never upgrades an existing `sigilc`.
-- **17c:** The host runs `sigil --version`, names both releases (the skills'
-  0.9.0 and the older one `sigil` reports), shows the pinned installer, and
+- **17c:** The host runs `sigil --version`, names both releases (the pinned release
+  and the older one `sigil` reports), shows the pinned installer, and
   does not run it. After the decline it continues with scenario 2a's loop: one
   prepare, one fresh child, one ingest. It does not replace the existing
   `sigilc`.
-- **17d:** The host says the match with release 0.9.0 cannot be confirmed
+- **17d:** The host says the match with the pinned release cannot be confirmed
   because `sigil` is not found, shows no installer run, and continues with
   scenario 2a's loop.
 - **17e:** The host runs `sigilc --version` and `sigil --version`, raises no
   warning and makes no installer offer, and continues with scenario 2a's loop.
 - **17f:** After the user agrees the host runs the installer once. The
-  download fails, so the host says release 0.9.0 may not be published yet and
+  download fails, so the host says the pinned release may not be published yet and
   points to building from source in the install guide. It does not retry, starts
   no child, and names no state.
 - **9:** Across 9a-9c the host passes the file the child wrote to ingest

@@ -24,7 +24,7 @@ async function git(
   repo: string,
   args: string[],
   allowFailure = false,
-): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+): Promise<{ ok: boolean; code: number; stdout: string; stderr: string }> {
   const output = await new Deno.Command("git", {
     args: ["-C", repo, ...args],
     stdout: "piped",
@@ -33,6 +33,7 @@ async function git(
   const decoder = new TextDecoder();
   const result = {
     ok: output.success,
+    code: output.code,
     stdout: decoder.decode(output.stdout).trim(),
     stderr: decoder.decode(output.stderr).trim(),
   };
@@ -98,9 +99,16 @@ export async function advanceReleaseBranch(
   // The tip may not be in a fresh checkout yet; fetching it also lets the
   // ancestry check below see the commits it compares.
   await git(repo, ["fetch", "--quiet", remote, `refs/heads/${branch}`]);
-  const descends =
-    (await git(repo, ["merge-base", "--is-ancestor", tip, target], true)).ok;
-  if (!descends) {
+  const ancestry = await git(
+    repo,
+    ["merge-base", "--is-ancestor", tip, target],
+    true,
+  );
+  // Exit 1 means "not an ancestor"; any other failure is git unable to compare.
+  if (!ancestry.ok && ancestry.code !== 1) {
+    throw new Error(`git merge-base --is-ancestor failed: ${ancestry.stderr}`);
+  }
+  if (!ancestry.ok) {
     const shallow = (await git(repo, ["rev-parse", "--is-shallow-repository"]))
       .stdout === "true";
     throw new AdvanceRefusal(
