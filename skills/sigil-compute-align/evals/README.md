@@ -17,7 +17,8 @@ The first two run offline without a compiler or model; tests mutate relocated
 disposable catalogs to check dependencies, schema, adapters and links. The Rust
 test checks the separate design/code dialects against compiled guidance.
 
-For [the scenarios](computed-alignment-fixture.md), copy the complete installed
+For [the scenarios](computed-alignment-fixture.md) (scenario 14 covers a
+missing `sigilc`), copy the complete installed
 catalog to a temporary directory and materialize each variant's inputs in a
 fresh workspace outside the checkout. Give a fresh host only its request, the
 installed skill entrypoint, workspace path and actual binary availability.

@@ -12,7 +12,6 @@ From the source checkout:
 ```sh
 deno task test:skill
 deno test --allow-read --allow-write scripts/skill-foundation_test.ts
-deno test --allow-env --allow-read --allow-write --allow-run --filter 'skill ' packages/cli/tests/cli_test.ts
 ```
 
 The first command needs no binaries, network, write or subprocess permission.
@@ -70,7 +69,9 @@ Use this fixture:
   review preparation for `sigil-evaluate` and `sigil-write`: an unchanged rerun
   launching no reader, a selected source read beside unrelated unread sources,
   an edit asking only for the changed unit, a refused unit inside the scope, and
-  a compiler that writes no review view.
+  a compiler that writes no review view. Scenario 17 covers a missing `sigilc`:
+  the host starts no child, shows the official installer command, and runs it
+  only after the user agrees.
 
 ## Fault injection and limits
 

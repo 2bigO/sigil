@@ -10,7 +10,12 @@ workspace. Read the [orchestration contract](references/computed-alignment.md)
 before running it; it owns selection, the shared private store, delegation,
 bounded re-asks, identity checks, write-back and hand-back.
 
-First require effective `tools.sigilc.implementation` in workspace/local config.
+Confirm `sigilc` responds first, exactly as the design contract's
+"Confirm the tool first" section says: when it does not, launch no child, name
+the missing binary, hand back the official installer command, and run it only if
+the user explicitly agrees.
+
+Then require effective `tools.sigilc.implementation` in workspace/local config.
 If absent, launch no child and return a proposed selection block as output only.
 Seed one private store outside the workspace with design and implementation
 readings. Run the full-design action of

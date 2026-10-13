@@ -11,7 +11,6 @@ From the source checkout, run:
 ```sh
 deno task test:skill
 deno test --allow-read --allow-write scripts/skill-foundation_test.ts
-deno test --allow-env --allow-read --allow-write --allow-run --filter 'skill ' packages/cli/tests/cli_test.ts
 deno task test:cli
 deno task package:cli
 ```

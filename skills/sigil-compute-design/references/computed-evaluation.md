@@ -13,6 +13,28 @@ only outputs are the ingest state and the findings report. The review
 preparation action below is how `sigil-evaluate` and `sigil-write` get current
 computed evidence before they judge; the judging stays theirs.
 
+## Confirm the tool first
+
+Before preparing or checking anything, run `sigilc --version`. When it fails or
+is not found, stop before any preparation, child, or store write. Hand back that
+`sigilc` is missing and show the official installer for the user's platform. It
+comes from the latest GitHub release, verifies SHA-256 checksums, and installs
+both `sigil` and `sigilc`:
+
+```text
+macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/latest/download/install.sh | sh
+Windows PowerShell: irm https://github.com/qoherent/sigil/releases/latest/download/install.ps1 | iex
+```
+
+Run the installer only after the user explicitly agrees, and only once. Then run
+`sigilc --version` again. If the shell still cannot find it, name the install
+directory to add to PATH (`~/.local/bin` on macOS and Linux, the `bin` folder
+under `%LOCALAPPDATA%\Sigil` on Windows, unless `SIGIL_BIN_DIR` was set) and
+stop. A `sigilc` that already responds is never replaced or upgraded unless the
+user asks. When review preparation runs for `sigil-evaluate` or `sigil-write`,
+hand the missing binary and the installer back the same way and run nothing;
+the caller continues from the sources.
+
 ## The tool surface
 
 ```text
@@ -244,7 +266,8 @@ result names no `reviewView` or `reviewEvidence`, or the evidence hashes do not
 match the files — hand back what was observed and name the missing piece. A
 matched linked report without a review view is still a computed state, which
 the caller keeps while recording the compact view as unavailable. Never build
-a view from the context yourself, and never install or upgrade `sigilc`.
+a view from the context yourself, and never run the installer or upgrade
+`sigilc` without the user's explicit agreement.
 
 ## Write back what the run read
 

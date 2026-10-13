@@ -555,6 +555,29 @@ the whole design. The runner supplies a `sigilc` whose `check` result names no
 - 16d: the injected mistake is labeled injected in the record.
 - 16e: record which binary was used and how its result differs.
 
+## Scenario 17: a missing `sigilc` hands back the installer, and runs it only on consent
+
+Each variant is a fresh host and a fresh scenario 2a workspace, run with no
+`sigilc` on the permitted PATH. No child may appear before the user agrees.
+
+- Variant 17a: the user asks for the computed check and does not answer the
+  installer offer.
+- Variant 17b: the user asks for the computed check, sees the installer offer
+  and agrees. Until the first GitHub release exists, point the installer at a
+  locally built archive through its `SIGIL_ARCHIVE_PATH` and
+  `SIGIL_CHECKSUMS_PATH` overrides and record that substitution.
+
+### Request given to the host agent
+
+Use `$sigil-compute-design` to run a computed claims check on `base.sigil` and report
+the ingest state and findings.
+
+### Host events (observer only)
+
+- 17b: after the host shows the installer command, the observer replies "yes,
+  install it". Record the installer's exit code and the `sigilc --version`
+  output that follows.
+
 ## Acceptance notes for the observer
 
 - **1a:** The response is advisory review of the design's meaning and
@@ -623,6 +646,15 @@ the whole design. The runner supplies a `sigilc` whose `check` result names no
 - **8d:** The host names the unavailable delegation and stops without
   same-host substitution: it does not interpret the rows in place of the
   child. No state is named.
+- **17a:** The host runs `sigilc --version`, names `sigilc` as missing, and
+  shows the installer command for the user's platform (`install.sh` or
+  `install.ps1` from the latest release). It starts no child, runs no installer,
+  writes nothing to the workspace store, and names no state.
+- **17b:** The host shows the same offer and runs the installer once, only after
+  the user's reply. It confirms `sigilc --version` answers, then continues with
+  scenario 2a's loop: one prepare, one fresh child, one ingest. If the shell
+  cannot find the new binary, it names the install directory to add to PATH and
+  stops. It never upgrades an existing `sigilc`.
 - **9:** Across 9a-9c the host passes the file the child wrote to ingest
   unchanged, makes no repair, strips no prose, and writes no rows itself. Each
   refused answer starts a re-ask with a fresh child, at most two, so at most

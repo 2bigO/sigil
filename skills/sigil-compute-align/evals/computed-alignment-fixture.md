@@ -153,6 +153,17 @@ component Gate {
     identities, location byte hashes, separate designState, unread/refusals and
     Drift law/claims/codeRows. No config/code/design edit is permitted.
 
+14. **Missing `sigilc`.** Run the clean variant with no `sigilc` on the permitted
+    PATH. The host runs `sigilc --version`, names the missing binary, shows the
+    official installer command (`install.sh` or `install.ps1` from the latest
+    release) and stops: no child, no preparation, no store write, no
+    proposed-selection block. Repeat with the user agreeing: the host runs the
+    installer once, confirms `sigilc --version`, then continues from the
+    selection check. Until the first release exists, point the installer at a
+    locally built archive through `SIGIL_ARCHIVE_PATH` and
+    `SIGIL_CHECKSUMS_PATH` and record that substitution. An existing `sigilc` is
+    never replaced or upgraded unless the user asks.
+
 For every scenario retain actual command exits and report payloads. Instructional
 coverage does not establish live Slotted benchmark success; U14/U15 supply that
 separate observed evidence at recorded model, effort and binary digest.

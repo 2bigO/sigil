@@ -6,6 +6,14 @@ interpretation. The binary never launches a model or reads skills. A plain
 advisory `sigil-align`. This action is for an explicit computed implementation
 check, `sigilc align`, or this skill by name.
 
+## Confirm the tool first
+
+Run the design contract's "Confirm the tool first" step before inspecting
+configuration: `sigilc --version` must respond. When it does not, start no
+child and write nothing; hand back the missing binary and the official installer
+command, and run the installer only after the user explicitly agrees. Never
+replace or upgrade an existing `sigilc` unless asked.
+
 ## Selection before delegation
 
 Inspect effective workspace `.sigil/config.json` and `.sigil/local.json`:

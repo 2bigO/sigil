@@ -13,6 +13,11 @@ findings report. A generic "review this design"
 request does not load this skill: advisory evaluation by `sigil-evaluate` keeps
 that job, and `sigil-write` still delegates its review there.
 
+Confirm `sigilc` responds before any other step. When it does not, start no
+child, name the missing binary, hand back the official installer command for
+the user's platform, and run that installer only if the user explicitly agrees.
+The contract's first section owns the steps.
+
 Read the [orchestration contract](references/computed-evaluation.md) before
 running the loop. It owns source selection, the private store, the
 child handoff, the re-ask, the write-back, recognizing a completed ingest, the
