@@ -98,11 +98,11 @@ export async function advanceReleaseBranch(
   // The tip may not be in a fresh checkout yet; fetching it also lets the
   // ancestry check below see the commits it compares.
   await git(repo, ["fetch", "--quiet", remote, `refs/heads/${branch}`]);
-  const shallow = (await git(repo, ["rev-parse", "--is-shallow-repository"]))
-    .stdout === "true";
   const descends =
     (await git(repo, ["merge-base", "--is-ancestor", tip, target], true)).ok;
   if (!descends) {
+    const shallow = (await git(repo, ["rev-parse", "--is-shallow-repository"]))
+      .stdout === "true";
     throw new AdvanceRefusal(
       shallow
         ? `this checkout is shallow and lacks the history to compare ${tag} with the ${branch} tip; fetch the full history (fetch-depth: 0) and rerun`
