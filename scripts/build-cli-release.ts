@@ -1,4 +1,5 @@
 import { basename, dirname, join, resolve } from "node:path";
+import { checkPluginManifests } from "./plugin-manifests.ts";
 
 interface ReleaseTarget {
   readonly deno: string;
@@ -50,6 +51,12 @@ const version = args.version ?? cliManifest.version;
 if (cliManifest.version !== version) {
   throw new Error(
     `Release version ${version} does not match CLI manifest ${cliManifest.version}.`,
+  );
+}
+const manifestErrors = await checkPluginManifests(root);
+if (manifestErrors.length > 0) {
+  throw new Error(
+    `Plugin manifests disagree with the release:\n${manifestErrors.join("\n")}`,
   );
 }
 await Deno.mkdir(output, { recursive: true });

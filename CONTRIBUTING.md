@@ -375,7 +375,14 @@ the authority on how they relate:
   and sibling requirements independently.
 
 Do not bump a version as a side effect of another change, and do not duplicate a
-version literal into a second file. A tool must reject a `sigilVersion` it does not
+version literal into a second file. The one exception is the agent plugin
+manifests (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`,
+`gemini-extension.json`, `plugin.json` and `package.json`): each carries the CLI
+release version, and `deno task test:plugin-manifests` and
+`scripts/build-cli-release.ts` fail when any of them differs from
+[`packages/cli/deno.json`](packages/cli/deno.json). Agents key plugin updates on
+those versions, so bumping `packages/cli/deno.json` also publishes a plugin
+update; do it only in the release-cut commit. A tool must reject a `sigilVersion` it does not
 explicitly support. Everything here is pre-production; see
 [PRE_RELEASE.md](PRE_RELEASE.md). User-visible changes belong in
 [CHANGELOG.md](CHANGELOG.md).
