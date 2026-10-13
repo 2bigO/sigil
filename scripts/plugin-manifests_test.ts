@@ -2,6 +2,7 @@ import { deepStrictEqual as equal, ok as assert } from "node:assert/strict";
 import { dirname, join, resolve } from "node:path";
 import {
   checkPluginManifests,
+  INSTALLER_PIN_FILE,
   MARKETPLACES,
   VERSIONED_MANIFESTS,
 } from "./plugin-manifests.ts";
@@ -13,6 +14,7 @@ const FILES = [
   ...VERSIONED_MANIFESTS,
   ...MARKETPLACES,
   ".opencode/plugins/sigil.js",
+  INSTALLER_PIN_FILE,
 ];
 
 async function withCopy(
@@ -122,6 +124,56 @@ Deno.test("the Codex and Pi skills paths and a missing skill folder fail and are
       "package.json",
       "skills/sigil-write",
     ]);
+  });
+});
+
+async function editPinFile(
+  copy: string,
+  edit: (text: string) => string,
+): Promise<void> {
+  const path = join(copy, INSTALLER_PIN_FILE);
+  await Deno.writeTextFile(path, edit(await Deno.readTextFile(path)));
+}
+
+Deno.test("an installer pin naming another release fails and names the file", async () => {
+  await withCopy(async (copy) => {
+    await editPinFile(
+      copy,
+      (text) =>
+        text.replaceAll(
+          "releases/download/cli-v0.9.0/",
+          "releases/download/cli-v0.8.0/",
+        ),
+    );
+    const errors = await checkPluginManifests(copy);
+    equal(errors.length, 2);
+    assert(errors.every((error) => error.startsWith(`${INSTALLER_PIN_FILE}:`)));
+    assert(errors[0].includes("cli-v0.8.0") && errors[0].includes("0.9.0"));
+  });
+});
+
+Deno.test("a latest-release installer URL in the contract fails", async () => {
+  await withCopy(async (copy) => {
+    await editPinFile(
+      copy,
+      (text) =>
+        text.replaceAll(
+          "releases/download/cli-v0.9.0/",
+          "releases/latest/download/",
+        ),
+    );
+    const errors = await checkPluginManifests(copy);
+    assert(errors.some((error) => error.includes("releases/latest/download")));
+    assert(errors.every((error) => error.startsWith(`${INSTALLER_PIN_FILE}:`)));
+  });
+});
+
+Deno.test("a contract with no pinned installer URL fails", async () => {
+  await withCopy(async (copy) => {
+    await editPinFile(copy, () => "# Confirm the tool first\n");
+    const errors = await checkPluginManifests(copy);
+    equal(errors.length, 1);
+    assert(errors[0].startsWith(`${INSTALLER_PIN_FILE}:`));
   });
 });
 

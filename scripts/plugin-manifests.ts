@@ -16,6 +16,9 @@ export const MARKETPLACES = [
   ".agents/plugins/marketplace.json",
   ".cursor-plugin/marketplace.json",
 ] as const;
+/** The skill reference that tells users which installer matches the skills. */
+export const INSTALLER_PIN_FILE =
+  "skills/sigil-compute-design/references/computed-evaluation.md";
 const LOCKFILES = [
   "package-lock.json",
   "npm-shrinkwrap.json",
@@ -148,6 +151,17 @@ export async function checkPluginManifests(root: string): Promise<string[]> {
     }
   }
 
+  if (version) {
+    const pin = await Deno.readTextFile(join(root, INSTALLER_PIN_FILE)).catch(
+      () => undefined,
+    );
+    if (pin === undefined) {
+      errors.push(`${INSTALLER_PIN_FILE}: missing`);
+    } else {
+      errors.push(...checkInstallerPin(pin, version));
+    }
+  }
+
   const expected = Object.keys(FOUNDATION_SKILLS).sort();
   const actual: string[] = [];
   try {
@@ -164,6 +178,34 @@ export async function checkPluginManifests(root: string): Promise<string[]> {
   }
   for (const name of expected.filter((item) => !actual.includes(item))) {
     errors.push(`skills/${name}: missing skill folder`);
+  }
+  return errors;
+}
+
+/** Every pinned installer URL must name the CLI release; none may float. */
+function checkInstallerPin(text: string, version: string): string[] {
+  const errors: string[] = [];
+  const pins = [
+    ...text.matchAll(
+      /releases\/download\/cli-v([^/\s]+)\/install\.(?:sh|ps1)/g,
+    ),
+  ];
+  if (pins.length === 0) {
+    errors.push(
+      `${INSTALLER_PIN_FILE}: has no releases/download/cli-v${version}/install.sh or install.ps1 reference`,
+    );
+  }
+  for (const [reference, pinned] of pins) {
+    if (pinned !== version) {
+      errors.push(
+        `${INSTALLER_PIN_FILE}: ${reference} names cli-v${pinned}, expected cli-v${version} from packages/cli/deno.json`,
+      );
+    }
+  }
+  if (text.includes("releases/latest/download")) {
+    errors.push(
+      `${INSTALLER_PIN_FILE}: must pin the installer to cli-v${version}, not releases/latest/download`,
+    );
   }
   return errors;
 }

@@ -382,7 +382,10 @@ release version, and `deno task test:plugin-manifests` and
 `scripts/build-cli-release.ts` fail when any of them differs from
 [`packages/cli/deno.json`](packages/cli/deno.json). Agents key plugin updates on
 those versions, so bumping `packages/cli/deno.json` also publishes a plugin
-update; do it only in the release-cut commit. A tool must reject a `sigilVersion` it does not
+update; do it only in the release-cut commit. The installer URLs in
+[`skills/sigil-compute-design/references/computed-evaluation.md`](skills/sigil-compute-design/references/computed-evaluation.md)
+are pinned to that same release, are checked the same way, and change only in
+the release-cut commit; that change needs no skill `VERSION` bump. A tool must reject a `sigilVersion` it does not
 explicitly support. Everything here is pre-production; see
 [PRE_RELEASE.md](PRE_RELEASE.md). User-visible changes belong in
 [CHANGELOG.md](CHANGELOG.md).

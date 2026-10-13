@@ -22,8 +22,8 @@ comes from the latest GitHub release, verifies SHA-256 checksums, and installs
 both `sigil` and `sigilc`:
 
 ```text
-macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/latest/download/install.sh | sh
-Windows PowerShell: irm https://github.com/qoherent/sigil/releases/latest/download/install.ps1 | iex
+macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/download/cli-v0.9.0/install.sh | sh
+Windows PowerShell: irm https://github.com/qoherent/sigil/releases/download/cli-v0.9.0/install.ps1 | iex
 ```
 
 Run the installer only after the user explicitly agrees, and only once. Then run
