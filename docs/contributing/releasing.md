@@ -37,12 +37,15 @@ make sure `main` is green.
 ## Tag and push
 
 Tag the merged commit and push the tag to `qoherent/sigil`. The publish job
-refuses a tag whose commit is not on `main`:
+refuses a tag whose commit is not on `main`. These commands assume `origin` is
+`qoherent/sigil` (as in a fresh clone of it); if your `origin` is a fork, add the
+upstream first with `git remote add upstream git@github.com:qoherent/sigil.git`
+and use `upstream` in place of `origin`:
 
 ```bash
-git switch main && git pull qoherent main
+git switch main && git pull origin main
 git tag cli-vX.Y.Z
-git push qoherent cli-vX.Y.Z
+git push origin cli-vX.Y.Z
 ```
 
 ## What the workflows do

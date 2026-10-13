@@ -16,6 +16,12 @@ is where the old command wrote them. Follow
 for each of those folders. (The `.claude/skills` folders were written for Claude
 Code; Cursor does not need them cleaned.)
 
+The earlier manual-copy instructions put the seven skill folders in
+`~/.cursor/skills` or `<project>/.cursor/skills`. Delete those seven `sigil-*`
+folders (`sigil-understand`, `sigil-evaluate`, `sigil-write`, `sigil-align`,
+`sigil-egglog`, `sigil-compute-design` and `sigil-compute-align`) from both
+places and leave your other skills alone, or the skills appear twice.
+
 ## 2. Install
 
 **As a local plugin (recommended).** Clone the `release` branch to a persistent
@@ -73,7 +79,9 @@ marketplace import in the dashboard.
 
 Remove a marketplace plugin in Cursor's plugin settings. For the local plugin,
 delete `~/.cursor/plugins/local/sigil` and, if you no longer need it, the clone
-in `~/.local/share/sigil-plugin`, then reload the window.
+in `~/.local/share/sigil-plugin`, then reload the window. Also delete any old
+manual copies of the seven `sigil-*` folders in `~/.cursor/skills` or
+`<project>/.cursor/skills`.
 
 ## `sigilc` for the compute skills
 
