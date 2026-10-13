@@ -33,9 +33,8 @@ Use `sigil check . --format json` to inspect config and language diagnostics.
 
 ## Skill and ownership
 
-`sigil skill install --project` installs repository guidance for the selected
-host. Use `sigil skill install --help` for supported host and installation options.
-The skill helps author contracts and instructs the model to call `sigilc`
+The Sigil skills install through your coding agent's own plugin system; see the
+[install guides](install/README.md). The skills help author contracts and instructs the model to call `sigilc`
 directly. It does not supply verdicts or launch reconstruction workers.
 
 Keep contracts beside cohesive owners. A directory `_module.sigil` is a boundary

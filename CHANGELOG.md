@@ -13,6 +13,19 @@
 - Rename `sigil-compute` to `sigil-compute-design`; add `sigil-compute-align`.
   Skill installation prunes retired managed entries while preserving unmanaged
   paths. Upgrades remove managed wrappers for the retired executable.
+- Remove `sigil skill`, `sigil skill list` and `sigil skill install`; they now
+  exit 2 as unknown commands. The Sigil skills install through each agent's own
+  plugin system (Claude Code, Codex, OpenCode, Pi, Cursor, Gemini CLI and
+  Antigravity) from `qoherent/sigil`, with no `sigil` binary needed; see
+  [docs/install](docs/install/README.md). CLI release archives no longer bundle
+  skills. If you ran `sigil skill install`, remove its copies first: each guide
+  opens with the cleanup steps.
+- Delete the legacy 0.7 `sigil` skill and the rejected `sigil-anchor-indexer`
+  proposal, and move the seven active skills from `integrations/skills/` to
+  `skills/`. Links to the old paths no longer resolve.
+- `sigil-compute-design` 0.5.2 and `sigil-compute-align` 0.1.1 check that
+  `sigilc` responds before any work, start no child without it, and show the
+  official installer command, running it only if the user agrees.
 - Design vocabulary generation 5 adds distinct day-count bounds. Existing
   readings are asked once more; identity domains otherwise remain stable.
 - VS Code compile commands use design report 6 and alignment report 1 with

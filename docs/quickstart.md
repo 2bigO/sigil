@@ -27,8 +27,11 @@ From the intended repository root:
 
 ```sh
 sigil init . --name your-repo
-sigil skill install --project
 ```
+
+Install the Sigil skills for your coding agent by following its
+[install guide](install/README.md). They install through the agent's own plugin
+system and need no `sigil` binary.
 
 Review `.sigil/config.json` and its authored-source include/exclude patterns.
 Keep `.sigil/worlds/` ignored: it is disposable generated native state. Native

@@ -36,15 +36,15 @@ before running it, download the script first instead of piping it directly to a
 shell. Every archive is verified against the release's SHA-256 manifest before
 installation.
 
-Install the complete Sigil skill bundle globally for Codex, Claude Code, OpenCode, and
-Pi:
+The Sigil skills install separately, through your coding agent's own plugin
+system, with no `sigil` binary needed. Claude Code, Codex, OpenCode, Pi, Cursor,
+and Gemini CLI or Antigravity each have an [install guide](docs/install/README.md).
+For example, in Claude Code:
 
-```bash
-sigil skill install
+```text
+/plugin marketplace add qoherent/sigil
+/plugin install sigil@sigil
 ```
-
-Use `sigil skill install --project` for repository-local installation, or
-`--agent codex|claude|opencode|pi` to target one agent.
 
 VS Code extension releases are currently available as manually installable
 `.vsix` files on the
@@ -743,7 +743,7 @@ repository.
 
 ## Coding-Agent Skills
 
-The bundle provides four Sigil 0.9 design entry points, an implementation
+The skills provide four Sigil 0.9 design entry points, an implementation
 alignment skill, its computed partner, and one egglog language skill:
 
 | Skill | Use it to |
@@ -758,9 +758,9 @@ alignment skill, its computed partner, and one egglog language skill:
 
 The four design skills and `sigil-align` start at artifact version 0.1.0 and
 share the bundled 0.9.0 normative reference and grammar. `sigil-egglog` starts
-at 0.1.0 with no design-skill dependency. Install the complete catalog with
-`sigil skill install`
-(or `--project`); writer and evaluator require their sibling reference files.
+at 0.1.0 with no design-skill dependency. Install the complete set through your
+agent's [install guide](docs/install/README.md); writer and evaluator require
+their sibling reference files.
 `sigil-compute-design` requires its declared siblings `sigil-understand` and
 `sigil-egglog`; it routes only explicit claims or computed-check requests, so a
 generic review stays on `sigil-evaluate`. It needs the `sigilc` binary and

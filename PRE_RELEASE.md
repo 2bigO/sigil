@@ -30,7 +30,7 @@ other release targets require their own matching-runner evidence.
 
 The ongoing refactor's complete delivery, semantic comparison and temporary-state
 retirement gate is tracked operationally while the temporary loop documents are
-present; the durable workflow is the repository-owned Sigil skill and native
+present; the durable workflow is the repository-owned Sigil skills and native
 command guide. A pre-release milestone does not waive it. Publishing or
 deploying requires separate authorization.
 
