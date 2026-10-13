@@ -57,9 +57,13 @@ The tag starts two workflows:
   commit, and marks the release latest. It refuses to move `release` unless the tag
   descends from its current tip and is a newer version, and it never force-pushes.
   Publish jobs for different versions run one at a time, so a newer release is
-  never overtaken by an older one; if three tags arrive close together the middle
-  one is dropped, so rerun it. Every step skips what is already done, and a rerun
-  uploads any asset the release is missing, so you can rerun a failed run.
+  never overtaken by an older one. If three tags arrive close together, GitHub
+  drops the middle run; once a newer release has advanced `release`, that older
+  tag is superseded. Rerunning it can restore its assets but fails at the branch
+  step, by design, and never moves `release` or Latest, so cut a newer release if
+  its changes must ship. Every step skips what is already done, and a rerun
+  uploads any asset the release is missing, so a run that failed for another
+  reason can be rerun.
   Dispatch it from the
   Actions tab on the tag (choose the `cli-vX.Y.Z` tag under "Use workflow from"),
   give the version and turn publishing on; the release environment accepts only
