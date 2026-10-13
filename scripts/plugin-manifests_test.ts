@@ -107,6 +107,24 @@ Deno.test("the root plugin manifest has no schema and package.json stays depende
   });
 });
 
+Deno.test("the Codex and Pi skills paths and a missing skill folder fail and are named", async () => {
+  await withCopy(async (copy) => {
+    await editJson(join(copy, ".codex-plugin/plugin.json"), (value) => {
+      value.skills = "./other";
+    });
+    await editJson(join(copy, "package.json"), (value) => {
+      value.pi = { skills: ["./other"] };
+    });
+    await Deno.remove(join(copy, "skills/sigil-write"), { recursive: true });
+    const errors = await checkPluginManifests(copy);
+    equal(errors.map((error) => error.split(":")[0]).sort(), [
+      ".codex-plugin/plugin.json",
+      "package.json",
+      "skills/sigil-write",
+    ]);
+  });
+});
+
 Deno.test("the OpenCode plugin registers the skills folder once", async () => {
   const module = await import("../.opencode/plugins/sigil.js");
   const hooks = await module.default();

@@ -80,8 +80,10 @@ if [ -f "$manifest" ]; then
     rm -rf -- "${dir:?}/$name"
   done
   rm -f -- "$manifest"
-  [ "$(head -n 1 "$dir/.gitignore" 2>/dev/null)" = "# Managed by sigil skill install" ] &&
-    rm -f -- "$dir/.gitignore"
+  case "$(head -n 1 "$dir/.gitignore" 2>/dev/null)" in
+    "# Managed by sigil skill install" | "# Managed by sigil install")
+      rm -f -- "$dir/.gitignore" ;;
+  esac
 fi
 ```
 
