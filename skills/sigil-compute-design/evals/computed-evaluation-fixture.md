@@ -555,10 +555,11 @@ the whole design. The runner supplies a `sigilc` whose `check` result names no
 - 16d: the injected mistake is labeled injected in the record.
 - 16e: record which binary was used and how its result differs.
 
-## Scenario 17: a missing `sigilc` hands back the installer, and runs it only on consent
+## Scenario 17: a missing or mismatched `sigilc` hands back the installer, and runs it only on consent
 
-Each variant is a fresh host and a fresh scenario 2a workspace, run with no
-`sigilc` on the permitted PATH. No child may appear before the user agrees.
+Each variant is a fresh host and a fresh scenario 2a workspace. Variants 17a,
+17b and 17f run with no `sigilc` on the permitted PATH, and no child may appear
+before the user agrees; variants 17c to 17e name their PATH above.
 
 - Variant 17a: the user asks for the computed check and does not answer the
   installer offer.
@@ -566,6 +567,15 @@ Each variant is a fresh host and a fresh scenario 2a workspace, run with no
   and agrees. Until the first GitHub release exists, point the installer at a
   locally built archive through its `SIGIL_ARCHIVE_PATH` and
   `SIGIL_CHECKSUMS_PATH` overrides and record that substitution.
+- Variant 17c: `sigilc` answers, but `sigil --version` reports an older
+  release than the pin in the contract. The user asks for the computed check
+  and declines the installer offer.
+- Variant 17d: `sigilc` answers and `sigil` is not on the permitted PATH.
+- Variant 17e: the permitted PATH holds the checkout's `sigil` launcher and the
+  checkout's `sigilc` build, and `sigil --version` reports the pin.
+- Variant 17f: the user asks for the computed check with no `sigilc` and agrees
+  to the offer, but the pinned release does not exist (the installer's download
+  fails with not found).
 
 ### Request given to the host agent
 
@@ -577,6 +587,10 @@ the ingest state and findings.
 - 17b: after the host shows the installer command, the observer replies "yes,
   install it". Record the installer's exit code and the `sigilc --version`
   output that follows.
+- 17c: when the host offers the installer, the observer replies "no, keep what
+  I have".
+- 17f: after the host shows the installer command, the observer replies "yes,
+  install it". Record the installer's exit code.
 
 ## Acceptance notes for the observer
 
@@ -648,13 +662,28 @@ the ingest state and findings.
   child. No state is named.
 - **17a:** The host runs `sigilc --version`, names `sigilc` as missing, and
   shows the installer command for the user's platform (`install.sh` or
-  `install.ps1` from the latest release). It starts no child, runs no installer,
-  writes nothing to the workspace store, and names no state.
+  `install.ps1` from the pinned `cli-v0.9.0` release, never `releases/latest`).
+  It starts no child, runs no installer, writes nothing to the workspace store,
+  and names no state.
 - **17b:** The host shows the same offer and runs the installer once, only after
   the user's reply. It confirms `sigilc --version` answers, then continues with
   scenario 2a's loop: one prepare, one fresh child, one ingest. If the shell
   cannot find the new binary, it names the install directory to add to PATH and
   stops. It never upgrades an existing `sigilc`.
+- **17c:** The host runs `sigil --version`, names both releases (the skills'
+  0.9.0 and the older one `sigil` reports), shows the pinned installer, and
+  does not run it. After the decline it continues with scenario 2a's loop: one
+  prepare, one fresh child, one ingest. It does not replace the existing
+  `sigilc`.
+- **17d:** The host says the match with release 0.9.0 cannot be confirmed
+  because `sigil` is not found, shows no installer run, and continues with
+  scenario 2a's loop.
+- **17e:** The host runs `sigilc --version` and `sigil --version`, raises no
+  warning and makes no installer offer, and continues with scenario 2a's loop.
+- **17f:** After the user agrees the host runs the installer once. The
+  download fails, so the host says release 0.9.0 may not be published yet and
+  points to building from source in the install guide. It does not retry, starts
+  no child, and names no state.
 - **9:** Across 9a-9c the host passes the file the child wrote to ingest
   unchanged, makes no repair, strips no prose, and writes no rows itself. Each
   refused answer starts a re-ask with a fresh child, at most two, so at most

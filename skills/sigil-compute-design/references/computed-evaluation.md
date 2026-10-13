@@ -15,11 +15,12 @@ computed evidence before they judge; the judging stays theirs.
 
 ## Confirm the tool first
 
-Before preparing or checking anything, run `sigilc --version`. When it fails or
-is not found, stop before any preparation, child, or store write. Hand back that
-`sigilc` is missing and show the official installer for the user's platform. It
-comes from the latest GitHub release, verifies SHA-256 checksums, and installs
-both `sigil` and `sigilc`:
+These skills belong to Sigil release 0.9.0, and `sigil` and `sigilc` should come
+from that same release. Before preparing or checking anything, run
+`sigilc --version`. When it fails or is not found, stop before any preparation,
+child, or store write. Hand back that `sigilc` is missing and show the official
+installer for the user's platform. It comes from release 0.9.0, verifies SHA-256
+checksums, and installs both `sigil` and `sigilc`:
 
 ```text
 macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/download/cli-v0.9.0/install.sh | sh
@@ -27,13 +28,30 @@ Windows PowerShell: irm https://github.com/qoherent/sigil/releases/download/cli-
 ```
 
 Run the installer only after the user explicitly agrees, and only once. Then run
-`sigilc --version` again. If the shell still cannot find it, name the install
-directory to add to PATH (`~/.local/bin` on macOS and Linux, the `bin` folder
-under `%LOCALAPPDATA%\Sigil` on Windows, unless `SIGIL_BIN_DIR` was set) and
-stop. A `sigilc` that already responds is never replaced or upgraded unless the
-user asks. When review preparation runs for `sigil-evaluate` or `sigil-write`,
-hand the missing binary and the installer back the same way and run nothing;
-the caller continues from the sources.
+`sigilc --version` again. If the download fails, say that release 0.9.0 may not
+be published yet, point to building from source in
+https://github.com/qoherent/sigil/blob/main/docs/install/README.md, and do not
+retry. If the shell still cannot find `sigilc`, name the install directory to add
+to PATH (`~/.local/bin` on macOS and Linux, the `bin` folder under
+`%LOCALAPPDATA%\Sigil` on Windows, unless `SIGIL_BIN_DIR` was set) and stop. A
+`sigilc` that already responds is never replaced or upgraded unless the user
+asks.
+
+When `sigilc` responds, check the release too. `sigilc --version` reports the
+compiler's own version, so read `sigil --version`, which the installer always
+places beside it and which reports the release:
+
+- It reports `0.9.0`: continue.
+- It reports another version: name both, "these skills belong to release 0.9.0
+  but `sigil` reports X", show the same installer, and run it only after the
+  user agrees. A declined or unanswered offer still lets the run continue.
+- `sigil` is not found: say the match with release 0.9.0 cannot be confirmed
+  and continue.
+
+When review preparation runs for `sigil-evaluate` or `sigil-write`, hand a
+missing binary or a mismatch and the installer back the same way and run
+nothing; the caller continues from the sources, and preparation itself
+continues on a mismatch because it only warns.
 
 ## The tool surface
 

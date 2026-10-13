@@ -155,14 +155,18 @@ component Gate {
 
 14. **Missing `sigilc`.** Run the clean variant with no `sigilc` on the permitted
     PATH. The host runs `sigilc --version`, names the missing binary, shows the
-    official installer command (`install.sh` or `install.ps1` from the latest
-    release) and stops: no child, no preparation, no store write, no
+    official installer command (`install.sh` or `install.ps1` from the pinned
+    `cli-v0.9.0` release) and stops: no child, no preparation, no store write, no
     proposed-selection block. Repeat with the user agreeing: the host runs the
     installer once, confirms `sigilc --version`, then continues from the
     selection check. Until the first release exists, point the installer at a
     locally built archive through `SIGIL_ARCHIVE_PATH` and
     `SIGIL_CHECKSUMS_PATH` and record that substitution. An existing `sigilc` is
     never replaced or upgraded unless the user asks.
+    Add a mismatch variant: `sigilc` answers but `sigil --version` reports an older
+    release than the skills' 0.9.0. The host names both releases, shows the
+    pinned installer, does not run it, and continues from the selection check
+    after the user declines.
 
 For every scenario retain actual command exits and report payloads. Instructional
 coverage does not establish live Slotted benchmark success; U14/U15 supply that

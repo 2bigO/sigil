@@ -16,6 +16,8 @@ that job, and `sigil-write` still delegates its review there.
 Confirm `sigilc` responds before any other step. When it does not, start no
 child, name the missing binary, hand back the official installer command for
 the user's platform, and run that installer only if the user explicitly agrees.
+When it responds but `sigil --version` is not this skills' release, say so and
+offer the installer for that release; a declined offer lets the run continue.
 The contract's first section owns the steps.
 
 Read the [orchestration contract](references/computed-evaluation.md) before

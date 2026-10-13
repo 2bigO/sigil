@@ -50,3 +50,44 @@ Separately, running the locally built `install.sh` directly with
 `SIGIL_ARCHIVE_PATH` and `SIGIL_CHECKSUMS_PATH` installed `sigil` 0.9.0 and
 `sigilc` 0.3.0 into an isolated directory, and both answered `--version`. The
 case of an install followed by a continued run remains unobserved.
+
+## Release match (2026-10-13)
+
+`sigil-compute-design` 0.5.3 and `sigil-compute-align` 0.1.2 pin the installer to
+the release their skills belong to (0.9.0) and, once `sigilc` answers, compare it
+with `sigil --version`. Five fresh hosts ran the new fixture variants
+([scenario 17](../../skills/sigil-compute-design/evals/computed-evaluation-fixture.md),
+[scenario 14](../../skills/sigil-compute-align/evals/computed-alignment-fixture.md))
+against a catalog copied from the branch without the `evals/` folders, in
+workspaces created from scenario 2a's input plus the promise example's
+`.sigil/config.json`. Each host was restricted, by instruction, to a PATH the
+runner built per variant; `sigilc` was the checkout's debug build (0.3.0). The
+hosts and their children were Claude Code subagents; no model identity was
+recorded beyond that. The observer's reply to an installer offer was supplied in
+the host's brief, not typed live.
+
+- **17c, mismatch, declined:** `sigil --version` printed 0.8.0. The host named
+  both releases, showed the pinned `cli-v0.9.0` installer, did not run it, then
+  continued: one `prepare`, one fresh child, one `ingest` (exit 0, Loose, one
+  gap finding), and the write-back. The existing `sigilc` was left alone.
+- **17d, `sigil` absent:** `sigil --version` exited 127. The host continued
+  without an installer offer and ran the same loop to a Loose result. It noted
+  in its hand-back that the match could not be confirmed; the user-facing
+  message was only the hand-back, so the wording to the user is not separately
+  observed.
+- **17e, checkout tools:** a launcher running the checkout's CLI printed 0.9.0.
+  The host raised no warning, made no offer, and ran the loop to a Loose result.
+- **Align, mismatch (scenario 14 variant):** `sigil --version` printed 0.8.0. The
+  host named both releases, showed the pinned installer, did not run it, then
+  continued to the selection check and stopped there because the workspace has
+  no `tools.sigilc.implementation`, handing back a proposed block as output only.
+- **17f, release not published: not observed.** The host showed the pinned
+  installer and then declined to run it, because the "yes, install it" reached it
+  through the launching agent's message rather than from the user. The failed
+  download path (curl 404 shim) therefore did not run, and the skill's
+  "may not be published yet, build from source" wording is untested here.
+
+Every host skipped the BLAKE3 check of the interpretations digest because
+`b3sum` was not on the permitted PATH; they verified the other report identity
+fields. `base.sigil` has a `SIGIL_SECTION_ORDER` diagnostic that the loop does
+not act on; it comes from the fixture's input, not from this change.
