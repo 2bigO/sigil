@@ -37,6 +37,9 @@ component SigilReleaseDistribution {
       executables through a user PATH directory. Verify all three binaries before
       activation. Reinstallation checks existing bytes against the verified archive;
       corrupt existing installations fail without selecting a new version.
+
+      Publish the *release assets* without marking Latest, advance the
+      *release branch* to the tagged commit, then mark the release Latest.
     }
 
     VsCodeRelease {
@@ -63,6 +66,9 @@ component SigilReleaseDistribution {
     ReleaseIntegrity {
       GitHub Release assets are the *durable public binary distribution* channel;
       workflow artifacts are build intermediates.
+
+      The release branch only moves forward to a newer published CLI release, so
+      skills reach users only through a CLI release.
 
       A release tag must agree with the *owning artifact manifest*.
 
