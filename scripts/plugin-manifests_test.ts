@@ -125,6 +125,32 @@ Deno.test("the Codex and Pi skills paths and a missing skill folder fail and are
   });
 });
 
+Deno.test("a malformed marketplace entry is named instead of crashing the check", async () => {
+  await withCopy(async (copy) => {
+    await editJson(join(copy, ".claude-plugin/marketplace.json"), (value) => {
+      value.plugins = ["sigil"];
+    });
+    await editJson(join(copy, ".agents/plugins/marketplace.json"), (value) => {
+      value.plugins = [null];
+    });
+    await editJson(join(copy, "package.json"), (value) => {
+      value.private = false; // a later check still runs
+    });
+    const errors = await checkPluginManifests(copy);
+    assert(
+      errors.includes(
+        ".claude-plugin/marketplace.json: plugin entry 1 is not an object",
+      ),
+    );
+    assert(
+      errors.includes(
+        ".agents/plugins/marketplace.json: plugin entry 1 is not an object",
+      ),
+    );
+    assert(errors.includes("package.json: must be private"));
+  });
+});
+
 Deno.test("the OpenCode plugin registers the skills folder once", async () => {
   const module = await import("../.opencode/plugins/sigil.js");
   const hooks = await module.default();

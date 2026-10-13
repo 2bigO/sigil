@@ -68,22 +68,34 @@ line is `# Managed by sigil skill install` (older versions wrote
 stay untouched.
 
 On macOS or Linux, run this for each folder your agent reads. It prints each
-entry it removes, deletes the manifest, and deletes the managed `.gitignore`.
+entry it removes, deletes the manifest, and removes the lines the installer wrote
+from the managed `.gitignore`, deleting the file only when nothing else is left.
 Change `dir` to the folder you are cleaning:
 
 ```bash
 dir="$HOME/.claude/skills"   # or ~/.agents/skills, or <project>/.claude/skills ...
 manifest="$dir/.sigil-managed.json"
 if [ -f "$manifest" ]; then
+  owned="$(mktemp)"
+  printf '%s\n' "# Managed by sigil skill install" "# Managed by sigil install" \
+    "/.sigil-managed.json" > "$owned"
   sed -n 's/^    "\([^"/][^"/]*\)": {$/\1/p' "$manifest" | while read -r name; do
     echo "removing $dir/$name"
     rm -rf -- "${dir:?}/$name"
+    printf '/%s\n' "$name" >> "$owned"
   done
   rm -f -- "$manifest"
   case "$(head -n 1 "$dir/.gitignore" 2>/dev/null)" in
     "# Managed by sigil skill install" | "# Managed by sigil install")
-      rm -f -- "$dir/.gitignore" ;;
+      # Drop only the lines the installer wrote; keep any rules you added.
+      grep -vxF -f "$owned" "$dir/.gitignore" > "$dir/.gitignore.new"
+      if grep -q '[^[:space:]]' "$dir/.gitignore.new"; then
+        mv -- "$dir/.gitignore.new" "$dir/.gitignore"
+      else
+        rm -f -- "$dir/.gitignore.new" "$dir/.gitignore"
+      fi ;;
   esac
+  rm -f -- "$owned"
 fi
 ```
 
