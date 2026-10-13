@@ -16,6 +16,9 @@ that job, and `sigil-write` still delegates its review there.
 Confirm `sigilc` responds before any other step. When it does not, start no
 child, name the missing binary, hand back the official installer command for
 the user's platform, and run that installer only if the user explicitly agrees.
+When it responds but `sigil --version` reports an older release than these
+skills, say so and offer the installer for that release; the run continues
+whatever the answer. A `sigil` that is not found is said to be unconfirmed.
 The contract's first section owns the steps.
 
 Read the [orchestration contract](references/computed-evaluation.md) before

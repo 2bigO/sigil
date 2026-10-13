@@ -1,7 +1,12 @@
 # Install Sigil in Claude Code
 
-Claude Code installs Sigil from a plugin marketplace. Read the [prerequisites and
-cleanup notes](README.md) once; the steps below point back to them.
+Claude Code installs Sigil from a plugin marketplace. The marketplace is
+`qoherent/sigil` at its `release` branch, which follows the latest published
+release. Read the [prerequisites and cleanup notes](README.md) once; the steps
+below point back to them. If you installed before releases were the source, see
+[Moving from an earlier install](README.md#moving-from-an-earlier-install) and
+clear `~/.claude/plugins/cache/sigil` and `~/.claude/plugins/marketplaces/sigil`
+after you uninstall.
 
 ## 1. Remove old copies
 
@@ -16,14 +21,14 @@ for each of those folders.
 In Claude Code:
 
 ```text
-/plugin marketplace add qoherent/sigil
+/plugin marketplace add qoherent/sigil#release
 /plugin install sigil@sigil
 ```
 
 The same from a shell:
 
 ```bash
-claude plugin marketplace add qoherent/sigil
+claude plugin marketplace add qoherent/sigil#release
 claude plugin install sigil@sigil
 ```
 
@@ -44,9 +49,10 @@ marketplace first, then the plugin, or the plugin keeps reading the old snapshot
 /plugin update sigil@sigil
 ```
 
-An update appears only when a Sigil release raises the plugin version; changes on
-the main branch between releases do not reach you. Restart Claude Code after an
-update.
+An update appears only when a Sigil release raises the plugin version; changes
+merged to `main` between releases do not reach you. Restart Claude Code after an
+update, then rerun the installer in the [index](README.md#two-things-to-know-first)
+so `sigil` and `sigilc` match the new skills.
 
 ## 4. Uninstall
 

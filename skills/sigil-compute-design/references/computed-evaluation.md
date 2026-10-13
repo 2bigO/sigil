@@ -15,25 +15,57 @@ computed evidence before they judge; the judging stays theirs.
 
 ## Confirm the tool first
 
-Before preparing or checking anything, run `sigilc --version`. When it fails or
-is not found, stop before any preparation, child, or store write. Hand back that
-`sigilc` is missing and show the official installer for the user's platform. It
-comes from the latest GitHub release, verifies SHA-256 checksums, and installs
-both `sigil` and `sigilc`:
+These skills belong to the Sigil release named in the installer URLs below, and
+`sigil` and `sigilc` should come from that same release. Before preparing or
+checking anything, run `sigilc --version`. When it fails or is not found, stop
+before any preparation, child, or store write. Hand back that `sigilc` is missing
+and show the official installer for the user's platform. It comes from that
+release, verifies SHA-256 checksums, and installs both `sigil` and `sigilc`:
 
 ```text
-macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/latest/download/install.sh | sh
-Windows PowerShell: irm https://github.com/qoherent/sigil/releases/latest/download/install.ps1 | iex
+macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/download/cli-v0.9.0/install.sh | sh
+Windows PowerShell: irm https://github.com/qoherent/sigil/releases/download/cli-v0.9.0/install.ps1 | iex
 ```
 
-Run the installer only after the user explicitly agrees, and only once. Then run
-`sigilc --version` again. If the shell still cannot find it, name the install
-directory to add to PATH (`~/.local/bin` on macOS and Linux, the `bin` folder
-under `%LOCALAPPDATA%\Sigil` on Windows, unless `SIGIL_BIN_DIR` was set) and
-stop. A `sigilc` that already responds is never replaced or upgraded unless the
-user asks. When review preparation runs for `sigil-evaluate` or `sigil-write`,
-hand the missing binary and the installer back the same way and run nothing;
-the caller continues from the sources.
+Run the installer only after the user explicitly agrees, and only once. A piped
+`curl ... | sh` can exit 0 even when the download failed, so judge the install by
+what the installer printed, then by the installed binary:
+
+- The installer printed an error (for example not found): the install failed.
+  Say that release may not be published yet, point to building from source in
+  https://github.com/qoherent/sigil/blob/main/docs/install/README.md#build-from-source,
+  and do not retry.
+- No error: run `sigilc --version` again. If it answers, continue. If the shell
+  cannot find it, run the binary by its full path (`~/.local/bin/sigilc` on macOS
+  and Linux, `sigilc.cmd` in the `bin` folder under `%LOCALAPPDATA%\Sigil` on
+  Windows, unless `SIGIL_BIN_DIR` was set). When that answers, the install worked:
+  name that folder as the one to add to PATH and stop. When it does not, treat the
+  install as failed as above.
+
+A `sigilc` that already responds is never replaced or upgraded unless the user
+asks or accepts the mismatch offer below.
+
+When `sigilc` responds, check the release too. `sigilc --version` reports the
+compiler's own version, so read `sigil --version`, which the installer always
+places beside it and which reports the release:
+
+- It reports the release named in the installer URLs: continue.
+- It reports an older release: name both ("these skills belong to release X but
+  `sigil` reports Y"), show the same installer, and ask once without waiting for
+  the answer. Continue the run; run the installer only if the user's reply says
+  yes, and read `sigil --version` again afterwards. A failed install leaves the
+  existing binaries in place and the run continues. Accepting this offer is the
+  one case where a working `sigilc` is replaced.
+- It reports a newer release: say so and continue, with no offer, because the
+  installer would move `sigil` backwards.
+- `sigil` is not found: say the match with that release cannot be confirmed and
+  continue.
+
+When review preparation runs for `sigil-evaluate` or `sigil-write`, a missing
+`sigilc` and its installer are handed back with nothing run, and the caller
+continues from the sources. On a mismatch, preparation runs as usual and hands the
+warning and installer offer back with its evidence; it never runs the installer
+itself. The check happens once per run.
 
 ## The tool surface
 
