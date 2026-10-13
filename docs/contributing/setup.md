@@ -34,15 +34,18 @@ on every run, so edits take effect with no reinstall. The second builds `sigilc`
 Rebuild `sigilc` after you pull or switch branches; it does not follow your tree
 the way the launcher does.
 
-Put the checkout build before any installed copy on `PATH`. In `~/.zshrc` or
+Put both checkout builds before any installed copy on `PATH`. The launcher lands
+in Deno's command folder (`$DENO_INSTALL_ROOT/bin`, or `~/.deno/bin` when that is
+unset), and `sigilc` in the checkout's `target/debug`. In `~/.zshrc` or
 `~/.bashrc`:
 
 ```bash
-export PATH="$HOME/Workspace/sigil/packages/sigilc/target/debug:$PATH"
+export PATH="${DENO_INSTALL_ROOT:-$HOME/.deno}/bin:$HOME/Workspace/sigil/packages/sigilc/target/debug:$PATH"
 ```
 
 Use your own checkout path, and keep this line before `~/.local/bin`, where the
-released installer puts `sigil` and `sigilc`. Graphical agents (Cursor, the Codex
+released installer puts `sigil` and `sigilc`; otherwise the released `sigil` wins
+over your launcher. Graphical agents (Cursor, the Codex
 app, desktop launchers) do not read shell startup files. Start them from a terminal
 that has the `PATH`, or set it where the app reads its environment.
 
@@ -109,8 +112,9 @@ version.
 command -v sigil sigilc
 ```
 
-Both should resolve to your checkout, the launcher and
-`packages/sigilc/target/debug/sigilc`, not to `~/.local/bin`.
+`sigil` should resolve to the launcher in Deno's command folder (it runs your
+checkout), and `sigilc` to `packages/sigilc/target/debug/sigilc`. Neither should
+resolve to `~/.local/bin`.
 
 Then ask the agent which skills it has and where they come from:
 

@@ -27,18 +27,23 @@ macOS or Linux: curl -fsSL https://github.com/qoherent/sigil/releases/download/c
 Windows PowerShell: irm https://github.com/qoherent/sigil/releases/download/cli-v0.9.0/install.ps1 | iex
 ```
 
-Run the installer only after the user explicitly agrees, and only once. Then run
-`sigilc --version` again. The install failed when the installer printed an error
-(for example not found) or `sigilc --version` still does not answer; a piped
-`curl ... | sh` can exit 0 even when the download failed, so judge by those two
-signs, not the exit code. Then say that release may not be published yet, point
-to building from source in
-https://github.com/qoherent/sigil/blob/main/docs/install/README.md#build-from-source,
-and do not retry. If the install worked but the shell cannot find `sigilc`, name
-the install directory to add to PATH (`~/.local/bin` on macOS and Linux, the `bin`
-folder under `%LOCALAPPDATA%\Sigil` on Windows, unless `SIGIL_BIN_DIR` was set)
-and stop. A `sigilc` that already responds is never replaced or upgraded unless
-the user asks or accepts the mismatch offer below.
+Run the installer only after the user explicitly agrees, and only once. A piped
+`curl ... | sh` can exit 0 even when the download failed, so judge the install by
+what the installer printed, then by the installed binary:
+
+- The installer printed an error (for example not found): the install failed.
+  Say that release may not be published yet, point to building from source in
+  https://github.com/qoherent/sigil/blob/main/docs/install/README.md#build-from-source,
+  and do not retry.
+- No error: run `sigilc --version` again. If it answers, continue. If the shell
+  cannot find it, run the binary by its full path (`~/.local/bin/sigilc` on macOS
+  and Linux, `sigilc.cmd` in the `bin` folder under `%LOCALAPPDATA%\Sigil` on
+  Windows, unless `SIGIL_BIN_DIR` was set). When that answers, the install worked:
+  name that folder as the one to add to PATH and stop. When it does not, treat the
+  install as failed as above.
+
+A `sigilc` that already responds is never replaced or upgraded unless the user
+asks or accepts the mismatch offer below.
 
 When `sigilc` responds, check the release too. `sigilc --version` reports the
 compiler's own version, so read `sigil --version`, which the installer always

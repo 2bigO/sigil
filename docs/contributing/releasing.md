@@ -56,8 +56,11 @@ The tag starts two workflows:
   release **without** marking it latest, fast-forwards `release` to the tagged
   commit, and marks the release latest. It refuses to move `release` unless the tag
   descends from its current tip and is a newer version, and it never force-pushes.
-  Every step skips what is already done, and a rerun uploads any asset the
-  release is missing, so you can rerun a failed run. Dispatch it from the
+  Publish jobs for different versions run one at a time, so a newer release is
+  never overtaken by an older one; if three tags arrive close together the middle
+  one is dropped, so rerun it. Every step skips what is already done, and a rerun
+  uploads any asset the release is missing, so you can rerun a failed run.
+  Dispatch it from the
   Actions tab on the tag (choose the `cli-vX.Y.Z` tag under "Use workflow from"),
   give the version and turn publishing on; the release environment accepts only
   tag runs. A dispatch needs the tag to exist, so it is not a dry run.

@@ -351,6 +351,11 @@ jobs:
     # The release App's secrets live in this environment, which only cli-v*
     # tags may deploy to, so a workflow on any other branch cannot read them.
     environment: release
+    # One publish at a time across versions, so an older release cannot move
+    # Latest after a newer one has advanced the release branch.
+    concurrency:
+      group: native-cli-publish
+      cancel-in-progress: false
     permissions:
       contents: write
     env:
@@ -418,7 +423,8 @@ jobs:
           fi
       - name: Create the release App token
         id: release-app
-        uses: actions/create-github-app-token@v1
+        # Pinned to a reviewed commit (v1.12.0): this step receives the App key.
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
