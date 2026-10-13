@@ -158,7 +158,7 @@ export async function validateFoundation(
 if (import.meta.main) {
   const root = resolve(import.meta.dirname!, "..");
   if (Deno.args.length) throw new Error("Usage: deno task test:skill");
-  await validateFoundation(join(root, "integrations/skills"), {
+  await validateFoundation(join(root, "skills"), {
     repoRoot: root,
   });
   console.log(

@@ -198,7 +198,7 @@ orchestration stay outside the toolchain.
 | `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. |
 | `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
 | `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
-| `integrations/skills/` | Four source-based 0.9 design skills, the `sigil-egglog` language skill, and the computed and alignment skills | Shared language pack and evaluator-owned review contract; models execute in the host. |
+| `skills/` | Four source-based 0.9 design skills, the `sigil-egglog` language skill, and the computed and alignment skills | Shared language pack and evaluator-owned review contract; models execute in the host. |
 | `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
 | `scripts/`                    | Release build and skill validation                                                                                     |                                                                                                                                                                        |
@@ -233,7 +233,7 @@ diagnostics, `2` bad arguments, `3` host failure.
 
 Placement rules, from [`spec/sigil-reference.md`](spec/sigil-reference.md) and the
 `sigil-write` skill's
-[contract prose rules](integrations/skills/sigil-write/references/contract-prose.md):
+[contract prose rules](skills/sigil-write/references/contract-prose.md):
 
 - **Boundary summaries** live in the `_module.sigil` of the workspace root and of
   each declared member — [`_module.sigil`](_module.sigil),
@@ -275,7 +275,7 @@ ingestion, catalogs and Design/Implementation gates. The language CLI does not
 invoke the native compiler or a model on the caller's behalf.
 
 Use the
-[computed evaluation protocol](integrations/skills/sigil-compute-design/references/computed-evaluation.md)
+[computed evaluation protocol](skills/sigil-compute-design/references/computed-evaluation.md)
 for exact commands. External interpreters reconstruct each source from prepared
 inputs; Implementation interpreters receive only source bytes, fixed ontology and
 identity catalog. Keep Design prose, neighboring code and binding files out of
@@ -307,7 +307,7 @@ checks exact reproduction. Only documentary link destinations may change;
 fenced examples and inline code remain source text.
 
 Package checks are distinct from model behavior. Follow the
-[agent evaluation procedure](integrations/skills/sigil-write/evals/README.md),
+[agent evaluation procedure](skills/sigil-write/evals/README.md),
 materialize 0.8 source fixtures only in temporary workspaces, and record actual
 outcomes in [the evidence report](docs/skill-evaluation/sigil-0.8-foundation.md).
 Keep expected answers out of tested agents' inputs and preserve failures and
@@ -371,7 +371,7 @@ the authority on how they relate:
   (`core` 0.8.0, `cli` 0.9.0, and `lsp` 0.8.0).
 - **VS Code extension** — owned by its `package.json`.
 - **Agent skills** — each owns `VERSION` and `compatibility.json` in its
-  `integrations/skills/<name>/` directory. The design skills declare language
+  `skills/<name>/` directory. The design skills declare language
   and sibling requirements independently.
 
 Do not bump a version as a side effect of another change, and do not duplicate a

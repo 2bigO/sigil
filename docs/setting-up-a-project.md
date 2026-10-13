@@ -70,7 +70,7 @@ the whole design. `sigilc align prepare --root . --out DIR` reports the resolved
 selection, exclusions and out-of-scope components. A full-design check always
 gates alignment. Intentional empty selections require `allowEmpty`.
 
-Use [sigil-compute-align](../integrations/skills/sigil-compute-align/SKILL.md)
+Use [sigil-compute-align](../skills/sigil-compute-align/SKILL.md)
 for the design-first reading loop and
 [the native guide](../packages/sigilc/README.md) for exact commands and exits.
 Stored claims live in `.sigil/claims/`. `sigilc clean --root .` removes generated

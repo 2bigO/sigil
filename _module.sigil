@@ -58,9 +58,9 @@ component Sigil {
       These designs specify intended 0.9 behavior pending implementation and do not
       claim legacy compiler validation or current implementation conformance.
 
-      The current [understanding](integrations/skills/sigil-understand/SKILL.md),
-      [writing](integrations/skills/sigil-write/SKILL.md), and
-      [evaluation](integrations/skills/sigil-evaluate/SKILL.md) siblings own current
+      The current [understanding](skills/sigil-understand/SKILL.md),
+      [writing](skills/sigil-write/SKILL.md), and
+      [evaluation](skills/sigil-evaluate/SKILL.md) siblings own current
       design workflows.
 
     RootLanguageVersion {

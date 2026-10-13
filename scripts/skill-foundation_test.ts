@@ -33,7 +33,7 @@ Deno.test("foundation validates relocated catalog and rejects broken dependencie
     prefix: "sigil foundation catalog 空 ",
   });
   try {
-    await copyTree(join(root, "integrations/skills"), catalog);
+    await copyTree(join(root, "skills"), catalog);
     await validateFoundation(catalog);
     const entry = join(catalog, "sigil-write/SKILL.md");
     const original = await Deno.readTextFile(entry);
@@ -117,7 +117,7 @@ Deno.test("alignment skill validates declared siblings and local links in a relo
     prefix: "sigil alignment catalog 空 ",
   });
   try {
-    await copyTree(join(root, "integrations/skills"), catalog);
+    await copyTree(join(root, "skills"), catalog);
     await validateFoundation(catalog);
 
     const entry = join(catalog, "sigil-align/SKILL.md");
@@ -155,7 +155,7 @@ Deno.test("computed alignment declares its composed loop dependencies and valida
     prefix: "sigil computed alignment 空 ",
   });
   try {
-    await copyTree(join(root, "integrations/skills"), catalog);
+    await copyTree(join(root, "skills"), catalog);
     await validateFoundation(catalog);
     const directory = join(catalog, "sigil-compute-align");
     for (
@@ -242,7 +242,7 @@ Deno.test("review and writing depend on computation, which depends on neither", 
     prefix: "sigil computed review 空 ",
   });
   try {
-    await copyTree(join(root, "integrations/skills"), catalog);
+    await copyTree(join(root, "skills"), catalog);
     await validateFoundation(catalog);
 
     // Computation must not point back at its callers.

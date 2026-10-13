@@ -587,7 +587,7 @@ The problem statement that lead us to Sigil is captured in [PROBLEM.md](PROBLEM.
 | Trying Sigil for the first time  | [Quickstart](docs/quickstart.md)                                                        |
 | Setting up a repository properly | [Setting Up A Project](docs/setting-up-a-project.md)                                    |
 | Code exists, contracts do not    | [Setting Up A Project](docs/setting-up-a-project.md#adopting-into-an-existing-codebase) |
-| Designing something new          | [sigil-write](integrations/skills/sigil-write/SKILL.md)                                 |
+| Designing something new          | [sigil-write](skills/sigil-write/SKILL.md)                                 |
 | Writing Sigil, need the syntax   | [Language Guide](spec/sigil-language.md)                                        |
 | Tuning `.sigil/config.json`      | [Config Reference](spec/sigil-config.md)                                                |
 | Upgrading an existing workspace  | [Compatibility](COMPATIBILITY.md), then the `spec/migrating-to-*.md` for your target    |
@@ -748,13 +748,13 @@ alignment skill, its computed partner, and one egglog language skill:
 
 | Skill | Use it to |
 | --- | --- |
-| [sigil-understand](integrations/skills/sigil-understand/SKILL.md) | Explain intent, contract roles, Tag ownership, and relevant context. |
-| [sigil-evaluate](integrations/skills/sigil-evaluate/SKILL.md) | Review design read-only from its computed claims for consequential problems and useful simplification. |
-| [sigil-compute-design](integrations/skills/sigil-compute-design/SKILL.md) | Run the claims loop on an existing design and hand back the computed Coherent, Loose, Disjoint, or Incomplete ingest state with findings, distinct from advisory review. |
-| [sigil-write](integrations/skills/sigil-write/SKILL.md) | Write compact contracts and apply supported corrections through independent delegated review. |
-| [sigil-align](integrations/skills/sigil-align/SKILL.md) | Review and repair a selected component's implementation against its accepted contract, then report code and test evidence. |
-| [sigil-compute-align](integrations/skills/sigil-compute-align/SKILL.md) | Run the design-first computed implementation check and hand back Closed, Converged, Drift, or Incomplete with findings and proposed excludes. |
-| [sigil-egglog](integrations/skills/sigil-egglog/SKILL.md) | Teach egglog/datalog for claims data-only rows and `.egg` law programs. |
+| [sigil-understand](skills/sigil-understand/SKILL.md) | Explain intent, contract roles, Tag ownership, and relevant context. |
+| [sigil-evaluate](skills/sigil-evaluate/SKILL.md) | Review design read-only from its computed claims for consequential problems and useful simplification. |
+| [sigil-compute-design](skills/sigil-compute-design/SKILL.md) | Run the claims loop on an existing design and hand back the computed Coherent, Loose, Disjoint, or Incomplete ingest state with findings, distinct from advisory review. |
+| [sigil-write](skills/sigil-write/SKILL.md) | Write compact contracts and apply supported corrections through independent delegated review. |
+| [sigil-align](skills/sigil-align/SKILL.md) | Review and repair a selected component's implementation against its accepted contract, then report code and test evidence. |
+| [sigil-compute-align](skills/sigil-compute-align/SKILL.md) | Run the design-first computed implementation check and hand back Closed, Converged, Drift, or Incomplete with findings and proposed excludes. |
+| [sigil-egglog](skills/sigil-egglog/SKILL.md) | Teach egglog/datalog for claims data-only rows and `.egg` law programs. |
 
 The four design skills and `sigil-align` start at artifact version 0.1.0 and
 share the bundled 0.9.0 normative reference and grammar. `sigil-egglog` starts
@@ -791,7 +791,7 @@ choices, rechecks review freshness, and provides an independently unreviewed dra
 and portable handoff if delegation cannot complete. Static package checks and
 [observed agent evaluations](docs/skill-evaluation/sigil-0.8-foundation.md) provide
 separate evidence. Mechanical checks do not establish design coherence or code
-conformance. The [mechanical fixtures](integrations/skills/sigil-write/evals/mechanical-validation-fixture.md)
+conformance. The [mechanical fixtures](skills/sigil-write/evals/mechanical-validation-fixture.md)
 cover CLI-enabled behavior separately from the earlier offline observations.
 The [mechanical validation observations](docs/skill-evaluation/sigil-mechanical-validation.md)
 record actual commands, independent reviews, input identities, and limitations.

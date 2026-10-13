@@ -70,9 +70,9 @@ sigilc align check --root .
 ```
 
 A fresh workspace is Incomplete until its readings are supplied. Run
-[sigil-compute-design](../integrations/skills/sigil-compute-design/SKILL.md)
+[sigil-compute-design](../skills/sigil-compute-design/SKILL.md)
 for design computation or
-[sigil-compute-align](../integrations/skills/sigil-compute-align/SKILL.md)
+[sigil-compute-align](../skills/sigil-compute-align/SKILL.md)
 for a design-first implementation check. The latter reads selection from
 `tools.sigilc.implementation` in workspace config and proposes excludes as output.
 
