@@ -646,22 +646,6 @@
       ]
     },
     {
-      "id": "SkillInstallation",
-      "include": [
-        "packages/cli/src/installer.sigil"
-      ],
-      "exclude": [],
-      "terms": [
-        {
-          "term": "skill-source selection",
-          "definition": "Selection of the installation-relative skill assets owned by the Sigil executable or source module chosen for installation.",
-          "aliases": [
-            "source selection"
-          ]
-        }
-      ]
-    },
-    {
       "id": "SigilSkillWorkflow",
       "include": [
         "integrations/skills/sigil/**/*.sigil"

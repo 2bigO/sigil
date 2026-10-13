@@ -1,5 +1,4 @@
 export type CommandName =
-  | "skill"
   | "init"
   | "version"
   | "parse"
@@ -11,13 +10,8 @@ export type CommandName =
   | "retrieve"
   | "render";
 
-export type HelpTopic =
-  | CommandName
-  | "root"
-  | "skill-list"
-  | "skill-install";
+export type HelpTopic = CommandName | "root";
 export type OutputFormat = "json" | "text" | "markdown";
-export type SkillAgent = "codex" | "claude" | "opencode" | "pi";
 
 export interface GlobalOptions {
   readonly root?: string;
@@ -27,8 +21,6 @@ export interface GlobalOptions {
 }
 
 export type CommandRequest =
-  | SkillListRequest
-  | SkillInstallRequest
   | InitRequest
   | VersionRequest
   | ParseRequest
@@ -39,14 +31,6 @@ export type CommandRequest =
   | ContextRequest
   | RetrieveRequest
   | RenderRequest;
-export interface SkillListRequest extends GlobalOptions {
-  readonly command: "skill-list";
-}
-export interface SkillInstallRequest extends GlobalOptions {
-  readonly command: "skill-install";
-  readonly project: boolean;
-  readonly agents: readonly SkillAgent[];
-}
 export interface InitRequest extends GlobalOptions {
   readonly command: "init";
   readonly path?: string;
@@ -124,35 +108,14 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     return usage(
       commandName
         ? `Unknown command "${commandName}".`
-        : "Expected command: skill, init, version, parse, check, fmt, glossary, graph, context, retrieve, or render.",
+        : "Expected command: init, version, parse, check, fmt, glossary, graph, context, retrieve, or render.",
       "root",
     );
   }
 
-  const commandHelpTopic = helpTopicFor(commandName, rest[0]);
-  if (commandName === "skill") {
-    if (rest[0] === "--help") {
-      return { kind: "help", helpTopic: "skill" };
-    }
-    if (
-      (rest[0] === "list" || rest[0] === "install") &&
-      rest.includes("--help")
-    ) {
-      return { kind: "help", helpTopic: `skill-${rest[0]}` };
-    }
-    if (rest.includes("--help")) {
-      return usage(
-        rest[0] && !rest[0].startsWith("-")
-          ? `Unknown skill subcommand "${rest[0]}".`
-          : "skill requires exactly one subcommand: list or install.",
-        "skill",
-      );
-    }
-  } else if (rest.includes("--help")) {
-    return {
-      kind: "help",
-      helpTopic: commandName,
-    };
+  const commandHelpTopic: HelpTopic = commandName;
+  if (rest.includes("--help")) {
+    return { kind: "help", helpTopic: commandName };
   }
 
   const positional: string[] = [];
@@ -167,8 +130,6 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   let name: string | undefined;
   const include: string[] = [];
   const exclude: string[] = [];
-  let project = false;
-  let agent: SkillAgent | "all" | undefined;
   let showLocations = false;
   let check = false;
   let purpose: RetrieveRequest["purpose"] | undefined;
@@ -208,21 +169,6 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       case "--show-locations":
         showLocations = true;
         break;
-      case "--project":
-        project = true;
-        break;
-      case "--agent": {
-        const value = take(arg);
-        if (typeof value !== "string") return value;
-        if (!isSkillAgent(value) && value !== "all") {
-          return usage(
-            "--agent must be codex, claude, opencode, pi, or all.",
-            commandHelpTopic,
-          );
-        }
-        agent = value;
-        break;
-      }
       case "--component": {
         const value = take(arg);
         if (typeof value !== "string") return value;
@@ -329,60 +275,11 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       commandHelpTopic,
     );
   }
-  if (commandName !== "skill" && (project || agent)) {
-    return usage(
-      `${commandName} does not accept skill options.`,
-      commandHelpTopic,
-    );
-  }
   if (commandName !== "check" && showLocations) {
     return usage(
       `${commandName} does not accept --show-locations.`,
       commandHelpTopic,
     );
-  }
-  if (commandName === "skill") {
-    if (root) {
-      return usage("skill commands do not accept --root.", commandHelpTopic);
-    }
-    if (positional.length === 0) {
-      return usage(
-        "skill requires exactly one subcommand: list or install.",
-        "skill",
-      );
-    }
-    if (!["list", "install"].includes(positional[0])) {
-      return usage(
-        `Unknown skill subcommand "${positional[0]}".`,
-        "skill",
-      );
-    }
-    if (positional.length > 1) {
-      return usage(
-        `skill ${positional[0]} does not accept positional arguments.`,
-        `skill-${positional[0]}` as "skill-list" | "skill-install",
-      );
-    }
-    if (positional[0] === "list") {
-      if (project || agent) {
-        return usage(
-          "skill list does not accept installation options.",
-          "skill-list",
-        );
-      }
-      return { kind: "ok", request: { command: "skill-list", ...base } };
-    }
-    return {
-      kind: "ok",
-      request: {
-        command: "skill-install",
-        project,
-        agents: !agent || agent === "all"
-          ? ["codex", "claude", "opencode", "pi"]
-          : [agent],
-        ...base,
-      },
-    };
   }
   if (commandName === "init") {
     if (root) {
@@ -526,7 +423,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
 }
 
 function isCommand(value: string | undefined): value is CommandName {
-  return value === "skill" || value === "init" ||
+  return value === "init" ||
     value === "version" ||
     value === "parse" ||
     value === "check" || value === "fmt" || value === "glossary" ||
@@ -535,25 +432,9 @@ function isCommand(value: string | undefined): value is CommandName {
     value === "retrieve" ||
     value === "render";
 }
-function isSkillAgent(value: string): value is SkillAgent {
-  return value === "codex" || value === "claude" || value === "opencode" ||
-    value === "pi";
-}
 function isFormat(value: string): value is OutputFormat {
   return value === "json" || value === "text" ||
     value === "markdown";
-}
-function helpTopicFor(
-  commandName: CommandName,
-  firstArgument: string | undefined,
-): HelpTopic {
-  if (
-    commandName === "skill" &&
-    (firstArgument === "list" || firstArgument === "install")
-  ) {
-    return `skill-${firstArgument}`;
-  }
-  return commandName;
 }
 function usage(message: string, helpTopic: HelpTopic): UsageError {
   return { kind: "usage-error", message, helpTopic };
