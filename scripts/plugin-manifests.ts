@@ -102,7 +102,11 @@ export async function checkPluginManifests(root: string): Promise<string[]> {
     if (plugins.length !== 1) {
       errors.push(`${file}: expected exactly one plugin entry`);
     }
-    for (const entry of plugins) {
+    for (const [index, entry] of plugins.entries()) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+        errors.push(`${file}: plugin entry ${index + 1} is not an object`);
+        continue;
+      }
       if (entry.name !== PLUGIN_NAME) {
         errors.push(
           `${file}: plugin entry name is ${
