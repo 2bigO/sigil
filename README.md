@@ -587,15 +587,15 @@ The problem statement that lead us to Sigil is captured in [PROBLEM.md](PROBLEM.
 | Trying Sigil for the first time  | [Quickstart](docs/quickstart.md)                                                        |
 | Setting up a repository properly | [Setting Up A Project](docs/setting-up-a-project.md)                                    |
 | Code exists, contracts do not    | [Setting Up A Project](docs/setting-up-a-project.md#adopting-into-an-existing-codebase) |
-| Designing something new          | [Greenfield Design](integrations/skills/sigil/references/greenfield-design.md)          |
+| Designing something new          | [sigil-write](integrations/skills/sigil-write/SKILL.md)                                 |
 | Writing Sigil, need the syntax   | [Language Guide](spec/sigil-language.md)                                        |
 | Tuning `.sigil/config.json`      | [Config Reference](spec/sigil-config.md)                                                |
 | Upgrading an existing workspace  | [Compatibility](COMPATIBILITY.md), then the `spec/migrating-to-*.md` for your target    |
 | Changing Sigil itself            | [CONTRIBUTING.md](CONTRIBUTING.md)                                                      |
 
-The brownfield and greenfield procedures are written for a coding agent running
-the bundled skill. They are readable on their own, but you get them applied for
-you by installing the skill above.
+Greenfield design is the job of the `sigil-write` skill. The brownfield
+procedure is written for a coding agent running the Sigil skills; it is readable
+on its own in Setting Up A Project.
 
 ## Setup for development
 
@@ -683,7 +683,6 @@ Open design questions are tracked in
 
 ## Repository Layout
 
-Legacy skill sources remain retained but excluded from active discovery.
 The root [.sigil/config.json](./.sigil/config.json) defines this repository as a
 Sigil 0.9.0 workspace and excludes the independent example projects. The root
 [_module.sigil](./_module.sigil) is an ordinary source containing the
@@ -812,55 +811,8 @@ Overlapping targets are deduplicated; every target and the combined result
 validate before any write. Workspace checks may report errors outside the
 selected files, but formatting writes only changed selected `.sigil` files.
 
-### Legacy Sigil 0.7 native workflow
-
-The existing `sigil` skill remains at its own artifact version, with its existing
-compiler compatibility metadata. Its 0.7 workflow lives in
-[integrations/skills/sigil/SKILL.md](integrations/skills/sigil/SKILL.md), with
-host adapters supplied separately. Its frozen compiler requirements are incompatible
-with the current 0.9 tools; `sigil skill list` reports that explicitly.
-
-The skill teaches coding-agent hosts to:
-
-- bootstrap and validate the configured workspace before interpreting `.sigil`
-  files;
-- preserve and initialize repositories that contain Sigil sources without a
-  config before selecting a semantic workflow;
-- follow Sigil imports;
-- identify public component contracts and matching expands;
-- detect missing, conflicting, or vague information;
-- assess semantic readiness, modularity, applicable standards, and common
-  implementation pitfalls;
-- introduce Sigil incrementally into brownfield codebases through a
-  change-frontier pilot;
-- derive provisional boundary pictures from documentation, dependency
-  definitions, executable configuration, and entrypoints, then confirm goals and
-  interfaces before proposing ordinary summaries at the workspace root and
-  declared members;
-- preserve material boundary-wide runtime modes, flows, binding architecture
-  decisions, and observable outcomes in minimal expands while excluding
-  incidental and task-specific details;
-- record durable rationale for material selected choices in optional `decisions`
-  sections while keeping binding outcomes in `constraints`;
-- propose brownfield and externally informed semantic units before editing;
-- stop at the review gate after semantic changes;
-- colocate approved Sigil with the implementation it explains;
-- use approved Sigil as implementation context.
-
-The compact `SKILL.md` dispatches into progressive references. The
-[workspace bootstrap](integrations/skills/sigil/references/workspace-bootstrap.md)
-reference defines root discovery, configuration-state handling, initialization,
-and compatibility validation. The
-[authoring conventions](integrations/skills/sigil/references/authoring-conventions.md)
-reference owns section discipline, Tag identities, decision rationale, and
-colocation. The reference file at
-[integrations/skills/sigil/references/sigil-format.md](integrations/skills/sigil/references/sigil-format.md)
-is a concise agent-facing guide. The
-[standards review](integrations/skills/sigil/references/standards-review.md) and
-[brownfield adoption](integrations/skills/sigil/references/brownfield-adoption.md)
-references define the corresponding host-side workflows. The canonical language
-specification is [spec/sigil-reference.md](spec/sigil-reference.md), with the
-[EBNF grammar](spec/sigil.ebnf). The [language guide](spec/sigil-language.md)
+The canonical language specification is [spec/sigil-reference.md](spec/sigil-reference.md),
+with the [EBNF grammar](spec/sigil.ebnf). The [language guide](spec/sigil-language.md)
 provides authoring explanations and examples.
 
 ## Current Status

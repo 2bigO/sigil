@@ -28,8 +28,6 @@ Current integrations:
   or Incomplete with bound findings and proposed excludes. Requires
   `sigil-compute-design`, `sigil-understand`, `sigil-egglog`, `sigilc`, and
   configured implementation selection; plain review stays on `sigil-align`.
-- `skills/sigil`: preserved legacy Sigil 0.7 native workflow (artifact 0.10.0).
-  Its existing native compiler prerequisites apply to this entry point.
 
 All eight valid skills ship with CLI releases. `sigil skill install` installs the
 complete catalog globally; `--project` installs locally. The four 0.9 design
@@ -47,9 +45,3 @@ Other integrations:
 - `editor/vscode`: implemented pre-production VS Code extension and
   editor-native human UI with syntax highlighting, bundled LSP features, and
   component previews.
-
-Rejected historical design material:
-
-- `skills/sigil-anchor-indexer`: a rejected proposal for bounded model-assisted
-  anchor proposals over deterministic indexer candidates. Its Markdown is
-  retained for design history but it has no active Sigil contract.

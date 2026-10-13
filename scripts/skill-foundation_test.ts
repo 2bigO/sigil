@@ -50,7 +50,7 @@ Deno.test("foundation validates relocated catalog and rejects broken dependencie
     await rejects(() => validateFoundation(catalog), /Missing local reference/);
     await Deno.writeTextFile(
       entry,
-      original + "\n[Legacy](../sigil/SKILL.md)\n",
+      original + "\n[Unlisted](../sigil-unlisted/SKILL.md)\n",
     );
     await rejects(
       () => validateFoundation(catalog),

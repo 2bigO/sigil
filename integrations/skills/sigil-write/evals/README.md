@@ -11,13 +11,11 @@ From the source checkout:
 ```sh
 deno task test:skill
 deno test --allow-read --allow-write scripts/skill-foundation_test.ts
-deno test --allow-env --allow-read --allow-write --allow-run --filter 'skill ' packages/cli/tests/cli_test.ts
 ```
 
 The first command needs no binaries, network, write or subprocess permission.
 The tests mutate disposable copies to check source/output drift, missing siblings,
-reference failures, and relocation. The separate `test:skill:native` task requires
-the existing CLI and sigilc builds and exercises the legacy 0.7 protocol.
+reference failures, and relocation.
 
 ## Prepare an observed run
 
