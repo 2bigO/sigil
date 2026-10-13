@@ -7,8 +7,9 @@ or own your coding loop.
 
 ## 1. Install both tools
 
-Standalone releases ship `sigil`, `sigilc` and the skill catalog together. See
-[installation](../README.md). They require no Deno, Node, Rust or source checkout
+Standalone releases ship `sigil` and `sigilc` together. The skills install through
+your agent's plugin system and follow the same releases; see
+[installation](../README.md) and the [install guides](install/README.md). They require no Deno, Node, Rust or source checkout
 at runtime. For repository development, build the two executables:
 
 ```sh

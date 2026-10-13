@@ -42,7 +42,7 @@ and Gemini CLI or Antigravity each have an [install guide](docs/install/README.m
 For example, in Claude Code:
 
 ```text
-/plugin marketplace add qoherent/sigil
+/plugin marketplace add qoherent/sigil#release
 /plugin install sigil@sigil
 ```
 
@@ -592,6 +592,7 @@ The problem statement that lead us to Sigil is captured in [PROBLEM.md](PROBLEM.
 | Tuning `.sigil/config.json`      | [Config Reference](spec/sigil-config.md)                                                |
 | Upgrading an existing workspace  | [Compatibility](COMPATIBILITY.md), then the `spec/migrating-to-*.md` for your target    |
 | Changing Sigil itself            | [CONTRIBUTING.md](CONTRIBUTING.md)                                                      |
+| Changing the skills or cutting a release | [Contributor guide](docs/contributing/README.md)                                |
 
 Greenfield design is the job of the `sigil-write` skill. The brownfield
 procedure is written for a coding agent running the Sigil skills; it is readable
@@ -599,7 +600,9 @@ on its own in Setting Up A Project.
 
 ## Setup for development
 
-For Contributors using the codebase directly, use the following.
+For Contributors using the codebase directly, use the following. Working on the
+skills? The [contributor guide](docs/contributing/README.md) also covers loading
+the checkout into your agent.
 
 1. Clone the repo:
 
@@ -627,6 +630,10 @@ GitHub.
 deno task --cwd packages/cli install
 sigil --version
 ```
+
+Build the native compiler, `sigilc`, from the same clone with
+`deno task build:sigilc`; it lands in `packages/sigilc/target/debug`, which you put
+on your `PATH`.
 
 The installed command runs this clone, so it follows whichever branch is checked
 out here. To pin one instead, add a detached worktree and install it under its

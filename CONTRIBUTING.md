@@ -12,6 +12,7 @@ they matter.
 
 - [Prerequisites](#prerequisites)
 - [Set up the repository](#set-up-the-repository)
+- [Working on the skills](docs/contributing/README.md)
 - [The validation workflow](#the-validation-workflow)
 - [Focused tasks](#focused-tasks)
 - [Repository boundaries](#repository-boundaries)
@@ -75,6 +76,11 @@ npm 11, which ships with Node 24, prints `npm warn allow-scripts` lines about
 `esbuild` and `keytar` during that install. They are expected and safe to ignore;
 both packages get their platform binaries from optional dependencies rather than
 from the skipped install scripts.
+
+Working on the Sigil skills, or cutting a release? The
+[contributor guide](docs/contributing/README.md) covers building `sigil` and
+`sigilc` from your checkout, loading the checkout's skills into each supported
+agent, the rules for changing a skill, and the release steps.
 
 Confirm the environment before you change anything:
 
@@ -202,7 +208,7 @@ orchestration stay outside the toolchain.
 | `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
 | `scripts/`                    | Release build and skill validation                                                                                     |                                                                                                                                                                        |
-| `docs/`                       | Adoption pilots and images                                                                                             |                                                                                                                                                                        |
+| `docs/`                       | End-user [install guides](docs/install/README.md), the [contributor guide](docs/contributing/README.md), the quickstart, skill evaluation records, and adoption pilots |                                                                                                                                                                        |
 
 Dependency direction is one-way: `cli` and `lsp` depend on `core`; the extension
 depends on `lsp` and invokes language export/native gates; the skill depends on no
@@ -374,6 +380,11 @@ the authority on how they relate:
   `skills/<name>/` directory. The design skills declare language
   and sibling requirements independently.
 
+A skill's own `VERSION` follows the
+[rules for skills](docs/contributing/skills.md#when-to-bump-a-version), and a
+release is cut as [the release guide](docs/contributing/releasing.md) describes;
+skill changes reach users only at the next CLI release.
+
 Do not bump a version as a side effect of another change, and do not duplicate a
 version literal into a second file. The one exception is the agent plugin
 manifests (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`,
@@ -461,7 +472,10 @@ Before you open one:
 - the four validation tasks pass locally;
 - any `.sigil` change was proposed and approved before it was written;
 - new behavior carries an ownership annotation pointing at its governing contract;
-- version literals are unchanged unless the change is a deliberate release;
+- a change to text an agent follows in a skill bumps that skill's `VERSION` in the
+  same commit, by the [rules for skills](docs/contributing/skills.md#when-to-bump-a-version);
+  the CLI version, plugin manifests and installer pin change only in a release-cut
+  commit;
 - user-visible changes are noted in [CHANGELOG.md](CHANGELOG.md).
 
 Unsure whether something needs a Sigil proposal, or which boundary should own your
