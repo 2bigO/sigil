@@ -3,7 +3,7 @@ import { FOUNDATION_SKILLS } from "./validate-skill.ts";
 
 export const PLUGIN_NAME = "sigil";
 
-const VERSIONED_MANIFESTS = [
+export const VERSIONED_MANIFESTS = [
   ".claude-plugin/plugin.json",
   ".codex-plugin/plugin.json",
   ".cursor-plugin/plugin.json",
@@ -11,7 +11,7 @@ const VERSIONED_MANIFESTS = [
   "plugin.json",
   "package.json",
 ] as const;
-const MARKETPLACES = [
+export const MARKETPLACES = [
   ".claude-plugin/marketplace.json",
   ".agents/plugins/marketplace.json",
   ".cursor-plugin/marketplace.json",
@@ -154,7 +154,8 @@ export async function checkPluginManifests(root: string): Promise<string[]> {
     for await (const entry of Deno.readDir(join(root, "skills"))) {
       if (entry.isDirectory) actual.push(entry.name);
     }
-  } catch {
+  } catch (error) {
+    if (!(error instanceof Deno.errors.NotFound)) throw error;
     errors.push("skills: missing");
   }
   actual.sort();

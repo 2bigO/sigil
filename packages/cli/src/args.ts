@@ -113,7 +113,6 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
     );
   }
 
-  const commandHelpTopic: HelpTopic = commandName;
   if (rest.includes("--help")) {
     return { kind: "help", helpTopic: commandName };
   }
@@ -139,7 +138,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       const value = rest[++index];
       return value && !value.startsWith("-")
         ? value
-        : usage(`${flag} requires a value.`, commandHelpTopic);
+        : usage(`${flag} requires a value.`, commandName);
     };
     switch (arg) {
       case "--root": {
@@ -154,7 +153,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         if (!isFormat(value)) {
           return usage(
             "--format must be json, text, or markdown.",
-            commandHelpTopic,
+            commandName,
           );
         }
         format = value;
@@ -194,7 +193,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         if (!Number.isInteger(parsed) || parsed < 0) {
           return usage(
             "--max-evidence-bytes must be a non-negative integer.",
-            commandHelpTopic,
+            commandName,
           );
         }
         maxEvidenceBytes = parsed;
@@ -209,7 +208,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
         ) {
           return usage(
             "--purpose must be semantic, architecture, or implementation.",
-            commandHelpTopic,
+            commandName,
           );
         }
         purpose = value;
@@ -235,7 +234,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
       }
       default:
         if (arg.startsWith("-")) {
-          return usage(`Unsupported option ${arg}.`, commandHelpTopic);
+          return usage(`Unsupported option ${arg}.`, commandName);
         }
         positional.push(arg);
     }
@@ -243,7 +242,7 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
 
   const base = { root, format, pretty, quiet };
   if (commandName !== "fmt" && check) {
-    return usage(`${commandName} does not accept --check.`, commandHelpTopic);
+    return usage(`${commandName} does not accept --check.`, commandName);
   }
   if (
     commandName !== "context" && commandName !== "retrieve" &&
@@ -251,34 +250,34 @@ export function parseArgs(argv: readonly string[]): ParseArgsResult {
   ) {
     return usage(
       `${commandName} does not accept --component or --file.`,
-      commandHelpTopic,
+      commandName,
     );
   }
   if (commandName !== "context" && includeDependents) {
     return usage(
       `${commandName} does not accept --include-dependents.`,
-      commandHelpTopic,
+      commandName,
     );
   }
   if (commandName !== "retrieve" && purpose) {
-    return usage(`${commandName} does not accept --purpose.`, commandHelpTopic);
+    return usage(`${commandName} does not accept --purpose.`, commandName);
   }
   if (commandName !== "retrieve" && maxEvidenceBytes !== undefined) {
     return usage(
       `${commandName} does not accept --max-evidence-bytes.`,
-      commandHelpTopic,
+      commandName,
     );
   }
   if (commandName !== "init" && (name || include.length || exclude.length)) {
     return usage(
       `${commandName} does not accept init options.`,
-      commandHelpTopic,
+      commandName,
     );
   }
   if (commandName !== "check" && showLocations) {
     return usage(
       `${commandName} does not accept --show-locations.`,
-      commandHelpTopic,
+      commandName,
     );
   }
   if (commandName === "init") {

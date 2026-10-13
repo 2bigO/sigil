@@ -1,20 +1,17 @@
 import { deepStrictEqual as equal, ok as assert } from "node:assert/strict";
 import { dirname, join, resolve } from "node:path";
-import { checkPluginManifests } from "./plugin-manifests.ts";
+import {
+  checkPluginManifests,
+  MARKETPLACES,
+  VERSIONED_MANIFESTS,
+} from "./plugin-manifests.ts";
 import { FOUNDATION_SKILLS } from "./validate-skill.ts";
 
 const root = resolve(import.meta.dirname!, "..");
 const FILES = [
   "packages/cli/deno.json",
-  ".claude-plugin/plugin.json",
-  ".claude-plugin/marketplace.json",
-  ".codex-plugin/plugin.json",
-  ".agents/plugins/marketplace.json",
-  ".cursor-plugin/plugin.json",
-  ".cursor-plugin/marketplace.json",
-  "gemini-extension.json",
-  "plugin.json",
-  "package.json",
+  ...VERSIONED_MANIFESTS,
+  ...MARKETPLACES,
   ".opencode/plugins/sigil.js",
 ];
 
