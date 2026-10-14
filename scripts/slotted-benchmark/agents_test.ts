@@ -744,7 +744,7 @@ while :; do :; done`,
       );
       const controller = new AbortController();
       if (termination === "cancelled") {
-        setTimeout(() => controller.abort(), 1_000);
+        setTimeout(() => controller.abort(), 3_000);
       }
       const result = await runOrchestrator({
         ...options,
@@ -754,8 +754,9 @@ while :; do :; done`,
         // Comfortably longer than a cold process-start can take on a loaded
         // Windows runner, where the fake host is itself a freshly spawned
         // compiled stub launching bash in turn (see test_support.ts) -- two
-        // process starts before the host even reaches its first printf.
-        timeoutMs: 4_000,
+        // process starts before the host even reaches its first printf, and
+        // observed to still be too tight at 4s under real CI load.
+        timeoutMs: 12_000,
         signal: termination === "cancelled" ? controller.signal : undefined,
       });
       assert(

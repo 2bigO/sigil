@@ -627,7 +627,13 @@ while True: time.sleep(1)
         equal(started, true, `host did not start for ${signal}`);
         child.kill(signal);
         const result = await output;
-        equal(result.code, 0, new TextDecoder().decode(result.stderr));
+        equal(
+          result.code,
+          0,
+          `stderr: ${new TextDecoder().decode(result.stderr)}\nstdout: ${
+            new TextDecoder().decode(result.stdout)
+          }`,
+        );
         const { records } = await readBatch(batch);
         equal(records[0].status, "interrupted");
         matches(await Deno.readTextFile(`${batch}/report.md`), /interrupted/);
