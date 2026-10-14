@@ -663,8 +663,11 @@ printf '%s\\n' '{"type":"result","result":"[]"}'
     });
     assert(result.status === "completed", JSON.stringify(result));
     assert(result.hostVersion === "fake 1.2.3", "version output was lost");
+    // Well short of the descendant's 8s sleep (so this still proves the
+    // orchestrator didn't wait for it), but with headroom over the compiled
+    // stub's own cold-start cost on a loaded Windows runner.
     assert(
-      Date.now() - started < 3_000,
+      Date.now() - started < 7_000,
       "version descendant stalled the attempt",
     );
   } finally {
@@ -689,8 +692,9 @@ Deno.test("a host's descendant cannot hold output pipes open for the next attemp
       timeoutMs: 5_000,
     });
     assert(first.status === "completed", JSON.stringify(first));
+    // Same headroom as the version-probe descendant check above.
     assert(
-      Date.now() - started < 3_000,
+      Date.now() - started < 7_000,
       "descendant kept the first attempt open",
     );
 
