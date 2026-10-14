@@ -627,6 +627,18 @@ while True: time.sleep(1)
         equal(started, true, `host did not start for ${signal}`);
         child.kill(signal);
         const result = await output;
+        if (Deno.build.os === "windows" && result.code !== 0) {
+          // Windows has no real SIGTERM/SIGINT delivery: both Node's and
+          // Deno's docs describe `kill()` there as a forced termination the
+          // target cannot catch or clean up after, which is exactly why
+          // process.ts's own signalOwnedProcess never waits for a graceful
+          // exit on Windows either. A listener in main.ts can still win that
+          // race often enough to produce a clean "interrupted" report (seen
+          // repeatedly in CI), but a forced kill with no report is an
+          // equally acceptable outcome there -- only still-running, or any
+          // other platform, is a real failure.
+          continue;
+        }
         equal(
           result.code,
           0,
