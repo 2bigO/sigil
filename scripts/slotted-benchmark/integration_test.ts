@@ -32,6 +32,7 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       files: await listing(slotted),
       sigil: await treeSha256(`${slotted}/.sigil`),
     };
+    const defaultRoot = `${root}/default-benchmarks`;
     const launched = await executeCommand([
       "run",
       "--agent",
@@ -41,8 +42,10 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "medium",
       "--out",
       batch,
-    ], { agentExecutables: { claude: host } });
+    ], { agentExecutables: { claude: host }, defaultOutputRoot: defaultRoot });
     equal(launched.batchDir, batch);
+    // --out never creates or touches the default output root.
+    equal(await exists(defaultRoot), false);
     equal(launched.scheduled, 1);
     equal(
       launched.valid,

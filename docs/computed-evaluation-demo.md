@@ -21,16 +21,16 @@ deno task slotted-benchmark run --agent claude:MODEL --agent codex:MODEL --agent
 ```
 
 Use `--out DIR` to name the batch directory and `--timeout-ms N` to set a
-per-attempt timeout. The default output is a new directory under
-`analyze-demo/slotted-runs/benchmarks/`, which Git ignores. The command prints
-its report path and completion counts. The directory keeps the captured export,
-fixture check, prepared requests, exact child rows, raw agent events, native
-reports, and one record for every scheduled attempt, including failures.
+per-attempt timeout. The default output is a new directory under `.benchmarks/`
+at the repo root, which ignores itself. The command prints its report path and
+completion counts. The directory keeps the captured export, fixture check,
+prepared requests, exact child rows, raw agent events, native reports, and one
+record for every scheduled attempt, including failures.
 
 Rebuild a report from saved evidence without starting any agent:
 
 ```sh
-deno task slotted-benchmark report analyze-demo/slotted-runs/benchmarks/BATCH_DIRECTORY
+deno task slotted-benchmark report .benchmarks/BATCH_DIRECTORY
 ```
 
 The report has a run table and an agent/model/source comparison table. It shows

@@ -60,8 +60,9 @@ Options:
   reported `interrupted`, never scored as missed; its pass directory, host
   events and a check of whatever was stored are kept as partial evidence.
 - `--out DIR` chooses the batch directory, which must not exist. By default each
-  run gets a new directory under `analyze-demo/slotted-runs/benchmarks/`, which
-  Git ignores.
+  run gets a new directory under `.benchmarks/` at the repo root, which ignores
+  itself (the tool writes a `.gitignore` there the first time it creates the
+  folder).
 - `--codex-auth FILE` names the Codex auth file (default `~/.codex/auth.json`).
 - `--pi-subagents FILE` names the `pi-subagents` extension entry (default
   `~/.pi/agent/npm/node_modules/pi-subagents/index.js`).
@@ -175,7 +176,7 @@ To rebuild a report from a saved batch without starting an agent:
 ```sh
 deno run --allow-read --allow-write --allow-run --allow-env \
   scripts/slotted-benchmark/main.ts report \
-  analyze-demo/slotted-runs/benchmarks/BATCH_DIRECTORY
+  .benchmarks/BATCH_DIRECTORY
 ```
 
 The report uses only evidence inside the batch directory. Requested models are
