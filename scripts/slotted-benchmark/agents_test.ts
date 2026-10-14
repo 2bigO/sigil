@@ -6,19 +6,30 @@ import {
   runOrchestrator,
 } from "./agents.ts";
 import { exists } from "./files.ts";
+import { writeShellFakeHost } from "./test_support.ts";
+import { dirname, join, resolve, sep } from "node:path";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
+/**
+ * Git for Windows' bash maps a path under the Windows temp directory to
+ * `/tmp/<relative>` -- confirmed live in CI for both the pass and bin
+ * directories below, which both live under `root`, itself under TEMP.
+ */
+function tempDirAsShellPath(nativePath: string, tempRoot: string): string {
+  if (Deno.build.os !== "windows") return nativePath;
+  const prefix = tempRoot.toLowerCase() + sep;
+  if (!nativePath.toLowerCase().startsWith(prefix)) return nativePath;
+  return `/tmp/${nativePath.slice(prefix.length).replace(/\\/g, "/")}`;
+}
+
 async function fakeHost(root: string, body: string): Promise<string> {
-  const path = `${root}/host.sh`;
-  await Deno.writeTextFile(
-    path,
-    `#!/bin/sh\nif [ "$1" = "--version" ]; then printf 'fake 1.2.3\\n'; exit 0; fi\n${body}\n`,
+  return await writeShellFakeHost(
+    `${root}/host.sh`,
+    `if [ "$1" = "--version" ]; then printf 'fake 1.2.3\\n'; exit 0; fi\n${body}\n`,
   );
-  await Deno.chmod(path, 0o755);
-  return path;
 }
 
 type Context = Omit<AgentRunRequest, "agent" | "requestedModel" | "executable">;
@@ -87,17 +98,34 @@ printf '%s\\n' '{"type":"result","result":"Final: ok\\nHand-back state: loose\\n
     );
 
     // The host ran inside the pass directory, with the pinned binary first on PATH.
-    const real = await Deno.realPath(options.passDir);
-    assert(
-      (await Deno.readTextFile(`${options.passDir}/cwd.txt`)).trim() === real,
-      "wrong working directory",
-    );
+    // Reading cwd.txt back from that exact literal path already proves the
+    // relative write landed there, i.e. the OS cwd was genuinely passDir --
+    // Git for Windows' bash remaps that directory through its own MSYS
+    // mount table before printing it, so an exact textual match isn't a
+    // reliable cross-check and isn't asserted on.
+    const cwd = (await Deno.readTextFile(`${options.passDir}/cwd.txt`)).trim();
+    assert(cwd.length > 0, "host did not report a working directory");
     const path = (await Deno.readTextFile(`${options.passDir}/path.txt`))
       .trim();
-    assert(
-      path.startsWith(`${options.binDir}:`),
-      `pinned bin not first on PATH: ${path}`,
-    );
+    if (Deno.build.os === "windows") {
+      const tempRoot = dirname(resolve(root));
+      const binEntry = tempDirAsShellPath(resolve(options.binDir), tempRoot);
+      // Git for Windows' bash itself prepends a handful of fixed MSYS
+      // directories (/usr/bin and friends) ahead of whatever PATH it is
+      // launched with, so the pinned bin directory can't be first by the
+      // time the host sees it -- only that the orchestrator's own ordering
+      // (pinned bin, then the rest of the original PATH) survived that
+      // prefix, which prepending alone can't disturb.
+      assert(
+        path.split(":").includes(binEntry),
+        `pinned bin not on PATH: ${path}`,
+      );
+    } else {
+      assert(
+        path.startsWith(`${options.binDir}:`),
+        `pinned bin not first on PATH: ${path}`,
+      );
+    }
 
     // Flags: effort, restrictions, the shell the skill needs, and the child.
     const settings = [...result.settings];
@@ -257,10 +285,8 @@ printf '%s\\n' '{"type":"thread.started"}'`,
       settings[at("--sandbox") + 1] === "workspace-write",
       "sandbox wrong",
     );
-    const real = await Deno.realPath(options.passDir);
     assert(
-      settings[at("-C") + 1] === options.passDir ||
-        settings[at("-C") + 1] === real,
+      settings[at("-C") + 1] === resolve(options.passDir),
       "-C is not the pass directory",
     );
     assert(
@@ -283,7 +309,10 @@ printf '%s\\n' '{"type":"thread.started"}'`,
     // A scratch CODEX_HOME held the credentials only while the host ran.
     const home = (await Deno.readTextFile(`${options.passDir}/codex-home.txt`))
       .trim();
-    assert(home === `${options.evidenceDir}/codex-home`, `home is ${home}`);
+    assert(
+      home === join(resolve(options.evidenceDir), "codex-home"),
+      `home is ${home}`,
+    );
     assert(
       (await Deno.readTextFile(`${options.passDir}/auth-during.txt`)).trim() ===
         "present",
@@ -590,15 +619,12 @@ Deno.test("a hanging version probe obeys the pass timeout", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-version-test-" });
   try {
     const options = await context(root);
-    const executable = `${root}/host.sh`;
-    await Deno.writeTextFile(
-      executable,
-      `#!/bin/sh
-if [ "$1" = "--version" ]; then exec sleep 10; fi
+    const executable = await writeShellFakeHost(
+      `${root}/host.sh`,
+      `if [ "$1" = "--version" ]; then exec sleep 10; fi
 printf '%s\\n' '{"type":"result","result":"unexpected"}'
 `,
     );
-    await Deno.chmod(executable, 0o755);
     const started = Date.now();
     const result = await runOrchestrator({
       ...options,
@@ -621,15 +647,12 @@ Deno.test("a version probe's descendant cannot hold its output open", async () =
   });
   try {
     const options = await context(root);
-    const executable = `${root}/host.sh`;
-    await Deno.writeTextFile(
-      executable,
-      `#!/bin/sh
-if [ "$1" = "--version" ]; then sleep 8 & printf 'fake 1.2.3\\n'; exit 0; fi
+    const executable = await writeShellFakeHost(
+      `${root}/host.sh`,
+      `if [ "$1" = "--version" ]; then sleep 8 & printf 'fake 1.2.3\\n'; exit 0; fi
 printf '%s\\n' '{"type":"result","result":"[]"}'
 `,
     );
-    await Deno.chmod(executable, 0o755);
     const started = Date.now();
     const result = await runOrchestrator({
       ...options,
@@ -640,8 +663,11 @@ printf '%s\\n' '{"type":"result","result":"[]"}'
     });
     assert(result.status === "completed", JSON.stringify(result));
     assert(result.hostVersion === "fake 1.2.3", "version output was lost");
+    // Well short of the descendant's 8s sleep (so this still proves the
+    // orchestrator didn't wait for it), but with headroom over the compiled
+    // stub's own cold-start cost on a loaded Windows runner.
     assert(
-      Date.now() - started < 3_000,
+      Date.now() - started < 7_000,
       "version descendant stalled the attempt",
     );
   } finally {
@@ -666,8 +692,9 @@ Deno.test("a host's descendant cannot hold output pipes open for the next attemp
       timeoutMs: 5_000,
     });
     assert(first.status === "completed", JSON.stringify(first));
+    // Same headroom as the version-probe descendant check above.
     assert(
-      Date.now() - started < 3_000,
+      Date.now() - started < 7_000,
       "descendant kept the first attempt open",
     );
 
@@ -721,14 +748,19 @@ while :; do :; done`,
       );
       const controller = new AbortController();
       if (termination === "cancelled") {
-        setTimeout(() => controller.abort(), 300);
+        setTimeout(() => controller.abort(), 3_000);
       }
       const result = await runOrchestrator({
         ...options,
         agent: "claude",
         requestedModel: "model-a",
         executable,
-        timeoutMs: 500,
+        // Comfortably longer than a cold process-start can take on a loaded
+        // Windows runner, where the fake host is itself a freshly spawned
+        // compiled stub launching bash in turn (see test_support.ts) -- two
+        // process starts before the host even reaches its first printf, and
+        // observed to still be too tight at 4s under real CI load.
+        timeoutMs: 12_000,
         signal: termination === "cancelled" ? controller.signal : undefined,
       });
       assert(

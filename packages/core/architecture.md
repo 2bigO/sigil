@@ -60,5 +60,5 @@ the filesystem port; core has no Deno disk calls, VS Code APIs, transport sessio
 model prompts or command dispatch. Tests use in-memory filesystems and exact source
 fixtures, with cross-host/native fixtures checking the same capture downstream.
 Keep shared coordinate, link-scanning and provenance rules centralized rather than
-reimplementing them in each host. See [verification](../../docs/verification/sigil-080/)
-for tested behavior and platform limitations.
+reimplementing them in each host. `test:core` and the cross-host/native
+`test:native:protocol` smoke cover tested behavior and platform limitations.

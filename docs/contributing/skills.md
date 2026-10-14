@@ -93,16 +93,19 @@ The procedure is the same for all seven skills:
 
 Each skill's own instructions:
 
-| Skill | Eval instructions | Record the result in |
-| --- | --- | --- |
-| `sigil-compute-design` | [evals/README.md](../../skills/sigil-compute-design/evals/README.md) | [sigil-compute-design.md](../skill-evaluation/sigil-compute-design.md) |
-| `sigil-compute-align` | [evals/README.md](../../skills/sigil-compute-align/evals/README.md) | [sigil-compute-design.md](../skill-evaluation/sigil-compute-design.md) |
-| `sigil-align` | [evals/README.md](../../skills/sigil-align/evals/README.md) | [sigil-align.md](../skill-evaluation/sigil-align.md) |
-| `sigil-write` | [evals/README.md](../../skills/sigil-write/evals/README.md) | [sigil-0.8-foundation.md](../skill-evaluation/sigil-0.8-foundation.md) |
-| `sigil-egglog`, `sigil-evaluate`, `sigil-understand` | No README of their own: follow the steps above with their fixtures in `evals/`, and the [write procedure](../../skills/sigil-write/evals/README.md) for the shared catalog | [sigil-0.8-foundation.md](../skill-evaluation/sigil-0.8-foundation.md), or [claims-guided-review.md](../skill-evaluation/claims-guided-review.md) for evaluation runs |
+| Skill | Eval instructions |
+| --- | --- |
+| `sigil-compute-design` | [evals/README.md](../../skills/sigil-compute-design/evals/README.md) |
+| `sigil-compute-align` | [evals/README.md](../../skills/sigil-compute-align/evals/README.md) |
+| `sigil-align` | [evals/README.md](../../skills/sigil-align/evals/README.md) |
+| `sigil-write` | [evals/README.md](../../skills/sigil-write/evals/README.md) |
+| `sigil-egglog`, `sigil-evaluate`, `sigil-understand` | No README of their own: follow the steps above with their fixtures in `evals/`, and the [write procedure](../../skills/sigil-write/evals/README.md) for the shared catalog |
 
-Write only what you observed. A dated section with enough detail for another
-person to repeat the run is the format; say plainly what was not observed.
+Write only what you observed, with enough detail for another person to repeat
+the run; say plainly what was not observed. Summarize it in your pull request
+rather than committing a report: name the host and model, the hashes recorded,
+and what passed or failed. Raw retained files stay local under `.benchmarks/`
+and are shared on request.
 
 ## Run the benchmarks
 
@@ -116,6 +119,5 @@ What you need first:
 - A budget in time: a pass can run for up to two hours.
 
 Run `deno task slotted-benchmark:probe` to see which hosts the benchmark can use.
-Results land under `analyze-demo/slotted-runs/benchmarks/`, which Git ignores;
-copy what you want to keep into a report under
-[`docs/skill-evaluation/`](../skill-evaluation).
+Results land under `.benchmarks/`, which Git ignores; summarize what you want to
+keep in your pull request description, and share the raw batch on request.

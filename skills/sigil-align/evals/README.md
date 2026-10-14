@@ -81,9 +81,10 @@ When the host cannot intercept a live child, a controlled replay may test how an
 agent consumes a captured report. Label it **controlled replay**, not an
 independent interpretation. Record instruction-only limits as such.
 
-Write observed results to `docs/skill-evaluation/sigil-align.md` only after
-executed runs. Include enough catalog, source, request, digest, trace, edit,
-test, failure, and rerun detail for another host to assess each claim. State the
-actual catalog and workspace separation, file access and CLI isolation limits,
-and coverage limits. Do not promote a passing test, annotation, or package check
-into proof of full implementation alignment.
+Summarize observed results in your pull request only after executed runs.
+Include enough catalog, source, request, digest, trace, edit, test, failure,
+and rerun detail for another reviewer to assess each claim. State the actual
+catalog and workspace separation, file access and CLI isolation limits, and
+coverage limits. Do not promote a passing test, annotation, or package check
+into proof of full implementation alignment. Raw retained artifacts stay local
+under `.benchmarks/` and are shared on request.

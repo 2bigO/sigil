@@ -285,9 +285,9 @@ material actually read and keep missing targets or fragments unresolved.
 
 The parser, resolver, formatter, editor grammar, active `.sigil` contracts,
 configuration and native frontend implement 0.8.0 in this checkout. Publication
-is separate. See [compatibility](../COMPATIBILITY.md) and the
-[migration verification](../docs/verification/sigil-080/) for evidence and limits.
-Do not use historical 0.7 binaries to validate the new syntax.
+is separate. See [compatibility](../COMPATIBILITY.md); `test:core`, `test:cli`,
+`test:lsp`, and `test:native:protocol` establish current conformance and its
+limits. Do not use historical 0.7 binaries to validate the new syntax.
 
 The migration replaces the previous “infer public identifiers from Interface
 prose” gap with explicit Tag introductions. It also requires:

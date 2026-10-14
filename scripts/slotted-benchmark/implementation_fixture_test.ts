@@ -7,15 +7,18 @@ import { readBatch, runBatch } from "./batch.ts";
 import { writeReport } from "./report.ts";
 import { deepStrictEqual as equal, ok as assert } from "node:assert/strict";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { copyTree } from "./files.ts";
 import {
   applyImplementationPlants,
   implementationPlants,
   preflightImplementationFixture,
 } from "./implementation.ts";
+import { writeExecutableScript } from "./test_support.ts";
 
-const fixture =
-  new URL("../../examples/slotted-implementation/", import.meta.url).pathname;
+const fixture = fileURLToPath(
+  new URL("../../examples/slotted-implementation/", import.meta.url),
+);
 
 Deno.test("repaired Slotted clean code and each independent plant replay deterministically", async () => {
   const plants = await implementationPlants();
@@ -117,11 +120,10 @@ Deno.test("repaired Slotted clean code and each independent plant replay determi
 Deno.test("an implementation pass stages the composed skill and accepts only matching native hand-back evidence", async () => {
   const scratch = await Deno.makeTempDir({ prefix: "alignment-action-" });
   try {
-    const host = join(scratch, "host");
     const support =
       new URL("./implementation_test_support.ts", import.meta.url).href;
-    await Deno.writeTextFile(
-      host,
+    const host = await writeExecutableScript(
+      join(scratch, "host"),
       `#!/usr/bin/env -S deno run --allow-read --allow-write --allow-run
 import {cannedDesign,cannedCode,native} from ${JSON.stringify(support)};
 if(Deno.args.includes("--version")){console.log("fake-alignment 1.0");Deno.exit(0);}
@@ -129,8 +131,11 @@ await cannedDesign("root","store","run");await cannedCode("root","store","run");
 const check=await native("root","store",["align","check"]);
 console.log(JSON.stringify({type:"result",result:"Hand-back state: "+check.state}));
 `,
+      [{
+        command: "deno",
+        prefixArgs: ["run", "--allow-read", "--allow-write", "--allow-run"],
+      }],
     );
-    await Deno.chmod(host, 0o755);
     const batch = join(scratch, "batch");
     await runBatch({
       action: "implementation",

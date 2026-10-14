@@ -636,3 +636,16 @@ Deno.test("drift withholds one issue metric while states remain visible", () => 
   matches(report, /booking-rooms-archived-mark-ownership: N\/A/);
   matches(report, /disjoint/);
 });
+
+Deno.test("a manifest carrying the retired pre-merge baseline keys still renders, with no Pre-merge line", () => {
+  const legacy = {
+    ...manifest,
+    tools: {
+      ...manifest.tools,
+      baselineClaimsSha256: "old-claims",
+      baselineSigilcSha256: "old-sigilc",
+    },
+  } as unknown as BatchManifest;
+  const report = renderReport(legacy, [attempt("000001", "valid", [])]);
+  assert(!report.includes("Pre-merge"));
+});

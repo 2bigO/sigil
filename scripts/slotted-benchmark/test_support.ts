@@ -8,6 +8,171 @@
  * writes the readings back into the copied root, checks, and hands back a state.
  */
 
+/**
+ * An interpreter the Windows stub can re-exec the script through:
+ * `command ...prefixArgs script ...originalArgs`. `prefixArgs` carries flags
+ * the interpreter needs before the script path, such as deno's `run
+ * --allow-read ...`; plain interpreters like `python3`/`bash` need none.
+ */
+interface InterpreterCandidate {
+  readonly command: string;
+  readonly prefixArgs?: readonly string[];
+}
+
+const interpreterCache = new Map<string, InterpreterCandidate>();
+
+/** Find the first candidate on PATH that actually runs, caching the result. */
+async function resolveInterpreter(
+  candidates: readonly InterpreterCandidate[],
+): Promise<InterpreterCandidate> {
+  const key = candidates.map((c) => c.command).join(",");
+  const cached = interpreterCache.get(key);
+  if (cached) return cached;
+  for (const candidate of candidates) {
+    try {
+      const probe = await new Deno.Command(candidate.command, {
+        args: ["--version"],
+        stdout: "null",
+        stderr: "null",
+      }).output();
+      if (probe.success) {
+        interpreterCache.set(key, candidate);
+        return candidate;
+      }
+    } catch {
+      // Not on PATH; try the next candidate.
+    }
+  }
+  throw new Error(
+    `No usable interpreter found among: ${
+      candidates.map((c) => c.command).join(", ")
+    }`,
+  );
+}
+
+/**
+ * A tiny standalone program, compiled once per test process (see
+ * `windowsStub` below) and then copied to a fresh path for every fake host.
+ * `Deno.execPath()` for a compiled binary reports that copy's own on-disk
+ * path -- not the path it was compiled at -- so each copy independently
+ * finds its own sibling `.interpreter` file and script (itself, minus the
+ * trailing `.exe`) and re-execs `interpreter script ...originalArgs`,
+ * forwarding stdio and the exit code.
+ *
+ * This exists because the natural approach -- a `.cmd` launcher invoking
+ * the interpreter via `%*` -- does not work here: Windows routes any
+ * `.bat`/`.cmd` spawn through `cmd.exe`, and Rust's standard library (which
+ * `Deno.Command` is built on) refuses to forward argument lists like the
+ * real agent CLIs', which routinely fail its batch-argument safety check,
+ * with "batch file arguments are invalid" -- confirmed live in CI, not
+ * merely suspected. A compiled binary is a real Win32 executable, so both
+ * this hop (orchestrator -> stub) and the next (stub -> interpreter) use
+ * Rust's ordinary, unrestricted argument passing instead.
+ */
+const WINDOWS_STUB_SOURCE = `
+const self = Deno.execPath();
+const base = self.slice(0, -".exe".length);
+const interpreter = JSON.parse(await Deno.readTextFile(base + ".interpreter"));
+const child = new Deno.Command(interpreter.command, {
+  args: [...(interpreter.prefixArgs ?? []), base, ...Deno.args],
+  stdin: "inherit",
+  stdout: "inherit",
+  stderr: "inherit",
+}).spawn();
+const status = await child.status;
+Deno.exit(status.code);
+`;
+
+let windowsStub: Promise<string> | undefined;
+let windowsStubCleanupArmed = false;
+
+/** Compile `WINDOWS_STUB_SOURCE` once per test process; later calls reuse it. */
+function compileWindowsStub(): Promise<string> {
+  return windowsStub ??= (async () => {
+    const dir = await Deno.makeTempDir({ prefix: "slotted-fake-host-stub-" });
+    if (!windowsStubCleanupArmed) {
+      windowsStubCleanupArmed = true;
+      // The compiled stub is a shared, process-lifetime cache (the whole
+      // point of memoizing it), so it's cleaned up once here, at process
+      // exit, rather than by any individual fake host's own test cleanup.
+      globalThis.addEventListener("unload", () => {
+        try {
+          Deno.removeSync(dir, { recursive: true });
+        } catch {
+          // Best-effort; nothing else can act once the process is unloading.
+        }
+      });
+    }
+    const sourcePath = `${dir}/stub.ts`;
+    const outputPath = `${dir}/stub.exe`;
+    await Deno.writeTextFile(sourcePath, WINDOWS_STUB_SOURCE);
+    const compiled = await new Deno.Command(Deno.execPath(), {
+      args: [
+        "compile",
+        "--allow-run",
+        "--allow-read",
+        "--output",
+        outputPath,
+        sourcePath,
+      ],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    if (!compiled.success) {
+      const reason = new TextDecoder().decode(compiled.stderr);
+      await Deno.remove(dir, { recursive: true }).catch(() => {});
+      throw new Error(
+        `failed to compile the Windows fake-host stub: ${reason}`,
+      );
+    }
+    return outputPath;
+  })();
+}
+
+/**
+ * Write `body` (a script whose first line is its shebang) to `path` as an
+ * executable a test can hand to `agentExecutables`/`executable:`. POSIX makes
+ * the file itself executable via the shebang. Windows has no shebang
+ * interpretation at the process-launch level -- `CreateProcess` on a script
+ * file fails outright (`%1 is not a valid Win32 application`) -- so there the
+ * script is written as plain data and a copy of the compiled stub above is
+ * returned instead, pointed at one of `windowsInterpreters` via a sibling
+ * `.interpreter` file.
+ */
+export async function writeExecutableScript(
+  path: string,
+  body: string,
+  windowsInterpreters: readonly InterpreterCandidate[],
+): Promise<string> {
+  await Deno.writeTextFile(path, body);
+  if (Deno.build.os !== "windows") {
+    await Deno.chmod(path, 0o755);
+    return path;
+  }
+  const interpreter = await resolveInterpreter(windowsInterpreters);
+  await Deno.writeTextFile(`${path}.interpreter`, JSON.stringify(interpreter));
+  const stub = await compileWindowsStub();
+  const launcherPath = `${path}.exe`;
+  await Deno.copyFile(stub, launcherPath);
+  return launcherPath;
+}
+
+/**
+ * Write a POSIX `/bin/sh` fake host. `body` is the script after the shebang
+ * line, which this prepends. On Windows the script runs under Git for
+ * Windows' bundled `bash`/`sh` (present on PATH on GitHub-hosted Windows
+ * runners), which understands the same POSIX syntax.
+ */
+export async function writeShellFakeHost(
+  path: string,
+  body: string,
+): Promise<string> {
+  return await writeExecutableScript(path, `#!/bin/sh\n${body}`, [
+    { command: "bash" },
+    { command: "sh" },
+  ]);
+}
+
 export interface FakeHostOptions {
   /** Which host's output shape to imitate. */
   readonly host?: "claude" | "codex";
@@ -154,10 +319,9 @@ export async function writeFakeHost(
   path: string,
   options: FakeHostOptions = {},
 ): Promise<string> {
-  await Deno.writeTextFile(
+  return await writeExecutableScript(
     path,
     SCRIPT.replace("__OPTIONS__", JSON.stringify(JSON.stringify(options))),
+    [{ command: "python3" }, { command: "python" }],
   );
-  await Deno.chmod(path, 0o755);
-  return path;
 }

@@ -168,11 +168,6 @@ export function renderReport(
     `Native binary SHA256: ${
       manifest.tools.sigilcSha256 ?? manifest.tools.claimsSha256
     }.`,
-    ...(manifest.tools.baselineClaimsSha256
-      ? [
-        `Pre-merge claims SHA256: ${manifest.tools.baselineClaimsSha256}; pre-merge sigilc SHA256: ${manifest.tools.baselineSigilcSha256}.`,
-      ]
-      : []),
     "",
     "## Slotted fixture",
     "",
@@ -609,5 +604,8 @@ function array(value: unknown): unknown[] {
 function relativeLink(batchDir: string, value: unknown): string | null {
   if (typeof value !== "string") return null;
   const rel = relative(resolve(batchDir), resolve(value));
-  return rel && rel !== ".." && !rel.startsWith(`..${sep}`) ? rel : null;
+  if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) return null;
+  // Markdown links always use forward slashes, regardless of platform;
+  // node:path's relative() returns the OS-native separator.
+  return sep === "/" ? rel : rel.split(sep).join("/");
 }

@@ -2,8 +2,8 @@
 
 This fixture compares advisory review from computed claims with the
 source-only evaluator it replaces. It measures what each judge actually read
-and found. It is not itself an observed result; the repository record is
-`docs/skill-evaluation/claims-guided-review.md`.
+and found. It is not itself an observed result; summarize an executed run in
+your pull request.
 
 ## Inputs
 

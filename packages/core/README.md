@@ -34,5 +34,5 @@ Core does not own CLI arguments, editor APIs, LSP transport, model prompts or
 semantic interpretation. Native `sigilc` consumes structural export separately.
 
 See [_module.sigil](./_module.sigil), [requirements](spec.md),
-[architecture](architecture.md), the [language reference](../../spec/sigil-reference.md)
-and [migration verification](../../docs/verification/sigil-080/).
+[architecture](architecture.md), and the
+[language reference](../../spec/sigil-reference.md).

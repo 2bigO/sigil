@@ -151,10 +151,9 @@ fn an_unfilled_promise_names_what_raised_it_and_where_it_is_stated() {
     );
 
     // The admission element this satisfies is really in that document.
-    let rules = fs::read_to_string(
-        repo_root().join("skills/sigil-evaluate/references/design-review.md"),
-    )
-    .unwrap();
+    let rules =
+        fs::read_to_string(repo_root().join("skills/sigil-evaluate/references/design-review.md"))
+            .unwrap();
     assert!(
         rules.contains("The existing promise or supplied intent that makes the omission"),
         "the admission rule this context targets must still be worded that way"

@@ -31,9 +31,10 @@ import { settleWithin, signalOwnedProcess } from "./process.ts";
 type Host = HostName;
 
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const EXE_SUFFIX = Deno.build.os === "windows" ? ".exe" : "";
 const DEFAULT_SIGIL_CLAIMS = join(
   REPO_ROOT,
-  "packages/sigilc/target/debug/sigilc",
+  `packages/sigilc/target/debug/sigilc${EXE_SUFFIX}`,
 );
 
 const SKILL_MARKER = "STAGED-SKILL-MARKER-4471";
@@ -206,12 +207,13 @@ async function probeHost(
     join(passDir, "skills/sigil-compute-design/SKILL.md"),
     SKILL_STUB,
   );
-  await Deno.symlink(options.sigilc, join(binDir, "sigilc")).catch(
-    async () => {
-      await Deno.remove(join(binDir, "sigilc"));
-      await Deno.symlink(options.sigilc, join(binDir, "sigilc"));
-    },
-  );
+  // Matches on PATH by bare name, so the link's extension must be the one
+  // the OS actually resolves there (PATHEXT on Windows looks for `.exe`).
+  const pinnedBin = join(binDir, `sigilc${EXE_SUFFIX}`);
+  await Deno.symlink(options.sigilc, pinnedBin).catch(async () => {
+    await Deno.remove(pinnedBin);
+    await Deno.symlink(options.sigilc, pinnedBin);
+  });
   const expectedVersion = await commandOutput(options.sigilc, [
     "--version",
   ]);

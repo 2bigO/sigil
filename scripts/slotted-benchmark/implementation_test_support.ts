@@ -1,8 +1,9 @@
 import { deepStrictEqual as equal } from "node:assert/strict";
 import { join } from "node:path";
-const binary =
-  new URL("../../packages/sigilc/target/debug/sigilc", import.meta.url)
-    .pathname;
+import { fileURLToPath } from "node:url";
+const binary = fileURLToPath(
+  new URL("../../packages/sigilc/target/debug/sigilc", import.meta.url),
+);
 
 export async function native(
   root: string,

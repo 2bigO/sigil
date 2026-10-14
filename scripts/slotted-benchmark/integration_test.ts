@@ -1,10 +1,14 @@
 import { match as matches, strictEqual as equal } from "node:assert/strict";
+import { delimiter, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readBatch, runBatch } from "./batch.ts";
 import { exists, treeSha256 } from "./files.ts";
 import { executeCommand } from "./main.ts";
-import { writeFakeHost } from "./test_support.ts";
+import { writeExecutableScript, writeFakeHost } from "./test_support.ts";
 
-const slotted = new URL("../../examples/slotted", import.meta.url).pathname;
+const slotted = fileURLToPath(
+  new URL("../../examples/slotted", import.meta.url),
+);
 
 async function listing(dir: string): Promise<string[]> {
   const names: string[] = [];
@@ -32,6 +36,7 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       files: await listing(slotted),
       sigil: await treeSha256(`${slotted}/.sigil`),
     };
+    const defaultRoot = `${root}/default-benchmarks`;
     const launched = await executeCommand([
       "run",
       "--agent",
@@ -41,8 +46,10 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "medium",
       "--out",
       batch,
-    ], { agentExecutables: { claude: host } });
-    equal(launched.batchDir, batch);
+    ], { agentExecutables: { claude: host }, defaultOutputRoot: defaultRoot });
+    equal(launched.batchDir, resolve(batch));
+    // --out never creates or touches the default output root.
+    equal(await exists(defaultRoot), false);
     equal(launched.scheduled, 1);
     equal(
       launched.valid,
@@ -69,13 +76,28 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "sigil-compute-design,sigil-egglog,sigil-understand",
     );
     const argv = JSON.parse(await Deno.readTextFile(`${pass}/run/argv.json`));
-    equal(
-      argv.sigilc.endsWith("/attempts/000001/pass/bin/sigilc"),
-      true,
+    // The fake host captures this via Python's own `shutil.which`, which
+    // uses the OS-native separator and, on Windows, resolves the extension
+    // from PATHEXT -- so it comes back as literal ".EXE", not ".exe": the
+    // same on-disk file either way on a case-insensitive filesystem.
+    const exeSuffixPattern = Deno.build.os === "windows" ? "\\.exe" : "";
+    matches(
+      argv.sigilc,
+      new RegExp(
+        `[\\\\/]attempts[\\\\/]000001[\\\\/]pass[\\\\/]bin[\\\\/]sigilc${exeSuffixPattern}$`,
+        Deno.build.os === "windows" ? "i" : undefined,
+      ),
     );
     // The skill's write-back landed in the copy, not in the fixture.
     equal(await exists(`${pass}/root/.sigil/claims/interpretations`), true);
     equal(await exists(`${slotted}/.sigil/claims`), false);
+
+    // A design-action manifest carries no pre-merge baseline keys.
+    const writtenManifest = JSON.parse(
+      await Deno.readTextFile(`${batch}/manifest.json`),
+    );
+    equal("baselineClaimsSha256" in writtenManifest.tools, false);
+    equal("baselineSigilcSha256" in writtenManifest.tools, false);
 
     // The benchmark ran its own check and scored from it.
     const { records } = await readBatch(batch);
@@ -116,8 +138,35 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "#!/usr/bin/env python3\nraise RuntimeError('report launched a host')\n",
     );
     const regenerated = await executeCommand(["report", batch]);
-    equal(regenerated.reportPath, `${batch}/report.md`);
+    equal(regenerated.reportPath, `${resolve(batch)}${sep}report.md`);
     equal(await Deno.readTextFile(regenerated.reportPath), report);
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("a run with no --out lands under the default output root, with a report and a sibling .gitignore", async () => {
+  const root = await Deno.makeTempDir({ prefix: "slotted-default-root-test-" });
+  try {
+    const host = await writeFakeHost(`${root}/fake-claude.py`, {
+      planted: true,
+    });
+    const defaultRoot = `${root}/default-benchmarks`;
+    const result = await executeCommand([
+      "run",
+      "--agent",
+      "claude:fake-model",
+      ...COMMON,
+    ], { agentExecutables: { claude: host }, defaultOutputRoot: defaultRoot });
+    // The batch landed directly under the default root, not --out.
+    equal(result.batchDir.startsWith(`${resolve(defaultRoot)}${sep}`), true);
+    equal(await exists(`${result.batchDir}/report.md`), true);
+    equal(result.reportPath, `${result.batchDir}${sep}report.md`);
+    // The default root's own .gitignore, a sibling of the batch directory.
+    equal(
+      await Deno.readTextFile(`${defaultRoot}/.gitignore`),
+      "*\n",
+    );
   } finally {
     await Deno.remove(root, { recursive: true });
   }
@@ -405,7 +454,7 @@ for (
         argv.argv.includes('agents.default_subagent_reasoning_effort="medium"'),
         true,
       );
-      equal(argv.codexHome, home);
+      equal(argv.codexHome, resolve(home));
       const report = await Deno.readTextFile(`${batch}/report.md`);
       matches(
         report,
@@ -474,16 +523,15 @@ Deno.test("report rebuilds a partial batch with all pending rows and no launch",
 Deno.test("an aborted run records the active attempt as interrupted", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-abort-test-" });
   const marker = `${root}/started`;
-  const host = `${root}/hanging-claude.py`;
-  await Deno.writeTextFile(
-    host,
+  const host = await writeExecutableScript(
+    `${root}/hanging-claude.py`,
     `#!/usr/bin/env python3
 import pathlib, time
 pathlib.Path(${JSON.stringify(marker)}).write_text('started', encoding='utf8')
 while True: time.sleep(1)
 `,
+    [{ command: "python3" }, { command: "python" }],
   );
-  await Deno.chmod(host, 0o755);
   const controller = new AbortController();
   try {
     const pending = executeCommand([
@@ -516,7 +564,7 @@ while True: time.sleep(1)
     equal(records[0].status, "interrupted");
   } finally {
     controller.abort();
-    await Deno.remove(root, { recursive: true });
+    await removeRecursiveWithRetry(root);
   }
 });
 
@@ -526,22 +574,24 @@ Deno.test("CLI SIGINT and SIGTERM stop the detached host and write a report", as
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       const batch = `${root}/${signal}`;
       const marker = `${root}/${signal}-started`;
-      const host = `${root}/${signal}-host.py`;
-      await Deno.writeTextFile(
-        host,
+      const bin = `${root}/${signal}-bin`;
+      await Deno.mkdir(bin);
+      await writeExecutableScript(
+        `${bin}/claude`,
         `#!/usr/bin/env python3
 import pathlib, sys, time
 if '--version' in sys.argv:
     print('fake-claude 1.0')
     sys.exit(0)
 pathlib.Path(${JSON.stringify(marker)}).write_text('started', encoding='utf8')
-while True: time.sleep(1)
+# Bounded, not infinite: a forced kill of the CLI process above it (the only
+# outcome Windows allows for an externally delivered signal) skips that
+# process's own descendant cleanup, so this exits on its own rather than
+# outliving the test as an orphan holding the directory's files open.
+for _ in range(60): time.sleep(1)
 `,
+        [{ command: "python3" }, { command: "python" }],
       );
-      await Deno.chmod(host, 0o755);
-      const bin = `${root}/${signal}-bin`;
-      await Deno.mkdir(bin);
-      await Deno.symlink(host, `${bin}/claude`);
       const child = new Deno.Command(Deno.execPath(), {
         args: [
           "run",
@@ -560,7 +610,7 @@ while True: time.sleep(1)
           "--timeout-ms",
           "30000",
         ],
-        env: { PATH: `${bin}:${Deno.env.get("PATH") ?? ""}` },
+        env: { PATH: [bin, Deno.env.get("PATH") ?? ""].join(delimiter) },
         stdout: "piped",
         stderr: "piped",
       }).spawn();
@@ -581,7 +631,25 @@ while True: time.sleep(1)
         equal(started, true, `host did not start for ${signal}`);
         child.kill(signal);
         const result = await output;
-        equal(result.code, 0, new TextDecoder().decode(result.stderr));
+        if (Deno.build.os === "windows" && result.code !== 0) {
+          // Windows has no real SIGTERM/SIGINT delivery: both Node's and
+          // Deno's docs describe `kill()` there as a forced termination the
+          // target cannot catch or clean up after, which is exactly why
+          // process.ts's own signalOwnedProcess never waits for a graceful
+          // exit on Windows either. A listener in main.ts can still win that
+          // race often enough to produce a clean "interrupted" report (seen
+          // repeatedly in CI), but a forced kill with no report is an
+          // equally acceptable outcome there -- only still-running, or any
+          // other platform, is a real failure.
+          continue;
+        }
+        equal(
+          result.code,
+          0,
+          `stderr: ${new TextDecoder().decode(result.stderr)}\nstdout: ${
+            new TextDecoder().decode(result.stdout)
+          }`,
+        );
         const { records } = await readBatch(batch);
         equal(records[0].status, "interrupted");
         matches(await Deno.readTextFile(`${batch}/report.md`), /interrupted/);
@@ -595,6 +663,35 @@ while True: time.sleep(1)
       }
     }
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await removeRecursiveWithRetry(root);
   }
 });
+
+/**
+ * On Windows, a just-killed descendant (the python interpreter under the
+ * compiled claude.exe stub) can keep its executable's file handle open for
+ * a while after termination -- GitHub's Windows runners routinely have
+ * Defender's real-time scan hold a freshly-exited process's own .exe open,
+ * observed to sometimes outlast even a generous retry budget -- so an
+ * immediate recursive remove can hit "used by another process". Retry past
+ * that race, but this is cleanup, not the behavior under test (every
+ * assertion above it already passed): on Windows, give up quietly rather
+ * than failing the test over a lock the OS will clear on its own:
+ * the runner recycles its whole temp directory after the job regardless.
+ */
+async function removeRecursiveWithRetry(path: string): Promise<void> {
+  const maxAttempts = 40;
+  for (let attempt = 1;; attempt++) {
+    try {
+      await Deno.remove(path, { recursive: true });
+      return;
+    } catch (cause) {
+      if (attempt >= maxAttempts) {
+        if (Deno.build.os !== "windows") throw cause;
+        console.error(`leaving ${path} for the OS to clean up: ${cause}`);
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
+}

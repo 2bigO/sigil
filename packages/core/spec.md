@@ -73,8 +73,8 @@ machine-readable diagnostics rather than losing unrelated results on failure.
 Tests cover strict ingress, Unicode boundaries, all contract roles, protected
 content, exact ownership, cycles, duplicate/ambiguous resolution, width repair,
 partial recovery, workspace boundaries, glossary/ownership context, retrieval
-budgets/freshness and native transport parity. Cross-host acceptance is recorded
-in [migration verification](../../docs/verification/sigil-080/).
+budgets/freshness and native transport parity. `test:core` and
+`test:native:protocol` establish cross-host acceptance.
 
 CLI/LSP protocols, editor UI, automatic migration, model calls, inferred behavior
 and the eqval algebra are outside this package's language implementation scope.

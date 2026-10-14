@@ -31,4 +31,5 @@ Old native captures, bindings, indexes and projections remain stored. Incompatib
 artifacts cannot supply current evidence and must be regenerated explicitly; tools
 do not delete or translate them. The 0.9 skill reference pack is reproduced from
 its recorded sources and digests. Design review is separate from compiler validity
-and implementation conformance. See [verification](docs/verification/sigil-080/).
+and implementation conformance; `test:core`, `test:cli`, `test:lsp`, and
+`test:native:protocol` establish the latter.

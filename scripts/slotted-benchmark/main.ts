@@ -3,10 +3,27 @@ import { fileURLToPath } from "node:url";
 import { readBatch, runBatch, validateSelections } from "./batch.ts";
 import type { AgentName } from "./agents.ts";
 import { writeReport } from "./report.ts";
+import { exists } from "./files.ts";
 
 const DEFAULT_OUTPUT = fileURLToPath(
-  new URL("../../analyze-demo/slotted-runs/benchmarks/", import.meta.url),
+  new URL("../../.benchmarks/", import.meta.url),
 );
+
+/**
+ * Create the default benchmark output root if it does not exist yet, and
+ * make it ignore itself: the first time this tool creates the root, it also
+ * writes a `.gitignore` containing `*` there, so neither the folder nor its
+ * contents ever show up in `git status`. An existing `.gitignore` is left
+ * untouched. Only called on the no-`--out` path -- an explicit `--out DIR`
+ * never creates or touches this root.
+ */
+export async function ensureDefaultOutputRoot(root: string): Promise<void> {
+  await Deno.mkdir(root, { recursive: true });
+  const gitignorePath = join(root, ".gitignore");
+  if (!(await exists(gitignorePath))) {
+    await Deno.writeTextFile(gitignorePath, "*\n");
+  }
+}
 
 export const HELP = `Slotted interpretation benchmark
 
@@ -25,13 +42,15 @@ scores the planted problems from that report. --timeout-ms bounds one whole pass
 (default ~/.codex/auth.json). --pi-subagents names the pi-subagents extension entry
 (default ~/.pi/agent/npm/node_modules/pi-subagents/index.js); Pi support is untested live.
 The batch keeps each pass directory, raw host events, the linked report, and the generated
-report under analyze-demo/slotted-runs/benchmarks/ by default.
+report under .benchmarks/ by default.
 `;
 
 export interface CommandDependencies {
   /** Test and diagnostic override; normal CLI use resolves the installed agents. */
   readonly agentExecutables?: Partial<Record<AgentName, string>>;
   readonly signal?: AbortSignal;
+  /** Test override for the default output root; normal CLI use resolves DEFAULT_OUTPUT. */
+  readonly defaultOutputRoot?: string;
 }
 
 export interface CommandResult {
@@ -133,12 +152,19 @@ export async function executeCommand(
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) {
     throw new Error("--timeout-ms requires a positive integer");
   }
-  const destination = outputDir ?? join(
-    DEFAULT_OUTPUT,
-    `${new Date().toISOString().replaceAll(/[:.]/g, "-")}-${
-      crypto.randomUUID().slice(0, 8)
-    }`,
-  );
+  let destination: string;
+  if (outputDir !== null) {
+    destination = outputDir;
+  } else {
+    const defaultRoot = dependencies.defaultOutputRoot ?? DEFAULT_OUTPUT;
+    await ensureDefaultOutputRoot(defaultRoot);
+    destination = join(
+      defaultRoot,
+      `${new Date().toISOString().replaceAll(/[:.]/g, "-")}-${
+        crypto.randomUUID().slice(0, 8)
+      }`,
+    );
+  }
   await runBatch({
     action,
     variant,

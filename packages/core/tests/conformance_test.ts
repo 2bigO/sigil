@@ -1,4 +1,5 @@
 import { deepStrictEqual as assertEquals } from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { InMemorySigilFileSystem, loadDesignInput } from "../src/mod.ts";
 import { DenoSigilFileSystem } from "../../cli/src/fs-adapter.ts";
 import { structuralView } from "./conformance_view.ts";
@@ -17,7 +18,11 @@ cases.sort();
 for (const name of cases) {
   Deno.test(`conformance ${name}`, async () => {
     const dir = new URL(`${name}/`, corpus);
-    const root = decodeURIComponent(dir.pathname).replace(/\/$/, "");
+    // `fileURLToPath` (not `dir.pathname`) so the result is a valid native
+    // path on Windows too -- a file URL's pathname keeps a leading slash
+    // before the drive letter (e.g. `/C:/Users/...`), which every later
+    // Deno.stat/readDir call in this test rejects.
+    const root = fileURLToPath(dir).replace(/[\\/]+$/, "");
     // The case sits inside this repository, whose own workspace config would
     // conflict as a nested root. List files with the real adapter (so its skip
     // rules apply), then load them under a virtual root outside the repository.
