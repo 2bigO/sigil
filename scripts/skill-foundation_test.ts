@@ -138,7 +138,8 @@ Deno.test("alignment skill validates declared siblings and local links in a relo
     );
     await rejects(
       () => validateFoundation(catalog),
-      /Missing foundation skill dependency: .*sigil-write\/SKILL\.md/,
+      // join() emits the OS-native separator, so the regex accepts either.
+      /Missing foundation skill dependency: .*sigil-write[\\/]SKILL\.md/,
     );
   } finally {
     await Deno.remove(catalog, { recursive: true });
