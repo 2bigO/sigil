@@ -828,9 +828,9 @@ The core, CLI, LSP and VS Code integration implement Sigil language 0.9.0.
 Native structural transport and reports use schema 2. These are local,
 pre-production changes; this migration does not publish a release. Artifact
 versions and legacy requirements are listed in [COMPATIBILITY.md](COMPATIBILITY.md).
-See the [migration guide](spec/migrating-to-0.9.md),
-[configuration](spec/sigil-config.md), and
-[verification evidence](docs/verification/sigil-080/).
+See the [migration guide](spec/migrating-to-0.9.md) and
+[configuration](spec/sigil-config.md). `test:core`, `test:cli`, `test:lsp`,
+and `test:native:protocol` establish current conformance.
 
 The shared core owns strict source capture, component-owned Tags, explicit
 provider imports, exact references, protected links/payloads, staged recovery,
