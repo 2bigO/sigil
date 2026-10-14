@@ -6,19 +6,17 @@ import {
   runOrchestrator,
 } from "./agents.ts";
 import { exists } from "./files.ts";
+import { writeShellFakeHost } from "./test_support.ts";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
 async function fakeHost(root: string, body: string): Promise<string> {
-  const path = `${root}/host.sh`;
-  await Deno.writeTextFile(
-    path,
-    `#!/bin/sh\nif [ "$1" = "--version" ]; then printf 'fake 1.2.3\\n'; exit 0; fi\n${body}\n`,
+  return await writeShellFakeHost(
+    `${root}/host.sh`,
+    `if [ "$1" = "--version" ]; then printf 'fake 1.2.3\\n'; exit 0; fi\n${body}\n`,
   );
-  await Deno.chmod(path, 0o755);
-  return path;
 }
 
 type Context = Omit<AgentRunRequest, "agent" | "requestedModel" | "executable">;
@@ -590,15 +588,12 @@ Deno.test("a hanging version probe obeys the pass timeout", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-version-test-" });
   try {
     const options = await context(root);
-    const executable = `${root}/host.sh`;
-    await Deno.writeTextFile(
-      executable,
-      `#!/bin/sh
-if [ "$1" = "--version" ]; then exec sleep 10; fi
+    const executable = await writeShellFakeHost(
+      `${root}/host.sh`,
+      `if [ "$1" = "--version" ]; then exec sleep 10; fi
 printf '%s\\n' '{"type":"result","result":"unexpected"}'
 `,
     );
-    await Deno.chmod(executable, 0o755);
     const started = Date.now();
     const result = await runOrchestrator({
       ...options,
@@ -621,15 +616,12 @@ Deno.test("a version probe's descendant cannot hold its output open", async () =
   });
   try {
     const options = await context(root);
-    const executable = `${root}/host.sh`;
-    await Deno.writeTextFile(
-      executable,
-      `#!/bin/sh
-if [ "$1" = "--version" ]; then sleep 8 & printf 'fake 1.2.3\\n'; exit 0; fi
+    const executable = await writeShellFakeHost(
+      `${root}/host.sh`,
+      `if [ "$1" = "--version" ]; then sleep 8 & printf 'fake 1.2.3\\n'; exit 0; fi
 printf '%s\\n' '{"type":"result","result":"[]"}'
 `,
     );
-    await Deno.chmod(executable, 0o755);
     const started = Date.now();
     const result = await runOrchestrator({
       ...options,

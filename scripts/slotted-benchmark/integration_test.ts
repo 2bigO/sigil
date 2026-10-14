@@ -75,9 +75,14 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "sigil-compute-design,sigil-egglog,sigil-understand",
     );
     const argv = JSON.parse(await Deno.readTextFile(`${pass}/run/argv.json`));
-    equal(
-      argv.sigilc.endsWith("/attempts/000001/pass/bin/sigilc"),
-      true,
+    // The fake host captures this via Python's own path resolution, which
+    // uses the OS-native separator and (on Windows) the real sigilc.exe.
+    const exeSuffixPattern = Deno.build.os === "windows" ? "\\.exe" : "";
+    matches(
+      argv.sigilc,
+      new RegExp(
+        `[\\\\/]attempts[\\\\/]000001[\\\\/]pass[\\\\/]bin[\\\\/]sigilc${exeSuffixPattern}$`,
+      ),
     );
     // The skill's write-back landed in the copy, not in the fixture.
     equal(await exists(`${pass}/root/.sigil/claims/interpretations`), true);

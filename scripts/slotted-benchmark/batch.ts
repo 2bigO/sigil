@@ -286,7 +286,7 @@ export async function runBatch(options: BatchOptions): Promise<BatchManifest> {
 
   const pinned = join(outputDir, "pinned");
   await Deno.mkdir(pinned);
-  const pinnedClaims = join(pinned, "sigilc");
+  const pinnedClaims = join(pinned, `sigilc${exeSuffix}`);
   await Deno.copyFile(sigilc, pinnedClaims);
   await Deno.chmod(pinnedClaims, 0o755);
   const pinnedSkills = {

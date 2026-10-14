@@ -8,6 +8,79 @@
  * writes the readings back into the copied root, checks, and hands back a state.
  */
 
+const interpreterCache = new Map<string, string>();
+
+/** Find the first candidate on PATH that actually runs, caching the result. */
+async function resolveInterpreter(
+  candidates: readonly string[],
+): Promise<string> {
+  const key = candidates.join(",");
+  const cached = interpreterCache.get(key);
+  if (cached) return cached;
+  for (const candidate of candidates) {
+    try {
+      const probe = await new Deno.Command(candidate, {
+        args: ["--version"],
+        stdout: "null",
+        stderr: "null",
+      }).output();
+      if (probe.success) {
+        interpreterCache.set(key, candidate);
+        return candidate;
+      }
+    } catch {
+      // Not on PATH; try the next candidate.
+    }
+  }
+  throw new Error(
+    `No usable interpreter found among: ${candidates.join(", ")}`,
+  );
+}
+
+/**
+ * Write `body` (a script whose first line is its shebang) to `path` as an
+ * executable a test can hand to `agentExecutables`/`executable:`. POSIX makes
+ * the file itself executable via the shebang. Windows has no shebang
+ * interpretation at the process-launch level -- `CreateProcess` on a script
+ * file fails outright (`%1 is not a valid Win32 application`) -- so there the
+ * script is written as plain data and a sibling `.cmd` launcher is returned
+ * instead, explicitly invoking one of `windowsInterpreters` against it.
+ */
+async function writeExecutableScript(
+  path: string,
+  body: string,
+  windowsInterpreters: readonly string[],
+): Promise<string> {
+  await Deno.writeTextFile(path, body);
+  if (Deno.build.os !== "windows") {
+    await Deno.chmod(path, 0o755);
+    return path;
+  }
+  const interpreter = await resolveInterpreter(windowsInterpreters);
+  const launcherPath = `${path}.cmd`;
+  await Deno.writeTextFile(
+    launcherPath,
+    `@echo off\r\n${interpreter} "${path}" %*\r\n`,
+  );
+  return launcherPath;
+}
+
+/**
+ * Write a POSIX `/bin/sh` fake host. `body` is the script after the shebang
+ * line, which this prepends. On Windows the script runs under Git for
+ * Windows' bundled `bash`/`sh` (present on PATH on GitHub-hosted Windows
+ * runners), which understands the same POSIX syntax.
+ */
+export async function writeShellFakeHost(
+  path: string,
+  body: string,
+): Promise<string> {
+  return await writeExecutableScript(path, `#!/bin/sh\n${body}`, [
+    "bash",
+    "sh",
+  ]);
+}
+
 export interface FakeHostOptions {
   /** Which host's output shape to imitate. */
   readonly host?: "claude" | "codex";
@@ -154,10 +227,9 @@ export async function writeFakeHost(
   path: string,
   options: FakeHostOptions = {},
 ): Promise<string> {
-  await Deno.writeTextFile(
+  return await writeExecutableScript(
     path,
     SCRIPT.replace("__OPTIONS__", JSON.stringify(JSON.stringify(options))),
+    ["python3", "python"],
   );
-  await Deno.chmod(path, 0o755);
-  return path;
 }
