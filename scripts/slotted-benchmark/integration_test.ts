@@ -649,9 +649,13 @@ while True: time.sleep(1)
  * On Windows, a just-killed descendant (the python interpreter under the
  * compiled claude.exe stub) can keep its executable's file handle open for
  * a while after termination -- GitHub's Windows runners routinely have
- * Defender's real-time scan hold a freshly-exited process's own .exe open
- * for several seconds -- so an immediate recursive remove can hit "used by
- * another process". Retry past that race with a generous bound.
+ * Defender's real-time scan hold a freshly-exited process's own .exe open,
+ * observed to sometimes outlast even a generous retry budget -- so an
+ * immediate recursive remove can hit "used by another process". Retry past
+ * that race, but this is cleanup, not the behavior under test (every
+ * assertion above it already passed): on Windows, give up quietly rather
+ * than failing the test over a lock the OS will clear on its own:
+ * the runner recycles its whole temp directory after the job regardless.
  */
 async function removeRecursiveWithRetry(path: string): Promise<void> {
   const maxAttempts = 40;
@@ -660,7 +664,11 @@ async function removeRecursiveWithRetry(path: string): Promise<void> {
       await Deno.remove(path, { recursive: true });
       return;
     } catch (cause) {
-      if (attempt >= maxAttempts) throw cause;
+      if (attempt >= maxAttempts) {
+        if (Deno.build.os !== "windows") throw cause;
+        console.error(`leaving ${path} for the OS to clean up: ${cause}`);
+        return;
+      }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
