@@ -168,11 +168,6 @@ export function renderReport(
     `Native binary SHA256: ${
       manifest.tools.sigilcSha256 ?? manifest.tools.claimsSha256
     }.`,
-    ...(manifest.tools.baselineClaimsSha256
-      ? [
-        `Pre-merge claims SHA256: ${manifest.tools.baselineClaimsSha256}; pre-merge sigilc SHA256: ${manifest.tools.baselineSigilcSha256}.`,
-      ]
-      : []),
     "",
     "## Slotted fixture",
     "",

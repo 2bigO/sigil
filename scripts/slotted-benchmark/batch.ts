@@ -97,8 +97,6 @@ export interface BatchManifest {
     readonly claimsPath: string;
     readonly claimsSha256: string;
     readonly sigilcSha256?: string;
-    readonly baselineClaimsSha256?: string;
-    readonly baselineSigilcSha256?: string;
     readonly alignSha256?: string;
     readonly computeSha256: string;
     readonly understandSha256: string;
@@ -113,7 +111,6 @@ export interface BatchManifest {
 export interface BatchOptions {
   readonly action?: "design" | "implementation";
   readonly variant?: "clean" | "planted";
-  readonly baselineDir?: string;
   readonly selections: readonly BatchSelection[];
   readonly passes: number;
   readonly outputDir: string;
@@ -449,9 +446,6 @@ export async function runBatch(options: BatchOptions): Promise<BatchManifest> {
       claimsPath: "pinned/sigilc",
       claimsSha256: await sha256(await Deno.readFile(pinnedClaims)),
       sigilcSha256: await sha256(await Deno.readFile(pinnedClaims)),
-      ...(action === "design"
-        ? await baselineDigests(options.baselineDir)
-        : {}),
       ...(action === "implementation"
         ? { alignSha256: skillSha256["sigil-compute-align"] }
         : {}),
@@ -584,23 +578,3 @@ async function writeRecord(
   await writeJson(join(outputDir, "records", `${record.id}.json`), record);
 }
 
-async function baselineDigests(
-  dir?: string,
-): Promise<{ baselineClaimsSha256: string; baselineSigilcSha256: string }> {
-  const path = dir ??
-    join(
-      repoRoot,
-      "docs/skill-evaluation/evidence/claims-turtle-premerge-20261009",
-    );
-  const baseline = JSON.parse(
-    await Deno.readTextFile(join(path, "manifest.json")),
-  );
-  if (
-    baseline.version !== 2 || typeof baseline.tools.claimsSha256 !== "string" ||
-    typeof baseline.tools.sigilcSha256 !== "string"
-  ) throw new Error("Invalid recorded pre-merge baseline");
-  return {
-    baselineClaimsSha256: baseline.tools.claimsSha256,
-    baselineSigilcSha256: baseline.tools.sigilcSha256,
-  };
-}

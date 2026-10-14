@@ -80,6 +80,13 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
     equal(await exists(`${pass}/root/.sigil/claims/interpretations`), true);
     equal(await exists(`${slotted}/.sigil/claims`), false);
 
+    // A design-action manifest carries no pre-merge baseline keys.
+    const writtenManifest = JSON.parse(
+      await Deno.readTextFile(`${batch}/manifest.json`),
+    );
+    equal("baselineClaimsSha256" in writtenManifest.tools, false);
+    equal("baselineSigilcSha256" in writtenManifest.tools, false);
+
     // The benchmark ran its own check and scored from it.
     const { records } = await readBatch(batch);
     equal(records[0].status, "valid");
