@@ -604,5 +604,8 @@ function array(value: unknown): unknown[] {
 function relativeLink(batchDir: string, value: unknown): string | null {
   if (typeof value !== "string") return null;
   const rel = relative(resolve(batchDir), resolve(value));
-  return rel && rel !== ".." && !rel.startsWith(`..${sep}`) ? rel : null;
+  if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) return null;
+  // Markdown links always use forward slashes, regardless of platform;
+  // node:path's relative() returns the OS-native separator.
+  return sep === "/" ? rel : rel.split(sep).join("/");
 }
