@@ -7,6 +7,7 @@ import { readBatch, runBatch } from "./batch.ts";
 import { writeReport } from "./report.ts";
 import { deepStrictEqual as equal, ok as assert } from "node:assert/strict";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { copyTree } from "./files.ts";
 import {
   applyImplementationPlants,
@@ -14,8 +15,9 @@ import {
   preflightImplementationFixture,
 } from "./implementation.ts";
 
-const fixture =
-  new URL("../../examples/slotted-implementation/", import.meta.url).pathname;
+const fixture = fileURLToPath(
+  new URL("../../examples/slotted-implementation/", import.meta.url),
+);
 
 Deno.test("repaired Slotted clean code and each independent plant replay deterministically", async () => {
   const plants = await implementationPlants();

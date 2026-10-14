@@ -1,5 +1,6 @@
 import { strictEqual as equal } from "node:assert/strict";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AgentRunResult } from "./agents.ts";
 import {
   fixtureStateSha256,
@@ -14,10 +15,16 @@ import {
 import { copySkill, copyTree, treeSha256 } from "./files.ts";
 import { exists } from "./files.ts";
 
-const claims =
-  new URL("../../packages/sigilc/target/debug/sigilc", import.meta.url)
-    .pathname;
-const slotted = new URL("../../examples/slotted", import.meta.url).pathname;
+const exeSuffix = Deno.build.os === "windows" ? ".exe" : "";
+const claims = fileURLToPath(
+  new URL(
+    `../../packages/sigilc/target/debug/sigilc${exeSuffix}`,
+    import.meta.url,
+  ),
+);
+const slotted = fileURLToPath(
+  new URL("../../examples/slotted", import.meta.url),
+);
 
 const root = "/tmp/slotted-claims-test/private";
 const linkedIdentity = {
@@ -260,7 +267,7 @@ Deno.test("a pass directory has a copied root with config and no claims store, t
       equal(staged.skillSha256[name], s.expected.skillSha256[name]);
     }
     equal(
-      await Deno.realPath(`${passDir}/bin/sigilc`),
+      await Deno.realPath(`${passDir}/bin/sigilc${exeSuffix}`),
       await Deno.realPath(claims),
     );
     equal((await Array.fromAsync(Deno.readDir(`${passDir}/store`))).length, 0);

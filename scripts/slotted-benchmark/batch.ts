@@ -134,6 +134,7 @@ export interface BatchOptions {
 }
 
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const exeSuffix = Deno.build.os === "windows" ? ".exe" : "";
 
 export function validateSelections(
   value: readonly { agent: string; model: string }[],
@@ -237,7 +238,7 @@ export async function runBatch(options: BatchOptions): Promise<BatchManifest> {
         : "examples/slotted",
     );
   const sigilc = options.sigilcExecutable ??
-    join(repoRoot, "packages/sigilc/target/debug/sigilc");
+    join(repoRoot, `packages/sigilc/target/debug/sigilc${exeSuffix}`);
   const skills = options.skillDirs ?? {
     computeDir: join(repoRoot, "skills/sigil-compute-design"),
     understandDir: join(repoRoot, "skills/sigil-understand"),

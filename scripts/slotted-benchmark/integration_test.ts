@@ -1,10 +1,13 @@
 import { match as matches, strictEqual as equal } from "node:assert/strict";
+import { fileURLToPath } from "node:url";
 import { readBatch, runBatch } from "./batch.ts";
 import { exists, treeSha256 } from "./files.ts";
 import { executeCommand } from "./main.ts";
 import { writeFakeHost } from "./test_support.ts";
 
-const slotted = new URL("../../examples/slotted", import.meta.url).pathname;
+const slotted = fileURLToPath(
+  new URL("../../examples/slotted", import.meta.url),
+);
 
 async function listing(dir: string): Promise<string[]> {
   const names: string[] = [];

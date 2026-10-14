@@ -305,7 +305,14 @@ export async function preparePass(
   }
   const bin = join(passDir, PASS_LAYOUT.bin);
   await Deno.mkdir(bin, { recursive: true });
-  await Deno.symlink(resolve(input.executable), join(bin, "sigilc"));
+  // The orchestrator finds this on PATH by bare name, so the pinned link's own
+  // file extension must match what the OS actually resolves there (PATHEXT on
+  // Windows looks for `sigilc.exe`, never the extensionless name).
+  const binExeSuffix = Deno.build.os === "windows" ? ".exe" : "";
+  await Deno.symlink(
+    resolve(input.executable),
+    join(bin, `sigilc${binExeSuffix}`),
+  );
   return {
     skillSha256,
     storeEntriesAtStart: storeEntries.length,
