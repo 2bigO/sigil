@@ -133,6 +133,33 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
   }
 });
 
+Deno.test("a run with no --out lands under the default output root, with a report and a sibling .gitignore", async () => {
+  const root = await Deno.makeTempDir({ prefix: "slotted-default-root-test-" });
+  try {
+    const host = await writeFakeHost(`${root}/fake-claude.py`, {
+      planted: true,
+    });
+    const defaultRoot = `${root}/default-benchmarks`;
+    const result = await executeCommand([
+      "run",
+      "--agent",
+      "claude:fake-model",
+      ...COMMON,
+    ], { agentExecutables: { claude: host }, defaultOutputRoot: defaultRoot });
+    // The batch landed directly under the default root, not --out.
+    equal(result.batchDir.startsWith(`${defaultRoot}/`), true);
+    equal(await exists(`${result.batchDir}/report.md`), true);
+    equal(result.reportPath, `${result.batchDir}/report.md`);
+    // The default root's own .gitignore, a sibling of the batch directory.
+    equal(
+      await Deno.readTextFile(`${defaultRoot}/.gitignore`),
+      "*\n",
+    );
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
 Deno.test("a second pass reuses nothing from the first and the fixture stays unchanged", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-two-pass-" });
   try {
