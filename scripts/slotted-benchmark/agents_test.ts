@@ -7,9 +7,23 @@ import {
 } from "./agents.ts";
 import { exists } from "./files.ts";
 import { writeShellFakeHost } from "./test_support.ts";
+import { resolve } from "node:path";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+/**
+ * What Git for Windows' bundled bash (the fake host's shell there) prints for
+ * `pwd` on a native path like `resolve()` returns: MSYS maps each drive onto
+ * a POSIX root, lowercasing the letter and turning `C:\a\b` into `/c/a/b`.
+ * Elsewhere this is a no-op -- bash's own `pwd` already matches `resolve()`.
+ */
+function expectedShellCwd(nativePath: string): string {
+  if (Deno.build.os !== "windows") return nativePath;
+  const drive = /^([A-Za-z]):[\\/](.*)$/.exec(nativePath);
+  if (!drive) return nativePath;
+  return `/${drive[1].toLowerCase()}/${drive[2].replace(/\\/g, "/")}`;
 }
 
 async function fakeHost(root: string, body: string): Promise<string> {
@@ -85,10 +99,14 @@ printf '%s\\n' '{"type":"result","result":"Final: ok\\nHand-back state: loose\\n
     );
 
     // The host ran inside the pass directory, with the pinned binary first on PATH.
+    // A freshly spawned shell's own $PWD comes from the OS's physical cwd, so
+    // this compares against realPath (which resolves symlinks, e.g. macOS's
+    // /var -> /private/var), not the orchestrator's lexical resolve().
+    const cwd = (await Deno.readTextFile(`${options.passDir}/cwd.txt`)).trim();
     const real = await Deno.realPath(options.passDir);
     assert(
-      (await Deno.readTextFile(`${options.passDir}/cwd.txt`)).trim() === real,
-      "wrong working directory",
+      cwd === expectedShellCwd(real),
+      `wrong working directory: ${cwd}`,
     );
     const path = (await Deno.readTextFile(`${options.passDir}/path.txt`))
       .trim();
@@ -255,10 +273,8 @@ printf '%s\\n' '{"type":"thread.started"}'`,
       settings[at("--sandbox") + 1] === "workspace-write",
       "sandbox wrong",
     );
-    const real = await Deno.realPath(options.passDir);
     assert(
-      settings[at("-C") + 1] === options.passDir ||
-        settings[at("-C") + 1] === real,
+      settings[at("-C") + 1] === resolve(options.passDir),
       "-C is not the pass directory",
     );
     assert(
@@ -713,14 +729,18 @@ while :; do :; done`,
       );
       const controller = new AbortController();
       if (termination === "cancelled") {
-        setTimeout(() => controller.abort(), 300);
+        setTimeout(() => controller.abort(), 1_000);
       }
       const result = await runOrchestrator({
         ...options,
         agent: "claude",
         requestedModel: "model-a",
         executable,
-        timeoutMs: 500,
+        // Comfortably longer than a cold process-start can take on a loaded
+        // Windows runner, where the fake host is itself a freshly spawned
+        // compiled stub launching bash in turn (see test_support.ts) -- two
+        // process starts before the host even reaches its first printf.
+        timeoutMs: 4_000,
         signal: termination === "cancelled" ? controller.signal : undefined,
       });
       assert(

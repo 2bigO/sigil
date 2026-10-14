@@ -1,9 +1,10 @@
 import { match as matches, strictEqual as equal } from "node:assert/strict";
+import { delimiter, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readBatch, runBatch } from "./batch.ts";
 import { exists, treeSha256 } from "./files.ts";
 import { executeCommand } from "./main.ts";
-import { writeFakeHost } from "./test_support.ts";
+import { writeExecutableScript, writeFakeHost } from "./test_support.ts";
 
 const slotted = fileURLToPath(
   new URL("../../examples/slotted", import.meta.url),
@@ -46,7 +47,7 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "--out",
       batch,
     ], { agentExecutables: { claude: host }, defaultOutputRoot: defaultRoot });
-    equal(launched.batchDir, batch);
+    equal(launched.batchDir, resolve(batch));
     // --out never creates or touches the default output root.
     equal(await exists(defaultRoot), false);
     equal(launched.scheduled, 1);
@@ -155,7 +156,7 @@ Deno.test("a run with no --out lands under the default output root, with a repor
       ...COMMON,
     ], { agentExecutables: { claude: host }, defaultOutputRoot: defaultRoot });
     // The batch landed directly under the default root, not --out.
-    equal(result.batchDir.startsWith(`${defaultRoot}/`), true);
+    equal(result.batchDir.startsWith(`${resolve(defaultRoot)}${sep}`), true);
     equal(await exists(`${result.batchDir}/report.md`), true);
     equal(result.reportPath, `${result.batchDir}/report.md`);
     // The default root's own .gitignore, a sibling of the batch directory.
@@ -450,7 +451,7 @@ for (
         argv.argv.includes('agents.default_subagent_reasoning_effort="medium"'),
         true,
       );
-      equal(argv.codexHome, home);
+      equal(argv.codexHome, resolve(home));
       const report = await Deno.readTextFile(`${batch}/report.md`);
       matches(
         report,
@@ -519,16 +520,15 @@ Deno.test("report rebuilds a partial batch with all pending rows and no launch",
 Deno.test("an aborted run records the active attempt as interrupted", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-abort-test-" });
   const marker = `${root}/started`;
-  const host = `${root}/hanging-claude.py`;
-  await Deno.writeTextFile(
-    host,
+  const host = await writeExecutableScript(
+    `${root}/hanging-claude.py`,
     `#!/usr/bin/env python3
 import pathlib, time
 pathlib.Path(${JSON.stringify(marker)}).write_text('started', encoding='utf8')
 while True: time.sleep(1)
 `,
+    [{ command: "python3" }, { command: "python" }],
   );
-  await Deno.chmod(host, 0o755);
   const controller = new AbortController();
   try {
     const pending = executeCommand([
@@ -571,9 +571,10 @@ Deno.test("CLI SIGINT and SIGTERM stop the detached host and write a report", as
     for (const signal of ["SIGINT", "SIGTERM"] as const) {
       const batch = `${root}/${signal}`;
       const marker = `${root}/${signal}-started`;
-      const host = `${root}/${signal}-host.py`;
-      await Deno.writeTextFile(
-        host,
+      const bin = `${root}/${signal}-bin`;
+      await Deno.mkdir(bin);
+      await writeExecutableScript(
+        `${bin}/claude`,
         `#!/usr/bin/env python3
 import pathlib, sys, time
 if '--version' in sys.argv:
@@ -582,11 +583,8 @@ if '--version' in sys.argv:
 pathlib.Path(${JSON.stringify(marker)}).write_text('started', encoding='utf8')
 while True: time.sleep(1)
 `,
+        [{ command: "python3" }, { command: "python" }],
       );
-      await Deno.chmod(host, 0o755);
-      const bin = `${root}/${signal}-bin`;
-      await Deno.mkdir(bin);
-      await Deno.symlink(host, `${bin}/claude`);
       const child = new Deno.Command(Deno.execPath(), {
         args: [
           "run",
@@ -605,7 +603,7 @@ while True: time.sleep(1)
           "--timeout-ms",
           "30000",
         ],
-        env: { PATH: `${bin}:${Deno.env.get("PATH") ?? ""}` },
+        env: { PATH: [bin, Deno.env.get("PATH") ?? ""].join(delimiter) },
         stdout: "piped",
         stderr: "piped",
       }).spawn();

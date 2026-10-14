@@ -8,18 +8,29 @@
  * writes the readings back into the copied root, checks, and hands back a state.
  */
 
-const interpreterCache = new Map<string, string>();
+/**
+ * An interpreter the Windows stub can re-exec the script through:
+ * `command ...prefixArgs script ...originalArgs`. `prefixArgs` carries flags
+ * the interpreter needs before the script path, such as deno's `run
+ * --allow-read ...`; plain interpreters like `python3`/`bash` need none.
+ */
+interface InterpreterCandidate {
+  readonly command: string;
+  readonly prefixArgs?: readonly string[];
+}
+
+const interpreterCache = new Map<string, InterpreterCandidate>();
 
 /** Find the first candidate on PATH that actually runs, caching the result. */
 async function resolveInterpreter(
-  candidates: readonly string[],
-): Promise<string> {
-  const key = candidates.join(",");
+  candidates: readonly InterpreterCandidate[],
+): Promise<InterpreterCandidate> {
+  const key = candidates.map((c) => c.command).join(",");
   const cached = interpreterCache.get(key);
   if (cached) return cached;
   for (const candidate of candidates) {
     try {
-      const probe = await new Deno.Command(candidate, {
+      const probe = await new Deno.Command(candidate.command, {
         args: ["--version"],
         stdout: "null",
         stderr: "null",
@@ -33,7 +44,9 @@ async function resolveInterpreter(
     }
   }
   throw new Error(
-    `No usable interpreter found among: ${candidates.join(", ")}`,
+    `No usable interpreter found among: ${
+      candidates.map((c) => c.command).join(", ")
+    }`,
   );
 }
 
@@ -59,9 +72,9 @@ async function resolveInterpreter(
 const WINDOWS_STUB_SOURCE = `
 const self = Deno.execPath();
 const base = self.slice(0, -".exe".length);
-const interpreter = (await Deno.readTextFile(base + ".interpreter")).trim();
-const child = new Deno.Command(interpreter, {
-  args: [base, ...Deno.args],
+const interpreter = JSON.parse(await Deno.readTextFile(base + ".interpreter"));
+const child = new Deno.Command(interpreter.command, {
+  args: [...(interpreter.prefixArgs ?? []), base, ...Deno.args],
   stdin: "inherit",
   stdout: "inherit",
   stderr: "inherit",
@@ -126,10 +139,10 @@ function compileWindowsStub(): Promise<string> {
  * returned instead, pointed at one of `windowsInterpreters` via a sibling
  * `.interpreter` file.
  */
-async function writeExecutableScript(
+export async function writeExecutableScript(
   path: string,
   body: string,
-  windowsInterpreters: readonly string[],
+  windowsInterpreters: readonly InterpreterCandidate[],
 ): Promise<string> {
   await Deno.writeTextFile(path, body);
   if (Deno.build.os !== "windows") {
@@ -137,7 +150,7 @@ async function writeExecutableScript(
     return path;
   }
   const interpreter = await resolveInterpreter(windowsInterpreters);
-  await Deno.writeTextFile(`${path}.interpreter`, interpreter);
+  await Deno.writeTextFile(`${path}.interpreter`, JSON.stringify(interpreter));
   const stub = await compileWindowsStub();
   const launcherPath = `${path}.exe`;
   await Deno.copyFile(stub, launcherPath);
@@ -155,8 +168,8 @@ export async function writeShellFakeHost(
   body: string,
 ): Promise<string> {
   return await writeExecutableScript(path, `#!/bin/sh\n${body}`, [
-    "bash",
-    "sh",
+    { command: "bash" },
+    { command: "sh" },
   ]);
 }
 
@@ -309,6 +322,6 @@ export async function writeFakeHost(
   return await writeExecutableScript(
     path,
     SCRIPT.replace("__OPTIONS__", JSON.stringify(JSON.stringify(options))),
-    ["python3", "python"],
+    [{ command: "python3" }, { command: "python" }],
   );
 }
