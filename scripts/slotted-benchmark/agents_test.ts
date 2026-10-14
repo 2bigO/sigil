@@ -7,7 +7,7 @@ import {
 } from "./agents.ts";
 import { exists } from "./files.ts";
 import { writeShellFakeHost } from "./test_support.ts";
-import { resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -15,12 +15,19 @@ function assert(condition: unknown, message: string): asserts condition {
 
 /**
  * What Git for Windows' bundled bash (the fake host's shell there) prints for
- * `pwd` on a native path like `resolve()` returns: MSYS maps each drive onto
- * a POSIX root, lowercasing the letter and turning `C:\a\b` into `/c/a/b`.
- * Elsewhere this is a no-op -- bash's own `pwd` already matches `resolve()`.
+ * `pwd` on a native path like `resolve()` returns. Confirmed live in CI:
+ * MSYS mounts `/tmp` directly onto the Windows temp directory (stripping
+ * the whole `C:\Users\...\AppData\Local\Temp` prefix down to `/tmp`), not
+ * the generic per-drive `/c/...` mapping a path outside TEMP would get.
+ * `tempRoot` is the native path to that directory -- the parent of a
+ * `Deno.makeTempDir()` result. Elsewhere (and on POSIX) this is a no-op.
  */
-function expectedShellCwd(nativePath: string): string {
+function expectedShellCwd(nativePath: string, tempRoot: string): string {
   if (Deno.build.os !== "windows") return nativePath;
+  const prefix = tempRoot.toLowerCase() + sep;
+  if (nativePath.toLowerCase().startsWith(prefix)) {
+    return `/tmp/${nativePath.slice(prefix.length).replace(/\\/g, "/")}`;
+  }
   const drive = /^([A-Za-z]):[\\/](.*)$/.exec(nativePath);
   if (!drive) return nativePath;
   return `/${drive[1].toLowerCase()}/${drive[2].replace(/\\/g, "/")}`;
@@ -105,7 +112,7 @@ printf '%s\\n' '{"type":"result","result":"Final: ok\\nHand-back state: loose\\n
     const cwd = (await Deno.readTextFile(`${options.passDir}/cwd.txt`)).trim();
     const real = await Deno.realPath(options.passDir);
     assert(
-      cwd === expectedShellCwd(real),
+      cwd === expectedShellCwd(real, dirname(resolve(root))),
       `wrong working directory: ${cwd}`,
     );
     const path = (await Deno.readTextFile(`${options.passDir}/path.txt`))
@@ -297,7 +304,10 @@ printf '%s\\n' '{"type":"thread.started"}'`,
     // A scratch CODEX_HOME held the credentials only while the host ran.
     const home = (await Deno.readTextFile(`${options.passDir}/codex-home.txt`))
       .trim();
-    assert(home === `${options.evidenceDir}/codex-home`, `home is ${home}`);
+    assert(
+      home === join(resolve(options.evidenceDir), "codex-home"),
+      `home is ${home}`,
+    );
     assert(
       (await Deno.readTextFile(`${options.passDir}/auth-during.txt`)).trim() ===
         "present",

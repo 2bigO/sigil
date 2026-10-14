@@ -76,13 +76,16 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "sigil-compute-design,sigil-egglog,sigil-understand",
     );
     const argv = JSON.parse(await Deno.readTextFile(`${pass}/run/argv.json`));
-    // The fake host captures this via Python's own path resolution, which
-    // uses the OS-native separator and (on Windows) the real sigilc.exe.
+    // The fake host captures this via Python's own `shutil.which`, which
+    // uses the OS-native separator and, on Windows, resolves the extension
+    // from PATHEXT -- so it comes back as literal ".EXE", not ".exe": the
+    // same on-disk file either way on a case-insensitive filesystem.
     const exeSuffixPattern = Deno.build.os === "windows" ? "\\.exe" : "";
     matches(
       argv.sigilc,
       new RegExp(
         `[\\\\/]attempts[\\\\/]000001[\\\\/]pass[\\\\/]bin[\\\\/]sigilc${exeSuffixPattern}$`,
+        Deno.build.os === "windows" ? "i" : undefined,
       ),
     );
     // The skill's write-back landed in the copy, not in the fixture.
@@ -158,7 +161,7 @@ Deno.test("a run with no --out lands under the default output root, with a repor
     // The batch landed directly under the default root, not --out.
     equal(result.batchDir.startsWith(`${resolve(defaultRoot)}${sep}`), true);
     equal(await exists(`${result.batchDir}/report.md`), true);
-    equal(result.reportPath, `${result.batchDir}/report.md`);
+    equal(result.reportPath, `${result.batchDir}${sep}report.md`);
     // The default root's own .gitignore, a sibling of the batch directory.
     equal(
       await Deno.readTextFile(`${defaultRoot}/.gitignore`),
@@ -638,6 +641,24 @@ while True: time.sleep(1)
       }
     }
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await removeRecursiveWithRetry(root);
   }
 });
+
+/**
+ * On Windows, a just-killed descendant (the python interpreter under the
+ * compiled claude.exe stub) can keep its executable's file handle open for
+ * a brief moment after termination, so an immediate recursive remove can
+ * hit "used by another process". Retry past that race.
+ */
+async function removeRecursiveWithRetry(path: string): Promise<void> {
+  for (let attempt = 1;; attempt++) {
+    try {
+      await Deno.remove(path, { recursive: true });
+      return;
+    } catch (cause) {
+      if (attempt >= 5) throw cause;
+      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+    }
+  }
+}
