@@ -564,7 +564,7 @@ while True: time.sleep(1)
     equal(records[0].status, "interrupted");
   } finally {
     controller.abort();
-    await Deno.remove(root, { recursive: true });
+    await removeRecursiveWithRetry(root);
   }
 });
 
