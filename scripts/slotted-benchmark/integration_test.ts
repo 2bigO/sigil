@@ -584,7 +584,11 @@ if '--version' in sys.argv:
     print('fake-claude 1.0')
     sys.exit(0)
 pathlib.Path(${JSON.stringify(marker)}).write_text('started', encoding='utf8')
-while True: time.sleep(1)
+# Bounded, not infinite: a forced kill of the CLI process above it (the only
+# outcome Windows allows for an externally delivered signal) skips that
+# process's own descendant cleanup, so this exits on its own rather than
+# outliving the test as an orphan holding the directory's files open.
+for _ in range(60): time.sleep(1)
 `,
         [{ command: "python3" }, { command: "python" }],
       );
