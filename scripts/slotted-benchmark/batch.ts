@@ -444,7 +444,7 @@ export async function runBatch(options: BatchOptions): Promise<BatchManifest> {
       fixtureStateSha256: fixtureState,
     },
     tools: {
-      claimsPath: "pinned/sigilc",
+      claimsPath: `pinned/sigilc${exeSuffix}`,
       claimsSha256: await sha256(await Deno.readFile(pinnedClaims)),
       sigilcSha256: await sha256(await Deno.readFile(pinnedClaims)),
       ...(action === "implementation"
