@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Release alignment
+
+- Skills, `sigil` and `sigilc` now reach users together, only through a
+  `cli-v*` release. The CLI release job publishes the GitHub release, fast-forwards
+  a `release` branch to the tagged commit, then marks the release latest. Every
+  agent install guide follows `release` (Gemini CLI follows the latest release),
+  so a skill change merged to `main` no longer reaches installed copies. Anyone
+  who installed from `main` moves once; see
+  [Moving from an earlier install](docs/install/README.md#moving-from-an-earlier-install).
+  The Cursor team marketplace import still reads the default branch and says so.
+- Add a build-from-source install path for use before the first release, and a
+  [contributor guide](docs/contributing/README.md) for setting up, working on
+  skills and cutting a release.
+- `sigil-compute-design` 0.5.3 and `sigil-compute-align` 0.1.2 point the
+  installer offer at the release they belong to and, once `sigilc` answers,
+  compare it with `sigil --version`. On a mismatch they name both releases and
+  offer the matching installer; a declined offer lets the run continue. The
+  plugin manifest check now fails when that installer pin differs from the CLI
+  version.
+
 ### Breaking native changes
 
 - Native `sigilc` 0.3.0 owns design claims and implementation alignment. The
@@ -13,6 +33,19 @@
 - Rename `sigil-compute` to `sigil-compute-design`; add `sigil-compute-align`.
   Skill installation prunes retired managed entries while preserving unmanaged
   paths. Upgrades remove managed wrappers for the retired executable.
+- Remove `sigil skill`, `sigil skill list` and `sigil skill install`; they now
+  exit 2 as unknown commands. The Sigil skills install through each agent's own
+  plugin system (Claude Code, Codex, OpenCode, Pi, Cursor, Gemini CLI and
+  Antigravity) from `qoherent/sigil`, with no `sigil` binary needed; see
+  [docs/install](docs/install/README.md). CLI release archives no longer bundle
+  skills. If you ran `sigil skill install`, remove its copies first: each guide
+  opens with the cleanup steps.
+- Delete the legacy 0.7 `sigil` skill and the rejected `sigil-anchor-indexer`
+  proposal, and move the seven active skills from `integrations/skills/` to
+  `skills/`. Links to the old paths no longer resolve.
+- `sigil-compute-design` 0.5.2 and `sigil-compute-align` 0.1.1 check that
+  `sigilc` responds before any work, start no child without it, and show the
+  official installer command, running it only if the user agrees.
 - Design vocabulary generation 5 adds distinct day-count bounds. Existing
   readings are asked once more; identity domains otherwise remain stable.
 - VS Code compile commands use design report 6 and alignment report 1 with
@@ -156,36 +189,7 @@
 - Separate offline `test:skill` checks from `test:skill:native`, and document
   observed agent behavior independently from package correctness.
 
-## 0.7.1 - 2026-08-04
-
-- Advance the core, compiler, CLI, LSP, VS Code extension, and coding-agent
-  skill artifacts to 0.7.1 over the Sigil Language and configuration contract
-  0.7.0.
-- Add implementation-ownership discovery with exact component and concept
-  targets, source ranges, cross-language entrypoint resolution, resilient
-  diagnostics, CLI projections, LSP hover/navigation, and watched-file
-  invalidation.
-- Add the compiler workflow with design and implementation focus, semantic
-  readiness and architecture evaluations, structured reports, lifecycle
-  statuses, persisted sessions and history, and proposal workspaces with
-  ReviewGate-aware materialization.
-- Add Markdown and JSON context assembly for direct dependencies, importing
-  files, implementation ownership, bounded sources, and stable diagnostics.
-- Add `sigil retrieve` for deterministic purpose-specific graph selection and
-  aggregated compilation context, including stable evidence identifiers,
-  fingerprints, dependency boundaries, and strongly connected component groups.
-- Add compiler-facing retrieval envelopes so evaluators consume one selected
-  context instead of independently traversing the workspace graph.
-- Extend graph and resolver diagnostics for cross-file expands, component
-  imports, duplicate identities, unreadable implementation sources, and
-  platform-independent path handling.
-- Complete the Sigil 0.6 semantic-unit and formatter tooling integration,
-  including reviewed glossary projections, concept identity reuse, Markdown
-  rendering, and deterministic formatting checks.
-- Add VS Code compilation commands and the validated JSONL bridge over the
-  external compatible Sigil CLI.
-
-## Unreleased
+### Other changes
 
 - Split 0.8 documentation into an example-led [language guide](spec/sigil-language.md),
   a [normative reference](spec/sigil-reference.md), and [EBNF grammar](spec/sigil.ebnf).
@@ -377,6 +381,35 @@
   CLI, LSP, and VS Code extension to 0.6.0.
 - Advance the Sigil skill to 0.6.2 with decision-rationale coverage,
   correction conversations, and semantic-readiness gates.
+
+## 0.7.1 - 2026-08-04
+
+- Advance the core, compiler, CLI, LSP, VS Code extension, and coding-agent
+  skill artifacts to 0.7.1 over the Sigil Language and configuration contract
+  0.7.0.
+- Add implementation-ownership discovery with exact component and concept
+  targets, source ranges, cross-language entrypoint resolution, resilient
+  diagnostics, CLI projections, LSP hover/navigation, and watched-file
+  invalidation.
+- Add the compiler workflow with design and implementation focus, semantic
+  readiness and architecture evaluations, structured reports, lifecycle
+  statuses, persisted sessions and history, and proposal workspaces with
+  ReviewGate-aware materialization.
+- Add Markdown and JSON context assembly for direct dependencies, importing
+  files, implementation ownership, bounded sources, and stable diagnostics.
+- Add `sigil retrieve` for deterministic purpose-specific graph selection and
+  aggregated compilation context, including stable evidence identifiers,
+  fingerprints, dependency boundaries, and strongly connected component groups.
+- Add compiler-facing retrieval envelopes so evaluators consume one selected
+  context instead of independently traversing the workspace graph.
+- Extend graph and resolver diagnostics for cross-file expands, component
+  imports, duplicate identities, unreadable implementation sources, and
+  platform-independent path handling.
+- Complete the Sigil 0.6 semantic-unit and formatter tooling integration,
+  including reviewed glossary projections, concept identity reuse, Markdown
+  rendering, and deterministic formatting checks.
+- Add VS Code compilation commands and the validated JSONL bridge over the
+  external compatible Sigil CLI.
 
 ## 0.5.1 - 2026-07-23
 
