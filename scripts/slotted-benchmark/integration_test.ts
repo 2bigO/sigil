@@ -138,7 +138,7 @@ Deno.test("a pass runs one orchestrator on a private copy, is scored from the be
       "#!/usr/bin/env python3\nraise RuntimeError('report launched a host')\n",
     );
     const regenerated = await executeCommand(["report", batch]);
-    equal(regenerated.reportPath, `${batch}/report.md`);
+    equal(regenerated.reportPath, `${resolve(batch)}${sep}report.md`);
     equal(await Deno.readTextFile(regenerated.reportPath), report);
   } finally {
     await Deno.remove(root, { recursive: true });
@@ -652,13 +652,14 @@ while True: time.sleep(1)
  * hit "used by another process". Retry past that race.
  */
 async function removeRecursiveWithRetry(path: string): Promise<void> {
+  const maxAttempts = 15;
   for (let attempt = 1;; attempt++) {
     try {
       await Deno.remove(path, { recursive: true });
       return;
     } catch (cause) {
-      if (attempt >= 5) throw cause;
-      await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      if (attempt >= maxAttempts) throw cause;
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 }
