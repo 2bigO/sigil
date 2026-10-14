@@ -80,10 +80,10 @@ unobserved mechanical validation, code alignment, saturated coherence, or behavi
 on untested hosts. Unavailable evidence or delegation is a valid incomplete
 outcome when the skill reports it accurately.
 
-Repository observations live at `docs/skill-evaluation/sigil-0.8-foundation.md`.
-Update that report only from executed runs, with enough source identity and
-request detail for another host to reproduce the case.
+Summarize observations in your pull request only from executed runs, with
+enough source identity and request detail for another reviewer to assess the
+case. Raw retained artifacts stay local under `.benchmarks/` and are shared on
+request.
 
-Record new CLI-enabled observations separately in
-`docs/skill-evaluation/sigil-mechanical-validation.md`; preserve the historical
-offline report's original limitations.
+Call out CLI-enabled observations separately from offline ones, and preserve
+the historical offline limitations rather than overwriting them.

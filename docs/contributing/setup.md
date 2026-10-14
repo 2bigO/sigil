@@ -92,7 +92,7 @@ cp -R <checkout>/.cursor-plugin <checkout>/skills ~/.cursor/plugins/local/sigil/
 ```
 
 Codex copies the whole checkout on install, ignored folders included. A checkout
-that holds large untracked output, such as benchmark runs under `analyze-demo/`,
+that holds large untracked output, such as benchmark runs under `.benchmarks/`,
 makes `codex plugin add` slow and fills the plugin cache. Keep that output outside
 the checkout you load, or load a fresh clone.
 

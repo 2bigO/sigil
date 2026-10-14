@@ -314,10 +314,10 @@ fenced examples and inline code remain source text.
 
 Package checks are distinct from model behavior. Follow the
 [agent evaluation procedure](skills/sigil-write/evals/README.md),
-materialize 0.8 source fixtures only in temporary workspaces, and record actual
-outcomes in [the evidence report](docs/skill-evaluation/sigil-0.8-foundation.md).
-Keep expected answers out of tested agents' inputs and preserve failures and
-host limitations. Do not claim independent review from a writer's self-assessment.
+materialize 0.8 source fixtures only in temporary workspaces, and summarize
+actual outcomes in your pull request. Keep expected answers out of tested
+agents' inputs and preserve failures and host limitations. Do not claim
+independent review from a writer's self-assessment.
 
 Delete obsolete behavior and its dedicated callers/tests during refactors.
 Preserve required frontend features through actual native infrastructure rather

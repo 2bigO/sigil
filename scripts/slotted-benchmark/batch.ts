@@ -577,4 +577,3 @@ async function writeRecord(
 ): Promise<void> {
   await writeJson(join(outputDir, "records", `${record.id}.json`), record);
 }
-

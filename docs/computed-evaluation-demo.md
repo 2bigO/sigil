@@ -101,8 +101,7 @@ No future run is guaranteed to match any of this.
 ### Earlier runs
 
 Eight earlier pairs of gradients ran on the same export under older guidance or
-an older design. `analyze-demo/slotted-runs/DIAGNOSIS.md` holds the analysis of
-why each changed. Each cell is pass 1 / pass 2.
+an older design, described below. Each cell is pass 1 / pass 2.
 
 | Source | Old guidance | Corrected naming rule | Four fixes | End declared by the prose | Booking says "and commits" | Guard and refusal examples | Eighth run |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -132,8 +131,8 @@ finding classes were renamed from `unguarded-flow` to `flow`, `ungrounded-claim`
 to `interpretation`, and `uninterpreted-section` was retired; the guidance
 fingerprint is `f86262b8…`.
 
-The run records stay outside the repository, except the copies in
-`analyze-demo/slotted-runs/`, which are ignored by git.
+The run records stay outside the repository. Retained batches live locally
+under `.benchmarks/`, ignored by git.
 
 ## Interpreting the historical results
 

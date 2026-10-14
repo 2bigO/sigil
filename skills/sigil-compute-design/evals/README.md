@@ -84,6 +84,8 @@ missing tool. Do not claim unobserved states, untested hosts, or coverage the
 captured preparation does not have. An unavailable `sigilc`
 binary is a recorded limitation, never a Coherent, Loose, or Disjoint.
 
-Repository observations live at `docs/skill-evaluation/sigil-compute-design.md`.
-Update that report only from executed runs, with enough source identity,
-request detail, and retained artifacts for another host to reproduce the case.
+Summarize observations in your pull request only from executed runs. Name the
+batch directory, the input and tool SHA-256 values from its manifest (source,
+fixture state, `sigilc`, skills, prompt), the agents and models, and any
+failures, so another reviewer can assess the case. Raw retained artifacts stay
+local under `.benchmarks/` and are shared on request.

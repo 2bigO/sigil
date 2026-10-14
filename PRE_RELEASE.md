@@ -43,7 +43,7 @@ updated core, CLI, LSP, editor and native compiler artifacts.
 
 `test:skill` validates this foundation offline. `test:native:protocol` runs the current six-state native
 protocol smoke and is included in aggregate tests and relocated CLI acceptance. Behavioral acceptance also needs observed fresh
-agent runs, recorded in [the foundation evidence report](docs/skill-evaluation/sigil-0.8-foundation.md).
+agent runs against the [`sigil-write` eval fixtures](skills/sigil-write/evals/README.md), summarized in the PR that ran them.
 The evaluator stays advisory and read-only. Writer automation is supported only
 where the host supplies independent delegation; otherwise its output includes
 an unreviewed draft and portable handoff. Model review does not prove compiler

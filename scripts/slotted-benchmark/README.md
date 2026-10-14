@@ -215,5 +215,5 @@ hashed before and after the orchestrator. Only `.sigil/claims` write-back is
 allowed. Changed, added or removed inputs invalidate the pass.
 
 New manifests are version 3 and record action, variant, model, effort and the
-pinned native digest. Version-2 recorded batches remain readable for
-comparison; new runs use only `sigilc`.
+pinned native digest. Version-2 recorded batches remain readable for comparison;
+new runs use only `sigilc`.

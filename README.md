@@ -795,13 +795,13 @@ for independent review. The evaluator runs `check` and `fmt --check` read-only.
 Without compatible tooling they continue from source and explicitly report
 mechanical validation as unavailable. The writer preserves unresolved human
 choices, rechecks review freshness, and provides an independently unreviewed draft
-and portable handoff if delegation cannot complete. Static package checks and
-[observed agent evaluations](docs/skill-evaluation/sigil-0.8-foundation.md) provide
+and portable handoff if delegation cannot complete. Static package checks and observed agent evaluations against the
+[`sigil-write` eval fixtures](skills/sigil-write/evals/README.md) provide
 separate evidence. Mechanical checks do not establish design coherence or code
 conformance. The [mechanical fixtures](skills/sigil-write/evals/mechanical-validation-fixture.md)
-cover CLI-enabled behavior separately from the earlier offline observations.
-The [mechanical validation observations](docs/skill-evaluation/sigil-mechanical-validation.md)
-record actual commands, independent reviews, input identities, and limitations.
+cover CLI-enabled behavior separately from the earlier offline observations,
+recording actual commands, independent reviews, input identities, and
+limitations in the PR that ran them.
 
 `sigil fmt [paths...]` accepts multiple files or directories within one workspace:
 
