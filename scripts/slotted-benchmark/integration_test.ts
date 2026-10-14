@@ -648,11 +648,13 @@ while True: time.sleep(1)
 /**
  * On Windows, a just-killed descendant (the python interpreter under the
  * compiled claude.exe stub) can keep its executable's file handle open for
- * a brief moment after termination, so an immediate recursive remove can
- * hit "used by another process". Retry past that race.
+ * a while after termination -- GitHub's Windows runners routinely have
+ * Defender's real-time scan hold a freshly-exited process's own .exe open
+ * for several seconds -- so an immediate recursive remove can hit "used by
+ * another process". Retry past that race with a generous bound.
  */
 async function removeRecursiveWithRetry(path: string): Promise<void> {
-  const maxAttempts = 15;
+  const maxAttempts = 40;
   for (let attempt = 1;; attempt++) {
     try {
       await Deno.remove(path, { recursive: true });

@@ -7,10 +7,22 @@ import {
 } from "./agents.ts";
 import { exists } from "./files.ts";
 import { writeShellFakeHost } from "./test_support.ts";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+/**
+ * Git for Windows' bash maps a path under the Windows temp directory to
+ * `/tmp/<relative>` -- confirmed live in CI for both the pass and bin
+ * directories below, which both live under `root`, itself under TEMP.
+ */
+function tempDirAsShellPath(nativePath: string, tempRoot: string): string {
+  if (Deno.build.os !== "windows") return nativePath;
+  const prefix = tempRoot.toLowerCase() + sep;
+  if (!nativePath.toLowerCase().startsWith(prefix)) return nativePath;
+  return `/tmp/${nativePath.slice(prefix.length).replace(/\\/g, "/")}`;
 }
 
 async function fakeHost(root: string, body: string): Promise<string> {
@@ -88,19 +100,32 @@ printf '%s\\n' '{"type":"result","result":"Final: ok\\nHand-back state: loose\\n
     // The host ran inside the pass directory, with the pinned binary first on PATH.
     // Reading cwd.txt back from that exact literal path already proves the
     // relative write landed there, i.e. the OS cwd was genuinely passDir --
-    // Git for Windows' bash remaps that same directory through its own MSYS
-    // mount table (observed, inconsistently, as both a generic per-drive
-    // `/c/...` path and a `/tmp/...` one for a path under the Windows temp
-    // directory) before printing it, so its exact textual form isn't a
+    // Git for Windows' bash remaps that directory through its own MSYS
+    // mount table before printing it, so an exact textual match isn't a
     // reliable cross-check and isn't asserted on.
     const cwd = (await Deno.readTextFile(`${options.passDir}/cwd.txt`)).trim();
     assert(cwd.length > 0, "host did not report a working directory");
     const path = (await Deno.readTextFile(`${options.passDir}/path.txt`))
       .trim();
-    assert(
-      path.startsWith(`${options.binDir}:`),
-      `pinned bin not first on PATH: ${path}`,
-    );
+    if (Deno.build.os === "windows") {
+      const tempRoot = dirname(resolve(root));
+      const binEntry = tempDirAsShellPath(resolve(options.binDir), tempRoot);
+      // Git for Windows' bash itself prepends a handful of fixed MSYS
+      // directories (/usr/bin and friends) ahead of whatever PATH it is
+      // launched with, so the pinned bin directory can't be first by the
+      // time the host sees it -- only that the orchestrator's own ordering
+      // (pinned bin, then the rest of the original PATH) survived that
+      // prefix, which prepending alone can't disturb.
+      assert(
+        path.split(":").includes(binEntry),
+        `pinned bin not on PATH: ${path}`,
+      );
+    } else {
+      assert(
+        path.startsWith(`${options.binDir}:`),
+        `pinned bin not first on PATH: ${path}`,
+      );
+    }
 
     // Flags: effort, restrictions, the shell the skill needs, and the child.
     const settings = [...result.settings];
