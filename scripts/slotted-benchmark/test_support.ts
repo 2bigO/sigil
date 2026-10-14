@@ -71,11 +71,25 @@ Deno.exit(status.code);
 `;
 
 let windowsStub: Promise<string> | undefined;
+let windowsStubCleanupArmed = false;
 
 /** Compile `WINDOWS_STUB_SOURCE` once per test process; later calls reuse it. */
 function compileWindowsStub(): Promise<string> {
   return windowsStub ??= (async () => {
     const dir = await Deno.makeTempDir({ prefix: "slotted-fake-host-stub-" });
+    if (!windowsStubCleanupArmed) {
+      windowsStubCleanupArmed = true;
+      // The compiled stub is a shared, process-lifetime cache (the whole
+      // point of memoizing it), so it's cleaned up once here, at process
+      // exit, rather than by any individual fake host's own test cleanup.
+      globalThis.addEventListener("unload", () => {
+        try {
+          Deno.removeSync(dir, { recursive: true });
+        } catch {
+          // Best-effort; nothing else can act once the process is unloading.
+        }
+      });
+    }
     const sourcePath = `${dir}/stub.ts`;
     const outputPath = `${dir}/stub.exe`;
     await Deno.writeTextFile(sourcePath, WINDOWS_STUB_SOURCE);
@@ -92,10 +106,10 @@ function compileWindowsStub(): Promise<string> {
       stderr: "piped",
     }).output();
     if (!compiled.success) {
+      const reason = new TextDecoder().decode(compiled.stderr);
+      await Deno.remove(dir, { recursive: true }).catch(() => {});
       throw new Error(
-        `failed to compile the Windows fake-host stub: ${
-          new TextDecoder().decode(compiled.stderr)
-        }`,
+        `failed to compile the Windows fake-host stub: ${reason}`,
       );
     }
     return outputPath;
