@@ -38,13 +38,79 @@ async function resolveInterpreter(
 }
 
 /**
+ * A tiny standalone program, compiled once per test process (see
+ * `windowsStub` below) and then copied to a fresh path for every fake host.
+ * `Deno.execPath()` for a compiled binary reports that copy's own on-disk
+ * path -- not the path it was compiled at -- so each copy independently
+ * finds its own sibling `.interpreter` file and script (itself, minus the
+ * trailing `.exe`) and re-execs `interpreter script ...originalArgs`,
+ * forwarding stdio and the exit code.
+ *
+ * This exists because the natural approach -- a `.cmd` launcher invoking
+ * the interpreter via `%*` -- does not work here: Windows routes any
+ * `.bat`/`.cmd` spawn through `cmd.exe`, and Rust's standard library (which
+ * `Deno.Command` is built on) refuses to forward argument lists like the
+ * real agent CLIs', which routinely fail its batch-argument safety check,
+ * with "batch file arguments are invalid" -- confirmed live in CI, not
+ * merely suspected. A compiled binary is a real Win32 executable, so both
+ * this hop (orchestrator -> stub) and the next (stub -> interpreter) use
+ * Rust's ordinary, unrestricted argument passing instead.
+ */
+const WINDOWS_STUB_SOURCE = `
+const self = Deno.execPath();
+const base = self.slice(0, -".exe".length);
+const interpreter = (await Deno.readTextFile(base + ".interpreter")).trim();
+const child = new Deno.Command(interpreter, {
+  args: [base, ...Deno.args],
+  stdin: "inherit",
+  stdout: "inherit",
+  stderr: "inherit",
+}).spawn();
+const status = await child.status;
+Deno.exit(status.code);
+`;
+
+let windowsStub: Promise<string> | undefined;
+
+/** Compile `WINDOWS_STUB_SOURCE` once per test process; later calls reuse it. */
+function compileWindowsStub(): Promise<string> {
+  return windowsStub ??= (async () => {
+    const dir = await Deno.makeTempDir({ prefix: "slotted-fake-host-stub-" });
+    const sourcePath = `${dir}/stub.ts`;
+    const outputPath = `${dir}/stub.exe`;
+    await Deno.writeTextFile(sourcePath, WINDOWS_STUB_SOURCE);
+    const compiled = await new Deno.Command(Deno.execPath(), {
+      args: [
+        "compile",
+        "--allow-run",
+        "--allow-read",
+        "--output",
+        outputPath,
+        sourcePath,
+      ],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    if (!compiled.success) {
+      throw new Error(
+        `failed to compile the Windows fake-host stub: ${
+          new TextDecoder().decode(compiled.stderr)
+        }`,
+      );
+    }
+    return outputPath;
+  })();
+}
+
+/**
  * Write `body` (a script whose first line is its shebang) to `path` as an
  * executable a test can hand to `agentExecutables`/`executable:`. POSIX makes
  * the file itself executable via the shebang. Windows has no shebang
  * interpretation at the process-launch level -- `CreateProcess` on a script
  * file fails outright (`%1 is not a valid Win32 application`) -- so there the
- * script is written as plain data and a sibling `.cmd` launcher is returned
- * instead, explicitly invoking one of `windowsInterpreters` against it.
+ * script is written as plain data and a copy of the compiled stub above is
+ * returned instead, pointed at one of `windowsInterpreters` via a sibling
+ * `.interpreter` file.
  */
 async function writeExecutableScript(
   path: string,
@@ -57,11 +123,10 @@ async function writeExecutableScript(
     return path;
   }
   const interpreter = await resolveInterpreter(windowsInterpreters);
-  const launcherPath = `${path}.cmd`;
-  await Deno.writeTextFile(
-    launcherPath,
-    `@echo off\r\n${interpreter} "${path}" %*\r\n`,
-  );
+  await Deno.writeTextFile(`${path}.interpreter`, interpreter);
+  const stub = await compileWindowsStub();
+  const launcherPath = `${path}.exe`;
+  await Deno.copyFile(stub, launcherPath);
   return launcherPath;
 }
 
