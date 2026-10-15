@@ -58,15 +58,14 @@ publishing remains deferred.
 
 The [language guide](docs/spec/sigil-language.md) teaches the 0.9.0 language;
 the [normative reference](docs/spec/sigil-reference.md) and [EBNF grammar](docs/spec/sigil.ebnf)
-define its rules:
-inline `*Tags*`, unchanged Concept Tag grouping syntax, and explicit imports
-such as `@search/records.sigil from RecordSearch import { query, search results }`.
-All seven contracts belong directly to components; `expand` and language-level
-public/private distinctions are removed. A provider exports a Tag only when its
-Interface provides valid evidence; imports never re-export. This checkout
-implements 0.9.0; released artifacts have independent
-versions and must be checked before installation. See the
-[Tag migration guide](docs/spec/migrating-to-0.9.md).
+define its rules. A component declares all its contracts in one place. Tags are
+defined inline with `*asterisks*`, Concept Tag headings group related Facets,
+and imports select Tags from the component that owns them, such as
+`@search/service.sigil from SearchService import { query, search results }`.
+A consumer can import only Tags that appear in the provider's Interface, and
+imports never re-export. This checkout implements 0.9.0; released artifacts
+have independent versions and must be checked before installation. Upgrading
+from 0.8? See the [migration guide](docs/spec/migrating-to-0.9.md).
 
 ## Seven Words
 
@@ -115,86 +114,84 @@ It is the human-authored surface from which the Semantic World is compiled.
 
 ---
 
-```ts
+```sigil
 component SearchPublication {
   goal {
-    Keep displayed Results aligned with the active uncancelled request.
+    Keep the published results aligned with the active request.
   }
 
   state {
-    Admission {
-      ActiveRequest identifies the request whose response is current.
+    admission {
+      At most one request is the *active request*.
 
-      Cancelled records whether that request was cancelled.
+      A *request cancellation* withdraws the active request.
     }
 
-    Publication {
-      Results holds the currently published result.
+    publication {
+      The *published results* are the results currently on display.
     }
   }
 
   logic {
-    publish evaluates Eligibility against the starting state.
-
-    Admission {
-      Eligibility is true exactly when ResponseId equals ActiveRequest and
-      Cancelled is false.
+    admission {
+      An *eligible response* answers the active request and arrives before any
+      request cancellation.
     }
 
-    Publication {
-      When Eligibility is true, replace Results with IncomingResults and
-      return Published.
+    publication {
+      A response publication with an eligible response replaces the published
+      results and returns replaced.
 
-      Otherwise preserve Results and return Ignored.
+      A response publication with any other response leaves the published
+      results unchanged and returns ignored.
     }
   }
 
   constraints {
-    publish leaves ActiveRequest and Cancelled unchanged.
+    A response publication never changes the active request.
 
-    Admission {
-      Stale or cancelled responses never replace Results.
+    admission {
+      Only an eligible response may replace the published results.
     }
-
-    Publication {
-      Ignored performs no publication and leaves Results unchanged.
-    }
-  }
-
-  decisions {
-    Use the active request as authority because responses can arrive out
-    of submission order.
   }
 
   cases {
-    A response for an older request is ignored.
+    admission {
+      A response publication for an older request returns ignored.
 
-    Admission {
-      A response for the active request after cancellation is ignored.
+      A response publication for the active request after a request
+      cancellation returns ignored.
     }
 
-    Publication {
-      An active uncancelled response publishes its IncomingResults and
-      returns Published.
+    publication {
+      A response publication with an eligible response returns replaced, and
+      its results become the published results.
     }
   }
 
   interface {
-    publish(ResponseId, IncomingResults) returns Published or Ignored.
+    A *response publication* takes a response with its results and returns
+    *replaced* or *ignored*.
 
-    Admission {
-      Eligibility is the Boolean decision controlling whether publish may
-      replace Results.
+    publication {
+      The outcome replaced means the response's results are now the published
+      results.
+
+      The outcome ignored means the published results did not change.
     }
+  }
 
-    Publication {
-      Published means IncomingResults became the current Results.
-
-      Ignored means the current Results remain unchanged.
-    }
+  decisions {
+    Keep the active request authoritative because responses can arrive out of
+    submission order.
   }
 }
 ```
+
+Each blank-line-separated paragraph is a **Facet**. Asterisks define a **Tag**
+once, such as `*active request*`; after that, its bare name refers to it in any
+contract of the component. `admission` and `publication` are Concept Tag
+headings that group related Facets across contracts.
 
 Read [more about the syntax here.](docs/spec/sigil-language.md)
 
@@ -544,15 +541,17 @@ The expensive part, LLM semanticization, is incremental. The deterministic circu
 
 ## Tags and Facets
 
-A **Tag** gives a semantic concern a reusable identity owned by its component.
+A **Tag** gives a design concept a reusable identity owned by its component.
 
-A **Facet** is one named contribution associated with that Tag, or an ungrouped
-contribution when no reusable identity is needed.
+A **Facet** is one blank-line-separated paragraph in a contract: one authored
+contribution that can be reviewed on its own. A Facet connects to a Tag by
+defining or naming it, and a Concept Tag heading groups Facets from different
+contracts under one Tag.
 
-For example:
+For example, the `login` Concept Tag in an `Authentication` component:
 
 ```text
-Tag: Authentication
+Authentication › login
 
 ├── Interface Facet
 │   login interaction
