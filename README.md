@@ -121,64 +121,48 @@ component SearchPublication {
   }
 
   state {
-    admission {
-      At most one request is the *active request*.
+    At most one request is the *active request*.
 
-      A *request cancellation* withdraws the active request.
-    }
+    A *request cancellation* withdraws the active request.
 
-    publication {
-      The *published results* are the results currently on display.
-    }
+    The *published results* are the results currently on display.
   }
 
   logic {
-    admission {
-      An *eligible response* answers the active request and arrives before any
-      request cancellation.
-    }
+    An *eligible response* answers the active request and arrives before any
+    request cancellation.
 
-    publication {
-      A response publication with an eligible response replaces the published
-      results and returns replaced.
+    A response publication with an eligible response replaces the published
+    results and returns replaced.
 
-      A response publication with any other response leaves the published
-      results unchanged and returns ignored.
-    }
+    A response publication with any other response leaves the published results
+    unchanged and returns ignored.
   }
 
   constraints {
     A response publication never changes the active request.
 
-    admission {
-      Only an eligible response may replace the published results.
-    }
+    Only an eligible response may replace the published results.
   }
 
   cases {
-    admission {
-      A response publication for an older request returns ignored.
+    A response publication for an older request returns ignored.
 
-      A response publication for the active request after a request
-      cancellation returns ignored.
-    }
+    A response publication for the active request after a request cancellation
+    returns ignored.
 
-    publication {
-      A response publication with an eligible response returns replaced, and
-      its results become the published results.
-    }
+    A response publication with an eligible response returns replaced, and its
+    results become the published results.
   }
 
   interface {
     A *response publication* takes a response with its results and returns
     *replaced* or *ignored*.
 
-    publication {
-      The outcome replaced means the response's results are now the published
-      results.
+    The outcome replaced means the response's results are now the published
+    results.
 
-      The outcome ignored means the published results did not change.
-    }
+    The outcome ignored means the published results did not change.
   }
 
   decisions {
@@ -190,8 +174,7 @@ component SearchPublication {
 
 Each blank-line-separated paragraph is a **Facet**. Asterisks define a **Tag**
 once, such as `*active request*`; after that, its bare name refers to it in any
-contract of the component. `admission` and `publication` are Concept Tag
-headings that group related Facets across contracts.
+contract of the component.
 
 Read [more about the syntax here.](docs/spec/sigil-language.md)
 
