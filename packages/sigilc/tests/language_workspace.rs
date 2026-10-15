@@ -1,9 +1,6 @@
 //! Workspace loading edge cases.
 use sigilc::language::workspace::Workspace;
-use std::{
-    fs,
-    path::PathBuf,
-};
+use std::{fs, path::PathBuf};
 
 fn temp(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sigilc-language-{name}-{}", std::process::id()));
