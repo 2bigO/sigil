@@ -41,8 +41,8 @@ eligible Interface reference, and needs an eligible prose reference somewhere
 in the importing source. All components in that source see its imports; another
 component's unimported local Tags are not automatically accessible. Imports do
 not introduce provider namespaces, re-export identities, transfer Facet
-ownership, or establish a runtime call. `_module.sigil` is an ordinary filename;
-`expand` and directory imports are not 0.9 forms.
+ownership, or establish a runtime call. `expand` and directory imports are not
+0.9 forms.
 
 Follow relevant provider contributions and Inline Links when their content is
 needed for the meaning in scope. Local Inline Links resolve from the linking

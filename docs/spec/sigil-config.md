@@ -97,9 +97,8 @@ declarations may inform an initialization proposal, but they do not create
 Sigil workspace members.
 
 The workspace root and each declared member are configured project-summary
-boundaries for Brownfield workflow. `_module.sigil` may appear in any included
-directory regardless of membership. `files.include` and `files.exclude`
-control source discovery; they do not declare module-index locations.
+boundaries for Brownfield workflow. `files.include` and `files.exclude`
+control source discovery.
 
 Patterns use normalized workspace-relative POSIX paths. `**/*.sigil` includes
 root and nested files. Exclusion wins over inclusion.

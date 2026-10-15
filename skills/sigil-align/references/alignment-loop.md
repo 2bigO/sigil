@@ -8,7 +8,7 @@ and context needed to understand them: relevant Tag providers and linked adopted
 policy. Use `sigil-understand` to distinguish authored commitments, supported
 consequences, unresolved intent, and free implementation choices. A Tag import
 shares vocabulary; it does not establish a runtime call or transfer Facet
-ownership. Do not apply legacy 0.7 expansion or module-index rules.
+ownership. Do not apply legacy 0.7 expansion rules.
 
 When a compatible CLI is available, use
 `sigil retrieve . --component Name

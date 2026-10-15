@@ -237,10 +237,6 @@ Placement rules, from [`docs/spec/sigil-reference.md`](docs/spec/sigil-reference
 `sigil-write` skill's
 [contract prose rules](skills/sigil-write/references/contract-prose.md):
 
-- **Boundary summaries** live in the `_module.sigil` of the workspace root and of
-  each declared member — [`_module.sigil`](_module.sigil),
-  [`packages/core/_module.sigil`](packages/core/_module.sigil), and so on. Do not
-  move these.
 - **Internal contracts** use descriptive filenames beside the code they describe,
   such as [`packages/core/src/parser.sigil`](packages/core/src/parser.sigil) next
   to `parser.ts`.

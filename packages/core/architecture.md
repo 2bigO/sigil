@@ -1,8 +1,7 @@
 # sigil-core architecture
 
 Core uses typed pipeline stages behind a filesystem port. The
-[colocated designs](_module.sigil) and [requirements](spec.md) describe its
-commitments; host integrations adapt presentation and effects.
+[requirements](spec.md) describe its commitments; host integrations adapt presentation and effects.
 
 ```text
 original bytes / scalar overlays
@@ -34,7 +33,7 @@ original bytes / scalar overlays
 Parsing is independent of filesystem traversal and provider resolution. Resolution
 runs over captured documents collectively, so valid import cycles need no recursive
 expansion or ordering winner. Ordinary source paths and exact owned Tag names
-identify providers; `_module.sigil` adds no special namespace behavior.
+identify providers.
 
 Keep original byte ranges through all language stages. Host adapters derive
 presentation coordinates from those snapshots. Editor overlays are text evidence,
