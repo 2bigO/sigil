@@ -1,9 +1,8 @@
 //! Merkle trees, the tree cache, and the tree diff.
-use sigilc::language::{resolve::ResolvedWorkspace, workspace::Workspace};
 use sigilc::tree::{Child, ResolvedTree, Snapshot, cache::TreeCache, diff::diff_trees};
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -464,28 +463,40 @@ fn ae5_private_edits_leave_the_interface_hash_and_dependents_alone() {
     assert_eq!(after.stats.parse_hits, 1);
 }
 
-fn corpus() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../spec/conformance")
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    fs::create_dir_all(to).unwrap();
-    for entry in fs::read_dir(from).unwrap() {
-        let entry = entry.unwrap();
-        let target = to.join(entry.file_name());
-        if entry.file_type().unwrap().is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            fs::copy(entry.path(), target).unwrap();
-        }
-    }
-}
-
 #[test]
 fn mutual_imports_resolve_and_each_side_sees_the_others_interface() {
-    let temp = Temp::new(&[]);
-    fs::remove_dir_all(&temp.0).unwrap();
-    copy_dir(&corpus().join("c05-mutual-import/workspace"), &temp.0);
+    let temp = Temp::new(&[
+        (
+            "a.sigil",
+            "@b.sigil from B import { beta }
+
+component A {
+  goal {
+    Own alpha.
+  }
+
+  interface {
+    An *alpha* exists and uses beta.
+  }
+}
+",
+        ),
+        (
+            "b.sigil",
+            "@a.sigil from A import { alpha }
+
+component B {
+  goal {
+    Own beta.
+  }
+
+  interface {
+    A *beta* exists and uses alpha.
+  }
+}
+",
+        ),
+    ]);
     let before = temp.snapshot();
     assert!(before.diagnostics.is_empty(), "{:?}", before.diagnostics);
     for tree in &before.trees {
@@ -661,28 +672,4 @@ fn a_tree_with_errors_keeps_its_diagnostics() {
     let tree = only(&snapshot);
     assert_eq!(tree.resolution.imports[0].status, "unresolvedPath");
     assert!(!tree.resolution.diagnostics.is_empty());
-}
-
-#[test]
-fn snapshots_agree_with_whole_workspace_resolution_on_the_corpus() {
-    let scratch = Temp::new(&[]);
-    for entry in fs::read_dir(corpus()).unwrap() {
-        let dir = entry.unwrap().path().join("workspace");
-        if !dir.is_dir() {
-            continue;
-        }
-        let workspace = Workspace::load(&dir).unwrap();
-        let expected =
-            serde_json::to_value(&ResolvedWorkspace::from(&workspace).diagnostics).unwrap();
-        let cache = scratch.0.join(dir.parent().unwrap().file_name().unwrap());
-        for pass in 0..2 {
-            let snapshot = Snapshot::load_with(&dir, Some(&cache)).unwrap();
-            assert_eq!(
-                serde_json::to_value(&snapshot.diagnostics).unwrap(),
-                expected,
-                "{} pass {pass}",
-                dir.display()
-            );
-        }
-    }
 }

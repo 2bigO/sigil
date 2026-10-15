@@ -4,8 +4,7 @@
 
 This document defines the architecture style, internal modules, dependency
 rules, and implementation guidelines for `sigil-cli`. Product requirements live
-in [spec.md](spec.md). Platform-wide boundaries live in
-[../../spec/sigil-platform-architecture.md](../../spec/sigil-platform-architecture.md).
+in [spec.md](spec.md).
 
 ## 1. Architecture Style
 

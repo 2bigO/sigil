@@ -2,7 +2,7 @@
 
 **Implemented language:** 0.9.0. Artifact and release status are recorded in
 `deno.json` and [COMPATIBILITY.md](../../COMPATIBILITY.md). The normative
-[reference](../../spec/sigil-reference.md), [grammar](../../spec/sigil.ebnf) and
+[reference](../../docs/spec/sigil-reference.md), [grammar](../../docs/spec/sigil.ebnf) and
 colocated Sigil contracts govern detailed language behavior.
 
 ## Source and structure

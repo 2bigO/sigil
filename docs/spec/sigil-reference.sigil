@@ -1,0 +1,99 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {
+  language version,
+  source selection,
+  workspace root,
+}
+
+component SpecLanguageReference {
+  goal {
+    Define the Sigil language so that every tool parses, resolves, and
+    reports a design the same way.
+  }
+
+  constraints {
+    A tool must not report a facet as satisfied when its meaning cannot be
+    established under the interpretation boundary.
+
+    A tag import must not create a namespace, a re-export, or a runtime call.
+
+    A tag import must resolve only to a source that the source selection
+    includes, by a path inside the workspace root. SpecLanguageReference
+    depends on SpecWorkspaceConfig for the language version, the
+    source selection, and the workspace root.
+
+    A tool that cannot process the language version must report the
+    diagnostic code SIGIL_UNSUPPORTED_VERSION and must not interpret the
+    source under another language version.
+
+    A formatter must not rewrite a partial result as if recovery had made it
+    valid.
+
+    A tool must not choose between the grammar and the reference when they
+    conflict, because the conflict is a specification defect.
+
+    Wrapping to the formatting width must not split a tag identity or change
+    a facet.
+  }
+
+  interface {
+    SpecLanguageReference provides the *Sigil language*, whose sources every
+    tool parses, resolves, and reports under one language version.
+
+    SpecLanguageReference provides the *grammar*, the EBNF productions that
+    define syntax, while the reference supplies the lexical algorithms and
+    contextual conditions.
+
+    SpecLanguageReference provides seven *contract section* kinds in one
+    canonical order, and every component must have a goal and an interface.
+
+    SpecLanguageReference provides the *facet*, the finest authored unit,
+    which keeps its owning component, contract section, and source range.
+
+    SpecLanguageReference provides the *tag identity*, an exact,
+    case-sensitive name owned by one component and declared in one source.
+    A duplicate or ambiguous tag identity has no winner by source order.
+
+    SpecLanguageReference provides the *source document*, one UTF-8 Sigil
+    source whose lines, declarations, and facets are kept as written.
+
+    SpecLanguageReference provides *embedded content*, one fenced payload that
+    follows its introducing prose directly. The *opening fence* must stay
+    adjacent to that prose, and an *unclosed fence* keeps the rest of the
+    source as payload.
+
+    SpecLanguageReference provides *resolution*, which settles each name and
+    import to one owner and leaves an ambiguous name unresolved.
+
+    SpecLanguageReference provides *name matching*, the rules that find a name
+    in facet prose: eligible regions, word boundaries, connector runs, and the
+    longest match.
+
+    SpecLanguageReference provides the *tag import*, an explicit selection of
+    a tag identity from one provider component in one source file. Only a
+    tag identity that the provider interface evidences is importable.
+
+    SpecLanguageReference provides the *source range*, a half-open span of
+    original UTF-8 bytes taken before formatting or name processing.
+
+    SpecLanguageReference provides the *diagnostic code* for each language or
+    workspace violation, with its stage, severity, and related locations, so
+    every tool reports the same failure the same way.
+
+    SpecLanguageReference provides the *partial result* that a parser may
+    return for invalid input. It keeps the invalidity and the source range and
+    is never acceptance.
+
+    SpecLanguageReference provides the *formatting width*, at most 79 content
+    characters per prose line, not counting indentation or link destinations,
+    wrapped only at whitespace.
+
+    SpecLanguageReference provides the *interpretation boundary*. Parsing,
+    validation, and resolution establish structure and ownership, and none of
+    them establishes runtime behavior, conformance, or a test result.
+  }
+
+  decisions {
+    The reference and the grammar form one specification, so that core, the
+    language server, the CLI, and the skill language pack read one definition.
+  }
+}

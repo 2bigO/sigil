@@ -50,7 +50,7 @@ pub fn document(name: &str) -> Option<&'static Document> {
 /// at runtime. Hashing `vocabulary.rs` therefore already covers every name this
 /// tool accepts, and an unrelated compiler edit no longer invalidates every
 /// prepared interpretation directory.
-// @sigil implements packages/sigilc/claims.sigil::SigilComputedClaims::CompiledGuidance interface,constraints
+// @sigil implements packages/sigilc/claims.sigil::SigilComputedClaims::CompiledGuidance interface
 pub fn fingerprint() -> String {
     hash(
         concat!(

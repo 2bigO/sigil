@@ -1,0 +1,86 @@
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import {
+  diagnostic code,
+}
+
+component SpecWorkspaceConfig {
+  goal {
+    Give every Sigil tool one strict workspace config that fixes the
+    workspace root, the language version, and the sources to load.
+  }
+
+  constraints {
+    The workspace config must be strict UTF-8 JSON and must reject unknown keys
+    among the keys it owns.
+
+    The workspace config must not hold package versions, descriptions,
+    authors, or licenses.
+
+    A workspace member must be a unique, non-overlapping directory inside the
+    workspace root that holds no workspace config of its own.
+
+    A package manifest must not create a workspace member.
+
+    A tool must neither check nor interpret the content of tool settings that
+    it does not own.
+
+    A nested workspace config that the source selection includes must be an
+    error, while one inside an excluded subtree defines an
+    independent workspace that is not a workspace member.
+
+    A tool must report a missing workspace config as an error and must not
+    guess a source selection.
+
+    A tool must report each workspace config failure with its diagnostic code.
+    SpecWorkspaceConfig depends on SpecLanguageReference for the
+    diagnostic code.
+
+    Without an explicit workspace root, workspace discovery must use the
+    nearest ancestor workspace config, and with one, the workspace config must
+    sit directly in it.
+  }
+
+  interface {
+    SpecWorkspaceConfig provides the *workspace config*, a JSON file held in
+    the .sigil directory of the workspace root that names the
+    language version, the workspace, and the source selection.
+
+    SpecWorkspaceConfig provides the *workspace root*, the directory that
+    contains the .sigil directory holding the workspace config, and from which
+    every import and source path is measured.
+
+    SpecWorkspaceConfig provides the *language version*, currently 0.9.0, which
+    tells a tool which grammar and rules to apply to every source in the
+    workspace.
+
+    SpecWorkspaceConfig provides the *source selection*, the include and
+    exclude globs matched against paths relative to the workspace root, where
+    exclusion wins over inclusion.
+
+    SpecWorkspaceConfig provides the *workspace member*, an additional project
+    directory that only the workspace config can declare.
+
+    SpecWorkspaceConfig provides the *independent workspace*, a workspace with
+    its own workspace config inside an excluded subtree, which is not a
+    workspace member.
+
+    SpecWorkspaceConfig provides *workspace discovery*, the search for the
+    workspace config from a target path or an explicit workspace root.
+
+    SpecWorkspaceConfig provides the *tool settings*, one namespaced object
+    per tool, which the workspace config carries for the tool that owns it.
+
+    SpecWorkspaceConfig provides the *local override*, which may carry only
+    tool settings and merges into them, objects recursively and arrays and
+    scalars by replacement.
+
+    SpecWorkspaceConfig provides the *implementation selection*, the
+    tool settings that choose which code files an implementation check judges
+    and which design sources it covers.
+  }
+
+  decisions {
+    The workspace config holds identity, discovery, and tool settings only, so
+    that core, the CLI, the language server, and sigilc all read one file while
+    only sigilc interprets its own tool settings.
+  }
+}

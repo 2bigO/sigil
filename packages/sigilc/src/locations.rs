@@ -2,6 +2,7 @@
 use crate::structure::{DesignInput, Range};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+// @sigil implements packages/sigilc/align.sigil::SigilImplementationClaims::LocatedFindings interface
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Location {
@@ -19,7 +20,6 @@ pub fn sha256(bytes: &[u8]) -> String {
         .collect()
 }
 
-// @sigil implements packages/sigilc/align.sigil::SigilImplementationClaims::LocatedFindings interface
 impl Location {
     pub fn new(side: &str, source: &str, bytes: &[u8], range: Range) -> Self {
         Self::with_digest(side, source, sha256(bytes), range)

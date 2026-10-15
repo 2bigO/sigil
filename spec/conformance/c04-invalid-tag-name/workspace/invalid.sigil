@@ -1,9 +1,0 @@
-component Case {
-  goal {
-    Exercise one rule.
-  }
-
-  interface {
-    A *request, result* contains text.
-  }
-}

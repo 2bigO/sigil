@@ -199,7 +199,7 @@ orchestration stay outside the toolchain.
 
 | Directory                     | Owns                                                                                                                   | Notes                                                                                                                                                                                                                                  |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `spec/`                       | The language, configuration, workflow, glossary, and platform-architecture specifications, plus [ADRs](spec/decisions) | The normative definition is [`spec/sigil-reference.md`](spec/sigil-reference.md) with [`spec/sigil.ebnf`](spec/sigil.ebnf); [`spec/sigil-language.md`](spec/sigil-language.md) is the authoring guide. [`spec/language.sigil`](spec/language.sigil) owns the implemented language-version literal. |
+| `docs/spec/`                  | The language reference, grammar, authoring guide, configuration and glossary specifications, their JSON schemas, and the Sigil contracts that describe them | The normative definition is [`docs/spec/sigil-reference.md`](docs/spec/sigil-reference.md) with [`docs/spec/sigil.ebnf`](docs/spec/sigil.ebnf); [`docs/spec/sigil-language.md`](docs/spec/sigil-language.md) is the authoring guide. [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil) owns the implemented language-version literal. |
 | `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                                                                                     |
 | `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. |
 | `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
@@ -214,10 +214,6 @@ Dependency direction is one-way: `cli` and `lsp` depend on `core`; the extension
 depends on `lsp` and invokes language export/native gates; the skill depends on no
 package code. A change that inverts any of those arrows needs discussion before
 implementation.
-
-For the fuller picture, read
-[`spec/sigil-platform-architecture.md`](spec/sigil-platform-architecture.md) and
-the repository's own boundary summary in [`_module.sigil`](_module.sigil).
 
 ## Where Sigil belongs
 
@@ -237,7 +233,7 @@ annotations across the source tree, so it can exit 1 while `check` exits 0 —
 useful, and worth reading rather than ignoring. Exit codes are `0` clean, `1` error
 diagnostics, `2` bad arguments, `3` host failure.
 
-Placement rules, from [`spec/sigil-reference.md`](spec/sigil-reference.md) and the
+Placement rules, from [`docs/spec/sigil-reference.md`](docs/spec/sigil-reference.md) and the
 `sigil-write` skill's
 [contract prose rules](skills/sigil-write/references/contract-prose.md):
 
@@ -372,7 +368,8 @@ Four version lines move independently, and [COMPATIBILITY.md](COMPATIBILITY.md) 
 the authority on how they relate:
 
 - **Sigil language and `.sigil/config.json` schema** — currently 0.9.0, owned by
-  the single literal in [`spec/language.sigil`](spec/language.sigil).
+  the single literal in
+  [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil).
 - **Package artifacts** — independently versioned, owned by each package manifest
   (`core` 0.8.0, `cli` 0.9.0, and `lsp` 0.8.0).
 - **VS Code extension** — owned by its `package.json`.
@@ -480,6 +477,4 @@ Before you open one:
 
 Unsure whether something needs a Sigil proposal, or which boundary should own your
 change? Ask in the pull request or the issue before implementing. That conversation
-is cheaper than an approved implementation in the wrong place, and
-[`spec/open-questions.md`](spec/open-questions.md) tracks the design questions that
-are still open.
+is cheaper than an approved implementation in the wrong place.

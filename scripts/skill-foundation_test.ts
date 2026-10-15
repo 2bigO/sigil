@@ -307,7 +307,7 @@ Deno.test("language pack rejects source/output drift and explicit sync restores 
     );
     equal(await syncLanguagePack(directory), original);
     equal(await Deno.readTextFile(output), expected);
-    const source = join(directory, "spec/sigil-reference.md");
+    const source = join(directory, "docs/spec/sigil-reference.md");
     await Deno.writeTextFile(
       source,
       await Deno.readTextFile(source) + "\nChanged authority.\n",
@@ -351,9 +351,9 @@ Deno.test("documentary links ignore fenced and inline code and retain destinatio
 
 Deno.test("language sync changes only documentary background destinations", async () => {
   await fixture(async (directory) => {
-    const source = join(directory, "spec/sigil-reference.md");
+    const source = join(directory, "docs/spec/sigil-reference.md");
     const input =
-      "[Core](sigil-language.md#examples)\n[Background](../docs/note.md#why)\n`[literal](missing.md)`\n```sigil\n[linked payload](./schema.yaml)\n```\n";
+      "[Core](sigil-language.md#examples)\n[Background](../note.md#why)\n`[literal](missing.md)`\n```sigil\n[linked payload](./schema.yaml)\n```\n";
     await Deno.writeTextFile(source, input);
     await syncLanguagePack(directory, { revision });
     const output = await Deno.readTextFile(
@@ -362,7 +362,7 @@ Deno.test("language sync changes only documentary background destinations", asyn
     equal(
       output,
       input.replace(
-        "../docs/note.md#why",
+        "../note.md#why",
         `https://github.com/farhoud/sigil/blob/${revision}/docs/note.md#why`,
       ),
     );
@@ -373,12 +373,12 @@ Deno.test("language sync changes only documentary background destinations", asyn
 Deno.test("relocated language authority resolves core references offline and preserves multiword Tags", async () => {
   await fixture(async (directory) => {
     await syncLanguagePack(directory, { revision });
-    await Deno.remove(join(directory, "spec"), { recursive: true });
+    await Deno.remove(join(directory, "docs/spec"), { recursive: true });
     const pack = join(directory, LANGUAGE_PACK_PATH);
     await validateBundledLanguagePack(pack);
     for (
       const name of LANGUAGE_SOURCES.map((source) =>
-        source.slice("spec/".length)
+        source.slice("docs/spec/".length)
       )
     ) {
       const body = await Deno.readTextFile(join(pack, name));

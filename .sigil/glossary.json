@@ -630,7 +630,7 @@
     {
       "id": "WorkspaceConfiguration",
       "include": [
-        "spec/language.sigil",
+        "docs/spec/sigil-config.sigil",
         "packages/core/**/*.sigil",
         "packages/cli/_module.sigil"
       ],

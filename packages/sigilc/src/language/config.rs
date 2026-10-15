@@ -1,7 +1,7 @@
 //! Workspace configuration (`.sigil/config.json`, `.sigil/local.json`).
 //!
 //! Validation mirrors `packages/core/src/config.ts` and the JSON schema in
-//! `spec/sigil-config.schema.json`. Tool settings are checked for shape only;
+//! `docs/spec/sigil-config.schema.json`. Tool settings are checked for shape only;
 //! the compiler never interprets them.
 use super::{
     SIGIL_VERSION,

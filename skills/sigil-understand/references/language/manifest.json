@@ -6,40 +6,40 @@
   "transformation": "documentary-background-links-v1",
   "sources": [
     {
-      "source": "spec/sigil-reference.md",
+      "source": "docs/spec/sigil-reference.md",
       "output": "sigil-reference.md",
       "sourceSha256": "10d92b10b7aed7e687c59a78e86170e627d0880b7e593fbc7d26442bead0b257",
       "outputSha256": "10d92b10b7aed7e687c59a78e86170e627d0880b7e593fbc7d26442bead0b257"
     },
     {
-      "source": "spec/sigil.ebnf",
+      "source": "docs/spec/sigil.ebnf",
       "output": "sigil.ebnf",
       "sourceSha256": "17562a5440c5034e0259d9820b0fc7294df89fbccfbd35c718f2760e81ce58a9",
       "outputSha256": "17562a5440c5034e0259d9820b0fc7294df89fbccfbd35c718f2760e81ce58a9"
     },
     {
-      "source": "spec/sigil-language.md",
+      "source": "docs/spec/sigil-language.md",
       "output": "sigil-language.md",
       "sourceSha256": "cd0546d42b4674ef6b0be8febf8f52e33b63cdfb0c06f9d46252f33f2e734f5f",
       "outputSha256": "cd0546d42b4674ef6b0be8febf8f52e33b63cdfb0c06f9d46252f33f2e734f5f"
     },
     {
-      "source": "spec/migrating-to-0.9.md",
+      "source": "docs/spec/migrating-to-0.9.md",
       "output": "migrating-to-0.9.md",
       "sourceSha256": "6eb9e1d9b8e610d2210330eec28755d2468abb17475bf495d1f0841eb9b967d7",
       "outputSha256": "6eb9e1d9b8e610d2210330eec28755d2468abb17475bf495d1f0841eb9b967d7"
     },
     {
-      "source": "spec/sigil-config.md",
+      "source": "docs/spec/sigil-config.md",
       "output": "sigil-config.md",
-      "sourceSha256": "a742f9edc852ad01e7b87105dac16d48f614de92e973139d731a9905bf7d83bd",
-      "outputSha256": "a742f9edc852ad01e7b87105dac16d48f614de92e973139d731a9905bf7d83bd"
+      "sourceSha256": "2a8680384e2157f0c1598622ec523b759e0a89e4b75ba678dd18154bc0121d9d",
+      "outputSha256": "2a8680384e2157f0c1598622ec523b759e0a89e4b75ba678dd18154bc0121d9d"
     },
     {
-      "source": "spec/sigil-config.schema.json",
+      "source": "docs/spec/sigil-config.schema.json",
       "output": "sigil-config.schema.json",
-      "sourceSha256": "4a8f18fbcbbdd857e3d6ffc16d0b74a8960459233600d2e28fa0bd04463e414c",
-      "outputSha256": "4a8f18fbcbbdd857e3d6ffc16d0b74a8960459233600d2e28fa0bd04463e414c"
+      "sourceSha256": "504e02df137227886fb33584a518c6d185396826220cb6dc08d6ca8a469bb435",
+      "outputSha256": "504e02df137227886fb33584a518c6d185396826220cb6dc08d6ca8a469bb435"
     }
   ]
 }

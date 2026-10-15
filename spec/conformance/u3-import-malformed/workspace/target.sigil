@@ -1,8 +1,0 @@
-component Target {
-  goal {
-    Supply.
-  }
-  interface {
-    Defines *one* and *two*.
-  }
-}

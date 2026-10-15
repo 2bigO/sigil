@@ -35,4 +35,4 @@ semantic interpretation. Native `sigilc` consumes structural export separately.
 
 See [_module.sigil](./_module.sigil), [requirements](spec.md),
 [architecture](architecture.md), and the
-[language reference](../../spec/sigil-reference.md).
+[language reference](../../docs/spec/sigil-reference.md).
