@@ -32,8 +32,8 @@
     {
       "source": "docs/spec/sigil-config.md",
       "output": "sigil-config.md",
-      "sourceSha256": "2a8680384e2157f0c1598622ec523b759e0a89e4b75ba678dd18154bc0121d9d",
-      "outputSha256": "2a8680384e2157f0c1598622ec523b759e0a89e4b75ba678dd18154bc0121d9d"
+      "sourceSha256": "a742f9edc852ad01e7b87105dac16d48f614de92e973139d731a9905bf7d83bd",
+      "outputSha256": "a742f9edc852ad01e7b87105dac16d48f614de92e973139d731a9905bf7d83bd"
     },
     {
       "source": "docs/spec/sigil-config.schema.json",
