@@ -681,8 +681,7 @@ implementation.
 
 The intended workflow is:
 
-1. The user writes the minimum useful Sigil, or selects a reviewed pilot when
-   adopting Sigil in a brownfield repository.
+1. The user writes the minimum useful Sigil.
 2. The agent runs structural checks, follows imports, and reads related code,
    tests, configuration, and documentation.
 3. The agent reviews semantic readiness, cross-Sigil coherence, modularity,
@@ -696,9 +695,6 @@ The intended workflow is:
    the agreed contract to generate or change code.
 8. If implementation reveals a missing material decision, the workflow returns
    to Sigil and human review.
-
-Rejected historical architecture exploration for generated Receipts, evidence,
-and anchors is outside the active 0.9 workspace.
 
 ## Repository Layout
 
@@ -861,10 +857,3 @@ workflow without requiring compiler-based proof.
 
 Editor integrations other than VS Code, stricter body semantics, and additional
 project configuration remain deferred.
-
-Receipts and anchors are rejected historical design explorations rather than
-active or deferred Sigil components. The rejected proposal covered
-deterministic shared packages, attributed host-assisted interpretation, a
-`sigil-indexer`, and generated review records without adding inline Sigil
-syntax. Its indexer and anchor contracts are not part of the active 0.9
-workspace.
