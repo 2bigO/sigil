@@ -486,17 +486,6 @@ Deno.test("unknown agent or missing model fails before the tree read and child l
   }
 });
 
-Deno.test("demo points to the tool fixture and labels old runs historical", async () => {
-  const doc = await Deno.readTextFile(
-    new URL("../../docs/computed-evaluation-demo.md", import.meta.url),
-  );
-  matches(doc, /scripts\/slotted-benchmark\/fixture\.ts/);
-  matches(doc, /## Run the current benchmark/);
-  matches(doc, /historical observations/);
-  equal(doc.includes("## The seven files"), false);
-  equal(doc.includes("## The four deliberate problems"), false);
-});
-
 Deno.test("report rebuilds a partial batch with all pending rows and no launch", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-partial-report-" });
   const batch = `${root}/batch`;

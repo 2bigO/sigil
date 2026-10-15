@@ -192,9 +192,7 @@ binary and skills, one record per scheduled pass, and for each pass its
 directory and host output as described above. The agents do not receive the
 planted-problem answer key or prior batch output.
 
-See [`report.ts`](./report.ts) for report definitions and
-[`docs/computed-evaluation-demo.md`](../../docs/computed-evaluation-demo.md) for
-the current demo workflow and historical manual results.
+See [`report.ts`](./report.ts) for report definitions.
 
 ## Implementation action
 

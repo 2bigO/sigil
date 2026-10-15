@@ -714,9 +714,8 @@ independent workspace named `promise`.
 
 `Slotted` in [examples/slotted/slotted.sigil](examples/slotted/slotted.sigil) is
 a room-booking design used to demonstrate computed claims evaluation across
-multiple modules. The [computed evaluation demo](docs/computed-evaluation-demo.md)
-explains its module map, commands, observed results, and the difference between
-computed findings and advisory review.
+multiple modules. The [Slotted interpretation benchmark](scripts/slotted-benchmark/README.md)
+runs agents against it and reports what they find.
 
 Its [.sigil/config.json](examples/slotted/.sigil/config.json) makes it an
 independent workspace named `slotted`; imports beginning with `@` resolve from
