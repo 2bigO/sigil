@@ -11,9 +11,7 @@ implementation should be understood and changed over time.
 This puts some new superpowers on the table. A Sigil design can **infer facts
 nobody explicitly wrote**, turn intent into **computable obligations**, and
 independently reconstruct the implementation into a second world to ask whether
-the two actually realize each other. Change the code and Sigil can follow its
-semantic correspondence back through the design to show what may be affected.
-Ambiguity stays ambiguity; contradictions become errors; missing realization
+the two actually realize each other. Ambiguity stays ambiguity; contradictions become errors; missing realization
 becomes a warning. The model is no longer documentation sitting next to the
 software. **It computes.**
 
@@ -36,9 +34,15 @@ before running it, download the script first instead of piping it directly to a
 shell. Every archive is verified against the release's SHA-256 manifest before
 installation.
 
+The installer puts two commands on your `PATH`: `sigil`, the language CLI, and
+`sigilc`, the native compiler that runs computed design checks and
+implementation alignment.
+
 The Sigil skills install separately, through your coding agent's own plugin
-system, with no `sigil` binary needed. Claude Code, Codex, OpenCode, Pi, Cursor,
-and Gemini CLI or Antigravity each have an [install guide](docs/install/README.md).
+system, with no `sigil` binary needed. `sigil-compute-design` and
+`sigil-compute-align` need `sigilc`; the other skills work without it. Claude
+Code, Codex, OpenCode, Pi, Cursor, and Gemini CLI or Antigravity each have an
+[install guide](docs/install/README.md).
 For example, in Claude Code:
 
 ```text
@@ -52,17 +56,16 @@ VS Code extension releases are currently available as manually installable
 publishing remains deferred.
 
 
-The [language guide](spec/sigil-language.md) teaches the 0.9.0 language;
-the [normative reference](spec/sigil-reference.md) and [EBNF grammar](spec/sigil.ebnf)
-define its rules:
-inline `*Tags*`, unchanged Concept Tag grouping syntax, and explicit imports
-such as `@search/records.sigil from RecordSearch import { query, search results }`.
-All seven contracts belong directly to components; `expand` and language-level
-public/private distinctions are removed. A provider exports a Tag only when its
-Interface provides valid evidence; imports never re-export. This checkout
-implements 0.9.0; released artifacts have independent
-versions and must be checked before installation. See the
-[Tag migration guide](spec/migrating-to-0.9.md).
+The [language guide](docs/spec/sigil-language.md) teaches the 0.9.0 language;
+the [normative reference](docs/spec/sigil-reference.md) and [EBNF grammar](docs/spec/sigil.ebnf)
+define its rules. A component declares all its contracts in one place. Tags are
+defined inline with `*asterisks*`, Concept Tag headings group related Facets,
+and imports select Tags from the component that owns them, such as
+`@search/service.sigil from SearchService import { query, search results }`.
+A consumer can import only Tags that appear in the provider's Interface, and
+imports never re-export. This checkout implements 0.9.0; released artifacts
+have independent versions and must be checked before installation. Upgrading
+from 0.8? See the [migration guide](docs/spec/migrating-to-0.9.md).
 
 ## Seven Words
 
@@ -111,88 +114,69 @@ It is the human-authored surface from which the Semantic World is compiled.
 
 ---
 
-```ts
+```sigil
 component SearchPublication {
   goal {
-    Keep displayed Results aligned with the active uncancelled request.
+    Keep the published results aligned with the active request.
   }
 
   state {
-    Admission {
-      ActiveRequest identifies the request whose response is current.
+    At most one request is the *active request*.
 
-      Cancelled records whether that request was cancelled.
-    }
+    A *request cancellation* withdraws the active request.
 
-    Publication {
-      Results holds the currently published result.
-    }
+    The *published results* are the results currently on display.
   }
 
   logic {
-    publish evaluates Eligibility against the starting state.
+    An *eligible response* answers the active request and arrives before any
+    request cancellation.
 
-    Admission {
-      Eligibility is true exactly when ResponseId equals ActiveRequest and
-      Cancelled is false.
-    }
+    A response publication with an eligible response replaces the published
+    results and returns replaced.
 
-    Publication {
-      When Eligibility is true, replace Results with IncomingResults and
-      return Published.
-
-      Otherwise preserve Results and return Ignored.
-    }
+    A response publication with any other response leaves the published results
+    unchanged and returns ignored.
   }
 
   constraints {
-    publish leaves ActiveRequest and Cancelled unchanged.
+    A response publication never changes the active request.
 
-    Admission {
-      Stale or cancelled responses never replace Results.
-    }
-
-    Publication {
-      Ignored performs no publication and leaves Results unchanged.
-    }
-  }
-
-  decisions {
-    Use the active request as authority because responses can arrive out
-    of submission order.
+    Only an eligible response may replace the published results.
   }
 
   cases {
-    A response for an older request is ignored.
+    A response publication for an older request returns ignored.
 
-    Admission {
-      A response for the active request after cancellation is ignored.
-    }
+    A response publication for the active request after a request cancellation
+    returns ignored.
 
-    Publication {
-      An active uncancelled response publishes its IncomingResults and
-      returns Published.
-    }
+    A response publication with an eligible response returns replaced, and its
+    results become the published results.
   }
 
   interface {
-    publish(ResponseId, IncomingResults) returns Published or Ignored.
+    A *response publication* takes a response with its results and returns
+    *replaced* or *ignored*.
 
-    Admission {
-      Eligibility is the Boolean decision controlling whether publish may
-      replace Results.
-    }
+    The outcome replaced means the response's results are now the published
+    results.
 
-    Publication {
-      Published means IncomingResults became the current Results.
+    The outcome ignored means the published results did not change.
+  }
 
-      Ignored means the current Results remain unchanged.
-    }
+  decisions {
+    Keep the active request authoritative because responses can arrive out of
+    submission order.
   }
 }
 ```
 
-Read [more about the syntax here.](spec/sigil-language.md)
+Each blank-line-separated paragraph is a **Facet**. Asterisks define a **Tag**
+once, such as `*active request*`; after that, its bare name refers to it in any
+contract of the component.
+
+Read [more about the syntax here.](docs/spec/sigil-language.md)
 
 ## What Just Changed
 
@@ -212,6 +196,26 @@ compare(O, I*)
 ```
 
 That small change unlocks a very different kind of modeling.
+
+In `sigilc` 0.3.0 each step is a command. `sigilc` never runs a model:
+`prepare` writes a request, an external reader (a coding agent running the
+compute skills) answers it with data-only egglog rows in `answer.egg`, and
+`ingest` admits or refuses those rows.
+
+```sh
+# Design world
+sigilc prepare --root . --source architecture/a.sigil --out reading-a
+sigilc ingest --root . --binding reading-a/binding.json --claims answer.egg
+sigilc check --root .
+
+# Implementation world
+sigilc align prepare --root . --out code-readings
+sigilc align ingest --root . --binding code-readings/FILE/binding.json --claims answer.egg
+sigilc align check --root .
+```
+
+The [sigilc README](packages/sigilc/README.md) covers options, configuration,
+report locations, and exit codes.
 
 ### Models can infer things nobody wrote
 
@@ -257,14 +261,20 @@ what should be true            what the code appears to make true
        └──── obligations ──── realization ┘
 ```
 
-That produces three implementation states:
+That produces four implementation states:
 
 ```text
+⚪ Incomplete
+   A code file is unread or cannot be presented, or the Design
+   check itself is Disjoint or Incomplete.
+
 🔴 Drift
-   Implementation positively disagrees with Design.
+   Implementation breaches Design, does work no Design claim
+   accounts for, or leaves a Design promise unanswered.
 
 🟡 Converged
-   No known disagreement, but some realization is still unresolved.
+   No disagreement found, but the Design is Loose, so some
+   realization is still unresolved.
 
 🟢 Closed
    Every finite Design obligation is realized by the current
@@ -274,10 +284,15 @@ That produces three implementation states:
 Design itself has the matching progression:
 
 ```text
+⚪ Incomplete  some Facets have no admitted reading yet
 🔴 Disjoint    contradictory
 🟡 Loose       coherent enough to work with, but incomplete
 🟢 Coherent    closed under the current Design laws
 ```
+
+`sigilc check` exits 0 for Coherent or Loose and 1 for Disjoint or Incomplete.
+`sigilc align check` exits 0 for Closed or Converged and 1 for Drift or
+Incomplete.
 
 Yellow is useful. Unknown stays unknown instead of being converted into confidence theater.
 
@@ -293,31 +308,20 @@ age
 age_years
 ```
 
-Sigil preserves those as different **source-local anchors** connected by explicit correspondence.
-
-```text
-Origin        Design        Implementation
-
-Age  ◀──────  age  ◀──────  age_years
-        denotes       denotes
-```
+Sigil keeps each name local to its source and connects them with explicit mappings.
 
 The compiler does not lowercase them, fuzzy-match them, or pretend they are one global identifier.
 
-The LLM interpreting each source understands its local language and proposes the mapping. Sigil preserves that mapping as graph structure.
-
-From those direct mappings the kernel can derive broader correspondence:
+The LLM reading each source understands its local language and proposes the mapping. For code, the mapping is a `realizes` row from a name in the file to a Design name:
 
 ```text
-denotes(A, B)
-denotes(B, C)
-
-→ correspondsTo(A, C)
+(element "age_years" "state")
+(realizes "age_years" "Person::age")
 ```
 
-without erasing A, B, or C.
+`sigilc` qualifies `age_years` with its file path and keeps the mapping as data, so the path by which meaning crossed Sigil, Rust, Python, TypeScript, or anything else remains inspectable. Annotations such as `@sigil implements` are not mapping evidence.
 
-That means the path by which meaning crossed Markdown, Sigil, Rust, Python, TypeScript, or anything else remains inspectable.
+`sigilc` 0.3.0 does not yet map origin documents such as Markdown into the Design, or derive correspondence chains such as `denotes(A, B), denotes(B, C) → correspondsTo(A, C)`.
 
 ### Refactors acquire a semantic blast radius
 
@@ -347,25 +351,34 @@ Stale knowledge may explain impact.
 
 It can never make the current implementation green.
 
+`sigilc` 0.3.0 does not compute this impact path yet. Two inputs to it exist
+today: `sigilc tree --diff` lists the Facets added, removed, and changed since
+the last recorded tree, and `prepare` asks again only for readings that are
+stale or unread.
+
 ### Numbers can participate too
 
-Semantic facts do not have to carry only true/false information.
-
-The kernel can define different algebras for different properties:
+Semantic facts do not have to carry only true/false information. A claim can
+carry a measure, and the laws compare measures:
 
 ```text
-path cost
-    compose with +
-    merge alternatives with min
-
-risk
-    propagate through reachability
-    merge with max
-
 latency
-    compare actual against budget
-    emit a crisp violation
+    Design states a budget (latencyBudgetMs)
+    code reports an observed latencyMs
+    over budget      → numeric-budget breach (Drift)
+    never observed   → unanswered promise (Drift)
+
+day counts
+    maxDurationDays, maxLeadDays, maxSpanDays
+    checked the same way against durationDays, leadDays, spanDays
+
+conflicting Design numbers
+    two readings give one property different values
+    → conflicting-measure
 ```
+
+Path costs that compose with `+` and merge with `min`, or risk that propagates
+through reachability, are not in `sigilc` 0.3.0.
 
 This is why Semantic Worlds are more than graphs with labels.
 
@@ -460,21 +473,28 @@ Design determines the obligations.
 
 Implementation has to realize them on its own.
 
+`sigilc` enforces this in its laws: only admitted code observations establish
+actual behavior, and Design claims produce only obligations and prohibitions.
+`sigilc align check` also checks the whole linked Design first; a Disjoint or
+Incomplete Design makes the alignment result Incomplete.
+
 ---
 
 ## Local Facts, Global Meaning
 
 Semanticization is incremental.
 
-Each source file produces one disposable semantic object:
+Each unit gets its own stored reading. A Design reading covers one Facet; a code
+reading covers one whole file. The reader answers in egglog rows, and `ingest`
+stores the admitted reading in the store (`.sigil` by default):
 
 ```text
-auth.ts        → auth.ts.egg
-storage.py     → storage.py.egg
-engine.rs      → engine.rs.egg
+one Facet      → claims/interpretations/<key>.json
+auth.ts        → claims/implementation/<key>.json
+storage.py     → claims/implementation/<key>.json
 ```
 
-Each object contains only direct facts attributable to that source.
+Each reading contains only direct facts attributable to that source.
 
 It does not attempt fuzzy whole-program analysis.
 
@@ -486,13 +506,13 @@ b.ts.egg:
 B dependsOn C
 ```
 
-The objects are linked into one world and Egglog derives:
+`sigilc check` links the readings into one world and egglog derives:
 
 ```text
 A reaches C
 ```
 
-So changing `b.ts` requires reconstructing `b.ts.egg`, not `a.ts.egg`.
+So changing `b.ts` requires a new reading of `b.ts`, not `a.ts`.
 
 Then the cheap deterministic world closure runs again.
 
@@ -504,15 +524,17 @@ The expensive part, LLM semanticization, is incremental. The deterministic circu
 
 ## Tags and Facets
 
-A **Tag** gives a semantic concern a reusable identity owned by its component.
+A **Tag** gives a design concept a reusable identity owned by its component.
 
-A **Facet** is one named contribution associated with that Tag, or an ungrouped
-contribution when no reusable identity is needed.
+A **Facet** is one blank-line-separated paragraph in a contract: one authored
+contribution that can be reviewed on its own. A Facet connects to a Tag by
+defining or naming it, and a Concept Tag heading groups Facets from different
+contracts under one Tag.
 
-For example:
+For example, the `login` Concept Tag in an `Authentication` component:
 
 ```text
-Tag: Authentication
+Authentication › login
 
 ├── Interface Facet
 │   login interaction
@@ -532,19 +554,22 @@ Tag: Authentication
 
 This distinction matters during implementation.
 
-A source anchor may broadly:
+A code element may belong to a component:
 
 ```text
-implement Authentication
+(realizes "login_handler" "Authentication")
 ```
 
-while specifically:
+while delivering one specific Tag:
 
 ```text
-realize Authentication.Login
+(realizes "login_handler" "Authentication::login")
 ```
 
-Referencing or implementing a Tag does not magically realize every Facet.
+Delivering a Tag does not make an element a member of the component; the
+reader states membership separately. Membership also needs at least one Design
+claim that accounts for the element's actual work. Being in the component's
+file is not enough.
 
 Correspondence alone also proves no behavior.
 
@@ -588,9 +613,9 @@ The problem statement that lead us to Sigil is captured in [PROBLEM.md](PROBLEM.
 | Setting up a repository properly | [Setting Up A Project](docs/setting-up-a-project.md)                                    |
 | Code exists, contracts do not    | [Setting Up A Project](docs/setting-up-a-project.md#adopting-into-an-existing-codebase) |
 | Designing something new          | [sigil-write](skills/sigil-write/SKILL.md)                                 |
-| Writing Sigil, need the syntax   | [Language Guide](spec/sigil-language.md)                                        |
-| Tuning `.sigil/config.json`      | [Config Reference](spec/sigil-config.md)                                                |
-| Upgrading an existing workspace  | [Compatibility](COMPATIBILITY.md), then the `spec/migrating-to-*.md` for your target    |
+| Writing Sigil, need the syntax   | [Language Guide](docs/spec/sigil-language.md)                                        |
+| Tuning `.sigil/config.json`      | [Config Reference](docs/spec/sigil-config.md)                                                |
+| Upgrading an existing workspace  | [Compatibility](COMPATIBILITY.md), then the [migration guide](docs/spec/migrating-to-0.9.md) |
 | Changing Sigil itself            | [CONTRIBUTING.md](CONTRIBUTING.md)                                                      |
 | Changing the skills or cutting a release | [Contributor guide](docs/contributing/README.md)                                |
 
@@ -632,8 +657,9 @@ sigil --version
 ```
 
 Build the native compiler, `sigilc`, from the same clone with
-`deno task build:sigilc`; it lands in `packages/sigilc/target/debug`, which you put
-on your `PATH`.
+`deno task build:sigilc` (Rust 1.91.1 or newer); it lands in
+`packages/sigilc/target/debug`, which you put on your `PATH`. Run its tests with
+`deno task test:sigilc`.
 
 The installed command runs this clone, so it follows whichever branch is checked
 out here. To pin one instead, add a detached worktree and install it under its
@@ -655,8 +681,7 @@ implementation.
 
 The intended workflow is:
 
-1. The user writes the minimum useful Sigil, or selects a reviewed pilot when
-   adopting Sigil in a brownfield repository.
+1. The user writes the minimum useful Sigil.
 2. The agent runs structural checks, follows imports, and reads related code,
    tests, configuration, and documentation.
 3. The agent reviews semantic readiness, cross-Sigil coherence, modularity,
@@ -671,32 +696,14 @@ The intended workflow is:
 8. If implementation reveals a missing material decision, the workflow returns
    to Sigil and human review.
 
-The full workflow is described in
-[spec/sigil-workflow.md](spec/sigil-workflow.md).
-
-The Sigil platform architecture is drafted in
-[spec/sigil-platform-architecture.md](spec/sigil-platform-architecture.md).
-
-Rejected historical architecture exploration for generated Receipts, evidence,
-and anchors is recorded in
-[ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md),
-but those capabilities are outside the active 0.9 workspace.
-
-Project-specific terms, statuses, reserved names, and abbreviations are defined
-in the [Sigil glossary](spec/glossary.md).
-
-Open design questions are tracked in
-[spec/open-questions.md](spec/open-questions.md).
-
 ## Repository Layout
 
 The root [.sigil/config.json](./.sigil/config.json) defines this repository as a
-Sigil 0.9.0 workspace and excludes the independent example projects. The root
-[_module.sigil](./_module.sigil) is an ordinary source containing the
-high-level project summary for this configured boundary.
+Sigil 0.9.0 workspace and excludes the independent example projects.
 
-- `spec/` contains language, workflow, platform architecture, and open-question
-  documents.
+- `docs/spec/` contains the language reference, grammar, authoring guide,
+  configuration and glossary specifications, their JSON schemas, and the Sigil
+  contracts that describe them.
 - `examples/` contains independently configured Sigil projects used as
   design-pressure fixtures.
 - `packages/` contains the shared core, language CLI, native `sigilc` and language server.
@@ -714,9 +721,8 @@ independent workspace named `promise`.
 
 `Slotted` in [examples/slotted/slotted.sigil](examples/slotted/slotted.sigil) is
 a room-booking design used to demonstrate computed claims evaluation across
-multiple modules. The [computed evaluation demo](docs/computed-evaluation-demo.md)
-explains its module map, commands, observed results, and the difference between
-computed findings and advisory review.
+multiple modules. The [Slotted interpretation benchmark](scripts/slotted-benchmark/README.md)
+runs agents against it and reports what they find.
 
 Its [.sigil/config.json](examples/slotted/.sigil/config.json) makes it an
 independent workspace named `slotted`; imports beginning with `@` resolve from
@@ -743,8 +749,8 @@ defining them again.
 Slotted deliberately contains four design mistakes as computed-evaluation
 fixture problems: a contradiction and an ownership conflict in Booking, and an
 unmet obligation and a dead-end flow step in Calendar. They are intentional
-demo content, not unfinished design work, so please do not fix them. Their
-observed findings and run-to-run variation are documented in the linked demo.
+demo content, not unfinished design work, so please do not fix them. The
+Slotted interpretation benchmark reports what agents find on them.
 Slotted is an example project for testing the language, not the purpose of this
 repository.
 
@@ -765,15 +771,16 @@ alignment skill, its computed partner, and one egglog language skill:
 
 The four design skills and `sigil-align` start at artifact version 0.1.0 and
 share the bundled 0.9.0 normative reference and grammar. `sigil-egglog` starts
-at 0.1.0 with no design-skill dependency. Install the complete set through your
+at 0.1.0 with no design-skill dependency. Current skill versions are listed in
+[COMPATIBILITY.md](COMPATIBILITY.md). Install the complete set through your
 agent's [install guide](docs/install/README.md); writer and evaluator require
 their sibling reference files.
 `sigil-compute-design` requires its declared siblings `sigil-understand` and
 `sigil-egglog`; it routes only explicit claims or computed-check requests, so a
 generic review stays on `sigil-evaluate`. It needs the `sigilc` binary and
 a host that can delegate a fresh child.
-`sigil-evaluate` (0.2.0) requires `sigil-understand` and `sigil-compute-design`;
-`sigil-write` (0.2.0) also requires `sigil-evaluate`. Before judging, they run
+`sigil-evaluate` requires `sigil-understand` and `sigil-compute-design`;
+`sigil-write` also requires `sigil-evaluate`. Before judging, they run
 `sigil-compute-design`'s review preparation, which reuses stored readings and
 ends with one linked `sigilc check`. The judge reads that check's compact
 review view and reads prose through its verified byte ranges. Without `sigilc`
@@ -818,41 +825,35 @@ Overlapping targets are deduplicated; every target and the combined result
 validate before any write. Workspace checks may report errors outside the
 selected files, but formatting writes only changed selected `.sigil` files.
 
-The canonical language specification is [spec/sigil-reference.md](spec/sigil-reference.md),
-with the [EBNF grammar](spec/sigil.ebnf). The [language guide](spec/sigil-language.md)
+The canonical language specification is [docs/spec/sigil-reference.md](docs/spec/sigil-reference.md),
+with the [EBNF grammar](docs/spec/sigil.ebnf). The [language guide](docs/spec/sigil-language.md)
 provides authoring explanations and examples.
 
 ## Current Status
 
-The core, CLI, LSP and VS Code integration implement Sigil language 0.9.0.
-Native structural transport and reports use schema 2. These are local,
-pre-production changes; this migration does not publish a release. Artifact
-versions and legacy requirements are listed in [COMPATIBILITY.md](COMPATIBILITY.md).
-See the [migration guide](spec/migrating-to-0.9.md) and
-[configuration](spec/sigil-config.md). `test:core`, `test:cli`, `test:lsp`,
-and `test:native:protocol` establish current conformance.
+The core, CLI, LSP, native `sigilc` 0.3.0 and VS Code integration implement
+Sigil language 0.9.0. `sigilc` writes tree format 1, design reports version 6,
+and implementation reports version 1; version 0.3.0 retires the earlier Turtle
+worlds and their commands. These are local, pre-production changes; this
+migration does not publish a release. Artifact versions and legacy requirements
+are listed in [COMPATIBILITY.md](COMPATIBILITY.md). See the
+[migration guide](docs/spec/migrating-to-0.9.md) and
+[configuration](docs/spec/sigil-config.md). `test:core`, `test:cli`, `test:lsp`,
+`test:sigilc`, and `test:native:protocol` establish current conformance.
 
 The shared core owns strict source capture, component-owned Tags, explicit
 provider imports, exact references, protected links/payloads, staged recovery,
 workspace boundaries, glossary and ownership projections, graph/context retrieval,
 formatting and source-faithful Design export. The CLI and bundled language server
 use those shared results. VS Code provides navigation, diagnostics, highlighting,
-whole-document preview and direct native compilation with verified source ranges.
+whole-document preview, and runs `sigilc check` and `sigilc align check` to show
+computed findings.
 
 Independent interpretation remains external to deterministic tooling. Native
 states describe admitted readings and compiler laws; successful language
 checks, canned-claims protocol tests and advisory design reviews establish different facts.
-The retained 0.7 skill is historical and excluded from active workspace discovery.
 The 0.9 understanding, writing and evaluation skills provide the current design
 workflow without requiring compiler-based proof.
 
 Editor integrations other than VS Code, stricter body semantics, and additional
 project configuration remain deferred.
-
-Receipts and anchors are rejected historical design explorations rather than
-active or deferred Sigil components.
-[ADR-011](spec/decisions/adr-011-generated-rationale-evidence-and-review-records.md)
-records the rejected proposal for deterministic shared packages, attributed
-host-assisted interpretation, a `sigil-indexer`, and generated review records
-without adding inline Sigil syntax. Its indexer and anchor contracts are not
-part of the active 0.9 workspace.

@@ -74,8 +74,6 @@ The extension targets desktop and remote Node extension hosts with file-backed
 workspaces. VS Code for the Web, virtual workspaces, telemetry, document
 mutation, and custom LSP methods remain outside the initial version.
 
-The approved member-root contract lives in [_module.sigil](./_module.sigil).
-
 Development:
 
 ```bash

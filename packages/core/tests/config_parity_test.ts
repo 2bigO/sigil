@@ -4,7 +4,7 @@ import { SIGIL_VERSION } from "../src/model/language.ts";
 
 // Parity suite for the Sigil workspace configuration contract, which is defined
 // twice: the strict parser in packages/core/src/config.ts and the published
-// JSON Schema in spec/sigil-config.schema.json. Each fixture is evaluated by
+// JSON Schema in docs/spec/sigil-config.schema.json. Each fixture is evaluated by
 // both representations. Structural cases must agree; documented cases capture
 // checks the schema cannot (or does not) express; malformed-source cases apply
 // only to the parser, which owns JSON parsing.
@@ -482,7 +482,7 @@ const fixtures: readonly Fixture[] = [
 // validator. strict:false keeps annotation keywords such as `default` from
 // being treated as errors during validation.
 const schemaText = await Deno.readTextFile(
-  new URL("../../../spec/sigil-config.schema.json", import.meta.url),
+  new URL("../../../docs/spec/sigil-config.schema.json", import.meta.url),
 );
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 const validateSchema = ajv.compile(JSON.parse(schemaText));

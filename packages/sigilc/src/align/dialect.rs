@@ -4,6 +4,7 @@ pub use crate::claims::dialect::Limits;
 use serde::{Deserialize, Serialize};
 
 /// Element names remain file-local; admitted design references become IDs.
+// @sigil implements packages/sigilc/align.sigil::SigilImplementationClaims::CodeVocabulary interface
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum Row {

@@ -25,7 +25,10 @@
       "repos/**",
       "**/target/**",
       "examples/**",
-      "spec/conformance/**"
+      "packages/core/**",
+      "packages/cli/**",
+      "packages/lsp/**",
+      "integrations/editor/vscode/**"
     ]
   },
   "tools": {}

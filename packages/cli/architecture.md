@@ -4,8 +4,7 @@
 
 This document defines the architecture style, internal modules, dependency
 rules, and implementation guidelines for `sigil-cli`. Product requirements live
-in [spec.md](spec.md). Platform-wide boundaries live in
-[../../spec/sigil-platform-architecture.md](../../spec/sigil-platform-architecture.md).
+in [spec.md](spec.md).
 
 ## 1. Architecture Style
 
@@ -249,33 +248,6 @@ Commands should keep option behavior boring and explicit.
 Commands remain non-interactive for language 0.9.
 
 Explicit init and fmt own their existing write boundaries.
-
-## 9. Historical Anchor Extension Proposal
-
-The following inactive design is retained for history. The approved CLI depends
-on `core-adapter` and has no indexer adapter or anchor mutation surface.
-
-```text
-anchors argv -> anchors command handler -> indexer-adapter -> sigil-indexer
-                                              |
-                                              -> fs-adapter atomic sidecar write
-```
-
-Rules:
-
-- `args` parses the nested `anchors candidates`, `anchors check`, and
-  `anchors apply` requests;
-- anchor command handlers shape results but do not parse ASTs or reconcile
-  locators;
-- `indexer-adapter` connects the Deno filesystem, resolved Sigil workspace, and
-  `sigil-indexer`;
-- only `anchors apply` may write, and it may write only `.sigil/anchors.json`;
-- the write uses a temporary sibling plus atomic rename after complete
-  validation;
-- no CLI module invokes a model, imports a Codex skill, or interprets proposal
-  evidence;
-- the proposal would not alter existing command behavior without a separately
-  approved contract.
 
 ## 6. Output Guidelines
 

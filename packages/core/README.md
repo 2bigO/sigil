@@ -19,8 +19,7 @@ Core owns deterministic language behavior used by CLI, LSP and native export:
   payloads, Inline Links, grouping occurrences and inline Tag introductions.
 - Resolve exact component-owned Tags and explicit file/provider selections.
   Imported Tags remain provider-owned; using Facets remain consumer-owned. Cycles
-  are valid. Only Tags evidenced by a provider Interface are importable;
-  `_module.sigil` is an ordinary source, with no re-export behavior.
+  are valid. Only Tags evidenced by a provider Interface are importable.
 - Preserve independent valid results and staged diagnostics when other input is
   invalid. Reject unsupported configured versions and removed language forms.
 - Format against resolved spans and provider vocabulary, preserving exact Tag
@@ -33,6 +32,6 @@ Core owns deterministic language behavior used by CLI, LSP and native export:
 Core does not own CLI arguments, editor APIs, LSP transport, model prompts or
 semantic interpretation. Native `sigilc` consumes structural export separately.
 
-See [_module.sigil](./_module.sigil), [requirements](spec.md),
+See [requirements](spec.md),
 [architecture](architecture.md), and the
-[language reference](../../spec/sigil-reference.md).
+[language reference](../../docs/spec/sigil-reference.md).

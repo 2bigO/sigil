@@ -3,12 +3,12 @@ import { SIGIL_VERSION } from "../packages/core/src/model/language.ts";
 
 /** Explicit inputs: additions require a deliberate packaging decision. */
 export const LANGUAGE_SOURCES = [
-  "spec/sigil-reference.md",
-  "spec/sigil.ebnf",
-  "spec/sigil-language.md",
-  "spec/migrating-to-0.9.md",
-  "spec/sigil-config.md",
-  "spec/sigil-config.schema.json",
+  "docs/spec/sigil-reference.md",
+  "docs/spec/sigil.ebnf",
+  "docs/spec/sigil-language.md",
+  "docs/spec/migrating-to-0.9.md",
+  "docs/spec/sigil-config.md",
+  "docs/spec/sigil-config.schema.json",
 ] as const;
 export const LANGUAGE_PACK_PATH = "skills/sigil-understand/references/language";
 const UPSTREAM = "https://github.com/farhoud/sigil";

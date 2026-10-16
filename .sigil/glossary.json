@@ -82,21 +82,6 @@
       ]
     },
     {
-      "term": "ModuleIndexFile",
-      "definition": "An included Sigil source whose language-reserved basename defines intentional directory-import shorthand without controlling workspace membership or component visibility.",
-      "aliases": [
-        "module index file",
-        "_module.sigil"
-      ]
-    },
-    {
-      "term": "directory-import surface",
-      "definition": "The converged component names exposed by a ModuleIndexFile from local declarations and independently resolved imports after names with multiple declaration identities are excluded.",
-      "aliases": [
-        "directory import surface"
-      ]
-    },
-    {
       "term": "GlossaryFile",
       "definition": "The optional strict .sigil/glossary.json file containing reviewed workspace and bounded-context terminology.",
       "aliases": [
@@ -171,15 +156,6 @@
         "member roots",
         "declared member root",
         "declared member roots"
-      ]
-    },
-    {
-      "term": "directory import",
-      "definition": "An import whose path selects a directory and resolves named components through that directory's ModuleIndexFile.",
-      "aliases": [
-        "directory imports",
-        "directory-import",
-        "directory-imports"
       ]
     },
     {
@@ -410,7 +386,7 @@
     },
     {
       "term": "graph harmony",
-      "definition": "Qualitative coherence of ownership, dependency direction, coupling, decomposition, module-index scope, and imported namespace reuse across an inspected Sigil graph neighborhood.",
+      "definition": "Qualitative coherence of ownership, dependency direction, coupling, decomposition, and imported namespace reuse across an inspected Sigil graph neighborhood.",
       "aliases": [
         "graph-harmony"
       ]
@@ -630,9 +606,8 @@
     {
       "id": "WorkspaceConfiguration",
       "include": [
-        "spec/language.sigil",
-        "packages/core/**/*.sigil",
-        "packages/cli/_module.sigil"
+        "docs/spec/sigil-config.sigil",
+        "packages/core/**/*.sigil"
       ],
       "exclude": [],
       "terms": [

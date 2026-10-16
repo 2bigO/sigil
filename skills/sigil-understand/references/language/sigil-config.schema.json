@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/qoherent/sigil/blob/main/spec/sigil-config.schema.json",
+  "$id": "https://github.com/qoherent/sigil/blob/main/docs/spec/sigil-config.schema.json",
   "title": "Sigil workspace configuration",
   "type": "object",
   "$defs": {

@@ -57,7 +57,7 @@ component SearchPanel {
 - SearchService owns both selected Tags, including the single exact multiword
   name search results. SearchPanel retains ownership of its Facets.
 - The selected vocabulary does not establish a runtime call, provider namespace,
-  re-export, or ownership transfer. No 0.7 expansion or module-index rule appears.
+  re-export, or ownership transfer. No 0.7 expansion rule appears.
 - The active-request invariant is sufficient without exhaustive late-response
   cases, cancellation helpers, all optional sections, or code-declaration maps.
 - A superseded request cannot publish; cancellation is an unselected option,

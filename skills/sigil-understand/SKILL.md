@@ -27,7 +27,7 @@ mapping to each code declaration are not completion requirements.
 
 Do not run or claim 0.9 compiler validation through legacy 0.7 tooling. The
 configuration references describe the implemented 0.9 workspace contract. Do not
-import legacy expansion, public namespace, or module-index rules into 0.9.
+import legacy expansion or public namespace rules into 0.9.
 
 Return a concise explanation with evidence anchors and material limitations.
 Understanding does not modify the source, establish implementation conformance,

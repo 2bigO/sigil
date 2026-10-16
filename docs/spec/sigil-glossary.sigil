@@ -1,0 +1,55 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {
+  workspace root,
+}
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import {
+  facet,
+  name matching,
+  source range,
+  tag identity,
+}
+
+component SpecWorkspaceGlossary {
+  goal {
+    Give a workspace one reviewed vocabulary so that tools and editors
+    recognize the same terms in design prose.
+  }
+
+  constraints {
+    A workspace glossary must not change Sigil syntax, create a tag identity,
+    or rename a tag identity to match a glossary term.
+
+    A glossary term must not override a facet, and the facet stays normative
+    when the two conflict.
+
+    Two glossary context entries must not claim the same source.
+
+    Reporting a workspace glossary must be read-only and must not extract,
+    propose, or change a glossary term.
+
+    A glossary occurrence must follow name matching, except that it ignores
+    case.
+  }
+
+  interface {
+    SpecWorkspaceGlossary provides the *workspace glossary*, an optional,
+    strict JSON file under the workspace root that people review and commit.
+    Its absence is valid.
+
+    SpecWorkspaceGlossary provides the *glossary term*, a canonical spelling
+    with a definition and aliases, which an agent-context flag can hide from
+    agent-facing context without affecting validation or editor features.
+
+    SpecWorkspaceGlossary provides the *glossary context*, a bounded set of
+    sources chosen by globs, inside which its glossary term entries replace
+    the workspace spelling.
+
+    SpecWorkspaceGlossary provides the *glossary occurrence*, a glossary term
+    found in facet prose by name matching, with its canonical term, matched
+    spelling, owner, and source range.
+  }
+
+  decisions {
+    The workspace glossary stays apart from Sigil syntax, so that accepted
+    Sigil remains the normative design while people review the vocabulary.
+  }
+}

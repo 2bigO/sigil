@@ -17,7 +17,8 @@ Each skill is one folder, `skills/<name>/`:
 | `evals/` | Fixtures and the procedure for observing the skill with real agents; never read by the skill |
 
 `sigil-understand` also carries a language pack under `references/language/`. It is
-generated from the specifications, so you never edit it by hand.
+generated from the specifications in [`docs/spec/`](../spec), so you never edit
+it by hand.
 
 ## The rules, and the check for each
 

@@ -40,8 +40,6 @@ Non-responsibilities:
 - own Codex-specific behavior;
 - replace the CLI for automation.
 
-The approved package contract lives in [_module.sigil](./_module.sigil).
-
 Run the server locally:
 
 ```bash

@@ -9,7 +9,4 @@ Current packages:
 - `sigil-cli`: implemented Deno command-line interface over `sigil-core` with native GitHub releases and `parse`, `check`, `graph`, `context`, and `render` commands.
 - `sigil-lsp`: implemented pre-production editor-facing language server over `sigil-core`.
 
-The `indexer/` directory contains historical design material only. It is not an
-active package or configured Sigil workspace member.
-
 Host-specific adapters belong under `integrations/`, not here.

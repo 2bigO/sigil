@@ -37,8 +37,7 @@ The Sigil skills install through your coding agent's own plugin system; see the
 [install guides](install/README.md). The skills help author contracts and instructs the model to call `sigilc`
 directly. It does not supply verdicts or launch reconstruction workers.
 
-Keep contracts beside cohesive owners. A directory `_module.sigil` is a boundary
-summary and intentional import surface, not a place to collect unrelated logic.
+Keep contracts beside cohesive owners.
 Use existing public identities and matching expands. Optional source comments
 can connect stable entrypoints to governing section occurrences:
 

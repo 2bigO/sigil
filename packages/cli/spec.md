@@ -48,8 +48,6 @@ Version 0.9 must not implement:
 - mutation of implementation files or automatic source migration. Explicit `fmt`
   remains the supported authored-source formatting command.
 
-The rejected anchor proposal below remains historical and inactive.
-
 ## 4. Runtime And Dependency Requirements
 
 The source package is implemented in TypeScript and Deno modules. Standalone
@@ -357,39 +355,3 @@ Semantic commands, provider/profile authoring, migrations, compiler events and
 runtime doctor are removed, with no forwarding command. Init writes an empty
 tools object; normal workspace configuration discovery, validation and version
 reporting remain.
-
-## 12. Historical Anchor Command Proposal
-
-The following rejected design is retained for history. Version 0.7 has no
-`sigil-indexer` dependency or `anchors` command group.
-
-### `sigil anchors candidates [path] --component <name>`
-
-Read-only. Returns the selected component, collected expansions, Facet locators,
-and no more than twenty deterministically ordered TypeScript candidates per
-line. Each candidate reports inspectable ordering signals. The command does not
-invoke a model.
-
-### `sigil anchors check [path]`
-
-Read-only. Loads `.sigil/anchors.json`, validates schema and workspace paths,
-and resolves every accepted source target. It returns `resolved`, `changed`,
-`ambiguous`, or `missing` for each anchor.
-
-Invalid schema, paths outside the workspace, ambiguity, and missing targets are
-error diagnostics. Unique structural changes are warnings. Warnings alone
-preserve exit code `0`.
-
-### `sigil anchors apply <proposal-file>`
-
-Mutating and non-interactive. Validates proposal schema, current Sigil and
-source fingerprints, target resolution, accepted outcome, duplicates, and
-workspace containment before atomically updating `.sigil/anchors.json`.
-
-The command rejects `ambiguous`, `no-match`, stale, or partially invalid input
-without writing. Host workflows must obtain explicit human approval before
-invocation.
-
-All three commands support `--format json` and `--pretty`. Machine-readable
-output includes workspace root, diagnostics, schema version, and command data.
-No command calls a model or contains Codex-specific behavior.

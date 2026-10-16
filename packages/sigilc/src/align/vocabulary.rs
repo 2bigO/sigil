@@ -1,5 +1,4 @@
 //! The code vocabulary is independent of design claims and their generation.
-// @sigil implements packages/sigilc/align.sigil::SigilImplementationClaims::CodeVocabulary interface
 
 pub const VOCABULARY_GENERATION: u32 = 1;
 pub const RETURNED: &[&str] = &["element", "realizes", "act", "measure"];

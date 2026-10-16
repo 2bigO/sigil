@@ -574,8 +574,6 @@ config and independent boundary; it is not a member of the parent. Higher
 configured workspaces must exclude that subtree. A declared member cannot
 contain its own config.
 
-`_module.sigil` is an ordinary source filename that may hold a project summary.
-It has no import-resolution, directory-index, export, or re-export behavior.
 Imports use explicit included `.sigil` paths, regardless of directory membership.
 
 ### Selection and resolution (import.resolve)
@@ -591,8 +589,7 @@ Absolute paths (a leading slash/backslash, drive prefix, or network path) and
 traversal outside the workspace are unresolved. Paths are case-sensitive source
 identities; do not merge two discovered spellings based on filesystem case folding.
 The normalized path must end in
-`.sigil` and select a source included in the configured workspace. Do not
-reinterpret a directory path as `_module.sigil`.
+`.sigil` and select a source included in the configured workspace.
 
 Resolve source, provider component, and selected Tags separately. The named
 component must be declared in that exact source. Its imported names are not

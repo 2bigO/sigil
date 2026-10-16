@@ -2,7 +2,7 @@
 
 **Implemented language:** 0.9.0. Artifact and release status are recorded in
 `deno.json` and [COMPATIBILITY.md](../../COMPATIBILITY.md). The normative
-[reference](../../spec/sigil-reference.md), [grammar](../../spec/sigil.ebnf) and
+[reference](../../docs/spec/sigil-reference.md), [grammar](../../docs/spec/sigil.ebnf) and
 colocated Sigil contracts govern detailed language behavior.
 
 ## Source and structure
@@ -24,7 +24,7 @@ must not imply validity or completeness that was not established.
 Require strict `.sigil/config.json`. Discover the nearest eligible ancestor or
 accept an explicit root. Parent workspaces must exclude independent nested
 workspaces. Apply include/exclude globs and declared member metadata. A member
-root does not create a namespace or import surface. `_module.sigil` is ordinary.
+root does not create a namespace or import surface.
 
 Resolve root-relative explicit source imports, optional provider component
 selection and exact Tag names. A Tag's identity includes its owner component and

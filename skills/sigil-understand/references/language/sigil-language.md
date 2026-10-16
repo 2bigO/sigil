@@ -999,8 +999,6 @@ sources; see [workspace configuration](sigil-config.md). Additional projects
 can be declared as workspace members. Excluded nested workspaces remain
 independent. Read the reference for exact discovery and boundary rules.
 
-`_module.sigil` is an ordinary filename in 0.9. It can hold a project summary,
-but it does not re-export components or provide directory-import shorthand.
 Import Tags from the explicit file declaring their owner.
 
 | While writing | Remember |

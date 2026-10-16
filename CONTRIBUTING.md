@@ -12,7 +12,6 @@ they matter.
 
 - [Prerequisites](#prerequisites)
 - [Set up the repository](#set-up-the-repository)
-- [Working on the skills](docs/contributing/README.md)
 - [The validation workflow](#the-validation-workflow)
 - [Focused tasks](#focused-tasks)
 - [Repository boundaries](#repository-boundaries)
@@ -22,6 +21,10 @@ they matter.
 - [Versions and compatibility](#versions-and-compatibility)
 - [Troubleshooting](#troubleshooting)
 - [Opening a pull request](#opening-a-pull-request)
+
+Working on the skills or cutting a release? The
+[contributor guide](docs/contributing/README.md) covers both; this page covers
+the rest of the repository.
 
 ## Prerequisites
 
@@ -77,11 +80,6 @@ npm 11, which ships with Node 24, prints `npm warn allow-scripts` lines about
 both packages get their platform binaries from optional dependencies rather than
 from the skipped install scripts.
 
-Working on the Sigil skills, or cutting a release? The
-[contributor guide](docs/contributing/README.md) covers building `sigil` and
-`sigilc` from your checkout, loading the checkout's skills into each supported
-agent, the rules for changing a skill, and the release steps.
-
 Confirm the environment before you change anything:
 
 ```sh
@@ -104,7 +102,7 @@ also prints a harmless warning about the `workspace` field being ignored; see
 
 ## The validation workflow
 
-Run these four in order before you open a pull request. This is the same sequence,
+Run these six in order before you open a pull request. This is the same sequence,
 in the same order, that [CI](.github/workflows/ci.yml) runs on Ubuntu, macOS, and
 Windows.
 
@@ -112,22 +110,27 @@ Windows.
 deno task fmt
 deno task lint
 deno task check
+cargo fmt --manifest-path packages/sigilc/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/sigilc/Cargo.toml --all-targets -- -D warnings
 deno task test
 ```
 
-| Task    | What it does                                                                                                       |
-| ------- | ------------------------------------------------------------------------------------------------------------------ |
-| `fmt`   | Checks formatting of every tracked source, config, and schema path. **It does not reformat anything** — see below. |
-| `lint`  | Runs `deno lint` across the workspace.                                                                             |
-| `check` | Type-checks the three package entrypoints, then type-checks the extension with `tsc --noEmit`.                     |
-| `test`  | Runs core, CLI, LSP, extension unit, extension integration, and skill-validation suites in sequence.               |
+| Step           | What it does                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `fmt`          | Checks formatting of every tracked TypeScript source, config, and schema path. **It does not reformat anything** — see below.                                                 |
+| `lint`         | Runs `deno lint` across the workspace.                                                                                                                                         |
+| `check`        | Type-checks the core, CLI, and LSP entrypoints, the extension with `tsc --noEmit`, and the slotted benchmark scripts.                                                          |
+| `cargo fmt`    | Checks formatting of `sigilc`. Like `deno task fmt`, it changes nothing.                                                                                                       |
+| `cargo clippy` | Lints `sigilc` and its tests; any warning fails.                                                                                                                               |
+| `test`         | Runs the `sigilc`, core, CLI, LSP, and extension suites, builds `sigilc`, then runs the native protocol, skill, plugin manifest, release branch, and slotted benchmark checks. |
 
 `deno task fmt` is a **check**, not a formatter: it runs `deno fmt --check`, so it
 reports unformatted files and fails without touching them. To actually format, run
-`deno fmt` on what you changed:
+`deno fmt` on what you changed, or `cargo fmt` for `sigilc`:
 
 ```sh
 deno fmt packages/core/src packages/core/tests
+cargo fmt --manifest-path packages/sigilc/Cargo.toml
 ```
 
 ### Platform differences
@@ -162,6 +165,7 @@ own task:
 
 | Task                              | Scope                                                                                          |
 | --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `deno task test:sigilc`           | `sigilc` — the native compiler's Rust tests (`cargo test`)                                     |
 | `deno task test:core`             | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics                     |
 | `deno task test:cli`              | `@qoherent/sigil` — commands, argument parsing, output formatting                                 |
 | `deno task test:lsp`              | `@qoherent/sigil-lsp` — lifecycle, diagnostics, symbols, hover, semantic tokens                |
@@ -171,10 +175,17 @@ own task:
 | `deno task test:native:protocol` | Native command examples run on disposable fixtures via [`scripts/validate-native-protocol.ts`](scripts/validate-native-protocol.ts) |
 | `deno task check:vscode`          | Extension type-check alone                                                                     |
 
-To narrow further, call `deno test` directly. Note that each package's task
-supplies its own permission flags, so reuse them:
+The skill checks and the slotted benchmark have their own pages:
+[skill checks](docs/contributing/skills.md#the-rules-and-the-check-for-each) and
+[benchmarks](docs/contributing/skills.md#run-the-benchmarks).
+
+To narrow further, call `cargo test` or `deno test` directly. Note that each
+package's task supplies its own permission flags, so reuse them:
 
 ```sh
+# One sigilc test file, filtered by test name
+cargo test --manifest-path packages/sigilc/Cargo.toml --test claims_cli refus
+
 # One file (core needs only read access)
 deno test --allow-read packages/core/tests/core_test.ts
 
@@ -199,36 +210,39 @@ orchestration stay outside the toolchain.
 
 | Directory                     | Owns                                                                                                                   | Notes                                                                                                                                                                                                                                  |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `spec/`                       | The language, configuration, workflow, glossary, and platform-architecture specifications, plus [ADRs](spec/decisions) | The normative definition is [`spec/sigil-reference.md`](spec/sigil-reference.md) with [`spec/sigil.ebnf`](spec/sigil.ebnf); [`spec/sigil-language.md`](spec/sigil-language.md) is the authoring guide. [`spec/language.sigil`](spec/language.sigil) owns the implemented language-version literal. |
+| `docs/spec/`                  | The language reference, grammar, authoring guide, configuration and glossary specifications, their JSON schemas, and the Sigil contracts that describe them | The normative definition is [`docs/spec/sigil-reference.md`](docs/spec/sigil-reference.md) with [`docs/spec/sigil.ebnf`](docs/spec/sigil.ebnf); [`docs/spec/sigil-language.md`](docs/spec/sigil-language.md) is the authoring guide. [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil) owns the implemented language-version literal. |
 | `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                                                                                     |
 | `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. |
 | `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
 | `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
-| `skills/` | Four source-based 0.9 design skills, the `sigil-egglog` language skill, and the computed and alignment skills | Shared language pack and evaluator-owned review contract; models execute in the host. |
+| `skills/` | The seven agent skills: understand, evaluate, write, and align for design work, the two computed checks, and `sigil-egglog` | Shared language pack and evaluator-owned review contract; models execute in the host. See [Work on a skill](docs/contributing/skills.md). |
 | `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
-| `scripts/`                    | Release build and skill validation                                                                                     |                                                                                                                                                                        |
-| `docs/`                       | End-user [install guides](docs/install/README.md), the [contributor guide](docs/contributing/README.md), the quickstart, skill evaluation records, and adoption pilots |                                                                                                                                                                        |
+| `scripts/`                    | Release build, skill validation, native protocol checks, and the slotted benchmark                                     |                                                                                                                                                                        |
+| `docs/`                       | End-user [install guides](docs/install/README.md), the quickstart and project setup guide, the specifications in `docs/spec/`, the [contributor guide](docs/contributing/README.md) for skills and releases, and implementation plans in `docs/plans/` |                                                                                                                                                                        |
 
 Dependency direction is one-way: `cli` and `lsp` depend on `core`; the extension
 depends on `lsp` and invokes language export/native gates; the skill depends on no
 package code. A change that inverts any of those arrows needs discussion before
 implementation.
 
-For the fuller picture, read
-[`spec/sigil-platform-architecture.md`](spec/sigil-platform-architecture.md) and
-the repository's own boundary summary in [`_module.sigil`](_module.sigil).
-
 ## Where Sigil belongs
 
-This repository specifies itself in Sigil. Before changing behavior, find the
-contract that governs it:
+This repository specifies parts of itself in Sigil. The workspace in
+[`.sigil/config.json`](.sigil/config.json) covers the specifications in
+`docs/spec/` (`SpecLanguageReference`, `SpecWorkspaceConfig`,
+`SpecWorkspaceGlossary`) and the native compiler in `packages/sigilc/`
+(`SigilSemanticCompiler`, `SigilComputedClaims`, and their neighbors). `core`,
+`cli`, `lsp`, and the VS Code extension have no contracts and are excluded from
+the workspace.
+
+Before changing behavior in a covered area, find the contract that governs it:
 
 ```sh
-sigil check .                                              # workspace diagnostics
-sigil context . --component SigilCore --format markdown    # one contract, readable
-sigil context . --component SigilCli --include-dependents   # and who relies on it
-sigil graph .                                              # imports and expansions
+sigil check .                                                       # workspace diagnostics
+sigil context . --component SigilComputedClaims --format markdown   # one contract, readable
+sigil context . --component SpecWorkspaceConfig --include-dependents  # and who relies on it
+sigil graph .                                                       # components and imports
 ```
 
 `check` and `context` do not validate the same things. `check` covers syntax,
@@ -237,36 +251,32 @@ annotations across the source tree, so it can exit 1 while `check` exits 0 —
 useful, and worth reading rather than ignoring. Exit codes are `0` clean, `1` error
 diagnostics, `2` bad arguments, `3` host failure.
 
-Placement rules, from [`spec/sigil-reference.md`](spec/sigil-reference.md) and the
-`sigil-write` skill's
+Placement rules, from the [language guide](docs/spec/sigil-language.md#4-choose-component-and-facet-boundaries)
+and the `sigil-write` skill's
 [contract prose rules](skills/sigil-write/references/contract-prose.md):
 
-- **Boundary summaries** live in the `_module.sigil` of the workspace root and of
-  each declared member — [`_module.sigil`](_module.sigil),
-  [`packages/core/_module.sigil`](packages/core/_module.sigil), and so on. Do not
-  move these.
-- **Internal contracts** use descriptive filenames beside the code they describe,
-  such as [`packages/core/src/parser.sigil`](packages/core/src/parser.sigil) next
-  to `parser.ts`.
-- **`component`** holds the public half: `goal` and `interface`. Dependents see
-  only this.
-- **`expand`** holds the private half: `state`, `logic`, `constraints`,
-  `decisions`, and `cases`. Put an implementation-specific expand beside the code
-  it explains.
+- **Contracts live beside the code they describe**, in a descriptively named
+  file, such as [`packages/sigilc/claims.sigil`](packages/sigilc/claims.sigil) for
+  the code in `packages/sigilc/src/claims/`.
+- **One declaration per component.** All of a component's contracts belong in
+  that one `component` block: `goal` and `interface` are required; `state`,
+  `logic`, `constraints`, `cases`, and `decisions` are optional. 0.9 has no
+  `expand`.
 - **Trivial, safely reconstructable mechanics get no Sigil at all.** Do not create
   one component per file, class, or function.
 
 When you implement something a contract governs, link the code back to it with an
-ownership annotation next to the entrypoint definition:
+ownership annotation next to the entrypoint definition. It names the Tag and the
+sections that describe it:
 
-```ts
-// @sigil implements packages/core/src/parser.sigil::SigilParser::SourceDocument interface,logic,constraints,cases
-export function parseSigilDocument() {}
+```rust
+// @sigil implements packages/sigilc/claims.sigil::SigilComputedClaims::ClaimsCommands interface,constraints
+pub fn run(args: &[&str]) -> Output {
 ```
 
-List only the sections that actually have an occurrence for that Concept. An
-annotation naming a section the contract does not define is an error, and
-`sigil context` is what reports it.
+List only the sections that actually mention that Tag. An annotation naming a
+section the contract does not define is an error, and `sigil context` is what
+reports it.
 
 Use the language's single-line comment form, its block form when one entrypoint
 carries several annotations, and HTML comments in agent-facing Markdown. Never
@@ -298,26 +308,23 @@ gate do not individually prove full delivery or faithful reconstruction.
 disposable fixtures. Build both tools first with
 `deno task build:sigilc` and `deno task build:cli`, or set `SIGIL_TEST_LANGUAGE`
 and `SIGIL_TEST_COMPILER` to the intended binaries. The root test task builds its
-prerequisites. Fixed fixture Turtle exercises protocol, not independent
+prerequisites. The fixed fixtures exercise the protocol, not independent
 reconstruction of this repository. Release smoke tests cover all six gate states
 from a relocated distribution.
 
-The 0.8 foundation check, `deno task test:skill`, needs only read access and no
-Sigil binaries. Run mutation/relocation regressions with
-`deno test --allow-read --allow-write scripts/skill-foundation_test.ts`.
-After an intentional specification change, regenerate its language pack with
-`deno run --allow-read --allow-write scripts/sync-skill-language.ts` (reuses the
-recorded upstream revision), or pass `--revision <full-commit-sha>` when updating
-the background-link pin. `deno run --allow-read scripts/sync-skill-language.ts --check`
-checks exact reproduction. Only documentary link destinations may change;
-fenced examples and inline code remain source text.
+A change to a specification in `docs/spec/` also changes the language pack that
+`sigil-understand` carries. Regenerate it with
+`deno run --allow-read --allow-write scripts/sync-skill-language.ts` and commit
+the result with the specification change; the
+[skill checks](docs/contributing/skills.md#the-rules-and-the-check-for-each)
+fail until you do. Pass `--revision <full-commit-sha>` only when updating the
+background-link pin. Only documentary link destinations may change; fenced
+examples and inline code remain source text.
 
-Package checks are distinct from model behavior. Follow the
-[agent evaluation procedure](skills/sigil-write/evals/README.md),
-materialize 0.8 source fixtures only in temporary workspaces, and summarize
-actual outcomes in your pull request. Keep expected answers out of tested
-agents' inputs and preserve failures and host limitations. Do not claim
-independent review from a writer's self-assessment.
+Package checks are distinct from model behavior. A change to what an agent
+follows needs an [observed eval](docs/contributing/skills.md#run-an-observed-eval);
+summarize its actual outcome in your pull request. Do not claim independent
+review from a writer's self-assessment.
 
 Delete obsolete behavior and its dedicated callers/tests during refactors.
 Preserve required frontend features through actual native infrastructure rather
@@ -327,7 +334,7 @@ unrelated product actions remain outside the compiler and the skill.
 ## Your first contribution
 
 A worked example for a change that needs no Sigil proposal — adding a test case to
-core.
+`sigilc`.
 
 ```sh
 # 1. Branch from main.
@@ -335,10 +342,10 @@ git checkout main && git pull
 git checkout -b my-change
 
 # 2. Establish a clean baseline before you touch anything.
-deno task fmt && deno task lint && deno task check && deno task test:core
+deno task test:sigilc
 
 # 3. Find the contract that governs the behavior you are testing.
-sigil context . --component SigilCore --format markdown
+sigil context . --component SigilComputedClaims --format markdown
 ```
 
 Read the contract's `cases` section. If the behavior you want to test is already
@@ -348,14 +355,13 @@ before relying on the test as semantic coverage.
 
 ```sh
 # 4. Add the test beside its peers.
-#    packages/core/tests/core_test.ts
+#    packages/sigilc/tests/claims_cli.rs
 
 # 5. Run the focused suite while iterating.
-deno test --allow-read packages/core/tests/core_test.ts --filter "my new case"
+cargo test --manifest-path packages/sigilc/Cargo.toml --test claims_cli my_new_case
 
-# 6. Format what you changed, then run the full gate.
-deno fmt packages/core/tests
-deno task fmt && deno task lint && deno task check && deno task test
+# 6. Format what you changed, then run the six validation steps above.
+cargo fmt --manifest-path packages/sigilc/Cargo.toml
 
 # 7. Commit and open a pull request against main.
 ```
@@ -372,9 +378,11 @@ Four version lines move independently, and [COMPATIBILITY.md](COMPATIBILITY.md) 
 the authority on how they relate:
 
 - **Sigil language and `.sigil/config.json` schema** — currently 0.9.0, owned by
-  the single literal in [`spec/language.sigil`](spec/language.sigil).
+  the single literal in
+  [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil).
 - **Package artifacts** — independently versioned, owned by each package manifest
-  (`core` 0.8.0, `cli` 0.9.0, and `lsp` 0.8.0).
+  (`core` 0.8.0, `cli` 0.9.0, `lsp` 0.8.0, and `sigilc` 0.3.0 in its
+  `Cargo.toml`).
 - **VS Code extension** — owned by its `package.json`.
 - **Agent skills** — each owns `VERSION` and `compatibility.json` in its
   `skills/<name>/` directory. The design skills declare language
@@ -386,18 +394,11 @@ release is cut as [the release guide](docs/contributing/releasing.md) describes;
 skill changes reach users only at the next CLI release.
 
 Do not bump a version as a side effect of another change, and do not duplicate a
-version literal into a second file. The one exception is the agent plugin
-manifests (`.claude-plugin/`, `.codex-plugin/`, `.cursor-plugin/`,
-`gemini-extension.json`, `plugin.json` and `package.json`): each carries the CLI
-release version, and `deno task test:plugin-manifests` and
-`scripts/build-cli-release.ts` fail when any of them differs from
-[`packages/cli/deno.json`](packages/cli/deno.json). Agents key plugin updates on
-those versions, so bumping `packages/cli/deno.json` also publishes a plugin
-update; do it only in the release-cut commit. The installer URLs in
-[`skills/sigil-compute-design/references/computed-evaluation.md`](skills/sigil-compute-design/references/computed-evaluation.md)
-are pinned to that same release, are checked the same way, and change only in
-the release-cut commit; that change needs no skill `VERSION` bump. A tool must reject a `sigilVersion` it does not
-explicitly support. Everything here is pre-production; see
+version literal into a second file. The one exception is the CLI release version:
+the agent plugin manifests and the installer URLs in the `sigil-compute-design`
+skill repeat it, and they change together only in the
+[release-cut commit](docs/contributing/releasing.md#the-release-cut-commit).
+A tool must reject a `sigilVersion` it does not explicitly support. Everything here is pre-production; see
 [PRE_RELEASE.md](PRE_RELEASE.md). User-visible changes belong in
 [CHANGELOG.md](CHANGELOG.md).
 
@@ -443,21 +444,20 @@ reflects the branch you have checked out. Reinstall with
 locking enabled. Let Deno update it as a result of a real dependency change,
 review that diff like any other, and do not hand-edit it.
 
-**Concept grouping.** Facets can appear directly under any contract or mix with
-Concept-grouped Facets. Ungrouped Interface content is not an authoring gap.
-Concepts provide optional grouping across contracts, especially when a component
-describes several concerns. Groups are flat and nonempty, and do not add redundant
-wrappers to satisfy older tooling or guidance.
+**`cargo fmt` or `cargo clippy` fails in CI but `deno task fmt` passed locally.**
+The Deno tasks do not cover `sigilc`. Run the two `cargo` steps from
+[The validation workflow](#the-validation-workflow) too.
 
 **`Ownership annotation references section X without a matching occurrence` from
-`sigil context`.** An `@sigil implements` annotation claims a section the Concept
-does not define. Either drop that section from the annotation, or add the missing
+`sigil context`.** An `@sigil implements` annotation claims a section that does not
+mention its Tag. Either drop that section from the annotation, or add the missing
 occurrence to the contract — the second option is a semantic change and goes
 through the proposal gate. `sigil check` does not catch this, so `sigil context`
 can exit 1 on a workspace that checks clean.
 
-**A test needs a real workspace.** Use the fixtures in `examples/` or
-`packages/cli/tests/fixtures/` rather than creating one outside the repository.
+**A test needs a real workspace.** Use the workspaces in `examples/`, or build a
+temporary one in the test as the `sigilc` and CLI suites do, rather than creating
+one by hand outside the repository.
 The extension integration suite opens [`examples/slotted`](examples/slotted) as
 its workspace.
 
@@ -469,9 +469,10 @@ plus a publish dry run on Ubuntu; all of it must pass.
 
 Before you open one:
 
-- the four validation tasks pass locally;
+- the six validation steps pass locally;
 - any `.sigil` change was proposed and approved before it was written;
-- new behavior carries an ownership annotation pointing at its governing contract;
+- new behavior in an area a contract governs carries an ownership annotation
+  pointing at that contract;
 - a change to text an agent follows in a skill bumps that skill's `VERSION` in the
   same commit, by the [rules for skills](docs/contributing/skills.md#when-to-bump-a-version);
   the CLI version, plugin manifests and installer pin change only in a release-cut
@@ -480,6 +481,4 @@ Before you open one:
 
 Unsure whether something needs a Sigil proposal, or which boundary should own your
 change? Ask in the pull request or the issue before implementing. That conversation
-is cheaper than an approved implementation in the wrong place, and
-[`spec/open-questions.md`](spec/open-questions.md) tracks the design questions that
-are still open.
+is cheaper than an approved implementation in the wrong place.
