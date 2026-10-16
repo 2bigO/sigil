@@ -280,6 +280,7 @@ fn symlinks_are_listed_without_following_their_files_or_parents() {
     assert!(sigilc::sources::capture(&root.0, "src/escape/secret", 1024).is_err());
 }
 
+#[cfg(unix)]
 #[test]
 fn a_symlinked_config_or_local_override_is_refused() {
     use std::os::unix::fs::symlink;

@@ -110,6 +110,8 @@ Windows.
 deno task fmt
 deno task lint
 deno task check
+cargo fmt --manifest-path packages/core/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/core/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path packages/sigilc/Cargo.toml -- --check
 cargo clippy --locked --manifest-path packages/sigilc/Cargo.toml --all-targets -- -D warnings
 deno task test
@@ -120,8 +122,8 @@ deno task test
 | `fmt`          | Checks formatting of every tracked TypeScript source, config, and schema path. **It does not reformat anything** — see below.                                                 |
 | `lint`         | Runs `deno lint` across the workspace.                                                                                                                                         |
 | `check`        | Type-checks the core, CLI, and LSP entrypoints, the extension with `tsc --noEmit`, and the slotted benchmark scripts.                                                          |
-| `cargo fmt`    | Checks formatting of `sigilc`. Like `deno task fmt`, it changes nothing.                                                                                                       |
-| `cargo clippy` | Lints `sigilc` and its tests; any warning fails.                                                                                                                               |
+| `cargo fmt`    | Checks formatting of `sigil-core` and `sigilc`. Like `deno task fmt`, it changes nothing.                                                                                                       |
+| `cargo clippy` | Lints `sigil-core`, `sigilc` and their tests; any warning fails.                                                                                                                               |
 | `test`         | Runs the `sigilc`, core, CLI, LSP, and extension suites, builds `sigilc`, then runs the native protocol, skill, plugin manifest, release branch, and slotted benchmark checks. |
 
 `deno task fmt` is a **check**, not a formatter: it runs `deno fmt --check`, so it
@@ -165,6 +167,7 @@ own task:
 
 | Task                              | Scope                                                                                          |
 | --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `deno task test:core:rust`        | `sigil-core` — the Rust workspace reader in `packages/core/rust` (`cargo test`)                |
 | `deno task test:sigilc`           | `sigilc` — the native compiler's Rust tests (`cargo test`)                                     |
 | `deno task test:core`             | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics                     |
 | `deno task test:cli`              | `@qoherent/sigil` — commands, argument parsing, output formatting                                 |
