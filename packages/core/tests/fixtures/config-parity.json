@@ -1,0 +1,368 @@
+[
+  {
+    "name": "minimal-required-fields",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": true
+  },
+  {
+    "name": "all-fields-present",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"pkg-a\",\"pkg-b\"]},\"files\":{\"include\":[\"**/*.sigil\",\"docs/**\"],\"exclude\":[\"build/**\"]},\"tools\":{\"qmb\":{\"level\":\"info\"}}}",
+    "parserValid": true
+  },
+  {
+    "name": "workspace-name-internal-whitespace",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"my workspace\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": true
+  },
+  {
+    "name": "members-empty-array",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": true
+  },
+  {
+    "name": "members-nested-directories",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a/b\",\"c\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": true
+  },
+  {
+    "name": "files-exclude-empty-array",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"],\"exclude\":[]}}",
+    "parserValid": true
+  },
+  {
+    "name": "tools-empty-object",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+    "parserValid": true
+  },
+  {
+    "name": "tools-arbitrary-settings",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{\"qmb\":{\"a\":1,\"b\":{\"c\":2}},\"other\":{}}}",
+    "parserValid": true
+  },
+  {
+    "name": "missing-sigilVersion",
+    "category": "structural-parity",
+    "source": "{\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "missing-workspace",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "missing-files",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"}}",
+    "parserValid": false
+  },
+  {
+    "name": "missing-workspace-name",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "missing-files-include",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{}}",
+    "parserValid": false
+  },
+  {
+    "name": "unknown-top-level-key",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"extra\":1}",
+    "parserValid": false
+  },
+  {
+    "name": "unknown-workspace-key",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"extra\":1},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "unknown-files-key",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"],\"extra\":1}}",
+    "parserValid": false
+  },
+  {
+    "name": "root-is-array",
+    "category": "structural-parity",
+    "source": "[]",
+    "parserValid": false
+  },
+  {
+    "name": "root-is-string",
+    "category": "structural-parity",
+    "source": "\"nope\"",
+    "parserValid": false
+  },
+  {
+    "name": "root-is-null",
+    "category": "structural-parity",
+    "source": "null",
+    "parserValid": false
+  },
+  {
+    "name": "sigilVersion-not-string",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":123,\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "sigilVersion-not-semver",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"not-a-version\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "workspace-not-object",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":\"demo\",\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "workspace-name-not-string",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":5},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "workspace-name-empty",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "workspace-name-only-whitespace",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"   \"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "workspace-name-surrounding-whitespace",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\" demo \"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "members-not-array",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":\"a\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "members-item-not-string",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[1]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "members-duplicate",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a\",\"a\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-single-dot",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\".\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-absolute-path",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"/abs\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-parent-traversal",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"../up\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-embedded-parent-traversal",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a/../b\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-current-dir-segment",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a/./b\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-drive-letter",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"C:/abs\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-backslash",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a\\\\b\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-trailing-slash",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a/\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-double-slash",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a//b\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "files-not-object",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":[]}",
+    "parserValid": false
+  },
+  {
+    "name": "include-not-array",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":\"**/*.sigil\"}}",
+    "parserValid": false
+  },
+  {
+    "name": "include-empty-array",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[]}}",
+    "parserValid": false
+  },
+  {
+    "name": "include-item-empty-string",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "include-item-not-string",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[1]}}",
+    "parserValid": false
+  },
+  {
+    "name": "include-absolute-path",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"/abs/**\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "include-parent-traversal",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"../up/**\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "include-backslash",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"a\\\\b\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "exclude-item-empty-string",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"],\"exclude\":[\"\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "exclude-absolute-path",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"],\"exclude\":[\"/abs/**\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "tools-not-object",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":[]}",
+    "parserValid": false
+  },
+  {
+    "name": "tools-value-not-object",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{\"qmb\":1}}",
+    "parserValid": false
+  },
+  {
+    "name": "tools-value-array",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{\"qmb\":[]}}",
+    "parserValid": false
+  },
+  {
+    "name": "tools-empty-name",
+    "category": "structural-parity",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{\"\":{}}}",
+    "parserValid": false
+  },
+  {
+    "name": "sigilVersion-older-but-well-formed",
+    "category": "parser-only-semantic",
+    "source": "{\"sigilVersion\":\"0.1.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "sigilVersion-newer-but-well-formed",
+    "category": "parser-only-semantic",
+    "source": "{\"sigilVersion\":\"9.9.9\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "members-overlapping-prefix",
+    "category": "parser-only-semantic",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a\",\"a/b\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-leading-whitespace",
+    "category": "parser-only-semantic",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\" a\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "member-trailing-whitespace",
+    "category": "parser-only-semantic",
+    "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a \"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
+    "parserValid": false
+  },
+  {
+    "name": "malformed-empty-source",
+    "category": "malformed-source",
+    "source": "",
+    "parserValid": false
+  },
+  {
+    "name": "malformed-not-json",
+    "category": "malformed-source",
+    "source": "not json",
+    "parserValid": false
+  },
+  {
+    "name": "malformed-trailing-comma",
+    "category": "malformed-source",
+    "source": "{\"sigilVersion\":\"0.9.0\",}",
+    "parserValid": false
+  },
+  {
+    "name": "malformed-unclosed-object",
+    "category": "malformed-source",
+    "source": "{",
+    "parserValid": false
+  }
+]

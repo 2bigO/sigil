@@ -21,11 +21,17 @@ pub const DEFAULT_EXCLUDES: &[&str] = &[
     "coverage/**",
 ];
 
+/// The general workspace config. Tool settings are kept as the JSON each tool
+/// wrote, never interpreted here.
 #[derive(Debug, Clone)]
 pub struct Config {
+    pub sigil_version: String,
+    pub workspace_name: String,
     pub members: Vec<String>,
     pub include: Vec<String>,
     pub exclude: Vec<String>,
+    /// One settings object per tool namespace.
+    pub tools: Map<String, Value>,
 }
 
 pub struct ConfigParse {
@@ -101,9 +107,19 @@ pub fn parse_config(source: &str, file_path: &str) -> ConfigParse {
     let files = object["files"].as_object().expect("validated files");
     ConfigParse {
         config: Some(Config {
+            sigil_version: SIGIL_VERSION.to_owned(),
+            workspace_name: workspace["name"]
+                .as_str()
+                .expect("validated name")
+                .to_owned(),
             members: strings(workspace.get("members"), &[]),
             include: strings(files.get("include"), DEFAULT_INCLUDES),
             exclude: strings(files.get("exclude"), DEFAULT_EXCLUDES),
+            tools: object
+                .get("tools")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default(),
         }),
         diagnostics: Vec::new(),
     }
@@ -111,26 +127,66 @@ pub fn parse_config(source: &str, file_path: &str) -> ConfigParse {
 
 /// Local configuration may only carry tool settings; returns its diagnostics.
 pub fn parse_local_config(source: &str, file_path: &str) -> Vec<Diagnostic> {
+    parse_local_tools(source, file_path).1
+}
+
+/// The tool settings of a local override, or none when it is invalid, with the
+/// diagnostics that explain why.
+pub fn parse_local_tools(
+    source: &str,
+    file_path: &str,
+) -> (Option<Map<String, Value>>, Vec<Diagnostic>) {
     let value: Value = match serde_json::from_str(source) {
         Ok(value) => value,
         Err(error) => {
-            return vec![diagnostic(
-                "SIGIL_CONFIG_PARSE",
-                format!("Unable to parse {file_path} JSON: {error}"),
-                Location::at(file_path, None),
-            )];
+            return (
+                None,
+                vec![diagnostic(
+                    "SIGIL_CONFIG_PARSE",
+                    format!("Unable to parse {file_path} JSON: {error}"),
+                    Location::at(file_path, None),
+                )],
+            );
         }
     };
     let Some(object) = value.as_object() else {
-        return invalid(
-            &["Local configuration must be a JSON object.".to_owned()],
-            file_path,
+        return (
+            None,
+            invalid(
+                &["Local configuration must be a JSON object.".to_owned()],
+                file_path,
+            ),
         );
     };
     let mut messages = Vec::new();
     reject_unknown(object, &["tools"], "local configuration", &mut messages);
     validate_tools(object.get("tools"), &mut messages);
-    invalid(&messages, file_path)
+    if !messages.is_empty() {
+        return (None, invalid(&messages, file_path));
+    }
+    let tools = object
+        .get("tools")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    (Some(tools), Vec::new())
+}
+
+/// Merge a local override into shared tool settings: objects recursively,
+/// arrays and scalars by replacement.
+pub fn merge_tools(shared: &Map<String, Value>, local: &Map<String, Value>) -> Map<String, Value> {
+    let mut merged = shared.clone();
+    for (key, value) in local {
+        match (merged.get_mut(key), value) {
+            (Some(Value::Object(existing)), Value::Object(incoming)) => {
+                *existing = merge_tools(existing, incoming);
+            }
+            _ => {
+                merged.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    merged
 }
 
 pub fn is_excluded(path: &str, config: &Config) -> bool {

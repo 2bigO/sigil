@@ -12,6 +12,7 @@ use super::{
     text::{Capture, capture_source},
 };
 use crate::types::Diagnostic;
+use serde_json::{Map, Value};
 use std::{
     fs,
     io::{self, ErrorKind},
@@ -42,6 +43,9 @@ pub struct Workspace {
     pub sources: Vec<SourceFile>,
     pub context: Vec<ContextFile>,
     pub glossary: Option<Glossary>,
+    /// The tool settings of the workspace config merged with the local
+    /// override, one object per tool namespace and never interpreted here.
+    pub tools: Map<String, Value>,
     pub diagnostics: Vec<Diagnostic>,
     /// False when any file the loader read was not valid UTF-8, so no faithful
     /// textual snapshot of the workspace exists.
@@ -78,6 +82,7 @@ impl Workspace {
             sources: Vec::new(),
             context: Vec::new(),
             glossary: None,
+            tools: Map::new(),
             diagnostics: Vec::new(),
             text_complete: true,
         };
@@ -118,6 +123,7 @@ impl Workspace {
         let parsed = config::parse_config(&config_text.text, CONFIG_PATH);
         diagnostics.extend(parsed.diagnostics);
         let mut selected = parsed.config;
+        let mut local_tools = None;
 
         if selected.is_some()
             && let Some(local_bytes) = fs.read(LOCAL_CONFIG_PATH)?
@@ -140,10 +146,11 @@ impl Workspace {
                     selected = None;
                 }
                 Some(text) => {
-                    let local = config::parse_local_config(&text.text, LOCAL_CONFIG_PATH);
+                    let (tools, local) = config::parse_local_tools(&text.text, LOCAL_CONFIG_PATH);
                     if !local.is_empty() {
                         selected = None;
                     }
+                    local_tools = tools;
                     diagnostics.extend(local);
                 }
             }
@@ -227,6 +234,10 @@ impl Workspace {
             }
             workspace.glossary = parsed.glossary;
         }
+        workspace.tools = match &local_tools {
+            Some(local) => config::merge_tools(&config.tools, local),
+            None => config.tools.clone(),
+        };
         workspace.config = Some(config);
         Ok(finish(workspace, context, diagnostics, text_complete))
     }

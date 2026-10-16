@@ -2,6 +2,7 @@
 pub mod config;
 pub mod data;
 pub mod diagnostics;
+pub mod discovery;
 pub mod fs;
 pub mod glossary;
 pub mod inline;
@@ -11,6 +12,7 @@ pub mod position;
 pub mod resolve;
 pub mod tags;
 pub mod text;
+pub mod tools;
 pub mod width;
 pub mod workspace;
 
