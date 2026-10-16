@@ -1,5 +1,5 @@
 //! Targeted parser and resolver scenarios beyond the shared corpus.
-use sigilc::language::{
+use sigil_core::language::{
     inline::decode,
     parse::{Span, parse_document},
     resolve::ResolvedWorkspace,
@@ -9,11 +9,11 @@ use sigilc::language::{
 };
 use std::{fs, path::PathBuf};
 
-fn parse(text: &str) -> sigilc::language::parse::Document {
+fn parse(text: &str) -> sigil_core::language::parse::Document {
     parse_document("a.sigil", &capture_source("a.sigil", text.as_bytes()))
 }
 
-fn codes(document: &sigilc::language::parse::Document) -> Vec<&str> {
+fn codes(document: &sigil_core::language::parse::Document) -> Vec<&str> {
     document
         .diagnostics
         .iter()

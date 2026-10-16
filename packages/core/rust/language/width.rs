@@ -4,7 +4,7 @@ use super::{
     parse::{Facet, Span, line_index_at},
     text::SourceText,
 };
-use crate::structure::Diagnostic;
+use crate::types::Diagnostic;
 
 pub const PROSE_WIDTH: usize = 79;
 

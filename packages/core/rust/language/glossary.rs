@@ -5,7 +5,7 @@ use super::{
     path::{glob_matches, normalize_path},
     text::capture_source,
 };
-use crate::structure::Diagnostic;
+use crate::types::Diagnostic;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 

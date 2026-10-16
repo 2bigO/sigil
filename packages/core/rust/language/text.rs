@@ -3,7 +3,7 @@
 //! Rust strings are UTF-8, so every offset here is already a byte offset and
 //! the UTF-16 maps the TypeScript reader keeps are not needed.
 use super::diagnostics::{Location, diagnostic};
-use crate::structure::{Diagnostic, Range};
+use crate::types::{Diagnostic, Range};
 
 /// One physical line. Offsets are byte offsets into the source.
 #[derive(Debug, Clone, PartialEq, Eq)]

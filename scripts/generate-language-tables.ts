@@ -12,7 +12,7 @@ import { WORD_CHARACTER_RANGES } from "../packages/core/src/data/word-characters
 const ENTITIES_SHA256 =
   "d741d877ac77c4194c4ad526b5b4a19aef8dfe411ab840a466891cdbb9f362e6";
 const outputDir = new URL(
-  "../packages/sigilc/src/language/data/",
+  "../packages/core/rust/language/data/",
   import.meta.url,
 );
 

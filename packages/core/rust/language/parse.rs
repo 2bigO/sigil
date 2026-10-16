@@ -11,7 +11,7 @@ use super::{
     text::{Capture, PhysicalLine, SourceText},
     width::prose_width_diagnostics,
 };
-use crate::structure::{Diagnostic, Range, RelatedLocation, Severity};
+use crate::types::{Diagnostic, Range, RelatedLocation, Severity};
 use regex::Regex;
 use std::sync::LazyLock;
 

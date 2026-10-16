@@ -1,5 +1,5 @@
 //! Diagnostic construction, staging, and canonical ordering.
-use crate::structure::{Diagnostic, Range, RelatedLocation, Severity, Stage};
+use crate::types::{Diagnostic, Range, RelatedLocation, Severity, Stage};
 use std::{cmp::Ordering, collections::BTreeMap};
 
 /// Where a diagnostic points. Related locations are sorted on construction.

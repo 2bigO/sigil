@@ -7,7 +7,7 @@ use super::{
     parse::{Span, line_index_at},
     text::SourceText,
 };
-use crate::structure::Diagnostic;
+use crate::types::Diagnostic;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InlineLink {

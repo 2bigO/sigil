@@ -8,7 +8,7 @@ use super::{
     diagnostics::{Location, diagnostic},
     path::glob_matches,
 };
-use crate::structure::Diagnostic;
+use crate::types::Diagnostic;
 use regex::Regex;
 use serde_json::{Map, Value};
 

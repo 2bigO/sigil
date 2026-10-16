@@ -1,9 +1,10 @@
 //! Workspace loading edge cases.
-use sigilc::language::workspace::Workspace;
+use sigil_core::language::workspace::Workspace;
 use std::{fs, path::PathBuf};
 
 fn temp(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sigilc-language-{name}-{}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("sigil-core-language-{name}-{}", std::process::id()));
     let _ = fs::remove_dir_all(&dir);
     fs::create_dir_all(dir.join(".sigil")).unwrap();
     dir
@@ -152,7 +153,7 @@ fn symbolic_links_and_git_directories_are_skipped() {
 
 #[test]
 fn globs_and_paths_follow_the_typescript_reader() {
-    use sigilc::language::path::{glob_matches, normalize_import_path, normalize_path};
+    use sigil_core::language::path::{glob_matches, normalize_import_path, normalize_path};
     assert!(glob_matches("**/*.sigil", "a.sigil"));
     assert!(glob_matches("**/*.sigil", "x/y/a.sigil"));
     assert!(!glob_matches("*.sigil", "x/a.sigil"));
