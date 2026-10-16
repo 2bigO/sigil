@@ -25,10 +25,18 @@
       "repos/**",
       "**/target/**",
       "examples/**",
-      "packages/core/**",
-      "packages/cli/**",
-      "packages/lsp/**",
-      "integrations/editor/vscode/**"
+      "packages/core/src/**",
+      "packages/core/tests/**",
+      "packages/cli/src/**",
+      "packages/cli/tests/**",
+      "packages/lsp/src/**",
+      "packages/lsp/tests/**",
+      "integrations/editor/vscode/src/**",
+      "integrations/editor/vscode/tests/**",
+      "integrations/editor/vscode/dist/**",
+      "integrations/editor/vscode/node_modules/**",
+      "integrations/editor/vscode/build/**",
+      "integrations/editor/vscode/.vscode-test/**"
     ]
   },
   "tools": {}
