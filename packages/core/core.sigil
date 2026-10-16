@@ -68,7 +68,8 @@ component SigilCore {
 
   interface {
     SigilCore provides the *workspace snapshot*, one reading of the workspace
-    config, every source document chosen by the source selection, the
+    config with its tool settings merged with the local override, every source
+    document chosen by the source selection, the
     workspace glossary, and the diagnostics found, in a stable order. A source
     document that is invalid appears with its partial result.
 
