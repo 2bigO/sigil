@@ -6,6 +6,7 @@ pub mod glossary;
 pub mod inline;
 pub mod parse;
 pub mod path;
+pub mod position;
 pub mod resolve;
 pub mod tags;
 pub mod text;
