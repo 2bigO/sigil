@@ -6,6 +6,7 @@
 use super::{
     config::{self, Config, excludes_subtree, matches_source_file},
     diagnostics::{Location, diagnostic, order_diagnostics},
+    fs::{DiskFs, SourceFs},
     glossary::{self, Glossary},
     path::normalize_path,
     text::{Capture, capture_source},
@@ -48,7 +49,14 @@ pub struct Workspace {
 }
 
 impl Workspace {
+    /// Read the workspace under `root` from disk.
     pub fn load(root: &Path) -> io::Result<Self> {
+        Self::load_with(&DiskFs::new(root))
+    }
+
+    /// Read a workspace through any file source, such as a disk with
+    /// caller-supplied text laid over it.
+    pub fn load_with(fs: &dyn SourceFs) -> io::Result<Self> {
         let mut diagnostics = Vec::new();
         let mut text_complete = true;
         let mut context = vec![
@@ -80,7 +88,7 @@ impl Workspace {
             workspace
         };
 
-        let Some(config_bytes) = read_optional(root, CONFIG_PATH)? else {
+        let Some(config_bytes) = fs.read(CONFIG_PATH)? else {
             diagnostics.push(diagnostic(
                 "SIGIL_CONFIG_NOT_FOUND",
                 format!("Expected {CONFIG_PATH} directly inside workspace root."),
@@ -112,7 +120,7 @@ impl Workspace {
         let mut selected = parsed.config;
 
         if selected.is_some()
-            && let Some(local_bytes) = read_optional(root, LOCAL_CONFIG_PATH)?
+            && let Some(local_bytes) = fs.read(LOCAL_CONFIG_PATH)?
         {
             context[2].bytes = Some(local_bytes.clone());
             let capture = capture_source(LOCAL_CONFIG_PATH, &local_bytes);
@@ -144,7 +152,7 @@ impl Workspace {
             return Ok(finish(workspace, context, diagnostics, text_complete));
         };
 
-        let all_paths = list_files(root)?;
+        let all_paths = fs.list_files()?;
         let member_roots: Vec<String> = config.members.iter().map(|m| normalize_path(m)).collect();
         let suffix = format!("/{CONFIG_PATH}");
         let mut nested: Vec<String> = all_paths
@@ -190,7 +198,9 @@ impl Workspace {
             .collect();
         paths.sort();
         for path in paths {
-            let bytes = fs::read(root.join(path))?;
+            let bytes = fs
+                .read(path)?
+                .ok_or_else(|| io::Error::from(ErrorKind::NotFound))?;
             let capture = capture_source(path, &bytes);
             text_complete &= capture.source.is_some();
             diagnostics.extend(capture.diagnostics.iter().cloned());
@@ -200,7 +210,7 @@ impl Workspace {
             });
         }
 
-        if let Some(bytes) = read_optional(root, GLOSSARY_PATH)? {
+        if let Some(bytes) = fs.read(GLOSSARY_PATH)? {
             context[1].bytes = Some(bytes.clone());
             let parsed = glossary::parse_glossary(&bytes, GLOSSARY_PATH);
             text_complete &= !parsed.diagnostics.iter().any(|d| {
@@ -219,14 +229,6 @@ impl Workspace {
         }
         workspace.config = Some(config);
         Ok(finish(workspace, context, diagnostics, text_complete))
-    }
-}
-
-fn read_optional(root: &Path, relative: &str) -> io::Result<Option<Vec<u8>>> {
-    match fs::read(root.join(relative)) {
-        Ok(bytes) => Ok(Some(bytes)),
-        Err(e) if e.kind() == ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(e),
     }
 }
 

@@ -2,6 +2,7 @@
 pub mod config;
 pub mod data;
 pub mod diagnostics;
+pub mod fs;
 pub mod glossary;
 pub mod inline;
 pub mod parse;
