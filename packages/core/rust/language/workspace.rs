@@ -37,7 +37,7 @@ pub struct ContextFile {
     pub bytes: Option<Vec<u8>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Workspace {
     pub config: Option<Config>,
     pub sources: Vec<SourceFile>,

@@ -3,6 +3,7 @@ pub mod config;
 pub mod data;
 pub mod diagnostics;
 pub mod discovery;
+pub mod format;
 pub mod fs;
 pub mod glossary;
 pub mod inline;
