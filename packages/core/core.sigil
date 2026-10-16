@@ -1,0 +1,103 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {
+  language version,
+  local override,
+  source selection,
+  tool settings,
+  workspace config,
+  workspace discovery,
+  workspace member,
+  workspace root,
+}
+@docs/spec/sigil-glossary.sigil from SpecWorkspaceGlossary import {
+  glossary occurrence,
+  workspace glossary,
+}
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import {
+  diagnostic code,
+  embedded content,
+  facet,
+  formatting width,
+  name matching,
+  partial result,
+  resolution,
+  source document,
+  source range,
+  tag identity,
+}
+
+component SigilCore {
+  goal {
+    Give the sigil command, the language server and sigilc one reader of a
+    Sigil workspace, so that each reports the same sources, Tags and
+    diagnostics.
+  }
+
+  constraints {
+    SigilCore depends on SpecLanguageReference for the source document,
+    resolution and name matching, and must not read them a second way.
+
+    SigilCore must report each source range as original UTF-8 bytes, and
+    converting a source range to an editor position must not change it.
+
+    An editor position must count UTF-16 units from the start of its line,
+    count a byte-order mark and each supplementary character, and start a new
+    line at each CR, LF and CRLF.
+
+    SigilCore must read the workspace config, each workspace member, the local
+    override and the workspace glossary from the workspace root, and must find
+    the workspace config by workspace discovery.
+
+    SigilCore must hand each tool its tool settings merged from the workspace
+    config and the local override, check only their shape, and must not
+    interpret the tool settings of a tool that owns them.
+
+    SigilCore must read a source document from caller-supplied text in place
+    of the file on disk, with the same result as if the file held that text.
+
+    SigilCore must build every result of one reading from a single workspace
+    snapshot, so that diagnostics, tag identities and glossary occurrences
+    agree on each source range.
+
+    SigilCore must refuse to format a partial result and must refuse a source
+    document with any error except a line over the formatting width, which
+    formatting can repair.
+
+    SigilCore must not provide graph output, context output, retrieval,
+    projections or implementation ownership for a source document.
+  }
+
+  interface {
+    SigilCore provides the *workspace snapshot*, one reading of the workspace
+    config, every source document chosen by the source selection, the
+    workspace glossary, and the diagnostics found, in a stable order. A source
+    document that is invalid appears with its partial result.
+
+    SigilCore provides each *editor position* beside its source range: a line
+    and a column in UTF-16 units.
+
+    SigilCore provides *caller-supplied text*, which replaces the disk content
+    of one file for one reading and leaves the disk untouched.
+
+    SigilCore provides each diagnostic with its diagnostic code, source range
+    and editor position.
+
+    SigilCore provides each resolved tag identity with its owner and every use
+    of it, and leaves a duplicate or ambiguous tag identity unresolved.
+
+    SigilCore provides each glossary occurrence found in facet prose, as the
+    workspace glossary defines it.
+
+    SigilCore provides the *formatted source* of a source document: prose
+    wrapped to the formatting width, with every facet, tag identity and
+    embedded content unchanged, and the same bytes on a second formatting.
+
+    SigilCore provides the language version found in the workspace config, so
+    that a tool can refuse a language version it cannot process.
+  }
+
+  decisions {
+    SigilCore reads only the general settings of the workspace config and hands
+    each tool its tool settings unread, so that one reader serves every tool
+    while each tool interprets its own.
+  }
+}
