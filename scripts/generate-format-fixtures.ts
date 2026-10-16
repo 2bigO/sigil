@@ -1,6 +1,7 @@
 /**
- * Writes the differential formatter fixtures that the Rust core tests read:
- * `packages/core/tests/fixtures/format/differential.json`.
+ * Writes the differential fixtures that the Rust core tests read:
+ * `packages/core/tests/fixtures/format/differential.json` (the formatter) and
+ * `packages/core/tests/fixtures/glossary/repository.json` (glossary occurrences).
  *
  * Each case is one Sigil source in a small workspace, in three shapes (as
  * written, with its prose unwrapped, and unwrapped and indented), together with
@@ -173,3 +174,38 @@ await Deno.mkdir(`${root}packages/core/tests/fixtures/format`, {
 await Deno.writeTextFile(target, JSON.stringify(out, null, 2) + "\n");
 const total = out.reduce((n, w) => n + w.cases.length, 0);
 console.log(`${out.length} workspaces, ${total} cases`);
+
+/** The repository's own glossary applied to its own sources, as the TS reader finds it. */
+const glossaryText = await Deno.readTextFile(`${root}.sigil/glossary.json`);
+const repository = workspaces.find((w) => w.name === "repository");
+if (repository) {
+  const workspace = await loadSigilWorkspace(
+    new InMemorySigilFileSystem({
+      ".sigil/config.json": CONFIG,
+      ".sigil/glossary.json": glossaryText,
+      ...repository.files,
+    }),
+    { startPath: ".", explicitRoot: "." },
+  );
+  const resolved = resolveSigilWorkspace(workspace);
+  const occurrences = resolved.glossary.occurrences.map((o) => ({
+    term: o.term.term,
+    matched: o.matchedSpelling,
+    path: o.filePath,
+    owner: o.ownerName,
+    section: o.sectionName,
+    range: o.range,
+  }));
+  await Deno.mkdir(`${root}packages/core/tests/fixtures/glossary`, {
+    recursive: true,
+  });
+  await Deno.writeTextFile(
+    `${root}packages/core/tests/fixtures/glossary/repository.json`,
+    JSON.stringify(
+      { glossary: glossaryText, files: repository.files, occurrences },
+      null,
+      2,
+    ) + "\n",
+  );
+  console.log(`${occurrences.length} glossary occurrences`);
+}
