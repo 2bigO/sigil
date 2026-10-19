@@ -14,6 +14,7 @@
     "lint": "deno lint",
     "generate:language-tables": "deno run --allow-read --allow-write scripts/generate-language-tables.ts",
     "generate:cli-fixtures": "deno run --allow-read --allow-write --allow-run --allow-env scripts/generate-cli-fixtures.ts",
+    "generate:lsp-fixtures": "deno run --allow-read --allow-write --allow-env scripts/generate-lsp-fixtures.ts",
     "check": "deno check packages/core/src/mod.ts packages/cli/src/main.ts packages/lsp/src/main.ts && deno task check:vscode && deno task check:slotted-benchmark",
     "check:vscode": "npm --prefix integrations/editor/vscode run check",
     "check:slotted-benchmark": "deno check scripts/slotted-benchmark/*.ts",
