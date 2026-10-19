@@ -5,18 +5,17 @@ mod support;
 
 use serde_json::{Value, json};
 use support::replay::{
-    IMPLEMENTED, KNOWN_DIFFERENCES, Wording, known_view, load, replay_features,
-    rootless_overlap_uri, server_info_version, substitute, watch_registration,
+    KNOWN_DIFFERENCES, Wording, known_view, load, replay_features, rootless_overlap_uri,
+    server_info_version, substitute, watch_registration,
 };
 
 fn check(features: &[&str], scenarios: usize, compared: usize) {
     let tally = replay_features(features);
     eprintln!(
-        "replay {features:?}: {} scenarios, {} steps, {} compared, {} skipped, {} failures",
+        "replay {features:?}: {} scenarios, {} steps, {} compared, {} failures",
         tally.scenarios,
         tally.steps,
         tally.compared,
-        tally.skipped_steps,
         tally.failures.len()
     );
     assert!(
@@ -71,20 +70,6 @@ fn every_known_difference_names_a_recorded_scenario() {
     for (name, _, reason) in KNOWN_DIFFERENCES {
         assert!(fixture.scenarios.iter().any(|s| s.name == *name), "{name}");
         assert!(!reason.is_empty(), "{name} has no reason");
-    }
-}
-
-#[test]
-fn the_implemented_set_names_no_unrecorded_method() {
-    let fixture = load();
-    for method in IMPLEMENTED {
-        let recorded = fixture.scenarios.iter().any(|s| {
-            s.steps.iter().any(|step| match step {
-                support::replay::Step::Send { message, .. } => message["method"] == *method,
-                _ => false,
-            })
-        });
-        assert!(recorded, "{method} is in no recorded step");
     }
 }
 

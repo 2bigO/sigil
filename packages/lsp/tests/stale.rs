@@ -9,11 +9,7 @@
 mod support;
 
 use serde_json::{Value, json};
-use sigil_lsp::{
-    rpc::{Framer, Item, encode},
-    serve::serve_with,
-    server::ServerOptions,
-};
+use sigil_lsp::{serve::serve_with, server::ServerOptions};
 use std::{
     io::{self, Cursor, Read, Write},
     sync::{
@@ -23,18 +19,13 @@ use std::{
     thread::{self, JoinHandle, sleep},
     time::{Duration, Instant},
 };
-use support::{BROKEN, CLEAN, Disk, LONG_DELAY, Temp, published, published_for};
+use support::{
+    BROKEN, CLEAN, Disk, LONG_DELAY, Temp, decode, frames, message, published, published_for,
+    request,
+};
 
 const STALE: i64 = -32801;
 const CANCELLED: i64 = -32800;
-
-fn message(method: &str, params: Value) -> Value {
-    json!({"jsonrpc": "2.0", "method": method, "params": params})
-}
-
-fn request(id: i64, method: &str, params: Value) -> Value {
-    json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params})
-}
 
 fn initialize(temp: &Temp) -> Vec<Value> {
     vec![
@@ -74,21 +65,6 @@ fn definition(id: i64, uri: &str) -> Value {
 
 fn cancel(id: i64) -> Value {
     message("$/cancelRequest", json!({"id": id}))
-}
-
-fn frames(messages: &[Value]) -> Vec<u8> {
-    messages.iter().flat_map(encode).collect()
-}
-
-fn decode(bytes: &[u8]) -> Vec<Value> {
-    Framer::new()
-        .feed(bytes)
-        .into_iter()
-        .map(|item| match item {
-            Item::Message(value) => value,
-            Item::ParseError => panic!("the loop wrote something that is not a message"),
-        })
-        .collect()
 }
 
 /// Serve everything in one read, so the whole input is one queue, and return

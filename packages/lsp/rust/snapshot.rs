@@ -6,7 +6,8 @@ use sigil_core::{
         diagnostics::{Location, diagnostic, order_diagnostics},
         discovery::discover_workspace,
         fs::{Overlay, SourceFs},
-        glossary::{GlossaryProjection, glossary_projection},
+        glossary::{GlossaryOccurrence, GlossaryProjection, glossary_projection},
+        parse::Document,
         path::normalize_path,
         position::{EditorPosition, EditorRange},
         resolve::ResolvedWorkspace,
@@ -17,7 +18,7 @@ use sigil_core::{
     types::{Diagnostic, Range, RelatedLocation},
 };
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     io,
     path::Path,
 };
@@ -36,6 +37,11 @@ pub struct Snapshot {
     context_sources: BTreeMap<String, SourceText>,
     /// Relative paths that an open buffer replaced.
     overlaid: BTreeSet<String>,
+    /// The index in `resolved.paths` of each normalized path.
+    file_indexes: HashMap<String, usize>,
+    /// The indexes in `glossary.occurrences` of the occurrences in each
+    /// workspace-relative file, in the projection's order.
+    glossary_by_file: BTreeMap<String, Vec<usize>>,
 }
 
 impl Snapshot {
@@ -44,24 +50,23 @@ impl Snapshot {
     /// buffer outside the root is not part of the workspace. Without a
     /// config above `start`, the workspace is `start` itself and holds only
     /// the diagnostic that says so.
-    pub fn load(
+    pub fn load<'a>(
         start: &Path,
-        buffers: &BTreeMap<String, String>,
+        buffers: impl IntoIterator<Item = (&'a str, &'a str)>,
         base: &dyn Fn(&Path) -> Box<dyn SourceFs>,
     ) -> io::Result<Self> {
         let discovery = discover_workspace(start, None);
-        let start_text = path_text(&std::path::absolute(start).unwrap_or(start.to_path_buf()));
+        let start_path = std::path::absolute(start).unwrap_or_else(|_| start.to_path_buf());
+        let start_text = path_text(&start_path);
         let found = discovery.root.is_some();
-        let root_path = discovery
-            .root
-            .unwrap_or_else(|| std::path::absolute(start).unwrap_or(start.to_path_buf()));
+        let root_path = discovery.root.unwrap_or(start_path);
         let root = path_text(&root_path);
         let disk = base(&root_path);
         let mut overlay = Overlay::new(disk.as_ref());
         let mut overlaid = BTreeSet::new();
         for (path, text) in buffers {
             if let Some(relative) = relative_to(&root, path) {
-                overlay.set(&relative, text.as_str());
+                overlay.set(&relative, text);
                 overlaid.insert(normalize_path(&relative));
             }
         }
@@ -71,11 +76,14 @@ impl Snapshot {
         let mut all = resolved.diagnostics.clone();
         all.extend(untagged_facet_diagnostics(&resolved));
         if found {
+            let cwd = std::env::current_dir()
+                .map(|dir| path_text(&dir))
+                .unwrap_or_default();
             all.extend(
                 discovery
                     .diagnostics
                     .into_iter()
-                    .map(|d| localize(d, &root)),
+                    .map(|d| localize(d, &root, &cwd)),
             );
         } else {
             // The core words a missing config without the path it looked from,
@@ -96,6 +104,16 @@ impl Snapshot {
                 Some((file.path.to_owned(), source))
             })
             .collect();
+        let mut file_indexes = HashMap::new();
+        for (index, path) in resolved.paths.iter().enumerate() {
+            file_indexes.entry(normalize_path(path)).or_insert(index);
+        }
+        let mut glossary_by_file: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        for (index, occurrence) in glossary.occurrences.iter().enumerate() {
+            if let Some(relative) = relative_path_in(&root, &occurrence.file_path) {
+                glossary_by_file.entry(relative).or_default().push(index);
+            }
+        }
         Ok(Self {
             root,
             workspace,
@@ -104,6 +122,8 @@ impl Snapshot {
             diagnostics: order_diagnostics(all),
             context_sources,
             overlaid,
+            file_indexes,
+            glossary_by_file,
         })
     }
 
@@ -129,24 +149,16 @@ impl Snapshot {
     /// The workspace-relative form of an absolute path, when it lies under the
     /// root; a relative path is normalized and kept.
     pub fn relative_path(&self, path: &str) -> Option<String> {
-        if is_absolute(path) {
-            relative_to(&self.root, path).map(|p| normalize_path(&p))
-        } else {
-            Some(normalize_path(path))
-        }
+        relative_path_in(&self.root, path)
     }
 
     /// The index of a source file in `resolved.paths` and `resolved.documents`.
     pub fn file_index(&self, path: &str) -> Option<usize> {
-        let relative = self.relative_path(path)?;
-        self.resolved
-            .paths
-            .iter()
-            .position(|p| normalize_path(p) == relative)
+        self.file_indexes.get(&self.relative_path(path)?).copied()
     }
 
     /// The parsed document of a source file, by absolute or relative path.
-    pub fn document(&self, path: &str) -> Option<&sigil_core::language::parse::Document> {
+    pub fn document(&self, path: &str) -> Option<&Document> {
         Some(&self.resolved.documents[self.file_index(path)?])
     }
 
@@ -154,11 +166,35 @@ impl Snapshot {
     /// glossary that was read. None when the path was not read or was not
     /// valid UTF-8.
     pub fn source(&self, path: &str) -> Option<&SourceText> {
-        let relative = self.relative_path(path)?;
-        match self.file_index(&relative) {
-            Some(index) => self.resolved.documents[index].source.as_ref(),
-            None => self.context_sources.get(&relative),
+        self.source_of_relative(&self.relative_path(path)?)
+    }
+
+    fn source_of_relative(&self, relative: &str) -> Option<&SourceText> {
+        match self.file_indexes.get(relative) {
+            Some(&index) => self.resolved.documents[index].source.as_ref(),
+            None => self.context_sources.get(relative),
         }
+    }
+
+    /// The captured text of a read file and whether it came from the disk, for
+    /// a caller that converts many ranges in one file.
+    pub fn reading(&self, path: &str) -> Option<(&SourceText, bool)> {
+        let relative = self.relative_path(path)?;
+        let source = self.source_of_relative(&relative)?;
+        Some((source, !self.overlaid.contains(&relative)))
+    }
+
+    /// The glossary occurrences in a workspace-relative file, in the order the
+    /// projection lists them.
+    pub fn glossary_occurrences_in(
+        &self,
+        relative: &str,
+    ) -> impl Iterator<Item = &GlossaryOccurrence> {
+        self.glossary_by_file
+            .get(relative)
+            .into_iter()
+            .flatten()
+            .map(|&index| &self.glossary.occurrences[index])
     }
 
     /// Whether the path was read from the disk rather than from an open buffer.
@@ -170,12 +206,22 @@ impl Snapshot {
     /// The editor range of a byte range in a read file, with a disk byte-order
     /// mark hidden. None when the file was not read or an end has no position.
     pub fn editor_range(&self, path: &str, range: &Range) -> Option<EditorRange> {
-        position::range_of(self.source(path)?, self.from_disk(path), range)
+        let (source, from_disk) = self.reading(path)?;
+        position::range_of(source, from_disk, range)
     }
 
     /// The byte offset of an editor position in a read file.
     pub fn byte_at(&self, path: &str, position: EditorPosition) -> Option<usize> {
         position::byte_at(self.source(path)?, self.from_disk(path), position)
+    }
+}
+
+/// The workspace-relative form of a path for a workspace at `root`.
+fn relative_path_in(root: &str, path: &str) -> Option<String> {
+    if is_absolute(path) {
+        relative_to(root, path).map(|p| normalize_path(&p))
+    } else {
+        Some(normalize_path(path))
     }
 }
 
@@ -190,9 +236,19 @@ fn is_absolute(path: &str) -> bool {
 
 fn path_text(path: &Path) -> String {
     let text = normalize_path(&path.to_string_lossy());
-    match text.len() {
-        1 => text,
-        _ => text.trim_end_matches('/').to_owned(),
+    if text == "/" {
+        text
+    } else {
+        text.trim_end_matches('/').to_owned()
+    }
+}
+
+/// `path` as an absolute normalized path: a relative one is taken from `cwd`.
+fn absolutize(path: &str, cwd: &str) -> String {
+    if is_absolute(path) {
+        normalize_path(path)
+    } else {
+        normalize_path(&format!("{cwd}/{path}"))
     }
 }
 
@@ -208,16 +264,9 @@ fn relative_to(root: &str, path: &str) -> Option<String> {
 /// Discovery shows a path relative to the process directory. Make it
 /// workspace-relative, or absolute when it lies elsewhere, and word the
 /// nested-in-parent conflict with absolute paths, as the TypeScript server did.
-fn localize(mut found: Diagnostic, root: &str) -> Diagnostic {
-    let cwd = std::env::current_dir()
-        .map(|dir| path_text(&dir))
-        .unwrap_or_default();
+fn localize(mut found: Diagnostic, root: &str, cwd: &str) -> Diagnostic {
     let relocate = |path: &str| -> String {
-        let absolute = if is_absolute(path) {
-            normalize_path(path)
-        } else {
-            normalize_path(&format!("{cwd}/{path}"))
-        };
+        let absolute = absolutize(path, cwd);
         relative_to(root, &absolute).unwrap_or(absolute)
     };
     let parent = found
@@ -225,11 +274,7 @@ fn localize(mut found: Diagnostic, root: &str) -> Diagnostic {
         .first()
         .and_then(|related| related.file_path.as_deref())
         .map(|path| {
-            let absolute = if is_absolute(path) {
-                normalize_path(path)
-            } else {
-                normalize_path(&format!("{cwd}/{path}"))
-            };
+            let absolute = absolutize(path, cwd);
             absolute
                 .strip_suffix(&format!("/{CONFIG_PATH}"))
                 .unwrap_or(&absolute)

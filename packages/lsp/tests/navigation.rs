@@ -5,39 +5,14 @@
 mod support;
 
 use serde_json::{Value, json};
-use support::{CLEAN, CONSUMER, Client, Temp};
-
-/// A provider whose Tag has an inline definition and a later group heading.
-const INLINE_PROVIDER: &str = "component Provider {\r\ngoal {\r\nOwn vocabulary.\r\n}\r\ninterface {\r\n😀 A *café results* carries a response.\r\n}\r\nconstraints {\r\ncafé results {\r\nPreserve exact content.\r\n}\r\n}\r\n}\r\n";
+use support::{
+    BOOKING, CLEAN, CONSUMER, Client, INLINE_PROVIDER, MULTIWORD_CONSUMER, Temp, at, started,
+};
 
 /// The same Tag with only group headings, in a source that ends lines with CR.
 const CR_PROVIDER: &str = "component Provider {\rgoal {\rOwn vocabulary.\r}\rinterface {\rcafé results {\rOffer a response.\r}\r}\rconstraints {\rcafé results {\rPreserve exact content.\r}\r}\r}\r";
 
-const MULTIWORD_CONSUMER: &str = "@provider.sigil from Provider import { café results }\ncomponent Consumer {\ngoal {\nServe the caller.\n}\ninterface {\n😀 Use café results now.\n\nRead [café results](./notes.md).\n```text\ncafé results\n```\n}\n}\n";
-
 const GLOSSARY: &str = "{\n  \"schemaVersion\": 1,\n  \"terms\": [],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\"**/*.sigil\"],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\"temporary reservation\"]\n        }\n      ]\n    }\n  ]\n}\n";
-
-const BOOKING: &str = "component Booking {\n  goal {\n    A temporary reservation creates a hold.\n\n    Ignore `temporary reservation`.\n  }\n\n  interface {\n    BookingTerm {\n      The hold remains visible.\n    }\n  }\n}\n";
-
-/// The (line, UTF-16 column) of the `nth` occurrence of `needle`, counting
-/// CRLF, CR and LF as one line ending each.
-fn at(text: &str, needle: &str, nth: usize) -> (u32, u32) {
-    let offset = text
-        .match_indices(needle)
-        .nth(nth)
-        .unwrap_or_else(|| panic!("{needle:?} #{nth} is not in the text"))
-        .0;
-    let (mut line, mut column) = (0, 0);
-    let mut chars = text[..offset].chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '\r' if chars.peek() == Some(&'\n') => {}
-            '\r' | '\n' => (line, column) = (line + 1, 0),
-            c => column += c.len_utf16() as u32,
-        }
-    }
-    (line, column)
-}
 
 fn range(from: (u32, u32), to: (u32, u32)) -> Value {
     json!({
@@ -65,16 +40,6 @@ fn definition(client: &mut Client, uri: &str, position: (u32, u32)) -> Value {
     );
     assert!(response.get("error").is_none(), "{response}");
     response["result"].clone()
-}
-
-fn started(files: &[(&str, &str)]) -> (Temp, Client) {
-    let temp = Temp::workspace();
-    for (path, text) in files {
-        temp.write(path, text);
-    }
-    let mut client = Client::at(&temp.root);
-    client.start(&temp);
-    (temp, client)
 }
 
 fn place(temp: &Temp, path: &str, range: Value) -> Value {

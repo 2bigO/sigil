@@ -2,13 +2,11 @@
 use crate::{
     occurrences::{
         GlossaryReference, component_occurrences, contains, glossary_references, lsp_range,
-        tag_occurrences,
+        span_contains, tag_occurrences,
     },
-    params,
     render::{Renderer, glossary_markdown},
-    server::{Answer, RequestError},
+    server::{Answer, position_request},
     snapshot::Snapshot,
-    uri::file_uri_to_path,
 };
 use serde_json::{Map, Value, json};
 use sigil_core::language::{
@@ -20,12 +18,8 @@ use sigil_core::language::{
 
 /// The answer to `textDocument/hover`: a Markdown `Hover`, or null.
 pub(crate) fn hover(snapshot: &Snapshot, params: &Value) -> Answer {
-    let given = params::text_document_position(params)?;
-    let path = file_uri_to_path(&given.uri)
-        .map_err(|error| RequestError::Internal(error.message().to_owned()))?;
-    let position = match (u32::try_from(given.line), u32::try_from(given.character)) {
-        (Ok(line), Ok(character)) => EditorPosition { line, character },
-        _ => return Ok(Value::Null),
+    let Some((path, position)) = position_request(params)? else {
+        return Ok(Value::Null);
     };
     Ok(hover_at(snapshot, &path, position).unwrap_or(Value::Null))
 }
@@ -35,14 +29,15 @@ pub(crate) fn hover(snapshot: &Snapshot, params: &Value) -> Answer {
 pub fn hover_at(snapshot: &Snapshot, path: &str, position: EditorPosition) -> Option<Value> {
     let file = snapshot.file_index(path)?;
     let byte = snapshot.byte_at(path, position)?;
-    let at = |range: &Span| byte >= range.start && byte < range.end;
     let renderer = Renderer::new(snapshot);
-    let glossary = glossary_references(snapshot, path)
-        .into_iter()
-        .find(|i| contains(&i.range, position));
+    let glossary_here = || {
+        glossary_references(snapshot, path)
+            .into_iter()
+            .find(|i| contains(&i.range, position))
+    };
     if let Some(found) = tag_occurrences(snapshot, file)
         .iter()
-        .find(|i| at(&i.range))
+        .find(|i| span_contains(&i.range, byte))
     {
         let provider = found.tag.component;
         let name = &snapshot.resolved.components[provider].tags[found.tag.tag].name;
@@ -72,7 +67,8 @@ pub fn hover_at(snapshot: &Snapshot, path: &str, position: EditorPosition) -> Op
                 lines.push(renderer.facet(consumer, pos));
             }
         }
-        let matched = glossary.or_else(|| glossary_for_tag(snapshot, path, found.tag, found.range));
+        let matched =
+            glossary_here().or_else(|| glossary_for_tag(snapshot, path, found.tag, found.range));
         if let Some(reference) = matched {
             lines.push(String::new());
             lines.push(glossary_markdown(&reference));
@@ -82,7 +78,7 @@ pub fn hover_at(snapshot: &Snapshot, path: &str, position: EditorPosition) -> Op
             snapshot.editor_range(path, &found.range.range()),
         ));
     }
-    if let Some(reference) = glossary {
+    if let Some(reference) = glossary_here() {
         return Some(hover_value(
             glossary_markdown(&reference),
             Some(reference.range),
@@ -90,7 +86,7 @@ pub fn hover_at(snapshot: &Snapshot, path: &str, position: EditorPosition) -> Op
     }
     let found = component_occurrences(snapshot, file)
         .into_iter()
-        .find(|i| at(&i.range))?;
+        .find(|i| span_contains(&i.range, byte))?;
     Some(hover_value(
         renderer.component(found.component).join("\n"),
         snapshot.editor_range(path, &found.range.range()),

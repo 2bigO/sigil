@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 use sigil_core::language::fs::{DiskFs, SourceFs};
 use sigil_lsp::{
-    rpc::{Id, classify},
+    rpc::{self, Framer, Id, Item, classify, encode},
     server::{Server, ServerOptions},
     uri::path_to_file_uri,
 };
@@ -31,6 +31,13 @@ pub const CONSUMER: &str = "@contract.sigil from Thing import { Execution }\n\nc
 
 /// A valid provider of the Tag Execution.
 pub const CLEAN: &str = "component Thing {\n  goal {\n    Represent one useful Execution.\n  }\n\n  cases {\n    Execution {\n      Running succeeds. Each Execution ends.\n    }\n  }\n\n  interface {\n    Execution {\n      run() starts an Execution.\n    }\n  }\n}\n";
+
+/// A provider whose Tag has an inline definition and a later group heading.
+pub const INLINE_PROVIDER: &str = "component Provider {\r\ngoal {\r\nOwn vocabulary.\r\n}\r\ninterface {\r\n😀 A *café results* carries a response.\r\n}\r\nconstraints {\r\ncafé results {\r\nPreserve exact content.\r\n}\r\n}\r\n}\r\n";
+
+pub const MULTIWORD_CONSUMER: &str = "@provider.sigil from Provider import { café results }\ncomponent Consumer {\ngoal {\nServe the caller.\n}\ninterface {\n😀 Use café results now.\n\nRead [café results](./notes.md).\n```text\ncafé results\n```\n}\n}\n";
+
+pub const BOOKING: &str = "component Booking {\n  goal {\n    A temporary reservation creates a hold.\n\n    Ignore `temporary reservation`.\n  }\n\n  interface {\n    BookingTerm {\n      The hold remains visible.\n    }\n  }\n}\n";
 
 /// A temporary directory with a canonical path, removed when dropped.
 pub struct Temp {
@@ -139,13 +146,12 @@ impl Client {
     pub fn request(&mut self, method: &str, params: Value) -> Value {
         self.next_id += 1;
         let id = self.next_id;
-        let out =
-            self.send(json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}));
+        let out = self.send(request(id, method, params));
         out.last().cloned().expect("a response")
     }
 
     pub fn notify(&mut self, method: &str, params: Value) -> Vec<Value> {
-        self.send(json!({"jsonrpc": "2.0", "method": method, "params": params}))
+        self.send(message(method, params))
     }
 
     /// Initialize with `rootUri` set to the temp directory, then send `initialized`.
@@ -192,6 +198,80 @@ impl Client {
             json!({"changes": changes}),
         )
     }
+}
+
+/// A temporary workspace with a minimal config and `files` written below it.
+pub fn workspace_with(files: &[(&str, &str)]) -> Temp {
+    let temp = Temp::workspace();
+    for (path, text) in files {
+        temp.write(path, text);
+    }
+    temp
+}
+
+/// `workspace_with(files)` and a client that has initialized on it.
+pub fn started(files: &[(&str, &str)]) -> (Temp, Client) {
+    let temp = workspace_with(files);
+    let mut client = Client::at(&temp.root);
+    client.start(&temp);
+    (temp, client)
+}
+
+/// The (line, UTF-16 column) of the `nth` occurrence of `needle`, counting
+/// CRLF, CR and LF as one line ending each.
+pub fn at(text: &str, needle: &str, nth: usize) -> (u32, u32) {
+    let offset = text
+        .match_indices(needle)
+        .nth(nth)
+        .unwrap_or_else(|| panic!("{needle:?} #{nth} is not in the text"))
+        .0;
+    let (mut line, mut column) = (0, 0);
+    let mut chars = text[..offset].chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '\r' if chars.peek() == Some(&'\n') => {}
+            '\r' | '\n' => (line, column) = (line + 1, 0),
+            c => column += c.len_utf16() as u32,
+        }
+    }
+    (line, column)
+}
+
+/// A notification as a client sends it.
+pub fn message(method: &str, params: Value) -> Value {
+    rpc::notification(method, params)
+}
+
+/// A request as a client sends it.
+pub fn request(request_id: i64, method: &str, params: Value) -> Value {
+    rpc::request(&id(request_id), method, params)
+}
+
+/// The frames of `messages`, one after the other.
+pub fn frames(messages: &[Value]) -> Vec<u8> {
+    messages.iter().flat_map(encode).collect()
+}
+
+/// Every message in the bytes. Anything that is not a whole frame of JSON, or
+/// bytes between frames, fails the test.
+pub fn decode(bytes: &[u8]) -> Vec<Value> {
+    let values: Vec<Value> = Framer::new()
+        .feed(bytes)
+        .into_iter()
+        .map(|item| match item {
+            Item::Message(value) => value,
+            Item::ParseError => panic!("the loop wrote something that is not a message"),
+        })
+        .collect();
+    assert_eq!(
+        bytes.len(),
+        values
+            .iter()
+            .map(|value| encode(value).len())
+            .sum::<usize>(),
+        "bytes outside the frames"
+    );
+    values
 }
 
 /// A retry delay no test waits out.
@@ -301,32 +381,6 @@ pub mod replay {
     use serde_json::Value;
     use sigil_lsp::server::{Server, ServerOptions};
     use std::path::Path;
-
-    /// The methods the Rust server answers as it will at the end of the port.
-    /// A recorded request of any other method is neither sent nor compared:
-    /// requests change no state, so skipping one cannot move the sessions
-    /// apart. A later unit adds the methods it implements here.
-    pub const IMPLEMENTED: &[&str] = &[
-        "initialize",
-        "initialized",
-        "shutdown",
-        "exit",
-        "textDocument/didOpen",
-        "textDocument/didChange",
-        "textDocument/didClose",
-        "workspace/didChangeWatchedFiles",
-        "$/cancelRequest",
-        "textDocument/definition",
-        "textDocument/documentSymbol",
-        "textDocument/semanticTokens/full",
-        "textDocument/hover",
-        "workspace/executeCommand",
-        // Unknown to both servers: method not found, or ignored.
-        "$/setTrace",
-        "textDocument/references",
-        "unknown/method",
-        "unknown/notification",
-    ];
 
     /// How a diagnostic's message is worded differently by the Rust core.
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -515,9 +569,9 @@ pub mod replay {
     /// source, not the editor's view of it, so for a file on disk that starts
     /// with a byte-order mark it counts the mark on line 0: every line 0
     /// position of a symbol is one unit to the right of what the editor
-    /// shows. Hover, definition and tokens of the same file already hide the
-    /// mark, as R9 says, so the Rust server hides it in symbols too. The
-    /// recorded line 0 characters of such a response move one unit left.
+    /// shows. The Rust server hides the mark in symbols too, as hover,
+    /// definition and tokens do. The recorded line 0 characters of such a
+    /// response move one unit left.
     pub fn symbols_without_disk_bom(scenario: &Scenario, request: &Value, response: &mut Value) {
         if request["method"] != "textDocument/documentSymbol" {
             return;
@@ -550,15 +604,6 @@ pub mod replay {
         }
     }
 
-    /// Whether the Rust server answers this recorded message as the
-    /// recording shows: a response, or a message of an implemented method.
-    pub fn is_implemented(message: &Value) -> bool {
-        match message["method"].as_str() {
-            Some(method) => IMPLEMENTED.contains(&method),
-            None => true,
-        }
-    }
-
     fn expected_output(scenario: &str, output: &[Value], root: &str) -> Vec<Value> {
         output
             .iter()
@@ -578,7 +623,6 @@ pub mod replay {
         pub scenarios: usize,
         pub steps: usize,
         pub compared: usize,
-        pub skipped_steps: usize,
         pub failures: Vec<String>,
     }
 
@@ -604,10 +648,6 @@ pub mod replay {
                     output,
                     exit_code,
                 } => {
-                    if !is_implemented(message) {
-                        tally.skipped_steps += 1;
-                        continue;
-                    }
                     tally.compared += 1;
                     let mut sent = substitute(message, &root);
                     watch_registration(&mut sent);

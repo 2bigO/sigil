@@ -2,6 +2,7 @@
 //! server's error text.
 use crate::rpc::Id;
 use serde_json::{Map, Value};
+use sigil_core::language::position::EditorPosition;
 use std::fmt;
 
 /// Parameters that failed a check; the message goes into an invalid-params reply.
@@ -89,6 +90,17 @@ pub struct PositionParams {
     pub character: u64,
 }
 
+impl PositionParams {
+    /// The position as an editor position, or none when a coordinate does not
+    /// fit in 32 bits.
+    pub fn editor_position(&self) -> Option<EditorPosition> {
+        Some(EditorPosition {
+            line: u32::try_from(self.line).ok()?,
+            character: u32::try_from(self.character).ok()?,
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExecuteCommandParams {
     pub command: String,
@@ -151,7 +163,31 @@ pub fn initialize(params: &Value) -> Result<InitializeParams, InvalidParams> {
     })
 }
 
+/// `DidOpenParams` borrowed from the message, so a check copies no text.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DidOpenRef<'a> {
+    pub uri: &'a str,
+    pub version: f64,
+    pub text: &'a str,
+}
+
+/// `DidChangeParams` borrowed from the message, so a check copies no text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DidChangeRef<'a> {
+    pub uri: &'a str,
+    pub version: f64,
+    pub texts: Vec<&'a str>,
+}
+
 pub fn did_open(params: &Value) -> Result<DidOpenParams, InvalidParams> {
+    did_open_ref(params).map(|given| DidOpenParams {
+        uri: given.uri.to_owned(),
+        version: given.version,
+        text: given.text.to_owned(),
+    })
+}
+
+pub fn did_open_ref(params: &Value) -> Result<DidOpenRef<'_>, InvalidParams> {
     let value = required_record(params, "didOpen params")?;
     let document = required_record(field(value, "textDocument"), "didOpen textDocument")?;
     match (
@@ -160,10 +196,10 @@ pub fn did_open(params: &Value) -> Result<DidOpenParams, InvalidParams> {
         document.get("text"),
     ) {
         (Some(Value::String(uri)), Some(Value::Number(version)), Some(Value::String(text))) => {
-            Ok(DidOpenParams {
-                uri: uri.clone(),
+            Ok(DidOpenRef {
+                uri,
                 version: version.as_f64().unwrap_or_default(),
-                text: text.clone(),
+                text,
             })
         }
         _ => Err(InvalidParams::new(
@@ -173,6 +209,14 @@ pub fn did_open(params: &Value) -> Result<DidOpenParams, InvalidParams> {
 }
 
 pub fn did_change(params: &Value) -> Result<DidChangeParams, InvalidParams> {
+    did_change_ref(params).map(|given| DidChangeParams {
+        uri: given.uri.to_owned(),
+        version: given.version,
+        texts: given.texts.into_iter().map(str::to_owned).collect(),
+    })
+}
+
+pub fn did_change_ref(params: &Value) -> Result<DidChangeRef<'_>, InvalidParams> {
     let value = required_record(params, "didChange params")?;
     let document = required_record(field(value, "textDocument"), "didChange textDocument")?;
     let wrong = || InvalidParams::new("didChange requires uri, version, and full text changes.");
@@ -185,16 +229,10 @@ pub fn did_change(params: &Value) -> Result<DidChangeParams, InvalidParams> {
     };
     let texts = changes
         .iter()
-        .map(|change| {
-            change
-                .get("text")
-                .and_then(Value::as_str)
-                .map(str::to_owned)
-                .ok_or_else(wrong)
-        })
+        .map(|change| change.get("text").and_then(Value::as_str).ok_or_else(wrong))
         .collect::<Result<Vec<_>, _>>()?;
-    Ok(DidChangeParams {
-        uri: uri.clone(),
+    Ok(DidChangeRef {
+        uri,
         version: version.as_f64().unwrap_or_default(),
         texts,
     })

@@ -101,19 +101,33 @@ fn percent_decode(text: &str) -> Option<String> {
     String::from_utf8(decoded).ok()
 }
 
-fn encode(path: &str) -> String {
-    let mut encoded = String::with_capacity(path.len());
-    for byte in path.bytes() {
-        let literal = byte.is_ascii_graphic()
-            && !matches!(
-                byte,
-                b'"' | b'#' | b'%' | b'<' | b'>' | b'?' | b'`' | b'{' | b'}'
-            );
-        if literal {
-            encoded.push(byte as char);
+/// Whether a path byte is written as `%XX`: not printable ASCII, or one of
+/// `"`, `#`, `<`, `>`, `?`, `` ` ``, `{`, `}`. A `%` is not in the set; `encode`
+/// adds it.
+pub(crate) fn in_path_set(byte: u8) -> bool {
+    byte <= b' '
+        || byte > 0x7e
+        || matches!(byte, b'"' | b'#' | b'<' | b'>' | b'?' | b'`' | b'{' | b'}')
+}
+
+/// Percent-encode the UTF-8 bytes that `encoded` selects as `%XX`; the others
+/// stay as they are.
+pub(crate) fn percent_encode(text: &str, encoded: fn(u8) -> bool) -> String {
+    const HEX: &[u8; 16] = b"0123456789ABCDEF";
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        if encoded(byte) {
+            out.push('%');
+            out.push(HEX[usize::from(byte >> 4)] as char);
+            out.push(HEX[usize::from(byte & 15)] as char);
         } else {
-            encoded.push_str(&format!("%{byte:02X}"));
+            out.push(byte as char);
         }
     }
-    encoded
+    out
+}
+
+/// A path as it is written in a URI: `%` is encoded too, so a path round trips.
+fn encode(path: &str) -> String {
+    percent_encode(path, |byte| in_path_set(byte) || byte == b'%')
 }

@@ -34,6 +34,11 @@
  */
 import { join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  encodeLspMessage,
+  LspMessageFramer,
+} from "../packages/lsp/src/protocol.ts";
+import type { JsonRpcIncoming } from "../packages/lsp/src/types.ts";
 
 type Json = unknown;
 type Message = Record<string, Json>;
@@ -47,7 +52,6 @@ const SKIPPED = new Set([".git", "node_modules", "target", "dist", "build"]);
 const SHOWN_DIFFERENCES = 15;
 const RELOADS = 5;
 const repoRoot = new URL("..", import.meta.url).pathname;
-const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 // ---------------------------------------------------------------------------
@@ -84,18 +88,14 @@ class Client {
   }
 
   async #readMessages() {
-    let buffer: Uint8Array = new Uint8Array(0);
+    const framer = new LspMessageFramer();
     for await (const chunk of this.#process.stdout) {
-      buffer = concat(buffer, chunk);
-      for (;;) {
-        const end = find(buffer, "\r\n\r\n");
-        if (end < 0) break;
-        const header = decoder.decode(buffer.subarray(0, end));
-        const length = Number(/Content-Length: (\d+)/i.exec(header)?.[1]);
-        if (buffer.length < end + 4 + length) break;
-        const body = buffer.subarray(end + 4, end + 4 + length);
-        buffer = buffer.slice(end + 4 + length);
-        this.#receive(JSON.parse(decoder.decode(body)));
+      for (const value of framer.feed(chunk)) {
+        // The framer marks a body that is not JSON with a symbol.
+        if (typeof value === "symbol") {
+          throw new Error("the server wrote a frame that is not JSON");
+        }
+        this.#receive(value as Message);
       }
     }
     for (const { resolve, method } of this.#pending.values()) {
@@ -115,7 +115,11 @@ class Client {
         this.#publishWaiters.splice(0).forEach((wake) => wake());
       } else if (message.id !== undefined) {
         // A request from the server, such as a watch registration.
-        this.#send({ jsonrpc: "2.0", id: message.id, result: null });
+        this.#send({
+          jsonrpc: "2.0",
+          id: message.id as string | number,
+          result: null,
+        });
       }
       return;
     }
@@ -124,11 +128,8 @@ class Client {
     entry?.resolve(message);
   }
 
-  async #send(message: Message) {
-    const body = encoder.encode(JSON.stringify(message));
-    await this.#writer.write(
-      concat(encoder.encode(`Content-Length: ${body.length}\r\n\r\n`), body),
-    );
+  async #send(message: JsonRpcIncoming) {
+    await this.#writer.write(encodeLspMessage(message));
   }
 
   request(method: string, params: Json): Promise<Message> {
@@ -174,24 +175,6 @@ class Client {
   }
 }
 
-function concat(a: Uint8Array, b: Uint8Array): Uint8Array<ArrayBuffer> {
-  const joined = new Uint8Array(a.length + b.length);
-  joined.set(a);
-  joined.set(b, a.length);
-  return joined;
-}
-
-function find(bytes: Uint8Array, text: string): number {
-  const needle = encoder.encode(text);
-  outer: for (let i = 0; i + needle.length <= bytes.length; i++) {
-    for (let j = 0; j < needle.length; j++) {
-      if (bytes[i + j] !== needle[j]) continue outer;
-    }
-    return i;
-  }
-  return -1;
-}
-
 // ---------------------------------------------------------------------------
 // Opening the workspace and asking every question
 
@@ -211,7 +194,6 @@ interface Run {
   answers: Map<string, Json>;
   /** Token start positions by file, taken from this server's own tokens. */
   tokens: Map<string, Position[]>;
-  reloadMs: number[];
 }
 
 async function run(
@@ -239,7 +221,7 @@ async function run(
 
   const texts = new Map<string, string>();
   for (const file of files) {
-    const text = (await Deno.readTextFile(file)).replace(/^﻿/, "");
+    const text = (await Deno.readTextFile(file)).replace(/^\uFEFF/, "");
     texts.set(file, text);
     await client.notify("textDocument/didOpen", {
       textDocument: {
@@ -328,7 +310,7 @@ async function run(
     })`;
   console.log(`${name}: didChange to first publication ${show(reloadMs)}`);
   console.log(`${name}: didChange to reload answered   ${show(settledMs)}`);
-  return { answers, tokens, reloadMs };
+  return { answers, tokens };
 }
 
 function tokenStarts(data: number[]): Position[] {
@@ -404,7 +386,7 @@ function around(a: string, b: string): string {
 }
 
 function compare(ts: Run, rust: Run): number {
-  const view = new Map(withoutOwnership(ts.answers));
+  const view = withoutOwnership(ts.answers);
   const differences: string[] = [];
   let compared = 0;
   for (const key of new Set([...view.keys(), ...rust.answers.keys()])) {

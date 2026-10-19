@@ -16,4 +16,4 @@ pub mod symbols;
 pub mod tokens;
 pub mod uri;
 
-pub use serve::serve;
+pub use serve::{IO_FAILURE, serve};

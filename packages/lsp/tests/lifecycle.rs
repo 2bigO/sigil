@@ -12,7 +12,7 @@ use sigil_lsp::{
 use std::{thread::sleep, time::Duration};
 use support::{
     ALWAYS, BROKEN, CLEAN, Client, Disk, LONG_DELAY, SHORT_DELAY, Temp, id, published,
-    published_for, responses,
+    published_for, responses, workspace_with,
 };
 
 fn error_of(response: &Value) -> (i64, String) {
@@ -20,14 +20,6 @@ fn error_of(response: &Value) -> (i64, String) {
         response["error"]["code"].as_i64().expect("an error code"),
         response["error"]["message"].as_str().unwrap().to_owned(),
     )
-}
-
-fn workspace_with(files: &[(&str, &str)]) -> Temp {
-    let temp = Temp::workspace();
-    for (path, text) in files {
-        temp.write(path, text);
-    }
-    temp
 }
 
 #[test]

@@ -13,9 +13,15 @@ use sigil_core::{
     types::Range,
 };
 
+/// Whether the editor hides a byte-order mark at the start of the source: it
+/// does for a file read from disk, and a buffer has none to hide.
+pub fn hides_mark(source: &SourceText, from_disk: bool) -> bool {
+    from_disk && source.text.starts_with('\u{feff}')
+}
+
 /// How many UTF-16 units the editor does not show on line 0.
 fn hidden(source: &SourceText, from_disk: bool) -> u32 {
-    u32::from(from_disk && source.text.starts_with('\u{feff}'))
+    u32::from(hides_mark(source, from_disk))
 }
 
 /// The position of byte `offset`, or none when it is inside a character, a

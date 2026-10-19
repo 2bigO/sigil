@@ -1,6 +1,6 @@
 //! What a source file mentions: component names, Tag identities and glossary
 //! terms, as byte or editor ranges, and where a Tag is defined.
-use crate::snapshot::Snapshot;
+use crate::{position::range_of, snapshot::Snapshot};
 use serde_json::{Value, json};
 use sigil_core::language::{
     glossary::GlossaryTerm,
@@ -144,16 +144,16 @@ pub fn glossary_references<'a>(snapshot: &'a Snapshot, path: &str) -> Vec<Glossa
     let Some(relative) = snapshot.relative_path(path) else {
         return Vec::new();
     };
+    let Some((source, from_disk)) = snapshot.reading(&relative) else {
+        return Vec::new();
+    };
     snapshot
-        .glossary
-        .occurrences
-        .iter()
-        .filter(|o| snapshot.relative_path(&o.file_path).as_deref() == Some(relative.as_str()))
+        .glossary_occurrences_in(&relative)
         .filter_map(|o| {
             Some(GlossaryReference {
                 term: &o.term,
                 matched_spelling: &o.matched_spelling,
-                range: snapshot.editor_range(&relative, &o.range)?,
+                range: range_of(source, from_disk, &o.range)?,
             })
         })
         .collect()
@@ -189,6 +189,11 @@ pub fn lsp_range(range: &EditorRange) -> Value {
         "start": {"line": range.start.line, "character": range.start.character},
         "end": {"line": range.end.line, "character": range.end.character},
     })
+}
+
+/// Whether the half-open byte range holds the byte offset.
+pub fn span_contains(span: &Span, byte: usize) -> bool {
+    span.start <= byte && byte < span.end
 }
 
 /// Whether the half-open range holds the position.

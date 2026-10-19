@@ -11,12 +11,13 @@ use crate::{
     rpc::{self, Id, Incoming},
     snapshot::Snapshot,
     symbols, tokens,
-    uri::file_uri_to_path,
+    uri::{UriError, file_uri_to_path},
 };
 use serde_json::{Value, json};
 use sigil_core::language::{
     fs::{DiskFs, SourceFs},
     path::normalize_path,
+    position::EditorPosition,
 };
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -32,7 +33,9 @@ pub const RELOAD_RETRY_DELAY: Duration = Duration::from_millis(1000);
 
 const WATCH_REQUEST_ID: &str = "sigil/watch/request";
 const WATCH_REGISTRATION_ID: &str = "sigil/language-watch";
-const RENDER_DOCUMENT_COMMAND: &str = crate::render::RENDER_DOCUMENT_COMMAND;
+/// The notification that cancels a request, and the one that ends the server.
+pub(crate) const CANCEL_REQUEST: &str = "$/cancelRequest";
+pub(crate) const EXIT: &str = "exit";
 
 pub struct ServerOptions {
     /// Where a workspace is looked for when the client names no root.
@@ -74,22 +77,34 @@ impl From<InvalidParams> for RequestError {
     }
 }
 
+impl From<UriError> for RequestError {
+    fn from(error: UriError) -> Self {
+        Self::Internal(error.message().to_owned())
+    }
+}
+
+/// What hover and definition read from their params: the file's path and the
+/// position, or none when the position cannot be an editor position.
+pub(crate) fn position_request(
+    params: &Value,
+) -> Result<Option<(String, EditorPosition)>, RequestError> {
+    let given = params::text_document_position(params)?;
+    let path = file_uri_to_path(&given.uri)?;
+    Ok(given.editor_position().map(|position| (path, position)))
+}
+
 /// What a request method answers with.
 pub type Answer = Result<Value, RequestError>;
 
-/// A change that a notification makes to the server's state.
-enum Change {
-    Open {
+/// A change that a notification makes to the server's state. It borrows the
+/// document text from the message, so planning a change copies none.
+enum Change<'a> {
+    /// A buffer opened, or replaced by an edit.
+    Set {
         path: String,
-        uri: String,
+        uri: &'a str,
         version: f64,
-        text: String,
-    },
-    Edit {
-        path: String,
-        uri: String,
-        version: f64,
-        text: String,
+        text: &'a str,
     },
     Close {
         path: String,
@@ -98,9 +113,11 @@ enum Change {
     Watch,
 }
 
+/// An open buffer.
 struct OpenDocument {
     uri: String,
     version: f64,
+    text: String,
 }
 
 pub struct Server {
@@ -112,7 +129,6 @@ pub struct Server {
     supports_watch_registration: bool,
     watch_requested: bool,
     /// Open buffers by absolute path.
-    texts: BTreeMap<String, String>,
     open: BTreeMap<String, OpenDocument>,
     published: BTreeSet<String>,
     cancelled: HashSet<Id>,
@@ -135,7 +151,6 @@ impl Server {
             state: State::Uninitialized,
             supports_watch_registration: false,
             watch_requested: false,
-            texts: BTreeMap::new(),
             open: BTreeMap::new(),
             published: BTreeSet::new(),
             cancelled: HashSet::new(),
@@ -190,6 +205,19 @@ impl Server {
         }
     }
 
+    /// Apply a message that is queued with others: a change that needs a
+    /// reload is only recorded, as `handle_deferred` does, and anything else
+    /// is handled as `handle` does. The state judged is the state now.
+    pub fn handle_queued(&mut self, message: Incoming) -> Vec<Value> {
+        if let Incoming::Notification { method, params } = &message
+            && let Some(change) = self.plan(method, params)
+        {
+            self.apply(change);
+            return Vec::new();
+        }
+        self.handle(message)
+    }
+
     /// Apply one message and return what to send, in order.
     pub fn handle(&mut self, message: Incoming) -> Vec<Value> {
         match message {
@@ -197,7 +225,7 @@ impl Server {
             Incoming::Invalid => vec![rpc::invalid_request()],
             Incoming::Request { method, params, .. }
             | Incoming::Notification { method, params }
-                if method == "$/cancelRequest" || method == "exit" =>
+                if method == CANCEL_REQUEST || method == EXIT =>
             {
                 self.control(&method, &params);
                 Vec::new()
@@ -216,7 +244,7 @@ impl Server {
     pub fn handle_deferred(&mut self, message: Incoming) -> Vec<Value> {
         match message {
             Incoming::Notification { method, params }
-                if method != "$/cancelRequest" && method != "exit" =>
+                if method != CANCEL_REQUEST && method != EXIT =>
             {
                 self.notification(&method, &params, true)
             }
@@ -238,7 +266,7 @@ impl Server {
     }
 
     fn control(&mut self, method: &str, params: &Value) {
-        if method == "exit" {
+        if method == EXIT {
             self.exit_code = Some(if self.state == State::ShutdownRequested {
                 0
             } else {
@@ -262,8 +290,9 @@ impl Server {
             return failure(rpc::INVALID_REQUEST, "Server is shutting down.");
         }
         let mut out = self.settle();
-        let uses_workspace = method != "initialize" && method != "shutdown";
-        if uses_workspace && let Err(cause) = self.recover() {
+        if uses_workspace(method)
+            && let Err(cause) = self.recover()
+        {
             out.extend(failure(
                 rpc::INTERNAL_ERROR,
                 &format!("Unable to load workspace: {cause}"),
@@ -311,11 +340,7 @@ impl Server {
         }
         let given = params::initialize(params)?;
         self.workspace_start = match given.start_uri() {
-            Some(uri) => {
-                let path = file_uri_to_path(uri)
-                    .map_err(|error| RequestError::Internal(error.message().to_owned()))?;
-                PathBuf::from(path)
-            }
+            Some(uri) => PathBuf::from(file_uri_to_path(uri)?),
             None => self.cwd.clone(),
         };
         self.supports_watch_registration = given.supports_watch_registration();
@@ -329,10 +354,10 @@ impl Server {
                 "documentSymbolProvider": true,
                 "hoverProvider": true,
                 "semanticTokensProvider": {
-                    "legend": {"tokenTypes": ["type", "tag", "term"], "tokenModifiers": []},
+                    "legend": {"tokenTypes": tokens::LEGEND, "tokenModifiers": []},
                     "full": true,
                 },
-                "executeCommandProvider": {"commands": [RENDER_DOCUMENT_COMMAND]},
+                "executeCommandProvider": {"commands": [render::RENDER_DOCUMENT_COMMAND]},
             },
             "serverInfo": {"name": "sigil-lsp", "version": env!("CARGO_PKG_VERSION")},
         }))
@@ -360,15 +385,15 @@ impl Server {
     /// parameters that do not check, a change for a document that is not open
     /// or whose version is not newer, a URI that is not a file, a watched file
     /// that does not matter.
-    fn plan(&self, method: &str, params: &Value) -> Option<Change> {
+    fn plan<'a>(&self, method: &str, params: &'a Value) -> Option<Change<'a>> {
         if self.state != State::Running {
             return None;
         }
         match method {
             "textDocument/didOpen" => {
-                let given = params::did_open(params).ok()?;
-                let path = file_uri_to_path(&given.uri).ok()?;
-                Some(Change::Open {
+                let given = params::did_open_ref(params).ok()?;
+                let path = file_uri_to_path(given.uri).ok()?;
+                Some(Change::Set {
                     path,
                     uri: given.uri,
                     version: given.version,
@@ -376,14 +401,14 @@ impl Server {
                 })
             }
             "textDocument/didChange" => {
-                let given = params::did_change(params).ok()?;
-                let path = file_uri_to_path(&given.uri).ok()?;
+                let given = params::did_change_ref(params).ok()?;
+                let path = file_uri_to_path(given.uri).ok()?;
                 let current = self.open.get(&path)?;
                 if given.version <= current.version {
                     return None;
                 }
-                let text = given.texts.into_iter().next_back()?;
-                Some(Change::Edit {
+                let text = *given.texts.last()?;
+                Some(Change::Set {
                     path,
                     uri: given.uri,
                     version: given.version,
@@ -415,27 +440,26 @@ impl Server {
         }
     }
 
-    fn apply(&mut self, change: Change) {
+    fn apply(&mut self, change: Change<'_>) {
         self.generation += 1;
         self.reload_pending = true;
         match change {
-            Change::Open {
-                path,
-                uri,
-                version,
-                text,
-            }
-            | Change::Edit {
+            Change::Set {
                 path,
                 uri,
                 version,
                 text,
             } => {
-                self.texts.insert(path.clone(), text);
-                self.open.insert(path, OpenDocument { uri, version });
+                self.open.insert(
+                    path,
+                    OpenDocument {
+                        uri: uri.to_owned(),
+                        version,
+                        text: text.to_owned(),
+                    },
+                );
             }
             Change::Close { path, uri } => {
-                self.texts.remove(&path);
                 self.open.remove(&path);
                 self.closed_uris.insert(uri);
             }
@@ -456,7 +480,11 @@ impl Server {
                     None => Box::new(DiskFs::new(root)),
                 }
             };
-            Snapshot::load(&self.workspace_start, &self.texts, &make)
+            let buffers = self
+                .open
+                .iter()
+                .map(|(path, document)| (path.as_str(), document.text.as_str()));
+            Snapshot::load(&self.workspace_start, buffers, &make)
         };
         match loaded {
             Ok(snapshot) => {
@@ -530,7 +558,7 @@ impl Server {
         uris.extend(extra.iter().cloned());
         uris.extend(self.published.iter().cloned());
         let mut sorted: Vec<String> = uris.into_iter().collect();
-        sorted.sort_by_cached_key(|uri| uri.encode_utf16().collect::<Vec<u16>>());
+        sorted.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
         let mut out = Vec::new();
         for uri in sorted {
             let found = grouped.remove(&uri).unwrap_or_default();
@@ -548,6 +576,11 @@ impl Server {
     }
 }
 
+/// Whether a request method reads the workspace, so the server must have one.
+pub fn uses_workspace(method: &str) -> bool {
+    method != "initialize" && method != "shutdown"
+}
+
 /// The methods that read a snapshot. A feature module adds its arm here.
 fn workspace_method(snapshot: &Snapshot, method: &str, params: &Value) -> Option<Answer> {
     match method {
@@ -563,9 +596,11 @@ fn workspace_method(snapshot: &Snapshot, method: &str, params: &Value) -> Option
 /// Whether a changed path reloads the workspace: a `.sigil` source, or the
 /// config, glossary or local override under `.sigil/`.
 fn triggers_reload(path: &str) -> bool {
+    const CONTEXT_FILES: [&str; 3] = [
+        "/.sigil/config.json",
+        "/.sigil/glossary.json",
+        "/.sigil/local.json",
+    ];
     let path = normalize_path(path);
-    path.ends_with(".sigil")
-        || ["config", "glossary", "local"]
-            .iter()
-            .any(|name| path.ends_with(&format!("/.sigil/{name}.json")))
+    path.ends_with(".sigil") || CONTEXT_FILES.iter().any(|name| path.ends_with(name))
 }

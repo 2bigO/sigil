@@ -4,7 +4,9 @@
 mod support;
 
 use serde_json::{Value, json};
+use sigil_lsp::rpc::{self, Framer, Item};
 use std::{
+    collections::VecDeque,
     io::{Read, Write},
     path::Path,
     process::{Child, ChildStdin, Command, Stdio},
@@ -31,7 +33,9 @@ struct Session {
     stdin: Option<ChildStdin>,
     stdout: Receiver<Vec<u8>>,
     stderr: Receiver<Vec<u8>>,
-    pending: Vec<u8>,
+    framer: Framer,
+    /// Messages the framer has completed and the test has not read yet.
+    ready: VecDeque<Value>,
     next_id: i64,
 }
 
@@ -62,17 +66,30 @@ impl Session {
             stdin,
             stdout,
             stderr,
-            pending: Vec::new(),
+            framer: Framer::new(),
+            ready: VecDeque::new(),
             next_id: 0,
         }
     }
 
     /// Write one message with its header.
     fn send(&mut self, message: &Value) {
-        let body = message.to_string();
         let stdin = self.stdin.as_mut().expect("standard input is open");
-        write!(stdin, "Content-Length: {}\r\n\r\n{body}", body.len()).expect("the server reads");
+        stdin
+            .write_all(&rpc::encode(message))
+            .expect("the server reads");
         stdin.flush().expect("the server reads");
+    }
+
+    /// Frame bytes from standard output; a frame that is not a JSON message
+    /// fails the test.
+    fn feed(&mut self, bytes: &[u8]) {
+        for item in self.framer.feed(bytes) {
+            match item {
+                Item::Message(message) => self.ready.push_back(message),
+                Item::ParseError => panic!("the server sent a frame that is not a JSON message"),
+            }
+        }
     }
 
     fn request(&mut self, method: &str, params: Value) -> i64 {
@@ -90,14 +107,14 @@ impl Session {
     fn next(&mut self) -> Value {
         let deadline = Instant::now() + PATIENCE;
         loop {
-            if let Some(message) = take_frame(&mut self.pending) {
+            if let Some(message) = self.ready.pop_front() {
                 return message;
             }
             match self
                 .stdout
                 .recv_timeout(deadline.saturating_duration_since(Instant::now()))
             {
-                Ok(bytes) => self.pending.extend(bytes),
+                Ok(bytes) => self.feed(&bytes),
                 Err(RecvTimeoutError::Timeout) => panic!("the server sent nothing in time"),
                 Err(RecvTimeoutError::Disconnected) => panic!("the server closed its output"),
             }
@@ -135,18 +152,14 @@ impl Session {
             assert!(Instant::now() < deadline, "the server did not exit in time");
             thread::sleep(Duration::from_millis(10));
         };
-        let mut pending = std::mem::take(&mut self.pending);
         while let Ok(bytes) = self.stdout.recv_timeout(PATIENCE) {
-            pending.extend(bytes);
+            self.feed(&bytes);
         }
-        let mut messages = Vec::new();
-        while let Some(message) = take_frame(&mut pending) {
-            messages.push(message);
-        }
+        let messages = Vec::from(std::mem::take(&mut self.ready));
         assert!(
-            pending.is_empty(),
+            self.framer.pending().is_empty(),
             "standard output holds more than framed messages: {:?}",
-            String::from_utf8_lossy(&pending)
+            String::from_utf8_lossy(self.framer.pending())
         );
         let mut stderr = Vec::new();
         while let Ok(bytes) = self.stderr.recv_timeout(PATIENCE) {
@@ -179,25 +192,6 @@ fn pump(mut pipe: impl Read + Send + 'static) -> Receiver<Vec<u8>> {
         }
     });
     receiver
-}
-
-/// Remove one framed message from the front of `bytes`, if a whole one is there.
-fn take_frame(bytes: &mut Vec<u8>) -> Option<Value> {
-    let end = bytes.windows(4).position(|window| window == b"\r\n\r\n")?;
-    let header = std::str::from_utf8(&bytes[..end]).expect("the header is ASCII");
-    let length: usize = header
-        .lines()
-        .find_map(|line| line.strip_prefix("Content-Length: "))
-        .unwrap_or_else(|| panic!("a frame without Content-Length: {header:?}"))
-        .parse()
-        .expect("a numeric Content-Length");
-    let start = end + 4;
-    if bytes.len() < start + length {
-        return None;
-    }
-    let message = serde_json::from_slice(&bytes[start..start + length]).expect("a JSON body");
-    bytes.drain(..start + length);
-    Some(message)
 }
 
 fn is_response(message: &Value, id: i64) -> bool {

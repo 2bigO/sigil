@@ -4,29 +4,15 @@
 mod support;
 
 use serde_json::{Value, json};
-use support::{CLEAN, CONSUMER, Client, Temp, replay};
-
-const MULTIWORD_CONSUMER: &str = "@provider.sigil from Provider import { café results }\ncomponent Consumer {\ngoal {\nServe the caller.\n}\ninterface {\n😀 Use café results now.\n\nRead [café results](./notes.md).\n```text\ncafé results\n```\n}\n}\n";
-
-const INLINE_PROVIDER: &str = "component Provider {\r\ngoal {\r\nOwn vocabulary.\r\n}\r\ninterface {\r\n😀 A *café results* carries a response.\r\n}\r\nconstraints {\r\ncafé results {\r\nPreserve exact content.\r\n}\r\n}\r\n}\r\n";
-
-const BOOKING: &str = "component Booking {\n  goal {\n    A temporary reservation creates a hold.\n\n    Ignore `temporary reservation`.\n  }\n\n  interface {\n    BookingTerm {\n      The hold remains visible.\n    }\n  }\n}\n";
+use support::{
+    BOOKING, CLEAN, CONSUMER, Client, INLINE_PROVIDER, MULTIWORD_CONSUMER, Temp, replay, started,
+};
 
 const GLOSSARY: &str = "{\"schemaVersion\":1,\"terms\":[],\"contexts\":[{\"id\":\"booking\",\"include\":[\"**/*.sigil\"],\"exclude\":[],\"terms\":[{\"term\":\"hold\",\"definition\":\"Booking capacity before confirmation.\",\"aliases\":[\"temporary reservation\"]}]}]}";
 
 /// An inline Tag before a group heading in one section, and a group heading
 /// before an inline Tag in the next.
 const MIXED: &str = "component Thing {\n  goal {\n    Represent one useful Alpha.\n  }\n\n  state {\n    A *Beta* comes first.\n\n    Alpha {\n      Alpha stays.\n    }\n  }\n\n  interface {\n    Alpha {\n      run() starts an Alpha.\n    }\n\n    A *Gamma* comes last.\n  }\n}\n";
-
-fn started(files: &[(&str, &str)]) -> (Temp, Client) {
-    let temp = Temp::workspace();
-    for (path, text) in files {
-        temp.write(path, text);
-    }
-    let mut client = Client::at(&temp.root);
-    client.start(&temp);
-    (temp, client)
-}
 
 fn answer(client: &mut Client, method: &str, uri: &str) -> Value {
     let response = client.request(method, json!({"textDocument": {"uri": uri}}));

@@ -5,24 +5,11 @@ mod support;
 
 use serde_json::{Value, json};
 use sigil_lsp::{
-    rpc::{Framer, Item, encode},
     serve::{serve, serve_with},
     server::ServerOptions,
 };
 use std::io::{self, Cursor, Read, Write};
-use support::{CLEAN, Temp, published_for};
-
-fn message(method: &str, params: Value) -> Value {
-    json!({"jsonrpc": "2.0", "method": method, "params": params})
-}
-
-fn request(id: i64, method: &str, params: Value) -> Value {
-    json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params})
-}
-
-fn frames(messages: &[Value]) -> Vec<u8> {
-    messages.iter().flat_map(encode).collect()
-}
+use support::{CLEAN, Temp, decode, frames, message, published_for, request};
 
 fn initialize(temp: &Temp) -> Value {
     request(1, "initialize", json!({"rootUri": temp.uri("")}))
@@ -34,25 +21,6 @@ fn shutdown() -> Value {
 
 fn exit() -> Value {
     message("exit", Value::Null)
-}
-
-/// Every message in the bytes. Anything that is not a whole frame of JSON, or
-/// bytes between frames, fails the test.
-fn decode(bytes: &[u8]) -> Vec<Value> {
-    let values: Vec<Value> = Framer::new()
-        .feed(bytes)
-        .into_iter()
-        .map(|item| match item {
-            Item::Message(value) => value,
-            Item::ParseError => panic!("the loop wrote something that is not a message"),
-        })
-        .collect();
-    assert_eq!(
-        bytes.len(),
-        frames(&values).len(),
-        "bytes outside the frames"
-    );
-    values
 }
 
 fn run(temp: &Temp, input: Vec<u8>) -> (i32, Vec<Value>) {

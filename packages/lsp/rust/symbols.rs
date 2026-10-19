@@ -2,8 +2,8 @@
 use crate::{
     occurrences::lsp_range,
     params,
-    position::range_of,
-    server::{Answer, RequestError},
+    position::{hides_mark, range_of},
+    server::Answer,
     snapshot::Snapshot,
     uri::file_uri_to_path,
 };
@@ -14,10 +14,13 @@ use sigil_core::language::{parse::Span, text::SourceText};
 /// an empty list when the file is not a document of the workspace.
 pub(crate) fn document_symbols(snapshot: &Snapshot, params: &Value) -> Answer {
     let given = params::document_symbol(params)?;
-    let path = file_uri_to_path(&given.uri)
-        .map_err(|error| RequestError::Internal(error.message().to_owned()))?;
+    let path = file_uri_to_path(&given.uri)?;
     Ok(symbols_of(snapshot, &path))
 }
+
+/// The LSP `SymbolKind` of a component, and of everything inside one.
+const CLASS: u8 = 5;
+const PROPERTY: u8 = 7;
 
 /// A symbol with the byte start that orders it among its siblings.
 struct Entry {
@@ -33,14 +36,16 @@ fn symbols_of(snapshot: &Snapshot, path: &str) -> Value {
         return json!([]);
     };
     let from_disk = snapshot.from_disk(path);
-    let symbol = |name: &str, detail: &str, range: Span, name_range: Span, children: Vec<Value>| {
+    let symbol = |name: &str,
+                  detail: &str,
+                  kind: u8,
+                  range: Span,
+                  name_range: Span,
+                  children: Vec<Value>| {
         let mut map = Map::new();
         map.insert("name".into(), json!(name));
         map.insert("detail".into(), json!(detail));
-        map.insert(
-            "kind".into(),
-            json!(if detail == "component" { 5 } else { 7 }),
-        );
+        map.insert("kind".into(), json!(kind));
         for (key, span) in [("range", range), ("selectionRange", name_range)] {
             if let Some(found) = editor_range(source, from_disk, span) {
                 map.insert(key.into(), found);
@@ -60,10 +65,26 @@ fn symbols_of(snapshot: &Snapshot, path: &str) -> Value {
                 let mut children: Vec<Entry> = section
                     .groups
                     .iter()
-                    .map(|g| symbol(&g.name, "Tag group", g.range, g.name_range, Vec::new()))
+                    .map(|g| {
+                        symbol(
+                            &g.name,
+                            "Tag group",
+                            PROPERTY,
+                            g.range,
+                            g.name_range,
+                            Vec::new(),
+                        )
+                    })
                     .chain(section.units.iter().flat_map(|facet| {
                         facet.definitions.iter().filter(|d| d.valid).map(|d| {
-                            symbol(&d.name, "inline Tag", d.range, d.name_range, Vec::new())
+                            symbol(
+                                &d.name,
+                                "inline Tag",
+                                PROPERTY,
+                                d.range,
+                                d.name_range,
+                                Vec::new(),
+                            )
                         })
                     }))
                     .collect();
@@ -71,6 +92,7 @@ fn symbols_of(snapshot: &Snapshot, path: &str) -> Value {
                 symbol(
                     &section.name,
                     "section",
+                    PROPERTY,
                     section.range,
                     section.name_range,
                     children.into_iter().map(|e| e.value).collect(),
@@ -81,6 +103,7 @@ fn symbols_of(snapshot: &Snapshot, path: &str) -> Value {
         symbol(
             &component.name,
             "component",
+            CLASS,
             component.range,
             component.name_range,
             sections,
@@ -94,7 +117,7 @@ fn symbols_of(snapshot: &Snapshot, path: &str) -> Value {
 /// position, so a symbol that starts at the file's first byte starts at line 0,
 /// character 0, the first visible one.
 fn editor_range(source: &SourceText, from_disk: bool, span: Span) -> Option<Value> {
-    let hidden = if from_disk && source.text.starts_with('\u{feff}') {
+    let hidden = if hides_mark(source, from_disk) {
         '\u{feff}'.len_utf8()
     } else {
         0

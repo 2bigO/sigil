@@ -1,5 +1,6 @@
 //! JSON-RPC over `Content-Length` frames, as the TypeScript server speaks it.
 use serde_json::{Number, Value, json};
+use std::io::Write;
 
 /// Malformed JSON, or a frame that could not be read.
 pub const PARSE_ERROR: i64 = -32700;
@@ -64,6 +65,11 @@ pub struct Framer {
 impl Framer {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// The bytes held back because they do not yet make a whole frame.
+    pub fn pending(&self) -> &[u8] {
+        &self.buffer
     }
 
     /// Add bytes and return every frame they complete, in order.
@@ -149,10 +155,16 @@ fn parse_body(body: &[u8]) -> Item {
 
 /// A message with its `Content-Length` header, the length in UTF-8 bytes.
 pub fn encode(message: &Value) -> Vec<u8> {
-    let body = message.to_string();
-    let mut bytes = format!("Content-Length: {}\r\n\r\n", body.len()).into_bytes();
-    bytes.extend_from_slice(body.as_bytes());
+    let mut bytes = Vec::new();
+    encode_into(&mut bytes, message);
     bytes
+}
+
+/// Append the frame of a message to `out`.
+pub fn encode_into(out: &mut Vec<u8>, message: &Value) {
+    let body = message.to_string();
+    write!(out, "Content-Length: {}\r\n\r\n", body.len()).expect("a Vec takes any write");
+    out.extend_from_slice(body.as_bytes());
 }
 
 /// What a decoded JSON value is, by the TypeScript `parseIncoming` rules.

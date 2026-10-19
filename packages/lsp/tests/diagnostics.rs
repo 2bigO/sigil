@@ -6,15 +6,8 @@ mod support;
 use serde_json::{Value, json};
 use support::{
     BROKEN, CLEAN, CONSUMER, Client, PROVIDER_WITHOUT_TAG, Temp, published, published_for,
+    workspace_with,
 };
-
-fn workspace_with(files: &[(&str, &str)]) -> Temp {
-    let temp = Temp::workspace();
-    for (path, text) in files {
-        temp.write(path, text);
-    }
-    temp
-}
 
 fn codes(diagnostics: &[Value]) -> Vec<String> {
     diagnostics

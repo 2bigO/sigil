@@ -2,11 +2,11 @@
 //! and `sigil.renderDocument`. A port of the TypeScript `HoverMarkdownRenderer`
 //! without implementation ownership.
 use crate::{
-    occurrences::{GlossaryReference, location, tag_definition},
+    occurrences::{GlossaryReference, tag_definition},
     params,
     server::{Answer, RequestError},
     snapshot::Snapshot,
-    uri::file_uri_to_path,
+    uri::{file_uri_to_path, in_path_set, percent_encode},
 };
 use serde_json::Value;
 use sigil_core::language::{
@@ -145,15 +145,21 @@ impl<'a> Renderer<'a> {
     }
 
     /// The uri and start position of a byte range, when the file was read.
-    fn target(&self, path: &str, range: Span) -> Option<(String, u64, u64)> {
-        let location = location(self.snapshot, path, range)?;
-        let start = &location["range"]["start"];
-        Some((
-            location["uri"].as_str()?.to_owned(),
-            start["line"].as_u64()?,
-            start["character"].as_u64()?,
-        ))
+    fn target(&self, path: &str, range: Span) -> Option<LinkTarget> {
+        let start = self.snapshot.editor_range(path, &range.range())?.start;
+        Some(LinkTarget {
+            uri: self.snapshot.uri_of(path),
+            line: u64::from(start.line),
+            column: u64::from(start.character),
+        })
     }
+}
+
+/// Where a link points: a file URI and a zero-based line and column.
+struct LinkTarget {
+    uri: String,
+    line: u64,
+    column: u64,
 }
 
 /// The Markdown of every component declared in the file at `path`, joined by
@@ -190,8 +196,7 @@ pub(crate) fn execute_command(snapshot: &Snapshot, params: &Value) -> Answer {
             "{RENDER_DOCUMENT_COMMAND} requires a document URI argument."
         )));
     };
-    let path = file_uri_to_path(uri)
-        .map_err(|error| RequestError::Internal(error.message().to_owned()))?;
+    let path = file_uri_to_path(uri)?;
     Ok(Value::String(render_document(snapshot, &path)))
 }
 
@@ -217,13 +222,13 @@ pub fn glossary_markdown(reference: &GlossaryReference) -> String {
 }
 
 /// `[label](uri#L<line>,<column>)` with one-based line and column.
-fn markdown_link(label: &str, target: &(String, u64, u64)) -> String {
+fn markdown_link(label: &str, target: &LinkTarget) -> String {
     format!(
         "[{}]({}#L{},{})",
         escape_markdown(label),
-        target.0,
-        target.1 + 1,
-        target.2 + 1
+        target.uri,
+        target.line + 1,
+        target.column + 1
     )
 }
 
@@ -303,12 +308,9 @@ fn opaque(scheme: &str, rest: &str) -> String {
     let (before, fragment) = split_fragment(rest);
     let mut out = format!(
         "{scheme}:{}",
-        encode(before, |b| !(0x20..=0x7e).contains(&b))
+        percent_encode(before, |b| !(0x20..=0x7e).contains(&b))
     );
-    if let Some(fragment) = fragment {
-        out.push('#');
-        out.push_str(&encode(fragment, in_fragment_set));
-    }
+    push_query_and_fragment(&mut out, None, fragment);
     out
 }
 
@@ -388,12 +390,9 @@ fn resolve_file(reference: &str, base: &str) -> Option<String> {
     let (path, query, fragment) = split_reference(reference);
     let mut out = format!("file://{base_host}");
     if path.is_empty() {
+        // An empty path leaves a query only when the reference starts with `?`.
         out.push_str(base_path);
-        if reference.starts_with('?') {
-            push_query_and_fragment(&mut out, query, fragment);
-            return Some(out);
-        }
-        push_query_and_fragment(&mut out, None, fragment);
+        push_query_and_fragment(&mut out, query, fragment);
         return Some(out);
     }
     let directory = if path.starts_with(slashes) {
@@ -427,11 +426,11 @@ fn split_reference(text: &str) -> (&str, Option<&str>, Option<&str>) {
 fn push_query_and_fragment(out: &mut String, query: Option<&str>, fragment: Option<&str>) {
     if let Some(query) = query {
         out.push('?');
-        out.push_str(&encode(query, in_query_set));
+        out.push_str(&percent_encode(query, in_query_set));
     }
     if let Some(fragment) = fragment {
         out.push('#');
-        out.push_str(&encode(fragment, in_fragment_set));
+        out.push_str(&percent_encode(fragment, in_fragment_set));
     }
 }
 
@@ -454,7 +453,7 @@ fn join_path(mut segments: Vec<String>, path: &str) -> String {
                 segments.push(String::new());
             }
         } else {
-            segments.push(encode(part, in_path_set));
+            segments.push(percent_encode(part, in_path_set));
         }
     }
     format!("/{}", segments.join("/"))
@@ -466,23 +465,4 @@ fn in_fragment_set(byte: u8) -> bool {
 
 fn in_query_set(byte: u8) -> bool {
     byte <= b' ' || byte > 0x7e || matches!(byte, b'"' | b'#' | b'<' | b'>' | b'\'')
-}
-
-fn in_path_set(byte: u8) -> bool {
-    byte <= b' '
-        || byte > 0x7e
-        || matches!(byte, b'"' | b'#' | b'<' | b'>' | b'?' | b'`' | b'{' | b'}')
-}
-
-/// Percent-encode the UTF-8 bytes that `encoded` selects; `%` stays.
-fn encode(text: &str, encoded: fn(u8) -> bool) -> String {
-    let mut out = String::with_capacity(text.len());
-    for byte in text.bytes() {
-        if encoded(byte) {
-            out.push_str(&format!("%{byte:02X}"));
-        } else {
-            out.push(byte as char);
-        }
-    }
-    out
 }

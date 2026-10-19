@@ -2,24 +2,26 @@
 use crate::{
     occurrences::{component_occurrences, glossary_references, overlaps, tag_occurrences},
     params,
-    server::{Answer, RequestError},
+    position::range_of,
+    server::Answer,
     snapshot::Snapshot,
     uri::file_uri_to_path,
 };
 use serde_json::{Value, json};
-use sigil_core::language::position::EditorRange;
+use sigil_core::language::{parse::Span, position::EditorRange};
 use std::collections::HashMap;
 
 const COMPONENT: u32 = 0;
 const TAG: u32 = 1;
 const TERM: u32 = 2;
+/// The token types by number: `COMPONENT`, `TAG`, `TERM`.
+pub const LEGEND: [&str; 3] = ["type", "tag", "term"];
 
 /// The answer to `textDocument/semanticTokens/full`: the encoded tokens of the
 /// document, or none when the file is not a document of the workspace.
 pub(crate) fn semantic_tokens(snapshot: &Snapshot, params: &Value) -> Answer {
     let given = params::semantic_tokens(params)?;
-    let path = file_uri_to_path(&given.uri)
-        .map_err(|error| RequestError::Internal(error.message().to_owned()))?;
+    let path = file_uri_to_path(&given.uri)?;
     Ok(json!({"data": encode(&tokens_of(snapshot, &path))}))
 }
 
@@ -30,11 +32,10 @@ fn tokens_of(snapshot: &Snapshot, path: &str) -> Vec<Token> {
     let Some(file) = snapshot.file_index(path) else {
         return Vec::new();
     };
-    if snapshot.source(path).is_none() {
+    let Some((source, from_disk)) = snapshot.reading(path) else {
         return Vec::new();
-    }
-    let convert =
-        |span: sigil_core::language::parse::Span| snapshot.editor_range(path, &span.range());
+    };
+    let convert = |span: Span| range_of(source, from_disk, &span.range());
     let structured: Vec<Token> = component_occurrences(snapshot, file)
         .iter()
         .filter_map(|i| Some((convert(i.range)?, COMPONENT)))

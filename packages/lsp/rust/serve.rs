@@ -8,7 +8,7 @@
 use crate::{
     params,
     rpc::{self, Framer, Id, Incoming, Item},
-    server::{Server, ServerOptions, State},
+    server::{CANCEL_REQUEST, EXIT, Server, ServerOptions, State, uses_workspace},
 };
 use serde_json::Value;
 use std::{
@@ -20,7 +20,7 @@ use std::{
 };
 
 /// The status when standard input or output fails.
-const IO_FAILURE: i32 = 3;
+pub const IO_FAILURE: i32 = 3;
 const READ_SIZE: usize = 64 * 1024;
 
 /// How the input ended, when it did.
@@ -67,13 +67,13 @@ where
     let mut server = Server::new(options);
     loop {
         let (items, end) = next_batch(&receiver);
-        let (mut out, exited) = process(&mut server, items);
+        let mut out = process(&mut server, items);
         out.extend(server.settle());
         if write_all(&mut writer, &out).is_err() {
             return IO_FAILURE;
         }
-        if exited {
-            return server.exit_code().unwrap_or(0);
+        if let Some(code) = server.exit_code() {
+            return code;
         }
         match end {
             Some(End::Eof) => return server.exit_code().unwrap_or(0),
@@ -123,25 +123,28 @@ fn next_batch(receiver: &Receiver<Chunk>) -> (Vec<Item>, Option<End>) {
 
 /// What the loop knows about one queued item.
 enum Queued {
-    Garbled,
+    ParseError,
     Message(Incoming),
 }
 
-/// Apply a batch in order and return what to send, and whether `exit` ended
-/// it. Changes are recorded and read once by the caller's `settle`.
-fn process(server: &mut Server, items: Vec<Item>) -> (Vec<Value>, bool) {
+/// Apply a batch in order and return what to send; it stops at `exit`. Changes
+/// are recorded and read once by the caller's `settle`.
+fn process(server: &mut Server, items: Vec<Item>) -> Vec<Value> {
     let queue: Vec<Queued> = items
         .into_iter()
         .map(|item| match item {
             Item::Message(value) => Queued::Message(rpc::classify(value)),
-            Item::ParseError => Queued::Garbled,
+            Item::ParseError => Queued::ParseError,
         })
         .collect();
     let mut cancelled = cancelled_in(server, &queue);
     let mut out = Vec::new();
-    for (index, queued) in queue.iter().enumerate() {
+    // Each message is consumed as it is reached; what is left is what is
+    // queued behind it.
+    let mut remaining = queue.into_iter();
+    while let Some(queued) = remaining.next() {
         let message = match queued {
-            Queued::Garbled => {
+            Queued::ParseError => {
                 out.push(rpc::parse_error());
                 continue;
             }
@@ -151,31 +154,28 @@ fn process(server: &mut Server, items: Vec<Item>) -> (Vec<Value>, bool) {
             }
             Queued::Message(message) => message,
         };
-        match message {
+        match &message {
             Incoming::Request { method, .. } | Incoming::Notification { method, .. }
-                if method == "$/cancelRequest" => {}
+                if method == CANCEL_REQUEST => {}
             Incoming::Request { id, method, .. } => {
                 let spent = cancelled.remove(id);
-                if !spent && uses_workspace(method) && overtaken(server, &queue[index + 1..]) {
+                if !spent && uses_workspace(method) && overtaken(server, remaining.as_slice()) {
                     out.push(rpc::failure(
                         Some(id),
                         rpc::CONTENT_MODIFIED,
                         "Workspace content changed.",
                     ));
                 } else {
-                    out.extend(server.handle(message.clone()));
+                    out.extend(server.handle(message));
                 }
             }
-            Incoming::Notification { .. } if server.would_reload(message) => {
-                out.extend(server.handle_deferred(message.clone()));
-            }
-            _ => out.extend(server.handle(message.clone())),
+            _ => out.extend(server.handle_queued(message)),
         }
         if server.exit_code().is_some() {
-            return (out, true);
+            break;
         }
     }
-    (out, false)
+    out
 }
 
 /// Mark the requests of the batch that a `$/cancelRequest` of the batch names,
@@ -187,7 +187,7 @@ fn cancelled_in(server: &mut Server, queue: &[Queued]) -> HashSet<Id> {
         if let Queued::Message(
             Incoming::Request { method, params, .. } | Incoming::Notification { method, params },
         ) = queued
-            && method == "$/cancelRequest"
+            && method == CANCEL_REQUEST
             && let Some(id) = params::cancellation_id(params)
         {
             named.insert(id);
@@ -197,8 +197,8 @@ fn cancelled_in(server: &mut Server, queue: &[Queued]) -> HashSet<Id> {
     for queued in queue {
         if let Queued::Message(Incoming::Request { id, method, .. }) = queued
             && named.contains(id)
-            && method != "$/cancelRequest"
-            && method != "exit"
+            && method != CANCEL_REQUEST
+            && method != EXIT
         {
             server.cancel(id);
             marked.insert(id.clone());
@@ -207,17 +207,13 @@ fn cancelled_in(server: &mut Server, queue: &[Queued]) -> HashSet<Id> {
     marked
 }
 
-fn uses_workspace(method: &str) -> bool {
-    method != "initialize" && method != "shutdown"
-}
-
 /// Whether a message behind a request changes the workspace, so that the
 /// request's answer would be thrown away.
 fn overtaken(server: &Server, behind: &[Queued]) -> bool {
     server.state() == State::Running
         && behind.iter().any(|queued| match queued {
             Queued::Message(message) => server.would_reload(message),
-            Queued::Garbled => false,
+            Queued::ParseError => false,
         })
 }
 
@@ -225,7 +221,10 @@ fn write_all<W: Write>(writer: &mut W, messages: &[Value]) -> io::Result<()> {
     if messages.is_empty() {
         return Ok(());
     }
-    let bytes: Vec<u8> = messages.iter().flat_map(rpc::encode).collect();
+    let mut bytes = Vec::new();
+    for message in messages {
+        rpc::encode_into(&mut bytes, message);
+    }
     writer.write_all(&bytes)?;
     writer.flush()
 }

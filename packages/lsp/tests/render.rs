@@ -5,7 +5,7 @@ mod support;
 
 use serde_json::{Value, json};
 use sigil_lsp::render::{escape_markdown, resolve_link};
-use support::{CLEAN, CONSUMER, Client, Temp};
+use support::{CLEAN, CONSUMER, Client, started};
 
 const BASE: &str = "file:///workspace/dir/a.sigil";
 
@@ -125,16 +125,6 @@ fn markdown_specials_in_labels_are_escaped() {
         "a\\_b\\*c\\`d\\[e\\]f\\\\g"
     );
     assert_eq!(escape_markdown("plain text <>&"), "plain text <>&");
-}
-
-fn started(files: &[(&str, &str)]) -> (Temp, Client) {
-    let temp = Temp::workspace();
-    for (path, text) in files {
-        temp.write(path, text);
-    }
-    let mut client = Client::at(&temp.root);
-    client.start(&temp);
-    (temp, client)
 }
 
 fn render(client: &mut Client, arguments: Value) -> Value {

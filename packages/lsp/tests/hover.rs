@@ -5,7 +5,7 @@
 mod support;
 
 use serde_json::{Value, json};
-use support::{CLEAN, CONSUMER, Client, Temp, replay::replay_features};
+use support::{CLEAN, CONSUMER, Client, at, replay::replay_features, started};
 
 const GLOSSARY: &str = "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"Execution\",\n      \"definition\": \"One run of the provider.\",\n      \"aliases\": []\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\"booking.sigil\"],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\"temporary reservation\"]\n        },\n        {\n          \"term\": \"Booking charge\",\n          \"definition\": \"What a booking costs.\",\n          \"aliases\": [\"bookingterm\"]\n        }\n      ]\n    }\n  ]\n}\n";
 
@@ -16,30 +16,6 @@ const ANNOTATED: &str = "// @sigil implements contract.sigil::Thing::Execution i
 
 /// A consumer that also has a Facet about something else.
 const PLAIN_CONSUMER: &str = "@contract.sigil from Thing import { Execution }\n\ncomponent Consumer {\n  goal {\n    Consume the provider contract for Execution.\n\n    Say hello.\n  }\n}\n";
-
-/// The (line, UTF-16 column) of the `nth` occurrence of `needle` in a text
-/// whose line endings are all `\n`.
-fn at(text: &str, needle: &str, nth: usize) -> (u32, u32) {
-    let offset = text
-        .match_indices(needle)
-        .nth(nth)
-        .unwrap_or_else(|| panic!("{needle:?} #{nth} is not in the text"))
-        .0;
-    let before = &text[..offset];
-    let line = before.matches('\n').count() as u32;
-    let start = before.rfind('\n').map_or(0, |i| i + 1);
-    (line, before[start..].encode_utf16().count() as u32)
-}
-
-fn started(files: &[(&str, &str)]) -> (Temp, Client) {
-    let temp = Temp::workspace();
-    for (path, text) in files {
-        temp.write(path, text);
-    }
-    let mut client = Client::at(&temp.root);
-    client.start(&temp);
-    (temp, client)
-}
 
 fn hover(client: &mut Client, uri: &str, position: (u32, u32)) -> Value {
     let response = client.request(
