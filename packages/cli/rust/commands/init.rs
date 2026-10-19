@@ -18,7 +18,11 @@ use sigil_core::{
     },
     types::Diagnostic,
 };
-use std::{fs, path::Path};
+use std::{
+    fs::{self, OpenOptions},
+    io::Write,
+    path::Path,
+};
 
 /// The config as `init` writes it, in the key order of the TypeScript output.
 #[derive(Debug, Serialize)]
@@ -140,8 +144,16 @@ fn pretty_file<T: Serialize>(value: &T) -> Result<String, (u8, String)> {
     json_string(value, true).map_err(runtime_error)
 }
 
+/// Create `path` and write `text` to it, failing if anything is already there,
+/// a dangling symbolic link included, as the TypeScript command line does. The
+/// existence checks in `run` only choose the message; this is what keeps a file
+/// or link that appeared since from being written through or replaced.
 fn write(path: &Path, text: &str) -> Result<(), (u8, String)> {
-    fs::write(path, text)
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .and_then(|mut file| file.write_all(text.as_bytes()))
         .map_err(|error| runtime_error(format!("Cannot write {}: {error}", path_text(path))))
 }
 

@@ -119,6 +119,24 @@ fn an_inline_definition_or_a_resolved_reference_counts_as_a_tag() {
 }
 
 #[test]
+fn an_invalid_inline_definition_does_not_count_as_a_tag() {
+    // A comma is forbidden in a Tag name, so `*a,b*` defines nothing.
+    let source = component(
+        "C",
+        "    A *a,b* has meaning.\n\n    A *query* has meaning.",
+    );
+    let resolved = resolve(&[("c.sigil", &source)]);
+    let facets = &resolved.declaration(&resolved.components[0]).sections[1].units;
+    assert!(
+        !facets[0].definitions.is_empty() && facets[0].definitions.iter().all(|d| !d.valid),
+        "the first Facet holds only an invalid definition"
+    );
+    let found = untagged_facet_diagnostics(&resolved);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(pointed_at(&source, &found[0]), "A *a,b* has meaning.");
+}
+
+#[test]
 fn a_reference_through_an_import_counts_as_a_tag() {
     let provider = component("P", "    A *query* has meaning.");
     let consumer = format!(

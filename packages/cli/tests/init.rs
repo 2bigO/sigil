@@ -290,3 +290,86 @@ fn the_working_directory_is_initialized_when_no_path_is_given() {
     assert_eq!(value["workspaceName"], "my-project");
     assert!(temp.path("my-project/.sigil/config.json").is_file());
 }
+
+#[test]
+fn a_dangling_config_link_is_not_written_through() {
+    let temp = project();
+    let target = temp.path("outside-config");
+    std::fs::create_dir_all(temp.path("my-project/.sigil")).unwrap();
+    std::os::unix::fs::symlink(&target, temp.path("my-project/.sigil/config.json")).unwrap();
+    let ran = temp.sigil(&["init", "my-project"]);
+    // The TypeScript command line fails here: File exists (os error 17).
+    assert_eq!(ran.code, 3, "{ran:?}");
+    assert_eq!(ran.stdout, "");
+    assert!(
+        ran.stderr.starts_with("Cannot write ") && ran.stderr.contains("File exists"),
+        "{}",
+        ran.stderr
+    );
+    assert!(!target.exists(), "nothing is created at the link target");
+    assert!(
+        std::fs::symlink_metadata(temp.path("my-project/.sigil/config.json"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(!temp.path("my-project/.sigil/glossary.json").exists());
+}
+
+#[test]
+fn a_dangling_glossary_link_fails_after_the_config_is_written() {
+    let temp = project();
+    let target = temp.path("outside-glossary");
+    std::fs::create_dir_all(temp.path("my-project/.sigil")).unwrap();
+    std::os::unix::fs::symlink(&target, temp.path("my-project/.sigil/glossary.json")).unwrap();
+    let ran = temp.sigil(&["init", "my-project"]);
+    // The TypeScript command line does the same: the config stays, the run fails.
+    assert_eq!(ran.code, 3, "{ran:?}");
+    assert_eq!(ran.stdout, "");
+    assert!(
+        ran.stderr.starts_with("Cannot write ") && ran.stderr.contains("File exists"),
+        "{}",
+        ran.stderr
+    );
+    assert!(!target.exists(), "nothing is created at the link target");
+    assert_eq!(
+        temp.files()["my-project/.sigil/config.json"],
+        DEFAULT_CONFIG
+    );
+}
+
+#[test]
+fn a_regular_file_where_the_sigil_directory_goes_is_a_runtime_failure() {
+    let temp = project();
+    temp.write("my-project/.sigil", "not a directory");
+    let ran = temp.sigil(&["init", "my-project"]);
+    assert_eq!(ran.code, 3, "{ran:?}");
+    assert_eq!(ran.stdout, "");
+    assert!(ran.stderr.starts_with("Cannot create "), "{}", ran.stderr);
+    assert_eq!(temp.files()["my-project/.sigil"], "not a directory");
+    assert_eq!(temp.files().len(), 1);
+}
+
+#[test]
+fn a_failed_write_is_a_runtime_failure_with_nothing_on_standard_output() {
+    use std::os::unix::fs::PermissionsExt;
+    let temp = project();
+    let dir = temp.path("my-project/.sigil");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+    // A superuser can write anyway, so there is nothing to observe.
+    let writable = std::fs::write(dir.join("probe"), "").is_ok();
+    let ran = temp.sigil(&["init", "my-project"]);
+    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    if writable {
+        return;
+    }
+    assert_eq!(ran.code, 3, "{ran:?}");
+    assert_eq!(ran.stdout, "");
+    assert!(
+        ran.stderr.starts_with("Cannot write ") && ran.stderr.contains("Permission denied"),
+        "{}",
+        ran.stderr
+    );
+    assert!(temp.files().is_empty());
+}

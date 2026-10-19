@@ -167,6 +167,30 @@ fn a_flag_value_that_starts_with_a_dash_is_not_a_value() {
 }
 
 #[test]
+fn an_empty_flag_value_is_not_a_value() {
+    // The TypeScript command line rejects these the same way.
+    let temp = Temp::new();
+    for (args, message) in [
+        (&["init", "--name", ""][..], "--name requires a value."),
+        (&["init", "--include", ""], "--include requires a value."),
+        (&["init", "--exclude", ""], "--exclude requires a value."),
+        (&["check", "--root", ""], "--root requires a value."),
+        (&["check", "--format", ""], "--format requires a value."),
+    ] {
+        let ran = temp.sigil(args);
+        assert_eq!(ran.code, 2, "{args:?}: {ran:?}");
+        assert_eq!(ran.stdout, "");
+        assert!(
+            ran.stderr
+                .starts_with(&format!("Error: {message}\n\nUsage: sigil ")),
+            "{args:?}: {}",
+            ran.stderr
+        );
+    }
+    assert!(temp.files().is_empty());
+}
+
+#[test]
 fn option_checks_run_before_positional_counts() {
     let temp = Temp::new();
     for (args, message) in [
