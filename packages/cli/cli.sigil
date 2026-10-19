@@ -73,6 +73,10 @@ component SigilCli {
     standard input and output for an editor. sigilc stays a separate
     executable and is not a sigil command.
 
+    SigilCli provides the *usage text*, shown with exit status 0 for the help
+    option alone or after any command, and the bare CLI version, followed by a
+    newline, for the version option.
+
     SigilCli provides each command's *output format*, json, text, or markdown,
     except that the fmt command offers only json and text.
 
