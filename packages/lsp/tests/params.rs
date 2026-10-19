@@ -1,6 +1,6 @@
 use serde_json::{Value, json};
 use sigil_lsp::params::{
-    DidChangeParams, DidChangeWatchedFilesParams, DidOpenParams, ExecuteCommandParams, FileChange,
+    DidChangeRef, DidChangeWatchedFilesParams, DidOpenRef, ExecuteCommandParams, FileChange,
     InitializeParams, InvalidParams, PositionParams, TextDocumentParams, cancellation_id,
     did_change, did_change_watched_files, did_close, did_open, document_symbol, execute_command,
     initialize, semantic_tokens, text_document_position,
@@ -92,15 +92,15 @@ fn initialize_rejects_wrong_shapes_with_the_ts_messages() {
 
 #[test]
 fn did_open_accepts_and_rejects() {
-    let parsed = did_open(&json!({"textDocument": {
-        "uri": "file:///a.sigil", "version": 3, "text": "x", "languageId": "sigil"}}))
-    .unwrap();
+    let params = json!({"textDocument": {
+        "uri": "file:///a.sigil", "version": 3, "text": "x", "languageId": "sigil"}});
+    let parsed = did_open(&params).unwrap();
     assert_eq!(
         parsed,
-        DidOpenParams {
-            uri: "file:///a.sigil".into(),
+        DidOpenRef {
+            uri: "file:///a.sigil",
             version: 3.0,
-            text: "x".into(),
+            text: "x",
         }
     );
     assert_eq!(
@@ -133,17 +133,17 @@ fn did_open_accepts_and_rejects() {
 
 #[test]
 fn did_change_accepts_and_rejects() {
-    let parsed = did_change(&json!({
+    let params = json!({
         "textDocument": {"uri": "u", "version": 2},
         "contentChanges": [{"text": "a"}, {"text": "b", "range": null}]
-    }))
-    .unwrap();
+    });
+    let parsed = did_change(&params).unwrap();
     assert_eq!(
         parsed,
-        DidChangeParams {
-            uri: "u".into(),
+        DidChangeRef {
+            uri: "u",
             version: 2.0,
-            texts: vec!["a".into(), "b".into()],
+            texts: vec!["a", "b"],
         }
     );
     assert!(

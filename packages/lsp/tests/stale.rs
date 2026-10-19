@@ -2,10 +2,10 @@
 //! What the loop does with a queue: requests overtaken by a change, requests
 //! cancelled before they start, and a burst of edits read once.
 //!
-//! Requests that read the workspace are `textDocument/definition`. The server
-//! answers it method not found until the feature units land, so a request that
-//! is not stale is asserted to be anything but content modified or cancelled;
-//! the feature units give it real answers.
+//! The requests used here read the workspace: `textDocument/definition` where
+//! only staleness matters, and `textDocument/documentSymbol` where the answer
+//! depends on the text, so a request that is not stale is also checked to be
+//! answered from the text it should see.
 mod support;
 
 use serde_json::{Value, json};
@@ -63,6 +63,14 @@ fn definition(id: i64, uri: &str) -> Value {
     )
 }
 
+fn document_symbol(id: i64, uri: &str) -> Value {
+    request(
+        id,
+        "textDocument/documentSymbol",
+        json!({"textDocument": {"uri": uri}}),
+    )
+}
+
 fn cancel(id: i64) -> Value {
     message("$/cancelRequest", json!({"id": id}))
 }
@@ -93,9 +101,21 @@ fn error_code(response: &Value) -> Option<i64> {
     response["error"]["code"].as_i64()
 }
 
-/// Not stale and not cancelled: anything else the server may answer.
+/// Answered with a result: neither an error, stale and cancelled included, nor
+/// an answer without one.
 fn answered_normally(response: &Value) -> bool {
-    !matches!(error_code(response), Some(STALE | CANCELLED))
+    response.get("error").is_none() && response.get("result").is_some()
+}
+
+/// What `textDocument/documentSymbol` answers for a buffer that holds `text`
+/// and nothing else, from a run of its own.
+fn symbols_for(temp: &Temp, uri: &str, text: &str) -> Value {
+    let mut input = initialize(temp);
+    input.extend([open(uri, 1, text), document_symbol(2, uri)]);
+    let (_, output) = run_queue(options(temp), &input);
+    let response = answer(&output, 2);
+    assert!(answered_normally(response), "{response}");
+    response["result"].clone()
 }
 
 fn position(output: &[Value], wanted: impl Fn(&Value) -> bool) -> usize {
@@ -146,10 +166,15 @@ fn the_same_request_after_the_change_is_answered_from_the_new_text() {
     input.extend([
         open(&uri, 1, CLEAN),
         change(&uri, 2, BROKEN),
-        definition(2, &uri),
+        document_symbol(2, &uri),
     ]);
     let (_, output) = run_queue(options(&temp), &input);
-    assert!(answered_normally(answer(&output, 2)));
+    let response = answer(&output, 2);
+    assert!(answered_normally(response), "{response}");
+    // The symbols are those of the new text, not of the clean one.
+    let from_new = symbols_for(&temp, &uri, BROKEN);
+    assert_eq!(response["result"], from_new);
+    assert_ne!(from_new, symbols_for(&temp, &uri, CLEAN));
     // The edits are published before the answer.
     let published_at = position(&output, |m| {
         m["method"] == "textDocument/publishDiagnostics"
@@ -166,16 +191,19 @@ fn a_watch_event_for_a_file_that_does_not_reload_leaves_the_request_alone() {
     let mut input = initialize(&temp);
     input.extend([
         open(&uri, 1, CLEAN),
-        definition(2, &uri),
+        document_symbol(2, &uri),
         watched(&temp.uri("build/output.js")),
-        definition(3, &uri),
+        document_symbol(3, &uri),
         watched(&temp.uri("notes.txt")),
         // A file that only looks like the config.
         watched(&temp.uri("other/.sigil/notes.json")),
     ]);
     let (_, output) = run_queue(options(&temp), &input);
-    assert!(answered_normally(answer(&output, 2)));
-    assert!(answered_normally(answer(&output, 3)));
+    let expected = symbols_for(&temp, &uri, CLEAN);
+    for id in [2, 3] {
+        assert!(answered_normally(answer(&output, id)), "{output:?}");
+        assert_eq!(answer(&output, id)["result"], expected);
+    }
 }
 
 #[test]
@@ -200,14 +228,18 @@ fn a_request_never_goes_stale_over_a_change_the_server_would_ignore() {
     let mut input = initialize(&temp);
     input.extend([
         open(&uri, 5, CLEAN),
-        definition(2, &uri),
+        document_symbol(2, &uri),
         // Not newer than the open buffer's version, and for a document that is
         // not open: neither starts a reload.
         change(&uri, 5, BROKEN),
         change(&temp.uri("never-opened.sigil"), 9, BROKEN),
     ]);
     let (_, output) = run_queue(options(&temp), &input);
-    assert!(answered_normally(answer(&output, 2)));
+    assert!(answered_normally(answer(&output, 2)), "{output:?}");
+    assert_eq!(
+        answer(&output, 2)["result"],
+        symbols_for(&temp, &uri, CLEAN)
+    );
 }
 
 #[test]
@@ -307,11 +339,11 @@ fn a_request_that_is_both_cancelled_and_overtaken_answers_cancelled() {
     let mut input = initialize(&temp);
     input.extend([
         open(&uri, 1, CLEAN),
-        definition(2, &uri),
+        document_symbol(2, &uri),
         change(&uri, 2, BROKEN),
         cancel(2),
         // The first request spent the mark, so this one with the same id is not cancelled.
-        definition(2, &uri),
+        document_symbol(2, &uri),
     ]);
     let (_, output) = run_queue(options(&temp), &input);
     let answers: Vec<_> = output
@@ -320,7 +352,8 @@ fn a_request_that_is_both_cancelled_and_overtaken_answers_cancelled() {
         .collect();
     assert_eq!(answers.len(), 2);
     assert_eq!(error_code(answers[0]), Some(CANCELLED));
-    assert!(answered_normally(answers[1]));
+    assert!(answered_normally(answers[1]), "{:?}", answers[1]);
+    assert_eq!(answers[1]["result"], symbols_for(&temp, &uri, BROKEN));
 }
 
 /// An input that the test feeds one write at a time, and an output it reads.
@@ -410,21 +443,23 @@ fn a_cancellation_that_comes_after_the_answer_does_nothing_and_leaves_no_mark() 
     let session = Session::start(options(&temp));
     session.send(&initialize(&temp));
     session.wait_for(1);
-    session.send(&[definition(2, &uri)]);
+    session.send(&[document_symbol(2, &uri)]);
     let before = session.wait_for(2);
-    assert!(answered_normally(answer(&before, 2)));
+    assert!(answered_normally(answer(&before, 2)), "{before:?}");
     // Too late: the answer is out. The request after it makes the loop answer
     // something, so the next request is known to be read after the
     // cancellation. A request that reuses the id is not cancelled.
     session.send(&[cancel(2)]);
-    session.send(&[definition(3, &uri)]);
+    session.send(&[document_symbol(3, &uri)]);
     session.wait_for(3);
-    session.send(&[definition(2, &uri)]);
+    session.send(&[document_symbol(2, &uri)]);
     let after = session.wait_for(4);
     assert_eq!(after.len(), 4);
-    assert!(answered_normally(answer(&after, 3)));
-    assert!(answered_normally(&after[3]));
+    assert!(answered_normally(answer(&after, 3)), "{after:?}");
+    assert!(answered_normally(&after[3]), "{after:?}");
     assert_eq!(after[3]["id"], 2);
+    assert_eq!(after[3]["result"], answer(&before, 2)["result"]);
+    assert_eq!(answer(&after, 3)["result"], answer(&before, 2)["result"]);
     assert_eq!(session.finish(), 0);
 }
 
@@ -438,9 +473,13 @@ fn a_request_read_before_a_change_is_answered_when_the_change_comes_later() {
     session.send(&[open(&uri, 1, CLEAN)]);
     // The initialize result and the open's publication.
     session.wait_for(2);
-    session.send(&[definition(2, &uri)]);
+    session.send(&[document_symbol(2, &uri)]);
     let output = session.wait_for(3);
-    assert!(answered_normally(answer(&output, 2)));
+    assert!(answered_normally(answer(&output, 2)), "{output:?}");
+    assert_eq!(
+        answer(&output, 2)["result"],
+        symbols_for(&temp, &uri, CLEAN)
+    );
     session.send(&[change(&uri, 2, BROKEN)]);
     let output = session.wait_for(output.len() + 1);
     assert!(published_for(&output, &uri).is_some());

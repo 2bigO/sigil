@@ -49,6 +49,16 @@ struct Ended {
 
 impl Session {
     fn start(cwd: &Path) -> Self {
+        Self::spawn(cwd, false)
+    }
+
+    /// Like `start`, but the read side of the server's standard output is
+    /// closed at once, so the server's first write fails.
+    fn start_with_output_closed(cwd: &Path) -> Self {
+        Self::spawn(cwd, true)
+    }
+
+    fn spawn(cwd: &Path, close_output: bool) -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_sigil"))
             .arg("lsp")
             .current_dir(cwd)
@@ -59,7 +69,14 @@ impl Session {
             .spawn()
             .expect("the sigil binary runs");
         let stdin = child.stdin.take();
-        let stdout = pump(child.stdout.take().expect("piped"));
+        let piped = child.stdout.take().expect("piped");
+        let stdout = if close_output {
+            drop(piped);
+            // A receiver that reads as closed: nothing can arrive on it.
+            mpsc::channel().1
+        } else {
+            pump(piped)
+        };
         let stderr = pump(child.stderr.take().expect("piped"));
         Self {
             child,
@@ -358,4 +375,21 @@ fn a_session_without_a_root_finds_the_workspace_from_the_process_directory() {
     session.response(shutdown);
     session.notify("exit", json!(null));
     assert_eq!(session.end().code, 0);
+}
+
+#[test]
+fn a_failed_write_to_standard_output_exits_3_and_says_so_on_standard_error() {
+    let temp = Temp::new();
+    let mut session = Session::start_with_output_closed(&temp.root);
+    // The reply to initialize is the first write, and it fails because the
+    // read side is closed. The loop writes before it looks at the end of the
+    // input, so closing standard input in `end` does not change the status.
+    session.request("initialize", json!({"rootUri": null}));
+    let ended = session.end();
+    assert_eq!(ended.code, 3);
+    assert!(ended.messages.is_empty(), "{:?}", ended.messages);
+    assert_eq!(
+        ended.stderr,
+        "sigil lsp: standard input or output failed.\n"
+    );
 }

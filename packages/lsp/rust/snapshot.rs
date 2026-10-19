@@ -1,6 +1,9 @@
 //! One reading of a workspace: everything an answer or a published diagnostic
 //! is made from, so a request never sees two readings.
-use crate::{position, uri::path_to_file_uri};
+use crate::{
+    position,
+    uri::{has_drive_prefix, path_to_file_uri},
+};
 use sigil_core::{
     language::{
         diagnostics::{Location, diagnostic, order_diagnostics},
@@ -226,12 +229,7 @@ fn relative_path_in(root: &str, path: &str) -> Option<String> {
 }
 
 fn is_absolute(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    path.starts_with('/')
-        || (bytes.len() >= 3
-            && bytes[0].is_ascii_alphabetic()
-            && bytes[1] == b':'
-            && (bytes[2] == b'/' || bytes[2] == b'\\'))
+    path.starts_with('/') || has_drive_prefix(path)
 }
 
 fn path_text(path: &Path) -> String {

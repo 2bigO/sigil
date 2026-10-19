@@ -631,7 +631,7 @@ fn would_reload_names_the_messages_that_start_a_reload() {
 }
 
 #[test]
-fn a_burst_of_deferred_edits_settles_with_one_reload() {
+fn a_burst_of_queued_edits_settles_with_one_reload() {
     let temp = workspace_with(&[("a.sigil", CLEAN)]);
     let disk = Disk::new();
     let mut client = Client::new(disk.options(&temp.root, LONG_DELAY));
@@ -652,12 +652,7 @@ fn a_burst_of_deferred_edits_settles_with_one_reload() {
         }
     };
     for (version, text) in [(1, CLEAN), (2, BROKEN), (3, CLEAN), (4, BROKEN)] {
-        assert!(
-            client
-                .server
-                .handle_deferred(edit(version, text))
-                .is_empty()
-        );
+        assert!(client.server.handle_queued(edit(version, text)).is_empty());
     }
     assert!(client.server.reload_pending());
     assert_eq!(disk.loads(), loads, "nothing is read before settle");
@@ -673,7 +668,7 @@ fn a_burst_of_deferred_edits_settles_with_one_reload() {
 }
 
 #[test]
-fn deferred_closes_and_watch_events_settle_into_one_publication_set() {
+fn queued_closes_and_watch_events_settle_into_one_publication_set() {
     let temp = workspace_with(&[("a.sigil", CLEAN)]);
     let disk = Disk::new();
     let mut client = Client::new(disk.options(&temp.root, LONG_DELAY));
@@ -681,21 +676,25 @@ fn deferred_closes_and_watch_events_settle_into_one_publication_set() {
     let uri = temp.uri("a.sigil");
     client.open(&uri, 1, BROKEN);
     let loads = disk.loads();
-    let close = notification(
-        "textDocument/didClose",
-        json!({"textDocument": {"uri": uri}}),
-    );
-    assert!(client.server.handle_deferred(close).is_empty());
-    let watch = notification(
-        "workspace/didChangeWatchedFiles",
-        json!({"changes": [{"uri": temp.uri("a.sigil"), "type": 2}]}),
-    );
-    assert!(client.server.handle_deferred(watch).is_empty());
+    // A message the server ignores is handled as `handle` does, which settles
+    // what is pending; so it comes first, while nothing is pending.
     let ignored = notification(
         "workspace/didChangeWatchedFiles",
         json!({"changes": [{"uri": temp.uri("notes.md"), "type": 2}]}),
     );
-    assert!(client.server.handle_deferred(ignored).is_empty());
+    assert!(client.server.handle_queued(ignored).is_empty());
+    assert!(!client.server.reload_pending());
+    let close = notification(
+        "textDocument/didClose",
+        json!({"textDocument": {"uri": uri}}),
+    );
+    assert!(client.server.handle_queued(close).is_empty());
+    let watch = notification(
+        "workspace/didChangeWatchedFiles",
+        json!({"changes": [{"uri": temp.uri("a.sigil"), "type": 2}]}),
+    );
+    assert!(client.server.handle_queued(watch).is_empty());
+    assert!(client.server.reload_pending());
     let out = client.server.settle();
     assert_eq!(disk.loads(), loads + 1);
     assert_eq!(
@@ -716,7 +715,7 @@ fn a_request_settles_pending_edits_and_answers_after_their_diagnostics() {
         "textDocument/didOpen",
         json!({"textDocument": {"uri": uri, "version": 1, "text": BROKEN}}),
     );
-    client.server.handle_deferred(open);
+    client.server.handle_queued(open);
     let loads = disk.loads();
     let out = client.server.handle(request(9, "workspace/symbol"));
     assert_eq!(disk.loads(), loads + 1);
@@ -728,7 +727,7 @@ fn a_request_settles_pending_edits_and_answers_after_their_diagnostics() {
             .all(|m| m["method"] == "textDocument/publishDiagnostics")
     );
     // A cancelled request does not read the workspace for nothing.
-    client.server.handle_deferred(notification(
+    client.server.handle_queued(notification(
         "textDocument/didClose",
         json!({"textDocument": {"uri": uri}}),
     ));

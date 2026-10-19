@@ -51,21 +51,6 @@ impl InitializeParams {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct DidOpenParams {
-    pub uri: String,
-    pub version: f64,
-    pub text: String,
-}
-
-/// Full-text changes, in the order sent.
-#[derive(Debug, Clone, PartialEq)]
-pub struct DidChangeParams {
-    pub uri: String,
-    pub version: f64,
-    pub texts: Vec<String>,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextDocumentParams {
     pub uri: String,
@@ -163,7 +148,8 @@ pub fn initialize(params: &Value) -> Result<InitializeParams, InvalidParams> {
     })
 }
 
-/// `DidOpenParams` borrowed from the message, so a check copies no text.
+/// The checked `textDocument/didOpen` params, borrowed from the message so a
+/// check copies no text.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct DidOpenRef<'a> {
     pub uri: &'a str,
@@ -171,7 +157,8 @@ pub struct DidOpenRef<'a> {
     pub text: &'a str,
 }
 
-/// `DidChangeParams` borrowed from the message, so a check copies no text.
+/// The checked `textDocument/didChange` params, borrowed from the message so a
+/// check copies no text. `texts` are the full-text changes, in the order sent.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DidChangeRef<'a> {
     pub uri: &'a str,
@@ -179,15 +166,7 @@ pub struct DidChangeRef<'a> {
     pub texts: Vec<&'a str>,
 }
 
-pub fn did_open(params: &Value) -> Result<DidOpenParams, InvalidParams> {
-    did_open_ref(params).map(|given| DidOpenParams {
-        uri: given.uri.to_owned(),
-        version: given.version,
-        text: given.text.to_owned(),
-    })
-}
-
-pub fn did_open_ref(params: &Value) -> Result<DidOpenRef<'_>, InvalidParams> {
+pub fn did_open(params: &Value) -> Result<DidOpenRef<'_>, InvalidParams> {
     let value = required_record(params, "didOpen params")?;
     let document = required_record(field(value, "textDocument"), "didOpen textDocument")?;
     match (
@@ -208,15 +187,7 @@ pub fn did_open_ref(params: &Value) -> Result<DidOpenRef<'_>, InvalidParams> {
     }
 }
 
-pub fn did_change(params: &Value) -> Result<DidChangeParams, InvalidParams> {
-    did_change_ref(params).map(|given| DidChangeParams {
-        uri: given.uri.to_owned(),
-        version: given.version,
-        texts: given.texts.into_iter().map(str::to_owned).collect(),
-    })
-}
-
-pub fn did_change_ref(params: &Value) -> Result<DidChangeRef<'_>, InvalidParams> {
+pub fn did_change(params: &Value) -> Result<DidChangeRef<'_>, InvalidParams> {
     let value = required_record(params, "didChange params")?;
     let document = required_record(field(value, "textDocument"), "didChange textDocument")?;
     let wrong = || InvalidParams::new("didChange requires uri, version, and full text changes.");

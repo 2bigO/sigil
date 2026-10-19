@@ -50,7 +50,7 @@ pub fn file_uri_to_path(uri: &str) -> Result<String, UriError> {
     if !host.is_empty() && host != "localhost" {
         return Ok(format!("//{host}{}", normalize_path(&path)));
     }
-    if has_drive_prefix(&path) {
+    if has_drive_prefix(&path[1..]) {
         path.remove(0);
     }
     Ok(normalize_path(&path))
@@ -67,19 +67,21 @@ pub fn path_to_file_uri(path: &str) -> String {
         return format!("file://{host}{}", encode(&normalize_path(rest)));
     }
     let normalized = normalize_path(&slashed);
-    let bytes = normalized.as_bytes();
-    let drive = bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
-    let prefix = if drive { "file:///" } else { "file://" };
+    let prefix = if has_drive_prefix(&normalized) {
+        "file:///"
+    } else {
+        "file://"
+    };
     format!("{prefix}{}", encode(&normalized))
 }
 
-fn has_drive_prefix(path: &str) -> bool {
+/// Whether a path starts with a drive letter and a separator, as `C:/` or `C:\`.
+pub(crate) fn has_drive_prefix(path: &str) -> bool {
     let bytes = path.as_bytes();
-    bytes.len() >= 4
-        && bytes[0] == b'/'
-        && bytes[1].is_ascii_alphabetic()
-        && bytes[2] == b':'
-        && bytes[3] == b'/'
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'/' || bytes[2] == b'\\')
 }
 
 fn percent_decode(text: &str) -> Option<String> {

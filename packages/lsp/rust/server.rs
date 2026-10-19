@@ -2,8 +2,9 @@
 //! messages to send out.
 //!
 //! The stdio loop runs it from one thread. `handle` applies a message
-//! completely. For a burst of edits the loop calls `handle_deferred`, which
-//! only records the change, and `settle` once, which reads the workspace once.
+//! completely. For a burst of queued messages the loop calls `handle_queued`,
+//! which only records a change that needs a reload, and then `settle` once,
+//! which reads the workspace once.
 use crate::{
     diagnostics, hover, navigation,
     params::{self, InvalidParams},
@@ -174,6 +175,7 @@ impl Server {
     }
 
     /// Grows on every change of what the server holds: a buffer, a reload.
+    /// Tests read it to tell that a message changed nothing or read nothing.
     pub fn generation(&self) -> u64 {
         self.generation
     }
@@ -183,7 +185,8 @@ impl Server {
         self.snapshot.as_ref()
     }
 
-    /// Whether a change recorded by `handle_deferred` still awaits `settle`.
+    /// Whether a change recorded by `handle_queued` still awaits `settle`.
+    /// Tests read it to check that edits are recorded without a reload.
     pub fn reload_pending(&self) -> bool {
         self.reload_pending
     }
@@ -206,8 +209,9 @@ impl Server {
     }
 
     /// Apply a message that is queued with others: a change that needs a
-    /// reload is only recorded, as `handle_deferred` does, and anything else
-    /// is handled as `handle` does. The state judged is the state now.
+    /// reload is only recorded, until `settle` reads the workspace once, and
+    /// anything else is handled as `handle` does. The state judged is the
+    /// state now.
     pub fn handle_queued(&mut self, message: Incoming) -> Vec<Value> {
         if let Incoming::Notification { method, params } = &message
             && let Some(change) = self.plan(method, params)
@@ -232,23 +236,10 @@ impl Server {
             }
             Incoming::Request { id, method, params } => self.request(&id, &method, &params),
             Incoming::Notification { method, params } => {
-                let mut out = self.notification(&method, &params, false);
+                let mut out = self.notification(&method, &params);
                 out.extend(self.settle());
                 out
             }
-        }
-    }
-
-    /// Like `handle`, but a change that needs a reload is only recorded. Call
-    /// `settle` before sending the replies that depend on it.
-    pub fn handle_deferred(&mut self, message: Incoming) -> Vec<Value> {
-        match message {
-            Incoming::Notification { method, params }
-                if method != CANCEL_REQUEST && method != EXIT =>
-            {
-                self.notification(&method, &params, true)
-            }
-            other => self.handle(other),
         }
     }
 
@@ -363,7 +354,7 @@ impl Server {
         }))
     }
 
-    fn notification(&mut self, method: &str, params: &Value, deferred: bool) -> Vec<Value> {
+    fn notification(&mut self, method: &str, params: &Value) -> Vec<Value> {
         if self.state != State::Running {
             return Vec::new();
         }
@@ -374,9 +365,7 @@ impl Server {
         }
         if let Some(change) = self.plan(method, params) {
             self.apply(change);
-            if !deferred {
-                return self.settle();
-            }
+            return self.settle();
         }
         Vec::new()
     }
@@ -391,7 +380,7 @@ impl Server {
         }
         match method {
             "textDocument/didOpen" => {
-                let given = params::did_open_ref(params).ok()?;
+                let given = params::did_open(params).ok()?;
                 let path = file_uri_to_path(given.uri).ok()?;
                 Some(Change::Set {
                     path,
@@ -401,7 +390,7 @@ impl Server {
                 })
             }
             "textDocument/didChange" => {
-                let given = params::did_change_ref(params).ok()?;
+                let given = params::did_change(params).ok()?;
                 let path = file_uri_to_path(given.uri).ok()?;
                 let current = self.open.get(&path)?;
                 if given.version <= current.version {
