@@ -2,7 +2,7 @@
 use regex::Regex;
 use std::{
     collections::HashMap,
-    sync::{LazyLock, Mutex},
+    sync::{Arc, LazyLock, Mutex},
 };
 
 /// Normalize separators and dot segments the way the TypeScript reader does.
@@ -59,8 +59,13 @@ pub fn normalize_path(path: &str) -> String {
 }
 
 /// Compiled glob patterns, kept so a workspace with many files compiles each
-/// include and exclude pattern once instead of once per file.
-static GLOBS: LazyLock<Mutex<HashMap<String, Option<Regex>>>> = LazyLock::new(Default::default);
+/// include and exclude pattern once instead of once per file. They are shared
+/// as `Arc<Regex>` because cloning a `Regex` discards its match scratch space.
+/// Patterns come from workspace and glossary configuration, so the cache stays
+/// small for a one-shot command; a long-lived host that reloads edited configs
+/// would need to bound it.
+static GLOBS: LazyLock<Mutex<HashMap<String, Option<Arc<Regex>>>>> =
+    LazyLock::new(Default::default);
 
 /// Match a workspace-relative glob (`*`, `**`, `?`) against a path.
 pub fn glob_matches(pattern: &str, path: &str) -> bool {
@@ -68,10 +73,14 @@ pub fn glob_matches(pattern: &str, path: &str) -> bool {
         let mut cache = GLOBS
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
-        cache
-            .entry(pattern.to_owned())
-            .or_insert_with(|| compile_glob(pattern))
-            .clone()
+        match cache.get(pattern) {
+            Some(found) => found.clone(),
+            None => {
+                let compiled = compile_glob(pattern).map(Arc::new);
+                cache.insert(pattern.to_owned(), compiled.clone());
+                compiled
+            }
+        }
     };
     compiled.is_some_and(|re| re.is_match(path))
 }

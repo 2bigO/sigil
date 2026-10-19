@@ -18,7 +18,11 @@ is available only to a run on a `cli-v*` tag (see [One-time setup](#one-time-set
 
 On a branch from `main`, in one pull request:
 
-1. Set the new version in `packages/cli/deno.json`.
+1. Set the new version in `packages/cli/deno.json`, and the same version in
+   `packages/cli/Cargo.toml`. Refresh `packages/cli/Cargo.lock` with
+   `cargo update --offline -p sigil-cli` (or `cargo check`) so `--locked` builds
+   still pass; the Rust `sigil` crate's `version_matches_deno_json` test fails
+   when the two disagree.
 2. Set the same version in every plugin manifest: `.claude-plugin/plugin.json`,
    `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`,
    `gemini-extension.json`, `plugin.json` and `package.json`.
