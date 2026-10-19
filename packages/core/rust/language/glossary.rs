@@ -98,8 +98,12 @@ pub fn parse_glossary(bytes: &[u8], file_path: &str) -> GlossaryParse {
                 "glossary",
                 &mut messages,
             );
-            if object.get("schemaVersion").and_then(Value::as_i64) != Some(1) {
-                messages.push("schemaVersion must equal 1.".into());
+            if object.get("schemaVersion").and_then(Value::as_i64)
+                != Some(i64::from(GLOSSARY_SCHEMA_VERSION))
+            {
+                messages.push(format!(
+                    "schemaVersion must equal {GLOSSARY_SCHEMA_VERSION}."
+                ));
             }
             validate_terms(object.get("terms"), "terms", &mut messages);
             validate_contexts(object.get("contexts"), &mut messages);
@@ -527,7 +531,7 @@ pub struct GlossaryOccurrence {
     pub matched_spelling: String,
     pub file_path: String,
     /// The kind of form that owns the Facet; `component` is the only kind.
-    pub owner_kind: String,
+    pub owner_kind: &'static str,
     pub owner_name: String,
     pub section_name: String,
     pub range: Range,
@@ -650,7 +654,7 @@ fn match_line(
             term: (*term).clone(),
             matched_spelling: text[byte_at(index)..byte_at(index + length)].to_owned(),
             file_path: context.file_path.to_owned(),
-            owner_kind: "component".to_owned(),
+            owner_kind: "component",
             owner_name: context.owner.to_owned(),
             section_name: context.section.to_owned(),
             range: Range {

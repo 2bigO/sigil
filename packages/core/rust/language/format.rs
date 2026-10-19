@@ -18,7 +18,7 @@ use crate::types::{Diagnostic, Severity};
 use serde_json::{Value, json};
 use std::collections::{HashMap, HashSet};
 
-const LINE_TOO_LONG: &str = "SIGIL_LINE_TOO_LONG";
+pub const LINE_TOO_LONG: &str = "SIGIL_LINE_TOO_LONG";
 
 /// A facet by component, section and unit index.
 type FacetKey = (usize, usize, usize);
@@ -84,10 +84,19 @@ pub fn format_text(file_path: &str, text: &str) -> FormatResult {
 /// Format one source document of a loaded workspace, resolving its imports
 /// against the workspace's providers.
 pub fn format_document(workspace: &Workspace, path: &str) -> FormatResult {
-    let resolved = ResolvedWorkspace::from(workspace);
+    format_document_resolved(workspace, &ResolvedWorkspace::from(workspace), path)
+}
+
+/// [`format_document`] for a caller that already resolved `workspace`, so a
+/// batch resolves it once instead of once per file.
+pub fn format_document_resolved(
+    workspace: &Workspace,
+    resolved: &ResolvedWorkspace,
+    path: &str,
+) -> FormatResult {
     match resolved.paths.iter().position(|p| p == path) {
-        Some(index) => format_resolved(workspace, &resolved, index),
-        None => reject(resolved.diagnostics),
+        Some(index) => format_resolved(workspace, resolved, index),
+        None => reject(resolved.diagnostics.clone()),
     }
 }
 

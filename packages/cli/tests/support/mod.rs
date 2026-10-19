@@ -11,6 +11,12 @@ use std::{
 
 pub const CONFIG: &str = r#"{"sigilVersion":"0.9.0","workspace":{"name":"test","members":[]},"files":{"include":["**/*.sigil"]},"tools":{}}"#;
 
+/// A component with one Tag, for tests that need a valid source to import from.
+pub const BASE_SOURCE: &str = "component Base {\n  goal {\n    Ship it.\n  }\n  interface {\n    value {\n      A value.\n    }\n  }\n}\n";
+
+/// The commands the Rust command line no longer has.
+pub const REMOVED: [&str; 4] = ["graph", "context", "retrieve", "render"];
+
 /// A temporary directory with a canonical path, removed when dropped.
 pub struct Temp {
     pub root: PathBuf,
@@ -60,6 +66,16 @@ impl Temp {
         let mut files = BTreeMap::new();
         collect(&self.root, "", &mut files);
         files
+    }
+
+    /// Run `command --format json` with `args` after it, expect nothing on
+    /// standard error, and return the exit code with the parsed output.
+    pub fn json(&self, command: &str, args: &[&str]) -> (i32, serde_json::Value) {
+        let mut all = vec![command, "--format", "json"];
+        all.extend_from_slice(args);
+        let ran = self.sigil(&all);
+        assert_eq!(ran.stderr, "");
+        (ran.code, serde_json::from_str(&ran.stdout).expect("JSON"))
     }
 
     /// Run `sigil` with this directory as the working directory.

@@ -9,18 +9,10 @@ use support::Temp;
 const CORE: &str = sigil_core::language::CORE_VERSION;
 const CLI: &str = env!("CARGO_PKG_VERSION");
 
-fn json(temp: &Temp, args: &[&str]) -> (i32, Value) {
-    let mut all = vec!["version", "--format", "json"];
-    all.extend_from_slice(args);
-    let ran = temp.sigil(&all);
-    assert_eq!(ran.stderr, "");
-    (ran.code, serde_json::from_str(&ran.stdout).expect("JSON"))
-}
-
 #[test]
 fn json_reports_the_cli_core_and_language_versions() {
     let temp = Temp::workspace();
-    let (code, value) = json(&temp, &[]);
+    let (code, value) = temp.json("version", &[]);
     assert_eq!(code, 0);
     assert_eq!(value["command"], "version");
     assert_eq!(value["cliVersion"], CLI);
@@ -121,7 +113,7 @@ fn pretty_indents_by_two_spaces() {
 #[test]
 fn a_missing_config_exits_1_with_the_not_found_diagnostic() {
     let temp = Temp::new();
-    let (code, value) = json(&temp, &[]);
+    let (code, value) = temp.json("version", &[]);
     assert_eq!(code, 1);
     assert_eq!(value["configPath"], Value::Null);
     assert_eq!(value["sigilVersion"], Value::Null);
@@ -148,7 +140,7 @@ fn an_explicit_root_without_a_config_names_the_root_in_the_message() {
     let temp = Temp::new();
     temp.mkdir("empty");
     let root = temp.path("empty");
-    let (code, value) = json(&temp, &["--root", root.to_str().unwrap()]);
+    let (code, value) = temp.json("version", &["--root", root.to_str().unwrap()]);
     assert_eq!(code, 1);
     let diagnostic = &value["diagnostics"][0];
     assert_eq!(diagnostic["code"], "SIGIL_CONFIG_NOT_FOUND");
@@ -171,13 +163,13 @@ fn an_explicit_root_without_a_config_names_the_root_in_the_message() {
 fn a_relative_explicit_root_is_shown_relative() {
     let temp = Temp::new();
     temp.write("project/.sigil/config.json", support::CONFIG);
-    let (code, value) = json(&temp, &["--root", "project"]);
+    let (code, value) = temp.json("version", &["--root", "project"]);
     assert_eq!(code, 0);
     assert_eq!(value["workspaceRoot"], "project");
     assert_eq!(value["configPath"], "project/.sigil/config.json");
 
     temp.mkdir("empty");
-    let (code, value) = json(&temp, &["--root", "empty"]);
+    let (code, value) = temp.json("version", &["--root", "empty"]);
     assert_eq!(code, 1);
     assert_eq!(value["workspaceRoot"], "empty");
     assert_eq!(
@@ -197,7 +189,7 @@ fn a_relative_explicit_root_is_shown_relative() {
 fn an_invalid_config_reports_a_parse_diagnostic_with_its_path() {
     let temp = Temp::new();
     temp.write(".sigil/config.json", "{");
-    let (code, value) = json(&temp, &[]);
+    let (code, value) = temp.json("version", &[]);
     assert_eq!(code, 1);
     assert_eq!(value["configPath"], ".sigil/config.json");
     assert_eq!(value["sigilVersion"], Value::Null);

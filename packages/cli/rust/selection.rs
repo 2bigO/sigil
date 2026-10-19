@@ -27,10 +27,6 @@ pub fn targets(cwd: &Path, paths: &[String]) -> Vec<String> {
     seen
 }
 
-fn text_of(path: &Path) -> String {
-    path_text(path)
-}
-
 /// The workspace sources the targets select, in workspace order.
 ///
 /// `root` is the absolute workspace root and `sources` its source paths
@@ -72,7 +68,7 @@ pub fn select(
         let same = discovery
             .root
             .as_deref()
-            .is_some_and(|found| text_of(found).trim_end_matches('/') == root);
+            .is_some_and(|found| path_text(found).trim_end_matches('/') == root);
         if !same {
             return Err(format!(
                 "Formatting target {target} belongs to a different workspace than {root}."

@@ -2,10 +2,9 @@
 //! and the `lsp` stub. These run on every platform.
 mod support;
 
-use support::Temp;
+use support::{REMOVED, Temp};
 
 const KEPT: [&str; 6] = ["init", "version", "parse", "check", "fmt", "glossary"];
-const REMOVED: [&str; 4] = ["graph", "context", "retrieve", "render"];
 
 fn help_of(temp: &Temp, command: &str) -> String {
     let ran = temp.sigil(&[command, "--help"]);

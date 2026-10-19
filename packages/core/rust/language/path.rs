@@ -58,11 +58,11 @@ pub fn normalize_path(path: &str) -> String {
     }
 }
 
-/// Match a workspace-relative glob (`*`, `**`, `?`) against a path.
 /// Compiled glob patterns, kept so a workspace with many files compiles each
 /// include and exclude pattern once instead of once per file.
 static GLOBS: LazyLock<Mutex<HashMap<String, Option<Regex>>>> = LazyLock::new(Default::default);
 
+/// Match a workspace-relative glob (`*`, `**`, `?`) against a path.
 pub fn glob_matches(pattern: &str, path: &str) -> bool {
     let compiled = {
         let mut cache = GLOBS

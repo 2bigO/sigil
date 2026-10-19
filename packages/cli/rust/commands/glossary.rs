@@ -62,7 +62,7 @@ struct OccurrenceView {
     term: TermView,
     matched_spelling: String,
     file_path: String,
-    owner_kind: String,
+    owner_kind: &'static str,
     owner_name: String,
     section_name: String,
     range: Range,
@@ -131,7 +131,7 @@ fn occurrence_view(
         term: term_view(&occurrence.term),
         matched_spelling: occurrence.matched_spelling.clone(),
         file_path: display.path(&occurrence.file_path),
-        owner_kind: occurrence.owner_kind.clone(),
+        owner_kind: occurrence.owner_kind,
         owner_name: occurrence.owner_name.clone(),
         section_name: occurrence.section_name.clone(),
         range: occurrence.range.clone(),
@@ -143,23 +143,15 @@ fn occurrence_view(
     }
 }
 
-/// The workspace's full ordered diagnostics, as `check` starts from them. When
-/// discovery stopped before any workspace was read, only its own.
+/// The resolved workspace's diagnostics with a missing config worded as the
+/// session words it. When discovery stopped before any workspace was read, only
+/// the session's own.
 fn diagnostics_of(session: &Session, resolved: Option<&ResolvedWorkspace>) -> Vec<Diagnostic> {
     let Some(resolved) = resolved else {
         return session.diagnostics.clone();
     };
     let mut all = resolved.diagnostics.clone();
-    // The session words a missing config with the absolute workspace root.
-    for diagnostic in &mut all {
-        if let Some(worded) = session
-            .diagnostics
-            .iter()
-            .find(|d| d.code == "SIGIL_CONFIG_NOT_FOUND" && d.code == diagnostic.code)
-        {
-            diagnostic.message = worded.message.clone();
-        }
-    }
+    session.reword_missing_config(&mut all);
     all
 }
 

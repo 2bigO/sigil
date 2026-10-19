@@ -3,7 +3,11 @@
 use crate::display::Display;
 use serde::Serialize;
 use sigil_core::{
-    language::{position::SourceLocation, workspace::Workspace},
+    language::{
+        config::Config,
+        position::SourceLocation,
+        workspace::{CONFIG_PATH, Workspace},
+    },
     types::{Diagnostic, Range, RelatedLocation, Severity, Stage},
 };
 
@@ -31,6 +35,19 @@ pub struct WorkspaceMeta {
     pub config_path: Option<String>,
     pub sigil_version: Option<String>,
     pub workspace_name: Option<String>,
+}
+
+impl WorkspaceMeta {
+    /// The facts of a workspace shown by `display`; the config path is present
+    /// only when the config was found, the rest only when it is valid.
+    pub fn new(display: &Display, config_found: bool, config: Option<&Config>) -> Self {
+        Self {
+            workspace_root: display.root().to_owned(),
+            config_path: config_found.then(|| display.path(CONFIG_PATH)),
+            sigil_version: config.map(|config| config.sigil_version.clone()),
+            workspace_name: config.map(|config| config.workspace_name.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -70,7 +87,7 @@ pub struct Counts {
     pub info: usize,
 }
 
-pub fn severity_text(severity: &Severity) -> &'static str {
+fn severity_text(severity: &Severity) -> &'static str {
     match severity {
         Severity::Error => "error",
         Severity::Warning => "warning",

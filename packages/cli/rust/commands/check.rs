@@ -34,18 +34,10 @@ fn diagnostics_of(session: &Session) -> Vec<Diagnostic> {
         return session.diagnostics.clone();
     };
     let resolved = ResolvedWorkspace::from(workspace);
-    let mut all = resolved.diagnostics.clone();
-    all.extend(untagged_facet_diagnostics(&resolved));
-    // The session words a missing config with the absolute workspace root.
-    for diagnostic in &mut all {
-        if let Some(worded) = session
-            .diagnostics
-            .iter()
-            .find(|d| d.code == "SIGIL_CONFIG_NOT_FOUND" && d.code == diagnostic.code)
-        {
-            diagnostic.message = worded.message.clone();
-        }
-    }
+    let untagged = untagged_facet_diagnostics(&resolved);
+    let mut all = resolved.diagnostics;
+    all.extend(untagged);
+    session.reword_missing_config(&mut all);
     order_diagnostics(all)
 }
 

@@ -7,6 +7,7 @@ use crate::{
     Context,
     display::{Display, is_absolute, path_text, resolve_target},
     model::WorkspaceMeta,
+    output::runtime_error,
 };
 use sigil_core::{
     language::{
@@ -19,6 +20,28 @@ use sigil_core::{
     types::{Diagnostic, RelatedLocation},
 };
 use std::path::{Path, PathBuf};
+
+/// The code of the diagnostic for a workspace whose config is missing.
+pub const CONFIG_NOT_FOUND: &str = "SIGIL_CONFIG_NOT_FOUND";
+
+/// How a missing config is worded: the absolute workspace root, as the
+/// TypeScript command line prints it. `display` is the session's display.
+pub fn config_missing_message(display: &Display) -> String {
+    format!(
+        "Expected {CONFIG_PATH} directly inside workspace root {}.",
+        display.absolute_root()
+    )
+}
+
+/// Put `message` on every missing-config diagnostic of the list.
+fn reword_missing_config(diagnostics: &mut [Diagnostic], message: &str) {
+    for diagnostic in diagnostics
+        .iter_mut()
+        .filter(|d| d.code == CONFIG_NOT_FOUND)
+    {
+        diagnostic.message = message.to_owned();
+    }
+}
 
 /// Where the workspace is, found without reading its sources.
 #[derive(Debug)]
@@ -55,11 +78,7 @@ pub fn discover(
             "No ancestor {CONFIG_PATH} was found from {}.",
             path_text(&start)
         );
-        let missing = diagnostic(
-            "SIGIL_CONFIG_NOT_FOUND",
-            message,
-            Location::at(CONFIG_PATH, None),
-        );
+        let missing = diagnostic(CONFIG_NOT_FOUND, message, Location::at(CONFIG_PATH, None));
         return found(ctx.cwd.clone(), vec![missing]);
     };
     let diagnostics = discovery
@@ -142,25 +161,10 @@ impl Session {
                 config_found: false,
             });
         }
-        let workspace =
-            Workspace::load_with(&DiskFs::new(&root)).map_err(|error| (3, format!("{error}\n")))?;
-        let diagnostics: Vec<Diagnostic> = workspace
-            .diagnostics
-            .iter()
-            .cloned()
-            .map(|mut d| {
-                if d.code == "SIGIL_CONFIG_NOT_FOUND" {
-                    d.message = format!(
-                        "Expected {CONFIG_PATH} directly inside workspace root {}.",
-                        display.absolute_root()
-                    );
-                }
-                d
-            })
-            .collect();
-        let config_found = !diagnostics
-            .iter()
-            .any(|d| d.code == "SIGIL_CONFIG_NOT_FOUND");
+        let workspace = Workspace::load_with(&DiskFs::new(&root)).map_err(runtime_error)?;
+        let mut diagnostics = workspace.diagnostics.clone();
+        reword_missing_config(&mut diagnostics, &config_missing_message(&display));
+        let config_found = !diagnostics.iter().any(|d| d.code == CONFIG_NOT_FOUND);
         Ok(Self {
             root,
             display,
@@ -177,11 +181,14 @@ impl Session {
 
     /// The workspace facts that follow `command` in the JSON.
     pub fn meta(&self) -> WorkspaceMeta {
-        WorkspaceMeta {
-            workspace_root: self.display.root().to_owned(),
-            config_path: self.config_found.then(|| self.display.path(CONFIG_PATH)),
-            sigil_version: self.config().map(|config| config.sigil_version.clone()),
-            workspace_name: self.config().map(|config| config.workspace_name.clone()),
+        WorkspaceMeta::new(&self.display, self.config_found, self.config())
+    }
+
+    /// Give a missing-config diagnostic of `diagnostics`, resolved from this
+    /// session's workspace, the wording the session itself reported.
+    pub fn reword_missing_config(&self, diagnostics: &mut [Diagnostic]) {
+        if let Some(worded) = self.diagnostics.iter().find(|d| d.code == CONFIG_NOT_FOUND) {
+            reword_missing_config(diagnostics, &worded.message);
         }
     }
 }

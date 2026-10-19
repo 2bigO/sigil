@@ -2,9 +2,7 @@
 //! workspace is never read for them. These run on every platform.
 mod support;
 
-use support::{CONFIG, Temp};
-
-const REMOVED: [&str; 4] = ["graph", "context", "retrieve", "render"];
+use support::{CONFIG, REMOVED, Temp};
 
 const ARGUMENTS: [&[&str]; 7] = [
     &[],

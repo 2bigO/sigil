@@ -10,7 +10,7 @@ use crate::{
     display::{Display, path_text, resolve_target},
     model::{DiagnosticView, LocationView, WorkspaceMeta, exit_code, view, views},
     output::{Markdown, Output, diagnostic_lines, fail, lines_text, render},
-    session::{Discovered, discover},
+    session::{CONFIG_NOT_FOUND, Discovered, config_missing_message, discover},
 };
 use serde::Serialize;
 use sigil_core::{
@@ -370,12 +370,7 @@ pub fn run(request: &ParseRequest, ctx: &Context) -> Output {
             diagnostics,
         }
     };
-    let meta = WorkspaceMeta {
-        workspace_root: display.root().to_owned(),
-        config_path: config.found.then(|| display.path(CONFIG_PATH)),
-        sigil_version: config.config.as_ref().map(|c| c.sigil_version.clone()),
-        workspace_name: config.config.as_ref().map(|c| c.workspace_name.clone()),
-    };
+    let meta = WorkspaceMeta::new(&display, config.found, config.config.as_ref());
     if config.config.is_none() {
         return finish(request, meta, None, views(&config.diagnostics, &display));
     }
@@ -435,11 +430,8 @@ fn read_config(root: &Path, display: &Display) -> Result<ConfigState, String> {
         .map_err(|error| format!("{error}: readfile '{}'", display.path(CONFIG_PATH)))?;
     let Some(bytes) = bytes else {
         let missing = diagnostic(
-            "SIGIL_CONFIG_NOT_FOUND",
-            format!(
-                "Expected {CONFIG_PATH} directly inside workspace root {}.",
-                display.absolute_root()
-            ),
+            CONFIG_NOT_FOUND,
+            config_missing_message(display),
             Location::at(CONFIG_PATH, None),
         );
         return Ok(ConfigState {
@@ -695,21 +687,7 @@ fn outline(document: &DocumentView) -> Outline {
                     flags
                 },
             });
-            let mut children: Vec<(usize, Child)> = section
-                .facets
-                .iter()
-                .map(|facet| (facet.range.start, Child::Facet(facet)))
-                .chain(
-                    section
-                        .groups
-                        .iter()
-                        .map(|group| (group.range.start, Child::Group(group))),
-                )
-                .collect();
-            children.sort_by_key(|(start, _)| *start);
-            for (_, child) in children {
-                push_child(&mut entries, child, 2);
-            }
+            push_children(&mut entries, &section.facets, &section.groups, 2);
         }
     }
     for region in &document.invalid_regions {
@@ -740,6 +718,28 @@ fn outline(document: &DocumentView) -> Outline {
 enum Child<'a> {
     Facet(&'a FacetView),
     Group(&'a GroupView),
+}
+
+/// The facets and groups of one parent, in source order, each with its own parts.
+fn push_children(
+    entries: &mut Vec<Entry>,
+    facets: &[FacetView],
+    groups: &[GroupView],
+    depth: usize,
+) {
+    let mut children: Vec<(usize, Child)> = facets
+        .iter()
+        .map(|facet| (facet.range.start, Child::Facet(facet)))
+        .chain(
+            groups
+                .iter()
+                .map(|group| (group.range.start, Child::Group(group))),
+        )
+        .collect();
+    children.sort_by_key(|(start, _)| *start);
+    for (_, child) in children {
+        push_child(entries, child, depth);
+    }
 }
 
 fn push_child(entries: &mut Vec<Entry>, child: Child, depth: usize) {
@@ -776,21 +776,7 @@ fn push_child(entries: &mut Vec<Entry>, child: Child, depth: usize) {
                 range: group.range,
                 flags: flags(group.valid, group.complete),
             });
-            let mut children: Vec<(usize, Child)> = group
-                .facets
-                .iter()
-                .map(|facet| (facet.range.start, Child::Facet(facet)))
-                .chain(
-                    group
-                        .groups
-                        .iter()
-                        .map(|inner| (inner.range.start, Child::Group(inner))),
-                )
-                .collect();
-            children.sort_by_key(|(start, _)| *start);
-            for (_, child) in children {
-                push_child(entries, child, depth + 1);
-            }
+            push_children(entries, &group.facets, &group.groups, depth + 1);
         }
     }
 }

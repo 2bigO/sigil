@@ -7,20 +7,10 @@ mod support;
 use serde_json::Value;
 use sigil_cli::model::source_location;
 use sigil_core::language::workspace::Workspace;
-use support::Temp;
-
-const BASE: &str = "component Base {\n  goal {\n    Ship it.\n  }\n  interface {\n    value {\n      A value.\n    }\n  }\n}\n";
+use support::{BASE_SOURCE, Temp};
 
 /// A component whose Interface Facet names no Tag.
 const UNTAGGED: &str = "component Feature {\n  goal {\n    Keep the record.\n  }\n  interface {\n    Operations complete synchronously.\n  }\n}\n";
-
-fn json(temp: &Temp, args: &[&str]) -> (i32, Value) {
-    let mut all = vec!["check", "--format", "json"];
-    all.extend_from_slice(args);
-    let ran = temp.sigil(&all);
-    assert_eq!(ran.stderr, "");
-    (ran.code, serde_json::from_str(&ran.stdout).expect("JSON"))
-}
 
 fn codes(value: &Value) -> Vec<&str> {
     value["diagnostics"]
@@ -39,7 +29,7 @@ fn an_untagged_facet_warns_and_an_implementation_annotation_adds_nothing() {
         "src/feature.ts",
         "// @sigil implements contract.sigil::Feature::Missing interface\nexport const feature = 1;\n",
     );
-    let (code, value) = json(&temp, &[]);
+    let (code, value) = temp.json("check", &[]);
     assert_eq!(code, 0);
     assert_eq!(codes(&value), ["SIGIL_UNTAGGED_FACET"]);
     assert_eq!(value["diagnostics"][0]["severity"], "warning");
@@ -56,13 +46,13 @@ fn an_untagged_facet_warns_and_an_implementation_annotation_adds_nothing() {
 #[test]
 fn counts_follow_the_severities_and_an_error_decides_the_exit_status() {
     let temp = Temp::workspace();
-    temp.write("base.sigil", BASE);
+    temp.write("base.sigil", BASE_SOURCE);
     temp.write("contract.sigil", UNTAGGED);
     temp.write(
         "a.sigil",
         "@base.sigil from Base import { value, missing }\ncomponent Broken {\n  goal {\n    Ship it.\n  }\n  interface {\n    Use value.\n  }\n}\n",
     );
-    let (code, value) = json(&temp, &[]);
+    let (code, value) = temp.json("check", &[]);
     assert_eq!(code, 1);
     assert_eq!(
         value["diagnosticCounts"],
@@ -91,7 +81,7 @@ fn a_warning_only_workspace_exits_zero() {
 #[test]
 fn show_locations_counts_columns_in_characters() {
     let temp = Temp::workspace();
-    temp.write("base.sigil", BASE);
+    temp.write("base.sigil", BASE_SOURCE);
     temp.write(
         "a.sigil",
         "@base.sigil from Base import { value, \u{1F600}, missing }\ncomponent Broken {\n  goal {\n    Ship it.\n  }\n  interface {\n    Use value.\n  }\n}\n",
@@ -106,7 +96,7 @@ fn show_locations_counts_columns_in_characters() {
          error SIGIL_UNRESOLVED_IMPORTED_TAG a.sigil:1:39: Component Base does not own an unambiguous Tag \"\u{1F600}\".\n\
          error SIGIL_UNRESOLVED_IMPORTED_TAG a.sigil:1:42: Component Base does not own an unambiguous Tag \"missing\".\n"
     );
-    let (_, value) = json(&temp, &[]);
+    let (_, value) = temp.json("check", &[]);
     assert_eq!(
         value["diagnostics"][1]["sourceLocation"],
         serde_json::json!({"line": 1, "column": 42})
@@ -125,8 +115,8 @@ fn locations_are_text_only_and_files_show_without_them_by_default() {
             .stdout
             .contains("warning SIGIL_UNTAGGED_FACET contract.sigil:6:1: ")
     );
-    let (_, with) = json(&temp, &["--show-locations"]);
-    let (_, without) = json(&temp, &[]);
+    let (_, with) = temp.json("check", &["--show-locations"]);
+    let (_, without) = temp.json("check", &[]);
     assert_eq!(with, without);
 }
 
@@ -142,7 +132,7 @@ fn a_diagnostic_in_a_file_the_snapshot_lacks_prints_no_location() {
         line.starts_with("error SIGIL_CONFIG_PARSE .sigil/config.json: "),
         "{line}"
     );
-    let (_, value) = json(&temp, &[]);
+    let (_, value) = temp.json("check", &[]);
     assert!(value["diagnostics"][0].get("sourceLocation").is_none());
 }
 
@@ -172,7 +162,7 @@ fn a_missing_config_reports_the_recorded_code_in_text() {
 #[test]
 fn markdown_for_a_clean_workspace() {
     let temp = Temp::workspace();
-    temp.write("base.sigil", BASE);
+    temp.write("base.sigil", BASE_SOURCE);
     let ran = temp.sigil(&["check", "--format", "markdown"]);
     assert_eq!(ran.code, 0);
     assert_eq!(
@@ -184,7 +174,7 @@ fn markdown_for_a_clean_workspace() {
 #[test]
 fn markdown_lists_the_diagnostics_the_text_does() {
     let temp = Temp::workspace();
-    temp.write("base.sigil", BASE);
+    temp.write("base.sigil", BASE_SOURCE);
     temp.write("contract.sigil", UNTAGGED);
     temp.write(
         "a.sigil",

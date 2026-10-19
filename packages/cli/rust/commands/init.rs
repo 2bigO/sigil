@@ -5,7 +5,7 @@ use crate::{
     args::{Format, InitRequest},
     display::{Display, path_text, resolve_target},
     model::{DiagnosticView, WorkspaceMeta, exit_code, views},
-    output::{Markdown, Output, diagnostic_lines, lines_text, render},
+    output::{Markdown, Output, diagnostic_lines, json_string, lines_text, render, runtime_error},
 };
 use serde::Serialize;
 use sigil_core::{
@@ -13,6 +13,7 @@ use sigil_core::{
         SIGIL_VERSION,
         config::{DEFAULT_EXCLUDES, DEFAULT_INCLUDES},
         diagnostics::{Location, diagnostic},
+        glossary::GLOSSARY_SCHEMA_VERSION,
         workspace::{CONFIG_PATH, GLOSSARY_PATH},
     },
     types::Diagnostic,
@@ -110,7 +111,7 @@ const SEED_TERMS: [(&str, &str); 8] = [
 
 fn seed_glossary() -> GlossaryFile {
     GlossaryFile {
-        schema_version: 1,
+        schema_version: GLOSSARY_SCHEMA_VERSION,
         terms: SEED_TERMS
             .iter()
             .map(|(term, definition)| SeedTerm {
@@ -136,14 +137,12 @@ fn join(root: &str, path: &str) -> String {
 }
 
 fn pretty_file<T: Serialize>(value: &T) -> Result<String, (u8, String)> {
-    serde_json::to_string_pretty(value)
-        .map(|text| format!("{text}\n"))
-        .map_err(|error| (3, format!("{error}\n")))
+    json_string(value, true).map_err(runtime_error)
 }
 
 fn write(path: &Path, text: &str) -> Result<(), (u8, String)> {
     fs::write(path, text)
-        .map_err(|error| (3, format!("Cannot write {}: {error}\n", path_text(path))))
+        .map_err(|error| runtime_error(format!("Cannot write {}: {error}", path_text(path))))
 }
 
 pub fn run(request: &InitRequest, ctx: &Context) -> Output {

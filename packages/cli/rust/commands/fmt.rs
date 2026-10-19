@@ -3,17 +3,17 @@
 use crate::{
     Context,
     args::{FmtRequest, Format},
-    display::{Display, fmt_controlling_path},
+    display::fmt_controlling_path,
     model::{DiagnosticView, WorkspaceMeta, exit_code, views},
-    output::{Output, diagnostic_lines, fail, lines_text, render},
+    output::{Output, diagnostic_lines, fail, lines_text, render, runtime_error},
     selection,
-    session::Session,
+    session::{CONFIG_NOT_FOUND, Session},
 };
 use serde::Serialize;
 use sigil_core::{
     language::{
         diagnostics::order_diagnostics,
-        format::format_document,
+        format::{LINE_TOO_LONG, format_document_resolved},
         fs::{DiskFs, Overlay},
         resolve::ResolvedWorkspace,
         workspace::{CONFIG_PATH, Workspace},
@@ -21,8 +21,6 @@ use sigil_core::{
     types::{Diagnostic, Severity},
 };
 use std::{fs, path::Path};
-
-const LINE_TOO_LONG: &str = "SIGIL_LINE_TOO_LONG";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -84,7 +82,9 @@ fn all_failed(selected: Vec<String>, diagnostics: Vec<Diagnostic>) -> Batch {
     }
 }
 
-/// Steps 1 to 4 of the batch protocol over an already loaded workspace.
+/// The batch protocol over an already loaded workspace: check the workspace,
+/// format every selected file, check the workspace again with the new text,
+/// then write the changed files.
 fn run_batch(
     root: &Path,
     workspace: &Workspace,
@@ -93,7 +93,7 @@ fn run_batch(
     check: bool,
 ) -> Result<Batch, (u8, String)> {
     let resolved = ResolvedWorkspace::from(workspace);
-    let mut before = resolved.diagnostics;
+    let mut before = resolved.diagnostics.clone();
     before.extend(extra);
     if has_blocking_error(&before) {
         return Ok(all_failed(selected, order_diagnostics(before)));
@@ -101,7 +101,7 @@ fn run_batch(
 
     let prepared: Vec<_> = selected
         .iter()
-        .map(|path| (path, format_document(workspace, path)))
+        .map(|path| (path, format_document_resolved(workspace, &resolved, path)))
         .collect();
     let mut diagnostics = order_diagnostics(
         prepared
@@ -115,15 +115,23 @@ fn run_batch(
     if every_formatted {
         let disk = DiskFs::new(root);
         let mut overlay = Overlay::new(&disk);
+        let mut any_changed = false;
         for (path, result) in &prepared {
             if result.changed
                 && let Some(source) = &result.formatted_source
             {
                 overlay.set(path, source.clone());
+                any_changed = true;
             }
         }
-        let reloaded = Workspace::load_with(&overlay).map_err(|error| (3, format!("{error}\n")))?;
-        diagnostics = ResolvedWorkspace::from(&reloaded).diagnostics;
+        // Without a change the overlay is empty and a reload would resolve the
+        // very workspace that is already resolved.
+        diagnostics = if any_changed {
+            let reloaded = Workspace::load_with(&overlay).map_err(runtime_error)?;
+            ResolvedWorkspace::from(&reloaded).diagnostics
+        } else {
+            resolved.diagnostics.clone()
+        };
     }
     if diagnostics
         .iter()
@@ -145,20 +153,17 @@ fn run_batch(
         if status == Status::Formatted
             && let Some(source) = &result.formatted_source
         {
-            fs::write(root.join(path), source)
-                .map_err(|error| (3, format!("{}: {error}\n", root.join(path).display())))?;
+            fs::write(root.join(path), source).map_err(|error| {
+                runtime_error(format!("{}: {error}", root.join(path).display()))
+            })?;
         }
         files.push(((*path).clone(), status));
     }
     Ok(Batch { files, diagnostics })
 }
 
-fn show(
-    request: &FmtRequest,
-    session_meta: WorkspaceMeta,
-    display: &Display,
-    batch: Batch,
-) -> Output {
+fn show(request: &FmtRequest, session: &Session, batch: Batch) -> Output {
+    let display = &session.display;
     let diagnostics = views(&batch.diagnostics, display);
     let files: Vec<FileResult> = batch
         .files
@@ -168,7 +173,8 @@ fn show(
             status,
         })
         .collect();
-    let difference = request.check && files.iter().any(|f| f.status == Status::Noncanonical);
+    // `Noncanonical` is only produced when `--check` is set.
+    let difference = files.iter().any(|f| f.status == Status::Noncanonical);
     let failed = files.iter().any(|f| f.status == Status::Failed);
     let exit = if difference || failed {
         1
@@ -182,7 +188,7 @@ fn show(
     lines.extend(diagnostic_lines(&diagnostics, false));
     let model = FmtOutput {
         command: "fmt",
-        meta: session_meta,
+        meta: session.meta(),
         check: request.check,
         files,
         diagnostics,
@@ -215,11 +221,10 @@ pub fn run(request: &FmtRequest, ctx: &Context) -> Output {
         None if !session
             .diagnostics
             .iter()
-            .any(|d| d.code == "SIGIL_CONFIG_NOT_FOUND")
+            .any(|d| d.code == CONFIG_NOT_FOUND)
             && session.root.join(CONFIG_PATH).is_file() =>
         {
-            loaded = Workspace::load_with(&DiskFs::new(&session.root))
-                .map_err(|error| (3, format!("{error}\n")))?;
+            loaded = Workspace::load_with(&DiskFs::new(&session.root)).map_err(runtime_error)?;
             extra = session.diagnostics.clone();
             &loaded
         }
@@ -238,5 +243,5 @@ pub fn run(request: &FmtRequest, ctx: &Context) -> Output {
     };
 
     let batch = run_batch(&session.root, workspace, extra, selected, request.check)?;
-    show(request, session.meta(), &session.display, batch)
+    show(request, &session, batch)
 }

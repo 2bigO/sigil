@@ -14,6 +14,15 @@ pub fn ok(code: u8, stdout: impl Into<String>) -> Output {
     Ok((code, stdout.into()))
 }
 
+/// The exit status of a run that could not read or write the disk.
+pub const RUNTIME_FAILURE: u8 = 3;
+
+/// One line on standard error with its newline, for a failed run that exits
+/// with `RUNTIME_FAILURE`.
+pub fn runtime_error(message: impl std::fmt::Display) -> (u8, String) {
+    (RUNTIME_FAILURE, format!("{message}\n"))
+}
+
 /// A failed run that prints one line on standard error and exits with `code`.
 pub fn fail(code: u8, message: impl std::fmt::Display) -> Output {
     Err((code, format!("{message}\n")))
@@ -45,9 +54,7 @@ pub fn render<T: Serialize>(
         return ok(exit, "");
     }
     let stdout = match global.format_or(default) {
-        Format::Json => {
-            json_string(model, global.pretty).map_err(|error| (3, format!("{error}\n")))?
-        }
+        Format::Json => json_string(model, global.pretty).map_err(runtime_error)?,
         Format::Text => text(),
         Format::Markdown => markdown(),
     };
