@@ -1,5 +1,5 @@
-//! Workspace glossary (`.sigil/glossary.json`): strict validation and the
-//! per-source context overlap check. Term recognition stays in TypeScript.
+//! Workspace glossary (`.sigil/glossary.json`): strict validation, the
+//! per-source context overlap check, and term recognition in facet prose.
 use super::{
     diagnostics::{Location, diagnostic},
     parse::{Document, Facet, Section, line_index_at},

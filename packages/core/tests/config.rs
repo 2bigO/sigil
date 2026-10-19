@@ -276,3 +276,66 @@ fn discovery_reports_a_missing_config_and_an_explicit_root_is_taken_as_given() {
     assert_eq!(codes(&workspace), ["SIGIL_CONFIG_NOT_FOUND"]);
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn discovery_from_a_path_with_dot_and_dot_dot_segments_visits_real_parents() {
+    let root = temp("dotdot");
+    write(&root, ".sigil/config.json", &config(&[], &[]));
+    write(&root, "a/keep.sigil", SOURCE);
+    write(&root, "b/c.sigil", SOURCE);
+    // Walking up from `a/../b/c.sigil` is walking up from `b/c.sigil`: one
+    // workspace at the root, no phantom ancestor and no nested-config error.
+    let found = discover_workspace(&root.join("a/../b/./c.sigil"), None);
+    assert!(found.diagnostics.is_empty(), "{:?}", found.diagnostics);
+    assert_eq!(found.root.unwrap(), root);
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn discovery_reports_an_ancestor_config_it_cannot_read_or_accept() {
+    let root = temp("parent-fails");
+    write(&root, ".sigil/config.json", "not json");
+    write(&root, "child/.sigil/config.json", &config(&[], &[]));
+    let found = discover_workspace(&root.join("child"), None);
+    assert_eq!(found.root.unwrap(), root.join("child"));
+    assert_eq!(found.diagnostics[0].code, "SIGIL_CONFIG_PARSE");
+    // A parent that parses but is invalid reports its own diagnostics.
+    write(&root, ".sigil/config.json", r#"{"sigilVersion":"0.9.0"}"#);
+    let found = discover_workspace(&root.join("child"), None);
+    assert_eq!(found.diagnostics[0].code, "SIGIL_CONFIG_INVALID");
+    // A parent in invalid UTF-8 is unreadable as text.
+    fs::write(root.join(".sigil/config.json"), [0xff]).unwrap();
+    let found = discover_workspace(&root.join("child"), None);
+    assert_eq!(found.diagnostics[0].code, "SIGIL_CONFIG_PARSE");
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn a_local_override_supplied_as_text_flows_into_the_merged_settings() {
+    use sigil_core::language::fs::Overlay;
+    let mut base = MemoryFs::new();
+    base.insert(
+        ".sigil/config.json",
+        json!({
+            "sigilVersion": "0.9.0",
+            "workspace": {"name": "t"},
+            "files": {"include": ["**/*.sigil"]},
+            "tools": {"sigilc": {"implementation": {"dirs": ["src"]}}},
+        })
+        .to_string(),
+    );
+    let mut overlay = Overlay::new(&base);
+    overlay.set(
+        ".sigil/local.json",
+        json!({"tools": {"sigilc": {"implementation": {"dirs": ["lib"]}}}}).to_string(),
+    );
+    let settings = read_tool_settings(&overlay).unwrap();
+    assert_eq!(
+        settings.merged["sigilc"]["implementation"]["dirs"],
+        json!(["lib"])
+    );
+    assert_eq!(
+        settings.shared["sigilc"]["implementation"]["dirs"],
+        json!(["src"])
+    );
+}

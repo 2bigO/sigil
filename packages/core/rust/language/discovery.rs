@@ -6,7 +6,7 @@ use super::{
     workspace::CONFIG_PATH,
 };
 use crate::types::Diagnostic;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 /// The root workspace discovery chose, with the diagnostics that stop it.
 #[derive(Debug)]
@@ -28,6 +28,7 @@ pub fn discover_workspace(start: &Path, explicit_root: Option<&Path>) -> Discove
         };
     }
     let start = std::path::absolute(start).unwrap_or_else(|_| start.to_path_buf());
+    let start = lexically_normal(&start);
     let candidates: Vec<PathBuf> = start
         .ancestors()
         .filter(|dir| dir.join(CONFIG_PATH).is_file())
@@ -107,4 +108,25 @@ fn shown(path: &Path) -> String {
     } else {
         text
     }
+}
+
+/// A path with its `.` and `..` components resolved by text, so that walking
+/// up from it visits real parents. A `..` at the root stays at the root.
+fn lexically_normal(path: &Path) -> PathBuf {
+    let mut normal = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                let climbs = matches!(normal.components().next_back(), Some(Component::Normal(_)));
+                if climbs {
+                    normal.pop();
+                } else if !normal.has_root() {
+                    normal.push("..");
+                }
+            }
+            other => normal.push(other.as_os_str()),
+        }
+    }
+    normal
 }

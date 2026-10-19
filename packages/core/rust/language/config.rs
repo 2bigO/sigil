@@ -125,11 +125,6 @@ pub fn parse_config(source: &str, file_path: &str) -> ConfigParse {
     }
 }
 
-/// Local configuration may only carry tool settings; returns its diagnostics.
-pub fn parse_local_config(source: &str, file_path: &str) -> Vec<Diagnostic> {
-    parse_local_tools(source, file_path).1
-}
-
 /// The tool settings of a local override, or none when it is invalid, with the
 /// diagnostics that explain why.
 pub fn parse_local_tools(
