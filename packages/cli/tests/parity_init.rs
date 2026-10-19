@@ -9,7 +9,6 @@ fn parity_init_usage_and_help_cases() {
     run_cases("init", Selector::Args, 13);
 }
 
-#[ignore = "implemented in U7"]
 #[test]
 fn parity_init_workspace_cases() {
     run_cases("init", Selector::Workspace, 23);
