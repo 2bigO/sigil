@@ -73,6 +73,11 @@ component SigilCli {
     standard input and output for an editor. sigilc stays a separate
     executable and is not a sigil command.
 
+    SigilCli provides the lsp command with exit status 0 when the editor asks it
+    to shut down and then tells it to exit, or when its input ends, exit status
+    1 when the editor tells it to exit without asking it to shut down, and exit
+    status 3 when standard input or output fails.
+
     SigilCli provides the *usage text*, shown with exit status 0 for the help
     option alone or after any command, and the bare CLI version, followed by a
     newline, for the version option.
