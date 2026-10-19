@@ -225,6 +225,59 @@ fn a_workspace_without_a_glossary_has_an_empty_projection() {
     assert!(projection.resolved_contexts.is_empty());
 }
 
+#[test]
+fn the_projection_carries_the_schema_version_and_each_occurrence_its_owner_kind() {
+    let source = component("A hold.");
+    let with = workspace(&glossary_source(json!({})), &[("booking/a.sigil", &source)]);
+    let resolved = ResolvedWorkspace::from(&with);
+    let projection = glossary_projection(&with, &resolved);
+    assert_eq!(projection.schema_version, Some(1));
+    assert!(!projection.occurrences.is_empty());
+    assert!(
+        projection
+            .occurrences
+            .iter()
+            .all(|o| o.owner_kind == "component")
+    );
+
+    let mut fs = MemoryFs::new();
+    fs.insert(".sigil/config.json", CONFIG);
+    fs.insert("a.sigil", component("A hold."));
+    let without = Workspace::load_with(&fs).unwrap();
+    let resolved = ResolvedWorkspace::from(&without);
+    assert_eq!(
+        glossary_projection(&without, &resolved).schema_version,
+        None
+    );
+}
+
+/// TS `glossary` reports the resolved workspace's full ordered diagnostics; the
+/// projection keeps only the glossary ones, so a caller reads the rest here.
+#[test]
+fn the_resolved_workspace_keeps_the_full_ordered_diagnostics_beside_the_glossary_ones() {
+    let glossary = glossary_source(json!({"contexts": [
+        {"id": "a", "include": ["**/*.sigil"], "exclude": [], "terms": [{"term": "x", "definition": "d"}]},
+        {"id": "b", "include": ["booking/**"], "exclude": [], "terms": [{"term": "y", "definition": "d"}]},
+    ]}));
+    let broken = "component C {\n  goal {\n    Own a responsibility.\n  }\n}\n";
+    let workspace = workspace(&glossary, &[("booking/a.sigil", broken)]);
+    let resolved = ResolvedWorkspace::from(&workspace);
+    let projection = glossary_projection(&workspace, &resolved);
+    assert!(
+        projection
+            .diagnostics
+            .iter()
+            .all(|d| d.code.starts_with("SIGIL_GLOSSARY_"))
+    );
+    let all: Vec<&str> = resolved
+        .diagnostics
+        .iter()
+        .map(|d| d.code.as_str())
+        .collect();
+    assert!(all.contains(&"SIGIL_GLOSSARY_CONTEXT_OVERLAP"), "{all:?}");
+    assert!(all.contains(&"SIGIL_MISSING_INTERFACE"), "{all:?}");
+}
+
 /// The repository's own glossary over its own sources, as the TS reader found
 /// them (`scripts/generate-format-fixtures.ts` writes the fixture).
 #[test]

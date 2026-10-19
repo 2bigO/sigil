@@ -14,6 +14,9 @@ use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+/// The only glossary file schema version.
+pub const GLOSSARY_SCHEMA_VERSION: u32 = 1;
+
 /// Where a glossary term is declared: the workspace, or one bounded context.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GlossaryScope {
@@ -523,6 +526,8 @@ pub struct GlossaryOccurrence {
     pub term: GlossaryTerm,
     pub matched_spelling: String,
     pub file_path: String,
+    /// The kind of form that owns the Facet; `component` is the only kind.
+    pub owner_kind: String,
     pub owner_name: String,
     pub section_name: String,
     pub range: Range,
@@ -645,6 +650,7 @@ fn match_line(
             term: (*term).clone(),
             matched_spelling: text[byte_at(index)..byte_at(index + length)].to_owned(),
             file_path: context.file_path.to_owned(),
+            owner_kind: "component".to_owned(),
             owner_name: context.owner.to_owned(),
             section_name: context.section.to_owned(),
             range: Range {
@@ -691,6 +697,8 @@ fn is_boundary(c: Option<char>) -> bool {
 #[derive(Debug)]
 pub struct GlossaryProjection {
     pub glossary_path: Option<String>,
+    /// The glossary file's schema version; present exactly when a glossary loaded.
+    pub schema_version: Option<u32>,
     pub terms: Vec<GlossaryTerm>,
     pub contexts: Vec<Context>,
     pub resolved_contexts: Vec<ResolvedGlossaryContext>,
@@ -714,6 +722,7 @@ pub fn glossary_projection(
     let Some(glossary) = &workspace.glossary else {
         return GlossaryProjection {
             glossary_path: None,
+            schema_version: None,
             terms: Vec::new(),
             contexts: Vec::new(),
             resolved_contexts: Vec::new(),
@@ -732,6 +741,7 @@ pub fn glossary_projection(
     }
     GlossaryProjection {
         glossary_path: Some(glossary.file_path.clone()),
+        schema_version: Some(GLOSSARY_SCHEMA_VERSION),
         terms: glossary.terms.clone(),
         contexts: glossary.contexts.clone(),
         resolved_contexts,
