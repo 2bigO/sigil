@@ -102,51 +102,24 @@ impl Workspace {
             return Ok(finish(workspace, context, diagnostics, text_complete));
         };
         context[0].bytes = Some(config_bytes.clone());
-        let config_capture = capture_source(CONFIG_PATH, &config_bytes);
-        let Some(config_text) = config_capture
-            .source
-            .filter(|_| config_capture.diagnostics.is_empty())
-        else {
-            text_complete &= !config_capture
-                .diagnostics
-                .iter()
-                .any(|d| d.code == "SIGIL_INVALID_ENCODING");
-            diagnostics.extend(config_capture.diagnostics.into_iter().map(|d| {
-                diagnostic(
-                    "SIGIL_CONFIG_PARSE",
-                    d.message,
-                    Location::at(CONFIG_PATH, d.range),
-                )
-            }));
-            return Ok(finish(workspace, context, diagnostics, text_complete));
-        };
-        let parsed = config::parse_config(&config_text.text, CONFIG_PATH);
-        diagnostics.extend(parsed.diagnostics);
-        let mut selected = parsed.config;
+        let read = config::read_config_bytes(CONFIG_PATH, &config_bytes);
+        text_complete &= !read.invalid_encoding;
+        diagnostics.extend(read.diagnostics);
+        let mut selected = read.config;
         let mut local_tools = None;
 
         if selected.is_some()
             && let Some(local_bytes) = fs.read(LOCAL_CONFIG_PATH)?
         {
             context[2].bytes = Some(local_bytes.clone());
-            let capture = capture_source(LOCAL_CONFIG_PATH, &local_bytes);
-            match capture.source.filter(|_| capture.diagnostics.is_empty()) {
-                None => {
-                    text_complete &= !capture
-                        .diagnostics
-                        .iter()
-                        .any(|d| d.code == "SIGIL_INVALID_ENCODING");
-                    diagnostics.extend(capture.diagnostics.into_iter().map(|d| {
-                        diagnostic(
-                            "SIGIL_CONFIG_PARSE",
-                            d.message,
-                            Location::at(LOCAL_CONFIG_PATH, d.range),
-                        )
-                    }));
+            match config::config_text(LOCAL_CONFIG_PATH, &local_bytes) {
+                Err(error) => {
+                    text_complete &= !error.invalid_encoding;
+                    diagnostics.extend(error.diagnostics);
                     selected = None;
                 }
-                Some(text) => {
-                    let (tools, local) = config::parse_local_tools(&text.text, LOCAL_CONFIG_PATH);
+                Ok(text) => {
+                    let (tools, local) = config::parse_local_tools(&text, LOCAL_CONFIG_PATH);
                     if !local.is_empty() {
                         selected = None;
                     }

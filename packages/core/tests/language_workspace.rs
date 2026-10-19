@@ -175,3 +175,21 @@ fn globs_and_paths_follow_the_typescript_reader() {
     assert_eq!(normalize_import_path("/a.sigil"), None);
     assert_eq!(normalize_import_path("dir"), None);
 }
+
+#[test]
+fn absolute_paths_are_slash_rooted_or_drive_rooted() {
+    use sigil_core::language::path::{has_drive_prefix, is_absolute};
+    for drive in ["C:/", "c:\\", "Z:/x", "a:\\x\\y"] {
+        assert!(has_drive_prefix(drive), "{drive}");
+        assert!(is_absolute(drive), "{drive}");
+    }
+    for not_drive in ["", "C", "C:", "C:x", "1:/", "CC:/", "/C:/", "é:/", "C;/"] {
+        assert!(!has_drive_prefix(not_drive), "{not_drive}");
+    }
+    for rooted in ["/", "/a", "//host/share", "/C:/"] {
+        assert!(is_absolute(rooted), "{rooted}");
+    }
+    for relative in ["", "a", "./a", "../a", "C:", "C:x", "\\a"] {
+        assert!(!is_absolute(relative), "{relative}");
+    }
+}

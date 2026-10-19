@@ -1,9 +1,6 @@
 //! One reading of a workspace: everything an answer or a published diagnostic
 //! is made from, so a request never sees two readings.
-use crate::{
-    position,
-    uri::{has_drive_prefix, path_to_file_uri},
-};
+use crate::{position, uri::path_to_file_uri};
 use sigil_core::{
     language::{
         diagnostics::{Location, diagnostic, order_diagnostics},
@@ -11,7 +8,7 @@ use sigil_core::{
         fs::{Overlay, SourceFs},
         glossary::{GlossaryOccurrence, GlossaryProjection, glossary_projection},
         parse::Document,
-        path::normalize_path,
+        path::{is_absolute, normalize_path},
         position::{EditorPosition, EditorRange},
         resolve::ResolvedWorkspace,
         text::{SourceText, capture_source},
@@ -226,10 +223,6 @@ fn relative_path_in(root: &str, path: &str) -> Option<String> {
     } else {
         Some(normalize_path(path))
     }
-}
-
-fn is_absolute(path: &str) -> bool {
-    path.starts_with('/') || has_drive_prefix(path)
 }
 
 fn path_text(path: &Path) -> String {

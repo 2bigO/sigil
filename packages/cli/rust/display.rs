@@ -5,18 +5,9 @@
 //! directory, unless the user named the workspace with an absolute path, in
 //! which case it showed absolute paths. `Display` keeps that rule in one place.
 //! Messages that embed an absolute path are never rewritten.
+pub use sigil_core::language::path::is_absolute;
 use sigil_core::language::path::normalize_path;
 use std::path::{Component, Path, PathBuf};
-
-/// Whether a path is absolute on either Unix or Windows spelling.
-pub fn is_absolute(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    path.starts_with('/')
-        || (bytes.len() >= 3
-            && bytes[0].is_ascii_alphabetic()
-            && bytes[1] == b':'
-            && (bytes[2] == b'/' || bytes[2] == b'\\'))
-}
 
 /// A path with `/` separators and no trailing separator (the root stays `/`).
 pub fn normalize(path: &str) -> String {

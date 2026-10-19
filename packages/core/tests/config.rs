@@ -2,7 +2,7 @@
 //! Ported from the TS `config_parity_test.ts` and `workspace_080_test.ts`.
 use serde_json::{Value, json};
 use sigil_core::language::{
-    config::{merge_tools, parse_config},
+    config::{config_text, merge_tools, parse_config, read_config_bytes},
     discovery::discover_workspace,
     fs::MemoryFs,
     tools::read_tool_settings,
@@ -337,5 +337,72 @@ fn a_local_override_supplied_as_text_flows_into_the_merged_settings() {
     assert_eq!(
         settings.shared["sigilc"]["implementation"]["dirs"],
         json!(["src"])
+    );
+}
+
+#[test]
+fn config_bytes_become_a_config_or_config_parse_diagnostics() {
+    let valid = read_config_bytes(".sigil/config.json", config(&[], &[]).as_bytes());
+    assert!(valid.config.is_some());
+    assert!(valid.diagnostics.is_empty());
+    assert!(!valid.invalid_encoding);
+
+    let bad = read_config_bytes(".sigil/config.json", b"\xff{}");
+    assert!(bad.config.is_none());
+    assert!(bad.invalid_encoding);
+    assert_eq!(bad.diagnostics.len(), 1);
+    assert_eq!(bad.diagnostics[0].code, "SIGIL_CONFIG_PARSE");
+    assert_eq!(bad.diagnostics[0].message, "Source is not valid UTF-8.");
+    assert_eq!(
+        bad.diagnostics[0].file_path.as_deref(),
+        Some(".sigil/config.json")
+    );
+    assert_eq!(
+        bad.diagnostics[0].range.as_ref().map(|r| (r.start, r.end)),
+        Some((0, 1))
+    );
+
+    let nul = read_config_bytes(".sigil/config.json", b"{\0}");
+    assert!(nul.config.is_none());
+    assert!(!nul.invalid_encoding);
+    assert_eq!(nul.diagnostics.len(), 1);
+    assert_eq!(nul.diagnostics[0].code, "SIGIL_CONFIG_PARSE");
+    assert_eq!(
+        nul.diagnostics[0].message,
+        "NUL is not a valid source character."
+    );
+    assert_eq!(
+        nul.diagnostics[0].range.as_ref().map(|r| (r.start, r.end)),
+        Some((1, 2))
+    );
+}
+
+#[test]
+fn config_bytes_report_malformed_json_and_invalid_settings_like_the_parser() {
+    let path = ".sigil/config.json";
+    for source in ["{", "[]", "{\"sigilVersion\": \"x\"}"] {
+        let read = read_config_bytes(path, source.as_bytes());
+        let parsed = parse_config(source, path);
+        assert!(read.config.is_none());
+        assert!(!read.invalid_encoding);
+        let shown = |d: &sigil_core::types::Diagnostic| (d.code.clone(), d.message.clone());
+        assert_eq!(
+            read.diagnostics.iter().map(shown).collect::<Vec<_>>(),
+            parsed.diagnostics.iter().map(shown).collect::<Vec<_>>()
+        );
+        assert!(!read.diagnostics.is_empty());
+    }
+}
+
+#[test]
+fn config_text_names_the_path_it_was_read_from() {
+    assert_eq!(config_text("a.json", b"{}").ok().as_deref(), Some("{}"));
+    let error = config_text(".sigil/config.local.json", b"\xc3")
+        .err()
+        .unwrap();
+    assert!(error.invalid_encoding);
+    assert_eq!(
+        error.diagnostics[0].file_path.as_deref(),
+        Some(".sigil/config.local.json")
     );
 }

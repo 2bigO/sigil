@@ -15,7 +15,7 @@ use crate::{
 use serde::Serialize;
 use sigil_core::{
     language::{
-        config::parse_config,
+        config::read_config_bytes,
         diagnostics::{Location, diagnostic, order_diagnostics},
         fs::{DiskFs, SourceFs},
         parse::{
@@ -448,34 +448,11 @@ fn read_config(root: &Path, display: &Display) -> Result<ConfigState, String> {
             diagnostics: vec![missing],
         });
     };
-    let capture = capture_source(CONFIG_PATH, &bytes);
-    let text = capture
-        .source
-        .filter(|_| capture.diagnostics.is_empty())
-        .map(|source| source.text);
-    let Some(text) = text else {
-        let diagnostics = capture
-            .diagnostics
-            .into_iter()
-            .map(|d| {
-                diagnostic(
-                    "SIGIL_CONFIG_PARSE",
-                    d.message,
-                    Location::at(CONFIG_PATH, d.range),
-                )
-            })
-            .collect();
-        return Ok(ConfigState {
-            found: true,
-            config: None,
-            diagnostics: order_diagnostics(diagnostics),
-        });
-    };
-    let parsed = parse_config(&text, CONFIG_PATH);
+    let read = read_config_bytes(CONFIG_PATH, &bytes);
     Ok(ConfigState {
         found: true,
-        config: parsed.config,
-        diagnostics: order_diagnostics(parsed.diagnostics),
+        config: read.config,
+        diagnostics: order_diagnostics(read.diagnostics),
     })
 }
 

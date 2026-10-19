@@ -6,7 +6,8 @@
 use super::{
     SIGIL_VERSION,
     diagnostics::{Location, diagnostic},
-    path::glob_matches,
+    path::{glob_matches, has_drive_prefix},
+    text::capture_source,
 };
 use crate::types::Diagnostic;
 use regex::Regex;
@@ -37,6 +38,61 @@ pub struct Config {
 pub struct ConfigParse {
     pub config: Option<Config>,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+/// Config bytes that could not become text: each capture diagnostic as a
+/// `SIGIL_CONFIG_PARSE` diagnostic at the config path.
+pub struct ConfigTextError {
+    pub diagnostics: Vec<Diagnostic>,
+    /// The bytes were not valid UTF-8, so no text of the file exists.
+    pub invalid_encoding: bool,
+}
+
+/// The text of config bytes. Invalid UTF-8 and NUL characters are errors.
+pub fn config_text(path: &str, bytes: &[u8]) -> Result<String, ConfigTextError> {
+    let capture = capture_source(path, bytes);
+    match capture.source.filter(|_| capture.diagnostics.is_empty()) {
+        Some(source) => Ok(source.text),
+        None => Err(ConfigTextError {
+            invalid_encoding: capture
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "SIGIL_INVALID_ENCODING"),
+            diagnostics: capture
+                .diagnostics
+                .into_iter()
+                .map(|d| diagnostic("SIGIL_CONFIG_PARSE", d.message, Location::at(path, d.range)))
+                .collect(),
+        }),
+    }
+}
+
+/// What reading the bytes of a config file found.
+pub struct ConfigRead {
+    pub config: Option<Config>,
+    /// Unordered; callers order them with the rest of their diagnostics.
+    pub diagnostics: Vec<Diagnostic>,
+    /// The bytes were not valid UTF-8, so no text of the file exists.
+    pub invalid_encoding: bool,
+}
+
+/// Read config bytes: capture the text, then parse it as the config at `path`.
+pub fn read_config_bytes(path: &str, bytes: &[u8]) -> ConfigRead {
+    match config_text(path, bytes) {
+        Ok(text) => {
+            let parsed = parse_config(&text, path);
+            ConfigRead {
+                config: parsed.config,
+                diagnostics: parsed.diagnostics,
+                invalid_encoding: false,
+            }
+        }
+        Err(error) => ConfigRead {
+            config: None,
+            diagnostics: error.diagnostics,
+            invalid_encoding: error.invalid_encoding,
+        },
+    }
 }
 
 pub fn parse_config(source: &str, file_path: &str) -> ConfigParse {
@@ -231,7 +287,7 @@ fn validate_members(value: Option<&Value>, messages: &mut Vec<String>) {
             || *member != member.trim()
             || *member == "."
             || member.starts_with('/')
-            || is_drive_path(member)
+            || has_drive_prefix(member)
             || member.contains('\\')
             || member.starts_with("./")
             || member.ends_with('/')
@@ -298,11 +354,6 @@ fn require_semver(value: Option<&Value>, messages: &mut Vec<String>) {
     }
 }
 
-fn is_drive_path(value: &str) -> bool {
-    let b = value.as_bytes();
-    b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'/' || b[2] == b'\\')
-}
-
 fn validate_string_array(
     value: Option<&Value>,
     name: &str,
@@ -325,7 +376,7 @@ fn validate_string_array(
     if items.is_some_and(|items| {
         items.iter().filter_map(Value::as_str).any(|s| {
             s.starts_with('/')
-                || is_drive_path(s)
+                || has_drive_prefix(s)
                 || s.contains('\\')
                 || s.split('/').any(|p| p == "..")
         })

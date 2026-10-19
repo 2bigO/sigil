@@ -3,7 +3,7 @@
 use super::{
     diagnostics::{Location, diagnostic},
     parse::{Document, Facet, Section, line_index_at},
-    path::{glob_matches, normalize_path},
+    path::{glob_matches, is_absolute, normalize_path},
     resolve::ResolvedWorkspace,
     text::capture_source,
     workspace::Workspace,
@@ -350,16 +350,8 @@ fn validate_globs(value: Option<&Value>, owner: &str, non_empty: bool, messages:
         .flatten()
         .filter_map(Value::as_str)
         .collect();
-    let relative = |p: &str| {
-        let b = p.as_bytes();
-        !p.starts_with('/')
-            && !(b.len() >= 3
-                && b[0].is_ascii_alphabetic()
-                && b[1] == b':'
-                && (b[2] == b'/' || b[2] == b'\\'))
-            && !p.contains('\\')
-            && !p.split('/').any(|s| s == "..")
-    };
+    let relative =
+        |p: &str| !is_absolute(p) && !p.contains('\\') && !p.split('/').any(|s| s == "..");
     if !patterns.iter().all(|p| relative(p)) {
         messages.push(format!(
             "{owner} patterns must be workspace-relative POSIX globs."

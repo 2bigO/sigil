@@ -58,6 +58,17 @@ pub fn normalize_path(path: &str) -> String {
     }
 }
 
+/// Whether a path starts with a drive letter and a separator, as `C:/` or `C:\`.
+pub fn has_drive_prefix(path: &str) -> bool {
+    let b = path.as_bytes();
+    b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && (b[2] == b'/' || b[2] == b'\\')
+}
+
+/// Whether a path is absolute on either Unix or Windows spelling.
+pub fn is_absolute(path: &str) -> bool {
+    path.starts_with('/') || has_drive_prefix(path)
+}
+
 /// Compiled glob patterns, kept so a workspace with many files compiles each
 /// include and exclude pattern once instead of once per file. They are shared
 /// as `Arc<Regex>` because cloning a `Regex` discards its match scratch space.

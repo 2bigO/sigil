@@ -3,7 +3,7 @@
 //! Unlike the TypeScript server, a path keeps a UNC host through
 //! normalization, and `%` and control characters are percent-encoded so every
 //! path survives a round trip.
-use sigil_core::language::path::normalize_path;
+use sigil_core::language::path::{has_drive_prefix, normalize_path};
 use std::fmt;
 
 /// A URI that is not a usable `file:` URI.
@@ -73,15 +73,6 @@ pub fn path_to_file_uri(path: &str) -> String {
         "file://"
     };
     format!("{prefix}{}", encode(&normalized))
-}
-
-/// Whether a path starts with a drive letter and a separator, as `C:/` or `C:\`.
-pub(crate) fn has_drive_prefix(path: &str) -> bool {
-    let bytes = path.as_bytes();
-    bytes.len() >= 3
-        && bytes[0].is_ascii_alphabetic()
-        && bytes[1] == b':'
-        && (bytes[2] == b'/' || bytes[2] == b'\\')
 }
 
 fn percent_decode(text: &str) -> Option<String> {
