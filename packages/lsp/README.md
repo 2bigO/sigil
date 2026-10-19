@@ -52,6 +52,53 @@ Run package tests:
 deno task test
 ```
 
+## The Rust server
+
+The same language server also exists in Rust, in this package's `rust/`
+directory (crate `sigil-lsp`, a library over `sigil-core`), and the Rust `sigil`
+binary starts it:
+
+```bash
+sigil lsp
+```
+
+`sigil lsp` takes no options and speaks the protocol on standard input and
+output. The Deno server above still ships, and the VS Code extension still
+launches it; nothing switches to the Rust server yet.
+
+Run its tests (replayed against sessions recorded from the Deno server, plus
+real-process tests in `packages/cli`):
+
+```bash
+cargo test --manifest-path packages/lsp/Cargo.toml
+```
+
+Compare the two servers on this repository with a built Rust binary:
+
+```bash
+deno task build:sigil
+deno run -A scripts/compare-lsp.ts packages/cli/target/debug/sigil
+```
+
+The Rust server drops what the contract no longer asks of a language server:
+
+- Hover never lists owned implementations, and there is no ownership scanner.
+- There is no ownership file-watch registration or its cache.
+
+It also differs from the Deno server in these ways:
+
+- A client that supports dynamic registration gets one watch registration
+  (`sigil/language-watch`, request id `sigil/watch/request`) instead of two.
+- A request that has a document change or a relevant file-change event already
+  queued behind it answers content modified, because its answer would be
+  discarded. A burst of edits is applied with one reload.
+- The process exits with status 0 when the editor sends `exit` after
+  `shutdown`, 1 when it sends `exit` without `shutdown`, and 3 when standard
+  input or output fails.
+- A byte-order mark at the start of a file read from disk is hidden in every
+  position, document symbols included, as the editor hides it. The Deno server
+  only does this through the extension's source hook.
+
 ## Source snapshots and freshness
 
 Disk Sigil, config and glossary inputs retain original UTF-8 bytes. Open documents

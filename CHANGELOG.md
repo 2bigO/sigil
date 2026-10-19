@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Language server
+
+- Add a Rust language server, the `sigil-lsp` crate in `packages/lsp`, started
+  by `sigil lsp`. It serves what the Deno server serves (diagnostics,
+  definition, document symbols, semantic tokens, hover and
+  `sigil.renderDocument`) over the same protocol. It drops the ownership hover
+  and scanner and the ownership file-watch registration, registers one watch
+  instead of two, answers a request that a queued change has overtaken with
+  content modified, exits with status 0 after `shutdown`, 1 without it and 3 when
+  standard input or output fails, and hides a byte-order mark in disk files from
+  every position. The Deno language server still ships and the VS Code extension
+  still launches it, so nothing changes for editor users yet. CI runs the new
+  crate's formatting, lint and tests, and `scripts/compare-lsp.ts` compares the
+  two servers on a workspace by hand.
+
 ### Docs and skills
 
 - Docs and skills no longer name `sigil graph`, `sigil context`, `sigil retrieve`

@@ -102,7 +102,7 @@ also prints a harmless warning about the `workspace` field being ignored; see
 
 ## The validation workflow
 
-Run these six in order before you open a pull request. This is the same sequence,
+Run these in order before you open a pull request. This is the same sequence,
 in the same order, that [CI](.github/workflows/ci.yml) runs on Ubuntu, macOS, and
 Windows.
 
@@ -116,6 +116,8 @@ cargo fmt --manifest-path packages/sigilc/Cargo.toml -- --check
 cargo clippy --locked --manifest-path packages/sigilc/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path packages/cli/Cargo.toml -- --check
 cargo clippy --locked --manifest-path packages/cli/Cargo.toml --all-targets -- -D warnings
+cargo fmt --manifest-path packages/lsp/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/lsp/Cargo.toml --all-targets -- -D warnings
 deno task test
 ```
 
@@ -124,8 +126,8 @@ deno task test
 | `fmt`          | Checks formatting of every tracked TypeScript source, config, and schema path. **It does not reformat anything** — see below.                                                 |
 | `lint`         | Runs `deno lint` across the workspace.                                                                                                                                         |
 | `check`        | Type-checks the core, CLI, and LSP entrypoints, the extension with `tsc --noEmit`, and the slotted benchmark scripts.                                                          |
-| `cargo fmt`    | Checks formatting of `sigil-core`, `sigilc` and the Rust `sigil` crate. Like `deno task fmt`, it changes nothing.                                                                                                       |
-| `cargo clippy` | Lints `sigil-core`, `sigilc`, the Rust `sigil` crate and their tests; any warning fails.                                                                                                                               |
+| `cargo fmt`    | Checks formatting of `sigil-core`, `sigilc`, the Rust `sigil` crate and the Rust language server crate. Like `deno task fmt`, it changes nothing.                                                                                                       |
+| `cargo clippy` | Lints `sigil-core`, `sigilc`, the Rust `sigil` crate, the Rust language server crate and their tests; any warning fails.                                                                                                                               |
 | `test`         | Runs the `sigilc`, core, CLI, LSP, and extension suites, builds `sigilc`, then runs the native protocol, skill, plugin manifest, release branch, and slotted benchmark checks. |
 
 `deno task fmt` is a **check**, not a formatter: it runs `deno fmt --check`, so it
@@ -172,6 +174,7 @@ own task:
 | `deno task test:core:rust`        | `sigil-core` — the Rust workspace reader in `packages/core/rust` (`cargo test`)                |
 | `deno task test:sigilc`           | `sigilc` — the native compiler's Rust tests (`cargo test`)                                     |
 | `deno task test:cli:rust`         | `sigil` (Rust) — the command line in `packages/cli/rust`, replayed against recorded TS output (`cargo test`) |
+| `deno task test:lsp:rust`         | `sigil-lsp` (Rust) — the language server in `packages/lsp/rust`, replayed against recorded TS sessions (`cargo test`) |
 | `deno task test:core`             | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics                     |
 | `deno task test:cli`              | `@qoherent/sigil` — commands, argument parsing, output formatting                                 |
 | `deno task test:lsp`              | `@qoherent/sigil-lsp` — lifecycle, diagnostics, symbols, hover, semantic tokens                |
@@ -220,7 +223,7 @@ orchestration stay outside the toolchain.
 | `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                                                                                     |
 | `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. The released binary is still the Deno CLI in `src/`; the Rust `sigil` in `rust/` is tested in CI and ships at a later cutover. |
 | `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
-| `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
+| `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio. The Deno server in `src/` is what ships and what the extension launches; the Rust server in `rust/` (crate `sigil-lsp`, started by `sigil lsp`) is tested in CI and ships at a later cutover. |
 | `skills/` | The seven agent skills: understand, evaluate, write, and align for design work, the two computed checks, and `sigil-egglog` | Shared language pack and evaluator-owned review contract; models execute in the host. See [Work on a skill](docs/contributing/skills.md). |
 | `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |

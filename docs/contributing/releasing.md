@@ -23,6 +23,12 @@ On a branch from `main`, in one pull request:
    `cargo update --offline -p sigil-cli` (or `cargo check`) so `--locked` builds
    still pass; the Rust `sigil` crate's `version_matches_deno_json` test fails
    when the two disagree.
+   Leave `packages/lsp/Cargo.toml` and `packages/lsp/Cargo.lock` alone here: the
+   Rust language server crate (`sigil-lsp`, which `packages/cli` depends on by
+   path) carries the version of `packages/lsp/deno.json`, which differs from the
+   CLI's. Change them only together with `packages/lsp/deno.json`, in the pull
+   request that bumps the language server package, never in the release-cut
+   commit. The crate's own test fails when the two disagree.
 2. Set the same version in every plugin manifest: `.claude-plugin/plugin.json`,
    `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`,
    `gemini-extension.json`, `plugin.json` and `package.json`.
