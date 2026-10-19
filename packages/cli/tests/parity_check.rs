@@ -11,5 +11,5 @@ fn parity_check_usage_and_help_cases() {
 
 #[test]
 fn parity_check_workspace_cases() {
-    run_cases("check", Selector::Workspace, 46);
+    run_cases("check", Selector::Workspace, 52);
 }

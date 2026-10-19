@@ -121,3 +121,46 @@ fn a_missing_config_reports_the_recorded_code() {
     assert!(ran.stdout.contains("Glossary: absent\n"));
     assert!(ran.stdout.contains("error SIGIL_CONFIG_NOT_FOUND: "));
 }
+
+#[test]
+fn a_source_with_errors_beside_the_glossary_is_listed() {
+    let temp = Temp::workspace();
+    temp.write(".sigil/glossary.json", GLOSSARY);
+    temp.write("booking.sigil", BOOKING);
+    temp.write(
+        "a.sigil",
+        "component Broken {\n  mystery {\n    bad\n  }\n}\n",
+    );
+    let (code, value) = temp.json("glossary", &[]);
+    assert_eq!(code, 1);
+    let found: Vec<&str> = value["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| d["code"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        found,
+        [
+            "SIGIL_MISSING_GOAL",
+            "SIGIL_MISSING_INTERFACE",
+            "SIGIL_UNKNOWN_SECTION"
+        ]
+    );
+}
+
+#[test]
+fn a_nested_workspace_is_named_by_absolute_path() {
+    let temp = Temp::workspace();
+    temp.write("child/.sigil/config.json", support::CONFIG);
+    let ran = temp.sigil(&["glossary"]);
+    assert_eq!(ran.code, 1);
+    assert!(
+        ran.stdout.ends_with(&format!(
+            "error SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace {}.\n",
+            temp.text()
+        )),
+        "{}",
+        ran.stdout
+    );
+}

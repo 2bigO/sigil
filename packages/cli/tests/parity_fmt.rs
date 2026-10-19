@@ -11,5 +11,5 @@ fn parity_fmt_usage_and_help_cases() {
 
 #[test]
 fn parity_fmt_workspace_cases() {
-    run_cases("fmt", Selector::Workspace, 102);
+    run_cases("fmt", Selector::Workspace, 112);
 }

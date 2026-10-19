@@ -7,7 +7,7 @@ use crate::{
     model::{DiagnosticView, WorkspaceMeta, exit_code, views},
     output::{Output, diagnostic_lines, fail, lines_text, render, runtime_error},
     selection,
-    session::{CONFIG_NOT_FOUND, Session},
+    session::Session,
 };
 use serde::Serialize;
 use sigil_core::{
@@ -16,7 +16,7 @@ use sigil_core::{
         format::{LINE_TOO_LONG, format_document_resolved},
         fs::{DiskFs, Overlay},
         resolve::ResolvedWorkspace,
-        workspace::{CONFIG_PATH, Workspace},
+        workspace::Workspace,
     },
     types::{Diagnostic, Severity},
 };
@@ -88,15 +88,12 @@ fn all_failed(selected: Vec<String>, diagnostics: Vec<Diagnostic>) -> Batch {
 fn run_batch(
     root: &Path,
     workspace: &Workspace,
-    extra: Vec<Diagnostic>,
     selected: Vec<String>,
     check: bool,
 ) -> Result<Batch, (u8, String)> {
     let resolved = ResolvedWorkspace::from(workspace);
-    let mut before = resolved.diagnostics.clone();
-    before.extend(extra);
-    if has_blocking_error(&before) {
-        return Ok(all_failed(selected, order_diagnostics(before)));
+    if has_blocking_error(&resolved.diagnostics) {
+        return Ok(all_failed(selected, resolved.diagnostics.clone()));
     }
 
     let prepared: Vec<_> = selected
@@ -162,8 +159,9 @@ fn run_batch(
     Ok(Batch { files, diagnostics })
 }
 
-fn show(request: &FmtRequest, session: &Session, batch: Batch) -> Output {
+fn show(request: &FmtRequest, session: &Session, mut batch: Batch) -> Output {
     let display = &session.display;
+    session.reword(&mut batch.diagnostics);
     let diagnostics = views(&batch.diagnostics, display);
     let files: Vec<FileResult> = batch
         .files
@@ -213,22 +211,10 @@ pub fn run(request: &FmtRequest, ctx: &Context) -> Output {
         fmt_controlling_path(&request.paths),
     )?;
 
-    // A config that discovery refused (a nested workspace) still has sources.
-    let mut extra: Vec<Diagnostic> = Vec::new();
-    let loaded;
-    let workspace = match &session.workspace {
-        Some(workspace) => workspace,
-        None if !session
-            .diagnostics
-            .iter()
-            .any(|d| d.code == CONFIG_NOT_FOUND)
-            && session.root.join(CONFIG_PATH).is_file() =>
-        {
-            loaded = Workspace::load_with(&DiskFs::new(&session.root)).map_err(runtime_error)?;
-            extra = session.diagnostics.clone();
-            &loaded
-        }
-        None => return fail(3, format!("No Sigil source matched {}.", targets[0])),
+    // Discovery that stopped short of a workspace (no config, a nested one)
+    // leaves no source to select.
+    let Some(workspace) = &session.workspace else {
+        return fail(3, format!("No Sigil source matched {}.", targets[0]));
     };
 
     let sources: Vec<String> = workspace.sources.iter().map(|s| s.path.clone()).collect();
@@ -242,6 +228,6 @@ pub fn run(request: &FmtRequest, ctx: &Context) -> Output {
         Err(message) => return fail(3, message),
     };
 
-    let batch = run_batch(&session.root, workspace, extra, selected, request.check)?;
+    let batch = run_batch(&session.root, workspace, selected, request.check)?;
     show(request, &session, batch)
 }

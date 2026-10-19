@@ -151,7 +151,7 @@ fn diagnostics_of(session: &Session, resolved: Option<&ResolvedWorkspace>) -> Ve
         return session.diagnostics.clone();
     };
     let mut all = resolved.diagnostics.clone();
-    session.reword_missing_config(&mut all);
+    session.reword(&mut all);
     all
 }
 

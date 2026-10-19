@@ -33,6 +33,16 @@ pub fn config_missing_message(display: &Display) -> String {
     )
 }
 
+/// The code of the diagnostics for a config nested inside a workspace.
+const NESTED_CONFIG: &str = "SIGIL_NESTED_CONFIG";
+
+/// The core's wording of a nested config that the workspace does not exclude.
+const NESTED_NOT_EXCLUDED: &str =
+    "Nested .sigil/config.json must be inside a subtree excluded by the workspace.";
+
+/// The core's wording of a member that holds a config, up to the member path.
+const MEMBER_PREFIX: &str = "Workspace member ";
+
 /// Put `message` on every missing-config diagnostic of the list.
 fn reword_missing_config(diagnostics: &mut [Diagnostic], message: &str) {
     for diagnostic in diagnostics
@@ -41,6 +51,46 @@ fn reword_missing_config(diagnostics: &mut [Diagnostic], message: &str) {
     {
         diagnostic.message = message.to_owned();
     }
+}
+
+/// The directory that holds the nested config at `config_path`.
+fn nested_root(config_path: &str) -> Option<&str> {
+    config_path.strip_suffix(&format!("/{CONFIG_PATH}"))
+}
+
+/// Give the nested-config diagnostics of a workspace read by the core the
+/// TypeScript wording, which names the workspace root and the member by their
+/// absolute paths. `root` is the absolute workspace root.
+fn reword_nested_config(diagnostics: &mut [Diagnostic], root: &str) {
+    let root = root.trim_end_matches('/');
+    for diagnostic in diagnostics.iter_mut().filter(|d| d.code == NESTED_CONFIG) {
+        if diagnostic.message == NESTED_NOT_EXCLUDED {
+            diagnostic.message = format!(
+                "Nested {CONFIG_PATH} must be inside a subtree excluded by workspace {root}."
+            );
+        } else if let Some(member) = diagnostic
+            .file_path
+            .as_deref()
+            .and_then(nested_root)
+            .filter(|member| {
+                diagnostic.message
+                    == format!("{MEMBER_PREFIX}{member} must not contain its own {CONFIG_PATH}.")
+            })
+        {
+            diagnostic.message =
+                format!("{MEMBER_PREFIX}{root}/{member} must not contain its own {CONFIG_PATH}.");
+        }
+    }
+}
+
+/// The message of a parent-workspace conflict found by discovery. TypeScript
+/// names both workspaces by absolute path; `parent` is the parent's config.
+fn nested_in_parent_message(root: &Path, parent_config: &str) -> String {
+    let parent = nested_root(parent_config).unwrap_or(parent_config);
+    format!(
+        "Workspace {} is nested inside parent workspace {parent} without being excluded by it.",
+        path_text(root)
+    )
 }
 
 /// Where the workspace is, found without reading its sources.
@@ -85,6 +135,13 @@ pub fn discover(
         .diagnostics
         .into_iter()
         .map(|d| localize(d, &ctx.cwd, &root))
+        .map(|mut d| {
+            let parent = d.related.first().and_then(|r| r.file_path.clone());
+            if let (NESTED_CONFIG, Some(parent)) = (d.code.as_str(), parent) {
+                d.message = nested_in_parent_message(&root, &parent);
+            }
+            d
+        })
         .collect();
     found(root, diagnostics)
 }
@@ -113,6 +170,25 @@ fn localize(mut diagnostic: Diagnostic, cwd: &Path, root: &Path) -> Diagnostic {
         })
         .collect();
     diagnostic
+}
+
+/// The TypeScript command line looks for the config of the start path itself
+/// first, and a start path that is a file other than a `.sigil` source makes
+/// that look fail with the operating system's error: a runtime failure. The
+/// shown path is the one the look used.
+fn check_start_path(ctx: &Context, start: Option<&str>) -> Result<(), (u8, String)> {
+    let start = resolve_target(&ctx.cwd, start.unwrap_or("."));
+    if path_text(&start).ends_with(".sigil") {
+        return Ok(());
+    }
+    let config = start.join(CONFIG_PATH);
+    match std::fs::metadata(&config) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(runtime_error(format!(
+            "{error}: stat '{}'",
+            path_text(&config)
+        ))),
+        _ => Ok(()),
+    }
 }
 
 /// A workspace found and read, or the diagnostics that stopped it.
@@ -146,6 +222,9 @@ impl Session {
         explicit_root: Option<&str>,
         controlling: Option<&str>,
     ) -> Result<Self, (u8, String)> {
+        if explicit_root.is_none() {
+            check_start_path(ctx, start)?;
+        }
         let found = discover(ctx, start, explicit_root, controlling);
         let Discovered {
             root,
@@ -164,6 +243,7 @@ impl Session {
         let workspace = Workspace::load_with(&DiskFs::new(&root)).map_err(runtime_error)?;
         let mut diagnostics = workspace.diagnostics.clone();
         reword_missing_config(&mut diagnostics, &config_missing_message(&display));
+        reword_nested_config(&mut diagnostics, display.absolute_root());
         let config_found = !diagnostics.iter().any(|d| d.code == CONFIG_NOT_FOUND);
         Ok(Self {
             root,
@@ -184,11 +264,13 @@ impl Session {
         WorkspaceMeta::new(&self.display, self.config_found, self.config())
     }
 
-    /// Give a missing-config diagnostic of `diagnostics`, resolved from this
-    /// session's workspace, the wording the session itself reported.
-    pub fn reword_missing_config(&self, diagnostics: &mut [Diagnostic]) {
+    /// Give the missing-config and nested-config diagnostics of `diagnostics`,
+    /// resolved from this session's workspace, the wording the command line
+    /// uses: the core words them without the absolute paths.
+    pub fn reword(&self, diagnostics: &mut [Diagnostic]) {
         if let Some(worded) = self.diagnostics.iter().find(|d| d.code == CONFIG_NOT_FOUND) {
             reword_missing_config(diagnostics, &worded.message);
         }
+        reword_nested_config(diagnostics, self.display.absolute_root());
     }
 }

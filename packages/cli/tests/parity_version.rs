@@ -11,5 +11,5 @@ fn parity_version_usage_and_help_cases() {
 
 #[test]
 fn parity_version_workspace_cases() {
-    run_cases("version", Selector::Workspace, 15);
+    run_cases("version", Selector::Workspace, 24);
 }

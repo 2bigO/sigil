@@ -348,6 +348,228 @@
     }
   },
   {
+    "name": "version-broken-source-json",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    },
+    "argv": [
+      "version",
+      "<ROOT>",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"version\",\"cliVersion\":\"0.9.0\",\"coreVersion\":\"0.8.0\",\"workspaceRoot\":\"<ROOT>\",\"configPath\":\"<ROOT>/.sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"version-broken\",\"diagnostics\":[{\"code\":\"SIGIL_MISSING_GOAL\",\"stage\":\"structure\",\"severity\":\"error\",\"message\":\"A nonempty goal section is required.\",\"filePath\":\"<ROOT>/broken.sigil\",\"range\":{\"start\":10,\"end\":16},\"related\":[]},{\"code\":\"SIGIL_MISSING_INTERFACE\",\"stage\":\"structure\",\"severity\":\"error\",\"message\":\"A nonempty interface section is required.\",\"filePath\":\"<ROOT>/broken.sigil\",\"range\":{\"start\":10,\"end\":16},\"related\":[]},{\"code\":\"SIGIL_UNKNOWN_SECTION\",\"stage\":\"parsing\",\"severity\":\"error\",\"message\":\"Unknown contract \\\"mystery\\\".\",\"filePath\":\"<ROOT>/broken.sigil\",\"range\":{\"start\":21,\"end\":28},\"related\":[]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-broken-source-text",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    },
+    "argv": [
+      "version",
+      "<ROOT>"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "CLI: 0.9.0\nCore: 0.8.0\nWorkspace: <ROOT>\nWorkspace name: version-broken\nConfigured Sigil: 0.9.0\nerror SIGIL_MISSING_GOAL: A nonempty goal section is required.\nerror SIGIL_MISSING_INTERFACE: A nonempty interface section is required.\nerror SIGIL_UNKNOWN_SECTION: Unknown contract \"mystery\".\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-broken-sources-json",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken-many\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a-unclosed.sigil": "component Open {\n  goal {\n    x\n  }\n",
+      "b-wide.sigil": "component Example {\n  goal {\n    This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.\n  }\n\n  interface {\n    Read {\n      word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word \n\n      read()\n    }\n  }\n}\n",
+      "c-structure.sigil": "component Plain {\n  goal {\n    Do it.\n  }\n}\n",
+      "d-import.sigil": "@missing.sigil from Gone import { thing }\n\ncomponent Importer {\n  goal {\n    Test Importer.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "version",
+      "<ROOT>",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"version\",\"cliVersion\":\"0.9.0\",\"coreVersion\":\"0.8.0\",\"workspaceRoot\":\"<ROOT>\",\"configPath\":\"<ROOT>/.sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"version-broken-many\",\"diagnostics\":[{\"code\":\"SIGIL_UNCLOSED_BLOCK\",\"stage\":\"parsing\",\"severity\":\"error\",\"message\":\"Unclosed component block.\",\"filePath\":\"<ROOT>/a-unclosed.sigil\",\"range\":{\"start\":0,\"end\":17},\"related\":[{\"filePath\":\"<ROOT>/a-unclosed.sigil\",\"range\":{\"start\":36,\"end\":36}}]},{\"code\":\"SIGIL_LINE_TOO_LONG\",\"stage\":\"parsing\",\"severity\":\"error\",\"message\":\"Prose exceeds 79 content characters on a physical line.\",\"filePath\":\"<ROOT>/b-wide.sigil\",\"range\":{\"start\":29,\"end\":182},\"related\":[]},{\"code\":\"SIGIL_LINE_TOO_LONG\",\"stage\":\"parsing\",\"severity\":\"error\",\"message\":\"Prose exceeds 79 content characters on a physical line.\",\"filePath\":\"<ROOT>/b-wide.sigil\",\"range\":{\"start\":213,\"end\":419},\"related\":[]},{\"code\":\"SIGIL_MISSING_INTERFACE\",\"stage\":\"structure\",\"severity\":\"error\",\"message\":\"A nonempty interface section is required.\",\"filePath\":\"<ROOT>/c-structure.sigil\",\"range\":{\"start\":10,\"end\":15},\"related\":[]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken-many\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a-unclosed.sigil": "component Open {\n  goal {\n    x\n  }\n",
+      "b-wide.sigil": "component Example {\n  goal {\n    This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.\n  }\n\n  interface {\n    Read {\n      word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word \n\n      read()\n    }\n  }\n}\n",
+      "c-structure.sigil": "component Plain {\n  goal {\n    Do it.\n  }\n}\n",
+      "d-import.sigil": "@missing.sigil from Gone import { thing }\n\ncomponent Importer {\n  goal {\n    Test Importer.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-broken-sources-text",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken-many\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a-unclosed.sigil": "component Open {\n  goal {\n    x\n  }\n",
+      "b-wide.sigil": "component Example {\n  goal {\n    This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.\n  }\n\n  interface {\n    Read {\n      word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word \n\n      read()\n    }\n  }\n}\n",
+      "c-structure.sigil": "component Plain {\n  goal {\n    Do it.\n  }\n}\n",
+      "d-import.sigil": "@missing.sigil from Gone import { thing }\n\ncomponent Importer {\n  goal {\n    Test Importer.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "version",
+      "<ROOT>"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "CLI: 0.9.0\nCore: 0.8.0\nWorkspace: <ROOT>\nWorkspace name: version-broken-many\nConfigured Sigil: 0.9.0\nerror SIGIL_UNCLOSED_BLOCK: Unclosed component block.\nerror SIGIL_LINE_TOO_LONG: Prose exceeds 79 content characters on a physical line.\nerror SIGIL_LINE_TOO_LONG: Prose exceeds 79 content characters on a physical line.\nerror SIGIL_MISSING_INTERFACE: A nonempty interface section is required.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-broken-many\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a-unclosed.sigil": "component Open {\n  goal {\n    x\n  }\n",
+      "b-wide.sigil": "component Example {\n  goal {\n    This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.\n  }\n\n  interface {\n    Read {\n      word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word \n\n      read()\n    }\n  }\n}\n",
+      "c-structure.sigil": "component Plain {\n  goal {\n    Do it.\n  }\n}\n",
+      "d-import.sigil": "@missing.sigil from Gone import { thing }\n\ncomponent Importer {\n  goal {\n    Test Importer.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-nested-workspace-parent-text",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "version"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "CLI: 0.9.0\nCore: 0.8.0\nWorkspace: .\nWorkspace name: parent\nConfigured Sigil: 0.9.0\nerror SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-nested-workspace-parent-json",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "version",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"version\",\"cliVersion\":\"0.9.0\",\"coreVersion\":\"0.8.0\",\"workspaceRoot\":\".\",\"configPath\":\".sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"parent\",\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\",\"filePath\":\"child/.sigil/config.json\",\"related\":[{\"filePath\":\".sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-nested-workspace-child-text",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "version"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "CLI: 0.9.0\nCore: 0.8.0\nWorkspace: .\nWorkspace name: unresolved\nConfigured Sigil: unresolved\nerror SIGIL_NESTED_CONFIG: Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-nested-workspace-child-json",
+    "command": "version",
+    "fieldsOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "version",
+      "--format",
+      "json"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"version\",\"cliVersion\":\"0.9.0\",\"coreVersion\":\"0.8.0\",\"workspaceRoot\":\".\",\"configPath\":null,\"sigilVersion\":null,\"workspaceName\":null,\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\",\"filePath\":\".sigil/config.json\",\"related\":[{\"filePath\":\"<ROOT>/.sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "version-runtime-non-sigil-file",
+    "command": "version",
+    "fieldsOnly": true,
+    "engineText": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n"
+    },
+    "argv": [
+      "version",
+      "notes.txt"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "Not a directory (os error 20): stat '<ROOT>/notes.txt/.sigil/config.json'\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"version-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n"
+    }
+  },
+  {
     "name": "version-flag",
     "command": "version",
     "files": {},
@@ -777,6 +999,105 @@
     "stderr": "No such file or directory (os error 2): readfile '<ROOT>/does-not-exist.sigil'\n",
     "filesAfter": {
       ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"missing-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}"
+    }
+  },
+  {
+    "name": "parse-nested-workspace-parent-file",
+    "command": "parse",
+    "statusOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "parse",
+      "p.sigil"
+    ],
+    "cwd": ".",
+    "exitCode": 0,
+    "stdout": null,
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "parse-nested-workspace-child-file-from-parent",
+    "command": "parse",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "parse",
+      "child/c.sigil"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"parse\",\"workspaceRoot\":\"child\",\"configPath\":null,\"sigilVersion\":null,\"workspaceName\":null,\"document\":null,\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\",\"filePath\":\"child/.sigil/config.json\",\"related\":[{\"filePath\":\"<ROOT>/.sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "parse-nested-workspace-child-file-default",
+    "command": "parse",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "parse",
+      "c.sigil"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"parse\",\"workspaceRoot\":\".\",\"configPath\":null,\"sigilVersion\":null,\"workspaceName\":null,\"document\":null,\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\",\"filePath\":\".sigil/config.json\",\"related\":[{\"filePath\":\"<ROOT>/.sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "parse-nested-workspace-child-file-json",
+    "command": "parse",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "parse",
+      "c.sigil",
+      "--format",
+      "json"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"parse\",\"workspaceRoot\":\".\",\"configPath\":null,\"sigilVersion\":null,\"workspaceName\":null,\"document\":null,\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\",\"filePath\":\".sigil/config.json\",\"related\":[{\"filePath\":\"<ROOT>/.sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
     }
   },
   {
@@ -2106,6 +2427,144 @@
     "filesAfter": {}
   },
   {
+    "name": "check-nested-workspace-parent-text",
+    "command": "check",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "check"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "Workspace root: .\nDiagnostics: 1 error, 1 warning, 0 info\nerror SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\nwarning SIGIL_UNTAGGED_FACET: Facet has no Tag reference or inline Tag definition in its prose.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "check-nested-workspace-parent-json",
+    "command": "check",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "check",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"check\",\"workspaceRoot\":\".\",\"configPath\":\".sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"parent\",\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\",\"filePath\":\"child/.sigil/config.json\",\"related\":[{\"filePath\":\".sigil/config.json\"}]},{\"code\":\"SIGIL_UNTAGGED_FACET\",\"stage\":\"resolution\",\"severity\":\"warning\",\"message\":\"Facet has no Tag reference or inline Tag definition in its prose.\",\"filePath\":\"p.sigil\",\"range\":{\"start\":64,\"end\":74},\"related\":[],\"sourceLocation\":{\"line\":7,\"column\":1}}],\"diagnosticCounts\":{\"error\":1,\"warning\":1,\"info\":0}}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "check-nested-workspace-child-text",
+    "command": "check",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "check"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "Workspace root: .\nDiagnostics: 1 error, 0 warning, 0 info\nerror SIGIL_NESTED_CONFIG: Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "check-nested-workspace-child-json",
+    "command": "check",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "check",
+      "--format",
+      "json"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"check\",\"workspaceRoot\":\".\",\"configPath\":null,\"sigilVersion\":null,\"workspaceName\":null,\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\",\"filePath\":\".sigil/config.json\",\"related\":[{\"filePath\":\"<ROOT>/.sigil/config.json\"}]}],\"diagnosticCounts\":{\"error\":1,\"warning\":0,\"info\":0}}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "check-member-with-config-text",
+    "command": "check",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"members\",\"members\":[\"sub\"]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "sub/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"member\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "sub/s.sigil": "component Member {\n  goal {\n    Test Member.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "check"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "Workspace root: .\nDiagnostics: 1 error, 0 warning, 0 info\nerror SIGIL_NESTED_CONFIG: Workspace member <ROOT>/sub must not contain its own .sigil/config.json.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"members\",\"members\":[\"sub\"]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "sub/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"member\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "sub/s.sigil": "component Member {\n  goal {\n    Test Member.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "check-runtime-non-sigil-file",
+    "command": "check",
+    "engineText": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"check-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n"
+    },
+    "argv": [
+      "check",
+      "notes.txt"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "Not a directory (os error 20): stat '<ROOT>/notes.txt/.sigil/config.json'\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"check-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n"
+    }
+  },
+  {
     "name": "check-usage-exclude-option",
     "command": "check",
     "files": {},
@@ -2583,6 +3042,181 @@
     "stdout": "Workspace root: <ROOT>\nGlossary: absent\nSchema version: none\nTerms: 0\nContexts: 0\nOccurrences: 0\nerror SIGIL_CONFIG_NOT_FOUND: No ancestor .sigil/config.json was found from <ROOT>.\n",
     "stderr": "",
     "filesAfter": {}
+  },
+  {
+    "name": "glossary-broken-source-json",
+    "command": "glossary",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"glossary\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "booking/contract.sigil": "component Booking {\n  goal {\n    Use the workspace root for each temporary reservation.\n  }\n\n  interface {\n    Hold {\n      A hold is visible.\n    }\n  }\n}\n",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    },
+    "argv": [
+      "glossary",
+      "<ROOT>",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"glossary\",\"workspaceRoot\":\"<ROOT>\",\"configPath\":\"<ROOT>/.sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"glossary\",\"glossaryPath\":\"<ROOT>/.sigil/glossary.json\",\"schemaVersion\":1,\"terms\":[{\"term\":\"workspace root\",\"definition\":\"The configured workspace directory.\",\"aliases\":[],\"agentContext\":true,\"scope\":{\"kind\":\"workspace\"},\"declarationRange\":{\"start\":58,\"end\":72}}],\"contexts\":[{\"id\":\"booking\",\"include\":[\"booking/**/*.sigil\"],\"exclude\":[],\"terms\":[{\"term\":\"hold\",\"definition\":\"Booking capacity before confirmation.\",\"aliases\":[\"temporary reservation\"],\"agentContext\":true,\"scope\":{\"kind\":\"context\",\"id\":\"booking\"},\"declarationRange\":{\"start\":313,\"end\":317}}]}],\"resolvedContexts\":[{\"filePath\":\"booking/contract.sigil\",\"contextId\":\"booking\",\"entries\":[{\"term\":\"workspace root\",\"definition\":\"The configured workspace directory.\",\"aliases\":[],\"agentContext\":true,\"scope\":{\"kind\":\"workspace\"},\"declarationRange\":{\"start\":58,\"end\":72}},{\"term\":\"hold\",\"definition\":\"Booking capacity before confirmation.\",\"aliases\":[\"temporary reservation\"],\"agentContext\":true,\"scope\":{\"kind\":\"context\",\"id\":\"booking\"},\"declarationRange\":{\"start\":313,\"end\":317}}]},{\"filePath\":\"broken.sigil\",\"entries\":[{\"term\":\"workspace root\",\"definition\":\"The configured workspace directory.\",\"aliases\":[],\"agentContext\":true,\"scope\":{\"kind\":\"workspace\"},\"declarationRange\":{\"start\":58,\"end\":72}}]}],\"occurrences\":[{\"term\":{\"term\":\"workspace root\",\"definition\":\"The configured workspace directory.\",\"aliases\":[],\"agentContext\":true,\"scope\":{\"kind\":\"workspace\"},\"declarationRange\":{\"start\":58,\"end\":72}},\"matchedSpelling\":\"workspace root\",\"filePath\":\"<ROOT>/booking/contract.sigil\",\"ownerKind\":\"component\",\"ownerName\":\"Booking\",\"sectionName\":\"goal\",\"range\":{\"start\":41,\"end\":55},\"sourceLocation\":{\"line\":3,\"column\":13}},{\"term\":{\"term\":\"hold\",\"definition\":\"Booking capacity before confirmation.\",\"aliases\":[\"temporary reservation\"],\"agentContext\":true,\"scope\":{\"kind\":\"context\",\"id\":\"booking\"},\"declarationRange\":{\"start\":313,\"end\":317}},\"matchedSpelling\":\"temporary reservation\",\"filePath\":\"<ROOT>/booking/contract.sigil\",\"ownerKind\":\"component\",\"ownerName\":\"Booking\",\"sectionName\":\"goal\",\"range\":{\"start\":65,\"end\":86},\"sourceLocation\":{\"line\":3,\"column\":37}},{\"term\":{\"term\":\"hold\",\"definition\":\"Booking capacity before confirmation.\",\"aliases\":[\"temporary reservation\"],\"agentContext\":true,\"scope\":{\"kind\":\"context\",\"id\":\"booking\"},\"declarationRange\":{\"start\":313,\"end\":317}},\"matchedSpelling\":\"hold\",\"filePath\":\"<ROOT>/booking/contract.sigil\",\"ownerKind\":\"component\",\"ownerName\":\"Booking\",\"sectionName\":\"interface\",\"range\":{\"start\":126,\"end\":130},\"sourceLocation\":{\"line\":8,\"column\":9}}],\"diagnostics\":[{\"code\":\"SIGIL_MISSING_GOAL\",\"stage\":\"structure\",\"severity\":\"error\",\"message\":\"A nonempty goal section is required.\",\"filePath\":\"<ROOT>/broken.sigil\",\"range\":{\"start\":10,\"end\":16},\"related\":[]},{\"code\":\"SIGIL_MISSING_INTERFACE\",\"stage\":\"structure\",\"severity\":\"error\",\"message\":\"A nonempty interface section is required.\",\"filePath\":\"<ROOT>/broken.sigil\",\"range\":{\"start\":10,\"end\":16},\"related\":[]},{\"code\":\"SIGIL_UNKNOWN_SECTION\",\"stage\":\"parsing\",\"severity\":\"error\",\"message\":\"Unknown contract \\\"mystery\\\".\",\"filePath\":\"<ROOT>/broken.sigil\",\"range\":{\"start\":21,\"end\":28},\"related\":[]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"glossary\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "booking/contract.sigil": "component Booking {\n  goal {\n    Use the workspace root for each temporary reservation.\n  }\n\n  interface {\n    Hold {\n      A hold is visible.\n    }\n  }\n}\n",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    }
+  },
+  {
+    "name": "glossary-broken-source-text",
+    "command": "glossary",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"glossary\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "booking/contract.sigil": "component Booking {\n  goal {\n    Use the workspace root for each temporary reservation.\n  }\n\n  interface {\n    Hold {\n      A hold is visible.\n    }\n  }\n}\n",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    },
+    "argv": [
+      "glossary",
+      "<ROOT>"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "Workspace root: <ROOT>\nGlossary: <ROOT>/.sigil/glossary.json\nSchema version: 1\nTerms: 1\nContexts: 1\nOccurrences: 3\n<ROOT>/booking/contract.sigil:3:13 workspace root -> workspace root\n<ROOT>/booking/contract.sigil:3:37 temporary reservation -> hold [booking]\n<ROOT>/booking/contract.sigil:8:9 hold -> hold [booking]\nerror SIGIL_MISSING_GOAL: A nonempty goal section is required.\nerror SIGIL_MISSING_INTERFACE: A nonempty interface section is required.\nerror SIGIL_UNKNOWN_SECTION: Unknown contract \"mystery\".\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"glossary\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "booking/contract.sigil": "component Booking {\n  goal {\n    Use the workspace root for each temporary reservation.\n  }\n\n  interface {\n    Hold {\n      A hold is visible.\n    }\n  }\n}\n",
+      "broken.sigil": "component Broken {\n  mystery {\n    bad\n  }\n}\n"
+    }
+  },
+  {
+    "name": "glossary-nested-workspace-parent-text",
+    "command": "glossary",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "glossary"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "Workspace root: .\nGlossary: .sigil/glossary.json\nSchema version: 1\nTerms: 1\nContexts: 1\nOccurrences: 0\nerror SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "glossary-nested-workspace-parent-json",
+    "command": "glossary",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "glossary",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"glossary\",\"workspaceRoot\":\".\",\"configPath\":\".sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"parent\",\"glossaryPath\":\".sigil/glossary.json\",\"schemaVersion\":1,\"terms\":[{\"term\":\"workspace root\",\"definition\":\"The configured workspace directory.\",\"aliases\":[],\"agentContext\":true,\"scope\":{\"kind\":\"workspace\"},\"declarationRange\":{\"start\":58,\"end\":72}}],\"contexts\":[{\"id\":\"booking\",\"include\":[\"booking/**/*.sigil\"],\"exclude\":[],\"terms\":[{\"term\":\"hold\",\"definition\":\"Booking capacity before confirmation.\",\"aliases\":[\"temporary reservation\"],\"agentContext\":true,\"scope\":{\"kind\":\"context\",\"id\":\"booking\"},\"declarationRange\":{\"start\":313,\"end\":317}}]}],\"resolvedContexts\":[{\"filePath\":\"p.sigil\",\"entries\":[{\"term\":\"workspace root\",\"definition\":\"The configured workspace directory.\",\"aliases\":[],\"agentContext\":true,\"scope\":{\"kind\":\"workspace\"},\"declarationRange\":{\"start\":58,\"end\":72}}]}],\"occurrences\":[],\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\",\"filePath\":\"child/.sigil/config.json\",\"related\":[{\"filePath\":\".sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "glossary-nested-workspace-child-text",
+    "command": "glossary",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "glossary"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "Workspace root: .\nGlossary: absent\nSchema version: none\nTerms: 0\nContexts: 0\nOccurrences: 0\nerror SIGIL_NESTED_CONFIG: Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "glossary-nested-workspace-child-json",
+    "command": "glossary",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "glossary",
+      "--format",
+      "json"
+    ],
+    "cwd": "child",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"glossary\",\"workspaceRoot\":\".\",\"configPath\":null,\"sigilVersion\":null,\"workspaceName\":null,\"glossaryPath\":null,\"schemaVersion\":null,\"terms\":[],\"contexts\":[],\"resolvedContexts\":[],\"occurrences\":[],\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Workspace <ROOT>/child is nested inside parent workspace <ROOT> without being excluded by it.\",\"filePath\":\".sigil/config.json\",\"related\":[{\"filePath\":\"<ROOT>/.sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      ".sigil/glossary.json": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The configured workspace directory.\"\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"booking\",\n      \"include\": [\n        \"booking/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"hold\",\n          \"definition\": \"Booking capacity before confirmation.\",\n          \"aliases\": [\n            \"temporary reservation\"\n          ]\n        }\n      ]\n    }\n  ]\n}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "glossary-runtime-non-sigil-file",
+    "command": "glossary",
+    "engineText": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"glossary-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n"
+    },
+    "argv": [
+      "glossary",
+      "notes.txt"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "Not a directory (os error 20): stat '<ROOT>/notes.txt/.sigil/config.json'\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"glossary-file\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n"
+    }
   },
   {
     "name": "glossary-help",
@@ -6175,6 +6809,243 @@
       "other.sigil": "component Other {\ngoal {\nOwn a responsibility.\n}\ninterface {\nKeep this source untouched.\n}\n}\n",
       "sources/consumer.sigil": "@sources/provider.sigil from Provider import { search results }\ncomponent Consumer {\ngoal {\nOwn a responsibility.\n}\ninterface {\nprefix prefix prefix prefix prefix prefix prefix prefix prefix prefix prefix prefix search results follow.\n}\n}\n",
       "sources/provider.sigil": "component Provider {\ngoal {\nOwn a responsibility.\n}\ninterface {\nprefix prefix prefix prefix prefix prefix prefix prefix prefix prefix prefix prefix A *search results* has meaning.\n}\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-parent-text",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "failed p.sigil\nerror SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-parent-json",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"fmt\",\"workspaceRoot\":\".\",\"configPath\":\".sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"parent\",\"check\":false,\"files\":[{\"filePath\":\"p.sigil\",\"status\":\"failed\"}],\"diagnostics\":[{\"code\":\"SIGIL_NESTED_CONFIG\",\"stage\":\"workspace\",\"severity\":\"error\",\"message\":\"Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\",\"filePath\":\"child/.sigil/config.json\",\"related\":[{\"filePath\":\".sigil/config.json\"}]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-parent-file",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "p.sigil"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "failed p.sigil\nerror SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace <ROOT>.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-child-text",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt"
+    ],
+    "cwd": "child",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "No Sigil source matched <ROOT>/child.\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-child-json",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "--format",
+      "json"
+    ],
+    "cwd": "child",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "No Sigil source matched <ROOT>/child.\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-child-file",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "c.sigil"
+    ],
+    "cwd": "child",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "No Sigil source matched <ROOT>/child/c.sigil.\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-nested-workspace-child-file-from-parent",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "child/c.sigil"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "No Sigil source matched <ROOT>/child/c.sigil.\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"parent\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/.sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"child\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "child/c.sigil": "component Kid {\n  goal {\n    Test Kid.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "p.sigil": "component Parent {\n  goal {\n    Test Parent.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-unchanged-selection-long-line-elsewhere-text",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"fmt-unchanged-long-line\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a.sigil": "component Canonical {\n  goal {\n    Test Canonical.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "b.sigil": "component Wide {\n  goal {\n    These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "a.sigil"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "failed a.sigil\nerror SIGIL_LINE_TOO_LONG: Prose exceeds 79 content characters on a physical line.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"fmt-unchanged-long-line\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a.sigil": "component Canonical {\n  goal {\n    Test Canonical.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "b.sigil": "component Wide {\n  goal {\n    These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-unchanged-selection-long-line-elsewhere-json",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"fmt-unchanged-long-line\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a.sigil": "component Canonical {\n  goal {\n    Test Canonical.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "b.sigil": "component Wide {\n  goal {\n    These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "a.sigil",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "{\"command\":\"fmt\",\"workspaceRoot\":\".\",\"configPath\":\".sigil/config.json\",\"sigilVersion\":\"0.9.0\",\"workspaceName\":\"fmt-unchanged-long-line\",\"check\":false,\"files\":[{\"filePath\":\"a.sigil\",\"status\":\"failed\"}],\"diagnostics\":[{\"code\":\"SIGIL_LINE_TOO_LONG\",\"stage\":\"parsing\",\"severity\":\"error\",\"message\":\"Prose exceeds 79 content characters on a physical line.\",\"filePath\":\"b.sigil\",\"range\":{\"start\":26,\"end\":164},\"related\":[]}]}\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"fmt-unchanged-long-line\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a.sigil": "component Canonical {\n  goal {\n    Test Canonical.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "b.sigil": "component Wide {\n  goal {\n    These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    }
+  },
+  {
+    "name": "fmt-unchanged-selection-long-line-elsewhere-check",
+    "command": "fmt",
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"fmt-unchanged-long-line\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a.sigil": "component Canonical {\n  goal {\n    Test Canonical.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "b.sigil": "component Wide {\n  goal {\n    These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping.\n  }\n\n  interface {\n    run()\n  }\n}\n"
+    },
+    "argv": [
+      "fmt",
+      "a.sigil",
+      "--check"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": "failed a.sigil\nerror SIGIL_LINE_TOO_LONG: Prose exceeds 79 content characters on a physical line.\n",
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"fmt-unchanged-long-line\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "a.sigil": "component Canonical {\n  goal {\n    Test Canonical.\n  }\n\n  interface {\n    run()\n  }\n}\n",
+      "b.sigil": "component Wide {\n  goal {\n    These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping. These words need wrapping.\n  }\n\n  interface {\n    run()\n  }\n}\n"
     }
   },
   {

@@ -37,7 +37,7 @@ fn diagnostics_of(session: &Session) -> Vec<Diagnostic> {
     let untagged = untagged_facet_diagnostics(&resolved);
     let mut all = resolved.diagnostics;
     all.extend(untagged);
-    session.reword_missing_config(&mut all);
+    session.reword(&mut all);
     order_diagnostics(all)
 }
 

@@ -274,31 +274,26 @@ pub mod replay {
             expected_out = swap_core_version(&expected_out);
         }
         if case.engine_text {
-            if mask(&ran.stdout) != mask(&expected_out) {
+            if let Some(difference) = engine_text_difference(&ran.stdout, &expected_out) {
                 problems.push(format!(
-                    "stdout structure differs\nexpected: {expected_out:?}\nactual:   {:?}",
+                    "stdout differs outside the runtime message: {difference}\nexpected: {expected_out:?}\nactual:   {:?}",
                     ran.stdout
                 ));
             }
-            if ran.stderr.lines().count() != expected_err.lines().count() {
-                problems.push(format!(
-                    "stderr line count differs\nexpected: {expected_err:?}\nactual:   {:?}",
-                    ran.stderr
-                ));
-            }
-        } else {
-            if ran.stdout != expected_out {
-                problems.push(format!(
-                    "stdout differs\nexpected: {expected_out:?}\nactual:   {:?}",
-                    ran.stdout
-                ));
-            }
-            if ran.stderr != expected_err {
-                problems.push(format!(
-                    "stderr differs\nexpected: {expected_err:?}\nactual:   {:?}",
-                    ran.stderr
-                ));
-            }
+        } else if ran.stdout != expected_out {
+            problems.push(format!(
+                "stdout differs\nexpected: {expected_out:?}\nactual:   {:?}",
+                ran.stdout
+            ));
+        }
+        // Standard error is never masked: where a recording quotes an
+        // operating system message, the Rust command line words it the same
+        // way, and every other line is Sigil's own.
+        if ran.stderr != expected_err {
+            problems.push(format!(
+                "stderr differs\nexpected: {expected_err:?}\nactual:   {:?}",
+                ran.stderr
+            ));
         }
         problems
     }
@@ -319,35 +314,91 @@ pub mod replay {
         )
     }
 
-    /// Output with the wording of a runtime or operating system message removed:
-    /// JSON loses every `message`, text keeps what precedes the first `: `.
-    fn mask(text: &str) -> String {
-        match serde_json::from_str::<Value>(text) {
-            Ok(mut value) => {
-                clear_messages(&mut value);
-                value.to_string()
-            }
-            Err(_) => text
-                .lines()
-                .map(|line| line.split(": ").next().unwrap_or(line))
-                .collect::<Vec<_>>()
-                .join("\n"),
+    /// Text that comes from the JavaScript or operating system runtime, not
+    /// from Sigil: what the recording quotes that another runtime words
+    /// differently. Keep this in step with `ENGINE_TEXT` of the generator.
+    fn is_engine_text(text: &str) -> bool {
+        [
+            "in JSON at position",
+            "Unexpected token",
+            "Expected property name",
+        ]
+        .iter()
+        .any(|marker| text.contains(marker))
+    }
+
+    /// Why `actual` differs from `expected`, or None. Only the message of a
+    /// diagnostic whose recorded message is runtime text is not compared; the
+    /// rest, including the diagnostic's code, file and range, is exact.
+    fn engine_text_difference(actual: &str, expected: &str) -> Option<String> {
+        match (
+            serde_json::from_str::<Value>(actual),
+            serde_json::from_str::<Value>(expected),
+        ) {
+            (Ok(actual), Ok(expected)) => json_difference("$", &actual, &expected),
+            (Err(_), Err(_)) => text_difference(actual, expected),
+            _ => Some("one side is JSON and the other is not".to_owned()),
         }
     }
 
-    fn clear_messages(value: &mut Value) {
-        match value {
-            Value::Object(map) => {
-                for (key, item) in map.iter_mut() {
-                    if key == "message" {
-                        *item = Value::Null;
-                    } else {
-                        clear_messages(item);
-                    }
+    fn json_difference(path: &str, actual: &Value, expected: &Value) -> Option<String> {
+        match (actual, expected) {
+            (Value::Object(actual), Value::Object(expected)) => {
+                if actual.keys().ne(expected.keys()) {
+                    return Some(format!("{path} has other keys"));
                 }
+                expected.iter().find_map(|(key, want)| {
+                    let have = &actual[key];
+                    let runtime_message = key == "message"
+                        && want.as_str().is_some_and(is_engine_text)
+                        && have.is_string();
+                    if runtime_message {
+                        None
+                    } else {
+                        json_difference(&format!("{path}.{key}"), have, want)
+                    }
+                })
             }
-            Value::Array(items) => items.iter_mut().for_each(clear_messages),
-            _ => {}
+            (Value::Array(actual), Value::Array(expected)) => {
+                if actual.len() != expected.len() {
+                    return Some(format!(
+                        "{path} has {} items, not {}",
+                        actual.len(),
+                        expected.len()
+                    ));
+                }
+                actual
+                    .iter()
+                    .zip(expected)
+                    .enumerate()
+                    .find_map(|(index, (have, want))| {
+                        json_difference(&format!("{path}[{index}]"), have, want)
+                    })
+            }
+            _ => (actual != expected).then(|| format!("{path} is {actual}, not {expected}")),
         }
+    }
+
+    /// Text compares line by line. A diagnostic line (`error`, `warning` or
+    /// `info`) whose recorded message is runtime text is compared up to its
+    /// first `: `, which holds the severity and code.
+    fn text_difference(actual: &str, expected: &str) -> Option<String> {
+        let (actual, expected): (Vec<&str>, Vec<&str>) =
+            (actual.lines().collect(), expected.lines().collect());
+        if actual.len() != expected.len() {
+            return Some(format!("{} lines, not {}", actual.len(), expected.len()));
+        }
+        actual.iter().zip(&expected).find_map(|(have, want)| {
+            let diagnostic = ["error ", "warning ", "info "]
+                .iter()
+                .any(|severity| want.starts_with(severity));
+            let same = if diagnostic && is_engine_text(want) {
+                have.split_once(": ").map(|(head, _)| head)
+                    == want.split_once(": ").map(|(head, _)| head)
+            } else {
+                have == want
+            };
+            (!same).then(|| format!("line {have:?}, not {want:?}"))
+        })
     }
 }

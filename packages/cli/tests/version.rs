@@ -219,3 +219,103 @@ fn an_absolute_path_argument_shows_absolute_paths() {
     assert_eq!(value["workspaceRoot"], "..");
     assert_eq!(value["configPath"], "../.sigil/config.json");
 }
+
+#[test]
+fn a_source_with_errors_is_reported_and_exits_one() {
+    let temp = Temp::workspace();
+    temp.write(
+        "a.sigil",
+        "component Broken {\n  mystery {\n    bad\n  }\n}\n",
+    );
+    let (code, value) = temp.json("version", &[]);
+    assert_eq!(code, 1);
+    let found: Vec<(&str, &str)> = value["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| (d["code"].as_str().unwrap(), d["filePath"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("SIGIL_MISSING_GOAL", "a.sigil"),
+            ("SIGIL_MISSING_INTERFACE", "a.sigil"),
+            ("SIGIL_UNKNOWN_SECTION", "a.sigil"),
+        ]
+    );
+    let text = temp.sigil(&["version"]);
+    assert_eq!(text.code, 1);
+    assert!(text.stdout.ends_with(
+        "error SIGIL_MISSING_GOAL: A nonempty goal section is required.\nerror SIGIL_MISSING_INTERFACE: A nonempty interface section is required.\nerror SIGIL_UNKNOWN_SECTION: Unknown contract \"mystery\".\n"
+    ), "{}", text.stdout);
+}
+
+#[test]
+fn an_invalid_source_is_reported_once_and_a_resolution_error_not_at_all() {
+    let temp = Temp::workspace();
+    std::fs::write(temp.path("bad.sigil"), b"component \xff {\n").unwrap();
+    temp.write(
+        "wide.sigil",
+        &format!(
+            "component W {{\n  goal {{\n    {}\n  }}\n  interface {{\n    run()\n  }}\n}}\n",
+            "word ".repeat(30)
+        ),
+    );
+    temp.write(
+        "importer.sigil",
+        "@gone.sigil from Gone import { thing }\n\ncomponent I {\n  goal {\n    Use thing.\n  }\n  interface {\n    run()\n  }\n}\n",
+    );
+    let (code, value) = temp.json("version", &[]);
+    assert_eq!(code, 1);
+    let found: Vec<(String, String)> = value["diagnostics"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| {
+            (
+                d["code"].as_str().unwrap().to_owned(),
+                d["filePath"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
+    let invalid = found
+        .iter()
+        .filter(|(code, file)| code == "SIGIL_INVALID_ENCODING" && file == "bad.sigil")
+        .count();
+    assert_eq!(invalid, 1, "{found:?}");
+    assert!(
+        found
+            .iter()
+            .any(|(code, file)| code == "SIGIL_LINE_TOO_LONG" && file == "wide.sigil")
+    );
+    assert!(
+        !found.iter().any(|(_, file)| file == "importer.sigil"),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_nested_workspace_is_named_by_absolute_path() {
+    let temp = Temp::workspace();
+    temp.write("child/.sigil/config.json", support::CONFIG);
+    let ran = temp.sigil(&["version"]);
+    assert_eq!(ran.code, 1);
+    assert!(
+        ran.stdout.ends_with(&format!(
+            "error SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace {}.\n",
+            temp.text()
+        )),
+        "{}",
+        ran.stdout
+    );
+    let inside = support::run(&temp.path("child"), &["version"]);
+    assert_eq!(inside.code, 1);
+    assert!(
+        inside.stdout.ends_with(&format!(
+            "error SIGIL_NESTED_CONFIG: Workspace {root}/child is nested inside parent workspace {root} without being excluded by it.\n",
+            root = temp.text()
+        )),
+        "{}",
+        inside.stdout
+    );
+}

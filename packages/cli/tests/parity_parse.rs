@@ -11,5 +11,5 @@ fn parity_parse_usage_and_help_cases() {
 
 #[test]
 fn parity_parse_workspace_cases() {
-    run_cases("parse", Selector::Workspace, 11);
+    run_cases("parse", Selector::Workspace, 15);
 }

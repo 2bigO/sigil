@@ -123,6 +123,84 @@ fn a_file_that_fails_only_the_whole_workspace_reload_fails_every_file() {
 }
 
 #[test]
+fn an_unchanged_selection_still_fails_for_a_long_line_elsewhere() {
+    // `a.sigil` is canonical and `b.sigil`, which is not selected, keeps a line
+    // that is too long. The workspace is not valid, so `a.sigil` is `failed`
+    // and the error is listed even though nothing would be written.
+    let temp = Temp::workspace();
+    temp.write("a.sigil", &named(WRAPPED, "A"));
+    temp.write("b.sigil", &named(WRAPPABLE, "B"));
+    let before = temp.files();
+    for args in [&["fmt", "a.sigil"][..], &["fmt", "--check", "a.sigil"]] {
+        let ran = temp.sigil(args);
+        assert_eq!(ran.code, 1, "{args:?}");
+        assert!(
+            ran.stdout
+                .starts_with("failed a.sigil\nerror SIGIL_LINE_TOO_LONG: "),
+            "{}",
+            ran.stdout
+        );
+        assert_eq!(ran.stdout.lines().count(), 2, "{}", ran.stdout);
+        assert_eq!(ran.stderr, "");
+        assert_eq!(temp.files(), before);
+    }
+
+    let json = temp.json("fmt", &["a.sigil"]);
+    assert_eq!(json.0, 1);
+    assert_eq!(
+        json.1["files"],
+        serde_json::json!([{"filePath": "a.sigil", "status": "failed"}])
+    );
+    assert_eq!(json.1["diagnostics"][0]["code"], "SIGIL_LINE_TOO_LONG");
+    assert_eq!(json.1["diagnostics"][0]["filePath"], "b.sigil");
+}
+
+#[test]
+fn a_nested_workspace_has_no_source_to_format_from_inside_it() {
+    let temp = Temp::workspace();
+    temp.write("p.sigil", &named(WRAPPED, "P"));
+    temp.write("child/.sigil/config.json", support::CONFIG);
+    temp.write("child/c.sigil", &named(WRAPPED, "K"));
+    let before = temp.files();
+    let child = temp.path("child");
+    for args in [&["fmt"][..], &["fmt", "c.sigil"], &["fmt", "--check"]] {
+        let ran = support::run(&child, args);
+        assert_eq!((ran.code, ran.stdout.as_str()), (3, ""), "{args:?}");
+        assert_eq!(
+            ran.stderr,
+            format!(
+                "No Sigil source matched {}.\n",
+                if args.contains(&"c.sigil") {
+                    format!("{}/c.sigil", child.display())
+                } else {
+                    child.display().to_string()
+                }
+            )
+        );
+    }
+    assert_eq!(temp.files(), before);
+}
+
+#[test]
+fn a_nested_workspace_fails_the_parent_with_the_workspace_named_by_path() {
+    let temp = Temp::workspace();
+    temp.write("p.sigil", &named(WRAPPED, "P"));
+    temp.write("child/.sigil/config.json", support::CONFIG);
+    temp.write("child/c.sigil", &named(WRAPPED, "K"));
+    let before = temp.files();
+    let ran = temp.sigil(&["fmt"]);
+    assert_eq!(ran.code, 1);
+    assert_eq!(
+        ran.stdout,
+        format!(
+            "failed p.sigil\nerror SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace {}.\n",
+            temp.text()
+        )
+    );
+    assert_eq!(temp.files(), before);
+}
+
+#[test]
 fn formatting_twice_leaves_the_second_run_unchanged() {
     let temp = Temp::workspace();
     temp.write("c.sigil", WRAPPABLE);

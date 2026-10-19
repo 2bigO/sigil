@@ -202,3 +202,49 @@ fn quiet_prints_nothing_and_keeps_the_exit_status() {
     let ran = temp.sigil(&["check", "--quiet", "--format", "markdown"]);
     assert_eq!((ran.code, ran.stdout.as_str()), (1, ""));
 }
+
+#[test]
+fn nested_config_messages_name_the_workspaces_by_absolute_path() {
+    let temp = Temp::workspace();
+    temp.write("child/.sigil/config.json", support::CONFIG);
+    temp.write("p.sigil", BASE_SOURCE);
+    let root = temp.text();
+    let parent = temp.sigil(&["check"]);
+    assert_eq!(parent.code, 1);
+    assert!(
+        parent.stdout.contains(&format!(
+            "error SIGIL_NESTED_CONFIG: Nested .sigil/config.json must be inside a subtree excluded by workspace {root}.\n"
+        )),
+        "{}",
+        parent.stdout
+    );
+    let child = support::run(&temp.path("child"), &["check"]);
+    assert_eq!(child.code, 1);
+    assert!(
+        child.stdout.contains(&format!(
+            "error SIGIL_NESTED_CONFIG: Workspace {root}/child is nested inside parent workspace {root} without being excluded by it.\n"
+        )),
+        "{}",
+        child.stdout
+    );
+}
+
+#[test]
+fn a_member_with_its_own_config_is_named_by_absolute_path() {
+    let temp = Temp::new();
+    temp.write(
+        ".sigil/config.json",
+        "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"test\",\"members\":[\"sub\"]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+    );
+    temp.write("sub/.sigil/config.json", support::CONFIG);
+    let ran = temp.sigil(&["check"]);
+    assert_eq!(ran.code, 1);
+    assert!(
+        ran.stdout.contains(&format!(
+            "error SIGIL_NESTED_CONFIG: Workspace member {}/sub must not contain its own .sigil/config.json.\n",
+            temp.text()
+        )),
+        "{}",
+        ran.stdout
+    );
+}

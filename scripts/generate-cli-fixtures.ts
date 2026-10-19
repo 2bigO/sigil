@@ -90,6 +90,12 @@ const noncanonical = (name: string) =>
 
 const broken = "component Broken {\n  mystery {\n    bad\n  }\n}\n";
 
+/** A parent workspace that does not exclude the workspace nested in `child/`. */
+const nestedWorkspaces = (): Files => ({
+  ...workspace("parent", { "p.sigil": valid("Parent") }),
+  ...workspace("child", { "c.sigil": valid("Kid") }, "child/"),
+});
+
 const longGoal = `component Example {
   goal {
     This prose is intentionally long enough that deterministic formatting must wrap it while excluding structural indentation from its width calculation.
@@ -363,6 +369,82 @@ const R = PLACEHOLDER;
   add("version", "invalid-config-text", ["version", R], {
     ".sigil/config.json": "{",
   }, fields);
+  const brokenSource = workspace("version-broken", { "broken.sigil": broken });
+  add(
+    "version",
+    "broken-source-json",
+    [
+      "version",
+      R,
+      "--format",
+      "json",
+    ],
+    brokenSource,
+    fields,
+  );
+  add("version", "broken-source-text", ["version", R], brokenSource, fields);
+  const brokenSources = workspace("version-broken-many", {
+    "a-unclosed.sigil": "component Open {\n  goal {\n    x\n  }\n",
+    "b-wide.sigil": longGoal.replace(
+      "interface {\n    Read {",
+      "interface {\n    Read {\n      " + "word ".repeat(40) + "\n",
+    ),
+    "c-structure.sigil": "component Plain {\n  goal {\n    Do it.\n  }\n}\n",
+    "d-import.sigil": `@missing.sigil from Gone import { thing }\n\n${
+      valid("Importer")
+    }`,
+  });
+  add(
+    "version",
+    "broken-sources-json",
+    [
+      "version",
+      R,
+      "--format",
+      "json",
+    ],
+    brokenSources,
+    fields,
+  );
+  add("version", "broken-sources-text", ["version", R], brokenSources, fields);
+  const nestedFiles = nestedWorkspaces();
+  add(
+    "version",
+    "nested-workspace-parent-text",
+    ["version"],
+    nestedFiles,
+    fields,
+  );
+  add(
+    "version",
+    "nested-workspace-parent-json",
+    [
+      "version",
+      "--format",
+      "json",
+    ],
+    nestedFiles,
+    fields,
+  );
+  add("version", "nested-workspace-child-text", ["version"], nestedFiles, {
+    ...fields,
+    cwd: "child",
+  });
+  add(
+    "version",
+    "nested-workspace-child-json",
+    [
+      "version",
+      "--format",
+      "json",
+    ],
+    nestedFiles,
+    { ...fields, cwd: "child" },
+  );
+  add("version", "runtime-non-sigil-file", ["version", "notes.txt"], {
+    ...workspace("version-file"),
+    "notes.txt": "plain text\n",
+  }, fields);
   add("version", "flag", ["--version"]);
   add("version", "help", ["version", "--help"]);
   add("version", "help-after-bad-option", ["version", "--bogus", "--help"]);
@@ -455,6 +537,39 @@ const R = PLACEHOLDER;
   add("parse", "missing-file-relative", ["parse", "does-not-exist.sigil"], {
     ...workspace("missing-file"),
   });
+  {
+    const nestedFiles = nestedWorkspaces();
+    add(
+      "parse",
+      "nested-workspace-parent-file",
+      ["parse", "p.sigil"],
+      nestedFiles,
+      status,
+    );
+    add("parse", "nested-workspace-child-file-from-parent", [
+      "parse",
+      "child/c.sigil",
+    ], nestedFiles);
+    add(
+      "parse",
+      "nested-workspace-child-file-default",
+      ["parse", "c.sigil"],
+      nestedFiles,
+      { cwd: "child" },
+    );
+    add(
+      "parse",
+      "nested-workspace-child-file-json",
+      [
+        "parse",
+        "c.sigil",
+        "--format",
+        "json",
+      ],
+      nestedFiles,
+      { cwd: "child" },
+    );
+  }
   add("parse", "help", ["parse", "--help"]);
   add("parse", "usage-no-file", ["parse"]);
   add("parse", "usage-two-files", ["parse", "first.sigil", "second.sigil"]);
@@ -737,6 +852,45 @@ const R = PLACEHOLDER;
   add("check", "usage-format-without-value", ["check", "--format"]);
   add("check", "usage-check-outside-fmt", ["check", "--check"]);
   add("check", "usage-init-options", ["check", "--name", "example"]);
+  {
+    const nestedFiles = nestedWorkspaces();
+    add("check", "nested-workspace-parent-text", ["check"], nestedFiles);
+    add("check", "nested-workspace-parent-json", [
+      "check",
+      "--format",
+      "json",
+    ], nestedFiles);
+    add("check", "nested-workspace-child-text", ["check"], nestedFiles, {
+      cwd: "child",
+    });
+    add(
+      "check",
+      "nested-workspace-child-json",
+      [
+        "check",
+        "--format",
+        "json",
+      ],
+      nestedFiles,
+      { cwd: "child" },
+    );
+    const members = workspace(
+      "members",
+      { "sub/s.sigil": valid("Member") },
+      "",
+      {
+        workspace: { name: "members", members: ["sub"] },
+      },
+    );
+    add("check", "member-with-config-text", ["check"], {
+      ...members,
+      ...workspace("member", {}, "sub/"),
+    });
+  }
+  add("check", "runtime-non-sigil-file", ["check", "notes.txt"], {
+    ...workspace("check-file"),
+    "notes.txt": "plain text\n",
+  });
   add("check", "usage-exclude-option", ["check", "--exclude", "x"]);
 }
 
@@ -854,6 +1008,42 @@ function broken_in(files: Files): Files {
   });
   add("glossary", "config-not-found-json", ["glossary", R, "--format", "json"]);
   add("glossary", "config-not-found-text", ["glossary", R]);
+  const glossaryBroken = broken_in(present);
+  add("glossary", "broken-source-json", [
+    "glossary",
+    R,
+    "--format",
+    "json",
+  ], glossaryBroken);
+  add("glossary", "broken-source-text", ["glossary", R], glossaryBroken);
+  const glossaryNested = {
+    ...nestedWorkspaces(),
+    ".sigil/glossary.json": glossaryJson,
+  };
+  add("glossary", "nested-workspace-parent-text", ["glossary"], glossaryNested);
+  add("glossary", "nested-workspace-parent-json", [
+    "glossary",
+    "--format",
+    "json",
+  ], glossaryNested);
+  add("glossary", "nested-workspace-child-text", ["glossary"], glossaryNested, {
+    cwd: "child",
+  });
+  add(
+    "glossary",
+    "nested-workspace-child-json",
+    [
+      "glossary",
+      "--format",
+      "json",
+    ],
+    glossaryNested,
+    { cwd: "child" },
+  );
+  add("glossary", "runtime-non-sigil-file", ["glossary", "notes.txt"], {
+    ...workspace("glossary-file"),
+    "notes.txt": "plain text\n",
+  });
   add("glossary", "help", ["glossary", "--help"]);
   add("glossary", "usage-unsupported-option", ["glossary", "--bogus"]);
   add("glossary", "usage-two-paths", ["glossary", "first", "second"]);
@@ -1625,6 +1815,60 @@ function broken_in(files: Files): Files {
   add("fmt", "overlap-write-text", ["fmt", ...overlapTargets], overlap);
   add("fmt", "directory-target-text", ["fmt", "sources", "--check"], overlap);
 
+  {
+    const nestedFiles = nestedWorkspaces();
+    add("fmt", "nested-workspace-parent-text", ["fmt"], nestedFiles);
+    add("fmt", "nested-workspace-parent-json", [
+      "fmt",
+      "--format",
+      "json",
+    ], nestedFiles);
+    add("fmt", "nested-workspace-parent-file", ["fmt", "p.sigil"], nestedFiles);
+    add("fmt", "nested-workspace-child-text", ["fmt"], nestedFiles, {
+      cwd: "child",
+    });
+    add(
+      "fmt",
+      "nested-workspace-child-json",
+      [
+        "fmt",
+        "--format",
+        "json",
+      ],
+      nestedFiles,
+      { cwd: "child" },
+    );
+    add("fmt", "nested-workspace-child-file", ["fmt", "c.sigil"], nestedFiles, {
+      cwd: "child",
+    });
+    add("fmt", "nested-workspace-child-file-from-parent", [
+      "fmt",
+      "child/c.sigil",
+    ], nestedFiles);
+  }
+
+  // A selection that is already canonical still fails while another file of
+  // the workspace has a line that is too long.
+  const unchangedWithLongLine = {
+    ...workspace("fmt-unchanged-long-line"),
+    "a.sigil": valid("Canonical"),
+    "b.sigil": noncanonical("Wide"),
+  };
+  add("fmt", "unchanged-selection-long-line-elsewhere-text", [
+    "fmt",
+    "a.sigil",
+  ], unchangedWithLongLine);
+  add("fmt", "unchanged-selection-long-line-elsewhere-json", [
+    "fmt",
+    "a.sigil",
+    "--format",
+    "json",
+  ], unchangedWithLongLine);
+  add("fmt", "unchanged-selection-long-line-elsewhere-check", [
+    "fmt",
+    "a.sigil",
+    "--check",
+  ], unchangedWithLongLine);
   add("fmt", "help", ["fmt", "--help"]);
   add("fmt", "help-after-bad-option", ["fmt", "--show-locations", "--help"]);
   add("fmt", "usage-unsupported-option", ["fmt", "--bogus"]);
