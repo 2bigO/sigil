@@ -9,7 +9,6 @@ fn parity_glossary_usage_and_help_cases() {
     run_cases("glossary", Selector::Args, 8);
 }
 
-#[ignore = "implemented in U4"]
 #[test]
 fn parity_glossary_workspace_cases() {
     run_cases("glossary", Selector::Workspace, 21);
