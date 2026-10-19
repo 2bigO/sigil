@@ -18,6 +18,6 @@ pub fn run(request: &Request, ctx: &Context) -> Output {
         Request::Check(request) => check::run(request, ctx),
         Request::Fmt(request) => fmt::run(request, ctx),
         Request::Glossary(request) => glossary::run(request, ctx),
-        Request::Lsp => lsp::run(),
+        Request::Lsp => lsp::run(ctx),
     }
 }

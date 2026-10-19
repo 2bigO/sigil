@@ -1,5 +1,5 @@
 //! Argument handling that needs no workspace: help, `--version`, usage errors
-//! and the `lsp` stub. These run on every platform.
+//! and the `lsp` arguments. These run on every platform.
 mod support;
 
 use support::{REMOVED, Temp};
@@ -283,16 +283,6 @@ fn options_of_removed_commands_are_unsupported() {
                 .starts_with(&format!("Error: Unsupported option {flag}.\n\n"))
         );
     }
-}
-
-#[test]
-fn lsp_exits_3_with_one_line_on_stderr_and_nothing_on_stdout() {
-    let temp = Temp::new();
-    let ran = temp.sigil(&["lsp"]);
-    assert_eq!(ran.code, 3);
-    assert_eq!(ran.stdout, "");
-    assert_eq!(ran.stderr.lines().count(), 1, "{}", ran.stderr);
-    assert!(ran.stderr.ends_with('\n'));
 }
 
 #[test]
