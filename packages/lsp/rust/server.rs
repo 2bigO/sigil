@@ -5,10 +5,11 @@
 //! completely. For a burst of edits the loop calls `handle_deferred`, which
 //! only records the change, and `settle` once, which reads the workspace once.
 use crate::{
-    diagnostics,
+    diagnostics, navigation,
     params::{self, InvalidParams},
     rpc::{self, Id, Incoming},
     snapshot::Snapshot,
+    symbols, tokens,
     uri::file_uri_to_path,
 };
 use serde_json::{Value, json};
@@ -547,8 +548,13 @@ impl Server {
 }
 
 /// The methods that read a snapshot. A feature module adds its arm here.
-fn workspace_method(_snapshot: &Snapshot, _method: &str, _params: &Value) -> Option<Answer> {
-    None
+fn workspace_method(snapshot: &Snapshot, method: &str, params: &Value) -> Option<Answer> {
+    match method {
+        "textDocument/definition" => Some(navigation::definition(snapshot, params)),
+        "textDocument/documentSymbol" => Some(symbols::document_symbols(snapshot, params)),
+        "textDocument/semanticTokens/full" => Some(tokens::semantic_tokens(snapshot, params)),
+        _ => None,
+    }
 }
 
 /// Whether a changed path reloads the workspace: a `.sigil` source, or the

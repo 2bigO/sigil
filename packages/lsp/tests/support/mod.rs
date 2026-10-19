@@ -316,6 +316,9 @@ pub mod replay {
         "textDocument/didClose",
         "workspace/didChangeWatchedFiles",
         "$/cancelRequest",
+        "textDocument/definition",
+        "textDocument/documentSymbol",
+        "textDocument/semanticTokens/full",
         // Unknown to both servers: method not found, or ignored.
         "$/setTrace",
         "textDocument/references",
@@ -506,6 +509,45 @@ pub mod replay {
         message["params"]["uri"] = Value::String(uri);
     }
 
+    /// The TypeScript server builds document symbols from the file's raw
+    /// source, not the editor's view of it, so for a file on disk that starts
+    /// with a byte-order mark it counts the mark on line 0: every line 0
+    /// position of a symbol is one unit to the right of what the editor
+    /// shows. Hover, definition and tokens of the same file already hide the
+    /// mark, as R9 says, so the Rust server hides it in symbols too. The
+    /// recorded line 0 characters of such a response move one unit left.
+    pub fn symbols_without_disk_bom(scenario: &Scenario, request: &Value, response: &mut Value) {
+        if request["method"] != "textDocument/documentSymbol" {
+            return;
+        }
+        let uri = request["params"]["textDocument"]["uri"]
+            .as_str()
+            .unwrap_or_default();
+        let on_disk_with_mark = scenario
+            .files
+            .iter()
+            .any(|(path, text)| uri.ends_with(&format!("/{path}")) && text.starts_with('\u{feff}'));
+        if on_disk_with_mark && let Some(Value::Array(symbols)) = response.get_mut("result") {
+            symbols.iter_mut().for_each(unshift_line_zero);
+        }
+    }
+
+    fn unshift_line_zero(symbol: &mut Value) {
+        for key in ["range", "selectionRange"] {
+            for end in ["start", "end"] {
+                let point = &mut symbol[key][end];
+                if point["line"] == 0
+                    && let Some(character) = point["character"].as_u64()
+                {
+                    point["character"] = character.saturating_sub(1).into();
+                }
+            }
+        }
+        if let Some(Value::Array(children)) = symbol.get_mut("children") {
+            children.iter_mut().for_each(unshift_line_zero);
+        }
+    }
+
     /// Whether the Rust server answers this recorded message as the
     /// recording shows: a response, or a message of an implemented method.
     pub fn is_implemented(message: &Value) -> bool {
@@ -569,6 +611,9 @@ pub mod replay {
                     watch_registration(&mut sent);
                     let mut actual = server.handle(classify(sent.clone()));
                     let mut expected = expected_output(&scenario.name, output, &root);
+                    for message in &mut expected {
+                        symbols_without_disk_bom(scenario, &sent, message);
+                    }
                     for message in expected.iter_mut().chain(actual.iter_mut()) {
                         apply_known(&scenario.name, message, &root);
                     }
