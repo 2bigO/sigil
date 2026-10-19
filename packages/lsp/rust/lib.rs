@@ -2,10 +2,12 @@
 //! the server that reads a workspace and publishes its diagnostics, and the
 //! stdio loop that runs it.
 pub mod diagnostics;
+pub mod hover;
 pub mod navigation;
 pub mod occurrences;
 pub mod params;
 pub mod position;
+pub mod render;
 pub mod rpc;
 pub mod serve;
 pub mod server;

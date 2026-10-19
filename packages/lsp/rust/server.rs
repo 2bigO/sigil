@@ -5,8 +5,9 @@
 //! completely. For a burst of edits the loop calls `handle_deferred`, which
 //! only records the change, and `settle` once, which reads the workspace once.
 use crate::{
-    diagnostics, navigation,
+    diagnostics, hover, navigation,
     params::{self, InvalidParams},
+    render,
     rpc::{self, Id, Incoming},
     snapshot::Snapshot,
     symbols, tokens,
@@ -31,7 +32,7 @@ pub const RELOAD_RETRY_DELAY: Duration = Duration::from_millis(1000);
 
 const WATCH_REQUEST_ID: &str = "sigil/watch/request";
 const WATCH_REGISTRATION_ID: &str = "sigil/language-watch";
-const RENDER_DOCUMENT_COMMAND: &str = "sigil.renderDocument";
+const RENDER_DOCUMENT_COMMAND: &str = crate::render::RENDER_DOCUMENT_COMMAND;
 
 pub struct ServerOptions {
     /// Where a workspace is looked for when the client names no root.
@@ -553,6 +554,8 @@ fn workspace_method(snapshot: &Snapshot, method: &str, params: &Value) -> Option
         "textDocument/definition" => Some(navigation::definition(snapshot, params)),
         "textDocument/documentSymbol" => Some(symbols::document_symbols(snapshot, params)),
         "textDocument/semanticTokens/full" => Some(tokens::semantic_tokens(snapshot, params)),
+        "textDocument/hover" => Some(hover::hover(snapshot, params)),
+        "workspace/executeCommand" => Some(render::execute_command(snapshot, params)),
         _ => None,
     }
 }

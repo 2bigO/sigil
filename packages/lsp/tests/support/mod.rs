@@ -319,6 +319,8 @@ pub mod replay {
         "textDocument/definition",
         "textDocument/documentSymbol",
         "textDocument/semanticTokens/full",
+        "textDocument/hover",
+        "workspace/executeCommand",
         // Unknown to both servers: method not found, or ignored.
         "$/setTrace",
         "textDocument/references",
