@@ -320,6 +320,28 @@ fn a_session_in_a_workspace_publishes_diagnostics_and_lists_symbols() {
     assert!(!result.is_empty(), "{response}");
     assert_eq!(result[0]["name"], "Consumer");
 
+    // The provider defines the Tag Other, so its use is a known Tag; hover
+    // answers Markdown that names the provider's component.
+    let contract = uri(&temp, "contract.sigil");
+    session.notify(
+        "textDocument/didOpen",
+        json!({"textDocument": {"uri": contract, "languageId": "sigil", "version": 1, "text": PROVIDER_WITHOUT_TAG}}),
+    );
+    let hover = session.request(
+        "textDocument/hover",
+        json!({"textDocument": {"uri": contract}, "position": {"line": 2, "character": 25}}),
+    );
+    let response = session.response(hover);
+    assert_eq!(
+        response["result"]["contents"]["kind"], "markdown",
+        "{response}"
+    );
+    let text = response["result"]["contents"]["value"]
+        .as_str()
+        .expect("hover text");
+    assert!(text.contains("Thing"), "{text}");
+    assert!(!text.contains("Owned implementations"), "{text}");
+
     let shutdown = session.request("shutdown", json!(null));
     session.response(shutdown);
     session.notify("exit", json!(null));
