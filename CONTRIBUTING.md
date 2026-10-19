@@ -114,6 +114,8 @@ cargo fmt --manifest-path packages/core/Cargo.toml -- --check
 cargo clippy --locked --manifest-path packages/core/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path packages/sigilc/Cargo.toml -- --check
 cargo clippy --locked --manifest-path packages/sigilc/Cargo.toml --all-targets -- -D warnings
+cargo fmt --manifest-path packages/cli/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/cli/Cargo.toml --all-targets -- -D warnings
 deno task test
 ```
 
@@ -122,8 +124,8 @@ deno task test
 | `fmt`          | Checks formatting of every tracked TypeScript source, config, and schema path. **It does not reformat anything** — see below.                                                 |
 | `lint`         | Runs `deno lint` across the workspace.                                                                                                                                         |
 | `check`        | Type-checks the core, CLI, and LSP entrypoints, the extension with `tsc --noEmit`, and the slotted benchmark scripts.                                                          |
-| `cargo fmt`    | Checks formatting of `sigil-core` and `sigilc`. Like `deno task fmt`, it changes nothing.                                                                                                       |
-| `cargo clippy` | Lints `sigil-core`, `sigilc` and their tests; any warning fails.                                                                                                                               |
+| `cargo fmt`    | Checks formatting of `sigil-core`, `sigilc` and the Rust `sigil` crate. Like `deno task fmt`, it changes nothing.                                                                                                       |
+| `cargo clippy` | Lints `sigil-core`, `sigilc`, the Rust `sigil` crate and their tests; any warning fails.                                                                                                                               |
 | `test`         | Runs the `sigilc`, core, CLI, LSP, and extension suites, builds `sigilc`, then runs the native protocol, skill, plugin manifest, release branch, and slotted benchmark checks. |
 
 `deno task fmt` is a **check**, not a formatter: it runs `deno fmt --check`, so it
@@ -169,6 +171,7 @@ own task:
 | --------------------------------- | ---------------------------------------------------------------------------------------------- |
 | `deno task test:core:rust`        | `sigil-core` — the Rust workspace reader in `packages/core/rust` (`cargo test`)                |
 | `deno task test:sigilc`           | `sigilc` — the native compiler's Rust tests (`cargo test`)                                     |
+| `deno task test:cli:rust`         | `sigil` (Rust) — the command line in `packages/cli/rust`, replayed against recorded TS output (`cargo test`) |
 | `deno task test:core`             | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics                     |
 | `deno task test:cli`              | `@qoherent/sigil` — commands, argument parsing, output formatting                                 |
 | `deno task test:lsp`              | `@qoherent/sigil-lsp` — lifecycle, diagnostics, symbols, hover, semantic tokens                |
@@ -215,7 +218,7 @@ orchestration stay outside the toolchain.
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `docs/spec/`                  | The language reference, grammar, authoring guide, configuration and glossary specifications, their JSON schemas, and the Sigil contracts that describe them | The normative definition is [`docs/spec/sigil-reference.md`](docs/spec/sigil-reference.md) with [`docs/spec/sigil.ebnf`](docs/spec/sigil.ebnf); [`docs/spec/sigil-language.md`](docs/spec/sigil-language.md) is the authoring guide. [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil) owns the implemented language-version literal. |
 | `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                                                                                     |
-| `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. |
+| `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. The released binary is still the Deno CLI in `src/`; the Rust `sigil` in `rust/` is tested in CI and ships at a later cutover. |
 | `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
 | `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
 | `skills/` | The seven agent skills: understand, evaluate, write, and align for design work, the two computed checks, and `sigil-egglog` | Shared language pack and evaluator-owned review contract; models execute in the host. See [Work on a skill](docs/contributing/skills.md). |
@@ -441,7 +444,7 @@ locking enabled. Let Deno update it as a result of a real dependency change,
 review that diff like any other, and do not hand-edit it.
 
 **`cargo fmt` or `cargo clippy` fails in CI but `deno task fmt` passed locally.**
-The Deno tasks do not cover `sigilc`. Run the two `cargo` steps from
+The Deno tasks do not cover the Rust crates. Run the `cargo` steps from
 [The validation workflow](#the-validation-workflow) too.
 
 **A test needs a real workspace.** Use the workspaces in `examples/`, or build a
