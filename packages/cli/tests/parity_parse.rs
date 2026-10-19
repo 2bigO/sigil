@@ -9,7 +9,6 @@ fn parity_parse_usage_and_help_cases() {
     run_cases("parse", Selector::Args, 9);
 }
 
-#[ignore = "implemented in U5"]
 #[test]
 fn parity_parse_workspace_cases() {
     run_cases("parse", Selector::Workspace, 11);
