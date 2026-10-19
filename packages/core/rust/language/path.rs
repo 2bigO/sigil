@@ -1,5 +1,9 @@
 //! Workspace path helpers shared with the TypeScript reader's `path.ts`.
 use regex::Regex;
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Mutex},
+};
 
 /// Normalize separators and dot segments the way the TypeScript reader does.
 pub fn normalize_path(path: &str) -> String {
@@ -55,7 +59,24 @@ pub fn normalize_path(path: &str) -> String {
 }
 
 /// Match a workspace-relative glob (`*`, `**`, `?`) against a path.
+/// Compiled glob patterns, kept so a workspace with many files compiles each
+/// include and exclude pattern once instead of once per file.
+static GLOBS: LazyLock<Mutex<HashMap<String, Option<Regex>>>> = LazyLock::new(Default::default);
+
 pub fn glob_matches(pattern: &str, path: &str) -> bool {
+    let compiled = {
+        let mut cache = GLOBS
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        cache
+            .entry(pattern.to_owned())
+            .or_insert_with(|| compile_glob(pattern))
+            .clone()
+    };
+    compiled.is_some_and(|re| re.is_match(path))
+}
+
+fn compile_glob(pattern: &str) -> Option<Regex> {
     let pattern = pattern.replace('\\', "/");
     let pattern = pattern.strip_prefix("./").unwrap_or(&pattern);
     let chars: Vec<char> = pattern.chars().collect();
@@ -79,7 +100,7 @@ pub fn glob_matches(pattern: &str, path: &str) -> bool {
         i += 1;
     }
     source.push('$');
-    Regex::new(&format!("(?s){source}")).is_ok_and(|re| re.is_match(path))
+    Regex::new(&format!("(?s){source}")).ok()
 }
 
 pub fn join_path(parts: &[&str]) -> String {
