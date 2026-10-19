@@ -70,11 +70,6 @@ sigil check . --format json --pretty
 diagnostics. Both commands are read-only. Absence of the optional glossary is
 valid.
 
-`sigil context` includes a `glossaryContext` containing only accepted terms
-recognized in the selected component or file and its related expansion sources
-whose `agentContext` value is not `false`. It reports `null` when the workspace
-has no GlossaryFile.
-
 ## Editor behavior
 
 `sigil-lsp` consumes core glossary projections. Recognized terms receive the
@@ -90,7 +85,7 @@ ordinary unambiguous vocabulary does not require an entry.
 
 The skill presents exact JSON changes and waits for human approval. Accepted
 Sigil remains normative when a glossary definition conflicts with a component
-contract. Before coding, the skill carries scoped `sigil context` terminology
+contract. Before coding, the skill carries the relevant terms from `sigil glossary`
 and any accepted request-matched term into the handoff without injecting the
 unrelated complete glossary.
 

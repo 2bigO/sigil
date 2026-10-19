@@ -10,14 +10,11 @@ consequences, unresolved intent, and free implementation choices. A Tag import
 shares vocabulary; it does not establish a runtime call or transfer Facet
 ownership. Do not apply legacy 0.7 expansion rules.
 
-When a compatible CLI is available, use
-`sigil retrieve . --component Name
---purpose implementation --format markdown`
-to find candidate implementation and tests. Inspect the actual code paths that
-produce or consume the promised behavior, including relevant helpers and tests
-across files. Follow evidence outside an annotated file when the selected
-behavior does. `@sigil implements` and retrieval results point to places to
-inspect; neither proves coverage, correct behavior, or an exclusive code range.
+Inspect the actual code paths that produce or consume the promised behavior,
+including relevant helpers and tests across files. Follow evidence outside an
+annotated file when the selected behavior does. An `@sigil implements`
+annotation points to a place to inspect; it does not prove coverage, correct
+behavior, or an exclusive code range, and no command verifies it.
 Include relevant code with no annotation when behavior leads there. Bound the
 search by the selected Component's commitments and actual runtime relationships;
 inspect related components only where their behavior affects those commitments.

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Docs and skills
+
+- Docs and skills no longer name `sigil graph`, `sigil context`, `sigil retrieve`
+  or `sigil render`, and no longer say a command verifies `@sigil implements`
+  annotations. An annotation is a navigation hint that no command verifies.
+- `sigil-align` 0.1.2 and `sigil-evaluate` 0.2.5 drop the `sigil retrieve`
+  instruction and the clauses about implementation annotation diagnostics, so
+  an agent navigates by annotations and code reading alone.
+
 ### Release alignment
 
 - Skills, `sigil` and `sigilc` now reach users together, only through a

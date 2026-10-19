@@ -843,7 +843,7 @@ are listed in [COMPATIBILITY.md](COMPATIBILITY.md). See the
 
 The shared core owns strict source capture, component-owned Tags, explicit
 provider imports, exact references, protected links/payloads, staged recovery,
-workspace boundaries, glossary and ownership projections, graph/context retrieval,
+workspace boundaries, glossary projections,
 formatting and source-faithful Design export. The CLI and bundled language server
 use those shared results. VS Code provides navigation, diagnostics, highlighting,
 whole-document preview, and runs `sigilc check` and `sigilc align check` to show

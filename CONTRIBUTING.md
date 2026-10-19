@@ -242,17 +242,11 @@ the workspace.
 Before changing behavior in a covered area, find the contract that governs it:
 
 ```sh
-sigil check .                                                       # workspace diagnostics
-sigil context . --component SigilComputedClaims --format markdown   # one contract, readable
-sigil context . --component SpecWorkspaceConfig --include-dependents  # and who relies on it
-sigil graph .                                                       # components and imports
+sigil check .   # workspace diagnostics
 ```
 
-`check` and `context` do not validate the same things. `check` covers syntax,
-configuration, and resolution. `context` additionally scans `@sigil implements`
-annotations across the source tree, so it can exit 1 while `check` exits 0 —
-useful, and worth reading rather than ignoring. Exit codes are `0` clean, `1` error
-diagnostics, `2` bad arguments, `3` host failure.
+`check` covers syntax, configuration, and resolution. Exit codes are `0` clean,
+`1` error diagnostics, `2` bad arguments, `3` host failure.
 
 Placement rules, from the [language guide](docs/spec/sigil-language.md#4-choose-component-and-facet-boundaries)
 and the `sigil-write` skill's
@@ -277,9 +271,8 @@ sections that describe it:
 pub fn run(args: &[&str]) -> Output {
 ```
 
-List only the sections that actually mention that Tag. An annotation naming a
-section the contract does not define is an error, and `sigil context` is what
-reports it.
+List only the sections that actually mention that Tag. An annotation is a
+navigation hint for the next reader; no command verifies it.
 
 Use the language's single-line comment form, its block form when one entrypoint
 carries several annotations, and HTML comments in agent-facing Markdown. Never
@@ -347,8 +340,8 @@ git checkout -b my-change
 # 2. Establish a clean baseline before you touch anything.
 deno task test:sigilc
 
-# 3. Find the contract that governs the behavior you are testing.
-sigil context . --component SigilComputedClaims --format markdown
+# 3. Find the contract that governs the behavior you are testing: read
+#    packages/sigilc/claims.sigil.
 ```
 
 Read the contract's `cases` section. If the behavior you want to test is already
@@ -451,13 +444,6 @@ review that diff like any other, and do not hand-edit it.
 The Deno tasks do not cover `sigilc`. Run the two `cargo` steps from
 [The validation workflow](#the-validation-workflow) too.
 
-**`Ownership annotation references section X without a matching occurrence` from
-`sigil context`.** An `@sigil implements` annotation claims a section that does not
-mention its Tag. Either drop that section from the annotation, or add the missing
-occurrence to the contract — the second option is a semantic change and goes
-through the proposal gate. `sigil check` does not catch this, so `sigil context`
-can exit 1 on a workspace that checks clean.
-
 **A test needs a real workspace.** Use the workspaces in `examples/`, or build a
 temporary one in the test as the `sigilc` and CLI suites do, rather than creating
 one by hand outside the repository.
@@ -474,8 +460,6 @@ Before you open one:
 
 - the six validation steps pass locally;
 - any `.sigil` change was proposed and approved before it was written;
-- new behavior in an area a contract governs carries an ownership annotation
-  pointing at that contract;
 - a change to text an agent follows in a skill bumps that skill's `VERSION` in the
   same commit, by the [rules for skills](docs/contributing/skills.md#when-to-bump-a-version);
   the CLI version, plugin manifests and installer pin change only in a release-cut

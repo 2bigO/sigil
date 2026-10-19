@@ -36,10 +36,9 @@ process failure, or denied access cannot establish a clean result.
 ## Select commands and write scope
 
 Run `sigil check /absolute/workspace --format json`. Even a file argument to
-`check` validates its discovered workspace, including implementation annotation
-diagnostics; it does not isolate that file. Preserve unrelated diagnostics as
-mechanical context without converting them into design conformance findings or
-authority to edit implementation.
+`check` validates its discovered workspace; it does not isolate that file.
+Preserve unrelated diagnostics as mechanical context without converting them
+into design conformance findings or authority to edit implementation.
 
 For the **writer**, fix supported non-width errors in the authored scope first,
 then format the authored files explicitly and recheck the workspace. Width
@@ -91,7 +90,7 @@ writer repair.
 | Observation | Report |
 | --- | --- |
 | Exit 0, valid output | Completed mechanical result for the actual scope; retain warnings. |
-| Exit 1 with diagnostics | Completed check with the returned findings; distinguish selected design, other workspace, and annotation diagnostics. |
+| Exit 1 with diagnostics | Completed check with the returned findings; distinguish selected design from other workspace diagnostics. |
 | `fmt --check` exit 1 with noncanonical files | Completed formatting check; identify files, preserve bytes. |
 | Exit 2/3, unavailable process, denied access, or invalid output | Failed or unavailable mechanical validation with the actual cause and any emitted diagnostics; never a clean result. |
 
@@ -124,8 +123,8 @@ In the existing report's `coverage` and `limitations`, record tool/version
 identity, original workspace root, cwd, commands, selected targets, exit status,
 diagnostics/file statuses, and input identities. Record configuration (including
 local overrides and glossary when present), discovered source membership and
-bytes, and additional CLI inputs such as implementation annotation sources
-separately from semantic `assessed_inputs`. Check those identities and membership
+bytes, and additional CLI inputs separately from semantic `assessed_inputs`.
+Check those identities and membership
 before and after commands; mark affected observations stale or unavailable if
 they changed or cannot be established. These are mechanical scope records, not
 claims that implementation code received design review. Only context actually

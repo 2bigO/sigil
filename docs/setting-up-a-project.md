@@ -46,7 +46,8 @@ can connect stable entrypoints to governing section occurrences:
 ```
 
 The `Send` concept must actually occur in the selected section. These comments
-support navigation and context; they do not prove semantic correspondence.
+are a navigation hint only: no command verifies them, and they do not prove
+semantic correspondence.
 
 ## Implementation selection and stored readings
 

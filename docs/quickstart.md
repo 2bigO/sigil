@@ -58,7 +58,6 @@ component Notifier {
 
 ```sh
 sigil check . --format json
-sigil context . --component Notifier --format markdown
 ```
 
 Language checks validate syntax, imports and configuration. They do not establish

@@ -8,9 +8,7 @@ to the accepted Sigil 0.9 source. It is a read-only assessment inside the
 
 Start with the selected Component and its exact accepted source. Read its
 relevant Facets, imported Tag definitions, linked adopted policy, and current
-source identity. Use the Sigil 0.9 understanding skill for meaning. When a
-compatible `sigil retrieve --purpose implementation` is available, use its
-results to locate candidate code and tests. A retrieval result or ownership
+source identity. Use the Sigil 0.9 understanding skill for meaning. An ownership
 annotation is a navigation hint, not a code range or proof of coverage.
 
 Inspect the paths that actually produce or consume the Component's promised
