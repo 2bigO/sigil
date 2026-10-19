@@ -411,3 +411,260 @@ fn the_path_is_shown_absolute_when_the_file_is_named_absolute() {
     );
     assert_eq!(json["document"]["filePath"], file);
 }
+
+/// Two groups, a loose Facet between them, and a group nested in a group that
+/// is followed by a Facet of its own. Each Facet belongs to its innermost group.
+const GROUPS: &str = "component A {\n  goal {\n    Own.\n  }\n  interface {\n    #First {\n      One.\n    }\n    Loose fact.\n    #Outer {\n      #Inner {\n        Nested fact.\n      }\n      After.\n    }\n  }\n}\n";
+
+/// A group nested in a group and nothing else after it.
+const NESTED: &str = "component A {\n  goal {\n    Own.\n  }\n  interface {\n    #Outer {\n      #Inner {\n        Nested fact.\n      }\n    }\n  }\n}\n";
+
+/// The Facets and groups the JSON of a group lists directly, by name or text.
+fn group_facets(source: &str, group: &Value) -> Vec<String> {
+    group["facets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|facet| slice(source, facet).trim().to_owned())
+        .collect()
+}
+
+fn group_names(groups: &Value) -> Vec<String> {
+    groups
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|group| group["name"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+#[test]
+fn a_facet_in_a_nested_group_is_listed_only_under_the_innermost_group() {
+    let temp = workspace_with("n.sigil", NESTED);
+    let (code, json, _) = parse(&temp, &["n.sigil"]);
+    assert_eq!(code, 1);
+    assert_eq!(json["diagnostics"][0]["code"], "SIGIL_NESTED_TAG_GROUP");
+    let interface = &json["document"]["components"][0]["sections"][1];
+    assert_eq!(interface["facets"].as_array().unwrap().len(), 0);
+    let outer = &interface["groups"][0];
+    assert_eq!(outer["name"], "#Outer");
+    assert!(group_facets(NESTED, outer).is_empty());
+    let inner = &outer["groups"][0];
+    assert_eq!(inner["name"], "#Inner");
+    assert_eq!(group_facets(NESTED, inner), ["Nested fact."]);
+
+    let ran = temp.sigil(&["parse", "n.sigil", "--format", "text"]);
+    assert_eq!(ran.code, 1);
+    assert_eq!(
+        ran.stdout,
+        "\
+document n.sigil invalid, complete
+  component A 0..119 1:1-13:1 invalid
+    section goal 14..36 2:1-5:1
+      facet 23..32 3:1-4:1
+    section interface 36..117 5:1-12:1
+      group #Outer 50..113 6:1-11:1
+        group #Inner 63..107 7:1-10:1 invalid
+          facet 78..99 8:1-9:1 invalid
+error SIGIL_NESTED_TAG_GROUP n.sigil:7:1: Grouping Tags cannot nest.
+"
+    );
+}
+
+#[test]
+fn an_outer_group_lists_only_its_own_facets_beside_a_nested_group() {
+    let temp = workspace_with("o.sigil", GROUPS);
+    let (code, json, _) = parse(&temp, &["o.sigil"]);
+    assert_eq!(code, 1);
+    let interface = &json["document"]["components"][0]["sections"][1];
+    assert_eq!(group_facets(GROUPS, &interface["groups"][0]), ["One."]);
+    let loose = interface["facets"].as_array().unwrap();
+    assert_eq!(loose.len(), 1);
+    assert_eq!(slice(GROUPS, &loose[0]).trim(), "Loose fact.");
+    let outer = &interface["groups"][1];
+    assert_eq!(group_facets(GROUPS, outer), ["After."]);
+    assert_eq!(group_names(&outer["groups"]), ["#Inner"]);
+    assert_eq!(group_facets(GROUPS, &outer["groups"][0]), ["Nested fact."]);
+    // Every Facet appears once: the goal's, One, Loose, After and Nested.
+    assert_eq!(json.to_string().matches("\"proseRange\"").count(), 5);
+}
+
+#[test]
+fn the_text_outline_follows_source_order_with_the_depth_of_each_parent() {
+    let temp = workspace_with("o.sigil", GROUPS);
+    let ran = temp.sigil(&["parse", "o.sigil", "--format", "text"]);
+    assert_eq!(ran.code, 1);
+    assert_eq!(
+        ran.stdout,
+        "\
+document o.sigil invalid, complete
+  component A 0..178 1:1-18:1 invalid
+    section goal 14..36 2:1-5:1
+      facet 23..32 3:1-4:1
+    section interface 36..176 5:1-17:1
+      group #First 50..80 6:1-9:1
+        facet 63..74 7:1-8:1
+      facet 80..96 9:1-10:1
+      group #Outer 96..172 10:1-16:1
+        group #Inner 109..153 11:1-14:1 invalid
+          facet 124..145 12:1-13:1 invalid
+        facet 153..166 14:1-15:1
+error SIGIL_NESTED_TAG_GROUP o.sigil:11:1: Grouping Tags cannot nest.
+"
+    );
+}
+
+/// An import with no valid selection, an image link, a payload without a
+/// notation, an unknown section and a section left open.
+const ODD: &str = "@b.sigil from B import { }\ncomponent A {\n  goal {\n    Own ![pic](./p.png) here.\n    ```\n    raw\n    ```\n  }\n  mystery {\n    Odd.\n  }\n  interface {\n    run()\n";
+
+#[test]
+fn json_pins_unknown_incomplete_image_bare_payload_and_empty_import() {
+    let temp = workspace_with("u.sigil", ODD);
+    let (code, _, stdout) = parse(&temp, &["u.sigil"]);
+    assert_eq!(code, 1);
+    let golden = [
+        r#"{"command":"parse","workspaceRoot":".","configPath":".sigil/config.json","sigilVersion":"0.9.0","#,
+        r#""workspaceName":"test","document":{"filePath":"u.sigil","valid":false,"complete":false,"#,
+        r#""imports":[{"path":"b.sigil","provider":"B","selections":[{"name":"","valid":false,"range":{"start":25,"#,
+        r#""end":25,"from":{"line":1,"column":26},"to":{"line":1,"column":26}}}],"valid":false,"complete":true,"#,
+        r#""range":{"start":0,"end":27,"from":{"line":1,"column":1},"to":{"line":2,"column":1}}}],"#,
+        r#""components":[{"name":"A","valid":false,"complete":false,"range":{"start":27,"end":157,"from":{"line":2,"#,
+        r#""column":1},"to":{"line":14,"column":1}},"sections":[{"name":"goal","known":true,"valid":true,"#,
+        r#""complete":true,"range":{"start":41,"end":108,"from":{"line":3,"column":1},"to":{"line":9,"column":1}},"#,
+        r#""facets":[{"valid":true,"complete":true,"range":{"start":50,"end":104,"from":{"line":4,"column":1},"#,
+        r#""to":{"line":8,"column":1}},"proseRange":{"start":50,"end":80,"from":{"line":4,"column":1},"#,
+        r#""to":{"line":5,"column":1}},"tags":[],"links":[{"label":"pic","destination":"./p.png","image":true,"#,
+        r#""range":{"start":58,"end":73,"from":{"line":4,"column":9},"to":{"line":4,"column":24}}}],"#,
+        r#""payload":{"notation":null,"valid":true,"complete":true,"range":{"start":80,"end":104,"from":{"line":5,"#,
+        r#""column":1},"to":{"line":8,"column":1}},"bodyRange":{"start":88,"end":96,"from":{"line":6,"column":1},"#,
+        r#""to":{"line":7,"column":1}}}}],"groups":[]},{"name":"mystery","known":false,"valid":false,"#,
+        r#""complete":true,"range":{"start":108,"end":133,"from":{"line":9,"column":1},"to":{"line":12,"column":1}},"#,
+        r#""facets":[],"groups":[]},{"name":"interface","known":true,"valid":false,"complete":false,"#,
+        r#""range":{"start":133,"end":157,"from":{"line":12,"column":1},"to":{"line":14,"column":1}},"#,
+        r#""facets":[{"valid":true,"complete":true,"range":{"start":147,"end":157,"from":{"line":13,"column":1},"#,
+        r#""to":{"line":14,"column":1}},"proseRange":{"start":147,"end":157,"from":{"line":13,"column":1},"#,
+        r#""to":{"line":14,"column":1}},"tags":[],"links":[],"payload":null}],"groups":[]}]}],"invalidRegions":[]},"#,
+        r#""diagnostics":[{"code":"SIGIL_PARSE_STRUCTURE","stage":"parsing","severity":"error","#,
+        r#""message":"Malformed or incomplete Tag import selection list.","filePath":"u.sigil","range":{"start":0,"#,
+        r#""end":27},"related":[],"sourceLocation":{"line":1,"column":1}},{"code":"SIGIL_UNCLOSED_BLOCK","#,
+        r#""stage":"parsing","severity":"error","message":"Unclosed component block.","filePath":"u.sigil","#,
+        r#""range":{"start":27,"end":41},"related":[{"filePath":"u.sigil","range":{"start":157,"end":157}}],"#,
+        r#""sourceLocation":{"line":2,"column":1}},{"code":"SIGIL_UNKNOWN_SECTION","stage":"parsing","#,
+        r#""severity":"error","message":"Unknown contract \"mystery\".","filePath":"u.sigil","range":{"start":110,"#,
+        r#""end":117},"related":[],"sourceLocation":{"line":9,"column":3}},{"code":"SIGIL_UNCLOSED_BLOCK","#,
+        r#""stage":"parsing","severity":"error","message":"Unclosed section block.","filePath":"u.sigil","#,
+        r#""range":{"start":133,"end":147},"related":[{"filePath":"u.sigil","range":{"start":157,"end":157}}],"#,
+        r#""sourceLocation":{"line":12,"column":1}}]}"#,
+    ]
+    .concat();
+    assert_eq!(stdout, format!("{golden}\n"));
+}
+
+#[test]
+fn text_pins_unknown_incomplete_image_bare_payload_and_empty_import() {
+    let temp = workspace_with("u.sigil", ODD);
+    let ran = temp.sigil(&["parse", "u.sigil", "--format", "text"]);
+    assert_eq!(ran.code, 1);
+    assert_eq!(
+        ran.stdout,
+        "\
+document u.sigil invalid, incomplete
+  import b.sigil from B {  } 0..27 1:1-2:1 invalid
+  component A 27..157 2:1-14:1 invalid incomplete
+    section goal 41..108 3:1-9:1
+      facet 50..104 4:1-8:1
+        payload 80..104 5:1-8:1
+    section mystery 108..133 9:1-12:1 invalid unknown
+    section interface 133..157 12:1-14:1 invalid incomplete
+      facet 147..157 13:1-14:1
+error SIGIL_PARSE_STRUCTURE u.sigil:1:1: Malformed or incomplete Tag import selection list.
+error SIGIL_UNCLOSED_BLOCK u.sigil:2:1: Unclosed component block.
+error SIGIL_UNKNOWN_SECTION u.sigil:9:3: Unknown contract \"mystery\".
+error SIGIL_UNCLOSED_BLOCK u.sigil:12:1: Unclosed section block.
+"
+    );
+}
+
+#[test]
+fn markdown_pins_unknown_incomplete_image_bare_payload_and_empty_import() {
+    let temp = workspace_with("u.sigil", ODD);
+    let ran = temp.sigil(&["parse", "u.sigil", "--format", "markdown"]);
+    assert_eq!(ran.code, 1);
+    assert_eq!(
+        ran.stdout,
+        "\
+# Parse u.sigil
+
+- Document: u.sigil
+- Validity: invalid
+- Completeness: incomplete
+
+## Imports
+
+- import b.sigil from B {  }: `0..27 1:1-2:1` invalid
+
+## Components
+
+- component A: `27..157 2:1-14:1` invalid incomplete
+  - section goal: `41..108 3:1-9:1`
+    - facet: `50..104 4:1-8:1`
+      - payload: `80..104 5:1-8:1`
+  - section mystery: `108..133 9:1-12:1` invalid unknown
+  - section interface: `133..157 12:1-14:1` invalid incomplete
+    - facet: `147..157 13:1-14:1`
+
+## Invalid regions
+
+None.
+
+## Diagnostics
+
+- error SIGIL_PARSE_STRUCTURE u.sigil:1:1: Malformed or incomplete Tag import selection list.
+- error SIGIL_UNCLOSED_BLOCK u.sigil:2:1: Unclosed component block.
+- error SIGIL_UNKNOWN_SECTION u.sigil:9:3: Unknown contract \"mystery\".
+- error SIGIL_UNCLOSED_BLOCK u.sigil:12:1: Unclosed section block.
+"
+    );
+}
+
+#[test]
+fn markdown_lists_invalid_regions_and_diagnostics() {
+    let source = "component A {\n  goal {\n    Own.\n  }\n  interface {\n    run()\n\n    ```text\n    x\n    ```\n  }\n}\nmystery\n";
+    let temp = workspace_with("d.sigil", source);
+    let ran = temp.sigil(&["parse", "d.sigil", "--format", "markdown"]);
+    assert_eq!(ran.code, 1);
+    assert_eq!(
+        ran.stdout,
+        "\
+# Parse d.sigil
+
+- Document: d.sigil
+- Validity: invalid
+- Completeness: complete
+
+## Imports
+
+None.
+
+## Components
+
+- component A: `0..93 1:1-13:1` invalid
+  - section goal: `14..36 2:1-5:1`
+    - facet: `23..32 3:1-4:1`
+  - section interface: `36..91 5:1-12:1`
+    - facet: `50..60 6:1-7:1`
+
+## Invalid regions
+
+- invalid detachedPayload: `61..87 8:1-11:1`
+  - payload text: `61..87 8:1-11:1`
+- invalid structure: `93..101 13:1-14:1`
+
+## Diagnostics
+
+- error SIGIL_DETACHED_LITERAL_BLOCK d.sigil:8:1: A payload needs immediately preceding prose in the same container.
+- error SIGIL_PARSE_STRUCTURE d.sigil:13:1: Text does not fit this structural context.
+"
+    );
+}

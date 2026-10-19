@@ -264,6 +264,14 @@ impl Locator<'_> {
                 .units
                 .iter()
                 .filter_map(|index| units.get(*index))
+                .filter(|facet| {
+                    // The core lists a Facet under every group around it; the
+                    // outline keeps it only under the innermost one.
+                    facet
+                        .group
+                        .as_ref()
+                        .is_some_and(|inner| inner.header_start == group.header_range.start)
+                })
                 .map(|facet| self.facet(facet))
                 .collect(),
             groups: group
