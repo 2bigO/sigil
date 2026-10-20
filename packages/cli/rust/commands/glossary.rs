@@ -34,7 +34,6 @@ struct TermView {
     term: String,
     definition: String,
     aliases: Vec<String>,
-    agent_context: bool,
     scope: ScopeView,
     declaration_range: Range,
 }
@@ -90,7 +89,6 @@ fn term_view(term: &GlossaryTerm) -> TermView {
         term: term.term.clone(),
         definition: term.definition.clone(),
         aliases: term.aliases.clone(),
-        agent_context: term.agent_context,
         scope: match &term.scope {
             GlossaryScope::Workspace => ScopeView::Workspace,
             GlossaryScope::Context(id) => ScopeView::Context { id: id.clone() },

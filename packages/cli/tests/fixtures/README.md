@@ -7,9 +7,6 @@ the cases against the Rust `sigil`. The file is now the specification of that
 output, so change it by hand, case by case, and only when the behavior is meant
 to change.
 
-The `agentContext` key that the recorded `init` and `glossary` output carries is
-being removed by hand in a later change.
-
 The commit titled "refactor: remove the TypeScript implementation" deleted the
 TypeScript tools and the scripts that generated these files. Find it with
 `git log --grep "remove the TypeScript implementation"`; its parent is the last

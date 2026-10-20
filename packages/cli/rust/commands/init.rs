@@ -74,7 +74,6 @@ struct GlossaryFile {
 struct SeedTerm {
     term: &'static str,
     definition: &'static str,
-    agent_context: bool,
 }
 
 /// The decision-record vocabulary every new workspace starts with.
@@ -118,11 +117,7 @@ fn seed_glossary() -> GlossaryFile {
         schema_version: GLOSSARY_SCHEMA_VERSION,
         terms: SEED_TERMS
             .iter()
-            .map(|(term, definition)| SeedTerm {
-                term,
-                definition,
-                agent_context: false,
-            })
+            .map(|(term, definition)| SeedTerm { term, definition })
             .collect(),
         contexts: Vec::new(),
     }

@@ -175,10 +175,10 @@ fn matching_ignores_case_needs_word_boundaries_and_reports_utf8_byte_ranges() {
 }
 
 #[test]
-fn a_term_is_agent_visible_unless_it_says_otherwise_and_knows_where_it_is_declared() {
+fn a_term_knows_where_it_is_declared() {
     let text = glossary_source(json!({
         "terms": [
-            {"term": "Decision:", "definition": "A convention.", "agentContext": false},
+            {"term": "Decision:", "definition": "A convention."},
             {"term": "queue", "definition": "Work awaiting processing."},
         ],
         "contexts": [],
@@ -186,8 +186,6 @@ fn a_term_is_agent_visible_unless_it_says_otherwise_and_knows_where_it_is_declar
     let glossary = parse_glossary(text.as_bytes(), ".sigil/glossary.json")
         .glossary
         .unwrap();
-    assert!(!glossary.terms[0].agent_context);
-    assert!(glossary.terms[1].agent_context);
     let range = &glossary.terms[1].declaration_range;
     assert_eq!(&text[range.start..range.end], "queue");
     assert_eq!(glossary.terms[1].scope, GlossaryScope::Workspace);

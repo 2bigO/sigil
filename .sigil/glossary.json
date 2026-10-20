@@ -285,43 +285,35 @@
     },
     {
       "term": "Decision:",
-      "definition": "Required by the decision record convention; states the selected course or outcome whose rationale is being recorded.",
-      "agentContext": false
+      "definition": "Required by the decision record convention; states the selected course or outcome whose rationale is being recorded."
     },
     {
       "term": "Scope:",
-      "definition": "Required by the decision record convention; states the governed boundary and important exclusions.",
-      "agentContext": false
+      "definition": "Required by the decision record convention; states the governed boundary and important exclusions."
     },
     {
       "term": "Assumptions:",
-      "definition": "States materially applicable conditions treated as true when making the decision.",
-      "agentContext": false
+      "definition": "States materially applicable conditions treated as true when making the decision."
     },
     {
       "term": "Trade-offs:",
-      "definition": "States materially applicable benefits, costs, and tensions accepted by the decision.",
-      "agentContext": false
+      "definition": "States materially applicable benefits, costs, and tensions accepted by the decision."
     },
     {
       "term": "Design issues addressed:",
-      "definition": "States materially applicable problems or pressures the decision resolves.",
-      "agentContext": false
+      "definition": "States materially applicable problems or pressures the decision resolves."
     },
     {
       "term": "Discarded alternatives:",
-      "definition": "States materially relevant options not selected and why they were rejected.",
-      "agentContext": false
+      "definition": "States materially relevant options not selected and why they were rejected."
     },
     {
       "term": "Consequences:",
-      "definition": "States materially applicable effects and obligations created by the decision.",
-      "agentContext": false
+      "definition": "States materially applicable effects and obligations created by the decision."
     },
     {
       "term": "Revisit when:",
-      "definition": "States conditions that should trigger reconsideration of the decision.",
-      "agentContext": false
+      "definition": "States conditions that should trigger reconsideration of the decision."
     },
     {
       "term": "implementation artifact",
@@ -546,8 +538,7 @@
       "aliases": [
         "PurposeRetrievalResult",
         "purpose retrieval results"
-      ],
-      "agentContext": true
+      ]
     },
     {
       "term": "selected retrieval graph",
@@ -555,8 +546,7 @@
       "aliases": [
         "SelectedRetrievalGraph",
         "selected retrieval graphs"
-      ],
-      "agentContext": true
+      ]
     },
     {
       "term": "evidence unit",
@@ -564,16 +554,14 @@
       "aliases": [
         "EvidenceUnit",
         "evidence units"
-      ],
-      "agentContext": true
+      ]
     },
     {
       "term": "retrieval fingerprint",
       "definition": "The RFC 8785 and SHA-256 cache identity of a complete purpose retrieval result excluding its fingerprint field; it is not a signature or proof that collisions are impossible.",
       "aliases": [
         "retrieval fingerprints"
-      ],
-      "agentContext": true
+      ]
     },
     {
       "term": "workspace snapshot identity",
@@ -581,16 +569,14 @@
       "aliases": [
         "workspaceSnapshotIdentity",
         "workspace snapshot identities"
-      ],
-      "agentContext": true
+      ]
     },
     {
       "term": "exclusion frontier",
       "definition": "The deterministic one-hop relations deliberately stopped by a purpose policy's explicit non-transitive, cycle-boundary, or module-import rules.",
       "aliases": [
         "exclusion frontiers"
-      ],
-      "agentContext": true
+      ]
     },
     {
       "term": "design intake",
@@ -598,8 +584,7 @@
       "aliases": [
         "DesignIntake",
         "design intakes"
-      ],
-      "agentContext": true
+      ]
     }
   ],
   "contexts": [

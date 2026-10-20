@@ -35,6 +35,14 @@
   there; a maintainer retires them. Use the release archives or the installer
   instead of installing from JSR.
 
+### Glossary
+
+- Remove `agentContext` from the glossary format. It only hid a term from the
+  agent context that `sigil context` produced, and that command is gone. A term
+  that still has the key is now rejected as an unknown key
+  (`SIGIL_GLOSSARY_INVALID`); delete the property from `.sigil/glossary.json`.
+  `sigil init` no longer writes it and `sigil glossary` no longer reports it.
+
 ### Docs and skills
 
 - Docs and skills no longer name `sigil graph`, `sigil context`, `sigil retrieve`

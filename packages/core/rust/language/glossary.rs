@@ -30,8 +30,6 @@ pub struct GlossaryTerm {
     pub term: String,
     pub definition: String,
     pub aliases: Vec<String>,
-    /// False hides the term from agent-facing context only.
-    pub agent_context: bool,
     pub scope: GlossaryScope,
     /// Where the canonical spelling is written in the glossary file.
     pub declaration_range: Range,
@@ -232,12 +230,7 @@ fn validate_terms(value: Option<&Value>, owner: &str, messages: &mut Vec<String>
             messages.push(format!("{entry} must be an object."));
             continue;
         };
-        reject_unknown(
-            object,
-            &["term", "definition", "aliases", "agentContext"],
-            &entry,
-            messages,
-        );
+        reject_unknown(object, &["term", "definition", "aliases"], &entry, messages);
         for field in ["term", "definition"] {
             if !object.get(field).is_some_and(is_trimmed) {
                 messages.push(format!(
@@ -251,9 +244,6 @@ fn validate_terms(value: Option<&Value>, owner: &str, messages: &mut Vec<String>
             messages.push(format!(
                 "{entry}.aliases must be an array of trimmed non-empty strings."
             ));
-        }
-        if object.get("agentContext").is_some_and(|v| !v.is_boolean()) {
-            messages.push(format!("{entry}.agentContext must be a boolean."));
         }
         let mut entry_spellings: Vec<&str> = object
             .get("term")
@@ -383,7 +373,6 @@ fn terms_of(
                     .filter_map(Value::as_str)
                     .map(str::to_owned)
                     .collect(),
-                agent_context: entry["agentContext"].as_bool().unwrap_or(true),
                 scope: scope.clone(),
                 declaration_range: ranges.take(&term),
                 term,

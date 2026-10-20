@@ -12,9 +12,6 @@ behavior, so change them by hand and only when the behavior is meant to change.
 design inputs that the `sigilc` tests read; neither is recorded TypeScript
 output.
 
-The `agentContext` key in the glossary fixtures is being removed by hand in a
-later change.
-
 The commit titled "refactor: remove the TypeScript implementation" deleted the
 TypeScript tools and the scripts that generated these files. Find it with
 `git log --grep "remove the TypeScript implementation"`; its parent is the last

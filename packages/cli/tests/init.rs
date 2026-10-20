@@ -74,7 +74,7 @@ fn a_new_directory_gets_the_config_and_the_seed_glossary() {
 }
 
 #[test]
-fn the_seed_glossary_has_the_eight_terms_hidden_from_agent_context() {
+fn the_seed_glossary_has_the_eight_decision_record_terms() {
     let temp = project();
     temp.sigil(&["init", "my-project"]);
     let text = std::fs::read(temp.path("my-project/.sigil/glossary.json")).unwrap();
@@ -83,7 +83,6 @@ fn the_seed_glossary_has_the_eight_terms_hidden_from_agent_context() {
     let glossary = parsed.glossary.expect("the seed glossary parses");
     let names: Vec<&str> = glossary.terms.iter().map(|t| t.term.as_str()).collect();
     assert_eq!(names, SEED_NAMES);
-    assert!(glossary.terms.iter().all(|term| !term.agent_context));
     assert!(glossary.contexts.is_empty());
 }
 

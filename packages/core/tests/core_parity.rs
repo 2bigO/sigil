@@ -306,12 +306,13 @@ fn parses_strict_reviewed_glossary_data_and_rejects_collisions() {
         codes(&valid.diagnostics)
     );
     let glossary = valid.glossary.expect("the glossary is valid");
-    // Term and visibility data (`schemaVersion`, `terms[].term`, `agentContext`,
-    // `declarationRange`) is TS-only: the Rust reader keeps just the bounded contexts.
+    // Term data (`schemaVersion`, `terms[].term`, `declarationRange`) is TS-only: the Rust reader keeps just the bounded contexts.
     assert_eq!(glossary.contexts.len(), 1);
     assert_eq!(glossary.contexts[0].id, "booking");
 
-    let excluded = parse_glossary(
+    // `agentContext` was removed with the commands that read it, so a term
+    // that still carries it is an unknown key like any other.
+    let removed_key = parse_glossary(
         glossary_source(json!({ "terms": [{
             "term": "Decision:",
             "definition": "A reviewed rationale-writing convention.",
@@ -320,10 +321,13 @@ fn parses_strict_reviewed_glossary_data_and_rejects_collisions() {
         .as_bytes(),
         ".sigil/glossary.json",
     );
+    assert_eq!(codes(&removed_key.diagnostics), ["SIGIL_GLOSSARY_INVALID"]);
     assert!(
-        excluded.glossary.is_some(),
+        removed_key.diagnostics[0]
+            .message
+            .contains("contains unknown key \"agentContext\""),
         "{:?}",
-        codes(&excluded.diagnostics)
+        removed_key.diagnostics[0].message
     );
 
     assert_eq!(glossary_codes("{".to_owned()), ["SIGIL_GLOSSARY_PARSE"]);
@@ -339,12 +343,6 @@ fn parses_strict_reviewed_glossary_data_and_rejects_collisions() {
         "terms": [],
     }] })));
     assert!(duplicate_glob.contains(&"SIGIL_GLOSSARY_INVALID".to_owned()));
-    let bad_visibility = glossary_codes(glossary_source(json!({ "terms": [{
-        "term": "invalid visibility",
-        "definition": "An invalid entry.",
-        "agentContext": "no",
-    }] })));
-    assert!(bad_visibility.contains(&"SIGIL_GLOSSARY_INVALID".to_owned()));
 }
 
 #[test]

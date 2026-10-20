@@ -36,8 +36,7 @@ component SpecWorkspaceGlossary {
     Its absence is valid.
 
     SpecWorkspaceGlossary provides the *glossary term*, a canonical spelling
-    with a definition and aliases, which an agent-context flag can hide from
-    agent-facing context without affecting validation or editor features.
+    with a definition and aliases.
 
     SpecWorkspaceGlossary provides the *glossary context*, a bounded set of
     sources chosen by globs, inside which its glossary term entries replace
