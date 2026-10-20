@@ -104,6 +104,11 @@
     "configuration": {
       "title": "Sigil",
       "properties": {
+        "sigil.executable": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the sigil executable that runs the language server (sigil lsp). Empty uses the sigil shipped with the extension, else sigil on the PATH."
+        },
         "sigil.compile.executable": {
           "type": "string",
           "default": "sigilc",

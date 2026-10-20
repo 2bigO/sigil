@@ -24,19 +24,6 @@ await Promise.all([
   }),
   build({
     nodePaths,
-    entryPoints: [path.join(directory, "src/node-server.ts")],
-    outfile: path.join(directory, "dist/server.js"),
-    bundle: true,
-    platform: "node",
-    format: "cjs",
-    target: "node20",
-    alias: {
-      "@qoherent/sigil-core": path.join(repository, "packages/core/src/mod.ts"),
-    },
-    sourcemap: false,
-  }),
-  build({
-    nodePaths,
     entryPoints: [path.join(directory, "tests/extension/index.ts")],
     outfile: path.join(directory, "dist/test/extension.js"),
     bundle: true,
@@ -49,6 +36,9 @@ await Promise.all([
 ]);
 
 await copyFile(
-  path.join(repository, "packages/core/src/data/UNICODE-LICENSE.txt"),
+  path.join(
+    repository,
+    "packages/core/rust/language/data/UNICODE-LICENSE.txt",
+  ),
   path.join(directory, "dist/UNICODE-LICENSE.txt"),
 );

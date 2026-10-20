@@ -6,8 +6,10 @@ Language 0.9 responsibilities:
 
 - provide `.sigil` TextMate syntax highlighting and resolver-backed component,
   Tag, and reviewed glossary-term highlighting through LSP semantic tokens;
-- bundle and connect to `sigil-lsp` for diagnostics, symbols, navigation, hover,
-  and semantic highlighting;
+- run `sigil lsp` for diagnostics, symbols, navigation, hover, and semantic
+  highlighting; the `sigil.executable` setting names the `sigil` to run (empty
+  uses the `sigil` shipped with the extension, else `sigil` on the `PATH`), and
+  changing it restarts the server;
 - expose `Sigil: Open Preview`, which renders the whole active `.sigil` file to
   Markdown and opens it in VS Code's built-in Markdown preview, available from
   the Command Palette and from a preview button in the editor title toolbar of
@@ -86,11 +88,10 @@ npm run package
 The extension-host test copies the slotted example into an isolated temporary
 workspace by default. Set `SIGIL_TEST_WORKSPACE` to test an existing workspace.
 It uses the current built tools for real native file scope, ranged
-findings and unavailable comparison. Build the language CLI with
-`deno compile --allow-read --output /tmp/sigil packages/cli/src/main.ts` from
-the repository root. `deno task build:cli` produces the default language test
-executable in `build/`; `deno task build:sigilc` produces the native test
-executable. The environment variables above can select other built binaries. On
+findings and unavailable comparison. `deno task build:sigil` builds the
+language CLI into `packages/cli/target/debug/` (the default language test
+executable); `deno task build:sigilc` produces the native test executable. The
+environment variables above can select other built binaries. On
 a headless Linux host, run the extension test under `xvfb-run -a`.
 
 `npm run package` derives the artifact version from `package.json` and creates

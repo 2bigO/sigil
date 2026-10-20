@@ -23,7 +23,7 @@
     "test:cli": "deno task --cwd packages/cli test",
     "test:lsp": "deno task --cwd packages/lsp test",
     "test:vscode": "npm --prefix integrations/editor/vscode test",
-    "test:vscode:extension": "deno task build:cli && npm --prefix integrations/editor/vscode run test:extension",
+    "test:vscode:extension": "deno task build:sigil && npm --prefix integrations/editor/vscode run test:extension",
     "test:plugin-manifests": "deno test --allow-read --allow-write scripts/plugin-manifests_test.ts",
     "test:release-branch": "deno test --allow-read --allow-write --allow-run --allow-env scripts/advance-release-branch_test.ts",
     "test:skill": "deno run --allow-read scripts/validate-skill.ts",
