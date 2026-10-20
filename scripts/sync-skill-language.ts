@@ -1,5 +1,5 @@
 import { basename, isAbsolute, join, posix, resolve } from "node:path";
-import { SIGIL_VERSION } from "../packages/core/src/model/language.ts";
+import { SIGIL_VERSION } from "./language-version.ts";
 
 /** Explicit inputs: additions require a deliberate packaging decision. */
 export const LANGUAGE_SOURCES = [

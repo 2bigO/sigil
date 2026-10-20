@@ -406,3 +406,19 @@ fn config_text_names_the_path_it_was_read_from() {
         Some(".sigil/config.local.json")
     );
 }
+
+#[test]
+fn the_language_version_is_the_one_the_config_contract_states() {
+    let contract =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/spec/sigil-config.sigil");
+    let text = fs::read_to_string(contract).unwrap();
+    let stated = format!(
+        "the *language version*, currently {}",
+        sigil_core::language::SIGIL_VERSION
+    );
+    assert_eq!(
+        text.matches(&stated).count(),
+        1,
+        "docs/spec/sigil-config.sigil must state {stated:?} once"
+    );
+}

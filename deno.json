@@ -41,6 +41,6 @@
     "test:lsp:rust": "cargo test --locked --manifest-path packages/lsp/Cargo.toml",
     "build:sigil": "cargo build --locked --manifest-path packages/cli/Cargo.toml",
     "build:cli": "deno compile --allow-read --allow-write --allow-env --output build/sigil packages/cli/src/main.ts",
-    "test:native:protocol": "deno run --allow-read --allow-write --allow-run --allow-env scripts/validate-native-protocol.ts"
+    "test:native:protocol": "deno task build:sigil && deno run --allow-read --allow-write --allow-run --allow-env scripts/validate-native-protocol.ts"
   }
 }

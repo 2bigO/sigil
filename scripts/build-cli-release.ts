@@ -1,5 +1,6 @@
 import { basename, dirname, join, resolve } from "node:path";
-import { checkPluginManifests } from "./plugin-manifests.ts";
+import { readCargoPackageVersion } from "./manifest-version.ts";
+import { checkPluginManifests, VERSION_MANIFEST } from "./plugin-manifests.ts";
 
 interface ReleaseTarget {
   readonly deno: string;
@@ -44,13 +45,13 @@ const TARGETS: readonly ReleaseTarget[] = [
 const args = parseArgs(Deno.args);
 const root = resolve(import.meta.dirname!, "..");
 const output = resolve(root, args.output ?? "build/release");
-const cliManifest = JSON.parse(
-  await Deno.readTextFile(join(root, "packages/cli/deno.json")),
-) as { version: string };
-const version = args.version ?? cliManifest.version;
-if (cliManifest.version !== version) {
+const cliManifestVersion = await readCargoPackageVersion(
+  join(root, VERSION_MANIFEST),
+);
+const version = args.version ?? cliManifestVersion;
+if (cliManifestVersion !== version) {
   throw new Error(
-    `Release version ${version} does not match CLI manifest ${cliManifest.version}.`,
+    `Release version ${version} does not match CLI manifest ${cliManifestVersion}.`,
   );
 }
 const manifestErrors = await checkPluginManifests(root);
@@ -127,7 +128,7 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
     );
     await Deno.copyFile(join(root, "LICENSE"), join(stage, "LICENSE"));
     await Deno.copyFile(
-      join(root, "packages/core/src/data/UNICODE-LICENSE.txt"),
+      join(root, "packages/core/rust/language/data/UNICODE-LICENSE.txt"),
       join(stage, "UNICODE-LICENSE.txt"),
     );
     await run([

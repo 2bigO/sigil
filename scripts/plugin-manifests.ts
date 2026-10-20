@@ -1,7 +1,10 @@
 import { join } from "node:path";
+import { cargoPackageVersion } from "./manifest-version.ts";
 import { FOUNDATION_SKILLS } from "./validate-skill.ts";
 
 export const PLUGIN_NAME = "sigil";
+/** The manifest that owns the CLI release version. */
+export const VERSION_MANIFEST = "packages/cli/Cargo.toml";
 
 export const VERSIONED_MANIFESTS = [
   ".claude-plugin/plugin.json",
@@ -61,9 +64,19 @@ export async function checkPluginManifests(root: string): Promise<string[]> {
     return undefined;
   };
 
-  const cli = await read("packages/cli/deno.json");
-  const version = typeof cli?.version === "string" ? cli.version : undefined;
-  if (!version) errors.push("packages/cli/deno.json: missing version");
+  let version: string | undefined;
+  try {
+    version = cargoPackageVersion(
+      await Deno.readTextFile(join(root, VERSION_MANIFEST)),
+      VERSION_MANIFEST,
+    );
+  } catch (error) {
+    errors.push(
+      error instanceof Deno.errors.NotFound
+        ? `${VERSION_MANIFEST}: missing`
+        : (error as Error).message,
+    );
+  }
 
   const manifests = new Map<string, Json>();
   for (const file of VERSIONED_MANIFESTS) {
@@ -81,7 +94,7 @@ export async function checkPluginManifests(root: string): Promise<string[]> {
       errors.push(
         `${file}: version is ${
           JSON.stringify(manifest.version)
-        }, expected ${version} from packages/cli/deno.json`,
+        }, expected ${version} from ${VERSION_MANIFEST}`,
       );
     }
   }
@@ -202,7 +215,7 @@ function checkInstallerPin(text: string, version: string): string[] {
   for (const [reference, pinned] of pins) {
     if (pinned !== version) {
       errors.push(
-        `${INSTALLER_PIN_FILE}: ${reference} names cli-v${pinned}, expected cli-v${version} from packages/cli/deno.json`,
+        `${INSTALLER_PIN_FILE}: ${reference} names cli-v${pinned}, expected cli-v${version} from ${VERSION_MANIFEST}`,
       );
     }
   }
