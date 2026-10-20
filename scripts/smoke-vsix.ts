@@ -29,10 +29,11 @@ async function extract(archive: string, into: string): Promise<void> {
 }
 
 export async function smokeVsix(archive: string, target: string) {
+  // Windows' tar reads its arguments in the legacy code page, so the folder it
+  // unpacks into is plain ASCII; the workspace the server opens is not.
+  const unpacked = await Deno.makeTempDir({ prefix: "sigil-vsix-" });
   const dir = await Deno.makeTempDir({ prefix: "sigil vsix smoke Ω " });
   try {
-    const unpacked = join(dir, "unpacked");
-    await Deno.mkdir(unpacked);
     await extract(resolve(archive), unpacked);
     const manifest = await Deno.readTextFile(
       join(unpacked, "extension.vsixmanifest"),
@@ -62,6 +63,7 @@ export async function smokeVsix(archive: string, target: string) {
     return await lspSmoke({ executable: sigil, workspace, document });
   } finally {
     await Deno.remove(dir, { recursive: true });
+    await Deno.remove(unpacked, { recursive: true });
   }
 }
 

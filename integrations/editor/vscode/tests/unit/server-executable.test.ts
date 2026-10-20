@@ -91,8 +91,9 @@ test("a setting is trimmed", () => {
 
 test("a shipped sigil is made executable on Linux and macOS only", async () => {
   const calls: [string, number][] = [];
-  const chmod = async (path: string, mode: number) => {
+  const chmod = (path: string, mode: number) => {
     calls.push([path, mode]);
+    return Promise.resolve();
   };
   const log: string[] = [];
   await prepareBundledExecutable(
@@ -137,9 +138,7 @@ test("a failed chmod is logged and does not stop the start", async () => {
   await prepareBundledExecutable(
     { command: "/ext/bin/sigil", source: "bundled" },
     "linux",
-    async () => {
-      throw new Error("EPERM: operation not permitted");
-    },
+    () => Promise.reject(new Error("EPERM: operation not permitted")),
     (line) => log.push(line),
   );
   assert.equal(log.length, 1);
