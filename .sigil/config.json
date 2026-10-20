@@ -28,7 +28,6 @@
       "packages/core/tests/**",
       "packages/cli/tests/**",
       "packages/lsp/tests/**",
-      "integrations/editor/vscode/src/**",
       "integrations/editor/vscode/tests/**",
       "integrations/editor/vscode/dist/**",
       "integrations/editor/vscode/node_modules/**",
