@@ -150,6 +150,49 @@ fn a_context_redefinition_replaces_the_workspace_term_and_its_aliases() {
 }
 
 #[test]
+fn two_terms_that_differ_only_by_the_final_sigma_collide() {
+    // Matching treats ς and σ as one letter, so two entries for them could not
+    // both be found; the duplicate check must see them as the same spelling.
+    let parsed = parse_glossary(
+        glossary_source(json!({
+            "terms": [
+                {"term": "σ", "definition": "One."},
+                {"term": "ς", "definition": "Two."},
+            ],
+            "contexts": [],
+        }))
+        .as_bytes(),
+        ".sigil/glossary.json",
+    );
+    let codes: Vec<&str> = parsed.diagnostics.iter().map(|d| d.code.as_str()).collect();
+    assert_eq!(codes, ["SIGIL_GLOSSARY_TERM_COLLISION"]);
+}
+
+#[test]
+fn a_context_term_replaces_the_workspace_term_that_differs_by_the_final_sigma() {
+    let glossary = parse_glossary(
+        glossary_source(json!({
+            "terms": [{"term": "ΟΣ", "definition": "Workspace."}],
+            "contexts": [{
+                "id": "booking", "include": ["booking/**"], "exclude": [],
+                "terms": [{"term": "οσ", "definition": "Context."}],
+            }],
+        }))
+        .as_bytes(),
+        ".sigil/glossary.json",
+    )
+    .glossary
+    .expect("valid");
+    let (context, _) = resolve_glossary_for_file(&glossary, "booking/a.sigil");
+    let definitions: Vec<&str> = context
+        .entries
+        .iter()
+        .map(|t| t.definition.as_str())
+        .collect();
+    assert_eq!(definitions, ["Context."]);
+}
+
+#[test]
 fn matching_ignores_case_needs_word_boundaries_and_reports_utf8_byte_ranges() {
     let source = component("😀 The Hold, a holdall, and HOLD.");
     let workspace = workspace(

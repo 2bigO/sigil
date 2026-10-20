@@ -266,7 +266,7 @@ fn validate_terms(value: Option<&Value>, owner: &str, messages: &mut Vec<String>
             if !is_trimmed(&Value::String(spelling.to_owned())) {
                 continue;
             }
-            let normalized = spelling.to_lowercase();
+            let normalized = spelling_key(spelling);
             if let Some(previous) = spellings.get(&normalized) {
                 messages.push(format!(
                     "{entry} spelling {spelling:?} collides with {previous:?} in the same scope."
@@ -486,16 +486,16 @@ fn merge_effective_terms(
     let redefined: Vec<String> = contextual
         .iter()
         .flat_map(|t| std::iter::once(&t.term).chain(&t.aliases))
-        .map(|s| s.to_lowercase())
+        .map(|s| spelling_key(s))
         .collect();
     let mut entries: Vec<GlossaryTerm> = workspace
         .iter()
-        .filter(|t| !redefined.contains(&t.term.to_lowercase()))
+        .filter(|t| !redefined.contains(&spelling_key(&t.term)))
         .map(|t| GlossaryTerm {
             aliases: t
                 .aliases
                 .iter()
-                .filter(|a| !redefined.contains(&a.to_lowercase()))
+                .filter(|a| !redefined.contains(&spelling_key(a)))
                 .cloned()
                 .collect(),
             ..t.clone()
@@ -544,13 +544,13 @@ pub fn glossary_occurrences(
         b.encode_utf16()
             .count()
             .cmp(&a.encode_utf16().count())
-            .then_with(|| a.to_lowercase().cmp(&b.to_lowercase()))
+            .then_with(|| spelling_key(a).cmp(&spelling_key(b)))
             .then_with(|| a.cmp(b))
     });
     let spellings: Vec<Spelling> = spellings
         .into_iter()
         .map(|(spelling, term)| Spelling {
-            folded: spelling.chars().map(fold).collect(),
+            folded: spelling_key(spelling).chars().collect(),
             term,
         })
         .collect();
@@ -646,6 +646,13 @@ fn match_line(
         index += length;
     }
     occurrences
+}
+
+/// A spelling compared without regard to case. Matching, the duplicate check
+/// and the context overrides all use this one comparison, so they agree on which
+/// spellings are the same.
+fn spelling_key(spelling: &str) -> String {
+    spelling.chars().map(fold).collect()
 }
 
 /// A character compared without regard to case: its lowercase form when that
