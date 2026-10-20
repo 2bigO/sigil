@@ -47,7 +47,7 @@ protocol on standard input and output:
 sigil lsp
 ```
 
-The crate is `sigil-lsp`, a library over `sigil-core` in this package's `rust/`
+The crate is `sigil-lsp`, a library over `sigil-core` in this package's `src/`
 directory; the `sigil` binary in `packages/cli` links it. Its behavior is
 specified by the contract [lsp.sigil](lsp.sigil). The VS Code extension runs
 `sigil lsp`.

@@ -1,6 +1,6 @@
 # sigil-core
 
-The shared Sigil 0.9 reader, a Rust library (`packages/core/rust`). The crate
+The shared Sigil 0.9 reader, a Rust library (`packages/core/src`). The crate
 version, 0.1.0, is declared in `Cargo.toml` and is not published; the `sigil`
 command line, the language server and `sigilc` depend on it by path. Its behavior
 is specified by the contract [core.sigil](core.sigil) and the

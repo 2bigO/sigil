@@ -14,7 +14,7 @@ const UNICODE_SHA256 =
 const ENTITIES_SHA256 =
   "d741d877ac77c4194c4ad526b5b4a19aef8dfe411ab840a466891cdbb9f362e6";
 const outputDir = new URL(
-  "../packages/core/rust/language/data/",
+  "../packages/core/src/language/data/",
   import.meta.url,
 );
 

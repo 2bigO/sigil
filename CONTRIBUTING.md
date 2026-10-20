@@ -182,10 +182,10 @@ own task:
 
 | Task                              | Scope                                                                                          |
 | --------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `deno task test:core`             | `sigil-core` — the workspace reader in `packages/core/rust` (`cargo test`)                     |
+| `deno task test:core`             | `sigil-core` — the workspace reader in `packages/core/src` (`cargo test`)                     |
 | `deno task test:sigilc`           | `sigilc` — the native compiler's Rust tests (`cargo test`)                                     |
-| `deno task test:cli`              | `sigil` — the command line in `packages/cli/rust`, replayed against recorded cases (`cargo test`) |
-| `deno task test:lsp`              | `sigil-lsp` — the language server in `packages/lsp/rust`, replayed against recorded sessions (`cargo test`) |
+| `deno task test:cli`              | `sigil` — the command line in `packages/cli/src`, replayed against recorded cases (`cargo test`) |
+| `deno task test:lsp`              | `sigil-lsp` — the language server in `packages/lsp/src`, replayed against recorded sessions (`cargo test`) |
 | `deno task test:lsp-smoke`        | A built `sigil lsp` answers a short session on the release fixture                              |
 | `deno task test:config-schema`    | The config JSON Schema agrees with the strict parser on the shared fixture                      |
 | `deno task test:vscode`           | Extension type-check and unit tests. No VS Code launch.                                        |

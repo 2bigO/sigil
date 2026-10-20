@@ -5,13 +5,9 @@ edition = "2024"
 rust-version = "1.91.1"
 publish = false
 
-[lib]
-name = "sigil_cli"
-path = "rust/lib.rs"
-
 [[bin]]
 name = "sigil"
-path = "rust/main.rs"
+path = "src/main.rs"
 
 [dependencies]
 sigil-core = { path = "../core" }

@@ -128,7 +128,7 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
     }
     await Deno.copyFile(join(root, "LICENSE"), join(stage, "LICENSE"));
     await Deno.copyFile(
-      join(root, "packages/core/rust/language/data/UNICODE-LICENSE.txt"),
+      join(root, "packages/core/src/language/data/UNICODE-LICENSE.txt"),
       join(stage, "UNICODE-LICENSE.txt"),
     );
     await run([

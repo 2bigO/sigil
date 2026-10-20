@@ -38,7 +38,7 @@ await Promise.all([
 await copyFile(
   path.join(
     repository,
-    "packages/core/rust/language/data/UNICODE-LICENSE.txt",
+    "packages/core/src/language/data/UNICODE-LICENSE.txt",
   ),
   path.join(directory, "dist/UNICODE-LICENSE.txt"),
 );
