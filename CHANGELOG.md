@@ -2,20 +2,38 @@
 
 ## Unreleased
 
-### Language server
+### Rust tools replace the TypeScript ones
 
-- Add a Rust language server, the `sigil-lsp` crate in `packages/lsp`, started
-  by `sigil lsp`. It serves what the Deno server serves (diagnostics,
-  definition, document symbols, semantic tokens, hover and
-  `sigil.renderDocument`) over the same protocol. It drops the ownership hover
-  and scanner and the ownership file-watch registration, registers one watch
-  instead of two, answers a request that a queued change has overtaken with
-  content modified, exits with status 0 after `shutdown`, 1 without it and 3 when
-  standard input or output fails, and hides a byte-order mark in disk files from
-  every position. The Deno language server still ships and the VS Code extension
-  still launches it, so nothing changes for editor users yet. CI runs the new
-  crate's formatting, lint and tests, and `scripts/compare-lsp.ts` compares the
-  two servers on a workspace by hand.
+- The `sigil` command line, the language server and the core they share are now
+  Rust: `sigil` 0.9.0, `sigil-lsp` 0.8.0 and `sigil-core` 0.1.0 (a new version
+  line; the TypeScript core was 0.8.x). `sigil lsp` starts the language server. The Deno
+  implementations, their tests and the scripts that recorded their output are
+  removed; the recorded cases stay as the specification the Rust tests replay.
+  Deno remains only as the runner of repository scripts.
+- `sigil` behaves as before, with these differences: `parse` reports a source
+  range for each part of the document instead of the TypeScript model's internal
+  objects; `sigil check` reports only workspace diagnostics, none about
+  implementation sources; and the commands `graph`, `context`, `retrieve` and
+  `render` exit 2 as unknown commands without reading the workspace.
+- The language server drops the ownership hover and scanner and the ownership
+  file-watch registration, registers one watch instead of two, answers a request
+  that a queued change has overtaken with content modified, exits with status 0
+  after `shutdown`, 1 without it and 3 when standard input or output fails, and
+  hides a byte-order mark in disk files from every position.
+- The VS Code extension no longer bundles a language server. It runs
+  `sigil lsp`, from the path in the new `sigil.executable` setting if set, else
+  the `sigil` shipped in the extension, else `sigil` on the `PATH`; changing the
+  setting restarts the server. Each `vscode-v*` release now attaches one package
+  per platform (win32-x64, linux-x64, linux-arm64, darwin-x64, darwin-arm64),
+  and each carries its own `sigil`. Install the one for your platform; see the
+  [extension guide](integrations/editor/vscode/README.md).
+- The `cli-v*` release builds the Rust `sigil` and `sigilc` for the same five
+  targets. The Linux binaries need glibc 2.35 or newer (Ubuntu 22.04, Debian 12
+  and later); the RHEL 9 family is not supported yet.
+- The TypeScript libraries are no longer published. `@qoherent/sigil-core`,
+  `@qoherent/sigil` and `@qoherent/sigil-lsp` stay on JSR at the versions already
+  there; a maintainer retires them. Use the release archives or the installer
+  instead of installing from JSR.
 
 ### Docs and skills
 
@@ -25,6 +43,8 @@
 - `sigil-align` 0.1.2 and `sigil-evaluate` 0.2.5 drop the `sigil retrieve`
   instruction and the clauses about implementation annotation diagnostics, so
   an agent navigates by annotations and code reading alone.
+- `sigil-evaluate` 0.2.6 names core `0.1.x` as the family that goes with CLI
+  `0.9.x`, matching the Rust core.
 
 ### Release alignment
 

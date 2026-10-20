@@ -1,8 +1,8 @@
 # sigil-lsp
 
 Implemented pre-production language-server package for editor-facing Sigil
-semantics for language 0.9. The artifact version is declared independently in
-`deno.json`.
+semantics for language 0.9. The crate version, 0.8.0, is declared independently in
+`Cargo.toml`.
 
 The language server should be the reusable bridge between `sigil-core` and
 concrete editor integrations.
@@ -40,55 +40,37 @@ Non-responsibilities:
 - own Codex-specific behavior;
 - replace the CLI for automation.
 
-Run the server locally:
-
-```bash
-deno task start
-```
-
-Run package tests:
-
-```bash
-deno task test
-```
-
-## The Rust server
-
-The same language server also exists in Rust, in this package's `rust/`
-directory (crate `sigil-lsp`, a library over `sigil-core`), and the Rust `sigil`
-binary starts it:
+Run the server through the `sigil` command; it takes no options and speaks the
+protocol on standard input and output:
 
 ```bash
 sigil lsp
 ```
 
-`sigil lsp` takes no options and speaks the protocol on standard input and
-output. The Deno server above still ships, and the VS Code extension still
-launches it; nothing switches to the Rust server yet.
+The crate is `sigil-lsp`, a library over `sigil-core` in this package's `rust/`
+directory; the `sigil` binary in `packages/cli` links it. Its behavior is
+specified by the contract [lsp.sigil](lsp.sigil). The VS Code extension runs
+`sigil lsp`.
 
-Run its tests (replayed against sessions recorded from the Deno server, plus
-real-process tests in `packages/cli`):
+Run package tests from the repository root with `deno task test:lsp`, or:
 
 ```bash
 cargo test --manifest-path packages/lsp/Cargo.toml
 ```
 
-Compare the two servers on this repository with a built Rust binary:
+The parity tests replay `tests/fixtures/lsp-parity.json`, sessions recorded from
+the earlier TypeScript server, and `packages/cli/tests/lsp.rs` runs a real
+process. `deno task test:lsp-smoke` opens a document in a built `sigil lsp`.
 
-```bash
-deno task build:sigil
-deno run -A scripts/compare-lsp.ts packages/cli/target/debug/sigil
-```
-
-The Rust server drops what the contract no longer asks of a language server:
+What the server does not do, by contract:
 
 - Hover never lists owned implementations, and there is no ownership scanner.
 - There is no ownership file-watch registration or its cache.
 
-It also differs from the Deno server in these ways:
+Other behavior to know:
 
 - A client that supports dynamic registration gets one watch registration
-  (`sigil/language-watch`, request id `sigil/watch/request`) instead of two.
+  (`sigil/language-watch`, request id `sigil/watch/request`).
 - A request that has a document change or a relevant file-change event already
   queued behind it answers content modified, because its answer would be
   discarded. A burst of edits is applied with one reload.
@@ -96,8 +78,7 @@ It also differs from the Deno server in these ways:
   `shutdown`, 1 when it sends `exit` without `shutdown`, and 3 when standard
   input or output fails.
 - A byte-order mark at the start of a file read from disk is hidden in every
-  position, document symbols included, as the editor hides it. The Deno server
-  only does this through the extension's source hook.
+  position, document symbols included, as the editor hides it.
 
 ## Source snapshots and freshness
 
@@ -111,9 +92,6 @@ Late reloads cannot overwrite newer overlays. Pending requests return content
 modified when their workspace generation changes. Closing an overlay restores disk
 content, and older document versions do not overwrite a newer edit.
 
-Clients supporting dynamic registration receive a language workspace watcher and
-the existing precise implementation-source watchers. Source/config changes reload
-the language snapshot; implementation changes invalidate the ownership scan and
-hover cache. Unsupported clients retain document synchronization and reload-based
-freshness. Ownership links remain advisory and retain the consumer scope and
-separate originating Tag owner.
+Clients supporting dynamic registration receive one workspace watcher. Source and
+config changes reload the language snapshot. Unsupported clients retain document
+synchronization and reload-based freshness.

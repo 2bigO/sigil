@@ -19,7 +19,7 @@ sigil fmt --help
 ```
 
 Verify tool identity separately from workspace metadata: the supported current
-family is CLI `0.9.x`, core `0.8.x`, and language/configuration `0.9.0`.
+family is CLI `0.9.x`, core `0.1.x`, and language/configuration `0.9.0`.
 `sigilVersion` alone reports the workspace setting; it cannot prove that a
 legacy executable supports that language. Verify JSON check output, formatting,
 and `--check` in actual help. A compatible CLI may still have the older
