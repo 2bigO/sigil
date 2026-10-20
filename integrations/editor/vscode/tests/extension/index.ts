@@ -11,9 +11,14 @@ export async function run(): Promise<void> {
     path.join(repository, "examples/slotted");
   const source = vscode.Uri.file(path.join(workspace, "booking.sigil"));
   // The extension starts when the first Sigil document opens, so name the
-  // sigil to run before that.
-  const sigilExecutable = process.env.SIGIL_TEST_LANGUAGE;
-  assert(sigilExecutable, "SIGIL_TEST_LANGUAGE (a built sigil) is required");
+  // sigil to run before that. With SIGIL_TEST_BUNDLED the setting stays empty
+  // and the sigil shipped in the extension's bin folder must start.
+  const bundled = process.env.SIGIL_TEST_BUNDLED === "1";
+  const sigilExecutable = bundled ? "" : process.env.SIGIL_TEST_LANGUAGE;
+  assert(
+    sigilExecutable !== undefined,
+    "SIGIL_TEST_LANGUAGE (a built sigil) is required",
+  );
   await vscode.workspace.getConfiguration("sigil").update(
     "executable",
     sigilExecutable,

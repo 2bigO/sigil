@@ -95,7 +95,12 @@ environment variables above can select other built binaries. On
 a headless Linux host, run the extension test under `xvfb-run -a`.
 
 `npm run package` derives the artifact version from `package.json` and creates
-`build/sigil-vscode-<version>.vsix`. The manifest uses the development publisher
+`build/sigil-vscode-<version>.vsix`, a package that ships no `sigil`.
+`npm run package -- --target <platform> --binary <path to sigil>` (or
+`deno task package:vscode --target … --binary …` from the repository root) makes
+the platform package `build/sigil-vscode-<version>-<platform>.vsix` with that
+`sigil` in its `bin` folder; the platforms are `win32-x64`, `linux-x64`,
+`linux-arm64`, `darwin-x64` and `darwin-arm64`. The manifest uses the development publisher
 identifier `sigil-dev`; Marketplace publication remains deferred until an
 approved publisher identity exists.
 

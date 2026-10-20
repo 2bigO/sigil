@@ -1,5 +1,8 @@
 name: Publish VS Code GitHub release
 
+# One package per platform, each carrying the sigil built for it. A push of a
+# vscode-v* tag publishes them; a dispatch builds and tests them all, and
+# publishes only when asked, so a branch can be proven before a tag exists.
 on:
   push:
     tags:
@@ -10,6 +13,11 @@ on:
         description: Exact extension manifest version to release
         required: true
         type: string
+      publish:
+        description: Publish a GitHub release (needs the vscode-v tag to exist)
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -19,14 +27,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win32-x64
+            runner: windows-2025
+            rust: x86_64-pc-windows-msvc
+            binary: sigil.exe
+          - target: linux-x64
+            runner: ubuntu-22.04
+            rust: x86_64-unknown-linux-gnu
+            binary: sigil
+          - target: linux-arm64
+            runner: ubuntu-22.04-arm
+            rust: aarch64-unknown-linux-gnu
+            binary: sigil
+          - target: darwin-x64
+            runner: macos-15-intel
+            rust: x86_64-apple-darwin
+            binary: sigil
+          - target: darwin-arm64
+            runner: macos-15
+            rust: aarch64-apple-darwin
+            binary: sigil
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with:
           deno-version: 2.9.2
       - uses: dtolnay/rust-toolchain@1.91.1
+        with:
+          targets: ${{ matrix.rust }}
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -48,26 +82,55 @@ jobs:
           echo "tag=vscode-v$version" >> "$GITHUB_OUTPUT"
       - run: npm test
         working-directory: integrations/editor/vscode
-      - run: deno task build:sigilc
-      - run: deno task build:cli
-      - run: xvfb-run -a npm run test:extension
+      - name: Build the sigil this package ships
+        run: cargo build --release --locked --manifest-path packages/cli/Cargo.toml --target ${{ matrix.rust }}
+      - name: Package for ${{ matrix.target }}
         working-directory: integrations/editor/vscode
-      - run: npm run package
-        working-directory: integrations/editor/vscode
+        run: npm run package -- --target ${{ matrix.target }} --binary ../../../packages/cli/target/${{ matrix.rust }}/release/${{ matrix.binary }}
+      - name: The package starts its own sigil
+        run: deno run --allow-read --allow-write --allow-run --allow-env scripts/smoke-vsix.ts integrations/editor/vscode/build/sigil-vscode-${{ steps.version.outputs.version }}-${{ matrix.target }}.vsix ${{ matrix.target }}
+      - name: Extension host test with the shipped sigil
+        if: matrix.target == 'linux-x64'
+        env:
+          SIGIL_TEST_BUNDLED: "1"
+        run: |
+          deno task build:sigilc
+          mkdir -p integrations/editor/vscode/bin
+          cp packages/cli/target/${{ matrix.rust }}/release/${{ matrix.binary }} integrations/editor/vscode/bin/${{ matrix.binary }}
+          xvfb-run -a npm --prefix integrations/editor/vscode run test:extension
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ matrix.target }}
+          path: integrations/editor/vscode/build/sigil-vscode-${{ steps.version.outputs.version }}-${{ matrix.target }}.vsix
+          if-no-files-found: error
+
+  publish:
+    if: ${{ github.event_name == 'push' || inputs.publish == true }}
+    needs: package
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: vsix-*
+          merge-multiple: true
+          path: vsix
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          VERSION: ${{ steps.version.outputs.version }}
+          GH_REPO: ${{ github.repository }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          asset="integrations/editor/vscode/build/sigil-vscode-$VERSION.vsix"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$asset" --clobber
-            gh release edit "$TAG" --title "Sigil VS Code Extension $VERSION" --latest=false
+          version="$INPUT_VERSION"
+          if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#vscode-v}"; fi
+          tag="vscode-v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" vsix/*.vsix --clobber
+            gh release edit "$tag" --title "Sigil VS Code Extension $version" --latest=false
           else
-            gh release create "$TAG" "$asset" \
+            gh release create "$tag" vsix/*.vsix \
               --verify-tag \
-              --title "Sigil VS Code Extension $VERSION" \
+              --title "Sigil VS Code Extension $version" \
               --generate-notes \
               --latest=false
           fi
