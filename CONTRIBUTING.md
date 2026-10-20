@@ -36,6 +36,14 @@ the rest of the repository.
 | Git                                                                 | any recent | Cloning and contributing.                                                                  |
 | [VS Code](https://code.visualstudio.com/)                           | `^1.91.0`  | Optional. Only if you work on the extension or run its integration tests.                  |
 
+Deno stays the runner for the scripts in `scripts/` on purpose. Those scripts use
+Deno's file, process and test APIs throughout, `deno task` works the same on all
+three operating systems, the release scripts run with narrow permissions
+(`--allow-run=git`), and `deno fmt` and `deno lint` also check the extension's
+TypeScript. Moving them to Bun, Python or Make would be a rewrite that removes no
+tool. If the repository ever drops one, the candidate is Node, which contributors
+already need for the extension.
+
 The Rust, Deno and Node versions above are exactly what
 [CI pins](.github/workflows/ci.yml). Matching them locally is the cheapest way to
 avoid a green local run and a red pull request — and for Node it is load-bearing,

@@ -82,8 +82,8 @@ The tag starts one workflow:
   tag runs. A dispatch needs the tag to exist, so it is not a dry run, but with
   publishing off it builds and tests every target and publishes nothing.
 
-Nothing publishes the TypeScript packages any more. The Linux archives are built
-on `ubuntu-22.04` runners, so they need glibc 2.35 or newer.
+The Linux archives are built on `ubuntu-22.04` runners, so they need glibc 2.35
+or newer.
 
 The VS Code extension has its own tag, `vscode-vX.Y.Z`, and its own workflow,
 [`vscode-release.yml`](../../.github/workflows/vscode-release.yml). It builds the
@@ -110,10 +110,6 @@ check that the skills and the plugin report the new version. Rerun the installer
 
 ## Rules
 
-- **The old JSR packages are a maintainer's to retire.** `@qoherent/sigil-core`,
-  `@qoherent/sigil` and `@qoherent/sigil-lsp` stop being published; any version
-  already on JSR stays there until a maintainer with JSR access deprecates it
-  there. No workflow here does that.
 - **Merge a hotfix back into `main`.** A hotfix tagged from an older line cannot
   fast-forward `release`, and the workflow refuses it. Cut a newer release from
   `main`.

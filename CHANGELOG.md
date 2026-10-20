@@ -30,10 +30,9 @@
 - The `cli-v*` release builds the Rust `sigil` and `sigilc` for the same five
   targets. The Linux binaries need glibc 2.35 or newer (Ubuntu 22.04, Debian 12
   and later); the RHEL 9 family is not supported yet.
-- The TypeScript libraries are no longer published. `@qoherent/sigil-core`,
-  `@qoherent/sigil` and `@qoherent/sigil-lsp` stay on JSR at the versions already
-  there; a maintainer retires them. Use the release archives or the installer
-  instead of installing from JSR.
+- The TypeScript packages `@qoherent/sigil-core`, `@qoherent/sigil` and
+  `@qoherent/sigil-lsp` are no longer published. Install `sigil` from the
+  release archives or the installer instead.
 
 ### Glossary
 
