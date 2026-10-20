@@ -3,7 +3,7 @@ import { readCargoPackageVersion } from "./manifest-version.ts";
 import { checkPluginManifests, VERSION_MANIFEST } from "./plugin-manifests.ts";
 
 interface ReleaseTarget {
-  readonly deno: string;
+  /** The Rust target triple, which is also what Deno reports for the host. */
   readonly rust: string;
   readonly asset: string;
   readonly executable: string;
@@ -11,31 +11,26 @@ interface ReleaseTarget {
 
 const TARGETS: readonly ReleaseTarget[] = [
   {
-    deno: "aarch64-apple-darwin",
     rust: "aarch64-apple-darwin",
     asset: "sigil-aarch64-apple-darwin",
     executable: "sigil",
   },
   {
-    deno: "x86_64-apple-darwin",
     rust: "x86_64-apple-darwin",
     asset: "sigil-x86_64-apple-darwin",
     executable: "sigil",
   },
   {
-    deno: "aarch64-unknown-linux-gnu",
     rust: "aarch64-unknown-linux-gnu",
     asset: "sigil-aarch64-unknown-linux-gnu",
     executable: "sigil",
   },
   {
-    deno: "x86_64-unknown-linux-gnu",
     rust: "x86_64-unknown-linux-gnu",
     asset: "sigil-x86_64-unknown-linux-gnu",
     executable: "sigil",
   },
   {
-    deno: "x86_64-pc-windows-msvc",
     rust: "x86_64-pc-windows-msvc",
     asset: "sigil-x86_64-pc-windows-msvc",
     executable: "sigil.exe",
@@ -62,15 +57,15 @@ if (manifestErrors.length > 0) {
 }
 await Deno.mkdir(output, { recursive: true });
 const selected = args.target
-  ? TARGETS.filter((target) => target.deno === args.target)
-  : TARGETS.filter((target) => target.deno === Deno.build.target);
+  ? TARGETS.filter((target) => target.rust === args.target)
+  : TARGETS.filter((target) => target.rust === Deno.build.target);
 if (selected.length === 0) {
   throw new Error(`Unsupported release target ${args.target}.`);
 }
 for (const target of selected) {
-  if (target.deno !== Deno.build.target) {
+  if (target.rust !== Deno.build.target) {
     throw new Error(
-      `Build and execute ${target.deno} on its matching native runner; current runner is ${Deno.build.target}.`,
+      `Build and execute ${target.rust} on its matching native runner; current runner is ${Deno.build.target}.`,
     );
   }
   await buildTarget(target);
@@ -106,45 +101,36 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
   try {
     await Deno.mkdir(join(stage, "bin"), { recursive: true });
     const suffix = target.executable.endsWith(".exe") ? ".exe" : "";
-    await run([
-      "cargo",
-      "build",
-      "--manifest-path",
-      join(root, "packages/sigilc/Cargo.toml"),
-      "--release",
-      "--locked",
-      "--target",
-      target.rust,
-    ]);
-    await Deno.copyFile(
-      join(
-        root,
-        "packages/sigilc/target",
+    // Both programs come from one release build per target, on the runner that
+    // runs them, so the archive holds exactly what the smoke test executed.
+    for (const crate of ["packages/cli", "packages/sigilc"]) {
+      await run([
+        "cargo",
+        "build",
+        "--manifest-path",
+        join(root, crate, "Cargo.toml"),
+        "--release",
+        "--locked",
+        "--target",
         target.rust,
-        "release",
-        `sigilc${suffix}`,
-      ),
-      join(stage, "bin", `sigilc${suffix}`),
-    );
+      ]);
+    }
+    for (
+      const [crate, name] of [
+        ["packages/cli", "sigil"],
+        ["packages/sigilc", "sigilc"],
+      ]
+    ) {
+      await Deno.copyFile(
+        join(root, crate, "target", target.rust, "release", `${name}${suffix}`),
+        join(stage, "bin", `${name}${suffix}`),
+      );
+    }
     await Deno.copyFile(join(root, "LICENSE"), join(stage, "LICENSE"));
     await Deno.copyFile(
       join(root, "packages/core/rust/language/data/UNICODE-LICENSE.txt"),
       join(stage, "UNICODE-LICENSE.txt"),
     );
-    await run([
-      Deno.execPath(),
-      "compile",
-      "--config",
-      join(root, "deno.json"),
-      "--allow-read",
-      "--allow-write",
-      "--allow-env",
-      "--target",
-      target.deno,
-      "--output",
-      join(stage, "bin", target.executable),
-      join(root, "packages/cli/src/main.ts"),
-    ]);
     await run([
       Deno.execPath(),
       "run",
@@ -155,6 +141,8 @@ async function buildTarget(target: ReleaseTarget): Promise<void> {
       join(root, "scripts/test-cli-release.ts"),
       "--distribution",
       stage,
+      "--version",
+      version,
     ]);
     const archive = join(
       output,

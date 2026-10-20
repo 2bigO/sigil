@@ -42,4 +42,4 @@ jobs:
       - if: runner.os != 'Linux'
         run: deno task test
       - if: matrix.os == 'ubuntu-latest'
-        run: deno task publish:dry-run
+        run: deno task package:vscode

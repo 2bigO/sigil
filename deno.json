@@ -33,14 +33,12 @@
     "slotted-benchmark": "deno task build:sigilc && deno run --allow-read --allow-write --allow-run --allow-env scripts/slotted-benchmark/main.ts",
     "package:vscode": "deno run --allow-read --allow-run scripts/ensure-vscode-deps.ts && npm --prefix integrations/editor/vscode run package --",
     "package:cli": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-cli-release.ts",
-    "publish:dry-run": "deno task --cwd packages/core publish:dry-run && deno task --cwd packages/cli publish:dry-run && deno task --cwd packages/lsp publish:dry-run && deno task package:vscode",
     "build:sigilc": "cargo build --locked --manifest-path packages/sigilc/Cargo.toml",
     "test:core:rust": "cargo test --locked --manifest-path packages/core/Cargo.toml",
     "test:sigilc": "cargo test --locked --manifest-path packages/sigilc/Cargo.toml",
     "test:cli:rust": "cargo test --locked --manifest-path packages/cli/Cargo.toml",
     "test:lsp:rust": "cargo test --locked --manifest-path packages/lsp/Cargo.toml",
     "build:sigil": "cargo build --locked --manifest-path packages/cli/Cargo.toml",
-    "build:cli": "deno compile --allow-read --allow-write --allow-env --output build/sigil packages/cli/src/main.ts",
     "test:lsp-smoke": "deno task build:sigil && deno test --allow-read --allow-write --allow-run --allow-env scripts/lsp-smoke_test.ts",
     "test:native:protocol": "deno task build:sigil && deno run --allow-read --allow-write --allow-run --allow-env scripts/validate-native-protocol.ts"
   }
