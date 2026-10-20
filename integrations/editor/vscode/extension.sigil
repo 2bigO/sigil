@@ -22,8 +22,8 @@ component SigilVsCodeExtension {
     SigilSemanticCompiler for the CompilerCommands, and must not parse or
     resolve a source document itself.
 
-    The extension must start the language server by running the lsp command,
-    and must not bundle a language server of its own.
+    The extension must start the language server by running the lsp command of
+    a sigil executable, and must not contain a language server of its own.
 
     The extension must support only a trusted workspace whose workspace root is
     a folder on disk.
@@ -53,6 +53,12 @@ component SigilVsCodeExtension {
     code that the tool settings select with the design. The compile focus
     setting chooses one, or asks each time, except that compile file on a
     source document is always design.
+
+    SigilVsCodeExtension provides the *sigil executable setting*,
+    sigil.executable, the path of the sigil executable that the extension runs
+    the lsp command from. It defaults to the sigil shipped with the extension,
+    else sigil on the path, and a change to it takes effect without reloading
+    the window.
 
     SigilVsCodeExtension provides the *compile executable setting*,
     sigil.compile.executable, the path of the sigilc compiler, which defaults
