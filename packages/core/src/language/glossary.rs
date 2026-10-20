@@ -649,10 +649,13 @@ fn match_line(
 }
 
 /// A character compared without regard to case: its lowercase form when that
-/// is one character, else itself.
+/// is one character, else itself. The final sigma is folded to the ordinary
+/// one, because lowercasing a character alone cannot see the word end that
+/// makes a capital sigma a final one.
 fn fold(c: char) -> char {
     let mut lower = c.to_lowercase();
     match (lower.next(), lower.next()) {
+        (Some('ς'), None) => 'σ',
         (Some(one), None) => one,
         _ => c,
     }

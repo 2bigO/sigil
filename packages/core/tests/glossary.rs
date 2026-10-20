@@ -175,6 +175,38 @@ fn matching_ignores_case_needs_word_boundaries_and_reports_utf8_byte_ranges() {
 }
 
 #[test]
+fn a_final_sigma_matches_its_capital_in_both_directions() {
+    // Lowercasing a whole string turns a capital sigma at the end of a word
+    // into the final sigma, so the TS reader matched these pairs.
+    let source = component("Say ος and ΦΩΣ and ΟΣΑ here.");
+    let workspace = workspace(
+        &glossary_source(json!({
+            "terms": [
+                {"term": "ΟΣ", "definition": "A capital term, written in lowercase below."},
+                {"term": "φως", "definition": "A lowercase term, written in capitals below."},
+            ],
+            "contexts": [],
+        })),
+        &[("a.sigil", &source)],
+    );
+    let resolved = ResolvedWorkspace::from(&workspace);
+    let projection = glossary_projection(&workspace, &resolved);
+    let spelled: Vec<(&str, &str)> = projection
+        .occurrences
+        .iter()
+        .map(|o| (o.term.term.as_str(), o.matched_spelling.as_str()))
+        .collect();
+    assert_eq!(spelled, [("ΟΣ", "ος"), ("φως", "ΦΩΣ")]);
+    let text = &workspace.sources[0].capture.source.as_ref().unwrap().text;
+    for occurrence in &projection.occurrences {
+        assert_eq!(
+            &text[occurrence.range.start..occurrence.range.end],
+            occurrence.matched_spelling
+        );
+    }
+}
+
+#[test]
 fn a_term_knows_where_it_is_declared() {
     let text = glossary_source(json!({
         "terms": [
