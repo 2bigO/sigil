@@ -2,7 +2,7 @@
 //! Ported from the TS `config_parity_test.ts` and `workspace_080_test.ts`.
 use serde_json::{Value, json};
 use sigil_core::language::{
-    config::{config_text, merge_tools, parse_config, read_config_bytes},
+    config::{DEFAULT_EXCLUDES, config_text, merge_tools, parse_config, read_config_bytes},
     discovery::discover_workspace,
     fs::MemoryFs,
     tools::read_tool_settings,
@@ -421,4 +421,39 @@ fn the_language_version_is_the_one_the_config_contract_states() {
         1,
         "docs/spec/sigil-config.sigil must state {stated:?} once"
     );
+}
+
+#[test]
+fn a_config_without_exclude_or_members_gets_the_defaults() {
+    let source = json!({
+        "sigilVersion": "0.9.0",
+        "workspace": {"name": "test"},
+        "files": {"include": ["**/*.sigil"]},
+    })
+    .to_string();
+    let parsed = parse_config(&source, ".sigil/config.json").config.unwrap();
+    assert!(parsed.members.is_empty());
+    assert_eq!(parsed.exclude, DEFAULT_EXCLUDES);
+    assert!(parsed.exclude.iter().any(|glob| glob == "node_modules/**"));
+}
+
+#[test]
+fn the_default_excludes_keep_dependency_and_build_folders_out_of_the_workspace() {
+    let mut files = MemoryFs::new();
+    files.insert(
+        ".sigil/config.json",
+        r#"{"sigilVersion":"0.9.0","workspace":{"name":"t"},"files":{"include":["**/*.sigil"]}}"#,
+    );
+    for path in [
+        "kept.sigil",
+        "node_modules/dep/a.sigil",
+        "build/b.sigil",
+        "coverage/c.sigil",
+        ".git/d.sigil",
+        ".deno/e.sigil",
+    ] {
+        files.insert(path, SOURCE);
+    }
+    let workspace = Workspace::load_with(&files).unwrap();
+    assert_eq!(paths(&workspace), ["kept.sigil"]);
 }

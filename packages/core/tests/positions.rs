@@ -132,3 +132,44 @@ fn a_diagnostic_of_a_workspace_has_an_editor_range() {
     );
     let _ = fs::remove_dir_all(&root);
 }
+
+#[test]
+fn strict_decoding_rejects_malformed_utf8_at_the_first_bad_byte() {
+    // Each is invalid for a different reason: a stray 0xff, an overlong
+    // encoding, a surrogate, a value above U+10FFFF, a truncated sequence and a
+    // lone continuation byte. None decodes to replacement text.
+    let cases: [(&[u8], usize); 6] = [
+        (&[0x61, 0xff], 1),
+        (&[0xc0, 0x80], 0),
+        (&[0xed, 0xa0, 0x80], 0),
+        (&[0xf4, 0x90, 0x80, 0x80], 0),
+        (&[0xe2, 0x82], 0),
+        (&[0x80], 0),
+    ];
+    for (bytes, start) in cases {
+        let capture = capture_source("bad.sigil", bytes);
+        assert!(capture.source.is_none(), "{bytes:02x?}");
+        let codes: Vec<&str> = capture
+            .diagnostics
+            .iter()
+            .map(|d| d.code.as_str())
+            .collect();
+        assert_eq!(codes, ["SIGIL_INVALID_ENCODING"], "{bytes:02x?}");
+        assert_eq!(
+            capture.diagnostics[0]
+                .range
+                .as_ref()
+                .map(|range| range.start),
+            Some(start),
+            "{bytes:02x?}"
+        );
+    }
+}
+
+#[test]
+fn a_source_that_is_valid_utf8_keeps_every_scalar_width() {
+    let text = "a\u{e9}\u{7a7a}\u{1f600}";
+    let capture = capture_source("ok.sigil", text.as_bytes());
+    assert!(capture.diagnostics.is_empty());
+    assert_eq!(capture.source.unwrap().text, text);
+}

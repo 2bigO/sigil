@@ -315,31 +315,36 @@
     "name": "sigilVersion-older-but-well-formed",
     "category": "parser-only-semantic",
     "source": "{\"sigilVersion\":\"0.1.0\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
-    "parserValid": false
+    "parserValid": false,
+    "schemaValid": true
   },
   {
     "name": "sigilVersion-newer-but-well-formed",
     "category": "parser-only-semantic",
     "source": "{\"sigilVersion\":\"9.9.9\",\"workspace\":{\"name\":\"demo\"},\"files\":{\"include\":[\"**/*.sigil\"]}}",
-    "parserValid": false
+    "parserValid": false,
+    "schemaValid": true
   },
   {
     "name": "members-overlapping-prefix",
     "category": "parser-only-semantic",
     "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a\",\"a/b\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
-    "parserValid": false
+    "parserValid": false,
+    "schemaValid": true
   },
   {
     "name": "member-leading-whitespace",
     "category": "parser-only-semantic",
     "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\" a\"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
-    "parserValid": false
+    "parserValid": false,
+    "schemaValid": true
   },
   {
     "name": "member-trailing-whitespace",
     "category": "parser-only-semantic",
     "source": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"demo\",\"members\":[\"a \"]},\"files\":{\"include\":[\"**/*.sigil\"]}}",
-    "parserValid": false
+    "parserValid": false,
+    "schemaValid": true
   },
   {
     "name": "malformed-empty-source",

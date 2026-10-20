@@ -1,5 +1,5 @@
 //! Workspace loading edge cases.
-use sigil_core::language::workspace::Workspace;
+use sigil_core::language::{fs::MemoryFs, resolve::ResolvedWorkspace, workspace::Workspace};
 use std::{fs, path::PathBuf};
 
 fn temp(name: &str) -> PathBuf {
@@ -192,4 +192,46 @@ fn absolute_paths_are_slash_rooted_or_drive_rooted() {
     for relative in ["", "a", "./a", "../a", "C:", "C:x", "\\a"] {
         assert!(!is_absolute(relative), "{relative}");
     }
+}
+
+const PROVIDER: &str = "component C {\n  goal {\n    Own a responsibility.\n  }\n\n  interface {\n    A *query* has meaning.\n  }\n}\n";
+
+#[test]
+fn an_excluded_provider_cannot_be_reached_by_an_explicit_import() {
+    let mut files = MemoryFs::new();
+    files.insert(
+        ".sigil/config.json",
+        r#"{"sigilVersion":"0.9.0","workspace":{"name":"t"},"files":{"include":["**/*.sigil"],"exclude":["hidden/**"]}}"#,
+    );
+    files.insert("hidden/provider.sigil", PROVIDER);
+    // A module summary that only imports gets no access of its own.
+    files.insert(
+        "_module.sigil",
+        "@hidden/provider.sigil from C import { query }\n",
+    );
+    files.insert(
+        "consumer.sigil",
+        format!("@hidden/provider.sigil from C import {{ query }}\n{PROVIDER}"),
+    );
+    let workspace = Workspace::load_with(&files).unwrap();
+    assert!(
+        !workspace
+            .sources
+            .iter()
+            .any(|source| source.path == "hidden/provider.sigil")
+    );
+    let resolved = ResolvedWorkspace::from(&workspace);
+    let mut unresolved: Vec<(&str, &str)> = resolved
+        .diagnostics
+        .iter()
+        .map(|d| (d.code.as_str(), d.file_path.as_deref().unwrap_or("")))
+        .collect();
+    unresolved.sort();
+    assert_eq!(
+        unresolved,
+        [
+            ("SIGIL_UNRESOLVED_IMPORT_PATH", "_module.sigil"),
+            ("SIGIL_UNRESOLVED_IMPORT_PATH", "consumer.sigil"),
+        ]
+    );
 }
