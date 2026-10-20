@@ -1,6 +1,6 @@
 //! Workspace resolution: Tag identity, imports, interface-evidence
 //! importability, name collisions, and bare references.
-//! A port of `packages/core/src/resolver.ts`.
+//! Ported from the TypeScript resolver it replaced.
 //!
 //! The resolved model is keyed by position, not by id: a component is an index
 //! into `ResolvedWorkspace::components`, a Tag is a `TagRef`, and a Facet is a

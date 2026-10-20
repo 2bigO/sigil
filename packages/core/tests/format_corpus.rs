@@ -1,6 +1,6 @@
 //! The formatter against the TS formatter's recorded output, on sources from
-//! this repository in three shapes. The fixtures are written by
-//! `scripts/generate-format-fixtures.ts`.
+//! this repository in three shapes. The fixtures were recorded from the TS formatter
+//! before it was removed, and are now the frozen spec.
 use serde_json::Value;
 use sigil_core::language::{
     format::{format_document, format_text},

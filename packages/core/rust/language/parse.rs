@@ -1,6 +1,6 @@
 //! The structural parse of one `.sigil` source: components, sections, Facets as
 //! prose runs, grouping Tags, fenced payloads, and Tag imports.
-//! A port of `packages/core/src/parser.ts`.
+//! Ported from the TypeScript parser it replaced.
 //!
 //! Offsets are UTF-8 byte offsets throughout. The model carries no ids: a node
 //! is identified by its position, and `Facet::prose_range.start` and

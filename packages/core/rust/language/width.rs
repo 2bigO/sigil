@@ -1,4 +1,5 @@
-//! The 79-column prose width rule. A port of `packages/core/src/prose-width.ts`.
+//! The 79-column prose width rule. Ported from the TypeScript
+//! width rule it replaced.
 use super::{
     diagnostics::{Location, diagnostic},
     parse::{Facet, Span, line_index_at},

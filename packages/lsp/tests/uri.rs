@@ -1,4 +1,3 @@
-use serde_json::Value;
 use sigil_lsp::uri::{file_uri_to_path, path_to_file_uri};
 
 #[test]
@@ -174,12 +173,4 @@ fn paths_round_trip() {
             "{path}"
         );
     }
-}
-
-#[test]
-fn the_crate_version_equals_the_deno_version() {
-    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("deno.json");
-    let text = std::fs::read_to_string(manifest).unwrap();
-    let json: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(json["version"], env!("CARGO_PKG_VERSION"));
 }

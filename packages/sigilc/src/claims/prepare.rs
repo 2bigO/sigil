@@ -159,7 +159,7 @@ impl Binding {
 /// One component's Logic section, named as a whole.
 ///
 /// A flow spans a section rather than a Facet, because a Facet is a paragraph:
-/// the flow in `packages/core/src/pipeline.sigil` runs through three of its five
+/// the flow in the core pipeline contract runs through three of its five
 /// Logic Facets. An interpreter shown those Facets one at a time cannot express
 /// an edge between them, so the section is named here and its Facets listed in
 /// source order.

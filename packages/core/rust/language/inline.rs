@@ -1,6 +1,6 @@
 //! Inline content of one prose paragraph: CommonMark-subset links and images,
 //! `*Tag*` definitions, and the regions left eligible for bare references.
-//! A port of `packages/core/src/inline-content.ts`.
+//! Ported from the TypeScript inline reader it replaced.
 use super::{
     data::html_entities::HTML_ENTITIES,
     diagnostics::{Location, diagnostic},

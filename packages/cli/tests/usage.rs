@@ -23,14 +23,6 @@ fn version_flag_prints_the_bare_cli_version() {
 }
 
 #[test]
-fn version_matches_deno_json() {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("deno.json");
-    let deno: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
-    assert_eq!(deno["version"], env!("CARGO_PKG_VERSION"));
-}
-
-#[test]
 fn version_flag_is_honored_only_as_the_first_argument() {
     let temp = Temp::new();
     let ran = temp.sigil(&["check", "--version"]);

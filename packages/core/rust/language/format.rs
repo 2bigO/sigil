@@ -1,6 +1,6 @@
 //! The formatter: wrap prose to the formatting width without changing any
 //! facet, tag identity or embedded content. A faithful port of
-//! `packages/core/src/formatter.ts`.
+//! the TypeScript formatter it replaced.
 //!
 //! A rewrap is accepted only when the formatted source parses and resolves to
 //! the same meaning as the original, and formatting the output again returns

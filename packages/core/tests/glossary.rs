@@ -279,7 +279,7 @@ fn the_resolved_workspace_keeps_the_full_ordered_diagnostics_beside_the_glossary
 }
 
 /// The repository's own glossary over its own sources, as the TS reader found
-/// them (`scripts/generate-format-fixtures.ts` writes the fixture).
+/// them; the fixture was recorded before the TS reader was removed.
 #[test]
 fn the_repository_glossary_finds_the_occurrences_the_ts_reader_found() {
     let fixture: Value =

@@ -1,5 +1,5 @@
 //! Longest-match, word-boundary Tag references.
-//! A port of `packages/core/src/tag-matching.ts`.
+//! Ported from the TypeScript Tag matcher it replaced.
 use super::{data::word_characters::WORD_CHARACTER_RANGES, parse::Span, text::SourceText};
 
 pub fn is_tag_word_character(c: Option<char>) -> bool {

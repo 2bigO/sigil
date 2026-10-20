@@ -2,7 +2,7 @@
 //! workspace trees instead of a pre-exported JSON file.
 //!
 //! This is a transitional adapter: the arrays and their meaning are those the
-//! TypeScript export produced (`packages/core/src/design-input.ts`), with one
+//! TypeScript export produced, with one
 //! difference. A Facet's id is its content id from the tree (KTD3), so it
 //! survives edits that move the Facet. Every other node keeps the old
 //! `{kind}:{path}:{start}` occurrence id, because those never feed content

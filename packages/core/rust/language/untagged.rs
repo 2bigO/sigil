@@ -1,5 +1,5 @@
-//! The advisory untagged-Facet warning. A port of `untaggedFacetDiagnostics`
-//! in `packages/core/src/resolver.ts`.
+//! The advisory untagged-Facet warning. Ported from the
+//! TypeScript resolver it replaced.
 //!
 //! Operational Facets should name a Tag in their own prose, so interpretation
 //! can ground claims in something narrower than a component. Resolution does
