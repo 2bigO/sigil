@@ -176,7 +176,7 @@ fn localize(mut diagnostic: Diagnostic, cwd: &Path, root: &Path) -> Diagnostic {
 /// first, and a start path that is a file other than a `.sigil` source makes
 /// that look fail with the operating system's error: a runtime failure. The
 /// shown path is the one the look used.
-fn check_start_path(ctx: &Context, start: Option<&str>) -> Result<(), (u8, String)> {
+pub fn check_start_path(ctx: &Context, start: Option<&str>) -> Result<(), (u8, String)> {
     let start = resolve_target(&ctx.cwd, start.unwrap_or("."));
     if path_text(&start).ends_with(".sigil") {
         return Ok(());

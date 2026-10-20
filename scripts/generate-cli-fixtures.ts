@@ -538,6 +538,36 @@ const R = PLACEHOLDER;
     ...workspace("missing-file"),
   });
   {
+    // A file that is not a `.sigil` source cannot start the workspace search:
+    // looking for `<file>/.sigil/config.json` fails with the system's error.
+    const notes = {
+      ...workspace("non-sigil"),
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n",
+    };
+    add("parse", "non-sigil-file", ["parse", "notes.txt"], notes);
+    add("parse", "non-sigil-file-absolute-json", [
+      "parse",
+      `${R}/notes.txt`,
+      "--format",
+      "json",
+    ], notes);
+    // With an explicit root no search starts at the file, so it parses.
+    add(
+      "parse",
+      "non-sigil-file-with-root",
+      [
+        "parse",
+        "notes.txt",
+        "--root",
+        R,
+      ],
+      notes,
+      { statusOnly: true },
+    );
+    add("parse", "directory-target", ["parse", "sub"], notes);
+  }
+  {
     const nestedFiles = nestedWorkspaces();
     add(
       "parse",

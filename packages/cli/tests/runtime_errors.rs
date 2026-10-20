@@ -38,6 +38,27 @@ fn a_non_sigil_file_as_the_first_target_cannot_start_the_workspace_search() {
 }
 
 #[test]
+fn a_non_sigil_file_to_parse_cannot_start_the_workspace_search() {
+    let temp = Temp::workspace();
+    temp.write("notes.txt", "plain text\n");
+    let before = temp.files();
+    let ran = temp.sigil(&["parse", "notes.txt"]);
+    assert_eq!((ran.code, ran.stdout.as_str()), (3, ""));
+    assert_eq!(
+        ran.stderr,
+        format!(
+            "Not a directory (os error 20): stat '{}/notes.txt/.sigil/config.json'\n",
+            temp.text()
+        )
+    );
+    assert_eq!(temp.files(), before);
+    // An explicit root names the workspace, so no search starts at the file.
+    let root = temp.text();
+    let ran = temp.sigil(&["parse", "notes.txt", "--root", &root]);
+    assert_eq!(ran.code, 1);
+}
+
+#[test]
 fn a_missing_source_to_parse_is_the_operating_system_message() {
     let temp = Temp::workspace();
     let ran = temp.sigil(&["parse", "missing.sigil"]);

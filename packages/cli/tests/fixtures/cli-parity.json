@@ -1002,6 +1002,102 @@
     }
   },
   {
+    "name": "parse-non-sigil-file",
+    "command": "parse",
+    "engineText": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    },
+    "argv": [
+      "parse",
+      "notes.txt"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "Not a directory (os error 20): stat '<ROOT>/notes.txt/.sigil/config.json'\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    }
+  },
+  {
+    "name": "parse-non-sigil-file-absolute-json",
+    "command": "parse",
+    "engineText": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    },
+    "argv": [
+      "parse",
+      "<ROOT>/notes.txt",
+      "--format",
+      "json"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "Not a directory (os error 20): stat '<ROOT>/notes.txt/.sigil/config.json'\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    }
+  },
+  {
+    "name": "parse-non-sigil-file-with-root",
+    "command": "parse",
+    "statusOnly": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    },
+    "argv": [
+      "parse",
+      "notes.txt",
+      "--root",
+      "<ROOT>"
+    ],
+    "cwd": ".",
+    "exitCode": 1,
+    "stdout": null,
+    "stderr": "",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    }
+  },
+  {
+    "name": "parse-directory-target",
+    "command": "parse",
+    "engineText": true,
+    "files": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    },
+    "argv": [
+      "parse",
+      "sub"
+    ],
+    "cwd": ".",
+    "exitCode": 3,
+    "stdout": "",
+    "stderr": "Is a directory (os error 21): readfile '<ROOT>/sub'\n",
+    "filesAfter": {
+      ".sigil/config.json": "{\"sigilVersion\":\"0.9.0\",\"workspace\":{\"name\":\"non-sigil\",\"members\":[]},\"files\":{\"include\":[\"**/*.sigil\"]},\"tools\":{}}",
+      "notes.txt": "plain text\n",
+      "sub/inner.txt": "plain text\n"
+    }
+  },
+  {
     "name": "parse-nested-workspace-parent-file",
     "command": "parse",
     "statusOnly": true,

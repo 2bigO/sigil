@@ -10,7 +10,7 @@ use crate::{
     display::{Display, path_text, resolve_target},
     model::{DiagnosticView, LocationView, WorkspaceMeta, exit_code, view, views},
     output::{Markdown, Output, diagnostic_lines, fail, lines_text, render},
-    session::{CONFIG_NOT_FOUND, Discovered, config_missing_message, discover},
+    session::{CONFIG_NOT_FOUND, Discovered, check_start_path, config_missing_message, discover},
 };
 use serde::Serialize;
 use sigil_core::{
@@ -359,6 +359,9 @@ impl Locator<'_> {
 pub fn run(request: &ParseRequest, ctx: &Context) -> Output {
     let file = &request.file;
     let root_arg = request.global.root.as_deref();
+    if root_arg.is_none() {
+        check_start_path(ctx, Some(file))?;
+    }
     let found = discover(ctx, Some(file), root_arg, Some(file));
     let Discovered {
         root,
