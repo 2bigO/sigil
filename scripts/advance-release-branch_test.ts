@@ -54,8 +54,8 @@ async function withFixture(run: (fixture: Fixture) => Promise<void>) {
       async commit(version) {
         await Deno.mkdir(join(work, "packages/cli"), { recursive: true });
         await Deno.writeTextFile(
-          join(work, "packages/cli/deno.json"),
-          JSON.stringify({ version }),
+          join(work, "packages/cli/Cargo.toml"),
+          `[package]\nname = "sigil-cli"\nversion = "${version}"\n`,
         );
         await git(work, "add", ".");
         await git(work, "commit", "--allow-empty", "-m", `release ${version}`);
@@ -97,6 +97,29 @@ Deno.test("a release branch behind the tag is fast-forwarded", async () => {
     const result = await advanceReleaseBranch({
       repo: work,
       tag: "cli-v0.9.1",
+    });
+    equal(result, "advanced");
+    equal(await remoteRelease(remote), sha);
+  });
+});
+
+Deno.test("a release tip that still kept its version in deno.json can be advanced past", async () => {
+  await withFixture(async ({ remote, work, commit }) => {
+    await Deno.mkdir(join(work, "packages/cli"), { recursive: true });
+    await Deno.writeTextFile(
+      join(work, "packages/cli/deno.json"),
+      JSON.stringify({ version: "0.8.0" }),
+    );
+    await git(work, "add", ".");
+    await git(work, "commit", "-m", "release 0.8.0");
+    await git(work, "tag", "cli-v0.8.0");
+    await advanceReleaseBranch({ repo: work, tag: "cli-v0.8.0" });
+    await git(work, "rm", "-q", "packages/cli/deno.json");
+    const sha = await commit("0.9.0");
+    await git(work, "tag", "cli-v0.9.0");
+    const result = await advanceReleaseBranch({
+      repo: work,
+      tag: "cli-v0.9.0",
     });
     equal(result, "advanced");
     equal(await remoteRelease(remote), sha);

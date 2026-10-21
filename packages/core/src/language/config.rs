@@ -1,0 +1,414 @@
+//! Workspace configuration (`.sigil/config.json`, `.sigil/local.json`).
+//!
+//! Validation mirrors the JSON schema in
+//! `docs/spec/sigil-config.schema.json`. Tool settings are checked for shape only;
+//! the compiler never interprets them.
+use super::{
+    SIGIL_VERSION,
+    diagnostics::{Location, diagnostic},
+    path::{glob_matches, has_drive_prefix},
+    text::capture_source,
+};
+use crate::types::Diagnostic;
+use regex::Regex;
+use serde_json::{Map, Value};
+
+pub const DEFAULT_INCLUDES: &[&str] = &["**/*.sigil"];
+pub const DEFAULT_EXCLUDES: &[&str] = &[
+    ".git/**",
+    ".deno/**",
+    "node_modules/**",
+    "build/**",
+    "coverage/**",
+];
+
+/// The general workspace config. Tool settings are kept as the JSON each tool
+/// wrote, never interpreted here.
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub sigil_version: String,
+    pub workspace_name: String,
+    pub members: Vec<String>,
+    pub include: Vec<String>,
+    pub exclude: Vec<String>,
+    /// One settings object per tool namespace.
+    pub tools: Map<String, Value>,
+}
+
+pub struct ConfigParse {
+    pub config: Option<Config>,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// Config bytes that could not become text: each capture diagnostic as a
+/// `SIGIL_CONFIG_PARSE` diagnostic at the config path.
+pub struct ConfigTextError {
+    pub diagnostics: Vec<Diagnostic>,
+    /// The bytes were not valid UTF-8, so no text of the file exists.
+    pub invalid_encoding: bool,
+}
+
+/// The text of config bytes. Invalid UTF-8 and NUL characters are errors.
+pub fn config_text(path: &str, bytes: &[u8]) -> Result<String, ConfigTextError> {
+    let capture = capture_source(path, bytes);
+    match capture.source.filter(|_| capture.diagnostics.is_empty()) {
+        Some(source) => Ok(source.text),
+        None => Err(ConfigTextError {
+            invalid_encoding: capture
+                .diagnostics
+                .iter()
+                .any(|d| d.code == "SIGIL_INVALID_ENCODING"),
+            diagnostics: capture
+                .diagnostics
+                .into_iter()
+                .map(|d| diagnostic("SIGIL_CONFIG_PARSE", d.message, Location::at(path, d.range)))
+                .collect(),
+        }),
+    }
+}
+
+/// What reading the bytes of a config file found.
+pub struct ConfigRead {
+    pub config: Option<Config>,
+    /// Unordered; callers order them with the rest of their diagnostics.
+    pub diagnostics: Vec<Diagnostic>,
+    /// The bytes were not valid UTF-8, so no text of the file exists.
+    pub invalid_encoding: bool,
+}
+
+/// Read config bytes: capture the text, then parse it as the config at `path`.
+pub fn read_config_bytes(path: &str, bytes: &[u8]) -> ConfigRead {
+    match config_text(path, bytes) {
+        Ok(text) => {
+            let parsed = parse_config(&text, path);
+            ConfigRead {
+                config: parsed.config,
+                diagnostics: parsed.diagnostics,
+                invalid_encoding: false,
+            }
+        }
+        Err(error) => ConfigRead {
+            config: None,
+            diagnostics: error.diagnostics,
+            invalid_encoding: error.invalid_encoding,
+        },
+    }
+}
+
+pub fn parse_config(source: &str, file_path: &str) -> ConfigParse {
+    let value: Value = match serde_json::from_str(source) {
+        Ok(value) => value,
+        Err(error) => {
+            return ConfigParse {
+                config: None,
+                diagnostics: vec![diagnostic(
+                    "SIGIL_CONFIG_PARSE",
+                    format!("Unable to parse .sigil/config.json JSON: {error}"),
+                    Location::at(file_path, None),
+                )],
+            };
+        }
+    };
+    let mut messages = Vec::new();
+    match value.as_object() {
+        None => messages.push("Configuration must be a JSON object.".to_owned()),
+        Some(object) => {
+            reject_unknown(
+                object,
+                &["sigilVersion", "workspace", "files", "tools"],
+                "configuration",
+                &mut messages,
+            );
+            require_semver(object.get("sigilVersion"), &mut messages);
+            validate_workspace(object.get("workspace"), &mut messages);
+            validate_files(object.get("files"), &mut messages);
+            validate_tools(object.get("tools"), &mut messages);
+        }
+    }
+    if !messages.is_empty() {
+        return ConfigParse {
+            config: None,
+            diagnostics: invalid(&messages, file_path),
+        };
+    }
+    let object = value.as_object().expect("validated object");
+    if object["sigilVersion"] != Value::String(SIGIL_VERSION.into()) {
+        return ConfigParse {
+            config: None,
+            diagnostics: vec![diagnostic(
+                "SIGIL_UNSUPPORTED_VERSION",
+                format!(
+                    "Unsupported sigilVersion {}; supported version is {SIGIL_VERSION}.",
+                    object["sigilVersion"]
+                ),
+                Location::at(file_path, None),
+            )],
+        };
+    }
+    let strings = |value: Option<&Value>, default: &[&str]| -> Vec<String> {
+        value.and_then(Value::as_array).map_or_else(
+            || default.iter().map(|s| (*s).to_owned()).collect(),
+            |items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            },
+        )
+    };
+    let workspace = object["workspace"]
+        .as_object()
+        .expect("validated workspace");
+    let files = object["files"].as_object().expect("validated files");
+    ConfigParse {
+        config: Some(Config {
+            sigil_version: SIGIL_VERSION.to_owned(),
+            workspace_name: workspace["name"]
+                .as_str()
+                .expect("validated name")
+                .to_owned(),
+            members: strings(workspace.get("members"), &[]),
+            include: strings(files.get("include"), DEFAULT_INCLUDES),
+            exclude: strings(files.get("exclude"), DEFAULT_EXCLUDES),
+            tools: object
+                .get("tools")
+                .and_then(Value::as_object)
+                .cloned()
+                .unwrap_or_default(),
+        }),
+        diagnostics: Vec::new(),
+    }
+}
+
+/// The tool settings of a local override, or none when it is invalid, with the
+/// diagnostics that explain why.
+pub fn parse_local_tools(
+    source: &str,
+    file_path: &str,
+) -> (Option<Map<String, Value>>, Vec<Diagnostic>) {
+    let value: Value = match serde_json::from_str(source) {
+        Ok(value) => value,
+        Err(error) => {
+            return (
+                None,
+                vec![diagnostic(
+                    "SIGIL_CONFIG_PARSE",
+                    format!("Unable to parse {file_path} JSON: {error}"),
+                    Location::at(file_path, None),
+                )],
+            );
+        }
+    };
+    let Some(object) = value.as_object() else {
+        return (
+            None,
+            invalid(
+                &["Local configuration must be a JSON object.".to_owned()],
+                file_path,
+            ),
+        );
+    };
+    let mut messages = Vec::new();
+    reject_unknown(object, &["tools"], "local configuration", &mut messages);
+    validate_tools(object.get("tools"), &mut messages);
+    if !messages.is_empty() {
+        return (None, invalid(&messages, file_path));
+    }
+    let tools = object
+        .get("tools")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    (Some(tools), Vec::new())
+}
+
+/// Merge a local override into shared tool settings: objects recursively,
+/// arrays and scalars by replacement.
+pub fn merge_tools(shared: &Map<String, Value>, local: &Map<String, Value>) -> Map<String, Value> {
+    let mut merged = shared.clone();
+    for (key, value) in local {
+        match (merged.get_mut(key), value) {
+            (Some(Value::Object(existing)), Value::Object(incoming)) => {
+                *existing = merge_tools(existing, incoming);
+            }
+            _ => {
+                merged.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    merged
+}
+
+pub fn is_excluded(path: &str, config: &Config) -> bool {
+    let normalized = normalize(path);
+    config.exclude.iter().any(|p| glob_matches(p, &normalized))
+}
+
+pub fn matches_source_file(path: &str, config: &Config) -> bool {
+    let normalized = normalize(path);
+    config.include.iter().any(|p| glob_matches(p, &normalized)) && !is_excluded(&normalized, config)
+}
+
+/// Whether a parent workspace's exclusions cover the whole subtree at `path`.
+pub fn excludes_subtree(path: &str, config: &Config) -> bool {
+    let normalized = normalize(path);
+    let normalized = normalized.trim_end_matches('/');
+    is_excluded(&format!("{normalized}/__sigil_subtree__"), config)
+}
+
+fn normalize(path: &str) -> String {
+    let path = path.replace('\\', "/");
+    path.strip_prefix("./").unwrap_or(&path).to_owned()
+}
+
+fn validate_workspace(value: Option<&Value>, messages: &mut Vec<String>) {
+    let Some(object) = value.and_then(Value::as_object) else {
+        messages.push("workspace must be an object.".into());
+        return;
+    };
+    reject_unknown(object, &["name", "members"], "workspace", messages);
+    match object.get("name").and_then(Value::as_str) {
+        Some(name) if !name.trim().is_empty() && name == name.trim() => {}
+        _ => messages.push("workspace.name must be a trimmed non-empty string.".into()),
+    }
+    validate_members(object.get("members"), messages);
+}
+
+fn validate_members(value: Option<&Value>, messages: &mut Vec<String>) {
+    let Some(value) = value else { return };
+    let Some(items) = value.as_array().filter(|a| a.iter().all(Value::is_string)) else {
+        messages.push("workspace.members must be an array of strings.".into());
+        return;
+    };
+    let members: Vec<&str> = items.iter().filter_map(Value::as_str).collect();
+    if members.iter().any(|member| {
+        member.is_empty()
+            || *member != member.trim()
+            || *member == "."
+            || member.starts_with('/')
+            || has_drive_prefix(member)
+            || member.contains('\\')
+            || member.starts_with("./")
+            || member.ends_with('/')
+            || member.contains("//")
+            || member.split('/').any(|s| s == "." || s == "..")
+    }) {
+        messages.push(
+            "workspace.members entries must be normalized, non-root, workspace-relative POSIX directory paths.".into(),
+        );
+    }
+    let mut unique: Vec<&str> = members.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    if unique.len() != members.len() {
+        messages.push("workspace.members entries must be unique.".into());
+    }
+    for (index, parent) in unique.iter().enumerate() {
+        if unique[index + 1..]
+            .iter()
+            .any(|other| other.starts_with(&format!("{parent}/")))
+        {
+            messages.push("workspace.members entries must not overlap.".into());
+            return;
+        }
+    }
+}
+
+fn validate_files(value: Option<&Value>, messages: &mut Vec<String>) {
+    let Some(object) = value.and_then(Value::as_object) else {
+        messages.push("files must be an object.".into());
+        return;
+    };
+    reject_unknown(object, &["include", "exclude"], "files", messages);
+    validate_string_array(object.get("include"), "files.include", messages, true);
+    if let Some(exclude) = object.get("exclude") {
+        validate_string_array(Some(exclude), "files.exclude", messages, false);
+    }
+}
+
+fn validate_tools(value: Option<&Value>, messages: &mut Vec<String>) {
+    let Some(value) = value else { return };
+    let Some(object) = value.as_object() else {
+        messages.push("tools must be an object.".into());
+        return;
+    };
+    for (name, settings) in object {
+        if name.is_empty() || !settings.is_object() {
+            let shown = if name.is_empty() { "<empty>" } else { name };
+            messages.push(format!("tools.{shown} must be a JSON object."));
+        }
+    }
+}
+
+fn require_semver(value: Option<&Value>, messages: &mut Vec<String>) {
+    let semver = Regex::new(
+        r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$",
+    )
+    .expect("semver pattern");
+    if !value
+        .and_then(Value::as_str)
+        .is_some_and(|s| semver.is_match(s))
+    {
+        messages.push("sigilVersion must be a semantic version string.".into());
+    }
+}
+
+fn validate_string_array(
+    value: Option<&Value>,
+    name: &str,
+    messages: &mut Vec<String>,
+    non_empty: bool,
+) {
+    let items = value.and_then(Value::as_array);
+    let well_formed = items.is_some_and(|items| {
+        (!non_empty || !items.is_empty())
+            && items
+                .iter()
+                .all(|i| i.as_str().is_some_and(|s| !s.is_empty()))
+    });
+    if !well_formed {
+        messages.push(format!(
+            "{name} must be {} array of non-empty strings.",
+            if non_empty { "a non-empty" } else { "an" }
+        ));
+    }
+    if items.is_some_and(|items| {
+        items.iter().filter_map(Value::as_str).any(|s| {
+            s.starts_with('/')
+                || has_drive_prefix(s)
+                || s.contains('\\')
+                || s.split('/').any(|p| p == "..")
+        })
+    }) {
+        messages.push(format!(
+            "{name} patterns must be workspace-relative POSIX globs."
+        ));
+    }
+}
+
+fn reject_unknown(
+    object: &Map<String, Value>,
+    allowed: &[&str],
+    owner: &str,
+    messages: &mut Vec<String>,
+) {
+    for key in object.keys() {
+        if !allowed.contains(&key.as_str()) {
+            messages.push(format!("{owner} contains unknown key {key:?}."));
+        }
+    }
+}
+
+fn invalid(messages: &[String], file_path: &str) -> Vec<Diagnostic> {
+    messages
+        .iter()
+        .map(|m| {
+            diagnostic(
+                "SIGIL_CONFIG_INVALID",
+                m.clone(),
+                Location::at(file_path, None),
+            )
+        })
+        .collect()
+}

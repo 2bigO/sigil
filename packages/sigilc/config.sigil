@@ -1,0 +1,47 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {
+  tool settings,
+  workspace root,
+}
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import { source document }
+@packages/core/core.sigil from SigilCore import { workspace snapshot }
+
+component SigilCompilerConfig {
+  goal {
+    Give sigilc one strict reading of its own settings, so that an
+    implementation check judges the code files and design sources that the
+    workspace owner selected.
+  }
+
+  constraints {
+    SigilCompilerConfig depends on SigilCore for the tool settings of the
+    workspace snapshot, and must not read the workspace config or the local
+    override from disk itself.
+
+    SigilCompilerConfig must read only the sigilc namespace of the tool
+    settings, and must not check or interpret the tool settings of another
+    tool.
+
+    SigilCompilerConfig must reject an unknown key in the sigilc namespace, an
+    empty string, a field of the wrong type, and a design root that is not a
+    source document of the workspace.
+
+    An implementation check must require the implementation selection and
+    must not guess a code selection when it is absent.
+
+    Every path in the implementation selection must be measured from the
+    workspace root.
+  }
+
+  interface {
+    SigilCompilerConfig provides the *implementation selection*, the code
+    paths, directories, include and exclude globs, vendor directories and
+    empty allowance that choose which code files an implementation check
+    judges, and the optional design roots that choose which source documents
+    it covers.
+  }
+
+  decisions {
+    The implementation selection lives with sigilc, so that the shared
+    workspace config stays free of settings that only one tool interprets.
+  }
+}

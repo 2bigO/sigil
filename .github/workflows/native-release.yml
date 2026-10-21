@@ -30,9 +30,9 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
           - target: x86_64-apple-darwin
             runner: macos-15-intel
           - target: aarch64-apple-darwin
@@ -88,14 +88,14 @@ jobs:
         env:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
-          docker pull ubuntu:24.04
+          docker pull ubuntu:22.04
           version="$INPUT_VERSION"
           if [[ -z "$version" ]]; then version="${GITHUB_REF_NAME#cli-v}"; fi
           docker run --rm --network none \
             -e "SIGIL_RELEASE_VERSION=$version" \
             -v "$RUNNER_TEMP/release:/release:ro" \
             -v "$GITHUB_WORKSPACE/scripts/fixtures/release:/fixtures:ro" \
-            ubuntu:24.04 bash -eu -o pipefail -s <<'EOF'
+            ubuntu:22.04 bash -eu -o pipefail -s <<'EOF'
           mkdir -p /tmp/sigil /tmp/fixture/.sigil
           tar -xzf /release/sigil-x86_64-unknown-linux-gnu.tar.gz -C /tmp/sigil
           cli="/tmp/sigil/sigil-$SIGIL_RELEASE_VERSION/bin/sigil"
@@ -132,9 +132,9 @@ jobs:
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            runner: ubuntu-24.04
+            runner: ubuntu-22.04
           - target: aarch64-unknown-linux-gnu
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-22.04-arm
           - target: x86_64-apple-darwin
             runner: macos-15-intel
           - target: aarch64-apple-darwin

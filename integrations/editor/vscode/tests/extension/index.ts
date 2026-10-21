@@ -10,6 +10,20 @@ export async function run(): Promise<void> {
   const workspace = process.env.SIGIL_TEST_WORKSPACE ??
     path.join(repository, "examples/slotted");
   const source = vscode.Uri.file(path.join(workspace, "booking.sigil"));
+  // The extension starts when the first Sigil document opens, so name the
+  // sigil to run before that. With SIGIL_TEST_BUNDLED the setting stays empty
+  // and the sigil shipped in the extension's bin folder must start.
+  const bundled = process.env.SIGIL_TEST_BUNDLED === "1";
+  const sigilExecutable = bundled ? "" : process.env.SIGIL_TEST_LANGUAGE;
+  assert(
+    sigilExecutable !== undefined,
+    "SIGIL_TEST_LANGUAGE (a built sigil) is required",
+  );
+  await vscode.workspace.getConfiguration("sigil").update(
+    "executable",
+    sigilExecutable,
+    vscode.ConfigurationTarget.Global,
+  );
   const document = await vscode.workspace.openTextDocument(source);
   const editor = await vscode.window.showTextDocument(document);
   assert.equal(document.languageId, "sigil");
@@ -381,6 +395,112 @@ export async function run(): Promise<void> {
     webviewCountBefore,
     "A non-Sigil editor should not open another preview",
   );
+
+  await verifyServerStartFailures(source, position, sigilExecutable);
+}
+
+/**
+ * A `sigil` that is missing, or that exits before it answers, is a start
+ * failure: the message names the problem, the extension stays active, and
+ * pointing the setting at a working `sigil` restarts the server without a
+ * window reload.
+ */
+async function verifyServerStartFailures(
+  source: vscode.Uri,
+  position: vscode.Position,
+  working: string,
+): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration("sigil");
+  const scratch = await mkdtemp(path.join(os.tmpdir(), "sigil-no-lsp-"));
+  const windows = process.platform === "win32";
+  const exiting = path.join(scratch, windows ? "sigil.cmd" : "sigil");
+  await writeFile(
+    exiting,
+    windows ? "@exit /b 2\r\n" : "#!/bin/sh\nexit 2\n",
+    { mode: 0o755 },
+  );
+  const messages: string[] = [];
+  const original = vscode.window.showErrorMessage;
+  // deno-lint-ignore no-explicit-any
+  (vscode.window as any).showErrorMessage = (message: string) => {
+    messages.push(message);
+    return Promise.resolve(undefined);
+  };
+  const failures = () =>
+    messages.filter((message) => message.includes("failed to start")).length;
+  try {
+    for (
+      const [name, broken] of [
+        ["a missing sigil", path.join(scratch, "no-such-sigil")],
+        ["a sigil that exits at once", exiting],
+      ] as const
+    ) {
+      const before = failures();
+      await configuration.update(
+        "executable",
+        broken,
+        vscode.ConfigurationTarget.Global,
+      );
+      await until(() => failures() > before, `${name} to be reported`);
+      const reported = messages.filter((message) =>
+        message.includes("failed to start")
+      ).at(-1);
+      assert(
+        reported?.includes(broken) && reported.includes("sigil.executable"),
+        `The message for ${name} should name the path and the setting: ${
+          messages.join(" | ")
+        }`,
+      );
+      const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+        "vscode.executeHoverProvider",
+        source,
+        position,
+      );
+      assert.equal(hovers.length, 0, `No hover while ${name} is configured`);
+      assert(
+        vscode.extensions.getExtension("sigil-dev.sigil")?.isActive,
+        "The extension must stay active after a start failure",
+      );
+      assert(
+        (await vscode.commands.getCommands(true)).includes(
+          "sigil.compileFile",
+        ),
+        "Compile commands must stay available after a start failure",
+      );
+    }
+    await configuration.update(
+      "executable",
+      working,
+      vscode.ConfigurationTarget.Global,
+    );
+    const hovers = await eventually(async () =>
+      await vscode.commands.executeCommand<vscode.Hover[]>(
+        "vscode.executeHoverProvider",
+        source,
+        position,
+      )
+    );
+    assert(hovers.length > 0, "Fixing the setting should restart the server");
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (vscode.window as any).showErrorMessage = original;
+    await configuration.update(
+      "executable",
+      working,
+      vscode.ConfigurationTarget.Global,
+    );
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+async function until(condition: () => boolean, label: string): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  while (!condition()) {
+    if (Date.now() > deadline) {
+      throw new Error(`Timed out waiting for ${label}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 async function eventually<T>(

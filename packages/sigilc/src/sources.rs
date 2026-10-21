@@ -490,7 +490,7 @@ pub fn checked_path(root: &Path, path: &str) -> Result<PathBuf, String> {
     Ok(target)
 }
 
-/// Same *, ** and ? rules as packages/core/src/path.ts::globMatches.
+/// Same *, ** and ? rules as the sigil-core glob matcher.
 fn glob(pattern: &str) -> Result<Regex, String> {
     let normalized = pattern.replace('\\', "/");
     let mut chars = normalized

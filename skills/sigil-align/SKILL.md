@@ -15,14 +15,13 @@ contract meaning. Read the
 [alignment loop](references/alignment-loop.md) before editing code.
 
 Own the implementation review, code repair, and verification. Inspect relevant
-code and tests across files; use ownership annotations and retrieval as
-navigation, not proof. When the host can delegate, obtain a fresh, read-only
-current-code compatibility assessment. Check its findings against current
-evidence. Leave implementation choices open when the contract does not select
-them. Repair defects settled by the accepted contract, add focused tests for
-changed behavior, run relevant checks, and reassess without a separate approval
-step. Repeat the read-only assessment for changed paths when delegation is
-available.
+code and tests across files; use ownership annotations as navigation, not
+proof. When the host can delegate, obtain a fresh, read-only current-code
+compatibility assessment. Check its findings against current evidence. Leave
+implementation choices open when the contract does not select them. Repair
+defects settled by the accepted contract, add focused tests for changed
+behavior, run relevant checks, and reassess without a separate approval step.
+Repeat the read-only assessment for changed paths when delegation is available.
 
 Use contract, code, and test evidence for this advisory skill. Explicit computed
 implementation checks belong to `sigil-compute-align`, which owns the

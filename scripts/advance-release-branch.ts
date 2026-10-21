@@ -5,6 +5,8 @@
  * a newer version, and it never force-pushes.
  */
 
+import { cargoPackageVersion } from "./manifest-version.ts";
+
 const TAG_PATTERN = /^cli-v(\d+)\.(\d+)\.(\d+)$/;
 
 export type AdvanceResult = "created" | "advanced" | "unchanged";
@@ -19,6 +21,38 @@ export interface AdvanceOptions {
 }
 
 export class AdvanceRefusal extends Error {}
+
+/**
+ * The CLI version a commit declares: the Cargo manifest owns it, and a commit
+ * from before that kept it in `packages/cli/deno.json`.
+ */
+async function cliVersionAt(
+  repo: string,
+  commit: string,
+): Promise<number[] | undefined> {
+  const cargo = await git(
+    repo,
+    ["show", `${commit}:packages/cli/Cargo.toml`],
+    true,
+  );
+  try {
+    if (cargo.ok) {
+      return parseVersion(
+        cargoPackageVersion(cargo.stdout, "packages/cli/Cargo.toml"),
+      );
+    }
+    const legacy = await git(
+      repo,
+      ["show", `${commit}:packages/cli/deno.json`],
+      true,
+    );
+    return legacy.ok
+      ? parseVersion(JSON.parse(legacy.stdout).version)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 async function git(
   repo: string,
@@ -120,19 +154,7 @@ export async function advanceReleaseBranch(
     );
   }
 
-  const tipManifest = await git(
-    repo,
-    ["show", `${tip}:packages/cli/deno.json`],
-    true,
-  );
-  let tipVersion: number[] | undefined;
-  if (tipManifest.ok) {
-    try {
-      tipVersion = parseVersion(JSON.parse(tipManifest.stdout).version);
-    } catch {
-      tipVersion = undefined;
-    }
-  }
+  const tipVersion = await cliVersionAt(repo, tip);
   if (!tipVersion) {
     throw new AdvanceRefusal(
       `cannot read the CLI version at the ${branch} tip ${

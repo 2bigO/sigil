@@ -30,13 +30,21 @@ the rest of the repository.
 
 | Tool                                                                | Version    | Needed for                                                                                 |
 | ------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------ |
-| [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2      | Everything. Core, CLI, and LSP are Deno TypeScript.                                        |
+| Rust                                                                | 1.91.1     | The `sigil` command line, `sigil-core`, the language server and the native compiler `sigilc`. |
+| [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2      | Repository scripts only: formatting and lint checks, skill and release checks, the slotted benchmark. |
 | [Node.js](https://nodejs.org/)                                      | 24         | The VS Code extension only, including its share of `deno task check` and `deno task test`. |
-| Rust                                                                | 1.91.1     | Native compiler and its release/runtime tests.                                             |
 | Git                                                                 | any recent | Cloning and contributing.                                                                  |
 | [VS Code](https://code.visualstudio.com/)                           | `^1.91.0`  | Optional. Only if you work on the extension or run its integration tests.                  |
 
-The Deno and Node versions above are exactly what
+Deno stays the runner for the scripts in `scripts/` on purpose. Those scripts use
+Deno's file, process and test APIs throughout, `deno task` works the same on all
+three operating systems, the release scripts run with narrow permissions
+(`--allow-run=git`), and `deno fmt` and `deno lint` also check the extension's
+TypeScript. Moving them to Bun, Python or Make would be a rewrite that removes no
+tool. If the repository ever drops one, the candidate is Node, which contributors
+already need for the extension.
+
+The Rust, Deno and Node versions above are exactly what
 [CI pins](.github/workflows/ci.yml). Matching them locally is the cheapest way to
 avoid a green local run and a red pull request — and for Node it is load-bearing,
 not just advisable: the extension's unit tests do not run at all on Node 20.
@@ -50,8 +58,8 @@ fnm install 24 && fnm use 24    # or: nvm install 24 && nvm use 24
 node --version                  # expect v24.x
 ```
 
-You do not need a published `sigil` CLI installed to contribute. The repository
-runs its own CLI from source.
+You do not need a released `sigil` installed to contribute. The repository builds
+its own from source.
 
 ## Set up the repository
 
@@ -67,8 +75,9 @@ for GitHub; pushing a branch needs either SSH or an HTTPS credential helper.
 The `deno task package:vscode` task bootstraps these dependencies automatically
 when they are absent.
 
-Deno resolves and caches its own dependencies on first use, against the committed
-[`deno.lock`](deno.lock), so there is no separate Deno install step.
+Cargo and Deno resolve and cache their own dependencies on first use, against the
+committed `Cargo.lock` files and [`deno.lock`](deno.lock), so there is no separate
+install step for either.
 
 The `npm ci` step is not optional. `deno task test` and `deno task check` both
 delegate part of their work to the extension's npm scripts, and both fail without
@@ -85,24 +94,25 @@ Confirm the environment before you change anything:
 ```sh
 node --version                  # expect v24.x
 deno --version                  # expect 2.9.2
-deno task check                 # type-checks all four surfaces
+rustc --version                 # expect 1.91.1 or newer
+deno task check                 # type-checks the extension and the benchmark scripts
 ```
 
-To use your working copy as the `sigil` command while developing:
+To use your working copy as the `sigil` command while developing, build it and put
+its folder on your `PATH`:
 
 ```sh
-deno task --cwd packages/cli install
+deno task build:sigil           # packages/cli/target/debug/sigil
+export PATH="$PWD/packages/cli/target/debug:$PATH"
 sigil --version
 ```
 
-That installs a launcher that compiles `packages/cli/src/main.ts` from your working
-tree on every run, so your edits take effect immediately with no reinstall. It
-also prints a harmless warning about the `workspace` field being ignored; see
-[Troubleshooting](#troubleshooting).
+Rebuild after you change the code or switch branches; the binary does not follow
+your tree.
 
 ## The validation workflow
 
-Run these six in order before you open a pull request. This is the same sequence,
+Run these in order before you open a pull request. This is the same sequence,
 in the same order, that [CI](.github/workflows/ci.yml) runs on Ubuntu, macOS, and
 Windows.
 
@@ -110,27 +120,33 @@ Windows.
 deno task fmt
 deno task lint
 deno task check
+cargo fmt --manifest-path packages/core/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/core/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path packages/sigilc/Cargo.toml -- --check
 cargo clippy --locked --manifest-path packages/sigilc/Cargo.toml --all-targets -- -D warnings
+cargo fmt --manifest-path packages/cli/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/cli/Cargo.toml --all-targets -- -D warnings
+cargo fmt --manifest-path packages/lsp/Cargo.toml -- --check
+cargo clippy --locked --manifest-path packages/lsp/Cargo.toml --all-targets -- -D warnings
 deno task test
 ```
 
 | Step           | What it does                                                                                                                                                                   |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `fmt`          | Checks formatting of every tracked TypeScript source, config, and schema path. **It does not reformat anything** — see below.                                                 |
-| `lint`         | Runs `deno lint` across the workspace.                                                                                                                                         |
-| `check`        | Type-checks the core, CLI, and LSP entrypoints, the extension with `tsc --noEmit`, and the slotted benchmark scripts.                                                          |
-| `cargo fmt`    | Checks formatting of `sigilc`. Like `deno task fmt`, it changes nothing.                                                                                                       |
-| `cargo clippy` | Lints `sigilc` and its tests; any warning fails.                                                                                                                               |
-| `test`         | Runs the `sigilc`, core, CLI, LSP, and extension suites, builds `sigilc`, then runs the native protocol, skill, plugin manifest, release branch, and slotted benchmark checks. |
+| `fmt`          | Checks formatting of the repository scripts, the extension's TypeScript, and the config and schema files. **It does not reformat anything** — see below.                       |
+| `lint`         | Runs `deno lint` over the scripts and the extension.                                                                                                                           |
+| `check`        | Type-checks the extension with `tsc --noEmit` and the slotted benchmark scripts.                                                                                               |
+| `cargo fmt`    | Checks formatting of `sigil-core`, `sigilc`, the Rust `sigil` crate and the Rust language server crate. Like `deno task fmt`, it changes nothing.                                                                                                       |
+| `cargo clippy` | Lints `sigil-core`, `sigilc`, the Rust `sigil` crate, the Rust language server crate and their tests; any warning fails.                                                                                                                               |
+| `test`         | Runs the Rust suites of core, the `sigil` command line, the language server and `sigilc`, the extension suites, then the language-server smoke check, the config schema check, and the native protocol, skill, plugin manifest, release branch, and slotted benchmark checks. |
 
 `deno task fmt` is a **check**, not a formatter: it runs `deno fmt --check`, so it
 reports unformatted files and fails without touching them. To actually format, run
-`deno fmt` on what you changed, or `cargo fmt` for `sigilc`:
+`deno fmt` on what you changed, or `cargo fmt` for a crate:
 
 ```sh
-deno fmt packages/core/src packages/core/tests
-cargo fmt --manifest-path packages/sigilc/Cargo.toml
+deno fmt scripts
+cargo fmt --manifest-path packages/core/Cargo.toml
 ```
 
 ### Platform differences
@@ -150,13 +166,14 @@ Code window appears briefly and closes itself.
 **First run downloads VS Code.** The integration suite fetches VS Code stable on
 its first run, so that run needs network access and takes noticeably longer.
 
-**Everything else is cross-platform.** All tasks are plain Deno and npm
+**Everything else is cross-platform.** All tasks are plain Deno, npm and cargo
 invocations with no shell-specific syntax, and CI proves them on all three
 operating systems on every push.
 
-There is one release-only task, `deno task publish:dry-run`, which CI runs on
-Ubuntu only. You rarely need it locally; it verifies that each package would
-publish cleanly and that the extension packages.
+CI also runs `deno task package:vscode` on Ubuntu, which packages the extension
+without a bundled `sigil`. You rarely need it locally. The per-platform packages
+that carry a `sigil` are built by the release workflows; see
+[Cut a release](docs/contributing/releasing.md).
 
 ## Focused tasks
 
@@ -165,10 +182,12 @@ own task:
 
 | Task                              | Scope                                                                                          |
 | --------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `deno task test:core`             | `sigil-core` — the workspace reader in `packages/core/src` (`cargo test`)                     |
 | `deno task test:sigilc`           | `sigilc` — the native compiler's Rust tests (`cargo test`)                                     |
-| `deno task test:core`             | `@qoherent/sigil-core` — parser, resolver, graph, projections, diagnostics                     |
-| `deno task test:cli`              | `@qoherent/sigil` — commands, argument parsing, output formatting                                 |
-| `deno task test:lsp`              | `@qoherent/sigil-lsp` — lifecycle, diagnostics, symbols, hover, semantic tokens                |
+| `deno task test:cli`              | `sigil` — the command line in `packages/cli/src`, replayed against recorded cases (`cargo test`) |
+| `deno task test:lsp`              | `sigil-lsp` — the language server in `packages/lsp/src`, replayed against recorded sessions (`cargo test`) |
+| `deno task test:lsp-smoke`        | A built `sigil lsp` answers a short session on the release fixture                              |
+| `deno task test:config-schema`    | The config JSON Schema agrees with the strict parser on the shared fixture                      |
 | `deno task test:vscode`           | Extension type-check and unit tests. No VS Code launch.                                        |
 | `deno task test:vscode:extension` | Extension integration tests. Launches VS Code.                                                 |
 | `deno task test:skill` | Offline metadata, dependencies, links and 0.9 reference reproduction via [`scripts/validate-skill.ts`](scripts/validate-skill.ts) |
@@ -179,27 +198,19 @@ The skill checks and the slotted benchmark have their own pages:
 [skill checks](docs/contributing/skills.md#the-rules-and-the-check-for-each) and
 [benchmarks](docs/contributing/skills.md#run-the-benchmarks).
 
-To narrow further, call `cargo test` or `deno test` directly. Note that each
-package's task supplies its own permission flags, so reuse them:
+To narrow further, call `cargo test` directly, or `deno test` for a script test.
+Each Deno task supplies its own permission flags, so reuse them:
 
 ```sh
 # One sigilc test file, filtered by test name
 cargo test --manifest-path packages/sigilc/Cargo.toml --test claims_cli refus
 
-# One file (core needs only read access)
-deno test --allow-read packages/core/tests/core_test.ts
+# One core test file, then one test in it
+cargo test --manifest-path packages/core/Cargo.toml --test parser_parity
+cargo test --manifest-path packages/core/Cargo.toml --test parser_parity facet
 
-# One test by name
-deno test --allow-read packages/core/tests/core_test.ts --filter "resolves"
-
-# The CLI suite needs write and run permissions as well
-deno test --allow-read --allow-write --allow-run packages/cli/tests/cli_test.ts
-```
-
-Watch mode is useful while iterating:
-
-```sh
-deno test --allow-read --watch packages/core/tests/core_test.ts
+# One script test (read access is all this one needs)
+deno test --allow-read scripts/config-schema_test.ts
 ```
 
 ## Repository boundaries
@@ -211,19 +222,19 @@ orchestration stay outside the toolchain.
 | Directory                     | Owns                                                                                                                   | Notes                                                                                                                                                                                                                                  |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `docs/spec/`                  | The language reference, grammar, authoring guide, configuration and glossary specifications, their JSON schemas, and the Sigil contracts that describe them | The normative definition is [`docs/spec/sigil-reference.md`](docs/spec/sigil-reference.md) with [`docs/spec/sigil.ebnf`](docs/spec/sigil.ebnf); [`docs/spec/sigil-language.md`](docs/spec/sigil-language.md) is the authoring guide. [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil) owns the implemented language-version literal. |
-| `packages/core/`              | Parsing, configuration, workspace discovery, resolution, graphs, projections, glossary matching, diagnostics           | Pure and deterministic. No semantic judgment, no network, no interactive behavior.                                                                                                                                                     |
-| `packages/cli/`               | The `sigil` command: authored inspection and formatting | Uses core language APIs; never invokes sigilc or models. |
+| `packages/core/`              | `sigil-core`, a Rust library: source capture, parsing, configuration, workspace discovery, resolution, formatting, glossary matching, diagnostics | Pure and deterministic. No semantic judgment, no network, no interactive behavior. Its contract is [`core.sigil`](packages/core/core.sigil). |
+| `packages/cli/`               | The `sigil` command, in Rust: `init`, `version`, `parse`, `check`, `fmt`, `glossary` and `lsp` | Uses `sigil-core`; never invokes sigilc or models. Its contract is [`cli.sigil`](packages/cli/cli.sigil). |
 | `packages/sigilc/` | Native scope, source identity, prepared inputs, disposable worlds, catalogs and fixed semantic gates | Rust; no model runtime or language-specific Implementation adapter. |
-| `packages/lsp/`               | The editor-neutral language server over core                                                                           | LSP 3.18 on stdio.                                                                                                                                                     |
+| `packages/lsp/`               | The editor-neutral language server over core, crate `sigil-lsp`                                                        | LSP 3.18 on stdio, started by `sigil lsp`. Its contract is [`lsp.sigil`](packages/lsp/lsp.sigil). |
 | `skills/` | The seven agent skills: understand, evaluate, write, and align for design work, the two computed checks, and `sigil-egglog` | Shared language pack and evaluator-owned review contract; models execute in the host. See [Work on a skill](docs/contributing/skills.md). |
-| `integrations/editor/vscode/` | The VS Code extension: syntax, bundled LSP startup, semantic tokens, component preview                                 | The only Node.js code in the repository.                                                                                                                               |
+| `integrations/editor/vscode/` | The VS Code extension: syntax, `sigil lsp` startup, semantic tokens, component preview                                 | The only Node.js code in the repository. Ships one package per platform, each carrying its own `sigil`.                                                                |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
-| `scripts/`                    | Release build, skill validation, native protocol checks, and the slotted benchmark                                     |                                                                                                                                                                        |
+| `scripts/`                    | Release build, skill validation, native protocol and language-server checks, and the slotted benchmark                  | Deno scripts; they are the only Deno code in the repository.                                                                                                           |
 | `docs/`                       | End-user [install guides](docs/install/README.md), the quickstart and project setup guide, the specifications in `docs/spec/`, the [contributor guide](docs/contributing/README.md) for skills and releases, and implementation plans in `docs/plans/` |                                                                                                                                                                        |
 
-Dependency direction is one-way: `cli` and `lsp` depend on `core`; the extension
-depends on `lsp` and invokes language export/native gates; the skill depends on no
-package code. A change that inverts any of those arrows needs discussion before
+Dependency direction is one-way: `cli` and `lsp` depend on `core`, and `cli` starts
+the server from `lsp`; the extension runs `sigil lsp` and invokes native gates;
+the skill depends on no package code. A change that inverts any of those arrows needs discussion before
 implementation.
 
 ## Where Sigil belongs
@@ -232,24 +243,18 @@ This repository specifies parts of itself in Sigil. The workspace in
 [`.sigil/config.json`](.sigil/config.json) covers the specifications in
 `docs/spec/` (`SpecLanguageReference`, `SpecWorkspaceConfig`,
 `SpecWorkspaceGlossary`) and the native compiler in `packages/sigilc/`
-(`SigilSemanticCompiler`, `SigilComputedClaims`, and their neighbors). `core`,
-`cli`, `lsp`, and the VS Code extension have no contracts and are excluded from
-the workspace.
+(`SigilSemanticCompiler`, `SigilComputedClaims`, and their neighbors), and the contracts beside `core`,
+`cli`, `lsp` and the VS Code extension. The implementation folders and tests are
+excluded from the workspace.
 
 Before changing behavior in a covered area, find the contract that governs it:
 
 ```sh
-sigil check .                                                       # workspace diagnostics
-sigil context . --component SigilComputedClaims --format markdown   # one contract, readable
-sigil context . --component SpecWorkspaceConfig --include-dependents  # and who relies on it
-sigil graph .                                                       # components and imports
+sigil check .   # workspace diagnostics
 ```
 
-`check` and `context` do not validate the same things. `check` covers syntax,
-configuration, and resolution. `context` additionally scans `@sigil implements`
-annotations across the source tree, so it can exit 1 while `check` exits 0 —
-useful, and worth reading rather than ignoring. Exit codes are `0` clean, `1` error
-diagnostics, `2` bad arguments, `3` host failure.
+`check` covers syntax, configuration, and resolution. Exit codes are `0` clean,
+`1` error diagnostics, `2` bad arguments, `3` host failure.
 
 Placement rules, from the [language guide](docs/spec/sigil-language.md#4-choose-component-and-facet-boundaries)
 and the `sigil-write` skill's
@@ -274,9 +279,8 @@ sections that describe it:
 pub fn run(args: &[&str]) -> Output {
 ```
 
-List only the sections that actually mention that Tag. An annotation naming a
-section the contract does not define is an error, and `sigil context` is what
-reports it.
+List only the sections that actually mention that Tag. An annotation is a
+navigation hint for the next reader; no command verifies it.
 
 Use the language's single-line comment form, its block form when one entrypoint
 carries several annotations, and HTML comments in agent-facing Markdown. Never
@@ -306,7 +310,7 @@ gate do not individually prove full delivery or faithful reconstruction.
 
 `deno task test:native:protocol` executes the documented native commands on
 disposable fixtures. Build both tools first with
-`deno task build:sigilc` and `deno task build:cli`, or set `SIGIL_TEST_LANGUAGE`
+`deno task build:sigilc` and `deno task build:sigil`, or set `SIGIL_TEST_LANGUAGE`
 and `SIGIL_TEST_COMPILER` to the intended binaries. The root test task builds its
 prerequisites. The fixed fixtures exercise the protocol, not independent
 reconstruction of this repository. Release smoke tests cover all six gate states
@@ -344,8 +348,8 @@ git checkout -b my-change
 # 2. Establish a clean baseline before you touch anything.
 deno task test:sigilc
 
-# 3. Find the contract that governs the behavior you are testing.
-sigil context . --component SigilComputedClaims --format markdown
+# 3. Find the contract that governs the behavior you are testing: read
+#    packages/sigilc/claims.sigil.
 ```
 
 Read the contract's `cases` section. If the behavior you want to test is already
@@ -381,7 +385,7 @@ the authority on how they relate:
   the single literal in
   [`docs/spec/sigil-config.sigil`](docs/spec/sigil-config.sigil).
 - **Package artifacts** — independently versioned, owned by each package manifest
-  (`core` 0.8.0, `cli` 0.9.0, `lsp` 0.8.0, and `sigilc` 0.3.0 in its
+  (`core` 0.1.0, `cli` 0.9.0, `lsp` 0.8.0, and `sigilc` 0.3.0, each in its
   `Cargo.toml`).
 - **VS Code extension** — owned by its `package.json`.
 - **Agent skills** — each owns `VERSION` and `compatibility.json` in its
@@ -430,30 +434,17 @@ something unrelated, run the focused tasks instead of `deno task test`.
 **The first extension test run hangs or times out.** It is downloading VS Code
 stable. Confirm network access and let it finish; later runs reuse the download.
 
-**`Warning "workspace" field in the specified config file will be ignored`** when
-running `deno task --cwd packages/cli install`. Harmless. The install task points
-Deno at the root config for import resolution, and Deno notes that it is ignoring
-the workspace list in that context.
-
 **`sigil` on your PATH behaves unexpectedly after switching branches.** The
-development install compiles from your working tree on every run, so it always
-reflects the branch you have checked out. Reinstall with
-`deno task --cwd packages/cli install` only after changing the task itself.
+binary in `packages/cli/target/debug` is whatever you last built. Run
+`deno task build:sigil` again after you pull or switch branches.
 
 **`deno.lock` shows unexpected changes.** The repository commits its lockfile with
 locking enabled. Let Deno update it as a result of a real dependency change,
 review that diff like any other, and do not hand-edit it.
 
 **`cargo fmt` or `cargo clippy` fails in CI but `deno task fmt` passed locally.**
-The Deno tasks do not cover `sigilc`. Run the two `cargo` steps from
+The Deno tasks do not cover the Rust crates. Run the `cargo` steps from
 [The validation workflow](#the-validation-workflow) too.
-
-**`Ownership annotation references section X without a matching occurrence` from
-`sigil context`.** An `@sigil implements` annotation claims a section that does not
-mention its Tag. Either drop that section from the annotation, or add the missing
-occurrence to the contract — the second option is a semantic change and goes
-through the proposal gate. `sigil check` does not catch this, so `sigil context`
-can exit 1 on a workspace that checks clean.
 
 **A test needs a real workspace.** Use the workspaces in `examples/`, or build a
 temporary one in the test as the `sigilc` and CLI suites do, rather than creating
@@ -465,14 +456,12 @@ its workspace.
 
 Open pull requests against `main`. CI runs formatting, linting, type checking, and
 the full test suite on Ubuntu, macOS, and Windows for every push and pull request,
-plus a publish dry run on Ubuntu; all of it must pass.
+plus an extension packaging check on Ubuntu; all of it must pass.
 
 Before you open one:
 
 - the six validation steps pass locally;
 - any `.sigil` change was proposed and approved before it was written;
-- new behavior in an area a contract governs carries an ownership annotation
-  pointing at that contract;
 - a change to text an agent follows in a skill bumps that skill's `VERSION` in the
   same commit, by the [rules for skills](docs/contributing/skills.md#when-to-bump-a-version);
   the CLI version, plugin manifests and installer pin change only in a release-cut

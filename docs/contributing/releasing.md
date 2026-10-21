@@ -18,7 +18,15 @@ is available only to a run on a `cli-v*` tag (see [One-time setup](#one-time-set
 
 On a branch from `main`, in one pull request:
 
-1. Set the new version in `packages/cli/deno.json`.
+1. Set the new version in `packages/cli/Cargo.toml`, the only owner of the
+   CLI version. Refresh `packages/cli/Cargo.lock` with
+   `cargo update --offline -p sigil-cli` (or `cargo check`) so `--locked` builds
+   still pass.
+   Leave `packages/lsp/Cargo.toml` and `packages/lsp/Cargo.lock` alone here: the
+   Rust language server crate (`sigil-lsp`, which `packages/cli` depends on by
+   path) carries its own version, which differs from the CLI's. Change them
+   only in the pull request that bumps the language server, never in the
+   release-cut commit.
 2. Set the same version in every plugin manifest: `.claude-plugin/plugin.json`,
    `.codex-plugin/plugin.json`, `.cursor-plugin/plugin.json`,
    `gemini-extension.json`, `plugin.json` and `package.json`.
@@ -50,12 +58,13 @@ git push origin cli-vX.Y.Z
 
 ## What the workflows do
 
-The tag starts two workflows:
+The tag starts one workflow:
 
-- [`release.yml`](../../.github/workflows/release.yml) checks the tag against the
-  manifest and publishes the CLI package to JSR.
-- [`native-release.yml`](../../.github/workflows/native-release.yml) builds and
-  smoke-tests the archives on every target, then, in order, publishes the GitHub
+- [`native-release.yml`](../../.github/workflows/native-release.yml) builds the
+  Rust `sigil` and `sigilc` for every target on a matching native runner, smoke-tests
+  the archives (relocated, with an empty environment, including a
+  language-server session that opens a document), runs the artifact consumer
+  and the installers against them, then, in order, publishes the GitHub
   release **without** marking it latest, fast-forwards `release` to the tagged
   commit, and marks the release latest. It refuses to move `release` unless the tag
   descends from its current tip and is a newer version, and it never force-pushes.
@@ -70,7 +79,17 @@ The tag starts two workflows:
   Dispatch it from the
   Actions tab on the tag (choose the `cli-vX.Y.Z` tag under "Use workflow from"),
   give the version and turn publishing on; the release environment accepts only
-  tag runs. A dispatch needs the tag to exist, so it is not a dry run.
+  tag runs. A dispatch needs the tag to exist, so it is not a dry run, but with
+  publishing off it builds and tests every target and publishes nothing.
+
+The Linux archives are built on `ubuntu-22.04` runners, so they need glibc 2.35
+or newer.
+
+The VS Code extension has its own tag, `vscode-vX.Y.Z`, and its own workflow,
+[`vscode-release.yml`](../../.github/workflows/vscode-release.yml). It builds the
+`sigil` for each of five platforms, ships it inside that platform's `.vsix`, and
+checks that each package starts its own `sigil`. Dispatching it from a branch
+with publishing off does all of that without a tag or a release.
 
 If the run fails before `release` moves, every agent stays on the previous release.
 If it fails after, only Gemini CLI and the README installer are one release behind

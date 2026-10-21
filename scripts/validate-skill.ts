@@ -1,6 +1,6 @@
 import { deepStrictEqual as equal, ok as assert } from "node:assert/strict";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { SIGIL_VERSION } from "../packages/core/src/model/language.ts";
+import { SIGIL_VERSION } from "./language-version.ts";
 import {
   documentaryLinks,
   localDestination,

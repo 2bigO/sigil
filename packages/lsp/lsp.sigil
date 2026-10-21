@@ -1,0 +1,85 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import { workspace config }
+@docs/spec/sigil-glossary.sigil from SpecWorkspaceGlossary import {
+  glossary context,
+  glossary occurrence,
+  glossary term,
+  workspace glossary,
+}
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import {
+  diagnostic code,
+  facet,
+  source document,
+  tag identity,
+}
+@packages/cli/cli.sigil from SigilCli import { lsp command }
+@packages/core/core.sigil from SigilCore import {
+  caller-supplied text,
+  editor position,
+  workspace snapshot,
+}
+
+component SigilLsp {
+  goal {
+    Give editors the language features of a Sigil workspace over the Language
+    Server Protocol, from the same reading that the sigil command uses.
+  }
+
+  constraints {
+    SigilLsp depends on SigilCore for the workspace snapshot and each editor
+    position, and must not read a source document or a tag identity a second
+    way.
+
+    SigilLsp must report every position as an editor position in UTF-16 units.
+
+    SigilLsp must give SigilCore each open unsaved buffer as caller-supplied text,
+    so that a published diagnostic describes the buffer, and describes the disk
+    file again once the buffer closes.
+
+    SigilLsp must answer each request from one workspace snapshot, so that
+    definition links, tag hover and semantic tokens agree on each tag identity.
+
+    A late reload must not overwrite a newer unsaved buffer, and a request that
+    outlives its workspace snapshot must be answered as content modified.
+
+    SigilLsp must reload the workspace snapshot when a watched source document,
+    the workspace config or the workspace glossary changes.
+
+    Tag hover must show the provider contract with the facet of each consumer
+    that uses the tag identity, and must not show implementation ownership.
+
+    The language server must not add completion, references, rename,
+    formatting or code actions.
+  }
+
+  interface {
+    SigilLsp provides the *language server*, which the lsp command starts. It
+    speaks the Language Server Protocol on standard input and output with
+    initialize, initialized, shutdown and exit, and synchronizes whole open
+    source documents.
+
+    SigilLsp provides each *published diagnostic* with its diagnostic code and
+    related locations, for every diagnostic of the workspace snapshot.
+
+    SigilLsp provides a *definition link* from a tag identity use to the inline
+    definition that owns it, or else to the earliest valid grouping heading,
+    and from a glossary occurrence to its entry in the workspace glossary.
+
+    SigilLsp provides *document symbols* for components, sections, local tag
+    groups and inline definitions.
+
+    SigilLsp provides *tag hover*, and shows a glossary occurrence with its
+    glossary context and the canonical spelling and definition of its glossary
+    term.
+
+    SigilLsp provides *semantic tokens* of type for a component name, tag for a
+    tag identity and term for a glossary occurrence.
+
+    SigilLsp provides the *render command*, sigil.renderDocument, which returns
+    the Markdown of every component declared in one source document.
+  }
+
+  decisions {
+    SigilLsp stays a thin bridge over SigilCore, so that an editor never shows
+    a Tag, a diagnostic or a glossary term that the sigil command would not.
+  }
+}

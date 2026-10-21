@@ -1,8 +1,8 @@
 # sigil-lsp
 
 Implemented pre-production language-server package for editor-facing Sigil
-semantics for language 0.9. The artifact version is declared independently in
-`deno.json`.
+semantics for language 0.9. The crate version, 0.8.0, is declared independently in
+`Cargo.toml`.
 
 The language server should be the reusable bridge between `sigil-core` and
 concrete editor integrations.
@@ -40,17 +40,45 @@ Non-responsibilities:
 - own Codex-specific behavior;
 - replace the CLI for automation.
 
-Run the server locally:
+Run the server through the `sigil` command; it takes no options and speaks the
+protocol on standard input and output:
 
 ```bash
-deno task start
+sigil lsp
 ```
 
-Run package tests:
+The crate is `sigil-lsp`, a library over `sigil-core` in this package's `src/`
+directory; the `sigil` binary in `packages/cli` links it. Its behavior is
+specified by the contract [lsp.sigil](lsp.sigil). The VS Code extension runs
+`sigil lsp`.
+
+Run package tests from the repository root with `deno task test:lsp`, or:
 
 ```bash
-deno task test
+cargo test --manifest-path packages/lsp/Cargo.toml
 ```
+
+The parity tests replay `tests/fixtures/lsp-parity.json`, sessions recorded from
+the earlier TypeScript server, and `packages/cli/tests/lsp.rs` runs a real
+process. `deno task test:lsp-smoke` opens a document in a built `sigil lsp`.
+
+What the server does not do, by contract:
+
+- Hover never lists owned implementations, and there is no ownership scanner.
+- There is no ownership file-watch registration or its cache.
+
+Other behavior to know:
+
+- A client that supports dynamic registration gets one watch registration
+  (`sigil/language-watch`, request id `sigil/watch/request`).
+- A request that has a document change or a relevant file-change event already
+  queued behind it answers content modified, because its answer would be
+  discarded. A burst of edits is applied with one reload.
+- The process exits with status 0 when the editor sends `exit` after
+  `shutdown`, 1 when it sends `exit` without `shutdown`, and 3 when standard
+  input or output fails.
+- A byte-order mark at the start of a file read from disk is hidden in every
+  position, document symbols included, as the editor hides it.
 
 ## Source snapshots and freshness
 
@@ -64,9 +92,6 @@ Late reloads cannot overwrite newer overlays. Pending requests return content
 modified when their workspace generation changes. Closing an overlay restores disk
 content, and older document versions do not overwrite a newer edit.
 
-Clients supporting dynamic registration receive a language workspace watcher and
-the existing precise implementation-source watchers. Source/config changes reload
-the language snapshot; implementation changes invalidate the ownership scan and
-hover cache. Unsupported clients retain document synchronization and reload-based
-freshness. Ownership links remain advisory and retain the consumer scope and
-separate originating Tag owner.
+Clients supporting dynamic registration receive one workspace watcher. Source and
+config changes reload the language snapshot. Unsupported clients retain document
+synchronization and reload-based freshness.

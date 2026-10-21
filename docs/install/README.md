@@ -73,7 +73,7 @@ code, so expect it to change under you.
 ```bash
 git clone https://github.com/qoherent/sigil
 cd sigil
-deno task build:cli       # builds build/sigil
+deno task build:sigil     # builds packages/cli/target/debug/sigil
 deno task build:sigilc    # builds packages/sigilc/target/debug/sigilc
 ```
 

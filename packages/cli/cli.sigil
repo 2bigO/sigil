@@ -1,0 +1,99 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {
+  language version,
+  workspace config,
+  workspace discovery,
+  workspace root,
+}
+@docs/spec/sigil-glossary.sigil from SpecWorkspaceGlossary import {
+  glossary occurrence,
+  workspace glossary,
+}
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import {
+  diagnostic code,
+  source document,
+  source range,
+}
+@packages/core/core.sigil from SigilCore import {
+  formatted source,
+  workspace snapshot,
+}
+
+component SigilCli {
+  goal {
+    Give people and skills one command line, sigil, to check, format and
+    inspect a Sigil workspace, and to start the language server.
+  }
+
+  constraints {
+    SigilCli depends on SigilCore for the workspace snapshot and the formatted
+    source, and must not read a source document by any other path.
+
+    Except for the init command, SigilCli must find the workspace config by
+    workspace discovery from the target path, or the current directory when
+    there is none, or from an explicit workspace root.
+
+    SigilCli must report every diagnostic with its diagnostic code and exit
+    with exit status 1 when any diagnostic is an error.
+
+    The fmt command must write nothing when any selected source document has an
+    error that SigilCore refuses to format, and with its check option must
+    change no file and must exit with exit status 1 when any file is
+    noncanonical.
+
+    The check command must report only the diagnostics of the workspace
+    snapshot, and none about implementation sources.
+
+    SigilCli must treat a removed command, graph, context, retrieve or render,
+    as invalid usage and must not read the workspace for it.
+  }
+
+  interface {
+    SigilCli provides the *init command*, which writes a new workspace config,
+    keeps an existing workspace glossary, and refuses to overwrite a workspace
+    config.
+
+    SigilCli provides the *version command*, which reports the CLI version, the
+    core version and the language version of the workspace.
+
+    SigilCli provides the *parse command*, which reports one source document
+    with a source range for each of its parts.
+
+    SigilCli provides the *check command*, which reports the diagnostics of the
+    workspace and their count for each severity.
+
+    SigilCli provides the *fmt command*, which writes the formatted source of
+    each selected source document that changed, validates every selected
+    source document before it writes, and reports each file as formatted,
+    unchanged, noncanonical or failed.
+
+    SigilCli provides the *glossary command*, which reports the workspace
+    glossary with each glossary occurrence it finds in the workspace.
+
+    SigilCli provides the *lsp command*, which starts the language server on
+    standard input and output for an editor. sigilc stays a separate
+    executable and is not a sigil command.
+
+    SigilCli provides the lsp command with exit status 0 when the editor asks it
+    to shut down and then tells it to exit, or when its input ends, exit status
+    1 when the editor tells it to exit without asking it to shut down, and exit
+    status 3 when standard input or output fails.
+
+    SigilCli provides the *usage text*, shown with exit status 0 for the help
+    option alone or after any command, and the bare CLI version, followed by a
+    newline, for the version option.
+
+    SigilCli provides each command's *output format*, json, text, or markdown,
+    except that the fmt command offers only json and text.
+
+    SigilCli provides *exit status* 0 for success, 1 for an error diagnostic, 2
+    for invalid usage and 3 for a runtime failure.
+
+    SigilCli provides *invalid usage* as the refusal of an unknown command or
+    option, with exit status 2 and nothing on standard output.
+  }
+
+  decisions {
+    SigilCli keeps no language logic, so that every command and the language
+    server read a Sigil workspace the way sigilc does.
+  }
+}

@@ -72,10 +72,6 @@ component SpecWorkspaceConfig {
     SpecWorkspaceConfig provides the *local override*, which may carry only
     tool settings and merges into them, objects recursively and arrays and
     scalars by replacement.
-
-    SpecWorkspaceConfig provides the *implementation selection*, the
-    tool settings that choose which code files an implementation check judges
-    and which design sources it covers.
   }
 
   decisions {

@@ -53,6 +53,15 @@ test("manifest contributes the Sigil language, grammar, and preview command", as
     ].default,
     "sigilc",
   );
+  assert.deepEqual(
+    {
+      type: manifest.contributes.configuration.properties["sigil.executable"]
+        ?.type,
+      default: manifest.contributes.configuration.properties["sigil.executable"]
+        ?.default,
+    },
+    { type: "string", default: "" },
+  );
   assert.equal(
     manifest.contributes.configuration.properties["sigil.compile.profile"],
     undefined,
@@ -149,12 +158,10 @@ test("editor title compile action uses the same focus-selection command as the s
 test("package command derives the VSIX filename from the manifest version", async () => {
   const manifest = JSON.parse(await readFile("package.json", "utf8"));
   const packaging = await readFile("scripts/package-extension.mjs", "utf8");
+  const plan = await readFile("scripts/package-plan.mjs", "utf8");
   assert.equal(manifest.scripts.package.includes("sigil-vscode-0.8.0"), false);
   assert.equal(packaging.includes("manifest.version"), true);
-  assert.equal(
-    packaging.includes("sigil-vscode-${manifest.version}.vsix"),
-    true,
-  );
+  assert.equal(plan.includes("sigil-vscode-${manifestVersion}"), true);
 });
 
 // @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,state,logic,constraints,cases
@@ -204,4 +211,14 @@ test("keeps LSP registration separate from compilation input invalidation", asyn
   assert.equal(source.includes("synchronize:"), false);
   assert.equal(source.includes('createFileSystemWatcher("**/*")'), true);
   assert.equal(source.includes("synchronize:"), false);
+});
+
+// @sigil tests integrations/editor/vscode/_module.sigil::SigilVsCodeExtension::EditorLanguageSupport interface,constraints
+test("the extension runs sigil lsp and bundles no language server of its own", async () => {
+  const build = await readFile("esbuild.mjs", "utf8");
+  assert.equal(build.includes("server.js"), false);
+  assert.equal(build.includes("packages/lsp"), false);
+  const source = await readFile("src/extension.ts", "utf8");
+  assert.equal(source.includes("dist"), false);
+  assert(source.includes('args: ["lsp"]'));
 });

@@ -64,10 +64,11 @@ try {
           "packages/sigilc/target/debug",
           process.platform === "win32" ? "sigilc.exe" : "sigilc",
         ),
+      SIGIL_TEST_BUNDLED: process.env.SIGIL_TEST_BUNDLED ?? "0",
       SIGIL_TEST_LANGUAGE: process.env.SIGIL_TEST_LANGUAGE ??
         path.join(
           repository,
-          "build",
+          "packages/cli/target/debug",
           process.platform === "win32" ? "sigil.exe" : "sigil",
         ),
     },

@@ -1,13 +1,16 @@
-import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { chmod, readFile } from "node:fs/promises";
 import { publishCompilationDiagnostics } from "./diagnostic-projection.ts";
 import path from "node:path";
 import * as vscode from "vscode";
 import {
   LanguageClient,
   RevealOutputChannelOn,
-  type ServerOptions,
-  TransportKind,
 } from "vscode-languageclient/node";
+import {
+  prepareBundledExecutable,
+  resolveServerExecutable,
+} from "./server-executable.ts";
 import {
   type CompilationFocus,
   type CompilationProcess,
@@ -24,6 +27,7 @@ const COMPILE_FILE_COMMAND = "sigil.compileFile";
 const COMPILE_WORKSPACE_COMMAND = "sigil.compileWorkspace";
 const SELECT_COMPILATION_FOCUS_COMMAND = "sigil.selectCompilationFocus";
 let client: LanguageClient | undefined;
+let languageServerQueue: Promise<void> = Promise.resolve();
 let activeCompilation: CompilationProcess | undefined;
 let displayedCompilationRoot: string | undefined;
 let displayedCompilationFocus: CompilationFocus | undefined;
@@ -263,32 +267,91 @@ export async function activate(
     }),
   );
 
-  const serverModule = context.asAbsolutePath(path.join("dist", "server.js"));
-  const serverOptions: ServerOptions = {
-    run: { module: serverModule, transport: TransportKind.stdio },
-    debug: { module: serverModule, transport: TransportKind.stdio },
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration("sigil.executable")) {
+        void restartLanguageServer(context, output);
+      }
+    }),
+  );
+  await restartLanguageServer(context, output);
+}
+
+/** Starts and restarts run one at a time, so a setting change cannot interleave. */
+function restartLanguageServer(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  languageServerQueue = languageServerQueue.then(() =>
+    startLanguageServer(context, output)
+  );
+  return languageServerQueue;
+}
+
+async function startLanguageServer(
+  context: vscode.ExtensionContext,
+  output: vscode.LogOutputChannel,
+): Promise<void> {
+  const previous = client;
+  client = undefined;
+  if (previous) {
+    try {
+      await previous.stop();
+    } catch (error) {
+      output.appendLine(
+        `Could not stop the previous Sigil language server: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+  const executable = resolveServerExecutable({
+    setting: vscode.workspace.getConfiguration("sigil").get<string>(
+      "executable",
+      "",
+    ),
+    extensionPath: context.extensionPath,
+    platform: process.platform,
+    exists: existsSync,
+  });
+  await prepareBundledExecutable(
+    executable,
+    process.platform,
+    chmod,
+    (line) => output.appendLine(line),
+  );
+  const run = {
+    command: executable.command,
+    args: ["lsp"],
+    options: { cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath },
   };
-  client = new LanguageClient(
+  const started = new LanguageClient(
     "sigil",
     "Sigil",
-    serverOptions,
+    { run, debug: run },
     {
       documentSelector: [{ scheme: "file", language: "sigil" }],
       outputChannel: output,
       revealOutputChannelOn: RevealOutputChannelOn.Error,
     },
   );
-
+  client = started;
   try {
-    await client.start();
+    await started.start();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    output.appendLine(`Failed to start Sigil language server: ${message}`);
-    const action = await vscode.window.showErrorMessage(
-      "The Sigil language server failed to start.",
-      "Open Output",
+    output.appendLine(
+      `Failed to start Sigil language server (${executable.command} lsp): ${message}. The executable must be a sigil that supports "sigil lsp"; the sigil.executable setting names it.`,
     );
-    if (action === "Open Output") output.show(true);
+    if (client === started) client = undefined;
+    void started.dispose().catch(() => undefined);
+    // Not awaited: a restart must not wait for the user to dismiss the message.
+    void vscode.window.showErrorMessage(
+      `The Sigil language server failed to start. ${executable.command} must be a sigil that supports "sigil lsp"; set sigil.executable to one.`,
+      "Open Output",
+    ).then((action) => {
+      if (action === "Open Output") output.show(true);
+    });
   }
 }
 
@@ -299,6 +362,7 @@ export async function deactivate(): Promise<void> {
   displayedCompilationRoot = undefined;
   displayedCompilationFocus = undefined;
   workspaceRevisions.clear();
+  await languageServerQueue.catch(() => undefined);
   const running = client;
   client = undefined;
   if (running?.isRunning()) await running.stop();

@@ -639,39 +639,39 @@ cd sigil
 Use `git@github.com:qoherent/sigil.git` instead if you have SSH keys set up for
 GitHub.
 
-2. Install [Deno](https://docs.deno.com/runtime/getting_started/installation/)
+2. Install [Rust](https://www.rust-lang.org/tools/install) 1.91.1 or newer. The
+   `sigil` command line, the language server and the native compiler `sigilc` are
+   Rust. Install [Deno](https://docs.deno.com/runtime/getting_started/installation/)
+   too if you will run the repository's scripts and checks (it is not needed to
+   build or use the tools).
 
-   A fresh Deno install adds `~/.deno/bin` to your `PATH` only for new shells.
-   If `deno` or `sigil` is not found afterwards, open a new terminal or reload
-   your shell:
-
-   ```sh
-   exec $SHELL -l
-   ```
-
-3. Install the Sigil CLI with deno, changes to code are hot reloaded this way:
+3. Build the tools from the clone:
 
 ```sh
-deno task --cwd packages/cli install
-sigil --version
+deno task build:sigil     # packages/cli/target/debug/sigil
+deno task build:sigilc    # packages/sigilc/target/debug/sigilc
 ```
 
-Build the native compiler, `sigilc`, from the same clone with
-`deno task build:sigilc` (Rust 1.91.1 or newer); it lands in
-`packages/sigilc/target/debug`, which you put on your `PATH`. Run its tests with
-`deno task test:sigilc`.
+Without Deno, run `cargo build --manifest-path packages/cli/Cargo.toml` and
+`cargo build --manifest-path packages/sigilc/Cargo.toml`. Put both folders on your
+`PATH`, then check:
 
-The installed command runs this clone, so it follows whichever branch is checked
-out here. To pin one instead, add a detached worktree and install it under its
-own name:
+```sh
+sigil --version
+sigilc --version
+```
+
+The binaries are whatever you last built, so rebuild after you pull or switch
+branches. To keep one build while you work on another, build it in a detached
+worktree and put that worktree's `target/debug` on your `PATH` instead:
 
 ```sh
 git worktree add --detach ../sigil-pinned <branch-or-commit>
-cd ../sigil-pinned
-deno install --global --force --config "$PWD/deno.json" \
-  --allow-read --allow-write --allow-run --allow-env=HOME,USERPROFILE \
-  --name sigil-pinned packages/cli/src/main.ts
+cargo build --manifest-path ../sigil-pinned/packages/cli/Cargo.toml
 ```
+
+Run the tests with `deno task test:core`, `test:cli`, `test:lsp` and
+`test:sigilc`, or the whole set with `deno task test`.
 
 ## Usage
 
@@ -706,7 +706,7 @@ Sigil 0.9.0 workspace and excludes the independent example projects.
   contracts that describe them.
 - `examples/` contains independently configured Sigil projects used as
   design-pressure fixtures.
-- `packages/` contains the shared core, language CLI, native `sigilc` and language server.
+- `packages/` contains `sigil-core`, the `sigil` command line, the language server, and the native `sigilc`, all Rust.
 - `integrations/` contains host adapters such as coding-agent skills, the
   initial VS Code extension, and future editor integrations.
 
@@ -831,8 +831,9 @@ provides authoring explanations and examples.
 
 ## Current Status
 
-The core, CLI, LSP, native `sigilc` 0.3.0 and VS Code integration implement
-Sigil language 0.9.0. `sigilc` writes tree format 1, design reports version 6,
+The Rust core (`sigil-core` 0.1.0), command line (`sigil` 0.9.0), language
+server (`sigil-lsp` 0.8.0), native `sigilc` 0.3.0 and VS Code integration
+implement Sigil language 0.9.0. `sigilc` writes tree format 1, design reports version 6,
 and implementation reports version 1; version 0.3.0 retires the earlier Turtle
 worlds and their commands. These are local, pre-production changes; this
 migration does not publish a release. Artifact versions and legacy requirements
@@ -843,9 +844,9 @@ are listed in [COMPATIBILITY.md](COMPATIBILITY.md). See the
 
 The shared core owns strict source capture, component-owned Tags, explicit
 provider imports, exact references, protected links/payloads, staged recovery,
-workspace boundaries, glossary and ownership projections, graph/context retrieval,
-formatting and source-faithful Design export. The CLI and bundled language server
-use those shared results. VS Code provides navigation, diagnostics, highlighting,
+workspace boundaries, glossary projections,
+formatting and source-faithful Design export. The CLI and the language server
+(`sigil lsp`) use those shared results. VS Code runs `sigil lsp` and provides navigation, diagnostics, highlighting,
 whole-document preview, and runs `sigilc check` and `sigilc align check` to show
 computed findings.
 

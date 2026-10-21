@@ -62,10 +62,6 @@
           "items": {
             "$ref": "#/$defs/trimmedNonEmpty"
           }
-        },
-        "agentContext": {
-          "type": "boolean",
-          "default": true
         }
       }
     },

@@ -2,7 +2,7 @@
 pub mod align;
 pub mod claims;
 pub mod cli;
-pub mod language;
+pub use sigil_core::language;
 pub mod scope;
 pub mod sources;
 pub mod store;

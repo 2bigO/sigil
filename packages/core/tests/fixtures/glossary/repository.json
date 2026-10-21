@@ -1,0 +1,892 @@
+{
+  "glossary": "{\n  \"schemaVersion\": 1,\n  \"terms\": [\n    {\n      \"term\": \"component\",\n      \"definition\": \"A coherent system part whose goal and interface form a reusable public Sigil contract.\",\n      \"aliases\": [\n        \"components\"\n      ]\n    },\n    {\n      \"term\": \"expand\",\n      \"definition\": \"A declaration that contributes operational detail to a matching component without overriding its public contract or other expands.\",\n      \"aliases\": [\n        \"expands\",\n        \"expansion\",\n        \"expansions\"\n      ]\n    },\n    {\n      \"term\": \"public contract\",\n      \"definition\": \"The goal, interface, and public concept identities that a component exposes to dependents.\",\n      \"aliases\": [\n        \"public contracts\"\n      ]\n    },\n    {\n      \"term\": \"concept identity\",\n      \"definition\": \"A reusable identity grouping collective semantic-unit occurrences across a component and its matching expands; it is public when it occurs in interface.\",\n      \"aliases\": [\n        \"concept identities\"\n      ]\n    },\n    {\n      \"term\": \"semantic unit\",\n      \"definition\": \"A blank-line-delimited Sigil prose paragraph, including any directly attached literal block, whose physical wrapping may change without changing semantic identity.\",\n      \"aliases\": [\n        \"semantic units\"\n      ]\n    },\n    {\n      \"term\": \"literal block\",\n      \"definition\": \"An optionally typed backtick-fenced body attached directly to introducing Sigil prose and preserved as uninterpreted content outside semantic-reference and prose-formatting rules.\",\n      \"aliases\": [\n        \"literal blocks\",\n        \"fenced literal block\",\n        \"fenced literal blocks\"\n      ]\n    },\n    {\n      \"term\": \"collected expansion\",\n      \"definition\": \"The aggregate of separately sourced operational contributions from every expand matching a component.\",\n      \"aliases\": [\n        \"collected expansions\",\n        \"collected operational description\",\n        \"collected expand\",\n        \"collected expands\",\n        \"collective expansion\",\n        \"collective expansions\"\n      ]\n    },\n    {\n      \"term\": \"ConfigFile\",\n      \"definition\": \"The strict .sigil/config.json file that declares a workspace's language version, boundary, source selection, and tool configuration.\",\n      \"aliases\": [\n        \".sigil/config.json\",\n        \"config file\"\n      ]\n    },\n    {\n      \"term\": \"workspace boundary\",\n      \"definition\": \"The configured Sigil workspace selected and governed by its eligible ConfigFile.\",\n      \"aliases\": [\n        \"workspace boundaries\"\n      ]\n    },\n    {\n      \"term\": \"configured summary boundary\",\n      \"definition\": \"The workspace root or a declared workspace member that requires an ordinary Brownfield summary component.\",\n      \"aliases\": [\n        \"configured summary boundaries\"\n      ]\n    },\n    {\n      \"term\": \"GlossaryFile\",\n      \"definition\": \"The optional strict .sigil/glossary.json file containing reviewed workspace and bounded-context terminology.\",\n      \"aliases\": [\n        \".sigil/glossary.json\",\n        \"glossary file\"\n      ]\n    },\n    {\n      \"term\": \"bounded context\",\n      \"definition\": \"A path-scoped glossary domain whose terms may replace workspace spellings for sources matched by that context alone.\",\n      \"aliases\": [\n        \"bounded-context\",\n        \"bounded contexts\"\n      ]\n    },\n    {\n      \"term\": \"normative contract\",\n      \"definition\": \"An approved Sigil semantic contract whose wording governs when it conflicts with glossary prose or implementation evidence.\",\n      \"aliases\": [\n        \"normative contracts\"\n      ]\n    },\n    {\n      \"term\": \"Greenfield\",\n      \"definition\": \"A design workflow used when no existing implementation constrains the selected behavior or component.\"\n    },\n    {\n      \"term\": \"Brownfield\",\n      \"definition\": \"An adoption workflow used when relevant implementation exists but Sigil coverage is absent, incomplete, ambiguous, or potentially drifted.\"\n    },\n    {\n      \"term\": \"review gate\",\n      \"definition\": \"The reusable workflow that determines whether a repository mutation is blocked, requires review, or is ready from the exact action, scope, change set, applicable evidence, and explicit user approval.\",\n      \"aliases\": [\n        \"review gates\"\n      ]\n    },\n    {\n      \"term\": \"LanguageVersion\",\n      \"definition\": \"The version literal governing interpretation of Sigil source and workspace configuration.\",\n      \"aliases\": [\n        \"language version\",\n        \"language versions\",\n        \"configured language version\",\n        \"configured language versions\"\n      ]\n    },\n    {\n      \"term\": \"artifact version\",\n      \"definition\": \"The version of a distributable CLI, core, LSP, skill, or editor artifact, owned by that artifact's manifest independently from LanguageVersion.\",\n      \"aliases\": [\n        \"artifact versions\",\n        \"distributable artifact version\",\n        \"distributable artifact versions\"\n      ]\n    },\n    {\n      \"term\": \"workspace root\",\n      \"definition\": \"The directory containing the eligible ConfigFile that defines a Sigil workspace.\",\n      \"aliases\": [\n        \"workspace roots\"\n      ]\n    },\n    {\n      \"term\": \"workspace member\",\n      \"definition\": \"A non-root project boundary explicitly declared by workspace.members within the same configured Sigil workspace.\",\n      \"aliases\": [\n        \"workspace members\",\n        \"declared member\",\n        \"declared members\",\n        \"member root\",\n        \"member roots\",\n        \"declared member root\",\n        \"declared member roots\"\n      ]\n    },\n    {\n      \"term\": \"concept identifier\",\n      \"definition\": \"The source spelling used to denote a Sigil concept identity.\",\n      \"aliases\": [\n        \"concept identifiers\"\n      ]\n    },\n    {\n      \"term\": \"concept namespace\",\n      \"definition\": \"The flat set of local and accessible concept identities resolved for a component and all of its matching expands.\",\n      \"aliases\": [\n        \"concept namespaces\"\n      ]\n    },\n    {\n      \"term\": \"contextual occurrence\",\n      \"definition\": \"A consumer-local occurrence of a concept that preserves the concept's originating identity while recording its use in the current component context.\",\n      \"aliases\": [\n        \"contextual occurrences\"\n      ]\n    },\n    {\n      \"term\": \"deterministic semantics\",\n      \"definition\": \"Structural, configuration, workspace, resolution, graph, projection, and diagnostic facts reproducibly computed by compatible Sigil tools without model-assisted judgment.\",\n      \"aliases\": [\n        \"deterministic facts\",\n        \"deterministic language facts\",\n        \"deterministic core semantics\",\n        \"deterministic Sigil semantics\",\n        \"core semantics\",\n        \"structural facts\"\n      ]\n    },\n    {\n      \"term\": \"semantic judgment\",\n      \"definition\": \"Host-assisted interpretation of intent, rationale, readiness, conflicts, or design quality that remains subject to explicit human review.\",\n      \"aliases\": [\n        \"model-assisted semantic judgment\",\n        \"host-assisted semantic judgment\"\n      ]\n    },\n    {\n      \"term\": \"source range\",\n      \"definition\": \"An exact start-to-end location interval within a Sigil or configuration source.\",\n      \"aliases\": [\n        \"source ranges\",\n        \"source-ranged\"\n      ]\n    },\n    {\n      \"term\": \"partial document\",\n      \"definition\": \"A source-faithful recovered Sigil document that retains usable declarations and semantic content despite structural diagnostics.\",\n      \"aliases\": [\n        \"partial documents\",\n        \"recovered document\",\n        \"recovered documents\",\n        \"recovered source document\",\n        \"recovered source documents\"\n      ]\n    },\n    {\n      \"term\": \"host failure\",\n      \"definition\": \"A filesystem or runtime failure from the host environment; a required-operation host failure propagates to the caller, while a failure during optional enrichment may become a diagnostic when a meaningful primary result remains available.\",\n      \"aliases\": [\n        \"host failures\",\n        \"host filesystem failure\",\n        \"host filesystem failures\",\n        \"host runtime failure\",\n        \"host runtime failures\"\n      ]\n    },\n    {\n      \"term\": \"optional enrichment\",\n      \"definition\": \"Host-side work that augments an already meaningful primary result and may be omitted with a structured diagnostic when it fails.\",\n      \"aliases\": [\n        \"optional enrichments\",\n        \"optional host enrichment\",\n        \"optional host-enrichment\",\n        \"post-resolution ownership enrichment\"\n      ]\n    },\n    {\n      \"term\": \"glossary occurrence\",\n      \"definition\": \"A recognized canonical term or alias in free-form Sigil prose, linked to its effective glossary entry and exact source range.\",\n      \"aliases\": [\n        \"glossary occurrences\"\n      ]\n    },\n    {\n      \"term\": \"glossary projection\",\n      \"definition\": \"The deterministic workspace-wide view of resolved glossary contexts, entries, source occurrences, and diagnostics.\",\n      \"aliases\": [\n        \"glossary projections\"\n      ]\n    },\n    {\n      \"term\": \"glossary context\",\n      \"definition\": \"The scoped subset of a glossary projection relevant to selected Sigil sources and their related expansion sources.\",\n      \"aliases\": [\n        \"glossary contexts\",\n        \"scoped glossary projection\",\n        \"scoped glossary projections\"\n      ]\n    },\n    {\n      \"term\": \"effective glossary entry\",\n      \"definition\": \"A glossary entry applicable to a particular Sigil source after workspace and bounded-context resolution.\",\n      \"aliases\": [\n        \"effective glossary entries\",\n        \"effective entry\",\n        \"effective entries\",\n        \"effective term\",\n        \"effective terms\",\n        \"effective terminology\"\n      ]\n    },\n    {\n      \"term\": \"Decision:\",\n      \"definition\": \"Required by the decision record convention; states the selected course or outcome whose rationale is being recorded.\"\n    },\n    {\n      \"term\": \"Scope:\",\n      \"definition\": \"Required by the decision record convention; states the governed boundary and important exclusions.\"\n    },\n    {\n      \"term\": \"Assumptions:\",\n      \"definition\": \"States materially applicable conditions treated as true when making the decision.\"\n    },\n    {\n      \"term\": \"Trade-offs:\",\n      \"definition\": \"States materially applicable benefits, costs, and tensions accepted by the decision.\"\n    },\n    {\n      \"term\": \"Design issues addressed:\",\n      \"definition\": \"States materially applicable problems or pressures the decision resolves.\"\n    },\n    {\n      \"term\": \"Discarded alternatives:\",\n      \"definition\": \"States materially relevant options not selected and why they were rejected.\"\n    },\n    {\n      \"term\": \"Consequences:\",\n      \"definition\": \"States materially applicable effects and obligations created by the decision.\"\n    },\n    {\n      \"term\": \"Revisit when:\",\n      \"definition\": \"States conditions that should trigger reconsideration of the decision.\"\n    },\n    {\n      \"term\": \"implementation artifact\",\n      \"definition\": \"Source code, configuration, migrations, scripts, workflow instructions, tests, fixtures, metadata, validators, generated assets, or documentation governed as part of implementation.\",\n      \"aliases\": [\n        \"implementation artifacts\"\n      ]\n    },\n    {\n      \"term\": \"implementation alignment\",\n      \"definition\": \"The post-implementation reconciliation loop that compiles and compares an approved implementation with its governing validated written Sigil until no unresolved implementation or contract drift remains.\",\n      \"aliases\": [\n        \"implementation-alignment\"\n      ]\n    },\n    {\n      \"term\": \"implementation mutation\",\n      \"definition\": \"A creation, modification, move, or deletion of an implementation artifact; excludes read-only inspection and exact user-requested rollback of the current agent's unapproved changes.\",\n      \"aliases\": [\n        \"implementation mutations\"\n      ]\n    },\n    {\n      \"term\": \"section selector\",\n      \"definition\": \"A section name in an implementation ownership annotation that identifies an implementation-related section occurrence on the targeted component or concept.\",\n      \"aliases\": [\n        \"section selectors\"\n      ]\n    },\n    {\n      \"term\": \"compilation focus\",\n      \"definition\": \"The user-selected design or implementation question that maps a compilation invocation to architecture-design or current-code-compatibility and its dependency closure.\",\n      \"aliases\": [\n        \"compile focus\"\n      ]\n    },\n    {\n      \"term\": \"graph harmony\",\n      \"definition\": \"Qualitative coherence of ownership, dependency direction, coupling, decomposition, and imported namespace reuse across an inspected Sigil graph neighborhood.\",\n      \"aliases\": [\n        \"graph-harmony\"\n      ]\n    },\n    {\n      \"term\": \"design intake\",\n      \"definition\": \"The pre-authoring assessment that classifies a requested change as mechanical, conversation-required, or context-insufficient from its boundary evidence and material decisions.\",\n      \"aliases\": [\n        \"DesignIntake\",\n        \"design intakes\"\n      ]\n    }\n  ],\n  \"contexts\": [\n    {\n      \"id\": \"WorkspaceConfiguration\",\n      \"include\": [\n        \"docs/spec/sigil-config.sigil\",\n        \"packages/core/**/*.sigil\"\n      ],\n      \"exclude\": [],\n      \"terms\": [\n        {\n          \"term\": \"source selection\",\n          \"definition\": \"ConfigFile include and exclude rules applied to determine which Sigil source documents belong to a loaded workspace.\",\n          \"aliases\": [\n            \"SourceSelection\"\n          ]\n        }\n      ]\n    }\n  ]\n}\n",
+  "files": {
+    "docs/spec/sigil-config.sigil": "@docs/spec/sigil-reference.sigil from SpecLanguageReference import {\n  diagnostic code,\n}\n\ncomponent SpecWorkspaceConfig {\n  goal {\n    Give every Sigil tool one strict workspace config that fixes the\n    workspace root, the language version, and the sources to load.\n  }\n\n  constraints {\n    The workspace config must be strict UTF-8 JSON and must reject unknown keys\n    among the keys it owns.\n\n    The workspace config must not hold package versions, descriptions,\n    authors, or licenses.\n\n    A workspace member must be a unique, non-overlapping directory inside the\n    workspace root that holds no workspace config of its own.\n\n    A package manifest must not create a workspace member.\n\n    A tool must neither check nor interpret the content of tool settings that\n    it does not own.\n\n    A nested workspace config that the source selection includes must be an\n    error, while one inside an excluded subtree defines an\n    independent workspace that is not a workspace member.\n\n    A tool must report a missing workspace config as an error and must not\n    guess a source selection.\n\n    A tool must report each workspace config failure with its diagnostic code.\n    SpecWorkspaceConfig depends on SpecLanguageReference for the\n    diagnostic code.\n\n    Without an explicit workspace root, workspace discovery must use the\n    nearest ancestor workspace config, and with one, the workspace config must\n    sit directly in it.\n  }\n\n  interface {\n    SpecWorkspaceConfig provides the *workspace config*, a JSON file held in\n    the .sigil directory of the workspace root that names the\n    language version, the workspace, and the source selection.\n\n    SpecWorkspaceConfig provides the *workspace root*, the directory that\n    contains the .sigil directory holding the workspace config, and from which\n    every import and source path is measured.\n\n    SpecWorkspaceConfig provides the *language version*, currently 0.9.0, which\n    tells a tool which grammar and rules to apply to every source in the\n    workspace.\n\n    SpecWorkspaceConfig provides the *source selection*, the include and\n    exclude globs matched against paths relative to the workspace root, where\n    exclusion wins over inclusion.\n\n    SpecWorkspaceConfig provides the *workspace member*, an additional project\n    directory that only the workspace config can declare.\n\n    SpecWorkspaceConfig provides the *independent workspace*, a workspace with\n    its own workspace config inside an excluded subtree, which is not a\n    workspace member.\n\n    SpecWorkspaceConfig provides *workspace discovery*, the search for the\n    workspace config from a target path or an explicit workspace root.\n\n    SpecWorkspaceConfig provides the *tool settings*, one namespaced object\n    per tool, which the workspace config carries for the tool that owns it.\n\n    SpecWorkspaceConfig provides the *local override*, which may carry only\n    tool settings and merges into them, objects recursively and arrays and\n    scalars by replacement.\n  }\n\n  decisions {\n    The workspace config holds identity, discovery, and tool settings only, so\n    that core, the CLI, the language server, and sigilc all read one file while\n    only sigilc interprets its own tool settings.\n  }\n}\n",
+    "docs/spec/sigil-glossary.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {\n  workspace root,\n}\n@docs/spec/sigil-reference.sigil from SpecLanguageReference import {\n  facet,\n  name matching,\n  source range,\n  tag identity,\n}\n\ncomponent SpecWorkspaceGlossary {\n  goal {\n    Give a workspace one reviewed vocabulary so that tools and editors\n    recognize the same terms in design prose.\n  }\n\n  constraints {\n    A workspace glossary must not change Sigil syntax, create a tag identity,\n    or rename a tag identity to match a glossary term.\n\n    A glossary term must not override a facet, and the facet stays normative\n    when the two conflict.\n\n    Two glossary context entries must not claim the same source.\n\n    Reporting a workspace glossary must be read-only and must not extract,\n    propose, or change a glossary term.\n\n    A glossary occurrence must follow name matching, except that it ignores\n    case.\n  }\n\n  interface {\n    SpecWorkspaceGlossary provides the *workspace glossary*, an optional,\n    strict JSON file under the workspace root that people review and commit.\n    Its absence is valid.\n\n    SpecWorkspaceGlossary provides the *glossary term*, a canonical spelling\n    with a definition and aliases, which an agent-context flag can hide from\n    agent-facing context without affecting validation or editor features.\n\n    SpecWorkspaceGlossary provides the *glossary context*, a bounded set of\n    sources chosen by globs, inside which its glossary term entries replace\n    the workspace spelling.\n\n    SpecWorkspaceGlossary provides the *glossary occurrence*, a glossary term\n    found in facet prose by name matching, with its canonical term, matched\n    spelling, owner, and source range.\n  }\n\n  decisions {\n    The workspace glossary stays apart from Sigil syntax, so that accepted\n    Sigil remains the normative design while people review the vocabulary.\n  }\n}\n",
+    "docs/spec/sigil-reference.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {\n  language version,\n  source selection,\n  workspace root,\n}\n\ncomponent SpecLanguageReference {\n  goal {\n    Define the Sigil language so that every tool parses, resolves, and\n    reports a design the same way.\n  }\n\n  constraints {\n    A tool must not report a facet as satisfied when its meaning cannot be\n    established under the interpretation boundary.\n\n    A tag import must not create a namespace, a re-export, or a runtime call.\n\n    A tag import must resolve only to a source that the source selection\n    includes, by a path inside the workspace root. SpecLanguageReference\n    depends on SpecWorkspaceConfig for the language version, the\n    source selection, and the workspace root.\n\n    A tool that cannot process the language version must report the\n    diagnostic code SIGIL_UNSUPPORTED_VERSION and must not interpret the\n    source under another language version.\n\n    A formatter must not rewrite a partial result as if recovery had made it\n    valid.\n\n    A tool must not choose between the grammar and the reference when they\n    conflict, because the conflict is a specification defect.\n\n    Wrapping to the formatting width must not split a tag identity or change\n    a facet.\n  }\n\n  interface {\n    SpecLanguageReference provides the *Sigil language*, whose sources every\n    tool parses, resolves, and reports under one language version.\n\n    SpecLanguageReference provides the *grammar*, the EBNF productions that\n    define syntax, while the reference supplies the lexical algorithms and\n    contextual conditions.\n\n    SpecLanguageReference provides seven *contract section* kinds in one\n    canonical order, and every component must have a goal and an interface.\n\n    SpecLanguageReference provides the *facet*, the finest authored unit,\n    which keeps its owning component, contract section, and source range.\n\n    SpecLanguageReference provides the *tag identity*, an exact,\n    case-sensitive name owned by one component and declared in one source.\n    A duplicate or ambiguous tag identity has no winner by source order.\n\n    SpecLanguageReference provides the *source document*, one UTF-8 Sigil\n    source whose lines, declarations, and facets are kept as written.\n\n    SpecLanguageReference provides *embedded content*, one fenced payload that\n    follows its introducing prose directly. The *opening fence* must stay\n    adjacent to that prose, and an *unclosed fence* keeps the rest of the\n    source as payload.\n\n    SpecLanguageReference provides *resolution*, which settles each name and\n    import to one owner and leaves an ambiguous name unresolved.\n\n    SpecLanguageReference provides *name matching*, the rules that find a name\n    in facet prose: eligible regions, word boundaries, connector runs, and the\n    longest match.\n\n    SpecLanguageReference provides the *tag import*, an explicit selection of\n    a tag identity from one provider component in one source file. Only a\n    tag identity that the provider interface evidences is importable.\n\n    SpecLanguageReference provides the *source range*, a half-open span of\n    original UTF-8 bytes taken before formatting or name processing.\n\n    SpecLanguageReference provides the *diagnostic code* for each language or\n    workspace violation, with its stage, severity, and related locations, so\n    every tool reports the same failure the same way.\n\n    SpecLanguageReference provides the *partial result* that a parser may\n    return for invalid input. It keeps the invalidity and the source range and\n    is never acceptance.\n\n    SpecLanguageReference provides the *formatting width*, at most 79 content\n    characters per prose line, not counting indentation or link destinations,\n    wrapped only at whitespace.\n\n    SpecLanguageReference provides the *interpretation boundary*. Parsing,\n    validation, and resolution establish structure and ownership, and none of\n    them establishes runtime behavior, conformance, or a test result.\n  }\n\n  decisions {\n    The reference and the grammar form one specification, so that core, the\n    language server, the CLI, and the skill language pack read one definition.\n  }\n}\n",
+    "integrations/editor/vscode/extension.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {\n  tool settings,\n  workspace root,\n}\n@docs/spec/sigil-reference.sigil from SpecLanguageReference import { source document }\n@packages/cli/cli.sigil from SigilCli import { lsp command }\n@packages/lsp/lsp.sigil from SigilLsp import {\n  language server,\n  render command,\n}\n@packages/sigilc/claims.sigil from SigilComputedClaims import { ComputedFindings }\n@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { CompilerCommands }\n\ncomponent SigilVsCodeExtension {\n  goal {\n    Give VS Code users Sigil editing support and a one-step compile, using the\n    sigil language server and the sigilc compiler.\n  }\n\n  constraints {\n    SigilVsCodeExtension depends on SigilLsp for the language server and on\n    SigilSemanticCompiler for the CompilerCommands, and must not parse or\n    resolve a source document itself.\n\n    The extension must start the language server by running the lsp command,\n    and must not bundle a language server of its own.\n\n    The extension must support only a trusted workspace whose workspace root is\n    a folder on disk.\n\n    The extension must show each of the ComputedFindings as an editor\n    diagnostic, with the law that produced it as its code, and as a status\n    entry, and must mark the result stale when a workspace input or a compile\n    setting changes after the compile began.\n\n    The extension must run a compile through the CompilerCommands and must not\n    change any source document.\n  }\n\n  interface {\n    SigilVsCodeExtension provides the *Sigil grammar*, the syntax highlighting\n    and bracket rules for .sigil files.\n\n    SigilVsCodeExtension provides the *component preview*, a read-only Markdown\n    view of the active source document, which comes from the render command.\n\n    SigilVsCodeExtension provides *compile file* and *compile workspace*,\n    which run a compile for the active file or for the whole workspace root and\n    show its result.\n\n    SigilVsCodeExtension provides the *compile focus*, design or\n    implementation. Design judges design readiness. Implementation compares the\n    code that the tool settings select with the design. The compile focus\n    setting chooses one, or asks each time, except that compile file on a\n    source document is always design.\n\n    SigilVsCodeExtension provides the *compile executable setting*,\n    sigil.compile.executable, the path of the sigilc compiler, which defaults\n    to sigilc.\n\n    SigilVsCodeExtension provides the *compile focus setting*,\n    sigil.compile.focus, with the values ask, design or implementation, which\n    defaults to ask.\n  }\n\n  decisions {\n    SigilVsCodeExtension stays a thin client, so that VS Code shows the same\n    Sigil results as the command line.\n  }\n}\n",
+    "packages/cli/cli.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {\n  language version,\n  workspace config,\n  workspace discovery,\n  workspace root,\n}\n@docs/spec/sigil-glossary.sigil from SpecWorkspaceGlossary import {\n  glossary occurrence,\n  workspace glossary,\n}\n@docs/spec/sigil-reference.sigil from SpecLanguageReference import {\n  diagnostic code,\n  source document,\n  source range,\n}\n@packages/core/core.sigil from SigilCore import {\n  formatted source,\n  workspace snapshot,\n}\n\ncomponent SigilCli {\n  goal {\n    Give people and skills one command line, sigil, to check, format and\n    inspect a Sigil workspace, and to start the language server.\n  }\n\n  constraints {\n    SigilCli depends on SigilCore for the workspace snapshot and the formatted\n    source, and must not read a source document by any other path.\n\n    Except for the init command, SigilCli must find the workspace config by\n    workspace discovery from the target path, or the current directory when\n    there is none, or from an explicit workspace root.\n\n    SigilCli must report every diagnostic with its diagnostic code and exit\n    with exit status 1 when any diagnostic is an error.\n\n    The fmt command must write nothing when any selected source document has an\n    error that SigilCore refuses to format, and with its check option must\n    change no file and must exit with exit status 1 when any file is\n    noncanonical.\n\n    The check command must report only the diagnostics of the workspace\n    snapshot, and none about implementation sources.\n\n    SigilCli must treat a removed command, graph, context, retrieve or render,\n    as invalid usage and must not read the workspace for it.\n  }\n\n  interface {\n    SigilCli provides the *init command*, which writes a new workspace config,\n    keeps an existing workspace glossary, and refuses to overwrite a workspace\n    config.\n\n    SigilCli provides the *version command*, which reports the CLI version, the\n    core version and the language version of the workspace.\n\n    SigilCli provides the *parse command*, which reports one source document\n    with a source range for each of its parts.\n\n    SigilCli provides the *check command*, which reports the diagnostics of the\n    workspace and their count for each severity.\n\n    SigilCli provides the *fmt command*, which writes the formatted source of\n    each selected source document that changed, validates every selected\n    source document before it writes, and reports each file as formatted,\n    unchanged, noncanonical or failed.\n\n    SigilCli provides the *glossary command*, which reports the workspace\n    glossary with each glossary occurrence it finds in the workspace.\n\n    SigilCli provides the *lsp command*, which starts the language server on\n    standard input and output for an editor. sigilc stays a separate\n    executable and is not a sigil command.\n\n    SigilCli provides each command's *output format*, json, text, or markdown,\n    except that the fmt command offers only json and text.\n\n    SigilCli provides *exit status* 0 for success, 1 for an error diagnostic, 2\n    for invalid usage and 3 for a runtime failure.\n\n    SigilCli provides *invalid usage* as the refusal of an unknown command or\n    option, with exit status 2 and nothing on standard output.\n  }\n\n  decisions {\n    SigilCli keeps no language logic, so that every command and the language\n    server read a Sigil workspace the way sigilc does.\n  }\n}\n",
+    "packages/core/core.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {\n  language version,\n  local override,\n  source selection,\n  tool settings,\n  workspace config,\n  workspace discovery,\n  workspace member,\n  workspace root,\n}\n@docs/spec/sigil-glossary.sigil from SpecWorkspaceGlossary import {\n  glossary occurrence,\n  workspace glossary,\n}\n@docs/spec/sigil-reference.sigil from SpecLanguageReference import {\n  diagnostic code,\n  embedded content,\n  facet,\n  formatting width,\n  name matching,\n  partial result,\n  resolution,\n  source document,\n  source range,\n  tag identity,\n}\n\ncomponent SigilCore {\n  goal {\n    Give the sigil command, the language server and sigilc one reader of a\n    Sigil workspace, so that each reports the same sources, Tags and\n    diagnostics.\n  }\n\n  constraints {\n    SigilCore depends on SpecLanguageReference for the source document,\n    resolution and name matching, and must not read them a second way.\n\n    SigilCore must report each source range as original UTF-8 bytes, and\n    converting a source range to an editor position must not change it.\n\n    An editor position must count UTF-16 units from the start of its line,\n    count a byte-order mark and each supplementary character, and start a new\n    line at each CR, LF and CRLF.\n\n    SigilCore must read the workspace config, each workspace member, the local\n    override and the workspace glossary from the workspace root, and must find\n    the workspace config by workspace discovery.\n\n    SigilCore must hand each tool its tool settings merged from the workspace\n    config and the local override, check only their shape, and must not\n    interpret the tool settings of a tool that owns them.\n\n    SigilCore must read a source document from caller-supplied text in place\n    of the file on disk, with the same result as if the file held that text.\n\n    SigilCore must build every result of one reading from a single workspace\n    snapshot, so that diagnostics, tag identities and glossary occurrences\n    agree on each source range.\n\n    SigilCore must refuse to format a partial result and must refuse a source\n    document with any error except a line over the formatting width, which\n    formatting can repair.\n\n    SigilCore must not provide graph output, context output, retrieval,\n    projections or implementation ownership for a source document.\n  }\n\n  interface {\n    SigilCore provides the *workspace snapshot*, one reading of the workspace\n    config with its tool settings merged with the local override, every source\n    document chosen by the source selection, the\n    workspace glossary, and the diagnostics found, in a stable order. A source\n    document that is invalid appears with its partial result.\n\n    SigilCore provides each *editor position* beside its source range: a line\n    and a column in UTF-16 units.\n\n    SigilCore provides *caller-supplied text*, which replaces the disk content\n    of one file for one reading and leaves the disk untouched.\n\n    SigilCore provides each diagnostic with its diagnostic code, source range\n    and editor position.\n\n    SigilCore provides each resolved tag identity with its owner and every use\n    of it, and leaves a duplicate or ambiguous tag identity unresolved.\n\n    SigilCore provides each glossary occurrence found in facet prose, as the\n    workspace glossary defines it.\n\n    SigilCore provides the *formatted source* of a source document: prose\n    wrapped to the formatting width, with every facet, tag identity and\n    embedded content unchanged, and the same bytes on a second formatting.\n\n    SigilCore provides the language version found in the workspace config, so\n    that a tool can refuse a language version it cannot process.\n  }\n\n  decisions {\n    SigilCore reads only the general settings of the workspace config and hands\n    each tool its tool settings unread, so that one reader serves every tool\n    while each tool interprets its own.\n  }\n}\n",
+    "packages/lsp/lsp.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import { workspace config }\n@docs/spec/sigil-glossary.sigil from SpecWorkspaceGlossary import {\n  glossary context,\n  glossary occurrence,\n  glossary term,\n  workspace glossary,\n}\n@docs/spec/sigil-reference.sigil from SpecLanguageReference import {\n  diagnostic code,\n  facet,\n  source document,\n  tag identity,\n}\n@packages/cli/cli.sigil from SigilCli import { lsp command }\n@packages/core/core.sigil from SigilCore import {\n  caller-supplied text,\n  editor position,\n  workspace snapshot,\n}\n\ncomponent SigilLsp {\n  goal {\n    Give editors the language features of a Sigil workspace over the Language\n    Server Protocol, from the same reading that the sigil command uses.\n  }\n\n  constraints {\n    SigilLsp depends on SigilCore for the workspace snapshot and each editor\n    position, and must not read a source document or a tag identity a second\n    way.\n\n    SigilLsp must report every position as an editor position in UTF-16 units.\n\n    SigilLsp must give SigilCore each open unsaved buffer as caller-supplied text,\n    so that a published diagnostic describes the buffer, and describes the disk\n    file again once the buffer closes.\n\n    SigilLsp must answer each request from one workspace snapshot, so that\n    definition links, tag hover and semantic tokens agree on each tag identity.\n\n    A late reload must not overwrite a newer unsaved buffer, and a request that\n    outlives its workspace snapshot must be answered as content modified.\n\n    SigilLsp must reload the workspace snapshot when a watched source document,\n    the workspace config or the workspace glossary changes.\n\n    Tag hover must show the provider contract with the facet of each consumer\n    that uses the tag identity, and must not show implementation ownership.\n\n    The language server must not add completion, references, rename,\n    formatting or code actions.\n  }\n\n  interface {\n    SigilLsp provides the *language server*, which the lsp command starts. It\n    speaks the Language Server Protocol on standard input and output with\n    initialize, initialized, shutdown and exit, and synchronizes whole open\n    source documents.\n\n    SigilLsp provides each *published diagnostic* with its diagnostic code and\n    related locations, for every diagnostic of the workspace snapshot.\n\n    SigilLsp provides a *definition link* from a tag identity use to the inline\n    definition that owns it, or else to the earliest valid grouping heading,\n    and from a glossary occurrence to its entry in the workspace glossary.\n\n    SigilLsp provides *document symbols* for components, sections, local tag\n    groups and inline definitions.\n\n    SigilLsp provides *tag hover*, and shows a glossary occurrence with its\n    glossary context and the canonical spelling and definition of its glossary\n    term.\n\n    SigilLsp provides *semantic tokens* of type for a component name, tag for a\n    tag identity and term for a glossary occurrence.\n\n    SigilLsp provides the *render command*, sigil.renderDocument, which returns\n    the Markdown of every component declared in one source document.\n  }\n\n  decisions {\n    SigilLsp stays a thin bridge over SigilCore, so that an editor never shows\n    a Tag, a diagnostic or a glossary term that the sigil command would not.\n  }\n}\n",
+    "packages/sigilc/align.sigil": "@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { CompilerCommands }\n\ncomponent SigilImplementationClaims {\n  goal {\n    Apply *ImplementationLaws* to caller supplied readings of whole files and\n    stored design claims, reporting whether selected implementation scope\n    satisfies the design or has drift.\n  }\n\n  constraints {\n    *CodeVocabulary* The unit is a whole file. No language parser or source\n    annotation supplies a mapping, and file location alone does not establish\n    component membership. Keep unmapped elements visible.\n\n    *FileReadings* Accept only data rows within the presented names and file\n    binding. A bad row refuses that file's answer; an empty or elementless\n    answer leaves it unread.\n  }\n\n  cases {\n    CodeVocabulary A code element may be mapped to a component and a Tag it\n    delivers. A test mapping records what it exercises, but does not establish\n    production membership or delivery.\n\n    *FileRequests* Report a selected empty file, skipped symlink, automatically\n    excluded design file, and unpresentable file as distinct selection outcomes.\n  }\n\n  interface {\n    CodeVocabulary Publish accepted row shapes, element kinds, action\n    relations, measure names, and vocabulary generation for implementation\n    readings. Observation rows are separate from interpreter supplied mappings.\n\n    *CodeGuidance* Publish compiled code reading guidance with its own\n    fingerprint and vocabulary generation. Extract copies only to a named path\n    outside the workspace under validation.\n\n    FileRequests Present each selected, readable whole file with its source\n    bytes, design names, admitted design claims, relevant Facet context, and\n    code guidance. Bind each request to path and content, names, effective\n    selection, guidance, and vocabulary generation. Report empty, skipped,\n    excluded, and unpresentable files separately.\n\n    *AlignCommands* CompilerCommands Provide align prepare, align ingest, and\n    align check in sigilc. Prepare reads workspace selection and refuses a\n    nonempty output directory. Ingest admits one file against its binding. Check\n    reuses fresh readings and reports which files need new readings. No command\n    launches an interpreter.\n\n    ImplementationLaws Compare admitted code observations with scoped design\n    commitments. Derive component membership, Tag delivery, dependencies through\n    observed actions, exclusions, required state owners, exclusive ownership,\n    and numeric budgets. Count rightful members as owners and keep unmapped code\n    visible. Test elements never establish production delivery or ownership.\n\n    *AlignCheck* Check the complete linked design before comparing the selected\n    implementation scope. Return Incomplete for incomplete or disjoint design,\n    unread code, or unpresentable files; Drift for disagreements, undesigned\n    files or elements, and unanswered promises. With complete inputs and no\n    alignment findings, return Closed when the linked design has no findings,\n    or Converged when it has findings without contradictions or ownership\n    conflicts. Closed and Converged exit zero; Drift and Incomplete exit one.\n    No command launches an interpreter.\n\n    *LocatedFindings* Write a versioned workspace report and judgment context\n    under claims. Findings identify the law, supporting design claims, code rows,\n    and locations in whole-file source bytes. Include incomplete reasons, unread\n    files, undesigned code, unanswered promises, selection details, and identity\n    data.\n\n    FileReadings Store admitted readings by content, code guidance, and\n    vocabulary identities so path renames can reuse them. Request new readings\n    when code, cited names, component membership promises, or relevant\n    undesigned names change. Re-ingesting an identical answer makes no write.\n  }\n}\n",
+    "packages/sigilc/claims.sigil": "@packages/sigilc/vocabulary.sigil from SigilClaimsVocabulary import { AcceptedVocabulary, AtomDiscipline }\n@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { CompilerCommands }\n\ncomponent SigilComputedClaims {\n  goal {\n    Derive design results from caller supplied readings under\n    AcceptedVocabulary, and return the computed report and evidence for review.\n  }\n\n  constraints {\n    *ClaimsCommands* CompilerCommands The external interpretation is supplied\n    by the caller;\n    sigilc launches no model or worker. Reusing a stored interpretation reuses\n    caller data. A check is incomplete when a design unit has no valid reading\n    or an import cannot be resolved.\n\n    *ReturnedClaims* Apply AtomDiscipline to the complete artifact and\n    AcceptedVocabulary to row names. Accepted claims do not prove the source\n    prose or interpretation is true. A defective data row can make its unit\n    unread without discarding other valid units.\n\n    *SectionAwareClosure* The source trees are read-only. Laws are tool-owned;\n    findings and stored readings are written under the selected claims store.\n  }\n\n  cases {\n    ReturnedClaims A rule beside a valid row refuses the complete artifact\n    under AtomDiscipline. A claim naming an entity outside its Facet's presented\n    names refuses that unit. A malformed row refuses only its Facet or Logic\n    section when other rows remain valid.\n\n    SectionAwareClosure A required Constraints claim raises an obligation;\n    the same claim in Decisions raises none. A reading row records a read Facet\n    with no commitment. An uninterpreted required Facet remains a named gap.\n  }\n\n  interface {\n    *CompiledGuidance* Publish accepted row forms, contract roles, examples, and\n    refusal rules to the external interpreter. Guidance is compiled with the\n    executable and its fingerprint identifies the guidance and claim vocabulary.\n    Extracted copies are written only to a named path outside the workspace\n    under check.\n\n    *InterpretationRequest* Project one design source and the interface Facets\n    of imported components. Present each source Facet with its role, prose,\n    resolved names, stable identity, and a short handle. Preserve the source's\n    physical Facet order, including Logic Facets. Bind the request to source\n    interfaces, guidance, and vocabulary generation. Preparation asks only for\n    stale units; Logic is requested as a section flow while each Facet keeps its\n    own row identity.\n\n    ReturnedClaims Accept only data rows described by AcceptedVocabulary.\n    Mint claim and flow identities in the tool, fill contract roles from the\n    source, and resolve names only against the selected source and imported\n    interfaces. Compare an optional repeat interpretation with the first as a\n    stability observation; the first remains the basis of findings.\n\n    SectionAwareClosure Saturate tool-authored laws over accepted claims to\n    derive commitments, contradictions, reachability, ownership conflicts, and\n    unmet obligations. Decisions claims are retained but derive no commitments;\n    assumed claims raise an obligation to state their basis. Logic steps form a\n    flow graph per component section, with explicit ends and guards. Report\n    unreachable steps, defective rows, and unguarded flows without treating\n    model flow readings as design-level contradictions.\n\n    *ComputedFindings* Report findings with their producing law, supporting\n    claims or flow steps, and Facet spans tied to source-byte digests. Identify\n    unread units, unresolved imports, warnings, and interpretation\n    disagreements. A linked check reports each finding to every source that\n    authored a named part. Identical source inputs, readings, and runtime\n    identity reproduce the report.\n\n    *JudgmentContext* Write one entry per selected source unit, with its\n    interpretation, derived facts, obligation state, provenance, and gaps. Write\n    a prose-free review view and evidence mapping aliases to the exact source\n    bytes used by the linked check.\n\n    ClaimsCommands Provide prepare, ingest, check, and guidance extraction.\n    Preparation writes requests for external interpretation; ingest validates\n    a binding and stores accepted readings; check links stored readings and runs\n    laws. Exit zero for completed pass or warning, one for gate failure or\n    incomplete check, two for usage or refused input, and three for operational\n    failure. A Disjoint design or saturation limit breach fails the gate.\n  }\n}\n",
+    "packages/sigilc/compiler.sigil": "component SigilSemanticCompiler {\n  goal {\n    Turn authored Sigil sources into resolved SourceTrees, compute design\n    results from caller supplied language interpretation, and compare design\n    commitments with supplied implementation readings.\n  }\n\n  interface {\n    *language interpretation* Caller supplied semantic readings consumed by\n    computed design claims; the compiler does not invoke a model.\n\n    *CompilerCommands* Provide one native executable for tree inspection,\n    computed design claims, implementation alignment, and disposable cache\n    cleanup. The executable launches no model or interpreter; callers prepare\n    and supply external readings.\n\n    *SourceTrees* Parse each source into a content-addressed tree and resolve\n    names against imported component interfaces. Expose trees and optional\n    Facet differences through the tree command.\n  }\n}\n",
+    "packages/sigilc/config.sigil": "@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {\n  tool settings,\n  workspace root,\n}\n@docs/spec/sigil-reference.sigil from SpecLanguageReference import { source document }\n@packages/core/core.sigil from SigilCore import { workspace snapshot }\n\ncomponent SigilCompilerConfig {\n  goal {\n    Give sigilc one strict reading of its own settings, so that an\n    implementation check judges the code files and design sources that the\n    workspace owner selected.\n  }\n\n  constraints {\n    SigilCompilerConfig depends on SigilCore for the tool settings of the\n    workspace snapshot, and must not read the workspace config or the local\n    override from disk itself.\n\n    SigilCompilerConfig must read only the sigilc namespace of the tool\n    settings, and must not check or interpret the tool settings of another\n    tool.\n\n    SigilCompilerConfig must reject an unknown key in the sigilc namespace, an\n    empty string, a field of the wrong type, and a design root that is not a\n    source document of the workspace.\n\n    An implementation check must require the implementation selection and\n    must not guess a code selection when it is absent.\n\n    Every path in the implementation selection must be measured from the\n    workspace root.\n  }\n\n  interface {\n    SigilCompilerConfig provides the *implementation selection*, the code\n    paths, directories, include and exclude globs, vendor directories and\n    empty allowance that choose which code files an implementation check\n    judges, and the optional design roots that choose which source documents\n    it covers.\n  }\n\n  decisions {\n    The implementation selection lives with sigilc, so that the shared\n    workspace config stays free of settings that only one tool interprets.\n  }\n}\n",
+    "packages/sigilc/scope.sigil": "@packages/sigilc/sources.sigil from SigilSourceIdentity import { CompilerInputSelection }\n\ncomponent SigilComparisonScope {\n  goal {\n    Resolve requested roots into reproducible *DesignMembership* and\n    implementation selection for library callers.\n  }\n\n  constraints {\n    *StructuralScope* Accept version 1 scope input with workspace-relative design\n    roots and an implementation selection. Reject unknown fields, duplicate or\n    missing roots, paths outside the workspace, and empty selections unless\n    explicitly allowed. compiler.sigil is an ordinary source; imports do not\n    imply runtime calls or semantic dependence.\n  }\n\n  cases {\n    *DependencyClosure* Selecting a source that imports another includes the\n    provider and records why it was included. Cycles include each source once.\n    An unresolved import adds no target and remains a diagnostic on its source.\n\n    *ScopeChanges* Reordering roots changes focus order while preserving\n    membership identity. Removing a source from membership does not delete it or\n    its stored reading.\n  }\n\n  interface {\n    *ScopeInput* Resolve a versioned scope object containing ordered design roots\n    and a CompilerInputSelection for implementation sources. Report malformed\n    input as an error and expose resolution as a library operation, without\n    adding a scope command.\n\n    *FocusOrder* Preserve requested root order as focus priority. List dependency\n    additions deterministically after roots with their inclusion reasons. Report\n    order separately from unordered membership; order does not schedule\n    interpreters.\n\n    DesignMembership Close roots over resolved import targets, owners of\n    imported names, and owners of entities or Facets in each included source.\n    Include each owner source and record its reason. Preserve physical source\n    and canonical owner for every unit, plus applicable configuration, glossary\n    context, global diagnostics, and unresolved references. Report roots and\n    dependency additions separately; do not infer membership from prose or\n    caller metadata.\n  }\n}\n",
+    "packages/sigilc/sources.sigil": "@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { SourceTrees }\n\ncomponent SigilSourceIdentity {\n  goal {\n    Capture selected files as stable *SourceIdentity* values for SourceTrees\n    and implementation alignment.\n  }\n\n  constraints {\n    SourceIdentity A source identity uses its normalized workspace-relative\n    path and *BLAKE3* content checksum. Captured bytes must match a fresh\n    filesystem checksum. File identity excludes neighboring sources, selection\n    order, and model data.\n  }\n\n  cases {\n    *FocusedSelection* Selecting *explicit files* leaves unrelated trees\n    unread. Repeated paths contribute one file row, and a file-only selection\n    has the same identity as an equivalent directory selection.\n\n    SourceIdentity Editing one imported source changes that source row and the\n    selected union identity; the unchanged importer's own source identity stays\n    stable. Retained captured bytes stay unchanged after a later live edit.\n  }\n\n  interface {\n    *SemanticInputs* Bind each SourceIdentity to its own parsed tree and resolved\n    component interfaces, plus applicable configuration and glossary bytes or their\n    absence. A dependency's private edit does not change the importer's basis\n    when its interface is unchanged. An unresolved import invalidates its own\n    source. Keep production metadata outside source identity.\n\n    *CompilerInputSelection* Select workspace-relative paths and directories\n    with include and exclude globs. Support any file extension, omit internal\n    and configured vendor trees, and reject accidental empty selection.\n    Explicit file selection filters before hashing and does not traverse\n    unrelated trees. Refuse symlink crossings, non-regular files, and sources\n    that change while read.\n  }\n}\n",
+    "packages/sigilc/store.sigil": "component SigilProjectionStore {\n  goal {\n    Perform *DisposableCleanup* of cached source projections while preserving\n    stored claims readings and authored workspace data.\n  }\n\n  interface {\n    DisposableCleanup The sigilc clean command removes only the worlds and\n    trees entries from the selected store. It tolerates a missing store and\n    removes symlink artifacts themselves without following their targets. It\n    preserves claims readings, authored sources, workspace configuration, and\n    external preparation input. Cleanup takes no world lock and creates no\n    cache directories.\n  }\n}\n",
+    "packages/sigilc/vocabulary.sigil": "component SigilClaimsVocabulary {\n  goal {\n    Own *AcceptedVocabulary* for interpreted design claims and the rules for\n    accepting returned claims as data.\n  }\n\n  constraints {\n    AcceptedVocabulary This component alone declares the accepted claim names\n    and generation. Laws read every relation in the set; an incomplete set is\n    an operational error before request preparation.\n\n    *AtomDiscipline* Returned text is parsed and admitted as bounded data. It is\n    never run as an egglog program, and external files cannot widen accepted\n    forms.\n  }\n\n  cases {\n    AcceptedVocabulary A row naming a relation or property outside the\n    accepted set is refused under these AcceptedVocabulary rules.\n  }\n\n  interface {\n    AcceptedVocabulary Publish the accepted relations, boolean properties,\n    numeric measures, seven contract roles, and vocabulary generation. Reject\n    names outside these sets. Change the generation when an incompatible row\n    shape or accepted name changes.\n\n    AtomDiscipline Bound artifact bytes and row count before validation.\n    Accept only literal-argument data rows; reject rules, commands, schedules,\n    nested expressions, and non-literal arguments. Refuse the whole artifact\n    when it contains executable or malformed top-level content.\n  }\n}\n",
+    "scripts/fixtures/release/project/main.sigil": "component ReleaseFixture {\n  goal {\n    Exercise the *packaged native runtime*.\n  }\n  interface {\n    *fixture operation* accepts a deterministic input.\n\n    Use fixture operation with [notes](./notes.md).\n    ```text\n    fixture operation stays literal here.\n    ```\n  }\n}\n"
+  },
+  "occurrences": [
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "goal",
+      "range": {
+        "start": 205,
+        "end": 219
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "goal",
+      "range": {
+        "start": 225,
+        "end": 241
+      }
+    },
+    {
+      "term": "workspace member",
+      "matched": "workspace member",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 502,
+        "end": 518
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 578,
+        "end": 592
+      }
+    },
+    {
+      "term": "workspace member",
+      "matched": "workspace member",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 678,
+        "end": 694
+      }
+    },
+    {
+      "term": "source selection",
+      "matched": "source selection",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 836,
+        "end": 852
+      }
+    },
+    {
+      "term": "workspace member",
+      "matched": "workspace member",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 972,
+        "end": 988
+      }
+    },
+    {
+      "term": "source selection",
+      "matched": "source selection",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 1078,
+        "end": 1094
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "constraints",
+      "range": {
+        "start": 1287,
+        "end": 1301
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 1567,
+        "end": 1581
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 1601,
+        "end": 1617
+      }
+    },
+    {
+      "term": "source selection",
+      "matched": "source selection",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 1642,
+        "end": 1658
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 1699,
+        "end": 1713
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 1899,
+        "end": 1915
+      }
+    },
+    {
+      "term": "source selection",
+      "matched": "source selection",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 2068,
+        "end": 2084
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 2159,
+        "end": 2173
+      }
+    },
+    {
+      "term": "workspace member",
+      "matched": "workspace member",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 2255,
+        "end": 2271
+      }
+    },
+    {
+      "term": "workspace member",
+      "matched": "workspace member",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 2510,
+        "end": 2526
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-config.sigil",
+      "owner": "SpecWorkspaceConfig",
+      "section": "interface",
+      "range": {
+        "start": 2659,
+        "end": 2673
+      }
+    },
+    {
+      "term": "glossary context",
+      "matched": "glossary context",
+      "path": "docs/spec/sigil-glossary.sigil",
+      "owner": "SpecWorkspaceGlossary",
+      "section": "constraints",
+      "range": {
+        "start": 642,
+        "end": 658
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "docs/spec/sigil-glossary.sigil",
+      "owner": "SpecWorkspaceGlossary",
+      "section": "constraints",
+      "range": {
+        "start": 822,
+        "end": 841
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-glossary.sigil",
+      "owner": "SpecWorkspaceGlossary",
+      "section": "interface",
+      "range": {
+        "start": 1026,
+        "end": 1040
+      }
+    },
+    {
+      "term": "glossary context",
+      "matched": "glossary context",
+      "path": "docs/spec/sigil-glossary.sigil",
+      "owner": "SpecWorkspaceGlossary",
+      "section": "interface",
+      "range": {
+        "start": 1368,
+        "end": 1384
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "docs/spec/sigil-glossary.sigil",
+      "owner": "SpecWorkspaceGlossary",
+      "section": "interface",
+      "range": {
+        "start": 1549,
+        "end": 1568
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "docs/spec/sigil-glossary.sigil",
+      "owner": "SpecWorkspaceGlossary",
+      "section": "interface",
+      "range": {
+        "start": 1688,
+        "end": 1700
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "constraints",
+      "range": {
+        "start": 609,
+        "end": 623
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "constraints",
+      "range": {
+        "start": 690,
+        "end": 706
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "constraints",
+      "range": {
+        "start": 742,
+        "end": 756
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "constraints",
+      "range": {
+        "start": 794,
+        "end": 810
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "constraints",
+      "range": {
+        "start": 925,
+        "end": 941
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 1406,
+        "end": 1422
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 1708,
+        "end": 1717
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 1855,
+        "end": 1864
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 1888,
+        "end": 1900
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 2005,
+        "end": 2014
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 2949,
+        "end": 2958
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 3097,
+        "end": 3109
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "docs/spec/sigil-reference.sigil",
+      "owner": "SpecLanguageReference",
+      "section": "interface",
+      "range": {
+        "start": 3548,
+        "end": 3560
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "integrations/editor/vscode/extension.sigil",
+      "owner": "SigilVsCodeExtension",
+      "section": "constraints",
+      "range": {
+        "start": 1082,
+        "end": 1096
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "integrations/editor/vscode/extension.sigil",
+      "owner": "SigilVsCodeExtension",
+      "section": "interface",
+      "range": {
+        "start": 1681,
+        "end": 1690
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "integrations/editor/vscode/extension.sigil",
+      "owner": "SigilVsCodeExtension",
+      "section": "interface",
+      "range": {
+        "start": 1935,
+        "end": 1949
+      }
+    },
+    {
+      "term": "compilation focus",
+      "matched": "compile focus",
+      "path": "integrations/editor/vscode/extension.sigil",
+      "owner": "SigilVsCodeExtension",
+      "section": "interface",
+      "range": {
+        "start": 2015,
+        "end": 2028
+      }
+    },
+    {
+      "term": "compilation focus",
+      "matched": "compile focus",
+      "path": "integrations/editor/vscode/extension.sigil",
+      "owner": "SigilVsCodeExtension",
+      "section": "interface",
+      "range": {
+        "start": 2181,
+        "end": 2194
+      }
+    },
+    {
+      "term": "compilation focus",
+      "matched": "compile focus",
+      "path": "integrations/editor/vscode/extension.sigil",
+      "owner": "SigilVsCodeExtension",
+      "section": "interface",
+      "range": {
+        "start": 2509,
+        "end": 2522
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "packages/cli/cli.sigil",
+      "owner": "SigilCli",
+      "section": "constraints",
+      "range": {
+        "start": 1009,
+        "end": 1023
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "packages/cli/cli.sigil",
+      "owner": "SigilCli",
+      "section": "interface",
+      "range": {
+        "start": 1963,
+        "end": 1979
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "packages/cli/cli.sigil",
+      "owner": "SigilCli",
+      "section": "interface",
+      "range": {
+        "start": 2087,
+        "end": 2099
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "packages/cli/cli.sigil",
+      "owner": "SigilCli",
+      "section": "interface",
+      "range": {
+        "start": 2616,
+        "end": 2635
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "constraints",
+      "range": {
+        "start": 965,
+        "end": 977
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "constraints",
+      "range": {
+        "start": 1024,
+        "end": 1036
+      }
+    },
+    {
+      "term": "workspace member",
+      "matched": "workspace member",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "constraints",
+      "range": {
+        "start": 1319,
+        "end": 1335
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "constraints",
+      "range": {
+        "start": 1396,
+        "end": 1410
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrences",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "constraints",
+      "range": {
+        "start": 1971,
+        "end": 1991
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "constraints",
+      "range": {
+        "start": 2010,
+        "end": 2022
+      }
+    },
+    {
+      "term": "source selection",
+      "matched": "source selection",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "interface",
+      "range": {
+        "start": 2548,
+        "end": 2564
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "interface",
+      "range": {
+        "start": 2769,
+        "end": 2781
+      }
+    },
+    {
+      "term": "source range",
+      "matched": "source range",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "interface",
+      "range": {
+        "start": 3033,
+        "end": 3045
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "interface",
+      "range": {
+        "start": 3252,
+        "end": 3271
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "interface",
+      "range": {
+        "start": 3586,
+        "end": 3602
+      }
+    },
+    {
+      "term": "LanguageVersion",
+      "matched": "language version",
+      "path": "packages/core/core.sigil",
+      "owner": "SigilCore",
+      "section": "interface",
+      "range": {
+        "start": 3666,
+        "end": 3682
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 2497,
+        "end": 2516
+      }
+    },
+    {
+      "term": "component",
+      "matched": "components",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 2603,
+        "end": 2613
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 2718,
+        "end": 2737
+      }
+    },
+    {
+      "term": "glossary context",
+      "matched": "glossary context",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 2751,
+        "end": 2767
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 2891,
+        "end": 2900
+      }
+    },
+    {
+      "term": "glossary occurrence",
+      "matched": "glossary occurrence",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 2949,
+        "end": 2968
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/lsp/lsp.sigil",
+      "owner": "SigilLsp",
+      "section": "interface",
+      "range": {
+        "start": 3077,
+        "end": 3086
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/align.sigil",
+      "owner": "SigilImplementationClaims",
+      "section": "constraints",
+      "range": {
+        "start": 505,
+        "end": 514
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/align.sigil",
+      "owner": "SigilImplementationClaims",
+      "section": "cases",
+      "range": {
+        "start": 809,
+        "end": 818
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/align.sigil",
+      "owner": "SigilImplementationClaims",
+      "section": "interface",
+      "range": {
+        "start": 2351,
+        "end": 2360
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/align.sigil",
+      "owner": "SigilImplementationClaims",
+      "section": "interface",
+      "range": {
+        "start": 3740,
+        "end": 3749
+      }
+    },
+    {
+      "term": "component",
+      "matched": "components",
+      "path": "packages/sigilc/claims.sigil",
+      "owner": "SigilComputedClaims",
+      "section": "interface",
+      "range": {
+        "start": 2093,
+        "end": 2103
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/claims.sigil",
+      "owner": "SigilComputedClaims",
+      "section": "interface",
+      "range": {
+        "start": 3200,
+        "end": 3209
+      }
+    },
+    {
+      "term": "implementation alignment",
+      "matched": "implementation alignment",
+      "path": "packages/sigilc/compiler.sigil",
+      "owner": "SigilSemanticCompiler",
+      "section": "interface",
+      "range": {
+        "start": 513,
+        "end": 537
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/compiler.sigil",
+      "owner": "SigilSemanticCompiler",
+      "section": "interface",
+      "range": {
+        "start": 778,
+        "end": 787
+      }
+    },
+    {
+      "term": "workspace root",
+      "matched": "workspace root",
+      "path": "packages/sigilc/config.sigil",
+      "owner": "SigilCompilerConfig",
+      "section": "constraints",
+      "range": {
+        "start": 1236,
+        "end": 1250
+      }
+    },
+    {
+      "term": "implementation alignment",
+      "matched": "implementation alignment",
+      "path": "packages/sigilc/sources.sigil",
+      "owner": "SigilSourceIdentity",
+      "section": "goal",
+      "range": {
+        "start": 209,
+        "end": 233
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/sources.sigil",
+      "owner": "SigilSourceIdentity",
+      "section": "interface",
+      "range": {
+        "start": 1083,
+        "end": 1092
+      }
+    },
+    {
+      "term": "component",
+      "matched": "component",
+      "path": "packages/sigilc/vocabulary.sigil",
+      "owner": "SigilClaimsVocabulary",
+      "section": "constraints",
+      "range": {
+        "start": 208,
+        "end": 217
+      }
+    }
+  ]
+}

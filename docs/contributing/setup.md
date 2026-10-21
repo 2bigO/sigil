@@ -9,8 +9,8 @@ beside your build, make an agent silently use stale code.
 
 | Tool | Version | Needed for |
 | --- | --- | --- |
-| [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2 | The `sigil` CLI, every check and the skill tests |
-| Rust | 1.91.1 | Building `sigilc`, the native compiler the compute skills run |
+| Rust | 1.91.1 | Building `sigil`, the command line the skills run, and `sigilc`, the native compiler the compute skills run |
+| [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2 | The repository's scripts: the skill tests and the other checks |
 | [Node.js](https://nodejs.org/) | 24 | Only the full `deno task test` and `deno task check`, through the VS Code extension |
 | Git | any recent | Cloning, and the release scripts |
 | At least one supported agent | current | Running the skills: Claude Code, Codex, Pi, OpenCode 1.x, Gemini CLI, Antigravity or Cursor |
@@ -25,27 +25,25 @@ packages once (`npm ci --prefix integrations/editor/vscode`); the
 Run these from the repository root.
 
 ```bash
-deno task --cwd packages/cli install   # a launcher that runs the checkout's sigil
-deno task build:sigilc                 # packages/sigilc/target/debug/sigilc
+deno task build:sigil     # packages/cli/target/debug/sigil
+deno task build:sigilc    # packages/sigilc/target/debug/sigilc
 ```
 
-The first command installs a `sigil` launcher that compiles from your working tree
-on every run, so edits take effect with no reinstall. The second builds `sigilc`.
-Rebuild `sigilc` after you pull or switch branches; it does not follow your tree
-the way the launcher does.
+Without Deno, the same builds are `cargo build --manifest-path
+packages/cli/Cargo.toml` and `cargo build --manifest-path
+packages/sigilc/Cargo.toml`. Rebuild both after you pull or switch branches; the
+binaries do not follow your tree.
 
-Put both checkout builds before any installed copy on `PATH`. The launcher lands
-in Deno's command folder (`$DENO_INSTALL_ROOT/bin`, or `~/.deno/bin` when that is
-unset), and `sigilc` in the checkout's `target/debug`. In `~/.zshrc` or
-`~/.bashrc`:
+Put both checkout builds before any installed copy on `PATH`, each in the
+checkout's `target/debug`. In `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-export PATH="${DENO_INSTALL_ROOT:-$HOME/.deno}/bin:$HOME/Workspace/sigil/packages/sigilc/target/debug:$PATH"
+export PATH="$HOME/Workspace/sigil/packages/cli/target/debug:$HOME/Workspace/sigil/packages/sigilc/target/debug:$PATH"
 ```
 
 Use your own checkout path, and keep this line before `~/.local/bin`, where the
 released installer puts `sigil` and `sigilc`; otherwise the released `sigil` wins
-over your launcher. Graphical agents (Cursor, the Codex
+over your build. Graphical agents (Cursor, the Codex
 app, desktop launchers) do not read shell startup files. Start them from a terminal
 that has the `PATH`, or set it where the app reads its environment.
 
@@ -112,8 +110,8 @@ version.
 command -v sigil sigilc
 ```
 
-`sigil` should resolve to the launcher in Deno's command folder (it runs your
-checkout), and `sigilc` to `packages/sigilc/target/debug/sigilc`. Neither should
+`sigil` should resolve to `packages/cli/target/debug/sigil` and `sigilc` to
+`packages/sigilc/target/debug/sigilc`, both in your checkout. Neither should
 resolve to `~/.local/bin`.
 
 Then ask the agent which skills it has and where they come from:

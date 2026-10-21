@@ -1,0 +1,76 @@
+@docs/spec/sigil-config.sigil from SpecWorkspaceConfig import {
+  tool settings,
+  workspace root,
+}
+@docs/spec/sigil-reference.sigil from SpecLanguageReference import { source document }
+@packages/cli/cli.sigil from SigilCli import { lsp command }
+@packages/lsp/lsp.sigil from SigilLsp import {
+  language server,
+  render command,
+}
+@packages/sigilc/claims.sigil from SigilComputedClaims import { ComputedFindings }
+@packages/sigilc/compiler.sigil from SigilSemanticCompiler import { CompilerCommands }
+
+component SigilVsCodeExtension {
+  goal {
+    Give VS Code users Sigil editing support and a one-step compile, using the
+    sigil language server and the sigilc compiler.
+  }
+
+  constraints {
+    SigilVsCodeExtension depends on SigilLsp for the language server and on
+    SigilSemanticCompiler for the CompilerCommands, and must not parse or
+    resolve a source document itself.
+
+    The extension must start the language server by running the lsp command of
+    a sigil executable, and must not contain a language server of its own.
+
+    The extension must support only a trusted workspace whose workspace root is
+    a folder on disk.
+
+    The extension must show each of the ComputedFindings as an editor
+    diagnostic, with the law that produced it as its code, and as a status
+    entry, and must mark the result stale when a workspace input or a compile
+    setting changes after the compile began.
+
+    The extension must run a compile through the CompilerCommands and must not
+    change any source document.
+  }
+
+  interface {
+    SigilVsCodeExtension provides the *Sigil grammar*, the syntax highlighting
+    and bracket rules for .sigil files.
+
+    SigilVsCodeExtension provides the *component preview*, a read-only Markdown
+    view of the active source document, which comes from the render command.
+
+    SigilVsCodeExtension provides *compile file* and *compile workspace*,
+    which run a compile for the active file or for the whole workspace root and
+    show its result.
+
+    SigilVsCodeExtension provides the *compile focus*, design or
+    implementation. Design judges design readiness. Implementation compares the
+    code that the tool settings select with the design. The compile focus
+    setting chooses one, or asks each time, except that compile file on a
+    source document is always design.
+
+    SigilVsCodeExtension provides the *sigil executable setting*,
+    sigil.executable, the path of the sigil executable that the extension runs
+    the lsp command from. It defaults to the sigil shipped with the extension,
+    else sigil on the path, and a change to it takes effect without reloading
+    the window.
+
+    SigilVsCodeExtension provides the *compile executable setting*,
+    sigil.compile.executable, the path of the sigilc compiler, which defaults
+    to sigilc.
+
+    SigilVsCodeExtension provides the *compile focus setting*,
+    sigil.compile.focus, with the values ask, design or implementation, which
+    defaults to ask.
+  }
+
+  decisions {
+    SigilVsCodeExtension stays a thin client, so that VS Code shows the same
+    Sigil results as the command line.
+  }
+}

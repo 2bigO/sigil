@@ -279,3 +279,35 @@ fn symlinks_are_listed_without_following_their_files_or_parents() {
     );
     assert!(sigilc::sources::capture(&root.0, "src/escape/secret", 1024).is_err());
 }
+
+#[cfg(unix)]
+#[test]
+fn a_symlinked_config_or_local_override_is_refused() {
+    use std::os::unix::fs::symlink;
+    let root = Workspace::new();
+    settings(&root, json!({"dirs": ["src"]}));
+    let real = root.0.join("real-local.json");
+    std::fs::write(&real, br#"{"tools":{}}"#).unwrap();
+    symlink(&real, root.0.join(".sigil/local.json")).unwrap();
+    let error = load(&root.0).unwrap_err();
+    assert!(error.contains("symlink path is not allowed"), "{error}");
+    std::fs::remove_file(root.0.join(".sigil/local.json")).unwrap();
+    let config = root.0.join(".sigil/config.json");
+    let moved = root.0.join("real-config.json");
+    std::fs::rename(&config, &moved).unwrap();
+    symlink(&moved, &config).unwrap();
+    let error = load(&root.0).unwrap_err();
+    assert!(error.contains("symlink path is not allowed"), "{error}");
+}
+
+#[test]
+fn an_invalid_shared_value_is_refused_even_when_the_local_override_replaces_it() {
+    let root = Workspace::new();
+    settings(&root, json!({"dirs": ["src"], "exclude": [3]}));
+    root.write(
+        ".sigil/local.json",
+        br#"{"tools":{"sigilc":{"implementation":{"exclude":["fixed/**"]}}}}"#,
+    );
+    let error = load(&root.0).unwrap_err();
+    assert!(error.contains("exclude"), "{error}");
+}

@@ -1,13 +1,13 @@
 //! Compiler-owned settings inside the core configuration's tools extension.
 use crate::{
-    language::config::{parse_config, parse_local_config},
+    language::{fs::DiskFs, tools::read_tool_settings},
     scope::{DesignMembership, design_membership},
     sources::{self, AlignmentManifest, Selection},
     structure::{DesignInput, EntityType, normalized_path},
 };
 use serde::Serialize;
-use serde_json::Value;
-use std::{collections::BTreeSet, fs, path::Path};
+use serde_json::{Map, Value, json};
+use std::{collections::BTreeSet, path::Path};
 
 const KEY: &str = "tools.sigilc.implementation";
 
@@ -39,46 +39,42 @@ pub struct ResolvedSelection {
     pub implementation: AlignmentManifest,
 }
 
-/// Merge local settings exactly as core does: objects recursively, arrays and
-/// scalars by replacement. Core validation still owns the outer config shape.
+/// Read `tools.sigilc.implementation` from the settings core merges from the
+/// workspace config and the local override. Each layer is checked on its own
+/// first, so an invalid shared value stays an error when the override replaces
+/// it. Symlinked config files are refused before core reads them.
 pub fn load(root: &Path) -> Result<ImplementationSelection, String> {
     let root = root.canonicalize().map_err(|e| e.to_string())?;
-    let text = fs::read_to_string(sources::checked_path(&root, ".sigil/config.json")?)
-        .map_err(|e| format!(".sigil/config.json ({KEY}): {e}"))?;
-    let parsed = parse_config(&text, ".sigil/config.json");
-    if !parsed.diagnostics.is_empty() {
-        return Err(parsed
-            .diagnostics
+    sources::checked_path(&root, ".sigil/config.json")?;
+    sources::checked_path(&root, ".sigil/local.json")?;
+    let settings = read_tool_settings(&DiskFs::new(&root)).map_err(|diagnostics| {
+        diagnostics
             .iter()
-            .map(|d| d.message.as_str())
+            .map(|d| {
+                if d.code == "SIGIL_CONFIG_NOT_FOUND" {
+                    format!(".sigil/config.json ({KEY}): {}", d.message)
+                } else {
+                    d.message.clone()
+                }
+            })
             .collect::<Vec<_>>()
-            .join("; "));
-    }
-    let mut config: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-    validate_namespace(&config)?;
-    let local_path = sources::checked_path(&root, ".sigil/local.json")?;
-    match fs::read_to_string(local_path) {
-        Ok(text) => {
-            let diagnostics = parse_local_config(&text, ".sigil/local.json");
-            if !diagnostics.is_empty() {
-                return Err(diagnostics
-                    .iter()
-                    .map(|d| d.message.as_str())
-                    .collect::<Vec<_>>()
-                    .join("; "));
-            }
-            let local: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-            validate_namespace(&local)?;
-            merge(&mut config, local);
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(format!(".sigil/local.json ({KEY}): {error}")),
+            .join("; ")
+    })?;
+    validate_layer(&settings.shared)?;
+    if let Some(local) = &settings.local {
+        validate_layer(local)?;
     }
     parse_settings(
-        config
-            .pointer("/tools/sigilc/implementation")
+        settings
+            .merged
+            .get("sigilc")
+            .and_then(|sigilc| sigilc.get("implementation"))
             .ok_or_else(|| format!("missing required configuration key {KEY}"))?,
     )
+}
+
+fn validate_layer(tools: &Map<String, Value>) -> Result<(), String> {
+    validate_namespace(&json!({ "tools": tools }))
 }
 
 fn validate_namespace(config: &Value) -> Result<(), String> {
@@ -128,21 +124,6 @@ fn parse_settings(value: &Value) -> Result<ImplementationSelection, String> {
     let selection =
         serde_json::from_value(Value::Object(object)).map_err(|e| format!("{KEY}: {e}"))?;
     Ok(ImplementationSelection { selection, design })
-}
-
-fn merge(shared: &mut Value, local: Value) {
-    match (shared, local) {
-        (Value::Object(shared), Value::Object(local)) => {
-            for (key, value) in local {
-                if let Some(existing) = shared.get_mut(&key) {
-                    merge(existing, value);
-                } else {
-                    shared.insert(key, value);
-                }
-            }
-        }
-        (shared, local) => *shared = local,
-    }
 }
 
 impl ImplementationSelection {

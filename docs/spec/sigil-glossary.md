@@ -15,8 +15,7 @@ The machine-readable schema is
   "terms": [
     {
       "term": "workspace root",
-      "definition": "The directory containing .sigil/config.json.",
-      "agentContext": false
+      "definition": "The directory containing .sigil/config.json."
     }
   ],
   "contexts": [
@@ -44,11 +43,6 @@ The top-level object and every nested object are strict. `schemaVersion`,
 `terms`, and `contexts` are required. Contexts require a stable identifier,
 non-empty include globs, exclude globs, and their term array.
 
-Each term may set `agentContext` to `false` to omit that term and its
-occurrences from agent-facing scoped context. The property defaults to `true`.
-It does not affect glossary validation, recognition, inspection, or editor
-features.
-
 ## Resolution
 
 Workspace terms apply to every loaded `.sigil` source. A source may match at
@@ -70,11 +64,6 @@ sigil check . --format json --pretty
 diagnostics. Both commands are read-only. Absence of the optional glossary is
 valid.
 
-`sigil context` includes a `glossaryContext` containing only accepted terms
-recognized in the selected component or file and its related expansion sources
-whose `agentContext` value is not `false`. It reports `null` when the workspace
-has no GlossaryFile.
-
 ## Editor behavior
 
 `sigil-lsp` consumes core glossary projections. Recognized terms receive the
@@ -90,7 +79,7 @@ ordinary unambiguous vocabulary does not require an entry.
 
 The skill presents exact JSON changes and waits for human approval. Accepted
 Sigil remains normative when a glossary definition conflicts with a component
-contract. Before coding, the skill carries scoped `sigil context` terminology
+contract. Before coding, the skill carries the relevant terms from `sigil glossary`
 and any accepted request-matched term into the handoff without injecting the
 unrelated complete glossary.
 

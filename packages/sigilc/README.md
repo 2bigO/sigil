@@ -62,14 +62,58 @@ preparations. Version 0.3.0 retires Turtle worlds and their commands.
 
 ## Implementation alignment
 
-Configure `tools.sigilc.implementation` in `.sigil/config.json` (or `.sigil/local.json`):
+`sigilc align` reads its code selection from `tools.sigilc.implementation`:
 
 ```json
-{"dirs":["src"],"exclude":["**/generated/**"],"design":["architecture/a.sigil"]}
+{
+  "tools": {
+    "sigilc": {
+      "implementation": {
+        "dirs": ["src"],
+        "include": ["**/*.rs"],
+        "exclude": ["**/generated/**"],
+        "vendorDirs": ["vendor"],
+        "allowEmpty": false,
+        "design": ["booking.sigil"]
+      }
+    }
+  }
+}
 ```
 
-The optional design roots expand through required imports and owners; omitting
-`design` judges the whole workspace. The full design check still gates alignment.
+This fragment belongs in the workspace config, or in `.sigil/local.json`.
+Local configuration contains only `tools`; its objects merge recursively into
+workspace tool settings, while arrays and scalars replace the workspace values.
+All paths remain relative to the workspace root.
+
+The implementation namespace is required for alignment. `sigilc` rejects unknown
+keys in its namespace, including unknown implementation fields. Core continues
+to validate only the tools' object shape. The selection fields are optional:
+
+- `paths`: explicit file paths; defaults to `[]`.
+- `dirs`: directory trees; defaults to `[]`. With no paths or directories,
+  discovery starts at the workspace root.
+- `include`, `exclude`: file globs; default to `[]`. An empty include list accepts
+  every file. Exclude patterns remove files in configuration order; a later
+  overlapping pattern counts only files earlier patterns have not removed.
+- `vendorDirs`: directory trees excluded from discovery; defaults to `[]`.
+- `allowEmpty`: permits a selection with no code units; defaults to `false`.
+- `design`: non-empty list of unique design source roots. Roots expand through
+  required imports and owners using the design scope closure. Omit it to judge
+  the whole workspace design. Components outside the closure are listed in the
+  report and their promises are outside the implementation check.
+
+Path and glob fields are arrays of non-empty strings. Discovery always excludes
+the internal `.sigil`, `.git`, `.deno`, `node_modules`, `build`, `target`, and
+`coverage` trees. Workspace design sources encountered inside the selection are
+auto-excluded and listed separately from user exclude patterns. Symlinks are
+skipped and listed, including linked directories whose contents cannot safely be
+checked against include globs. Design auto-exclusions happen before user exclude
+counts. Zero-byte files are listed but are not units. Non-UTF-8 files
+and files over the presentation byte limit are listed as unpresentable and keep
+the implementation check Incomplete until the user excludes them.
+
+The full design check still gates alignment.
 
 ```sh
 sigilc align prepare --root . --out code-readings

@@ -150,9 +150,9 @@ interpret the prose into claims yourself or treat the full context as the view.
 
 Use [mechanical validation](mechanical-validation.md) for compatible tool
 discovery, workspace scope, nonwriting commands, and exact-revision evidence.
-Preserve completed diagnostics even when they concern unrelated workspace or
-implementation annotation sources. CLI success does not resolve a contradiction;
-CLI failure does not authorize a semantic correction or broader source edits.
+Preserve completed diagnostics even when they concern unrelated workspace
+sources. CLI success does not resolve a contradiction; CLI failure does not
+authorize a semantic correction or broader source edits.
 Continue the design assessment when mechanical validation is unavailable.
 
 Evaluate meaning, completeness at the requested scope, consistency, and

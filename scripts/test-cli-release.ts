@@ -1,3 +1,4 @@
+import { lspSmoke } from "./lsp-smoke.ts";
 import { validateNativeProtocol } from "./validate-native-protocol.ts";
 import { join, resolve } from "node:path";
 import {
@@ -5,10 +6,14 @@ import {
   ok as assert,
 } from "node:assert/strict";
 
-if (Deno.args.length !== 2 || Deno.args[0] !== "--distribution") {
-  throw new Error("Usage: test-cli-release.ts --distribution <directory>");
-}
+const USAGE =
+  "Usage: test-cli-release.ts --distribution <directory> [--version <version>]";
+if (
+  ![2, 4].includes(Deno.args.length) || Deno.args[0] !== "--distribution" ||
+  (Deno.args.length === 4 && Deno.args[2] !== "--version")
+) throw new Error(USAGE);
 const distribution = resolve(Deno.args[1]);
+const expectedVersion = Deno.args[3];
 const scratch = await Deno.makeTempDir({ prefix: "sigil release smoke 空 " });
 try {
   const relocated = join(scratch, "bundle with spaces and Ω");
@@ -83,9 +88,26 @@ try {
   };
   const version = (await run(language, ["--version"])).trim();
   assert(/^\d+\.\d+\.\d+$/.test(version));
+  if (expectedVersion !== undefined) {
+    assertEquals(
+      version,
+      expectedVersion,
+      "sigil --version is not the release",
+    );
+  }
   const compilerVersion = (await run(compiler, ["--version"])).trim();
   assert(/^sigilc \d+\.\d+\.\d+$/.test(compilerVersion));
   await run(language, ["check", fixture, "--format", "json"]);
+  // The language server, as an editor starts it: no PATH, an empty home. It
+  // opens the fixture's document, so the file URI conversion is exercised on
+  // this runner too.
+  const lsp = await lspSmoke({
+    executable: language,
+    workspace: fixture,
+    document: join(fixture, "main.sigil"),
+    env,
+    clearEnv: true,
+  });
   const protocol = await validateNativeProtocol({
     language,
     compiler,
@@ -99,6 +121,7 @@ try {
       compilerVersion,
       relocated: true,
       hostTools: false,
+      lsp: { diagnostics: lsp.diagnostics, symbols: lsp.symbols },
       ...protocol,
     }),
   );

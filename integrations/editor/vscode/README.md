@@ -6,8 +6,10 @@ Language 0.9 responsibilities:
 
 - provide `.sigil` TextMate syntax highlighting and resolver-backed component,
   Tag, and reviewed glossary-term highlighting through LSP semantic tokens;
-- bundle and connect to `sigil-lsp` for diagnostics, symbols, navigation, hover,
-  and semantic highlighting;
+- run `sigil lsp` for diagnostics, symbols, navigation, hover, and semantic
+  highlighting; the `sigil.executable` setting names the `sigil` to run (empty
+  uses the `sigil` shipped with the extension, else `sigil` on the `PATH`), and
+  changing it restarts the server;
 - expose `Sigil: Open Preview`, which renders the whole active `.sigil` file to
   Markdown and opens it in VS Code's built-in Markdown preview, available from
   the Command Palette and from a preview button in the editor title toolbar of
@@ -27,6 +29,7 @@ Configure these settings on the extension host:
 
 | Setting                            | Meaning                                                                                                              |
 | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `sigil.executable`                 | The `sigil` that runs `sigil lsp`. Empty (the default) means the `sigil` shipped with the extension, else `sigil` on the `PATH`. A change takes effect without reloading the window. |
 | `sigil.compile.executable`         | Native `sigilc` executable; default `sigilc`.                                                                        |
 | `sigil.compile.focus`              | `ask`, `design`, or `implementation`.                                                                                |
 | `sigil.compile.selection`          | Native Implementation selection JSON path, relative to the workspace or absolute; required for Implementation focus. |
@@ -86,22 +89,46 @@ npm run package
 The extension-host test copies the slotted example into an isolated temporary
 workspace by default. Set `SIGIL_TEST_WORKSPACE` to test an existing workspace.
 It uses the current built tools for real native file scope, ranged
-findings and unavailable comparison. Build the language CLI with
-`deno compile --allow-read --output /tmp/sigil packages/cli/src/main.ts` from
-the repository root. `deno task build:cli` produces the default language test
-executable in `build/`; `deno task build:sigilc` produces the native test
-executable. The environment variables above can select other built binaries. On
+findings and unavailable comparison. `deno task build:sigil` builds the
+language CLI into `packages/cli/target/debug/` (the default language test
+executable); `deno task build:sigilc` produces the native test executable. The
+environment variables above can select other built binaries. On
 a headless Linux host, run the extension test under `xvfb-run -a`.
 
 `npm run package` derives the artifact version from `package.json` and creates
-`build/sigil-vscode-<version>.vsix`. The manifest uses the development publisher
+`build/sigil-vscode-<version>.vsix`, a package that ships no `sigil`.
+`npm run package -- --target <platform> --binary <path to sigil>` (or
+`deno task package:vscode --target … --binary …` from the repository root) makes
+the platform package `build/sigil-vscode-<version>-<platform>.vsix` with that
+`sigil` in its `bin` folder; the platforms are `win32-x64`, `linux-x64`,
+`linux-arm64`, `darwin-x64` and `darwin-arm64`. The manifest uses the development publisher
 identifier `sigil-dev`; Marketplace publication remains deferred until an
 approved publisher identity exists.
 
-Tagged `vscode-vX.Y.Z` releases package the extension and attach the VSIX to a
-GitHub Release. Install a downloaded package with **Extensions: Install from
-VSIX...** in VS Code or:
+Tagged `vscode-vX.Y.Z` releases package the extension and attach one VSIX per
+platform to a GitHub Release. Download the one for your machine:
+
+| Your machine | Package |
+| --- | --- |
+| Windows, 64-bit Intel or AMD | `sigil-vscode-VERSION-win32-x64.vsix` |
+| Linux, 64-bit Intel or AMD | `sigil-vscode-VERSION-linux-x64.vsix` |
+| Linux, ARM 64-bit | `sigil-vscode-VERSION-linux-arm64.vsix` |
+| macOS, Intel | `sigil-vscode-VERSION-darwin-x64.vsix` |
+| macOS, Apple silicon | `sigil-vscode-VERSION-darwin-arm64.vsix` |
+
+Install it with **Extensions: Install from VSIX...** in VS Code or:
 
 ```bash
-code --install-extension sigil-vscode-VERSION.vsix
+code --install-extension sigil-vscode-VERSION-linux-x64.vsix
 ```
+
+Each package carries the `sigil` it starts, so the extension needs no separate
+install of the language tools, and the shipped `sigil` is made executable on
+Linux and macOS the first time it starts. The `sigilc` that the compile commands
+run is separate: install it from the release archive or set
+`sigil.compile.executable`.
+
+The Linux binaries need glibc 2.35 or newer (Ubuntu 22.04, Debian 12 and
+later). On an older system, such as the RHEL 9 family, build or install a `sigil`
+yourself and set `sigil.executable` to it. If the extension cannot start a
+`sigil`, it says so in a message and writes the reason to the Sigil output.

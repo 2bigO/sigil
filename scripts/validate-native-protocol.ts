@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import { SIGIL_VERSION } from "../packages/core/src/model/language.ts";
+import { SIGIL_VERSION } from "./language-version.ts";
 import {
   deepStrictEqual as assertEquals,
   ok as assert,
@@ -268,7 +268,8 @@ export async function validateNativeProtocol(
 if (import.meta.main) {
   const suffix = Deno.build.os === "windows" ? ".exe" : "";
   const language = resolve(
-    Deno.env.get("SIGIL_TEST_LANGUAGE") ?? `build/sigil${suffix}`,
+    Deno.env.get("SIGIL_TEST_LANGUAGE") ??
+      `packages/cli/target/debug/sigil${suffix}`,
   );
   const compiler = resolve(
     Deno.env.get("SIGIL_TEST_COMPILER") ??

@@ -4,13 +4,15 @@ import {
   checkPluginManifests,
   INSTALLER_PIN_FILE,
   MARKETPLACES,
+  VERSION_MANIFEST,
   VERSIONED_MANIFESTS,
 } from "./plugin-manifests.ts";
+import { cargoPackageVersion } from "./manifest-version.ts";
 import { FOUNDATION_SKILLS } from "./validate-skill.ts";
 
 const root = resolve(import.meta.dirname!, "..");
 const FILES = [
-  "packages/cli/deno.json",
+  VERSION_MANIFEST,
   ...VERSIONED_MANIFESTS,
   ...MARKETPLACES,
   ".opencode/plugins/sigil.js",
@@ -136,10 +138,10 @@ async function editPinFile(
 }
 
 async function cliVersion(copy: string): Promise<string> {
-  const manifest = JSON.parse(
-    await Deno.readTextFile(join(copy, "packages/cli/deno.json")),
+  return cargoPackageVersion(
+    await Deno.readTextFile(join(copy, VERSION_MANIFEST)),
+    VERSION_MANIFEST,
   );
-  return manifest.version;
 }
 
 /** Rewrites every pinned installer URL, whatever release it currently names. */
