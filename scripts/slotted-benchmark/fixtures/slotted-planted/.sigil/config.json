@@ -1,0 +1,20 @@
+{
+  "sigilVersion": "0.9.0",
+  "workspace": {
+    "name": "slotted",
+    "members": []
+  },
+  "files": {
+    "include": [
+      "**/*.sigil"
+    ],
+    "exclude": [
+      ".git/**",
+      ".deno/**",
+      "node_modules/**",
+      "build/**",
+      "coverage/**"
+    ]
+  },
+  "tools": {}
+}

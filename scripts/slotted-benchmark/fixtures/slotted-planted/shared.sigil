@@ -1,0 +1,78 @@
+component SharedKernel {
+  goal {
+    Give every module one agreed way to measure and compare time, so that a booking
+    ending at 10:00 never conflicts with one starting at 10:00 and no module holds
+    a different idea of now.
+  }
+
+  logic {
+    Resolving a requested boundary in a zone takes three steps. Step one checks
+    that the local time is on the *30-minute grid*. Step two rejects a
+    *nonexistent local time*. Step three resolves an *ambiguous local time* to its
+    earlier occurrence and returns the resulting *UTC instant* to the caller.
+
+    Converting a *local span* to instants takes two steps. Step one turns each
+    30-minute slot of the span into a UTC instant range and drops every slot inside
+    a daylight-saving gap. Step two merges adjacent ranges, so a span ending at
+    24:00 joins one starting at 00:00 the next day, and returns the merged
+    *half-open range* values to the caller.
+  }
+
+  constraints {
+    The time and domain-error rules of SharedKernel must not import database access
+    or framework code, so every rule on a local span or UTC instant stays a pure
+    function.
+
+    Every check against the current time must read the *clock* and never the
+    database now(), so tests can create an item before its start and act after it.
+
+    A half-open range includes its start and excludes its end, so two ranges that
+    meet at one instant do not overlap.
+
+    A boundary must lie on the 30-minute grid, and 24:00 is allowed only as the end
+    of a local span.
+  }
+
+  cases {
+    A local time of 09:00 or 09:30 is on the 30-minute grid, and 09:15 is rejected.
+
+    The half-open range 09:00 to 10:00 and the half-open range 10:00 to 11:00 do
+    not overlap, while 09:00 to 10:30 and 10:00 to 11:00 do.
+
+    In America/New_York, 02:00 on the spring-forward date is a
+    nonexistent local time, and 01:30 on the fall-back date is an
+    ambiguous local time that resolves to the earlier UTC instant.
+
+    A local span from 01:00 to 04:00 on the spring-forward date in America/New_York
+    yields two real hours of UTC instant ranges.
+
+    In Asia/Kolkata a local span still aligns to the 30-minute grid in local time
+    even though local :00 is UTC :30, and Australia/Lord_Howe's 30-minute
+    daylight-saving shift yields correct spans.
+  }
+
+  interface {
+    SharedKernel provides the clock to every command and query. Server actions pass
+    the system clock, and tests pass a fixed one.
+
+    SharedKernel provides the checks on the 30-minute grid and the resolution of a
+    nonexistent local time or ambiguous local time to a UTC instant.
+
+    SharedKernel provides the conversion of a local span to merged half-open range
+    values of UTC instant.
+
+    SharedKernel provides a *domain error* for each expected failure, such as a
+    lost race or a rejected boundary, so callers map it to a user message without
+    exposing internals.
+  }
+
+  decisions {
+    Time uses Temporal through temporal-polyfill because daylight-saving arithmetic
+    is central to the domain, and moving to native Temporal waits for a runtime
+    that ships it.
+
+    The 30-minute grid and half-open ranges were chosen over any-minute ranges and
+    whole-day bookings to keep the calendar tidy and back-to-back bookings
+    conflict-free.
+  }
+}

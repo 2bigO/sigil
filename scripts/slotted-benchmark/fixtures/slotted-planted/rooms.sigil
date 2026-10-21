@@ -1,0 +1,96 @@
+@identity.sigil from Identity import { signed-in user }
+
+component Rooms {
+  goal {
+    Let any signed-in user list a room for others to rent, keep the set of rooms
+    browsable, and give every room-scoped change one serialized path.
+  }
+
+  state {
+    Rooms owns each *room*, which has a name, description, capacity, location text,
+    and a *room timezone* that is an IANA zone required at creation. Capacity is
+    informational and a request carries no party size.
+
+    Every room has exactly one *room owner*, the signed-in user who created it.
+
+    A room is either listed or an *archived room*. Rooms owns the archived room
+    mark: a room carries it from archive until unarchive.
+  }
+
+  logic {
+    Creating a room takes three steps. Step one requires a signed-in user. Step two
+    validates the room timezone against the IANA zone list and rejects an unknown
+    zone. Step three records the signed-in user as the room owner and returns the
+    new room.
+
+    Running a change under the *room lock* takes three steps. Step one opens a
+    transaction and locks the row of the room. Step two passes the transaction to
+    the change. Step three commits and returns the result, or rolls back if the
+    change fails.
+  }
+
+  constraints {
+    Only the room owner may edit a room, archive it, unarchive it, or change its
+    room timezone.
+
+    Every room-scoped mutation, including availability edits and booking status
+    changes made by other modules, must run inside the room lock. Changes to
+    different rooms must not block each other.
+
+    A *transactional entry* is a second entry beside a module public entry that
+    runs inside a transaction its caller opened and that only Booking may import.
+    Rooms exposes one that runs inside the room lock, and Rooms must expose the
+    archive, unarchive, and room timezone mutations only through its transactional
+    entry, and Rooms must not import Booking.
+
+    Rooms depends on Identity and requires the signed-in user to record a
+    room owner.
+  }
+
+  cases {
+    Creating a room with an invalid room timezone is rejected.
+
+    Editing a room by a signed-in user who is not its room owner is refused.
+
+    The room list excludes every archived room and includes rooms from every
+    room owner.
+
+    Unarchiving an archived room returns it to the room list.
+
+    Two concurrent changes under the room lock on one room run one after the other,
+    while changes on different rooms do not block each other.
+  }
+
+  interface {
+    Rooms lets a signed-in user create a room, and lets the room owner edit its
+    name, description, capacity, and location text.
+
+    Rooms provides the *room list* of every room that is not an archived room to
+    any signed-in user.
+
+    Rooms provides archive, unarchive, and room timezone change of a room through
+    its transactional entry, for Booking's workflows to use.
+
+    Rooms provides the room lock, which opens a transaction on one room and hands
+    it to a change, for Booking and the commands of Rooms to use.
+
+    Rooms provides the room owner of a room so other modules can authorize a
+    signed-in user against it.
+
+    Rooms provides the room timezone of a room so other modules can read a range in
+    it.
+
+    Rooms provides each room owner the list of every room that owner created,
+    including each archived room, so the owner can reach an archived room to
+    unarchive it.
+  }
+
+  decisions {
+    The room timezone is locked while upcoming items exist because no booking
+    should ever move in time. That check lives in Booking, which is why Rooms never
+    imports it.
+
+    A row lock in Postgres serializes room changes because the no-overlap rule and
+    exact automatic declines need one ordering per room.
+  }
+}

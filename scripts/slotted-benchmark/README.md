@@ -9,10 +9,14 @@ writes the readings back, and runs the final check. The benchmark then runs the
 pinned `sigilc check` itself and scores the planted problems from that report.
 What the agent hands back is only cross-checked against it.
 
-The benchmark owns the Slotted fixture and its four planted problems in
-[`fixture.ts`](./fixture.ts). It checks their evidence against the workspace
-trees before scheduling a batch. If the design has drifted, the report marks the
-affected planted-problem measure as unavailable.
+The benchmark owns the Slotted fixture,
+[`fixtures/slotted-planted`](./fixtures/slotted-planted), and the answer key for
+its four planted problems in [`fixture.ts`](./fixture.ts). The fixture is a copy
+of the Slotted design with the problems planted in it; the repo's Slotted
+example is the clean design and is not used here. The benchmark checks the
+problems' evidence against the workspace trees before scheduling a batch. If the
+design has drifted, the report marks the affected planted-problem measure as
+unavailable.
 
 The linked check sees every source's stored readings, so a problem that spans
 components, such as `booking-rooms-archived-mark-ownership` (Booking claims a
@@ -78,13 +82,13 @@ minutes per call, and parallel runs make them worse.
 
 Each pass gets a directory, `attempts/<id>/pass/`, which is kept as evidence:
 
-| Part         | What it is                                                                                                                                                                                        |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `root/`      | A copy of `examples/slotted` that keeps `.sigil/config.json` and has no `.sigil/claims/` store. It is the skill's `--root`, so the full-design write-back lands here, never in the fixture.       |
-| `store/`     | The private store. It must be empty when the pass starts; a pass whose store is not empty is refused. Nothing from an earlier pass is reused.                                                     |
-| `run/`       | The run directory: the orchestrator's preparations, seeds and the children's answer files.                                                                                                        |
-| `skills/`    | `sigil-compute-design`, `sigil-understand` and `sigil-egglog` staged as siblings. The prompt names `skills/sigil-compute-design/SKILL.md` by path, and their hashes are recorded in the manifest. |
-| `bin/sigilc` | The pinned binary, first on the orchestrator's `PATH`.                                                                                                                                            |
+| Part         | What it is                                                                                                                                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `root/`      | A copy of `fixtures/slotted-planted` that keeps `.sigil/config.json` and has no `.sigil/claims/` store. It is the skill's `--root`, so the full-design write-back lands here, never in the fixture. |
+| `store/`     | The private store. It must be empty when the pass starts; a pass whose store is not empty is refused. Nothing from an earlier pass is reused.                                                       |
+| `run/`       | The run directory: the orchestrator's preparations, seeds and the children's answer files.                                                                                                          |
+| `skills/`    | `sigil-compute-design`, `sigil-understand` and `sigil-egglog` staged as siblings. The prompt names `skills/sigil-compute-design/SKILL.md` by path, and their hashes are recorded in the manifest.   |
+| `bin/sigilc` | The pinned binary, first on the orchestrator's `PATH`.                                                                                                                                              |
 
 Host output is kept beside it in `attempts/<id>/evidence/`: the prompt, raw
 events, the last message, and the benchmark's own check under `check/`.

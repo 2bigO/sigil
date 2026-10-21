@@ -1,0 +1,110 @@
+@identity.sigil from Identity import { signed-in user }
+@rooms.sigil from Rooms import {
+  room,
+  room owner,
+  room timezone,
+  room lock,
+  transactional entry,
+}
+@shared.sigil from SharedKernel import {
+  30-minute grid,
+  local span,
+  UTC instant,
+}
+
+component Availability {
+  goal {
+    Let a room owner say when a room is open, and let other modules ask for that
+    open time over a date range.
+  }
+
+  state {
+    Availability owns each *weekly window* of a room, which is a weekday with a
+    local start and end on the 30-minute grid in the room timezone. The end may be
+    24:00, and a weekday may have any number of them.
+
+    Availability owns each *blackout*, which covers one whole room-local date of a
+    room.
+
+    The *open time* of a room is its weekly window values minus its blackout dates,
+    expressed as UTC instant ranges.
+  }
+
+  logic {
+    Computing open time for a room over a local date range takes five steps. Step
+    one reads the room timezone and the weekly window values of the room. Step two
+    collects, for each concrete local date in the range, the weekly window values
+    of its weekday as local span values. Step three drops every date that has a
+    blackout. Step four hands the local span values to SharedKernel, which converts
+    them to UTC instant ranges, drops slots inside a daylight-saving gap, and
+    merges adjacent ranges, including 24:00 joining 00:00 of the next day. Step
+    five returns the merged UTC instant ranges as the open time to the caller.
+  }
+
+  constraints {
+    The weekly window values of one weekday must not overlap. Adjacent windows are
+    allowed and merge.
+
+    A weekly window must start and end on the 30-minute grid, and an off-grid time
+    is rejected.
+
+    The open time must be computed per concrete local date and then converted to
+    instants, never precomputed in UTC.
+
+    Only the room owner may add or remove a weekly window or blackout, and each
+    edit must run inside the transaction that Booking opens under the room lock and
+    passes to the transactional entry of Availability, which only Booking may
+    import and which never opens the lock itself.
+
+    An edit to a weekly window or blackout must not sweep, decline, or cancel any
+    booking. The sweep that follows an edit belongs to Booking, in the same
+    transaction.
+
+    Availability depends on Rooms for the room timezone and room owner,
+    and on SharedKernel for the conversion of a local span.
+  }
+
+  cases {
+    Weekly window values on Monday from 09:00 to 12:00 and from 11:00 to 15:00 are
+    rejected as overlapping, while 09:00 to 12:00 and 12:00 to 15:00 are accepted
+    and merge in the open time.
+
+    A weekly window starting at 09:15 is rejected as off the 30-minute grid.
+
+    Adding a blackout for a date removes that date's open time and leaves the next
+    date unaffected, and removing the blackout restores the open time.
+
+    Given weekly window values on Friday from 18:00 to 24:00 and on Saturday from
+    00:00 to 02:00, the open time is one continuous span from Friday 18:00 to
+    Saturday 02:00.
+
+    A signed-in user who is not the room owner cannot add or remove a weekly window
+    or blackout.
+
+    A blackout on a past date is accepted and changes no open time that can still
+    matter.
+  }
+
+  interface {
+    Availability provides the edit of a weekly window and a blackout through its
+    own transactional entry, for Booking's editing workflow to use.
+
+    Availability provides the open time of a room over a local date range as
+    UTC instant ranges, to Booking and Calendar.
+
+    Availability provides the blackout dates of a room, for Calendar to show to the
+    room owner.
+
+    Availability provides the current weekly window and blackout entries of a room
+    to its room owner, so the manage page can show them.
+  }
+
+  decisions {
+    Weekly windows plus whole-day blackouts were chosen over weekly-only hours and
+    over date overrides that can also open time, because they give enough
+    expressiveness with one precedence rule.
+
+    Adjacent weekly windows merge instead of being rejected, since only a true
+    overlap is ambiguous.
+  }
+}

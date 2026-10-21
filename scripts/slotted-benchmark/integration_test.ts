@@ -7,7 +7,7 @@ import { executeCommand } from "./main.ts";
 import { writeExecutableScript, writeFakeHost } from "./test_support.ts";
 
 const slotted = fileURLToPath(
-  new URL("../../examples/slotted", import.meta.url),
+  new URL("./fixtures/slotted-planted", import.meta.url),
 );
 
 async function listing(dir: string): Promise<string[]> {

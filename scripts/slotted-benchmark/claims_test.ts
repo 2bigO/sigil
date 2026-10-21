@@ -23,7 +23,7 @@ const claims = fileURLToPath(
   ),
 );
 const slotted = fileURLToPath(
-  new URL("../../examples/slotted", import.meta.url),
+  new URL("./fixtures/slotted-planted", import.meta.url),
 );
 
 const root = "/tmp/slotted-claims-test/private";

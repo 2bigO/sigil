@@ -235,7 +235,7 @@ export async function runBatch(options: BatchOptions): Promise<BatchManifest> {
       repoRoot,
       action === "implementation"
         ? "examples/slotted-implementation"
-        : "examples/slotted",
+        : "scripts/slotted-benchmark/fixtures/slotted-planted",
     );
   const sigilc = options.sigilcExecutable ??
     join(repoRoot, `packages/sigilc/target/debug/sigilc${exeSuffix}`);

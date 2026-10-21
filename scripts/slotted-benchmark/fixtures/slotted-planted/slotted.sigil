@@ -1,0 +1,119 @@
+@identity.sigil from Identity import { signed-in user }
+@rooms.sigil from Rooms import {
+  transactional entry,
+  room timezone,
+  room list,
+  archived room,
+}
+@availability.sigil from Availability import { weekly window, blackout }
+@booking.sigil from Booking import {
+  booking request,
+  booking workflow,
+  decline cause,
+}
+@shared.sigil from SharedKernel import { domain error }
+
+component Slotted {
+  goal {
+    Slotted is a single signed-in app where any user can own rooms and rent other
+    people's rooms, with the owner approving each request and the calendar never
+    showing overlapping confirmed bookings.
+  }
+
+  constraints {
+    Slotted must be one Next.js app made of the modules Identity, Rooms,
+    Availability, Booking, and Calendar plus the kernel SharedKernel, which is not
+    a module and which any module may use, where each module exposes one
+    *module public entry* and no other module may import its internals. Rooms and
+    Availability also expose a transactional entry beside it.
+
+    The allowed module dependencies are exactly Booking on Availability and Rooms,
+    Availability on Rooms, Rooms on Identity, and Calendar on Booking,
+    Availability, and Rooms, with no cycles. The app imports only a
+    module public entry.
+
+    Slotted depends on Identity for the signed-in user and on SharedKernel for the
+    domain error, and reaches every other module only through its module public
+    entry.
+
+    Only Booking may import the transactional entry of Rooms or of Availability, so
+    the app reaches archive, unarchive, room timezone change, and availability
+    edits only through a booking workflow.
+
+    Every page and every *server action* except sign-up and sign-in must call
+    requireUser to obtain the signed-in user, because the proxy redirect on the
+    session cookie is optimistic and not a security boundary.
+
+    Every server action must re-verify the session and ownership, invoke one module
+    command or booking workflow, map each domain error to a distinct form message
+    that leaks no internals, and then refresh the page.
+
+    Every module must deliver each expected refusal, such as not allowed, an
+    invalid room timezone, an overlapping or off-grid window, or unauthenticated,
+    as a domain error.
+
+    Slotted fixes its *technology stack* as Next.js 16.3.7 or later with the App
+    Router on Node 22 with TypeScript 6.0 and cacheComponents off, Postgres 18 with
+    Drizzle and the pg driver using generate and migrate only, Better Auth with
+    email and password, and temporal-polyfill for time.
+
+    Slotted must not handle payments, pricing, deposits, reviews, messaging, or
+    organizations, and the status of a booking request is visible in the app only,
+    with no email, push, or real-time notification.
+  }
+
+  cases {
+    A signed-out visit to a room page redirects to sign-in, and a server action
+    submitted without a session is refused and changes nothing.
+
+    An owner creates a room with a timezone, weekly windows, and a blackout, and
+    the room appears in another signed-in user's list.
+
+    A renter picks a range on a room calendar and submits it, and the
+    booking request appears as Pending or the form shows the reason it was
+    rejected.
+
+    The owner approves one of two overlapping requests, and both parties see the
+    new status of each booking request in the app.
+
+    A renter withdraws a pending booking request and may submit the same range
+    again, or either party cancels a confirmed one and the time becomes requestable
+    again.
+
+    A signed-in user who does not own a room and submits its manage-page actions is
+    refused, and the room timezone and every booking request stay unchanged.
+  }
+
+  interface {
+    Slotted offers each signed-in user a room list, a room creation page, and a
+    room calendar with a request form.
+
+    Slotted offers the owner of a room a manage page for its details,
+    room timezone, each weekly window, each blackout, archive, and unarchive, which
+    also reaches each archived room of that owner, and an inbox of each
+    booking request
+    on its rooms.
+
+    Slotted offers each renter a page of each booking request they hold, with its
+    current status and decline cause.
+
+    Slotted offers sign-up and sign-in pages that need no session, while every
+    other page requires a signed-in user.
+  }
+
+  decisions {
+    A modular monolith with one Sigil design per module was chosen so each module's
+    responsibility, ownership of its Tags, and interface can be reviewed before its
+    code exists.
+
+    Next.js is pinned at 16.3.7 or later for the 2026-09-30 security release, and
+    TypeScript stays on 6.0 because typescript-eslint does not yet support 7.
+
+    Better Auth and Drizzle were chosen over Auth.js, Lucia, and Prisma, which is
+    unsupported by Better Auth at its current release candidate.
+
+    Slotted is a reference app for exercising Sigil design and a build pipeline, so
+    behavioral coherence outranks market fit, and deployment and production
+    observability are deferred.
+  }
+}
