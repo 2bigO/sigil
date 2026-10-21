@@ -126,17 +126,10 @@ component Booking {
 
     A pending request may overlap another pending request on the same room.
 
-    Booking owns the archived room mark, and Booking is the only one that may set
-    or clear it, because only its archive workflow and unarchive workflow change
-    it.
-
     Booking must not accept a booking request from the room owner of its room.
 
     A renter must not hold two pending request records with the identical range on
     one room.
-
-    Booking must not provide a range change of a pending request, because the
-    requested range of a pending request stays as Booking records it.
 
     A booking request must be in the room timezone, start and end on the
     30-minute grid, start in the future by the clock, and lie wholly inside
@@ -250,9 +243,6 @@ component Booking {
     Booking lets the room owner approve or decline any pending request on the room.
     An approval is refused when its checks no longer hold, and the request stays
     Pending.
-
-    Booking provides a renter a *range change* of their own pending request, and
-    the request stays Pending with its new range.
 
     Booking lets the renter withdraw their own pending request, and lets the
     room owner or the renter cancel a confirmed booking before its start with no

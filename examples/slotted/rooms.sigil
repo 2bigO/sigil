@@ -13,8 +13,7 @@ component Rooms {
 
     Every room has exactly one *room owner*, the signed-in user who created it.
 
-    A room is either listed or an *archived room*. Rooms owns the archived room
-    mark: a room carries it from archive until unarchive.
+    A room is either listed or an *archived room*.
   }
 
   logic {
