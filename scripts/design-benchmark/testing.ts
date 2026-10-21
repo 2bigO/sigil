@@ -2,7 +2,6 @@
  * Helpers for the measure and report tests: small canned designs written to
  * temp directories and read with the real `sigilc`. No test starts a host.
  */
-import { afterAll } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -19,11 +18,18 @@ import {
 export const SIGILC = defaultSigilc();
 
 const made: string[] = [];
-afterAll(async () => {
+
+/**
+ * Remove every directory `tempDir` made. `test-setup.ts`, preloaded by
+ * `bunfig.toml`, runs it once after the whole run: an `afterAll` in this
+ * module would bind to the first test file only and leak the others' dirs.
+ */
+export async function removeTempDirs(): Promise<void> {
+  const dirs = made.splice(0);
   await Promise.all(
-    made.map((dir) => rm(dir, { recursive: true, force: true })),
+    dirs.map((dir) => rm(dir, { recursive: true, force: true })),
   );
-});
+}
 
 export async function tempDir(prefix = "design-benchmark-test-") {
   const dir = await mkdtemp(join(tmpdir(), prefix));

@@ -57,6 +57,11 @@ export interface ReferenceDefinition {
   readonly root: string;
   /** The reference store directory, relative to the package directory. */
   readonly store: string;
+  /**
+   * The benchmark whose requirement file the reference's coverage reader is
+   * given. The reference's reading stands for every benchmark of the list.
+   */
+  readonly coverageBenchmark: string;
 }
 
 /** A with-split and a without-split benchmark that R21 compares. */
@@ -79,7 +84,14 @@ export const BENCHMARKS: readonly BenchmarkDefinition[] = [
 ];
 
 export const REFERENCES: readonly ReferenceDefinition[] = [
-  { list: "slotted", root: "examples/slotted", store: "reference/slotted" },
+  {
+    list: "slotted",
+    root: "examples/slotted",
+    store: "reference/slotted",
+    // The text without the module split: the split assigns IDs to components
+    // and states no requirement of its own.
+    coverageBenchmark: "slotted-without-split",
+  },
 ];
 
 export const SPLIT_PAIRS: readonly SplitPair[] = [
@@ -183,8 +195,20 @@ export interface BatchManifest {
   readonly reference: ReferenceDigests;
   /** What the batch's claims readings were taken under; null before any. */
   readonly readings: ReadingsIdentity | null;
+  /** Bounds each stage of a pass. */
+  readonly timeoutMs?: number;
+  /** Each `reread` that replaced the batch's readings, oldest first. */
+  readonly rereads?: readonly RereadEntry[];
   /** Kept for people reading the files; never shown in a report. */
   readonly createdAt?: string;
+}
+
+/** One `reread` of a batch's stored designs. */
+export interface RereadEntry {
+  readonly at: string;
+  readonly coverage: boolean;
+  /** The readings identity the batch had before this reread. */
+  readonly previous: ReadingsIdentity | null;
 }
 
 export type StageStatus =
@@ -219,6 +243,33 @@ export interface PassRecord {
   readonly stagingPath: string | null;
   readonly startedAt?: string | null;
   readonly finishedAt?: string | null;
+  /** What the writer host showed and handed back (U7). */
+  readonly writer?: WriterObservation | null;
+  /** What made the pass invalid or its reads unverified (U7). */
+  readonly integrity?: IntegrityFindings | null;
+  /** The state the claims reader handed back, when it gave one. */
+  readonly claimsHandback?: string | null;
+}
+
+export interface WriterObservation {
+  /** The host's own status: completed, failed, timeout or cancelled. */
+  readonly status: string;
+  /** The hand-back line's state, or null when the writer gave none. */
+  readonly state: string | null;
+  readonly observedModels: readonly string[];
+  readonly childCount: number | null;
+  /** Reviewer children the orchestrator started, where the host shows it. */
+  readonly reviewerStarts: number | null;
+}
+
+export interface IntegrityFindings {
+  /** Each forbidden read, as `actor tool path (root)`. */
+  readonly forbiddenReads: readonly string[];
+  readonly unverifiedReason: string | null;
+  /** Staged inputs whose bytes changed: the requirement, a skill, a binary. */
+  readonly changedInputs: readonly string[];
+  /** Writes outside `design/`, `run/` and `store/`, from both checks. */
+  readonly outsideWrites: readonly string[];
 }
 
 /** Paths inside one attempt directory. */

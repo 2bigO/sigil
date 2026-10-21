@@ -40,6 +40,14 @@ bun install
 bun run main.ts --help
 ```
 
+Build the binaries first; `run` gives the writer the repository's debug builds
+of `sigil` and `sigilc`:
+
+```sh
+PATH="$HOME/.cargo/bin:$PATH" deno task build:sigil
+PATH="$HOME/.cargo/bin:$PATH" deno task build:sigilc
+```
+
 - `run` regenerates designs for one benchmark, one or more `agent:model` pairs,
   a reasoning level and a pass count.
 - `measure` scores a committed design and its stored readings without calling a
@@ -48,8 +56,192 @@ bun run main.ts --help
   readings, on stored designs.
 - `report` re-measures listed batches with the current `sigilc` and writes one
   table per measure beside the reference.
+- `pin-reader` pins the reader that takes every claims and coverage reading.
 
 Evidence goes under `.benchmarks/` at the repository root, which is ignored.
+
+## Run a batch
+
+```sh
+bun run main.ts run --benchmark slotted-with-split \
+  --agent claude:MODEL [--agent codex:MODEL ...] --reasoning high --passes 3
+```
+
+`run` refuses to start when the reference is not pinned (see
+[Pin the reference](#pin-the-reference)), when a writer's agent, model and
+reasoning level equal the pinned reader's, when the reference readings were
+taken under another law set, or when `--out` already exists. It writes:
+
+```
+.benchmarks/<benchmark>-<time>/manifest.json         what the batch ran with
+.benchmarks/<benchmark>-<time>/report.md             the batch's report
+.benchmarks/<benchmark>-<time>/attempts/<id>/record.json
+.benchmarks/<benchmark>-<time>/attempts/<id>/design/       the writer's design
+.benchmarks/<benchmark>-<time>/attempts/<id>/store/        the claims readings
+.benchmarks/<benchmark>-<time>/attempts/<id>/coverage.json the coverage reading
+.benchmarks/<benchmark>-<time>/attempts/<id>/evidence/     every stage's events
+```
+
+The manifest records the writers, the reasoning level, the digest of every
+staged skill and of the writer's `sigil` and `sigilc`, the pinned reader, the
+requirement digests, the reference's digests and the readings identity (guidance
+fingerprint and vocabulary generation). `--timeout-ms` bounds one stage; the
+default is one hour. `--slotted-workspace DIR` names the maintainer's Slotted
+workspace, which defaults to `~/Workspace/slotted` when it exists.
+
+Ctrl-C (or SIGTERM) cancels a batch: the active stage is recorded as
+`interrupted`, the passes not started stay `pending`, and the report is still
+written. A second Ctrl-C exits at once; its active record stays `running`, and
+`report` shows it as `interrupted`. An interrupted pass keeps its staging
+directory under the OS temp directory and names it in `stagingPath`; look at it,
+then remove it by hand.
+
+### Where a pass runs
+
+Each pass runs in a fresh directory under the OS temp directory, outside the
+repository. The writer's staging directory holds:
+
+```
+requirement.md   the benchmark's requirement file, the writer's only evidence
+skills/          sigil-write, sigil-understand, sigil-evaluate,
+                 sigil-compute-design and sigil-egglog, copied from skills/
+bin/             sigil and sigilc, copied and first on PATH
+design/          the workspace the writer authors; sigil init made its config
+run/             the run directory of the review preparation
+store/           the review preparation's private store
+```
+
+The prompt ([`writer.ts`](writer.ts)) tells `sigil-write` that no human is
+available and that `requirement.md` is the only evidence, so it lists questions
+and evidence gaps in its final message instead of waiting or searching. The
+writer may start two children: `interpreter`, for the claims readings of its
+review preparation, and a read-only `reviewer`, for the delegated
+`sigil-evaluate` review. Its final line is
+`Hand-back: written|failed, review
+delegated|none`.
+
+### Stages and statuses
+
+A pass has four stages, each with its own status:
+
+1. **writer**: `sigil-write` authors the design. The design, the host events and
+   `run/` and `store/` are copied into the attempt whatever the outcome.
+2. **readScan**: the writer's host events are scanned for forbidden reads and
+   for writes outside `design/`, `run/` and `store/`; the requirement file, the
+   staged skills and the binaries are hashed again; and the staging directory is
+   compared with its snapshot.
+3. **claims**: the pinned reader runs the evaluation benchmark's full-design
+   action on a copy of the design with an empty store. The design's own
+   `.sigil/claims` is never copied.
+4. **coverage**: the pinned reader is given the requirement file, the
+   requirement list and every Facet with its `#N` handle, and writes one JSON
+   answer. The stage maps the handles to Facet ids.
+
+A status is `pending`, `running`, `done`, `failed`, `interrupted`, `invalid` or
+`unavailable`. A stage that does not finish leaves the later stages
+`unavailable`, never missed, and keeps the earlier stages' evidence. A design
+that does not parse is still scored structurally; its claims and coverage are
+`unavailable`. A coverage reader that times out or writes no usable answer gives
+a stored reading with every requirement `not read`.
+
+### Invalid and unverified passes
+
+A pass is `invalid` at the read scan, and is left out of the report's tables,
+when:
+
+- its host events show a read inside the sigil repository, an installed sigil
+  plugin or skill directory, or the Slotted workspace;
+- the requirement file, a staged skill or a staged binary changed; or
+- the writer wrote outside `design/`, `run/` and `store/`: anything new or
+  changed in the staging directory outside them, or a write-tool path, a shell
+  redirect target, or the destination of `cp`, `mv`, `mkdir`, `touch`, `tee`,
+  `rm`, `sed -i` or `apply_patch` anywhere else, including elsewhere under the
+  OS temp directory.
+
+On Claude Code the forbidden roots are also denied through `--settings`. A pass
+whose host cannot show every child's reads is scored with `reads: unverified`:
+always on Pi, and on Claude Code or Codex when a child session shows no tool
+call. A hand-back without a delegated review is valid and shows `review: none`.
+
+## Reread
+
+```sh
+bun run main.ts reread .benchmarks/<batch> [--coverage]
+bun run main.ts reread reference [--coverage] [--out DIR]
+```
+
+Stored claims readings are keyed by the guidance fingerprint, which includes the
+claims laws, so a law change leaves every stored reading unread. `reread`
+retakes them with the pinned reader. On a batch it moves each attempt's old
+`store/` (and with `--coverage` its `coverage.json`) into
+`evidence/superseded-<time>/`, reads again, updates the manifest's readings,
+reader and reference digests, and rewrites the report. The designs are not
+touched. Coverage readings cite Facet ids and survive a law-only change; reread
+a batch with `--coverage` when the pinned reader changed.
+
+`reread reference` reads `examples/slotted` into a new reference store directory
+(by default `.benchmarks/reference-slotted-<time>/`) and never writes the
+committed `reference/slotted/`. It prints where it wrote and the commands that
+copy the new readings in. Without `--coverage` it carries the committed coverage
+reading over.
+
+## Pin the reference
+
+The reference store, `reference/slotted/`, holds the pinned reader
+(`reader.json`), its frozen skills (`reader-skills/`), the reference's claims
+readings (`store/` and `readings.json`) and its coverage reading
+(`coverage.json`). `run` takes the reader from there, never from a flag. To pin
+it, or to re-pin it after a law change:
+
+1. Choose the reader: an agent, a model and a reasoning level that no writer
+   under test will use.
+2. Freeze its skills and write `reader.json`:
+
+   ```sh
+   bun run main.ts pin-reader --agent claude:MODEL --reasoning high
+   ```
+
+   This copies `sigil-compute-design`, `sigil-understand` and `sigil-egglog`
+   from `skills/` into `reference/slotted/reader-skills/`. Re-pinning needs
+   `--force`. After a law-only change, skip this step.
+3. Take the reference readings:
+
+   ```sh
+   bun run main.ts reread reference --coverage
+   ```
+
+4. Review the new store it printed, then copy it in with the commands it
+   printed:
+
+   ```sh
+   rm -rf reference/slotted/store
+   cp -R ../../.benchmarks/reference-slotted-<time>/store reference/slotted/store
+   cp ../../.benchmarks/reference-slotted-<time>/readings.json \
+     ../../.benchmarks/reference-slotted-<time>/coverage.json reference/slotted/
+   ```
+
+5. Measure the reference twice and check the two outputs are the same:
+
+   ```sh
+   bun run main.ts measure --benchmark slotted-with-split --out /tmp/m1.md
+   bun run main.ts measure --benchmark slotted-with-split --out /tmp/m2.md
+   cmp /tmp/m1.md /tmp/m2.md
+   ```
+
+Commit `reference/slotted/` once it is right.
+
+## Known limits
+
+- Whether Claude Code's deny rules reach a custom `--agents` child is not
+  documented, so every pass is also scanned afterwards.
+- Pi shows none of its children's tool calls, and its launch settings are
+  untested live; Pi passes are always `reads: unverified`.
+- Codex has no deny setting and no per-child tool lists: its children are told
+  their role in the prompt, and their reads come from the rollouts.
+- The scans cannot see paths a program builds at run time, files a script writes
+  without naming them on its command line, or reads through a symlink outside
+  every root.
+- Claude Code's writer has no Edit tool; it rewrites whole files with Write.
 
 ## Measures
 

@@ -202,7 +202,7 @@ interface Targets {
 }
 
 /** Input keys that name a file or directory, across the hosts' file tools. */
-const PATH_KEYS = [
+export const PATH_KEYS = [
   "file_path",
   "path",
   "notebook_path",
@@ -252,7 +252,10 @@ function callTargets(call: ToolCall, base: string, home: string): Targets {
     merge(targets, analyzeShell(lexCommands(command), cwd, home));
   } else if (Array.isArray(command)) {
     const words = command.map(String);
-    merge(targets, analyzeShell([{ words, redirects: [] }], cwd, home));
+    merge(
+      targets,
+      analyzeShell([{ words, redirects: [], outputs: [] }], cwd, home),
+    );
   }
   for (const key of PATH_KEYS) {
     const value = record[key];
@@ -288,7 +291,7 @@ const PATH_IN_TEXT =
   /(?<=^|[\s"'`=(:,{[<>|;&])(?:~|\$HOME|\$\{HOME\}|\.\.?)?\/[^\s"'`;|&<>(){}[\],]*|(?<=^|[\s"'`=(:,{[])~(?=$|[\s"'`;|&)\]},])/g;
 
 /** Every double-quoted string literal given to `key:` in JavaScript text. */
-function stringLiterals(text: string, key: string): string[] {
+export function stringLiterals(text: string, key: string): string[] {
   const values: string[] = [];
   const pattern = new RegExp(
     `["']?\\b${key}["']?\\s*:\\s*("(?:[^"\\\\]|\\\\.)*")`,
@@ -307,13 +310,17 @@ function stringLiteral(text: string, key: string): string | null {
 }
 
 /** One simple shell command: its words and its redirection targets. */
-interface SimpleCommand {
+export interface SimpleCommand {
   readonly words: string[];
+  /** Every redirection target, input and output alike. */
   readonly redirects: string[];
+  /** The targets of output redirections (`>`, `>>`, `>&`, `&>`) only. */
+  readonly outputs: string[];
 }
 
 const SEPARATORS = new Set([";", "|", "&", "&&", "||", "(", ")", "`"]);
 const REDIRECTS = new Set(["<", ">", ">>", ">&", "&>", "<<"]);
+const OUTPUT_REDIRECTS = new Set([">", ">>", ">&", "&>"]);
 
 /**
  * Split a shell command into simple commands, honouring quotes and escapes
@@ -321,19 +328,23 @@ const REDIRECTS = new Set(["<", ">", ">>", ">&", "&>", "<<"]);
  * before a redirection are dropped. Not a full shell: expansions stay as
  * written, apart from `~` and HOME, which `resolvePath` expands.
  */
-function lexCommands(command: string): SimpleCommand[] {
+export function lexCommands(command: string): SimpleCommand[] {
   const commands: SimpleCommand[] = [];
-  let current: SimpleCommand = { words: [], redirects: [] };
+  let current: SimpleCommand = { words: [], redirects: [], outputs: [] };
   let word = "";
   let inWord = false;
   let redirectNext = false;
+  let outputNext = false;
   const endWord = () => {
     if (!inWord) return;
-    if (redirectNext) current.redirects.push(word);
-    else current.words.push(word);
+    if (redirectNext) {
+      current.redirects.push(word);
+      if (outputNext) current.outputs.push(word);
+    } else current.words.push(word);
     word = "";
     inWord = false;
     redirectNext = false;
+    outputNext = false;
   };
   const operator = (op: string) => {
     // A number right before a redirection is a file descriptor.
@@ -344,12 +355,14 @@ function lexCommands(command: string): SimpleCommand[] {
     endWord();
     if (REDIRECTS.has(op)) {
       redirectNext = true;
+      outputNext = OUTPUT_REDIRECTS.has(op);
     } else if (SEPARATORS.has(op)) {
       redirectNext = false;
+      outputNext = false;
       if (current.words.length || current.redirects.length) {
         commands.push(current);
       }
-      current = { words: [], redirects: [] };
+      current = { words: [], redirects: [], outputs: [] };
     }
   };
   const length = command.length;
@@ -401,7 +414,7 @@ function lexCommands(command: string): SimpleCommand[] {
   return commands;
 }
 
-const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
+export const SHELLS = new Set(["sh", "bash", "zsh", "dash", "ksh"]);
 const WRAPPERS = new Set([
   "env",
   "sudo",
@@ -442,18 +455,9 @@ function analyzeShell(
         word.match(/^[A-Za-z_][A-Za-z0-9_]*=(.+)$/)?.[1];
       if (value) addPath(value);
     }
-    let at = 0;
-    while (at < words.length && ASSIGNMENT.test(words[at])) at++;
-    while (at < words.length && WRAPPERS.has(posix.basename(words[at]))) {
-      at++;
-      while (
-        at < words.length &&
-        (words[at].startsWith("-") || ASSIGNMENT.test(words[at]))
-      ) at++;
-    }
-    if (at >= words.length) continue;
-    const program = posix.basename(words[at]);
-    const args = words.slice(at + 1);
+    const invoked = commandProgram(words);
+    if (invoked === null) continue;
+    const { program, args } = invoked;
     if (program === "cd" || program === "pushd") {
       const target = args.find((arg) => !arg.startsWith("-")) ?? "~";
       cwd = resolvePath(target, cwd, home);
@@ -472,6 +476,27 @@ function analyzeShell(
     }
   }
   return targets;
+}
+
+/**
+ * The program a simple command runs, by base name, and its arguments, after
+ * leading variable assignments and wrappers such as `env` or `sudo`; null
+ * when the words run nothing.
+ */
+export function commandProgram(
+  words: readonly string[],
+): { program: string; args: string[] } | null {
+  let at = 0;
+  while (at < words.length && ASSIGNMENT.test(words[at])) at++;
+  while (at < words.length && WRAPPERS.has(posix.basename(words[at]))) {
+    at++;
+    while (
+      at < words.length &&
+      (words[at].startsWith("-") || ASSIGNMENT.test(words[at]))
+    ) at++;
+  }
+  if (at >= words.length) return null;
+  return { program: posix.basename(words[at]), args: words.slice(at + 1) };
 }
 
 function isPathLike(word: string): boolean {
