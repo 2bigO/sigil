@@ -4,9 +4,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { exists, writeJson } from "../agent-runner/files.ts";
 import { defaultForbiddenRoots } from "../agent-runner/read-scan.ts";
-import { defaultSigil } from "./batch.ts";
 import { fakeWriter } from "./fakes.ts";
-import { REPO_ROOT } from "./records.ts";
+import { defaultSigil, REPO_ROOT } from "./records.ts";
 import {
   checkWriterIntegrity,
   copyDesign,

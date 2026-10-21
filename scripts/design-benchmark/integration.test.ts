@@ -1,15 +1,22 @@
 /**
- * Covers F2: one fake-host batch of `slotted-without-split`, end to end, and
- * its report beside a canned reference pinned the way U8 pins one. No test
- * starts a real host.
+ * One fake-host batch of `slotted-without-split`, end to end, and its report
+ * beside a canned reference with a pinned fake reader. No test starts a real
+ * host.
  */
-import { expect, test } from "bun:test";
+import { beforeAll, expect, test } from "bun:test";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { exists } from "../agent-runner/files.ts";
 import { runBatch } from "./batch.ts";
-import { fakeHosts, fakeReader, fakeWriter, pinnedReference } from "./fakes.ts";
+import {
+  copyPinnedReference,
+  fakeHosts,
+  fakeReader,
+  fakeWriter,
+  type PinnedReference,
+  pinnedReference,
+} from "./fakes.ts";
 import { executeCommand, HANDLERS } from "./main.ts";
 import { attemptPaths, readBatch, readJsonFile } from "./records.ts";
 import { buildReport } from "./report.ts";
@@ -31,24 +38,33 @@ const PASS_DESIGN = {
   "b.sigil": TWO_COMPONENTS["b.sigil"],
 };
 
+/** Pinned once for the file; each test copies its store. */
+let pinned: PinnedReference;
+let reader: Awaited<ReturnType<typeof fakeReader>>;
+
+beforeAll(async () => {
+  const scratch = await tempDir();
+  const referenceRoot = await writeDesign(
+    join(scratch, "reference-design"),
+    TWO_COMPONENTS,
+  );
+  const handles = facetHandles(await readDesignTree(SIGILC, referenceRoot));
+  reader = await fakeReader(scratch, {
+    coverage: { R1: [handles[0]!.handle] },
+  });
+  pinned = await pinnedReference({
+    root: referenceRoot,
+    dir: join(scratch, "reference-store"),
+    scratch,
+    reader,
+  });
+});
+
 test(
   "a fake-host batch of slotted-without-split is scored and reported beside the reference",
   async () => {
     const scratch = await tempDir();
-    const referenceRoot = await writeDesign(
-      join(scratch, "reference-design"),
-      TWO_COMPONENTS,
-    );
-    const handles = facetHandles(await readDesignTree(SIGILC, referenceRoot));
-    const reader = await fakeReader(scratch, {
-      coverage: { R1: [handles[0]!.handle] },
-    });
-    const reference = await pinnedReference({
-      root: referenceRoot,
-      dir: join(scratch, "reference-store"),
-      scratch,
-      reader,
-    });
+    const reference = await copyPinnedReference(pinned, scratch);
     const writer = await fakeWriter(scratch, {
       design: PASS_DESIGN,
       review: "delegated",
@@ -142,17 +158,7 @@ test(
   "the run command refuses a writer that is the pinned reader, before any host starts",
   async () => {
     const scratch = await tempDir();
-    const referenceRoot = await writeDesign(
-      join(scratch, "reference-design"),
-      TWO_COMPONENTS,
-    );
-    const reader = await fakeReader(scratch);
-    const reference = await pinnedReference({
-      root: referenceRoot,
-      dir: join(scratch, "reference-store"),
-      scratch,
-      reader,
-    });
+    const reference = await copyPinnedReference(pinned, scratch);
     const hostFor = () => {
       throw new Error("a host was started");
     };

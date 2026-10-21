@@ -1,8 +1,8 @@
 /**
- * Requirement coverage (R16, KTD9): which Facets a stored reading judges to
+ * Requirement coverage: which Facets a stored reading judges to
  * answer each requirement ID, never a score.
  *
- * The coverage stage (U7) gives the pinned reader the requirement list and
+ * The coverage stage gives the pinned reader the requirement list and
  * every Facet with a `#N` handle from `facetHandles` (structure.ts). The reader
  * cites handles; the stage maps them to tree ids and stores one file:
  *
@@ -27,15 +27,11 @@
  * answers the requirement, not merely mentions it. `not-read` means the reader
  * refused or timed out, or cited a handle that does not exist.
  */
-import { readFile } from "node:fs/promises";
-import { sha256 } from "../agent-runner/files.ts";
-import {
-  COVERAGE_VERSION,
-  type ReaderIdentity,
-  type RequirementList,
-} from "./records.ts";
+import { errorMessage } from "../agent-runner/files.ts";
+import type { RequirementInputs } from "./measure.ts";
+import { COVERAGE_VERSION, type ReaderIdentity } from "./records.ts";
 
-export const VERDICTS = ["answered", "none", "not-read"] as const;
+const VERDICTS = ["answered", "none", "not-read"] as const;
 export type Verdict = typeof VERDICTS[number];
 
 export interface CoverageFacet {
@@ -59,12 +55,7 @@ export interface CoverageFile {
 }
 
 /** What a coverage file must match to be measured. */
-export interface CoverageContext {
-  readonly benchmark: string;
-  readonly list: RequirementList;
-  readonly listName: string;
-  readonly listDigest: string;
-  readonly requirementFileDigest: string;
+export interface CoverageContext extends RequirementInputs {
   /** Every Facet id in the design's tree, with its label. */
   readonly facets: ReadonlyMap<string, string>;
 }
@@ -169,31 +160,30 @@ export function measureCoverage(
       ...(entry.note ? { note: entry.note } : {}),
     };
   });
+  return { digest, ...countVerdicts(entries), entries };
+}
+
+/** How many entries have each verdict. */
+export function countVerdicts(
+  entries: readonly { readonly verdict: Verdict }[],
+): { answered: number; none: number; notRead: number } {
   const count = (verdict: Verdict) =>
     entries.filter((entry) => entry.verdict === verdict).length;
   return {
-    digest,
     answered: count("answered"),
     none: count("none"),
     notRead: count("not-read"),
-    entries,
   };
 }
 
-/** Read a coverage file and its digest. */
-export async function readCoverageFile(
+/** Parse the bytes of the coverage file at `path`. */
+export function parseCoverageFile(
+  bytes: Uint8Array,
   path: string,
-): Promise<{ file: CoverageFile; digest: string }> {
-  const bytes = await readFile(path);
-  let file: CoverageFile;
+): CoverageFile {
   try {
-    file = JSON.parse(new TextDecoder().decode(bytes)) as CoverageFile;
+    return JSON.parse(new TextDecoder().decode(bytes)) as CoverageFile;
   } catch (cause) {
-    throw new CoverageError(
-      `${path} is not JSON: ${
-        cause instanceof Error ? cause.message : String(cause)
-      }`,
-    );
+    throw new CoverageError(`${path} is not JSON: ${errorMessage(cause)}`);
   }
-  return { file, digest: await sha256(bytes) };
 }

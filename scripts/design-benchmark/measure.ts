@@ -1,5 +1,5 @@
 /**
- * Measure mode (R12, R14–R16): score one committed design from its contracts
+ * Measure mode: score one committed design from its contracts
  * and stored readings without calling a model. The same design, store,
  * coverage reading and `sigilc` always give the same measures.
  *
@@ -7,25 +7,26 @@
  * `sigilc check` run with a throwaway store, and the check gets a scratch copy
  * of the stored interpretations.
  */
-import { cp, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { cp, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { exists } from "../agent-runner/files.ts";
 import {
-  designDigest,
+  exists,
   fileDigest,
-  readingsDigest,
-  textDigest,
-} from "./baseline.ts";
+  sha256,
+  withTempDir,
+} from "../agent-runner/files.ts";
+import { runToCompletion } from "../agent-runner/process.ts";
+import { designDigest, readingsDigest, textDigest } from "./baseline.ts";
 import {
   CoverageError,
   type CoverageMeasures,
   measureCoverage,
-  readCoverageFile,
+  parseCoverageFile,
 } from "./coverage.ts";
 import {
   benchmarkNamed,
   compareText,
+  INTERPRETATIONS_DIR,
   PACKAGE_DIR,
   readJsonFile,
   type RequirementList,
@@ -34,12 +35,13 @@ import {
   facetHandles,
   measureStructure,
   readDesignTree,
-  runSigilc,
   type StructureMeasures,
+  type TreeOutput,
+  unparseableReason,
 } from "./structure.ts";
 
 /** The report version of `sigilc check` this benchmark reads. */
-export const CHECK_REPORT_VERSION = 6;
+const CHECK_REPORT_VERSION = 6;
 
 export type Availability<T> =
   | { readonly status: "available"; readonly value: T }
@@ -87,7 +89,7 @@ export interface SigilcIdentity {
 }
 
 export async function sigilcIdentity(sigilc: string): Promise<SigilcIdentity> {
-  const result = await runSigilc(sigilc, ["--version"]);
+  const result = await runToCompletion(sigilc, ["--version"]);
   if (result.code !== 0) {
     throw new Error(`${sigilc} --version failed: ${result.stderr.trim()}`);
   }
@@ -148,9 +150,29 @@ const unavailable = (reason: string) => ({
   reason,
 });
 
-export async function measureDesign(
-  input: MeasureInput,
-): Promise<DesignMeasures> {
+/**
+ * Everything a design measures to but its coverage, which is checked against
+ * the requirement inputs of one benchmark. `measureDesign` is `readDesign`
+ * then `withCoverage`; a design measured against several benchmarks, as the
+ * reference is in a report, is read once.
+ */
+export interface DesignReading {
+  readonly identity: DesignMeasures["identity"];
+  readonly structure: StructureMeasures;
+  readonly claims: Availability<ClaimsMeasures>;
+  /** Why the design gives no claims or coverage; null when it parses. */
+  readonly unparseable: string | null;
+  readonly tree: TreeOutput;
+  /** The stored coverage reading's bytes, or why there is none to measure. */
+  readonly coverage:
+    | { readonly path: string; readonly bytes: Uint8Array }
+    | { readonly reason: string };
+}
+
+/** Read a design's tree, claims and coverage file; `withCoverage` checks it. */
+export async function readDesign(
+  input: Omit<MeasureInput, "requirements" | "onCoverageError">,
+): Promise<DesignReading> {
   if (!(await exists(input.root))) {
     throw new Error(`The design ${input.root} does not exist`);
   }
@@ -158,29 +180,33 @@ export async function measureDesign(
   const structure = measureStructure(tree);
   const storeExists = input.store !== null && await exists(input.store);
   const readings = storeExists ? await readingsDigest(input.store!) : null;
-  const coverageDigest = "path" in input.coverage &&
+  const coverageBytes = "path" in input.coverage &&
       await exists(input.coverage.path)
-    ? await fileDigest(input.coverage.path)
+    ? await readFile(input.coverage.path)
     : null;
   const identity = {
     design: await designDigest(input.root),
     readings,
-    coverage: coverageDigest,
+    coverage: coverageBytes === null ? null : await sha256(coverageBytes),
   };
+  const coverage = "reason" in input.coverage
+    ? { reason: input.coverage.reason }
+    : coverageBytes === null
+    ? { reason: "no coverage reading" }
+    : { path: input.coverage.path, bytes: coverageBytes };
 
-  // A design that does not parse is still measured structurally (KTD13).
-  if (structure.invalidSources.length > 0 || structure.sources === 0) {
-    const reason = structure.sources === 0
-      ? "the design has no sources"
-      : `the design does not parse: ${structure.invalidSources.join(", ")}`;
+  // A design that does not parse is still measured structurally.
+  const unparseable = unparseableReason(structure);
+  if (unparseable !== null) {
     return {
       identity,
       structure,
-      claims: unavailable(reason),
-      coverage: unavailable(reason),
+      claims: unavailable(unparseable),
+      unparseable,
+      tree,
+      coverage,
     };
   }
-
   const claims = input.claimsUnavailable !== undefined
     ? unavailable(input.claimsUnavailable)
     : await measureClaims(
@@ -188,44 +214,71 @@ export async function measureDesign(
       input.root,
       storeExists ? input.store : null,
     );
+  return { identity, structure, claims, unparseable, tree, coverage };
+}
 
-  let coverage: Availability<CoverageMeasures>;
-  if ("reason" in input.coverage) coverage = unavailable(input.coverage.reason);
-  else if (coverageDigest === null) {
-    coverage = unavailable("no coverage reading");
-  } else {
-    const facets = new Map(
-      facetHandles(tree).map((handle) => [handle.id, handle.label]),
+/** A read design's measures, with its coverage checked against `input`. */
+export function withCoverage(
+  reading: DesignReading,
+  input: Pick<MeasureInput, "requirements" | "onCoverageError">,
+): DesignMeasures {
+  const { identity, structure, claims } = reading;
+  if (reading.unparseable !== null) {
+    return {
+      identity,
+      structure,
+      claims,
+      coverage: unavailable(reading.unparseable),
+    };
+  }
+  if ("reason" in reading.coverage) {
+    return {
+      identity,
+      structure,
+      claims,
+      coverage: unavailable(reading.coverage.reason),
+    };
+  }
+  const facets = new Map(
+    facetHandles(reading.tree).map((handle) => [handle.id, handle.label]),
+  );
+  try {
+    const file = parseCoverageFile(
+      reading.coverage.bytes,
+      reading.coverage.path,
     );
-    try {
-      const { file, digest } = await readCoverageFile(input.coverage.path);
-      coverage = {
+    return {
+      identity,
+      structure,
+      claims,
+      coverage: {
         status: "available",
-        value: measureCoverage(file, digest, {
-          benchmark: input.requirements.benchmark,
-          list: input.requirements.list,
-          listName: input.requirements.listName,
-          listDigest: input.requirements.listDigest,
-          requirementFileDigest: input.requirements.requirementFileDigest,
+        value: measureCoverage(file, identity.coverage!, {
+          ...input.requirements,
           facets,
         }),
+      },
+    };
+  } catch (cause) {
+    if (!(cause instanceof CoverageError)) throw cause;
+    if (input.onCoverageError === "unavailable") {
+      return {
+        identity,
+        structure,
+        claims,
+        coverage: unavailable(`coverage reading rejected: ${cause.message}`),
       };
-    } catch (cause) {
-      if (!(cause instanceof CoverageError)) throw cause;
-      if (input.onCoverageError === "unavailable") {
-        return {
-          identity,
-          structure,
-          claims,
-          coverage: unavailable(`coverage reading rejected: ${cause.message}`),
-        };
-      }
-      throw new CoverageError(
-        `${input.coverage.path} is rejected: ${cause.message}`,
-      );
     }
+    throw new CoverageError(
+      `${reading.coverage.path} is rejected: ${cause.message}`,
+    );
   }
-  return { identity, structure, claims, coverage };
+}
+
+export async function measureDesign(
+  input: MeasureInput,
+): Promise<DesignMeasures> {
+  return withCoverage(await readDesign(input), input);
 }
 
 /**
@@ -237,16 +290,16 @@ export async function measureClaims(
   root: string,
   store: string | null,
 ): Promise<Availability<ClaimsMeasures>> {
-  const scratch = await mkdtemp(join(tmpdir(), "design-benchmark-check-"));
-  try {
-    const interpretations = join("claims", "interpretations");
-    await mkdir(join(scratch, interpretations), { recursive: true });
-    if (store !== null && await exists(join(store, interpretations))) {
-      await cp(join(store, interpretations), join(scratch, interpretations), {
-        recursive: true,
-      });
+  return await withTempDir("design-benchmark-check-", async (scratch) => {
+    await mkdir(join(scratch, INTERPRETATIONS_DIR), { recursive: true });
+    if (store !== null && await exists(join(store, INTERPRETATIONS_DIR))) {
+      await cp(
+        join(store, INTERPRETATIONS_DIR),
+        join(scratch, INTERPRETATIONS_DIR),
+        { recursive: true },
+      );
     }
-    const result = await runSigilc(sigilc, [
+    const result = await runToCompletion(sigilc, [
       "check",
       "--root",
       root,
@@ -276,17 +329,15 @@ export async function measureClaims(
     const report = JSON.parse(
       await readFile(String(summary.report), "utf8"),
     ) as CheckReport;
-    const claims = claimsFromReport(report, summary);
+    const { interpretationKeys, ...claims } = claimsFromReport(report, summary);
     return {
       status: "available",
       value: {
         ...claims,
-        interpretationsDigest: await textDigest(claims.interpretationsDigest),
+        interpretationsDigest: await textDigest(interpretationKeys.join("\n")),
       },
     };
-  } finally {
-    await rm(scratch, { recursive: true, force: true });
-  }
+  });
 }
 
 interface CheckReport {
@@ -325,10 +376,13 @@ function componentName(iri: string): string {
   return iri.slice(iri.lastIndexOf(":") + 1);
 }
 
-export function claimsFromReport(
+/** The claims measures of a check report, with its sorted memo keys. */
+function claimsFromReport(
   report: CheckReport,
   summary: Record<string, unknown>,
-): ClaimsMeasures {
+): Omit<ClaimsMeasures, "interpretationsDigest"> & {
+  readonly interpretationKeys: readonly string[];
+} {
   const unread = report.unread.map((unit) => ({
     source: unit.source,
     component: unit.component,
@@ -360,7 +414,6 @@ export function claimsFromReport(
       report.linked?.workspaceDigest ?? summary.workspaceDigest ?? "",
     ),
     interpretations: keys.length,
-    // The sorted memo keys; measureClaims replaces them with their digest.
-    interpretationsDigest: keys.join("\n"),
+    interpretationKeys: keys,
   };
 }

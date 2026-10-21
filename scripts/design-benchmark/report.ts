@@ -1,5 +1,5 @@
 /**
- * Reports across batches (R18–R22). A report is rebuilt from the batch files
+ * Reports across batches. A report is rebuilt from the batch files
  * and the reference alone: every listed batch's stored designs and readings
  * are measured again with the current `sigilc`, so no report mixes binaries,
  * and nothing time-dependent or machine-dependent is printed, so the same
@@ -24,17 +24,18 @@ import {
 import {
   type DesignMeasures,
   measureDesign,
+  readDesign,
   type RequirementInputs,
   requirementInputs,
   type SigilcIdentity,
   sigilcIdentity,
+  withCoverage,
 } from "./measure.ts";
 import {
   attemptPaths,
   type Batch,
   benchmarkNamed,
   BENCHMARKS,
-  canonicalJson,
   compareText,
   PACKAGE_DIR,
   type PassRecord,
@@ -45,6 +46,7 @@ import {
   referenceFor,
   referenceStorePaths,
   REPO_ROOT,
+  sameJson,
   SPLIT_PAIRS,
   STAGES,
 } from "./records.ts";
@@ -58,7 +60,7 @@ export interface MeasureView {
   /** Set when this measure could not be taken for the design. */
   readonly unavailable?: string;
   readonly design: readonly Row[];
-  /** Rows per component, keyed by component name (R20). */
+  /** Rows per component, keyed by component name. */
   readonly components?: ReadonlyMap<string, readonly Row[]>;
   /** The value of a row the design does not list, such as 0 findings. */
   readonly missing: Cell;
@@ -397,7 +399,7 @@ function lookup(rows: readonly Row[] | undefined, label: string) {
  * One measure's table. With a reference, its column comes first, pass cells
  * show their difference from it, and components are matched to it by name.
  */
-export function renderMeasureTable(
+function renderMeasureTable(
   definition: MeasureDefinition,
   reference: Column | null,
   columns: readonly Column[],
@@ -554,6 +556,24 @@ export interface ReferenceLocation {
   readonly dir: string;
 }
 
+/** A list's reference: the one given in `references`, else the registered one. */
+export function referenceLocationFor(
+  list: string,
+  options: {
+    readonly references?: Readonly<Record<string, ReferenceLocation>>;
+    readonly repoRoot: string;
+    readonly packageDir: string;
+  },
+): ReferenceLocation {
+  const given = options.references?.[list];
+  if (given) return given;
+  const definition = referenceFor(list);
+  return {
+    root: join(options.repoRoot, definition.root),
+    dir: join(options.packageDir, definition.store),
+  };
+}
+
 export interface ReportOptions {
   readonly batchDirs: readonly string[];
   readonly sigilc: string;
@@ -621,7 +641,7 @@ function exclusion(record: PassRecord): string | null {
   return null;
 }
 
-/** Why R21 does not compare two cohorts, or null when it does. */
+/** Why with-split and without-split are not compared; null when they are. */
 function splitMismatch(
   withSplit: { batch: Batch; agent: string; model: string },
   withoutSplit: { batch: Batch; agent: string; model: string },
@@ -634,7 +654,7 @@ function splitMismatch(
   if (a.effort !== b.effort) {
     reasons.push(`reasoning level differs (${a.effort} and ${b.effort})`);
   }
-  if (canonicalJson(a.skillDigests) !== canonicalJson(b.skillDigests)) {
+  if (!sameJson(a.skillDigests, b.skillDigests)) {
     reasons.push("skill revisions differ");
   }
   if (a.passes !== b.passes) {
@@ -674,6 +694,37 @@ function stagesCell(record: PassRecord): string {
   ).join(", ");
 }
 
+/** How many passes a report measures at once. */
+const MEASURE_CONCURRENCY = 4;
+
+/**
+ * Run `task` on every item, at most `limit` at a time, starting them in order.
+ * After a failure no further item starts; once the started ones settle, the
+ * failure of the earliest item is thrown, as running them one by one would.
+ */
+async function forEachLimited<T>(
+  items: readonly T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+): Promise<void> {
+  const failures = new Map<number, unknown>();
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length && failures.size === 0) {
+      const index = next++;
+      try {
+        await task(items[index]!);
+      } catch (cause) {
+        failures.set(index, cause);
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  if (failures.size > 0) throw failures.get(Math.min(...failures.keys()));
+}
+
 /** Build the report text for the listed batches. */
 export async function buildReport(options: ReportOptions): Promise<string> {
   const repoRoot = options.repoRoot ?? REPO_ROOT;
@@ -705,13 +756,11 @@ export async function buildReport(options: ReportOptions): Promise<string> {
   for (const batch of batches) {
     const list = benchmarkNamed(batch.manifest.benchmark).list;
     if (references.has(list)) continue;
-    const location = options.references?.[list] ?? (() => {
-      const definition = referenceFor(list);
-      return {
-        root: join(repoRoot, definition.root),
-        dir: join(packageDir, definition.store),
-      };
-    })();
+    const location = referenceLocationFor(list, {
+      references: options.references,
+      repoRoot,
+      packageDir,
+    });
     const paths = referenceStorePaths(location.dir);
     const reader = await readOptionalJson<ReaderIdentity>(paths.reader);
     if (!reader) {
@@ -729,14 +778,12 @@ export async function buildReport(options: ReportOptions): Promise<string> {
     });
   }
 
-  // Every batch must share the reference's pinned reader (KTD10).
+  // Every batch must share the reference's pinned reader.
   for (const batch of batches) {
     const reference = references.get(
       benchmarkNamed(batch.manifest.benchmark).list,
     )!;
-    if (
-      canonicalJson(batch.manifest.reader) !== canonicalJson(reference.reader)
-    ) {
+    if (!sameJson(batch.manifest.reader, reference.reader)) {
       throw new Error(
         `Batch ${batch.name} was read by ${
           describeReader(batch.manifest.reader)
@@ -817,18 +864,21 @@ export async function buildReport(options: ReportOptions): Promise<string> {
         .requirementFile;
     }
 
-    // Measure the reference once per benchmark, against that benchmark's file.
+    // Read the reference once; only its coverage is checked per benchmark,
+    // against that benchmark's file.
     const referenceMeasures = new Map<string, DesignMeasures>();
-    if (group.current) {
+    if (group.current && benchmarks.length > 0) {
       const paths = referenceStorePaths(reference.location.dir);
+      const reading = await readDesign({
+        sigilc: options.sigilc,
+        root: reference.location.root,
+        store: paths.store,
+        coverage: { path: paths.coverage },
+      });
       for (const benchmark of benchmarks) {
         referenceMeasures.set(
           benchmark,
-          await measureDesign({
-            sigilc: options.sigilc,
-            root: reference.location.root,
-            store: paths.store,
-            coverage: { path: paths.coverage },
+          withCoverage(reading, {
             requirements: await inputsFor(benchmark),
             onCoverageError: "unavailable",
           }),
@@ -840,35 +890,41 @@ export async function buildReport(options: ReportOptions): Promise<string> {
     const entries: PassEntry[] = [];
     for (const batch of group.batches) {
       for (const record of batch.records) {
-        const excluded = exclusion(record);
-        const entry: PassEntry = {
+        entries.push({
           batch,
           record,
-          excluded,
+          excluded: exclusion(record),
           key: "",
           measures: null,
-        };
-        if (excluded === null) {
-          const paths = attemptPaths(batch.dir, record.id);
-          const claims = record.stages.claims?.status;
-          const coverage = record.stages.coverage?.status;
-          entry.measures = await measureDesign({
-            sigilc: options.sigilc,
-            root: paths.design,
-            store: paths.store,
-            claimsUnavailable: claims === "done"
-              ? undefined
-              : `claims stage ${shownStatus(claims ?? "pending")}`,
-            coverage: coverage === "done" ? { path: paths.coverage } : {
-              reason: `coverage stage ${shownStatus(coverage ?? "pending")}`,
-            },
-            requirements: await inputsFor(batch.manifest.benchmark),
-            onCoverageError: "unavailable",
-          });
-        }
-        entries.push(entry);
+        });
       }
     }
+    const measured = entries.filter((entry) => entry.excluded === null);
+    const requirementsOf = new Map<PassEntry, RequirementInputs>();
+    for (const entry of measured) {
+      requirementsOf.set(
+        entry,
+        await inputsFor(entry.batch.manifest.benchmark),
+      );
+    }
+    await forEachLimited(measured, MEASURE_CONCURRENCY, async (entry) => {
+      const paths = attemptPaths(entry.batch.dir, entry.record.id);
+      const claims = entry.record.stages.claims?.status;
+      const coverage = entry.record.stages.coverage?.status;
+      entry.measures = await measureDesign({
+        sigilc: options.sigilc,
+        root: paths.design,
+        store: paths.store,
+        claimsUnavailable: claims === "done"
+          ? undefined
+          : `claims stage ${shownStatus(claims ?? "pending")}`,
+        coverage: coverage === "done" ? { path: paths.coverage } : {
+          reason: `coverage stage ${shownStatus(coverage ?? "pending")}`,
+        },
+        requirements: requirementsOf.get(entry)!,
+        onCoverageError: "unavailable",
+      });
+    });
     const order = (e: PassEntry) =>
       [
         e.record.agent,
@@ -1002,7 +1058,7 @@ export async function buildReport(options: ReportOptions): Promise<string> {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
-/** R21: with-split beside without-split, only where the writers match. */
+/** With-split beside without-split, only where the writers match. */
 function renderSplitComparison(
   group: Group,
   entries: readonly PassEntry[],

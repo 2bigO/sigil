@@ -1,10 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { exists, treeSha256, writeJson } from "../agent-runner/files.ts";
 import { rereadReference, runBatch } from "./batch.ts";
 import type { CoverageFile } from "./coverage.ts";
-import { fakeHosts, fakeReader, pinnedReference } from "./fakes.ts";
+import {
+  copyPinnedReference,
+  fakeHosts,
+  fakeReader,
+  type PinnedReference,
+  pinnedReference,
+} from "./fakes.ts";
 import { requirementInputs } from "./measure.ts";
 import {
   coverageFromAnswer,
@@ -252,6 +258,18 @@ describe("the pinned reader", () => {
 });
 
 describe("reread reference", () => {
+  /** Pinned once for these tests; each test copies its store. */
+  let pinned: PinnedReference;
+  beforeAll(async () => {
+    const scratch = await tempDir();
+    pinned = await pinnedReference({
+      root: await writeDesign(join(scratch, "design"), TWO_COMPONENTS),
+      dir: join(scratch, "committed"),
+      scratch,
+      reader: await fakeReader(scratch),
+    });
+  });
+
   test(
     "reread reference --coverage writes new readings into a new store and leaves the committed one alone",
     async () => {
@@ -261,7 +279,7 @@ describe("reread reference", () => {
       const reader = await fakeReader(scratch, {
         coverage: { R1: ["#999"], R2: [handles[1]!.handle] },
       });
-      // Pinned with reader.json and reader-skills/ only: the U8 bootstrap.
+      // Pinned with reader.json and reader-skills/ only, before any readings.
       const dir = join(scratch, "committed");
       await pinReader({
         referenceDir: dir,
@@ -343,13 +361,7 @@ describe("reread reference", () => {
     "reread reference without --coverage keeps the stored coverage reading",
     async () => {
       const scratch = await tempDir();
-      const reader = await fakeReader(scratch);
-      const reference = await pinnedReference({
-        root: await writeDesign(join(scratch, "design"), TWO_COMPONENTS),
-        dir: join(scratch, "committed"),
-        scratch,
-        reader,
-      });
+      const reference = await copyPinnedReference(pinned, scratch);
       const out = join(scratch, "law-change");
       const result = await rereadReference({
         ...reference.environment,
@@ -369,13 +381,7 @@ describe("reread reference", () => {
     "run refuses a reference whose readings were taken under another law set",
     async () => {
       const scratch = await tempDir();
-      const reader = await fakeReader(scratch);
-      const reference = await pinnedReference({
-        root: await writeDesign(join(scratch, "design"), TWO_COMPONENTS),
-        dir: join(scratch, "committed"),
-        scratch,
-        reader,
-      });
+      const reference = await copyPinnedReference(pinned, scratch);
       await writeJson(referenceStorePaths(reference.dir).readings, {
         guidanceFingerprint: "old-laws",
         vocabularyGeneration: 1,

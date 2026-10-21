@@ -1,7 +1,7 @@
 /**
  * What the writer stage asks of `sigil-write`: the staged layout, the prompt,
- * the two children it may start and the hand-back it must end with (KTD6,
- * KTD11, KTD12). `stages.ts` stages the directory and launches the host.
+ * the two children it may start and the hand-back it must end with.
+ * `stages.ts` stages the directory and launches the host.
  */
 import type { ChildAgentDefinition } from "../agent-runner/hosts.ts";
 import type { PromptContext } from "../agent-runner/launch.ts";
@@ -52,9 +52,6 @@ export const WRITER_SHELL = [
   "tail",
 ] as const;
 
-/** The child for each claims reading of the writer's review preparation. */
-export const WRITER_INTERPRETER = INTERPRETER_CHILD;
-
 /** The read-only child for the delegated `sigil-evaluate` review. */
 export const REVIEWER_CHILD: ChildAgentDefinition = {
   name: "reviewer",
@@ -65,12 +62,16 @@ export const REVIEWER_CHILD: ChildAgentDefinition = {
   piTools: ["read", "grep", "find", "ls"],
 };
 
+/**
+ * The writer's children: an interpreter for each claims reading of its review
+ * preparation, and the reviewer.
+ */
 export const WRITER_CHILDREN: readonly ChildAgentDefinition[] = [
-  WRITER_INTERPRETER,
+  INTERPRETER_CHILD,
   REVIEWER_CHILD,
 ];
 
-export const WRITER_STATES = ["written", "failed"] as const;
+const WRITER_STATES = ["written", "failed"] as const;
 export type WriterState = typeof WRITER_STATES[number];
 export type ReviewMark = "delegated" | "none";
 
@@ -82,7 +83,7 @@ export interface WriterHandback {
 /**
  * The writer prompt. It names the staged layout and overrides the two parts of
  * `sigil-write` that assume a person or a wider workspace: asking the human,
- * and retrieving missing evidence (KTD11). The skill's own loop, including its
+ * and retrieving missing evidence. The skill's own loop, including its
  * delegated review, is otherwise left to the skill.
  */
 export function writerPrompt(context: PromptContext): string {

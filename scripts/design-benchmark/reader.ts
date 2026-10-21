@@ -1,5 +1,5 @@
 /**
- * The pinned reader (R11, KTD9, KTD10): who takes every claims and coverage
+ * The pinned reader: who takes every claims and coverage
  * reading, the skills it reads with, and what each of its two stages asks.
  *
  * - The claims stage runs the evaluation benchmark's own full-design prompt
@@ -27,6 +27,7 @@ import type { ChildAgentDefinition } from "../agent-runner/hosts.ts";
 import type { PromptContext } from "../agent-runner/launch.ts";
 import { textDigest } from "./baseline.ts";
 import type { CoverageEntry, CoverageFile } from "./coverage.ts";
+import type { RequirementInputs } from "./measure.ts";
 import {
   COVERAGE_VERSION,
   type ReaderIdentity,
@@ -52,6 +53,7 @@ export const COVERAGE_LAYOUT = {
   answerDir: "answer",
   answer: "answer/coverage.json",
   skill: "skills/sigil-understand/SKILL.md",
+  bin: "bin",
 } as const;
 
 /** The one child the coverage stage starts. */
@@ -66,7 +68,7 @@ export const COVERAGE_CHILD: ChildAgentDefinition = {
 
 /**
  * The task the coverage child is handed word for word. It names the inputs
- * and the output format (KTD9); everything else is the child's judgment.
+ * and the output format; everything else is the child's judgment.
  */
 export function coverageTask(): string {
   const { design, requirement, list, facets, answer, skill } = COVERAGE_LAYOUT;
@@ -124,10 +126,13 @@ export async function coveragePromptDigest(): Promise<string> {
   }));
 }
 
+/** The coverage stage's hand-back: whether the answer file was written. */
+export type CoverageHandback = "written" | "failed";
+
 export function parseCoverageHandback(
   text: string,
-): "written" | "failed" | null {
-  let found: "written" | "failed" | null = null;
+): CoverageHandback | null {
+  let found: CoverageHandback | null = null;
   for (
     const match of text.matchAll(
       /^[\s*_`>-]*Coverage:\s*[*_`]*\s*([A-Za-z]+)/gim,
@@ -162,6 +167,21 @@ export interface CoverageHeader {
   readonly reader: ReaderIdentity;
 }
 
+/** The header of a pass's coverage reading: its own benchmark's file only. */
+export function coverageHeader(
+  requirements: RequirementInputs,
+  reader: ReaderIdentity,
+): CoverageHeader {
+  return {
+    listName: requirements.listName,
+    listDigest: requirements.listDigest,
+    requirementFiles: {
+      [requirements.benchmark]: requirements.requirementFileDigest,
+    },
+    reader,
+  };
+}
+
 /**
  * Turn the reader's answer into a stored coverage reading. Cited handles map
  * to Facet ids; a requirement whose answer cites a handle that does not exist,
@@ -193,6 +213,8 @@ export function coverageFromAnswer(input: {
     facets: [],
     note,
   });
+  const withNote = (entry: CoverageEntry, note: string | undefined) =>
+    note ? { ...entry, note } : entry;
   const entries = input.list.requirements.map((requirement): CoverageEntry => {
     const id = requirement.id;
     if (input.failure !== null) return notRead(id, input.failure);
@@ -206,7 +228,7 @@ export function coverageFromAnswer(input: {
       : undefined;
     const cited = Array.isArray(row.facets) ? row.facets.map(String) : [];
     if (row.verdict === "none") {
-      return { id, verdict: "none", facets: [], ...(note ? { note } : {}) };
+      return withNote({ id, verdict: "none", facets: [] }, note);
     }
     if (row.verdict === "not-read") {
       return notRead(id, note ?? "the reader did not read it");
@@ -230,7 +252,7 @@ export function coverageFromAnswer(input: {
       const facet = byHandle.get(handle)!;
       return { id: facet.id, label: facet.label };
     });
-    return { id, verdict: "answered", facets, ...(note ? { note } : {}) };
+    return withNote({ id, verdict: "answered", facets }, note);
   });
   return {
     version: COVERAGE_VERSION,
@@ -244,7 +266,7 @@ export function coverageFromAnswer(input: {
   };
 }
 
-/** Read and check the pinned reader of a reference store (KTD10). */
+/** Read and check the pinned reader of a reference store. */
 export async function loadPinnedReader(
   referenceDir: string,
 ): Promise<ReaderIdentity> {

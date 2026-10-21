@@ -1,14 +1,14 @@
 /**
- * The four stages of a regenerate pass (KTD5): writer, read scan, claims
+ * The four stages of a regenerate pass: writer, read scan, claims
  * reading, coverage reading. Each stage runs in its own directory under the
- * OS temp directory, outside the repository (KTD6), and returns a status;
+ * OS temp directory, outside the repository, and returns a status;
  * `batch.ts` strings them together and copies their evidence back.
  *
  * The writer's staging directory:
  *
  * ```
  * requirement.md   the benchmark's requirement file, the writer's only evidence
- * skills/<name>/   the five staged skills (KTD12)
+ * skills/<name>/   the five staged skills
  * bin/             sigil and sigilc, copied
  * design/          the workspace the writer authors, made by `sigil init`
  * run/             the review preparation's run directory
@@ -26,25 +26,26 @@ import {
   readdir,
   readFile,
   readlink,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentName, AgentRunResult } from "../agent-runner/agents.ts";
 import {
   copySkill,
+  copyTree,
   exists,
-  sha256,
+  fileDigest,
   treeSha256,
   writeJson,
 } from "../agent-runner/files.ts";
 import {
   analyzeHostStream,
   claudeDenySettings,
-  HOSTS,
+  parseHostName,
   parseJsonLines,
 } from "../agent-runner/hosts.ts";
 import { launchAgent, type LaunchResult } from "../agent-runner/launch.ts";
+import { runToCompletion } from "../agent-runner/process.ts";
 import {
   type ForbiddenRead,
   type ReadVerdict,
@@ -64,6 +65,7 @@ import {
   COVERAGE_CHILD,
   COVERAGE_LAYOUT,
   coverageFromAnswer,
+  type CoverageHandback,
   type CoverageHeader,
   coveragePrompt,
   facetsDocument,
@@ -77,7 +79,7 @@ import type {
   RequirementList,
   StageStatus,
 } from "./records.ts";
-import { facetHandles, readDesignTree, runSigilc } from "./structure.ts";
+import { facetHandles, readDesignTree } from "./structure.ts";
 import {
   parseWriterHandback,
   REVIEWER_CHILD,
@@ -104,7 +106,7 @@ export interface HostOptions {
   readonly hostFor?: (role: Role, agent: AgentName) => HostCommand | undefined;
   readonly codexAuthPath?: string;
   readonly piSubagentsEntry?: string;
-  /** Directories no stage may read (KTD7). */
+  /** Directories no stage may read. */
   readonly forbiddenRoots: readonly string[];
   readonly home: string;
   /** Bounds one stage. */
@@ -117,13 +119,6 @@ export interface StageOutcome {
   readonly error: string | null;
 }
 
-export function asAgent(name: string): AgentName {
-  if (!(HOSTS as readonly string[]).includes(name)) {
-    throw new Error(`Unknown agent ${name} (known: ${HOSTS.join(", ")})`);
-  }
-  return name as AgentName;
-}
-
 function launchSettings(role: Role, agent: AgentName, host: HostOptions) {
   const command = host.hostFor?.(role, agent);
   return {
@@ -134,7 +129,7 @@ function launchSettings(role: Role, agent: AgentName, host: HostOptions) {
     piSubagentsEntry: host.piSubagentsEntry,
     timeoutMs: host.timeoutMs,
     signal: host.signal,
-    // Claude Code denies reads under the forbidden roots (KTD7). Other hosts
+    // Claude Code denies reads under the forbidden roots. Other hosts
     // have no such setting; their events are scanned after the writer.
     hostArgs: agent === "claude"
       ? ["--settings", JSON.stringify(claudeDenySettings(host.forbiddenRoots))]
@@ -162,39 +157,26 @@ export function outcomeOf(result: AgentRunResult, who: string): StageOutcome {
 // ------------------------------------------------------------------- copying
 
 /**
- * Copy a directory tree, keeping symbolic links as links. `skip` names
- * relative paths (with `/`) left out with everything beneath them. A missing
- * source copies nothing.
+ * Copy a directory tree, keeping symbolic links as links and leaving out any
+ * other entry that is not a file or directory. `skip` names relative paths
+ * (with `/`) left out with everything beneath them. A missing source copies
+ * nothing.
  */
 export async function copyDir(
   source: string,
   destination: string,
   skip: ReadonlySet<string> = new Set(),
-  prefix = "",
 ): Promise<void> {
-  let entries;
-  try {
-    entries = await readdir(source, { withFileTypes: true });
-  } catch (cause) {
-    if (prefix === "" && (cause as { code?: string }).code === "ENOENT") {
-      return;
-    }
-    throw cause;
-  }
-  await mkdir(destination, { recursive: true });
-  for (const entry of entries) {
-    const name = prefix ? `${prefix}/${entry.name}` : entry.name;
-    if (skip.has(name)) continue;
-    const from = join(source, entry.name);
-    const to = join(destination, entry.name);
-    if (entry.isDirectory()) await copyDir(from, to, skip, name);
-    else if (entry.isSymbolicLink()) await symlink(await readlink(from), to);
-    else if (entry.isFile()) await copyFile(from, to);
-  }
+  await copyTree(source, destination, {
+    skip,
+    symlinks: "keep",
+    special: "skip",
+    allowMissingRoot: true,
+  });
 }
 
 /** The claims cache a tool may leave in a design; never part of a design. */
-export const DESIGN_CLAIMS = ".sigil/claims";
+const DESIGN_CLAIMS = ".sigil/claims";
 
 /** Copy a design without the claims readings any tool left in it. */
 export async function copyDesign(
@@ -223,7 +205,7 @@ export interface StagedInputs {
   readonly snapshot: ReadonlyMap<string, string>;
 }
 
-/** Stage the writer's directory (KTD6) and take its input digests. */
+/** Stage the writer's directory and take its input digests. */
 export async function stageWriter(
   dir: string,
   sources: WriterSources,
@@ -244,7 +226,7 @@ export async function stageWriter(
   await copyFile(sources.sigil, join(bin, "sigil"));
   await copyFile(sources.sigilc, join(bin, "sigilc"));
   const design = join(dir, WRITER_LAYOUT.design);
-  const init = await runSigilc(join(bin, "sigil"), [
+  const init = await runToCompletion(join(bin, "sigil"), [
     "init",
     design,
     "--name",
@@ -267,11 +249,11 @@ export async function stageWriter(
 }
 
 /** Digests of the requirement file, each staged skill and each binary. */
-export async function stagedInputDigests(
+async function stagedInputDigests(
   dir: string,
 ): Promise<Record<string, string>> {
   const digest = async (path: string) =>
-    await exists(path) ? await sha256(await readFile(path)) : "absent";
+    await exists(path) ? await fileDigest(path) : "absent";
   const tree = async (path: string) =>
     await exists(path) ? await treeSha256(path) : "absent";
   const out: Record<string, string> = {
@@ -292,7 +274,7 @@ export async function stagedInputDigests(
  * Every entry of the staging directory outside the writable directories, by
  * relative path: a file's digest, a link's target, or `dir`.
  */
-export async function snapshotStaging(
+async function snapshotStaging(
   dir: string,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
@@ -308,7 +290,7 @@ export async function snapshotStaging(
       } else if (entry.isSymbolicLink()) {
         out.set(name, `link:${await readlink(full)}`);
       } else if (entry.isFile()) {
-        out.set(name, await sha256(await readFile(full)));
+        out.set(name, await fileDigest(full));
       } else out.set(name, "other");
     }
   };
@@ -380,7 +362,7 @@ export interface IntegrityResult {
 /**
  * The read scan stage: scan the writer's events for forbidden reads and
  * writes outside `design/`, `run/` and `store/`, re-hash the staged inputs,
- * and compare the staging directory with its snapshot (KTD7, KTD13).
+ * and compare the staging directory with its snapshot.
  */
 export async function checkWriterIntegrity(input: {
   readonly agent: AgentName;
@@ -536,7 +518,7 @@ export async function runClaimsReading(
   const bin = join(passDir, PASS_LAYOUT.bin);
   await mkdir(bin, { recursive: true });
   await copyFile(request.sigilc, join(bin, "sigilc"));
-  const agent = asAgent(request.reader.agent);
+  const agent = parseHostName(request.reader.agent);
   const result = await launchAgent<HandbackState>({
     agent,
     requestedModel: request.reader.model,
@@ -573,9 +555,9 @@ export interface CoverageReading {
 }
 
 /**
- * Take one coverage reading (KTD9). A reader that times out, fails or writes
+ * Take one coverage reading. A reader that times out, fails or writes
  * no usable answer still gives a stored reading, with every requirement
- * `not-read` (R16); only a cancelled reader gives none.
+ * `not-read`; only a cancelled reader gives none.
  */
 export async function runCoverageReading(
   request: CoverageRequest,
@@ -601,10 +583,10 @@ export async function runCoverageReading(
   );
   await mkdir(join(passDir, COVERAGE_LAYOUT.answerDir), { recursive: true });
   await stageReaderSkills(request, ["sigil-understand"]);
-  const bin = join(passDir, "bin");
+  const bin = join(passDir, COVERAGE_LAYOUT.bin);
   await mkdir(bin, { recursive: true });
-  const agent = asAgent(request.reader.agent);
-  const result = await launchAgent<"written" | "failed">({
+  const agent = parseHostName(request.reader.agent);
+  const result = await launchAgent<CoverageHandback>({
     agent,
     requestedModel: request.reader.model,
     reasoning: request.reader.effort,

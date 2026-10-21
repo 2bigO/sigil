@@ -20,10 +20,13 @@ import type { HostName, ToolCall } from "./hosts.ts";
 import {
   commandProgram,
   lexCommands,
-  PATH_KEYS,
+  patchPaths,
+  pathKeyTargets,
+  recordWorkdir,
   resolvePath,
   SHELLS,
   type SimpleCommand,
+  stringLiteral,
   stringLiterals,
 } from "./read-scan.ts";
 
@@ -100,11 +103,11 @@ function writeTargets(call: ToolCall, base: string, home: string): Targets {
   const tool = call.tool.toLowerCase();
   if (typeof input === "string") {
     if (tool === "apply_patch") {
-      targets.paths.push(...patchPaths(input, base, home));
+      targets.paths.push(...resolveAll(patchPaths(input), base, home));
       return targets;
     }
     // Codex code mode: JavaScript calling `tools.exec_command({cmd: "..."})`.
-    const workdir = stringLiterals(input, "workdir")[0];
+    const workdir = stringLiteral(input, "workdir");
     const cwd = workdir ? resolvePath(workdir, base, home) : base;
     for (const command of stringLiterals(input, "cmd")) {
       merge(targets, shellWrites(lexCommands(command), cwd, home));
@@ -115,14 +118,11 @@ function writeTargets(call: ToolCall, base: string, home: string): Targets {
     return targets;
   }
   const record = input as Record<string, unknown>;
-  const workdir = [record.workdir, record.working_directory, record.cwd].find((
-    value,
-  ): value is string => typeof value === "string");
-  const cwd = workdir ? resolvePath(workdir, base, home) : base;
+  const cwd = recordWorkdir(record, base, home);
   if (tool === "apply_patch") {
     const patch = record.input ?? record.patch;
     if (typeof patch === "string") {
-      targets.paths.push(...patchPaths(patch, cwd, home));
+      targets.paths.push(...resolveAll(patchPaths(patch), cwd, home));
     }
   }
   const command = record.command ?? record.cmd;
@@ -136,24 +136,17 @@ function writeTargets(call: ToolCall, base: string, home: string): Targets {
     );
   }
   if (WRITE_TOOLS.has(tool)) {
-    for (const key of PATH_KEYS) {
-      const value = record[key];
-      for (const path of Array.isArray(value) ? value : [value]) {
-        if (typeof path === "string" && path.length > 0) {
-          targets.paths.push(resolvePath(path, cwd, home));
-        }
-      }
-    }
+    targets.paths.push(...pathKeyTargets(record, cwd, home));
   }
   return targets;
 }
 
-function patchPaths(patch: string, base: string, home: string): string[] {
-  return [
-    ...patch.matchAll(
-      /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm,
-    ),
-  ].map((match) => resolvePath(match[1].trim(), base, home));
+function resolveAll(
+  paths: readonly string[],
+  base: string,
+  home: string,
+): string[] {
+  return paths.map((path) => resolvePath(path, base, home));
 }
 
 function merge(into: Targets, from: Targets): void {

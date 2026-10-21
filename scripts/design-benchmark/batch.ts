@@ -1,5 +1,5 @@
 /**
- * `run` and `reread` (R8–R11, KTD5–KTD13).
+ * `run` and `reread`.
  *
  * `runBatch` writes a manifest and one record per pass under `.benchmarks/`,
  * then runs each pass's four stages in order: the writer authors a design in
@@ -27,18 +27,27 @@ import {
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import process from "node:process";
 import {
   copySkill,
+  errorMessage,
   exists,
+  fileDigest,
   treeSha256,
+  withTempDir,
   writeJson,
 } from "../agent-runner/files.ts";
+import { parseHostName } from "../agent-runner/hosts.ts";
 import { defaultForbiddenRoots } from "../agent-runner/read-scan.ts";
-import { designDigest, fileDigest, referenceStoreDigest } from "./baseline.ts";
-import type { CoverageFile } from "./coverage.ts";
+import { PASS_LAYOUT } from "../slotted-benchmark/agents.ts";
+import { designDigest, referenceStoreDigest } from "./baseline.ts";
+import { countVerdicts, type CoverageFile } from "./coverage.ts";
 import { measureClaims, requirementInputs } from "./measure.ts";
-import { type CoverageHeader, loadPinnedReader } from "./reader.ts";
+import {
+  COVERAGE_LAYOUT,
+  type CoverageHeader,
+  coverageHeader,
+  loadPinnedReader,
+} from "./reader.ts";
 import {
   attemptPaths,
   BATCH_VERSION,
@@ -46,8 +55,10 @@ import {
   benchmarkNamed,
   BENCHMARKS,
   canonicalJson,
+  defaultSigil,
   defaultSigilc,
   ensureEvidenceRoot,
+  INTERPRETATIONS_DIR,
   PACKAGE_DIR,
   type PassRecord,
   readBatch,
@@ -59,14 +70,20 @@ import {
   referenceStorePaths,
   REPO_ROOT,
   type RequirementList,
+  runningStage,
+  sameJson,
   type StageName,
   STAGES,
   type StageState,
+  withStage,
   type WriterIdentity,
 } from "./records.ts";
-import { buildReport, type ReferenceLocation } from "./report.ts";
 import {
-  asAgent,
+  buildReport,
+  type ReferenceLocation,
+  referenceLocationFor,
+} from "./report.ts";
+import {
   checkWriterIntegrity,
   copyDesign,
   copyDir,
@@ -78,11 +95,15 @@ import {
   type StageOutcome,
   stageWriter,
 } from "./stages.ts";
-import { measureStructure, readDesignTree } from "./structure.ts";
+import {
+  measureStructure,
+  readDesignTree,
+  unparseableReason,
+} from "./structure.ts";
 import { WRITER_LAYOUT, WRITER_SKILLS } from "./writer.ts";
 
 /** One stage's default bound: an hour. */
-export const DEFAULT_TIMEOUT_MS = 3_600_000;
+const DEFAULT_TIMEOUT_MS = 3_600_000;
 
 /** Where things are and how hosts start; every part can be replaced in tests. */
 export interface Environment {
@@ -118,18 +139,7 @@ interface Context {
   readonly sigilc: string;
   readonly references?: Readonly<Record<string, ReferenceLocation>>;
   readonly host: HostOptions;
-  readonly signal?: AbortSignal;
   readonly log: (line: string) => void;
-}
-
-/** The default `sigil`: the debug build in the repository. */
-export function defaultSigil(repoRoot = REPO_ROOT): string {
-  return join(
-    repoRoot,
-    `packages/cli/target/debug/sigil${
-      process.platform === "win32" ? ".exe" : ""
-    }`,
-  );
 }
 
 async function resolveContext(env: Environment): Promise<Context> {
@@ -161,19 +171,12 @@ async function resolveContext(env: Environment): Promise<Context> {
       timeoutMs: env.timeoutMs ?? DEFAULT_TIMEOUT_MS,
       signal: env.signal,
     },
-    signal: env.signal,
     log: env.log ?? (() => {}),
   };
 }
 
 function referenceLocation(context: Context, list: string): ReferenceLocation {
-  const given = context.references?.[list];
-  if (given) return given;
-  const definition = referenceFor(list);
-  return {
-    root: join(context.repoRoot, definition.root),
-    dir: join(context.packageDir, definition.store),
-  };
+  return referenceLocationFor(list, context);
 }
 
 /** The pinned reader of a reference that has readings to compare against. */
@@ -200,15 +203,11 @@ function stamp(): string {
   return new Date().toISOString().replace(/[:.]/g, "-");
 }
 
-const message = (cause: unknown) =>
-  cause instanceof Error ? cause.message : String(cause);
-
 /** Stage the writer's skills once, to record what every pass must stage. */
 async function writerSkillDigests(
   skillsDir: string,
 ): Promise<Record<string, string>> {
-  const scratch = await mkdtemp(join(tmpdir(), "design-benchmark-skills-"));
-  try {
+  return await withTempDir("design-benchmark-skills-", async (scratch) => {
     const out: Record<string, string> = {};
     for (const name of WRITER_SKILLS) {
       const staged = join(scratch, name);
@@ -216,9 +215,7 @@ async function writerSkillDigests(
       out[name] = await treeSha256(staged);
     }
     return out;
-  } finally {
-    await rm(scratch, { recursive: true, force: true });
-  }
+  });
 }
 
 /** Why a design gives no claims or coverage reading, or null when it can. */
@@ -227,16 +224,11 @@ async function unreadableDesign(
   root: string,
 ): Promise<string | null> {
   try {
-    const structure = measureStructure(await readDesignTree(sigilc, root));
-    if (structure.sources === 0) return "the design has no sources";
-    if (structure.invalidSources.length > 0) {
-      return `the design does not parse: ${
-        structure.invalidSources.join(", ")
-      }`;
-    }
-    return null;
+    return unparseableReason(
+      measureStructure(await readDesignTree(sigilc, root)),
+    );
   } catch (cause) {
-    return message(cause);
+    return errorMessage(cause);
   }
 }
 
@@ -282,14 +274,16 @@ async function takeClaims(
     });
   } finally {
     await copyDir(evidenceDir, input.evidenceOut);
-    await copyDir(join(passDir, "run"), join(input.evidenceOut, "run"));
+    await copyDir(
+      join(passDir, PASS_LAYOUT.run),
+      join(input.evidenceOut, PASS_LAYOUT.run),
+    );
   }
-  const interpretations = join("claims", "interpretations");
   await rm(input.storeOut, { recursive: true, force: true });
-  await mkdir(join(input.storeOut, interpretations), { recursive: true });
+  await mkdir(join(input.storeOut, INTERPRETATIONS_DIR), { recursive: true });
   await copyDir(
-    join(reading.store, interpretations),
-    join(input.storeOut, interpretations),
+    join(reading.store, INTERPRETATIONS_DIR),
+    join(input.storeOut, INTERPRETATIONS_DIR),
   );
   const none = { readings: null, state: null, unreadUnits: null };
   if (reading.outcome.status !== "done") {
@@ -357,13 +351,13 @@ async function takeCoverage(
   } finally {
     await copyDir(evidenceDir, input.evidenceOut);
     await copyDir(
-      join(passDir, "answer"),
-      join(input.evidenceOut, "answer"),
+      join(passDir, COVERAGE_LAYOUT.answerDir),
+      join(input.evidenceOut, COVERAGE_LAYOUT.answerDir),
     );
-    if (await exists(join(passDir, "requirement.md"))) {
+    if (await exists(join(passDir, COVERAGE_LAYOUT.requirement))) {
       await copyFile(
-        join(passDir, "requirement.md"),
-        join(input.evidenceOut, "requirement.md"),
+        join(passDir, COVERAGE_LAYOUT.requirement),
+        join(input.evidenceOut, COVERAGE_LAYOUT.requirement),
       );
     }
   }
@@ -418,7 +412,7 @@ export async function runBatch(options: RunOptions): Promise<RunResult> {
   }
   const seen = new Set<string>();
   for (const writer of options.writers) {
-    asAgent(writer.agent);
+    parseHostName(writer.agent);
     const key = `${writer.agent}:${writer.model}`;
     if (seen.has(key)) throw new Error(`--agent ${key} is given twice`);
     seen.add(key);
@@ -504,25 +498,18 @@ export async function runBatch(options: RunOptions): Promise<RunResult> {
     }
   }
 
-  const batch = {
+  const batch: BatchState = {
     dir: batchDir,
     manifest,
     reader,
     readerSkillsDir: referenceStorePaths(location.dir).readerSkills,
     requirementFile: join(context.packageDir, definition.requirementFile),
     list: requirements.list,
-    header: {
-      listName: requirements.listName,
-      listDigest: requirements.listDigest,
-      requirementFiles: {
-        [options.benchmark]: requirements.requirementFileDigest,
-      },
-      reader,
-    } satisfies CoverageHeader,
+    header: coverageHeader(requirements, reader),
     readings,
   };
   for (const record of scheduled) {
-    if (context.signal?.aborted) break;
+    if (context.host.signal?.aborted) break;
     context.log(`pass ${record.id}: ${record.agent}:${record.model}`);
     await runPass(context, batch, record);
   }
@@ -570,7 +557,7 @@ async function currentReadingsIdentity(
   const pinned = await readJsonFile<ReadingsIdentity>(
     referenceStorePaths(location.dir).readings,
   );
-  if (canonicalJson(pinned) !== canonicalJson(current)) {
+  if (!sameJson(pinned, current)) {
     throw new Error(
       `The reference readings were taken under ${
         canonicalJson(pinned)
@@ -599,7 +586,7 @@ async function runPass(
   };
   const save = () => writeJson(paths.record, record);
   const set = (stage: StageName, state: StageState) => {
-    record = { ...record, stages: { ...record.stages, [stage]: state } };
+    record = withStage(record, stage, state);
   };
   const running = (stage: StageName) => {
     set(stage, { status: "running", error: null });
@@ -655,18 +642,18 @@ async function runPass(
     } catch (cause) {
       settle("writer", {
         status: "failed",
-        error: `staging failed: ${message(cause)}`,
+        error: `staging failed: ${errorMessage(cause)}`,
       });
       return record;
     }
-    if (context.signal?.aborted) {
+    if (context.host.signal?.aborted) {
       cancelled("writer");
       return record;
     }
     let launch;
     try {
       launch = await launchWriter({
-        agent: asAgent(record.agent),
+        agent: parseHostName(record.agent),
         model: record.model,
         effort: batch.manifest.effort,
         dir: writerDir,
@@ -702,7 +689,7 @@ async function runPass(
     // 2. Read scan.
     await running("readScan");
     const integrity = await checkWriterIntegrity({
-      agent: asAgent(record.agent),
+      agent: parseHostName(record.agent),
       dir: writerDir,
       evidenceDir: writerEvidence,
       staged,
@@ -731,7 +718,7 @@ async function runPass(
     ) return record;
     await save();
 
-    // A design that does not parse is still scored structurally (KTD13).
+    // A design that does not parse is still scored structurally.
     const unreadable = await unreadableDesign(context.sigilc, paths.design);
     if (unreadable !== null) {
       unavailableAfter("readScan", unreadable);
@@ -739,7 +726,7 @@ async function runPass(
     }
 
     // 3. Claims reading.
-    if (context.signal?.aborted) {
+    if (context.host.signal?.aborted) {
       cancelled("claims");
       return record;
     }
@@ -758,9 +745,7 @@ async function runPass(
     record = { ...record, claimsHandback: claims.handback };
     let claimsOutcome = claims.outcome;
     if (claims.readings) {
-      if (
-        canonicalJson(batch.readings) !== canonicalJson(claims.readings)
-      ) {
+      if (!sameJson(batch.readings, claims.readings)) {
         claimsOutcome = {
           status: "failed",
           error: `the readings were taken under ${
@@ -773,7 +758,7 @@ async function runPass(
     await save();
 
     // 4. Coverage reading.
-    if (context.signal?.aborted) {
+    if (context.host.signal?.aborted) {
       cancelled("coverage");
       return record;
     }
@@ -795,10 +780,10 @@ async function runPass(
     settle("coverage", coverage.outcome);
     return record;
   } catch (cause) {
-    const active = STAGES.find((stage) =>
-      record.stages[stage].status === "running"
-    ) ?? "writer";
-    settle(active, { status: "failed", error: message(cause) });
+    settle(runningStage(record, "writer"), {
+      status: "failed",
+      error: errorMessage(cause),
+    });
     return record;
   } finally {
     const interrupted = STAGES.some((stage) =>
@@ -842,10 +827,10 @@ async function writeReport(
     await writeFile(
       reportPath,
       `# Design-quality report\n\nThe report could not be built: ${
-        message(cause)
+        errorMessage(cause)
       }\n`,
     );
-    return { reportPath, reportError: message(cause) };
+    return { reportPath, reportError: errorMessage(cause) };
   }
 }
 
@@ -882,8 +867,7 @@ export async function rereadBatch(
   const location = referenceLocation(context, definition.list);
   const reader = await loadPinnedReader(location.dir);
   if (
-    !options.coverage &&
-    canonicalJson(reader) !== canonicalJson(batch.manifest.reader)
+    !options.coverage && !sameJson(reader, batch.manifest.reader)
   ) {
     throw new Error(
       `The pinned reader changed since ${batch.name} was read; its coverage readings were taken by the old reader. Reread it with --coverage.`,
@@ -894,20 +878,13 @@ export async function rereadBatch(
     batch.manifest.benchmark,
     context.packageDir,
   );
-  const header: CoverageHeader = {
-    listName: requirements.listName,
-    listDigest: requirements.listDigest,
-    requirementFiles: {
-      [batch.manifest.benchmark]: requirements.requirementFileDigest,
-    },
-    reader,
-  };
+  const header = coverageHeader(requirements, reader);
   const when = stamp();
   const reread: string[] = [];
   const skipped: { id: string; reason: string }[] = [];
   let readings: ReadingsIdentity | null = null;
   for (const scheduled of batch.records) {
-    if (context.signal?.aborted) break;
+    if (context.host.signal?.aborted) break;
     const paths = attemptPaths(batchDir, scheduled.id);
     const writer = scheduled.stages.writer.status;
     const scan = scheduled.stages.readScan.status;
@@ -934,62 +911,60 @@ export async function rereadBatch(
     }
     let record: PassRecord = scheduled;
     const set = (stage: StageName, state: StageState) => {
-      record = { ...record, stages: { ...record.stages, [stage]: state } };
+      record = withStage(record, stage, state);
     };
-    const temp = await mkdtemp(
-      join(tmpdir(), `design-benchmark-reread-${scheduled.id}-`),
-    );
-    try {
-      set("claims", { status: "running", error: null });
-      await writeJson(paths.record, record);
-      const claims = await takeClaims(context, reader, readerSkillsDir, {
-        design: paths.design,
-        storeOut: paths.store,
-        evidenceOut: join(paths.evidence, `reread-${when}`, "claims"),
-        workDir: temp,
-      });
-      set("claims", claims.outcome);
-      record = { ...record, claimsHandback: claims.handback };
-      readings ??= claims.readings;
-      if (options.coverage) {
-        if (claims.outcome.status !== "done") {
-          set("coverage", {
-            status: "unavailable",
-            error: `the claims stage ${claims.outcome.status}`,
-          });
-        } else {
-          set("coverage", { status: "running", error: null });
-          await writeJson(paths.record, record);
-          const coverage = await takeCoverage(
-            context,
-            reader,
-            readerSkillsDir,
-            {
-              design: paths.design,
-              requirementFile: join(
-                context.packageDir,
-                definition.requirementFile,
-              ),
-              list: requirements.list,
-              header,
-              coverageOut: paths.coverage,
-              evidenceOut: join(paths.evidence, `reread-${when}`, "coverage"),
-              workDir: temp,
-            },
-          );
-          set("coverage", coverage.outcome);
+    const prefix = `design-benchmark-reread-${scheduled.id}-`;
+    await withTempDir(prefix, async (temp) => {
+      try {
+        set("claims", { status: "running", error: null });
+        await writeJson(paths.record, record);
+        const claims = await takeClaims(context, reader, readerSkillsDir, {
+          design: paths.design,
+          storeOut: paths.store,
+          evidenceOut: join(paths.evidence, `reread-${when}`, "claims"),
+          workDir: temp,
+        });
+        set("claims", claims.outcome);
+        record = { ...record, claimsHandback: claims.handback };
+        readings ??= claims.readings;
+        if (options.coverage) {
+          if (claims.outcome.status !== "done") {
+            set("coverage", {
+              status: "unavailable",
+              error: `the claims stage ${claims.outcome.status}`,
+            });
+          } else {
+            set("coverage", { status: "running", error: null });
+            await writeJson(paths.record, record);
+            const coverage = await takeCoverage(
+              context,
+              reader,
+              readerSkillsDir,
+              {
+                design: paths.design,
+                requirementFile: join(
+                  context.packageDir,
+                  definition.requirementFile,
+                ),
+                list: requirements.list,
+                header,
+                coverageOut: paths.coverage,
+                evidenceOut: join(paths.evidence, `reread-${when}`, "coverage"),
+                workDir: temp,
+              },
+            );
+            set("coverage", coverage.outcome);
+          }
         }
+        reread.push(scheduled.id);
+      } catch (cause) {
+        set(runningStage(record, "claims"), {
+          status: "failed",
+          error: errorMessage(cause),
+        });
       }
-      reread.push(scheduled.id);
-    } catch (cause) {
-      const active = STAGES.find((stage) =>
-        record.stages[stage].status === "running"
-      ) ?? "claims";
-      set(active, { status: "failed", error: message(cause) });
-    } finally {
-      await rm(temp, { recursive: true, force: true });
-      await writeJson(paths.record, record);
-    }
+    });
+    await writeJson(paths.record, record);
   }
   const manifest: BatchManifest = {
     ...batch.manifest,
@@ -1042,7 +1017,7 @@ export interface RereadReferenceResult {
 
 /**
  * Take new claims readings, and with `coverage` a new coverage reading, of a
- * reference design into a new reference store directory (KTD8). The committed
+ * reference design into a new reference store directory. The committed
  * store is never written; the maintainer reviews the output and copies it in.
  * Works once `reader.json` and `reader-skills/` exist, before any readings.
  */
@@ -1077,8 +1052,7 @@ export async function rereadReference(
   }
   const out = referenceStorePaths(outDir);
   await mkdir(outDir, { recursive: true });
-  const temp = await mkdtemp(join(tmpdir(), `design-benchmark-reference-`));
-  try {
+  return await withTempDir("design-benchmark-reference-", async (temp) => {
     const claims = await takeClaims(context, reader, source.readerSkills, {
       design: location.root,
       storeOut: out.store,
@@ -1117,16 +1091,9 @@ export async function rereadReference(
       if (taken.coverage === null) {
         throw new Error(`The coverage reading ${taken.outcome.status}`);
       }
-      const count = (verdict: string) =>
-        taken.coverage!.entries.filter((entry) => entry.verdict === verdict)
-          .length;
-      coverage = {
-        answered: count("answered"),
-        none: count("none"),
-        notRead: count("not-read"),
-      };
+      coverage = countVerdicts(taken.coverage.entries);
     } else if (await exists(source.coverage)) {
-      // Coverage cites Facet ids, so it survives a law-only change (KTD8).
+      // Coverage cites Facet ids, so it survives a law-only change.
       await copyFile(source.coverage, out.coverage);
     }
     await copyFile(source.reader, out.reader);
@@ -1139,12 +1106,10 @@ export async function rereadReference(
       unreadUnits: claims.unreadUnits,
       coverage,
     };
-  } finally {
-    await rm(temp, { recursive: true, force: true });
-  }
+  });
 }
 
-/** The pinned reader stored with a reference, for `pin-reader`'s caller. */
+/** Where a reference's store and design are, for `pin-reader`. */
 export async function referenceDirFor(
   env: Environment,
   list?: string,

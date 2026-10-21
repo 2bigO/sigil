@@ -26,6 +26,14 @@ import type { Dirent } from "node:fs";
 export type HostName = "codex" | "claude" | "pi";
 export const HOSTS: readonly HostName[] = ["codex", "claude", "pi"];
 
+/** `name` as a host name; throws naming the known hosts when it is not one. */
+export function parseHostName(name: string): HostName {
+  if (!(HOSTS as readonly string[]).includes(name)) {
+    throw new Error(`Unknown agent ${name} (known: ${HOSTS.join(", ")})`);
+  }
+  return name as HostName;
+}
+
 export type JsonObject = Record<string, unknown>;
 
 /**

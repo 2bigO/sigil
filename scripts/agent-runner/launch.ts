@@ -2,8 +2,8 @@
  * Launches one orchestrator in its pass directory and retains its raw
  * evidence: the prompt, the host's events and stderr, and its exact final
  * message. The caller supplies what differs between stages: the prompt, the
- * shell allowlist, the child agent definitions, the staged skills and the
- * hand-back parser. This module does not read or judge what the run produced.
+ * shell allowlist, the child agent definitions and the hand-back parser.
+ * This module does not read or judge what the run produced.
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { delimiter, join, resolve } from "node:path";
@@ -16,7 +16,6 @@ import {
   probeVersion,
   runHostProcess,
 } from "./agents.ts";
-import { copySkill } from "./files.ts";
 import {
   analyzeHostStream,
   buildHostLaunch,
@@ -24,6 +23,7 @@ import {
   defaultCodexAuthPath,
   defaultPiSubagentsEntry,
   type HostLaunch,
+  type JsonObject,
   parseJsonLines,
   prepareCodexHome,
   removeCodexAuth,
@@ -35,13 +35,6 @@ export interface PromptContext {
   readonly spawnInstruction: string;
   readonly model: string;
   readonly effort: string | null;
-}
-
-/** A skill copied into `skills/<name>` of the pass directory before launch. */
-export interface StagedSkill {
-  readonly name: string;
-  /** The skill directory holding SKILL.md, an optional VERSION and references/. */
-  readonly source: string;
 }
 
 export interface LaunchRequest<H> {
@@ -78,8 +71,6 @@ export interface LaunchRequest<H> {
   readonly allowedShell: readonly string[];
   /** The child agents the orchestrator may start; at least one. */
   readonly children: readonly ChildAgentDefinition[];
-  /** Skills staged into the pass directory before launch. Default: none. */
-  readonly skills?: readonly StagedSkill[];
   /**
    * Arguments added after the host's own settings, such as Claude Code's
    * `--settings`. Default: none.
@@ -128,12 +119,13 @@ export async function launchAgent<H>(
   let exitCode: number | null = null;
   let finalResponsePath: string | null = null;
   let handback: H | null = null;
+  // The host's stdout, parsed once it has exited and its output is drained.
+  let events: readonly JsonObject[] | null = null;
+  const hostEvents = async () =>
+    events ??= parseJsonLines(await readFile(stdoutPath, "utf8"));
   try {
     let launch: HostLaunch;
     try {
-      for (const skill of request.skills ?? []) {
-        await copySkill(skill.source, join(passDir, "skills", skill.name));
-      }
       if (request.agent === "codex") {
         await prepareCodexHome(
           codexHome,
@@ -216,7 +208,7 @@ export async function launchAgent<H>(
         } else {
           const final = await extractFinalResponse(
             request.agent,
-            stdoutPath,
+            await hostEvents(),
             lastMessagePath,
           );
           if (final === null) {
@@ -241,7 +233,7 @@ export async function launchAgent<H>(
   async function buildResult(): Promise<LaunchResult<H>> {
     const analysis = await analyzeHostStream(
       request.agent,
-      parseJsonLines(await readFile(stdoutPath, "utf8")),
+      await hostEvents(),
       {
         childNames: request.children.map((child) => child.name),
         codexHome: request.agent === "codex" ? codexHome : undefined,

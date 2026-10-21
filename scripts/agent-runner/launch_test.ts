@@ -71,14 +71,10 @@ async function setUp(
 
 test("a custom prompt, shell allowlist and hand-back parser are used and the evidence is kept", async () => {
   await withTempDir("agent-runner-launch-", async (root) => {
-    await mkdir(join(root, "skill/references"), { recursive: true });
-    await writeFile(join(root, "skill/SKILL.md"), "# custom skill\n");
-    await writeFile(join(root, "skill/references/a.md"), "a\n");
     const request = await setUp(
       root,
-      `import { readFileSync, writeFileSync } from "node:fs";
+      `import { writeFileSync } from "node:fs";
 writeFileSync("argv.json", JSON.stringify(process.argv.slice(2)));
-writeFileSync("skill-seen.txt", readFileSync("skills/custom/SKILL.md", "utf8"));
 writeFileSync("path.txt", process.env.PATH ?? "");
 emit({ type: "assistant", message: { model: "model-served", content: [] } });
 process.stderr.write("a warning\\n");
@@ -88,7 +84,6 @@ emit({ type: "result", result: "Wrote it.\\nVerdict: accepted\\n" });
     const contexts: unknown[] = [];
     const result = await launchAgent({
       ...request,
-      skills: [{ name: "custom", source: join(root, "skill") }],
       prompt: (context) => {
         contexts.push(context);
         return `Custom prompt. ${context.spawnInstruction}`;
@@ -128,13 +123,9 @@ emit({ type: "result", result: "Wrote it.\\nVerdict: accepted\\n" });
       "Wrote it.\nVerdict: accepted\n",
     );
 
-    // The host ran in the pass directory with the staged skill, the pinned
-    // bin directory first on PATH, and the prompt as its last argument.
+    // The host ran in the pass directory with the pinned bin directory first
+    // on PATH, and the prompt as its last argument.
     const pass = request.passDir;
-    assert.equal(
-      await readFile(join(pass, "skill-seen.txt"), "utf8"),
-      "# custom skill\n",
-    );
     assert.ok(
       (await readFile(join(pass, "path.txt"), "utf8")).startsWith(
         join(root, "bin"),
@@ -262,20 +253,6 @@ test("a missing executable is a launch failure", async () => {
     assert.equal(result.status, "failed");
     assert.equal(result.failureStep, "launch");
     assert.equal(result.hostVersion, null);
-  });
-});
-
-test("a missing skill source is a launch failure with an empty prompt", async () => {
-  await withTempDir("agent-runner-launch-", async (root) => {
-    const request = await setUp(root, "");
-    const result = await launchAgent({
-      ...request,
-      skills: [{ name: "absent", source: join(root, "no-such-skill") }],
-      prompt: () => "unused",
-    });
-    assert.equal(result.status, "failed");
-    assert.equal(result.failureStep, "launch");
-    assert.equal(await readFile(result.promptPath, "utf8"), "");
   });
 });
 

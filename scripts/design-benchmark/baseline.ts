@@ -1,5 +1,5 @@
 /**
- * The baseline key (KTD10, R22). Numbers are compared in one table only when
+ * The baseline key. Numbers are compared in one table only when
  * their batches share a key; a change to any part starts a new baseline.
  *
  * The key holds:
@@ -14,16 +14,18 @@
  * baseline: `sharedKey` leaves out the requirement file, and each batch's file
  * digest is checked against the current file for its own benchmark.
  */
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { isNotFound, sha256 } from "../agent-runner/files.ts";
+import { fileDigest, isNotFound, sha256 } from "../agent-runner/files.ts";
 import {
   type BatchManifest,
   canonicalJson,
   compareText,
+  INTERPRETATIONS_DIR,
   type ReaderIdentity,
   type ReadingsIdentity,
   referenceStorePaths,
+  sameJson,
 } from "./records.ts";
 
 export interface BaselineKey {
@@ -43,10 +45,6 @@ const encoder = new TextEncoder();
 
 export async function textDigest(text: string): Promise<string> {
   return await sha256(encoder.encode(text));
-}
-
-export async function fileDigest(path: string): Promise<string> {
-  return await sha256(await readFile(path));
 }
 
 export async function optionalFileDigest(path: string): Promise<string | null> {
@@ -107,7 +105,7 @@ export async function designDigest(root: string): Promise<string> {
 /** The identity of a store's claims readings: its stored interpretations. */
 export async function readingsDigest(store: string): Promise<string> {
   return await filesDigest(
-    join(store, "claims", "interpretations"),
+    join(store, INTERPRETATIONS_DIR),
     (path) => path.endsWith(".json"),
   );
 }
@@ -125,10 +123,6 @@ export async function referenceStoreDigest(dir: string): Promise<string> {
       `coverage:${(await optionalFileDigest(paths.coverage)) ?? "none"}`,
     ].join("\n"),
   );
-}
-
-export async function readerDigest(reader: ReaderIdentity): Promise<string> {
-  return await textDigest(canonicalJson(reader));
 }
 
 export function describeReader(reader: ReaderIdentity): string {
@@ -197,7 +191,7 @@ export function keyDifferences(a: BaselineKey, b: BaselineKey): string[] {
   }
   if (a.referenceTree !== b.referenceTree) out.push("reference design");
   if (a.referenceStore !== b.referenceStore) out.push("reference readings");
-  if (canonicalJson(a.reader) !== canonicalJson(b.reader)) {
+  if (!sameJson(a.reader, b.reader)) {
     out.push("pinned reader");
   }
   if (a.requirementList !== b.requirementList) out.push("requirement list");

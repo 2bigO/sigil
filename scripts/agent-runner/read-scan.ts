@@ -202,7 +202,7 @@ interface Targets {
 }
 
 /** Input keys that name a file or directory, across the hosts' file tools. */
-export const PATH_KEYS = [
+const PATH_KEYS = [
   "file_path",
   "path",
   "notebook_path",
@@ -214,17 +214,55 @@ export const PATH_KEYS = [
   "dir",
 ];
 
+/** The paths an `apply_patch` text names, as written. */
+export function patchPaths(patch: string): string[] {
+  return [
+    ...patch.matchAll(
+      /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm,
+    ),
+  ].map((match) => match[1].trim());
+}
+
+/**
+ * The working directory a tool input names (`workdir`, `working_directory`
+ * or `cwd`), resolved against `base`; `base` when it names none.
+ */
+export function recordWorkdir(
+  record: Record<string, unknown>,
+  base: string,
+  home: string,
+): string {
+  const workdir = [record.workdir, record.working_directory, record.cwd].find((
+    value,
+  ): value is string => typeof value === "string");
+  return workdir ? resolvePath(workdir, base, home) : base;
+}
+
+/** Every path a tool input gives under one of `PATH_KEYS`, resolved. */
+export function pathKeyTargets(
+  record: Record<string, unknown>,
+  cwd: string,
+  home: string,
+): string[] {
+  const paths: string[] = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    for (const path of Array.isArray(value) ? value : [value]) {
+      if (typeof path === "string" && path.length > 0) {
+        paths.push(resolvePath(path, cwd, home));
+      }
+    }
+  }
+  return paths;
+}
+
 function callTargets(call: ToolCall, base: string, home: string): Targets {
   const targets: Targets = { paths: [], searches: [], cwdAfter: null };
   const input = call.input;
   if (typeof input === "string") {
     if (call.tool === "apply_patch") {
-      for (
-        const match of input.matchAll(
-          /^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+)$/gm,
-        )
-      ) {
-        targets.paths.push(resolvePath(match[1].trim(), base, home));
+      for (const path of patchPaths(input)) {
+        targets.paths.push(resolvePath(path, base, home));
       }
       return targets;
     }
@@ -243,10 +281,7 @@ function callTargets(call: ToolCall, base: string, home: string): Targets {
     return targets;
   }
   const record = input as Record<string, unknown>;
-  const workdir = [record.workdir, record.working_directory, record.cwd].find((
-    value,
-  ): value is string => typeof value === "string");
-  const cwd = workdir ? resolvePath(workdir, base, home) : base;
+  const cwd = recordWorkdir(record, base, home);
   const command = record.command ?? record.cmd;
   if (typeof command === "string") {
     merge(targets, analyzeShell(lexCommands(command), cwd, home));
@@ -257,14 +292,7 @@ function callTargets(call: ToolCall, base: string, home: string): Targets {
       analyzeShell([{ words, redirects: [], outputs: [] }], cwd, home),
     );
   }
-  for (const key of PATH_KEYS) {
-    const value = record[key];
-    for (const path of Array.isArray(value) ? value : [value]) {
-      if (typeof path === "string" && path.length > 0) {
-        targets.paths.push(resolvePath(path, cwd, home));
-      }
-    }
-  }
+  targets.paths.push(...pathKeyTargets(record, cwd, home));
   // Claude's Glob and Pi's find take a glob pattern under `path`; Claude's
   // Grep pattern is a regular expression and names no file.
   const tool = call.tool.toLowerCase();
@@ -305,7 +333,8 @@ export function stringLiterals(text: string, key: string): string[] {
   return values;
 }
 
-function stringLiteral(text: string, key: string): string | null {
+/** The first double-quoted string literal given to `key:`, or null. */
+export function stringLiteral(text: string, key: string): string | null {
   return stringLiterals(text, key)[0] ?? null;
 }
 

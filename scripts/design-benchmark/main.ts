@@ -6,6 +6,8 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
+import { errorMessage } from "../agent-runner/files.ts";
+import { parseHostName } from "../agent-runner/hosts.ts";
 import {
   type Environment,
   referenceDirFor,
@@ -25,7 +27,6 @@ import {
   type WriterIdentity,
 } from "./records.ts";
 import { buildReport, renderMeasureReport } from "./report.ts";
-import { asAgent } from "./stages.ts";
 
 export const COMMANDS = [
   "run",
@@ -102,6 +103,18 @@ export function parseOptions(
   return { options, flags: seen, positional };
 }
 
+/** The value of an option `command` cannot run without. */
+function required(
+  options: Map<string, string>,
+  command: string,
+  name: string,
+  value: string,
+): string {
+  const given = options.get(name);
+  if (!given) throw new Error(`${command} needs ${name} ${value}`);
+  return given;
+}
+
 async function emit(text: string, out: string | undefined): Promise<void> {
   if (out === undefined) {
     process.stdout.write(text);
@@ -120,8 +133,7 @@ export const measureCommand: CommandHandler = async (args) => {
   if (positional.length > 0) {
     throw new Error(`Unexpected argument: ${positional[0]}`);
   }
-  const benchmark = options.get("--benchmark");
-  if (!benchmark) throw new Error("measure needs --benchmark NAME");
+  const benchmark = required(options, "measure", "--benchmark", "NAME");
   const definition = benchmarkNamed(benchmark);
   const reference = referenceFor(definition.list);
   const referencePaths = referenceStorePaths(
@@ -193,7 +205,7 @@ export function parseAgentModel(value: string): WriterIdentity {
     throw new Error(`--agent takes AGENT:MODEL, not ${value}`);
   }
   return {
-    agent: asAgent(value.slice(0, at)),
+    agent: parseHostName(value.slice(0, at)),
     model: value.slice(at + 1),
   };
 }
@@ -207,6 +219,15 @@ function positiveInteger(name: string, value: string): number {
 
 const HOST_OPTIONS = ["--codex-auth", "--pi-subagents", "--timeout-ms"];
 
+/** Options that set an `Environment` path, in the order they apply. */
+const ENVIRONMENT_OPTIONS = [
+  ["--codex-auth", "codexAuthPath"],
+  ["--pi-subagents", "piSubagentsEntry"],
+  ["--sigil", "sigil"],
+  ["--sigilc", "sigilc"],
+  ["--slotted-workspace", "slottedWorkspace"],
+] as const satisfies readonly (readonly [string, keyof Environment])[];
+
 function hostEnvironment(
   options: Map<string, string>,
   context: CommandContext | undefined,
@@ -217,17 +238,10 @@ function hostEnvironment(
     ...context?.environment,
     signal: context?.signal,
     ...(timeout ? { timeoutMs: positiveInteger("--timeout-ms", timeout) } : {}),
-    ...(options.has("--codex-auth")
-      ? { codexAuthPath: options.get("--codex-auth") }
-      : {}),
-    ...(options.has("--pi-subagents")
-      ? { piSubagentsEntry: options.get("--pi-subagents") }
-      : {}),
-    ...(options.has("--sigil") ? { sigil: options.get("--sigil") } : {}),
-    ...(options.has("--sigilc") ? { sigilc: options.get("--sigilc") } : {}),
-    ...(options.has("--slotted-workspace")
-      ? { slottedWorkspace: options.get("--slotted-workspace") }
-      : {}),
+    ...Object.fromEntries(
+      ENVIRONMENT_OPTIONS.filter(([flag]) => options.has(flag))
+        .map(([flag, key]) => [key, options.get(flag)]),
+    ) as Partial<Environment>,
   };
 }
 
@@ -246,12 +260,9 @@ export const runCommand: CommandHandler = async (args, context) => {
   if (positional.length > 0) {
     throw new Error(`Unexpected argument: ${positional[0]}`);
   }
-  const benchmark = options.get("--benchmark");
-  if (!benchmark) throw new Error("run needs --benchmark NAME");
-  const effort = options.get("--reasoning");
-  if (!effort) throw new Error("run needs --reasoning LEVEL");
-  const passes = options.get("--passes");
-  if (!passes) throw new Error("run needs --passes N");
+  const benchmark = required(options, "run", "--benchmark", "NAME");
+  const effort = required(options, "run", "--reasoning", "LEVEL");
+  const passes = required(options, "run", "--passes", "N");
   if (agents.values.length === 0) {
     throw new Error("run needs at least one --agent AGENT:MODEL");
   }
@@ -347,10 +358,8 @@ export const pinReaderCommand: CommandHandler = async (args, context) => {
   if (positional.length > 0) {
     throw new Error(`Unexpected argument: ${positional[0]}`);
   }
-  const agent = options.get("--agent");
-  if (!agent) throw new Error("pin-reader needs --agent AGENT:MODEL");
-  const effort = options.get("--reasoning");
-  if (!effort) throw new Error("pin-reader needs --reasoning LEVEL");
+  const agent = required(options, "pin-reader", "--agent", "AGENT:MODEL");
+  const effort = required(options, "pin-reader", "--reasoning", "LEVEL");
   const { agent: name, model } = parseAgentModel(agent);
   const environment = context?.environment ?? {};
   const reference = await referenceDirFor(environment, options.get("--list"));
@@ -413,9 +422,7 @@ if (import.meta.main) {
       signal: controller.signal,
     });
   } catch (cause) {
-    process.stderr.write(
-      `${cause instanceof Error ? cause.message : String(cause)}\n`,
-    );
+    process.stderr.write(`${errorMessage(cause)}\n`);
     process.exitCode = 1;
   } finally {
     process.off("SIGINT", abort);

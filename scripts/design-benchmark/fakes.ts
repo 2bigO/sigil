@@ -9,13 +9,14 @@
  * `prepare` and `ingest`, so its readings are real ones `sigilc` accepts; in
  * the coverage stage it writes a canned answer.
  */
-import { copyFile } from "node:fs/promises";
+import { copyFile, cp } from "node:fs/promises";
 import { join } from "node:path";
 import { writeScript } from "../agent-runner/test_support.ts";
 import { type Environment, rereadReference } from "./batch.ts";
 import { pinReader } from "./reader.ts";
 import { referenceStorePaths, REPO_ROOT } from "./records.ts";
 import { copyDir, type HostCommand, type Role } from "./stages.ts";
+import type { ReviewMark, WriterState } from "./writer.ts";
 
 export interface FakeWriterOptions {
   /** Which host's stream to print. */
@@ -23,9 +24,9 @@ export interface FakeWriterOptions {
   /** Files written into `design/`, by relative path. */
   readonly design?: Record<string, string>;
   /** `delegated`: start an interpreter and a reviewer, write run/ and store/. */
-  readonly review?: "delegated" | "none";
+  readonly review?: ReviewMark;
   /** The hand-back state; omit the line entirely with `null`. */
-  readonly state?: "written" | "failed" | null;
+  readonly state?: WriterState | null;
   /** A path a reviewer child reads (shown in the events only). */
   readonly childRead?: string;
   /** Append to the staged requirement file. */
@@ -216,7 +217,7 @@ export function fakeHosts(
   };
 }
 
-/** A reference set up the way U8 pins one, with a fake reader. */
+/** A reference with a pinned fake reader. */
 export interface PinnedReference {
   readonly root: string;
   readonly dir: string;
@@ -254,4 +255,25 @@ export async function pinnedReference(input: {
   await copyFile(join(out, "readings.json"), paths.readings);
   await copyFile(join(out, "coverage.json"), paths.coverage);
   return { root: input.root, dir: input.dir, environment };
+}
+
+/**
+ * A copy of a pinned reference's store under `scratch`, sharing its design
+ * and its fake reader, so a test may change the store without touching the
+ * reference other tests use.
+ */
+export async function copyPinnedReference(
+  reference: PinnedReference,
+  scratch: string,
+): Promise<PinnedReference> {
+  const dir = join(scratch, "reference-store");
+  await cp(reference.dir, dir, { recursive: true });
+  return {
+    root: reference.root,
+    dir,
+    environment: {
+      ...reference.environment,
+      references: { slotted: { root: reference.root, dir } },
+    },
+  };
 }

@@ -5,10 +5,11 @@
  * tests, so the same tests work under `deno test` and `bun test`, on POSIX
  * and on Windows, without a shell or a compiled stub.
  */
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 import process from "node:process";
+
+/** Run `body` in a fresh temporary directory, removed afterwards. */
+export { withTempDir } from "./files.ts";
 
 /** The executable and leading arguments that run a JavaScript file. */
 export interface ScriptCommand {
@@ -17,7 +18,7 @@ export interface ScriptCommand {
 }
 
 /** Run `script` with the runtime running this test. */
-export function scriptCommand(script: string): ScriptCommand {
+function scriptCommand(script: string): ScriptCommand {
   return process.versions.deno
     ? { executable: process.execPath, args: ["run", "--allow-all", script] }
     : { executable: process.execPath, args: [script] };
@@ -76,19 +77,5 @@ export async function waitFor(
   while (!await check()) {
     if (Date.now() >= deadline) throw new Error(`timed out waiting: ${what}`);
     await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-}
-
-/** Run `body` in a fresh temporary directory, removed afterwards. */
-export async function withTempDir(
-  prefix: string,
-  body: (root: string) => Promise<void>,
-): Promise<void> {
-  const root = await mkdtemp(join(tmpdir(), prefix));
-  try {
-    await body(root);
-  } finally {
-    // Windows may hold a just-killed process's files open for a moment.
-    await rm(root, { recursive: true, force: true, maxRetries: 10 });
   }
 }

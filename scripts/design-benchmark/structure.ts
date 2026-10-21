@@ -24,10 +24,8 @@
  * - Cycles: strongly connected sets of two or more components, found
  *   separately in the import graph and the Tag-mention graph.
  */
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { captureStream, spawnProcess } from "../agent-runner/process.ts";
+import { withTempDir } from "../agent-runner/files.ts";
+import { runToCompletion } from "../agent-runner/process.ts";
 import { compareText } from "./records.ts";
 
 export const TREE_VERSION = 1;
@@ -116,43 +114,6 @@ export interface TreeOutput {
   readonly trees: readonly TreeSource[];
 }
 
-export interface SigilcResult {
-  readonly code: number;
-  readonly stdout: string;
-  readonly stderr: string;
-}
-
-/** Run `sigilc` to completion and collect its output. */
-export async function runSigilc(
-  sigilc: string,
-  args: readonly string[],
-): Promise<SigilcResult> {
-  let child;
-  try {
-    child = await spawnProcess(sigilc, {
-      args,
-      stdout: "piped",
-      stderr: "piped",
-    });
-  } catch (cause) {
-    throw new Error(
-      `Cannot start ${sigilc}: ${
-        cause instanceof Error ? cause.message : String(cause)
-      }`,
-    );
-  }
-  const out = captureStream(child.stdout!, 256 * 1024 * 1024);
-  const err = captureStream(child.stderr!);
-  const status = await child.status;
-  await Promise.all([out.done, err.done]);
-  const decoder = new TextDecoder();
-  return {
-    code: status.code,
-    stdout: decoder.decode(out.read()),
-    stderr: decoder.decode(err.read()),
-  };
-}
-
 /**
  * `sigilc tree` over a design, with a throwaway store so no cache is written
  * into the design or anywhere else that lasts.
@@ -161,9 +122,8 @@ export async function readDesignTree(
   sigilc: string,
   root: string,
 ): Promise<TreeOutput> {
-  const scratch = await mkdtemp(join(tmpdir(), "design-benchmark-tree-"));
-  try {
-    const result = await runSigilc(sigilc, [
+  return await withTempDir("design-benchmark-tree-", async (scratch) => {
+    const result = await runToCompletion(sigilc, [
       "tree",
       "--root",
       root,
@@ -184,9 +144,7 @@ export async function readDesignTree(
       );
     }
     return output;
-  } finally {
-    await rm(scratch, { recursive: true, force: true });
-  }
+  });
 }
 
 /** The contract roles, in the order Sigil writes them. */
@@ -261,7 +219,7 @@ interface FacetInfo {
 }
 
 /** Every Facet of a section in source order, recursing into groups. */
-export function sectionFacets(section: TreeSection): TreeFacet[] {
+function sectionFacets(section: TreeSection): TreeFacet[] {
   const out: TreeFacet[] = [];
   const visit = (children: readonly TreeChild[]) => {
     for (const child of children) {
@@ -276,13 +234,13 @@ export function sectionFacets(section: TreeSection): TreeFacet[] {
 const TAG_MARK = ":tag:";
 
 /** The component IRI that owns a Tag IRI. */
-export function tagOwner(tagIri: string): string {
+function tagOwner(tagIri: string): string {
   const at = tagIri.lastIndexOf(TAG_MARK);
   return at < 0 ? tagIri : tagIri.slice(0, at);
 }
 
 /** Strip the `#definitions` count from an `interfaceTags` entry. */
-export function interfaceTagName(entry: string): string {
+function interfaceTagName(entry: string): string {
   const at = entry.lastIndexOf("#");
   return at < 0 ? entry : entry.slice(0, at);
 }
@@ -307,6 +265,18 @@ function componentNames(trees: readonly TreeSource[]): Map<string, string> {
     }
   }
   return names;
+}
+
+/**
+ * Why a design gives no claims or coverage reading: it has no sources, or a
+ * source does not parse. Null when it can be read.
+ */
+export function unparseableReason(structure: StructureMeasures): string | null {
+  if (structure.sources === 0) return "the design has no sources";
+  if (structure.invalidSources.length > 0) {
+    return `the design does not parse: ${structure.invalidSources.join(", ")}`;
+  }
+  return null;
 }
 
 export function measureStructure(output: TreeOutput): StructureMeasures {
@@ -612,7 +582,7 @@ export function cycles(
   return found.sort((a, b) => compareText(a.join("\n"), b.join("\n")));
 }
 
-/** One Facet as the coverage reader sees it (KTD9). */
+/** One Facet as the coverage reader sees it. */
 export interface FacetHandle {
   /** `#N`, numbered over the whole design in Facet-id order from 1. */
   readonly handle: string;

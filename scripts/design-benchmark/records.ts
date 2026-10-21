@@ -1,7 +1,7 @@
 /**
  * The files the design-quality benchmark keeps, and where they live.
  *
- * Batch layout. `run` (U7) writes, and `report` reads, one directory per batch
+ * Batch layout. `run` writes, and `report` reads, one directory per batch
  * under `.benchmarks/` at the repository root:
  *
  * ```
@@ -36,7 +36,9 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import type { AgentStatus } from "../agent-runner/agents.ts";
 import { exists, isNotFound } from "../agent-runner/files.ts";
+import type { ReviewMark, WriterState } from "./writer.ts";
 
 export const BATCH_VERSION = 1;
 export const COVERAGE_VERSION = 1;
@@ -64,7 +66,7 @@ export interface ReferenceDefinition {
   readonly coverageBenchmark: string;
 }
 
-/** A with-split and a without-split benchmark that R21 compares. */
+/** A with-split and a without-split benchmark that a report compares. */
 export interface SplitPair {
   readonly withSplit: string;
   readonly withoutSplit: string;
@@ -120,15 +122,32 @@ export function referenceFor(list: string): ReferenceDefinition {
 export const PACKAGE_DIR = fileURLToPath(new URL(".", import.meta.url));
 export const REPO_ROOT = join(PACKAGE_DIR, "..", "..");
 
-/** The default `sigilc`: the debug build in the repository. */
-export function defaultSigilc(repoRoot = REPO_ROOT): string {
+/** The debug build of `name` in `packages/<pkg>` of the repository. */
+export function defaultBinary(
+  pkg: string,
+  name: string,
+  repoRoot = REPO_ROOT,
+): string {
   return join(
     repoRoot,
-    `packages/sigilc/target/debug/sigilc${
+    `packages/${pkg}/target/debug/${name}${
       process.platform === "win32" ? ".exe" : ""
     }`,
   );
 }
+
+/** The default `sigilc`: the debug build in the repository. */
+export function defaultSigilc(repoRoot = REPO_ROOT): string {
+  return defaultBinary("sigilc", "sigilc", repoRoot);
+}
+
+/** The default `sigil`: the debug build in the repository. */
+export function defaultSigil(repoRoot = REPO_ROOT): string {
+  return defaultBinary("cli", "sigil", repoRoot);
+}
+
+/** Where a `sigilc --store` directory keeps its claims readings. */
+export const INTERPRETATIONS_DIR = join("claims", "interpretations");
 
 /** One entry of `benchmarks/<list>/requirements.json`. */
 export interface RequirementEntry {
@@ -141,7 +160,7 @@ export interface RequirementList {
   readonly requirements: readonly RequirementEntry[];
 }
 
-/** The pinned reader: who takes every claims and coverage reading (KTD10). */
+/** The pinned reader: who takes every claims and coverage reading. */
 export interface ReaderIdentity {
   readonly agent: string;
   readonly model: string;
@@ -228,6 +247,24 @@ export interface StageState {
   readonly error: string | null;
 }
 
+/** `record` with `stage` set to `state`. */
+export function withStage(
+  record: PassRecord,
+  stage: StageName,
+  state: StageState,
+): PassRecord {
+  return { ...record, stages: { ...record.stages, [stage]: state } };
+}
+
+/** The stage a record shows running, or `fallback` when none is. */
+export function runningStage(
+  record: PassRecord,
+  fallback: StageName,
+): StageName {
+  return STAGES.find((stage) => record.stages[stage].status === "running") ??
+    fallback;
+}
+
 /** `.benchmarks/<batch>/attempts/<id>/record.json`. */
 export interface PassRecord {
   readonly version: typeof BATCH_VERSION;
@@ -238,24 +275,24 @@ export interface PassRecord {
   /** Whether host events showed a forbidden read, or could not show reads. */
   readonly reads: "clean" | "forbidden" | "unverified";
   /** Whether the writer handed back a delegated `sigil-evaluate` review. */
-  readonly review: "delegated" | "none";
+  readonly review: ReviewMark;
   /** The staging directory under the OS temp directory, while it exists. */
   readonly stagingPath: string | null;
   readonly startedAt?: string | null;
   readonly finishedAt?: string | null;
-  /** What the writer host showed and handed back (U7). */
+  /** What the writer host showed and handed back. */
   readonly writer?: WriterObservation | null;
-  /** What made the pass invalid or its reads unverified (U7). */
+  /** What made the pass invalid or its reads unverified. */
   readonly integrity?: IntegrityFindings | null;
   /** The state the claims reader handed back, when it gave one. */
   readonly claimsHandback?: string | null;
 }
 
 export interface WriterObservation {
-  /** The host's own status: completed, failed, timeout or cancelled. */
-  readonly status: string;
+  /** The host's own status. */
+  readonly status: AgentStatus;
   /** The hand-back line's state, or null when the writer gave none. */
-  readonly state: string | null;
+  readonly state: WriterState | null;
   readonly observedModels: readonly string[];
   readonly childCount: number | null;
   /** Reviewer children the orchestrator started, where the host shows it. */
@@ -352,7 +389,7 @@ export async function readBatch(dir: string): Promise<Batch> {
 
 /**
  * Create `.benchmarks/` with a `.gitignore` of `*`, so neither the folder nor
- * its contents show in `git status` (R23). An existing `.gitignore` is kept.
+ * its contents show in `git status`. An existing `.gitignore` is kept.
  */
 export async function ensureEvidenceRoot(
   repoRoot = REPO_ROOT,
@@ -367,6 +404,11 @@ export async function ensureEvidenceRoot(
 /** Locale-independent ordering, so reports never depend on the machine. */
 export function compareText(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/** True when two values give the same `canonicalJson`. */
+export function sameJson(a: unknown, b: unknown): boolean {
+  return canonicalJson(a) === canonicalJson(b);
 }
 
 /** JSON with object keys sorted at every level. */

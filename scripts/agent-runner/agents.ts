@@ -4,7 +4,7 @@
  * message each host leaves. `launch.ts` builds a whole agent run on these.
  */
 import { open, readFile } from "node:fs/promises";
-import { asRecord, type HostName, parseJsonLines } from "./hosts.ts";
+import { asRecord, type HostName, type JsonObject } from "./hosts.ts";
 import { isNotFound } from "./files.ts";
 import {
   type CapturedStream,
@@ -18,11 +18,13 @@ import {
 
 export type AgentName = HostName;
 export type AgentStatus = "completed" | "failed" | "timeout" | "cancelled";
-export type ModelVerification = "observed" | "unverified" | "mixed";
-export type EffortVerification = "observed" | "unverified" | "mixed";
+/** `observed`: one value seen; `mixed`: several; `unverified`: none shown. */
+export type Verification = "observed" | "unverified" | "mixed";
+export type ModelVerification = Verification;
+export type EffortVerification = Verification;
 
 const OUTPUT_DRAIN_GRACE_MS = 500;
-export const TERMINATION_GRACE_MS = 2_000;
+const TERMINATION_GRACE_MS = 2_000;
 const PROBE_TIMEOUT_MS = 5_000;
 
 /** What the host showed about the children the orchestrator started. */
@@ -313,11 +315,12 @@ async function finishProbeOutput(
 /**
  * The orchestrator's final message, as each host records it: Codex in its
  * last-message file, Claude Code in its `result` event, Pi in its last
- * assistant `message_end`. Null when there is none.
+ * assistant `message_end`. `events` are the host's parsed stdout. Null when
+ * there is none.
  */
 export async function extractFinalResponse(
   agent: AgentName,
-  stdoutPath: string,
+  events: readonly JsonObject[],
   codexOutputFile: string,
 ): Promise<Uint8Array | null> {
   if (agent === "codex") {
@@ -329,7 +332,7 @@ export async function extractFinalResponse(
     }
   }
   let final: string | null = null;
-  for (const event of parseJsonLines(await readFile(stdoutPath, "utf8"))) {
+  for (const event of events) {
     if (
       agent === "claude" && event.type === "result" &&
       typeof event.result === "string"

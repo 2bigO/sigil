@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { constants } from "node:os";
 import process from "node:process";
 import type { Readable } from "node:stream";
+import { errorMessage } from "./files.ts";
 
 export interface CapturedStream {
   readonly done: Promise<void>;
@@ -229,4 +230,42 @@ export async function signalOwnedProcess(
       child.kill(signal);
     } catch { /* The process group may already have exited. */ }
   }
+}
+
+/** A process run to its end: its exit code and its decoded output. */
+export interface CompletedProcess {
+  readonly code: number;
+  readonly stdout: string;
+  readonly stderr: string;
+}
+
+/**
+ * Run `command` with stdin closed until it exits and its output closes, and
+ * collect stdout (up to 256 MiB) and stderr (up to 16 MiB) as text. Rejects
+ * with `Cannot start COMMAND: ...` when it cannot start.
+ */
+export async function runToCompletion(
+  command: string,
+  args: readonly string[],
+): Promise<CompletedProcess> {
+  let child;
+  try {
+    child = await spawnProcess(command, {
+      args,
+      stdout: "piped",
+      stderr: "piped",
+    });
+  } catch (cause) {
+    throw new Error(`Cannot start ${command}: ${errorMessage(cause)}`);
+  }
+  const out = captureStream(child.stdout!, 256 * 1024 * 1024);
+  const err = captureStream(child.stderr!);
+  const status = await child.status;
+  await Promise.all([out.done, err.done]);
+  const decoder = new TextDecoder();
+  return {
+    code: status.code,
+    stdout: decoder.decode(out.read()),
+    stderr: decoder.decode(err.read()),
+  };
 }
