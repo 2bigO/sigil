@@ -80,6 +80,11 @@ export interface LaunchRequest<H> {
   readonly children: readonly ChildAgentDefinition[];
   /** Skills staged into the pass directory before launch. Default: none. */
   readonly skills?: readonly StagedSkill[];
+  /**
+   * Arguments added after the host's own settings, such as Claude Code's
+   * `--settings`. Default: none.
+   */
+  readonly hostArgs?: readonly string[];
   /** Reads the hand-back from the final message; null when there is none. */
   readonly parseHandback: (finalText: string) => H | null;
 }
@@ -150,6 +155,7 @@ export async function launchAgent<H>(
         children: request.children,
         piSubagentsEntry: request.piSubagentsEntry ??
           defaultPiSubagentsEntry(),
+        hostArgs: request.hostArgs,
       });
     } catch (cause) {
       failureStep = "launch";

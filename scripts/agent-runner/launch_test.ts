@@ -154,6 +154,30 @@ emit({ type: "result", result: "Wrote it.\\nVerdict: accepted\\n" });
   });
 });
 
+test("extra host arguments reach the host before the prompt", async () => {
+  await withTempDir("agent-runner-launch-", async (root) => {
+    const request = await setUp(
+      root,
+      `import { writeFileSync } from "node:fs";
+writeFileSync("argv.json", JSON.stringify(process.argv.slice(2)));
+emit({ type: "result", result: "Verdict: accepted" });
+`,
+    );
+    const settings = '{"permissions":{"deny":["Read(//repo/**)"]}}';
+    const result = await launchAgent({
+      ...request,
+      hostArgs: ["--settings", settings],
+      prompt: () => "Prompt.",
+    });
+    assert.equal(result.status, "completed", JSON.stringify(result));
+    const argv: string[] = JSON.parse(
+      await readFile(join(request.passDir, "argv.json"), "utf8"),
+    );
+    assert.deepEqual(argv.slice(-4), ["--settings", settings, "--", "Prompt."]);
+    assert.ok(result.settings.includes(settings));
+  });
+});
+
 test("a host that exceeds the timeout is stopped and its partial events are kept", async () => {
   await withTempDir("agent-runner-launch-", async (root) => {
     const request = await setUp(

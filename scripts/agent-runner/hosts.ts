@@ -64,6 +64,11 @@ export interface HostSettings {
   readonly children: readonly ChildAgentDefinition[];
   /** Pi: the pi-subagents extension entry loaded with `-e`. */
   readonly piSubagentsEntry: string;
+  /**
+   * Arguments added after the host's own settings and before the prompt, such
+   * as Claude Code's `--settings` with `claudeDenySettings`. Default: none.
+   */
+  readonly hostArgs?: readonly string[];
 }
 
 export interface HostLaunch {
@@ -126,6 +131,7 @@ export async function buildHostLaunch(
     throw new Error("A host launch needs at least one child agent definition");
   }
   const passDir = resolve(settings.passDir);
+  const hostArgs = settings.hostArgs ?? [];
   switch (settings.host) {
     case "codex": {
       if (!settings.codexHome) {
@@ -162,6 +168,7 @@ export async function buildHostLaunch(
         ...(settings.lastMessagePath
           ? ["--output-last-message", settings.lastMessagePath]
           : []),
+        ...hostArgs,
       ];
       return {
         args,
@@ -218,6 +225,7 @@ export async function buildHostLaunch(
         "Agent",
         "--agents",
         JSON.stringify(agents),
+        ...hostArgs,
         "--",
       ];
       return {
@@ -280,6 +288,7 @@ export async function buildHostLaunch(
         "--approve",
         "--tools",
         "read,bash,subagent",
+        ...hostArgs,
         "--",
       ];
       return {
@@ -298,6 +307,39 @@ export async function buildHostLaunch(
       };
     }
   }
+}
+
+/**
+ * A Claude Code settings document, passed with `--settings`, that denies reads
+ * under each root to the orchestrator.
+ *
+ * Rule syntax from the Claude Code permissions documentation
+ * (https://code.claude.com/docs/en/permissions): a `//` prefix anchors a path
+ * at the filesystem root (one `/` anchors it at the settings source), and
+ * Claude Code applies `Read` deny rules to Grep and Glob as well. A
+ * `Glob(path)` rule is accepted but never consulted, so only Read rules are
+ * written. Whether a custom `--agents` child inherits these rules is not
+ * documented, which is why every pass is also scanned afterwards.
+ */
+export function claudeDenySettings(roots: readonly string[]): JsonObject {
+  return {
+    permissions: {
+      deny: roots.map((root) => `Read(/${root.replace(/\/+$/, "")}/**)`),
+    },
+  };
+}
+
+/** One tool call a host recorded, by the orchestrator or by a child. */
+export interface ToolCall {
+  /** "orchestrator", or the child's agent name or path where the host shows it. */
+  readonly actor: string;
+  /** The child session the call belongs to; null for the orchestrator. */
+  readonly childSession: string | null;
+  readonly tool: string;
+  /** An object for structured tools; the raw text for free-form ones. */
+  readonly input: unknown;
+  /** The working directory the host recorded; null when it records none. */
+  readonly cwd: string | null;
 }
 
 /** What a host's own output shows about the orchestrator and its children. */
@@ -320,10 +362,16 @@ export interface HostAnalysis {
   blockedReason: string | null;
   gaps: string[];
   notes: string[];
+  /**
+   * Every tool call the host shows, the children's included. Pi shows only
+   * the orchestrator's; Codex shows its children's only through rollouts.
+   */
+  toolCalls: ToolCall[];
 }
 
 function emptyAnalysis(): HostAnalysis {
   return {
+    toolCalls: [],
     finalText: null,
     skillsRead: [],
     models: [],
@@ -369,12 +417,22 @@ async function analyzeCodex(
 ): Promise<HostAnalysis> {
   const base = emptyAnalysis();
   const actions: string[] = [];
+  const streamCalls: ToolCall[] = [];
+  const collabIds = new Set<string>();
   let finalText: string | null = null;
   for (const event of events) {
     const item = asRecord(event.item);
     if (!item) continue;
     if (item.type === "command_execution" && event.type === "item.started") {
       actions.push(String(item.command ?? ""));
+      streamCalls.push(orchestratorCall("command_execution", {
+        command: item.command,
+      }));
+    }
+    // A collab call is how the stream shows a child being started.
+    if (item.type === "collab_tool_call" && !collabIds.has(String(item.id))) {
+      collabIds.add(String(item.id));
+      streamCalls.push(orchestratorCall("collab_tool_call", item));
     }
     if (item.type === "agent_message" && typeof item.text === "string") {
       finalText = item.text;
@@ -390,6 +448,14 @@ async function analyzeCodex(
     : [];
   const parent = rollouts.find((r) => !r.isChild);
   const children = rollouts.filter((r) => r.isChild);
+  // The orchestrator's own rollout records each call's arguments and working
+  // directory; the stream is the fallback when no rollout was kept.
+  base.toolCalls = [
+    ...(parent
+      ? rollouts.filter((r) => !r.isChild).flatMap((r) => r.toolCalls)
+      : streamCalls),
+    ...children.flatMap((r) => r.toolCalls),
+  ];
   base.models = unique(rollouts.map((r) => r.model));
   if (children.length > 0) {
     base.childCount = children.length;
@@ -436,6 +502,11 @@ interface Rollout {
   readonly model: string | null;
   readonly effort: string | null;
   readonly calls: { name: string; forkTurns: string | null }[];
+  readonly toolCalls: ToolCall[];
+}
+
+function orchestratorCall(tool: string, input: unknown): ToolCall {
+  return { actor: "orchestrator", childSession: null, tool, input, cwd: null };
 }
 
 async function readRollouts(dir: string): Promise<Rollout[]> {
@@ -456,30 +527,69 @@ async function readRollouts(dir: string): Promise<Rollout[]> {
         let isChild = false;
         let model: string | null = null;
         let effort: string | null = null;
+        let actor = "orchestrator";
+        let session: string | null = null;
+        let cwd: string | null = null;
         const calls: Rollout["calls"] = [];
+        const toolCalls: ToolCall[] = [];
+        const record = (tool: string, input: unknown) =>
+          toolCalls.push({
+            actor,
+            childSession: isChild ? session ?? entry.name : null,
+            tool,
+            input,
+            cwd,
+          });
         for (const line of lines) {
           const payload = asRecord(line.payload);
           if (!payload) continue;
           if (line.type === "session_meta") {
             const source = asRecord(payload.source);
             isChild = source !== null && "subagent" in source;
-          } else if (line.type === "turn_context" && model === null) {
-            model = typeof payload.model === "string" ? payload.model : null;
-            effort = typeof payload.effort === "string" ? payload.effort : null;
+            session = typeof payload.id === "string" ? payload.id : null;
+            if (typeof payload.cwd === "string") cwd = payload.cwd;
+            if (isChild) {
+              const spawn = asRecord(asRecord(source?.subagent)?.thread_spawn);
+              actor = String(
+                spawn?.agent_path ?? spawn?.agent_nickname ?? "child",
+              );
+            }
+          } else if (line.type === "turn_context") {
+            if (typeof payload.cwd === "string") cwd = payload.cwd;
+            if (model === null) {
+              model = typeof payload.model === "string" ? payload.model : null;
+              effort = typeof payload.effort === "string"
+                ? payload.effort
+                : null;
+            }
           } else if (
             line.type === "response_item" && payload.type === "function_call"
           ) {
             let forkTurns: string | null = null;
+            let input: unknown = payload.arguments;
             try {
               const parsed = JSON.parse(String(payload.arguments));
+              input = parsed;
               forkTurns = parsed.fork_turns === undefined
                 ? null
                 : String(parsed.fork_turns);
             } catch { /* Arguments are opaque when not valid JSON. */ }
             calls.push({ name: String(payload.name), forkTurns });
+            record(String(payload.name), input);
+          } else if (
+            line.type === "response_item" &&
+            payload.type === "custom_tool_call"
+          ) {
+            // Free-form tools: `exec` (code mode) and `apply_patch` take text.
+            record(String(payload.name), payload.input);
+          } else if (
+            line.type === "response_item" &&
+            payload.type === "local_shell_call"
+          ) {
+            record("local_shell", payload.action);
           }
         }
-        rollouts.push({ isChild, model, effort, calls });
+        rollouts.push({ isChild, model, effort, calls, toolCalls });
       }
     }
   }
@@ -497,13 +607,19 @@ function analyzeClaude(
   const models = new Set<string>();
   const childModels = new Set<string>();
   const childSessions = new Set<string>();
+  // The Agent call's id is the parent_tool_use_id of its child's events.
+  const childTypes = new Map<string, string>();
+  const init = events.find((e) => e.type === "system" && e.subtype === "init");
+  const cwd = typeof init?.cwd === "string" ? init.cwd : null;
   for (const event of events) {
     if (event.type === "result" && typeof event.result === "string") {
       base.finalText = event.result;
     }
     if (event.type !== "assistant") continue;
     const message = asRecord(event.message);
-    const parent = event.parent_tool_use_id;
+    const parent = event.parent_tool_use_id
+      ? String(event.parent_tool_use_id)
+      : null;
     if (!message) continue;
     const model = typeof message.model === "string" ? message.model : "";
     const served = event.is_api_error_message !== true && model.length > 0 &&
@@ -511,12 +627,25 @@ function analyzeClaude(
     if (served) models.add(model);
     if (parent) {
       if (served) childModels.add(model);
-      childSessions.add(String(parent));
-      continue;
+      childSessions.add(parent);
     }
     for (const block of Array.isArray(message.content) ? message.content : []) {
       const record = asRecord(block);
       if (record?.type !== "tool_use") continue;
+      const tool = String(record.name);
+      base.toolCalls.push({
+        actor: parent ? childTypes.get(parent) ?? "child" : "orchestrator",
+        childSession: parent,
+        tool,
+        input: record.input,
+        cwd,
+      });
+      if ((tool === "Agent" || tool === "Task") && record.id) {
+        const type = asRecord(record.input)?.subagent_type;
+        childTypes.set(String(record.id), String(type ?? "child"));
+      }
+      // Skill reads and the fresh-child check describe the orchestrator only.
+      if (parent) continue;
       actions.push(JSON.stringify(record.input));
       if (record.name === "Agent" || record.name === "Task") {
         const input = asRecord(record.input);
@@ -548,7 +677,6 @@ function analyzeClaude(
   // The agent definition's `effort` is validated by the host but never echoed,
   // so a Claude pass cannot observe a child's effort.
   base.exposedEffort = false;
-  const init = events.find((e) => e.type === "system" && e.subtype === "init");
   const agents = Array.isArray(init?.agents) ? init.agents : [];
   for (const name of init ? childNames : []) {
     if (!agents.includes(name)) {
@@ -593,6 +721,13 @@ function analyzePi(events: readonly JsonObject[]): HostAnalysis {
         if (
           block && (block.type === "toolCall" || block.type === "tool_use")
         ) {
+          // Only the orchestrator's calls appear; a child's stay inside it.
+          base.toolCalls.push(
+            orchestratorCall(
+              String(block.name),
+              block.arguments ?? block.input ?? {},
+            ),
+          );
           const input = JSON.stringify(block.arguments ?? block.input ?? {});
           actions.push(input);
           if (block.name === "subagent") {
