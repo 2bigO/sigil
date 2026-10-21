@@ -1,6 +1,15 @@
 {
   "lock": true,
   "nodeModulesDir": "none",
+  "lint": {
+    "exclude": ["scripts/design-benchmark/"]
+  },
+  "fmt": {
+    "exclude": [
+      "scripts/design-benchmark/node_modules/",
+      "scripts/design-benchmark/reference/"
+    ]
+  },
   "imports": {
     "ajv-2020": "npm:ajv@8/dist/2020.js"
   },

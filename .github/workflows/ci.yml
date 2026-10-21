@@ -26,9 +26,16 @@ jobs:
           cache-dependency-path: integrations/editor/vscode/package-lock.json
       - run: npm ci
         working-directory: integrations/editor/vscode
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.3
+      - run: bun install --frozen-lockfile
+        working-directory: scripts/design-benchmark
       - run: deno task fmt
       - run: deno task lint
       - run: deno task check
+      - run: bun run check
+        working-directory: scripts/design-benchmark
       - run: cargo fmt --manifest-path packages/core/Cargo.toml -- --check
       - run: cargo clippy --locked --manifest-path packages/core/Cargo.toml --all-targets -- -D warnings
       - run: cargo fmt --manifest-path packages/sigilc/Cargo.toml -- --check
@@ -41,5 +48,8 @@ jobs:
         run: xvfb-run -a deno task test
       - if: runner.os != 'Linux'
         run: deno task test
+      - run: bun test ./scripts/agent-runner
+      - run: bun test
+        working-directory: scripts/design-benchmark
       - if: matrix.os == 'ubuntu-latest'
         run: deno task package:vscode
