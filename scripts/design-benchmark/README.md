@@ -51,6 +51,66 @@ bun run main.ts --help
 
 Evidence goes under `.benchmarks/` at the repository root, which is ignored.
 
+## Measures
+
+Each measure is reported on its own, per design and, where it has one, per
+component. Components are matched to the reference's by name; components with no
+match are listed separately. A pass cell shows the pass value and the pass minus
+the reference. "Closer to the reference" says which direction moves a pass
+toward the reference. The report prints the same sentence under each table, from
+one shared definition in `report.ts`.
+
+Structural measures come from `sigilc tree` alone. Claims measures come from
+`sigilc check` over the stored readings, with the law set the guidance
+fingerprint names. Requirement coverage comes from the stored coverage reading.
+A design that does not parse is still measured structurally; its claims and
+coverage are unavailable.
+
+- **Components per design.** Closer to the reference: A count nearer the
+  reference's. It does not say whether the split into components is right.
+- **Facets per contract role.** Closer to the reference: Counts nearer the
+  reference's for each component and role; fewer than the reference means a
+  thinner contract. It does not say whether the Facets say what the reference's
+  Facets say.
+- **Components without state, logic or cases.** Closer to the reference: The
+  same components as the reference, each lacking the same roles; every other
+  listed component is thinner than the reference's. It does not say whether that
+  component needs the role.
+- **Interface Tags that nothing imports.** Closer to the reference: Counts
+  nearer the reference's for each component. It does not say whether an
+  unimported Tag is a promise to callers outside the design or an unused one.
+- **Interface Tags with no backing Facet.** Closer to the reference: Counts
+  nearer the reference's; more than the reference means more Interface Tags that
+  no state, logic or constraints Facet of the component introduces or mentions.
+  It does not say whether the Facets that do mention a Tag deliver what it
+  promises.
+- **Tag-mention coupling.** Closer to the reference: Edges and mention counts
+  nearer the reference's. It does not say whether a coupling is acceptable.
+- **Import fan-in and fan-out.** Closer to the reference: Fan-in and fan-out
+  nearer the reference's for each component. It does not say whether the
+  requirement allows a dependency.
+- **Tag-sharing groups.** Closer to the reference: Group counts, group sizes and
+  untagged Facets nearer the reference's for each component. It does not say
+  whether a component should be split or merged.
+- **Import cycles.** Closer to the reference: The same cycles as the reference;
+  each other cycle is further from it. It does not say whether a cycle is
+  harmful.
+- **Tag-mention cycles.** Closer to the reference: The same cycles as the
+  reference; each other cycle is further from it. It does not say whether a
+  cycle is harmful.
+- **Claims state.** Closer to the reference: The same state as the reference. It
+  does not say why the state differs; the findings say that.
+- **Findings by class and law.** Closer to the reference: Counts nearer the
+  reference's for each class, law and component. It does not say whether a
+  finding is a real problem in the design.
+- **Unread units.** Closer to the reference: A count nearer the reference's;
+  unread units leave the claims measures incomplete. It does not say anything
+  about the design itself.
+- **Requirement coverage.** Closer to the reference: The same verdict as the
+  reference for each requirement ID, citing Facets that answer it as the
+  reference's do. It does not say whether a cited Facet answers its requirement
+  well; the counts are not a grade.
+
 ## Known leak
 
 [`skills/sigil-write/references/contract-prose.md`](../../skills/sigil-write/references/contract-prose.md)
