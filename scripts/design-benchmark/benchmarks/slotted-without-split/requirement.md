@@ -424,8 +424,11 @@ Covers R2, R3, R4, R5, R22, R23; KTD6.
 - `withRoomLock` opens a transaction, locks the room row, and passes the
   transaction to its callback.
 - Archive's auto-decline and the timezone-lock check need booking data. So
-  archive and timezone change run as workflows, `archiveRoom` and
-  `changeRoomTimezone`, that call the room changes inside the lock (KTD9).
+  archive, unarchive, and timezone change run as workflows, `archiveRoom`,
+  `unarchiveRoom`, and `changeRoomTimezone`, that call the room changes inside
+  the lock (KTD9).
+- A room owner has a list of every room they created, including their archived
+  rooms.
 - The timezone is checked against the IANA zone list and is required at
   creation.
 
@@ -467,10 +470,10 @@ Covers R2, R4, R8, R10–R19, R22, R24, R26, R28; KTD5, KTD6, KTD8, KTD9.
   loaded.
 - The commands are submit, approve, decline, withdraw, and cancel. Each runs
   inside `withRoomLock` and does a compare-and-set on status.
-- The workflows `editAvailability`, `archiveRoom`, and `changeRoomTimezone`
-  combine room and availability changes with the R8 and R4 sweeps and the R22
-  check, under one lock. The app reaches availability edits, archive, unarchive,
-  and timezone changes only through workflows (KTD2, KTD9).
+- The four workflows `editAvailability`, `archiveRoom`, `unarchiveRoom`, and
+  `changeRoomTimezone` combine room and availability changes with the R8 and R4
+  sweeps and the R22 check, under one lock. The app reaches availability edits,
+  archive, unarchive, and timezone changes only through workflows (KTD2, KTD9).
 - The queries are the renter's list, the owner's inbox, and a room's bookings in
   a range, each with derived expired and outside-availability flags.
 
@@ -512,8 +515,8 @@ Examples:
 - An owner of room X approving or declining a request id from room Y is refused,
   and nothing changes on either room.
 - Withdraw by anyone other than the request's renter is refused.
-- `archiveRoom`, unarchive, `changeRoomTimezone`, and `editAvailability` by a
-  non-owner are refused and change nothing.
+- `archiveRoom`, `unarchiveRoom`, `changeRoomTimezone`, and `editAvailability`
+  by a non-owner are refused and change nothing.
 - The owner's inbox excludes rooms the caller does not own, and the renter's
   list excludes other renters' requests.
 - Inserting an overlapping Confirmed row directly, bypassing the commands, fails
@@ -555,10 +558,11 @@ Examples:
 
 Covers R1–R28 surfaces and F1–F4; KTD9.
 
-- Pages: sign-in and sign-up; the room list; a new-room page; a room page with
-  the calendar and the request form; the owner's manage page for metadata,
-  windows, blackouts, and archive; the renter's page of their requests and
-  bookings; and the owner's inbox of incoming requests and bookings.
+- Pages: sign-in and sign-up; the room list; the owner's list of every room they
+  created, including archived ones; a new-room page; a room page with the
+  calendar and the request form; the owner's manage page for metadata, windows,
+  blackouts, and archive; the renter's page of their requests and bookings; and
+  the owner's inbox of incoming requests and bookings.
 - Each action calls `requireUser()`, invokes one command or workflow, maps
   domain errors to form messages, and calls `refresh()`.
 - The calendar grid renders room-local time with a timezone label and a

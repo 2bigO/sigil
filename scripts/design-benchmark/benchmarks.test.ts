@@ -68,7 +68,10 @@ describe("slotted-with-split (AE1)", () => {
         "Rooms may depend on Identity.",
         "Calendar may depend on Booking, Availability, and Rooms.",
         "Identity depends on no other module.",
-        "Rooms, Availability, Booking, and Calendar may use SharedKernel.",
+        "Booking and Availability may use Identity's signed-in user.",
+        "Any module may use SharedKernel.",
+        "Slotted may use SharedKernel's domain error.",
+        "there are no cycles.",
       ]
     ) {
       expect(split).toContain(rule);

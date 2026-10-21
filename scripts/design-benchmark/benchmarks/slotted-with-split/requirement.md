@@ -424,8 +424,11 @@ Covers R2, R3, R4, R5, R22, R23; KTD6.
 - `withRoomLock` opens a transaction, locks the room row, and passes the
   transaction to its callback.
 - Archive's auto-decline and the timezone-lock check need booking data. So
-  archive and timezone change run as workflows, `archiveRoom` and
-  `changeRoomTimezone`, that call the room changes inside the lock (KTD9).
+  archive, unarchive, and timezone change run as workflows, `archiveRoom`,
+  `unarchiveRoom`, and `changeRoomTimezone`, that call the room changes inside
+  the lock (KTD9).
+- A room owner has a list of every room they created, including their archived
+  rooms.
 - The timezone is checked against the IANA zone list and is required at
   creation.
 
@@ -467,10 +470,10 @@ Covers R2, R4, R8, R10–R19, R22, R24, R26, R28; KTD5, KTD6, KTD8, KTD9.
   loaded.
 - The commands are submit, approve, decline, withdraw, and cancel. Each runs
   inside `withRoomLock` and does a compare-and-set on status.
-- The workflows `editAvailability`, `archiveRoom`, and `changeRoomTimezone`
-  combine room and availability changes with the R8 and R4 sweeps and the R22
-  check, under one lock. The app reaches availability edits, archive, unarchive,
-  and timezone changes only through workflows (KTD2, KTD9).
+- The four workflows `editAvailability`, `archiveRoom`, `unarchiveRoom`, and
+  `changeRoomTimezone` combine room and availability changes with the R8 and R4
+  sweeps and the R22 check, under one lock. The app reaches availability edits,
+  archive, unarchive, and timezone changes only through workflows (KTD2, KTD9).
 - The queries are the renter's list, the owner's inbox, and a room's bookings in
   a range, each with derived expired and outside-availability flags.
 
@@ -512,8 +515,8 @@ Examples:
 - An owner of room X approving or declining a request id from room Y is refused,
   and nothing changes on either room.
 - Withdraw by anyone other than the request's renter is refused.
-- `archiveRoom`, unarchive, `changeRoomTimezone`, and `editAvailability` by a
-  non-owner are refused and change nothing.
+- `archiveRoom`, `unarchiveRoom`, `changeRoomTimezone`, and `editAvailability`
+  by a non-owner are refused and change nothing.
 - The owner's inbox excludes rooms the caller does not own, and the renter's
   list excludes other renters' requests.
 - Inserting an overlapping Confirmed row directly, bypassing the commands, fails
@@ -555,10 +558,11 @@ Examples:
 
 Covers R1–R28 surfaces and F1–F4; KTD9.
 
-- Pages: sign-in and sign-up; the room list; a new-room page; a room page with
-  the calendar and the request form; the owner's manage page for metadata,
-  windows, blackouts, and archive; the renter's page of their requests and
-  bookings; and the owner's inbox of incoming requests and bookings.
+- Pages: sign-in and sign-up; the room list; the owner's list of every room they
+  created, including archived ones; a new-room page; a room page with the
+  calendar and the request form; the owner's manage page for metadata, windows,
+  blackouts, and archive; the renter's page of their requests and bookings; and
+  the owner's inbox of incoming requests and bookings.
 - Each action calls `requireUser()`, invokes one command or workflow, maps
   domain errors to form messages, and calls `refresh()`.
 - The calendar grid renders room-local time with a timezone label and a
@@ -622,8 +626,8 @@ Use this split. It has seven components, each with its own design file in
 - **Identity**, in `identity.sigil`: sign-up, sign-in, sign-out,
   `requireUser()`, and `getSessionUser(headers)`. Covers R1.
 - **Rooms**, in `rooms.sigil`: rooms, their metadata and timezone, archive and
-  unarchive, the room list, and the room lock `withRoomLock`. Covers R2, R3, R4,
-  R5, R22, R23.
+  unarchive, the room list, each owner's list of their rooms, and the room lock
+  `withRoomLock`. Covers R2, R3, R4, R5, R22, R23.
 - **Availability**, in `availability.sigil`: weekly windows, blackouts, and the
   open-time query. Covers R6, R7.
 - **Booking**, in `booking.sigil`: the request lifecycle, with the booking
@@ -642,7 +646,9 @@ Use this split. It has seven components, each with its own design file in
 - Rooms may depend on Identity.
 - Calendar may depend on Booking, Availability, and Rooms.
 - Identity depends on no other module.
-- Rooms, Availability, Booking, and Calendar may use SharedKernel.
+- Booking and Availability may use Identity's signed-in user.
+- Any module may use SharedKernel.
+- Slotted may use SharedKernel's domain error.
 - Slotted (the app's pages and server actions) may import the public entry of
   Identity, Rooms, Availability, Booking, and Calendar, and nothing else from
   them.
@@ -653,7 +659,8 @@ Use this split. It has seven components, each with its own design file in
 - Each module lives in `src/modules/<name>/` (`identity`, `rooms`,
   `availability`, `booking`, `calendar`) with one public `index.ts`.
   SharedKernel lives in `src/shared/`, with `time/`, `db/`, and `errors/`. The
-  app lives in `src/app/` and imports only module public entries (KTD2).
+  app lives in `src/app/` and imports only module public entries and
+  SharedKernel's domain error (KTD2).
 - Rooms and Availability export their transaction-taking mutations (archive,
   unarchive, timezone change, and window and blackout edits) from a second
   entry, `tx.ts`. Only Booking may import it, so `src/app/` reaches those
@@ -667,10 +674,10 @@ Use this split. It has seven components, each with its own design file in
   `temporal-polyfill`, the `Clock`, the 30-minute grid, local and instant
   conversion, half-open ranges, and the open-time computation (KTD7).
 - Booking owns the outcome of the workflows that cross module lines, so Booking
-  composes them inside one `withRoomLock` call (KTD9). Booking exposes
-  `editAvailability`, `archiveRoom`, and `changeRoomTimezone`, which call the
-  Rooms and Availability commands inside the lock. Any new write path to
-  bookings must go through Booking's commands.
+  composes them inside one `withRoomLock` call (KTD9). Booking exposes the four
+  workflows `editAvailability`, `archiveRoom`, `unarchiveRoom`, and
+  `changeRoomTimezone`, which call the Rooms and Availability commands inside
+  the lock. Any new write path to bookings must go through Booking's commands.
 - Calendar owns the per-viewer read model and its pure view step.
 - Each Tag is defined in its owning component and imported elsewhere, for
   example _room_, _open time_, _booking request_, and _confirmed booking_.
