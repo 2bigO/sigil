@@ -722,7 +722,8 @@ independent workspace named `promise`.
 `Slotted` in [examples/slotted/slotted.sigil](examples/slotted/slotted.sigil) is
 a room-booking design that spans several modules. It is a clean design: it
 contains no deliberate mistakes, so use it when you need a valid example of a
-multi-module Sigil workspace.
+multi-module Sigil workspace. It was written with `sigil-write` from the
+maintainer's Slotted plan, then reviewed and edited by the maintainer.
 
 Its [.sigil/config.json](examples/slotted/.sigil/config.json) makes it an
 independent workspace named `slotted`; imports beginning with `@` resolve from

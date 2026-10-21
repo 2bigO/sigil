@@ -83,12 +83,18 @@ component Booking {
     signed-in user, and change the status with a compare-and-set from the expected
     prior status.
 
-    Declining and withdrawing need a pending request, declining is for the
-    room owner, and withdrawing is for the renter. Cancelling needs a
-    confirmed booking whose start is still in the future and is for the room owner
-    or the renter. A lost race on a pending request returns a domain error saying
-    it is no longer Pending, and cancelling a booking request that is already
-    Cancelled succeeds without change.
+    Declining and withdrawing need a pending request. Declining is for the room
+    owner and sets the decline cause declined by owner, and withdrawing is for the
+    renter. Cancelling needs a confirmed booking whose start is still in the future
+    and is for the room owner or the renter. A lost race on a pending request
+    returns a domain error saying it is no longer Pending, and cancelling a
+    booking request that is already Cancelled succeeds without change.
+
+    Each booking workflow first authorizes the signed-in user as the room owner of
+    the room, and refuses anyone else without changing anything.
+
+    Reading booking requests returns to a renter only the booking requests they
+    hold, and to a room owner only those on rooms they own.
 
     Editing availability takes four steps under the room lock. Step one applies the
     weekly window or blackout edit through the transactional entry of Availability.
@@ -230,6 +236,20 @@ component Booking {
 
     A room owner of one room approving or declining a booking request from another
     room is refused, and nothing changes on either room.
+
+    Archiving, unarchiving, changing the room timezone of, or editing the
+    availability of a room by a signed-in user who is not its room owner is
+    refused and changes nothing.
+
+    Declining by the room owner records the decline cause declined by owner, and a
+    signed-in user who is not the room owner cannot decline.
+
+    The room owner's inbox leaves out rooms the caller does not own, and a renter's
+    list leaves out the booking requests of other renters.
+
+    Cancelling succeeds for the room owner or the renter before the start, and is
+    refused after the start or for any other signed-in user. Withdrawing by anyone
+    other than the renter is refused.
 
     Inserting an overlapping confirmed booking row directly, bypassing commands,
     fails with the exclusion constraint.
