@@ -2,7 +2,7 @@ import { match as matches, strictEqual as equal } from "node:assert/strict";
 import { delimiter, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readBatch, runBatch } from "./batch.ts";
-import { exists, treeSha256 } from "./files.ts";
+import { exists, treeSha256 } from "../agent-runner/files.ts";
 import { executeCommand } from "./main.ts";
 import { writeExecutableScript, writeFakeHost } from "./test_support.ts";
 
@@ -587,7 +587,7 @@ for _ in range(60): time.sleep(1)
           "--allow-read",
           "--allow-write",
           "--allow-run",
-          "--allow-env=PATH",
+          "--allow-env",
           "scripts/slotted-benchmark/main.ts",
           "run",
           "--agent",

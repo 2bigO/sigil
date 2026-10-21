@@ -25,8 +25,9 @@ import {
   parseJsonLines,
   prepareCodexHome,
   removeCodexAuth,
-} from "./hosts.ts";
-import { settleWithin, signalOwnedProcess } from "./process.ts";
+} from "../agent-runner/hosts.ts";
+import { settleWithin, signalOwnedProcess } from "../agent-runner/process.ts";
+import { INTERPRETER_CHILD } from "./agents.ts";
 
 type Host = HostName;
 
@@ -243,11 +244,10 @@ async function probeHost(
     );
     const wallMs = Math.round(performance.now() - started);
     const events = parseJsonLines(await Deno.readTextFile(stdoutPath));
-    const analysis = await analyzeHostStream(
-      host,
-      events,
-      join(hostDir, "codex-home"),
-    );
+    const analysis = await analyzeHostStream(host, events, {
+      childNames: [INTERPRETER_CHILD.name],
+      codexHome: join(hostDir, "codex-home"),
+    });
     const observedModel = analysis.childModels.join(",") || null;
     const observedEffort = analysis.childEfforts.join(",") || null;
 
@@ -380,8 +380,11 @@ async function buildLaunch(
     passDir,
     codexHome,
     allowedShell: ["sigilc"],
-    childPrompt:
-      "You are a careful file-writing helper. Do exactly what the task says.",
+    children: [{
+      ...INTERPRETER_CHILD,
+      prompt:
+        "You are a careful file-writing helper. Do exactly what the task says.",
+    }],
     piSubagentsEntry: defaultPiSubagentsEntry(),
   });
   return {

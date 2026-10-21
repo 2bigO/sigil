@@ -4,7 +4,7 @@ import {
   type BatchManifest,
   pendingRecord,
 } from "./batch.ts";
-import { exists } from "./files.ts";
+import { exists } from "../agent-runner/files.ts";
 import { SLOTTED_FIXTURE } from "./fixture.ts";
 import { renderReport, type ReportAttempt, writeReport } from "./report.ts";
 

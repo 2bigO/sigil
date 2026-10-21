@@ -1,20 +1,34 @@
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  readFile,
+  rename,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { dirname, join } from "node:path";
+
+/** True when a node file-system error says the path does not exist. */
+export function isNotFound(cause: unknown): boolean {
+  return (cause as { code?: unknown } | null)?.code === "ENOENT";
+}
 
 export async function exists(path: string): Promise<boolean> {
   try {
-    await Deno.stat(path);
+    await stat(path);
     return true;
   } catch (cause) {
-    if (cause instanceof Deno.errors.NotFound) return false;
+    if (isNotFound(cause)) return false;
     throw cause;
   }
 }
 
 export async function writeJson(path: string, value: unknown): Promise<void> {
-  await Deno.mkdir(dirname(path), { recursive: true });
+  await mkdir(dirname(path), { recursive: true });
   const temp = `${path}.${crypto.randomUUID()}.tmp`;
-  await Deno.writeTextFile(temp, `${JSON.stringify(value, null, 2)}\n`);
-  await Deno.rename(temp, path);
+  await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`);
+  await rename(temp, path);
 }
 
 export async function sha256(bytes: Uint8Array): Promise<string> {
@@ -37,14 +51,14 @@ export async function copyTree(
   skip: ReadonlySet<string> = new Set(),
   prefix = "",
 ): Promise<void> {
-  await Deno.mkdir(destination, { recursive: true });
-  for await (const entry of Deno.readDir(source)) {
+  await mkdir(destination, { recursive: true });
+  for (const entry of await readdir(source, { withFileTypes: true })) {
     const name = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (skip.has(name)) continue;
     const from = join(source, entry.name);
     const to = join(destination, entry.name);
-    if (entry.isDirectory) await copyTree(from, to, skip, name);
-    else if (entry.isFile) await Deno.copyFile(from, to);
+    if (entry.isDirectory()) await copyTree(from, to, skip, name);
+    else if (entry.isFile()) await copyFile(from, to);
     else throw new Error(`Unsupported entry in a copied tree: ${from}`);
   }
 }
@@ -54,14 +68,12 @@ export async function copySkill(
   source: string,
   destination: string,
 ): Promise<void> {
-  await Deno.mkdir(destination, { recursive: true });
+  await mkdir(destination, { recursive: true });
   for (const file of ["SKILL.md", "VERSION"]) {
     try {
-      await Deno.copyFile(join(source, file), join(destination, file));
+      await copyFile(join(source, file), join(destination, file));
     } catch (cause) {
-      if (file === "VERSION" && cause instanceof Deno.errors.NotFound) {
-        continue;
-      }
+      if (file === "VERSION" && isNotFound(cause)) continue;
       throw cause;
     }
   }
@@ -72,15 +84,14 @@ export async function copySkill(
 export async function treeSha256(root: string): Promise<string> {
   const rows: string[] = [];
   async function visit(dir: string, prefix: string): Promise<void> {
-    const entries = [];
-    for await (const entry of Deno.readDir(dir)) entries.push(entry);
+    const entries = await readdir(dir, { withFileTypes: true });
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const name = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (entry.isDirectory) await visit(join(dir, entry.name), name);
-      else if (entry.isFile) {
+      if (entry.isDirectory()) await visit(join(dir, entry.name), name);
+      else if (entry.isFile()) {
         rows.push(
-          `${name}:${await sha256(await Deno.readFile(join(dir, entry.name)))}`,
+          `${name}:${await sha256(await readFile(join(dir, entry.name)))}`,
         );
       }
     }

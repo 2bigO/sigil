@@ -21,7 +21,7 @@ import {
   sha256,
   treeSha256,
   writeJson,
-} from "./files.ts";
+} from "../agent-runner/files.ts";
 import {
   designViewFromTrees,
   type FixturePreflight,

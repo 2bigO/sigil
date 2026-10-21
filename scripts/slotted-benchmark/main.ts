@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { readBatch, runBatch, validateSelections } from "./batch.ts";
 import type { AgentName } from "./agents.ts";
 import { writeReport } from "./report.ts";
-import { exists } from "./files.ts";
+import { exists } from "../agent-runner/files.ts";
 
 const DEFAULT_OUTPUT = fileURLToPath(
   new URL("../../.benchmarks/", import.meta.url),

@@ -2,27 +2,47 @@
  * Orchestrator and child launch settings for each host, and the readers that
  * recover what each host recorded about its children.
  *
- * The benchmark's passes (`agents.ts`) and the host probe
- * (`probe-hosts.ts`) share this module, so the settings the probe verified live
- * are the settings a pass runs with.
+ * The shared launcher (`launch.ts`) and the evaluation benchmark's host probe
+ * (`scripts/slotted-benchmark/probe-hosts.ts`) share this module, so the
+ * settings the probe verified live are the settings a pass runs with.
  *
  * Verified live by the host probe: Codex (0.161) and Claude Code. NOT verified live: Pi
  * (0.87 with pi-subagents 0.70.1). The xAI provider answered 403 out of credits,
  * so the Pi settings below were written from the pi-subagents documentation and
  * have never been run against a real model.
  */
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
+import process from "node:process";
+import type { Dirent } from "node:fs";
 
 export type HostName = "codex" | "claude" | "pi";
 export const HOSTS: readonly HostName[] = ["codex", "claude", "pi"];
 
 export type JsonObject = Record<string, unknown>;
 
-/** The name of the child agent every host is told to start. */
-export const CHILD_AGENT = "interpreter";
-
-export const DEFAULT_CHILD_PROMPT =
-  "You are a fresh interpreter child. Do exactly the task you are handed: read only the files it names, write your answer to the file it names, and write nothing else.";
+/**
+ * A child agent the orchestrator may start. Claude Code and Pi are given the
+ * definition; Codex starts its own default agent and ignores it.
+ */
+export interface ChildAgentDefinition {
+  /** The name the orchestrator starts the child by. */
+  readonly name: string;
+  readonly description: string;
+  /** The child's system prompt. */
+  readonly prompt: string;
+  /** Claude Code tools the child may use. */
+  readonly claudeTools: readonly string[];
+  /** Pi tools the child may use. */
+  readonly piTools: readonly string[];
+}
 
 export interface HostSettings {
   readonly host: HostName;
@@ -40,8 +60,8 @@ export interface HostSettings {
   readonly lastMessagePath?: string;
   /** Claude Code: shell commands the orchestrator may run, by program name. */
   readonly allowedShell: readonly string[];
-  /** Claude Code and Pi: the child agent's system prompt. */
-  readonly childPrompt: string;
+  /** The child agents the orchestrator may start; at least one. */
+  readonly children: readonly ChildAgentDefinition[];
   /** Pi: the pi-subagents extension entry loaded with `-e`. */
   readonly piSubagentsEntry: string;
 }
@@ -57,20 +77,21 @@ export interface HostLaunch {
 
 /** The default pi-subagents entry of a Pi install. Reads HOME on demand. */
 export function defaultPiSubagentsEntry(): string {
-  let home = "";
-  try {
-    home = Deno.env.get("HOME") ?? "";
-  } catch { /* Environment access may be denied; the caller passes a path. */ }
-  return join(home, ".pi/agent/npm/node_modules/pi-subagents/index.js");
+  return join(home(), ".pi/agent/npm/node_modules/pi-subagents/index.js");
 }
 
 /** The default Codex auth file. Reads HOME on demand. */
 export function defaultCodexAuthPath(): string {
-  let home = "";
+  return join(home(), ".codex/auth.json");
+}
+
+function home(): string {
   try {
-    home = Deno.env.get("HOME") ?? "";
-  } catch { /* Environment access may be denied; the caller passes a path. */ }
-  return join(home, ".codex/auth.json");
+    return process.env.HOME ?? "";
+  } catch {
+    /* Environment access may be denied; the caller passes a path. */
+    return "";
+  }
 }
 
 /**
@@ -83,21 +104,27 @@ export async function prepareCodexHome(
   codexHome: string,
   authPath: string,
 ): Promise<void> {
-  await Deno.mkdir(codexHome, { recursive: true });
-  await Deno.copyFile(authPath, join(codexHome, "auth.json"));
+  await mkdir(codexHome, { recursive: true });
+  await copyFile(authPath, join(codexHome, "auth.json"));
 }
 
 export async function removeCodexAuth(codexHome: string): Promise<void> {
-  try {
-    await Deno.remove(join(codexHome, "auth.json"));
-  } catch (cause) {
-    if (!(cause instanceof Deno.errors.NotFound)) throw cause;
-  }
+  // `force` ignores a missing file and nothing else.
+  await rm(join(codexHome, "auth.json"), { force: true });
+}
+
+/** Name the child agents for a sentence: `"a"`, or `one of "a", "b"`. */
+function childChoice(children: readonly ChildAgentDefinition[]): string {
+  const names = children.map((child) => `"${child.name}"`);
+  return names.length === 1 ? names[0] : `one of ${names.join(", ")}`;
 }
 
 export async function buildHostLaunch(
   settings: HostSettings,
 ): Promise<HostLaunch> {
+  if (settings.children.length === 0) {
+    throw new Error("A host launch needs at least one child agent definition");
+  }
   const passDir = resolve(settings.passDir);
   switch (settings.host) {
     case "codex": {
@@ -147,15 +174,15 @@ export async function buildHostLaunch(
       };
     }
     case "claude": {
-      const agents = {
-        [CHILD_AGENT]: {
-          description: "Fresh interpreter child",
-          prompt: settings.childPrompt,
-          tools: ["Read", "Glob", "Grep", "Write"],
+      const agents = Object.fromEntries(
+        settings.children.map((child) => [child.name, {
+          description: child.description,
+          prompt: child.prompt,
+          tools: [...child.claudeTools],
           model: settings.childModel,
           ...(settings.childEffort ? { effort: settings.childEffort } : {}),
-        },
-      };
+        }]),
+      );
       // `--safe-mode` is deliberately absent: it disables `--agents`, so the
       // Agent tool then reports the child type as not found.
       // The prompt has the orchestrator run the pinned tool as
@@ -196,8 +223,13 @@ export async function buildHostLaunch(
       return {
         args,
         env: {},
-        spawnInstruction:
-          `Start each child with the Agent tool and subagent_type "${CHILD_AGENT}".`,
+        spawnInstruction: settings.children.length === 1
+          ? `Start each child with the Agent tool and subagent_type ${
+            childChoice(settings.children)
+          }.`
+          : `Start each child with the Agent tool and the subagent_type its task calls for, ${
+            childChoice(settings.children)
+          }.`,
         isolationLimits: [
           "Managed settings may still apply; the CLI's tool and shell allowlists are not an OS sandbox.",
           "The child effort is requested through the agent definition but is not echoed by the host, so it is unverified.",
@@ -207,27 +239,29 @@ export async function buildHostLaunch(
     case "pi": {
       // UNTESTED LIVE: written from the pi-subagents documentation (the host probe could
       // not reach a Pi provider with credit).
-      await Deno.mkdir(join(passDir, ".pi/agents"), { recursive: true });
-      await Deno.writeTextFile(
-        join(passDir, `.pi/agents/${CHILD_AGENT}.md`),
-        [
-          "---",
-          `name: ${CHILD_AGENT}`,
-          "description: Fresh interpreter child",
-          "tools: read, write, grep, find, ls",
-          `model: ${settings.childModel}`,
-          ...(settings.childEffort
-            ? [`thinking: ${settings.childEffort}`]
-            : []),
-          "systemPromptMode: replace",
-          "inheritProjectContext: false",
-          "inheritGlobalContext: false",
-          "inheritSkills: false",
-          "---",
-          settings.childPrompt,
-          "",
-        ].join("\n"),
-      );
+      await mkdir(join(passDir, ".pi/agents"), { recursive: true });
+      for (const child of settings.children) {
+        await writeFile(
+          join(passDir, `.pi/agents/${child.name}.md`),
+          [
+            "---",
+            `name: ${child.name}`,
+            `description: ${child.description}`,
+            `tools: ${child.piTools.join(", ")}`,
+            `model: ${settings.childModel}`,
+            ...(settings.childEffort
+              ? [`thinking: ${settings.childEffort}`]
+              : []),
+            "systemPromptMode: replace",
+            "inheritProjectContext: false",
+            "inheritGlobalContext: false",
+            "inheritSkills: false",
+            "---",
+            child.prompt,
+            "",
+          ].join("\n"),
+        );
+      }
       const args = [
         "--print",
         "--mode",
@@ -251,8 +285,13 @@ export async function buildHostLaunch(
       return {
         args,
         env: {},
-        spawnInstruction:
-          `Start each child with the subagent tool, agent "${CHILD_AGENT}", context "fresh" and async false.`,
+        spawnInstruction: settings.children.length === 1
+          ? `Start each child with the subagent tool, agent ${
+            childChoice(settings.children)
+          }, context "fresh" and async false.`
+          : `Start each child with the subagent tool, the agent its task calls for (${
+            childChoice(settings.children)
+          }), context "fresh" and async false.`,
         isolationLimits: [
           "Pi settings are untested live. The tool allowlists limit available tools, not OS-level file access.",
         ],
@@ -302,16 +341,23 @@ function emptyAnalysis(): HostAnalysis {
   };
 }
 
+export interface AnalysisOptions {
+  /** The child agent names the orchestrator was told it may start. */
+  readonly childNames: readonly string[];
+  /** Codex: the scratch CODEX_HOME whose rollouts record the children. */
+  readonly codexHome?: string;
+}
+
 export async function analyzeHostStream(
   host: HostName,
   events: readonly JsonObject[],
-  codexHome?: string,
+  options: AnalysisOptions,
 ): Promise<HostAnalysis> {
   switch (host) {
     case "codex":
-      return await analyzeCodex(events, codexHome);
+      return await analyzeCodex(events, options.codexHome);
     case "claude":
-      return analyzeClaude(events);
+      return analyzeClaude(events, options.childNames);
     case "pi":
       return analyzePi(events);
   }
@@ -395,18 +441,18 @@ interface Rollout {
 async function readRollouts(dir: string): Promise<Rollout[]> {
   const rollouts: Rollout[] = [];
   async function walk(path: string): Promise<void> {
-    let entries: Deno.DirEntry[];
+    let entries: Dirent[];
     try {
-      entries = await Array.fromAsync(Deno.readDir(path));
+      entries = await readdir(path, { withFileTypes: true });
     } catch {
       return;
     }
     entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const full = join(path, entry.name);
-      if (entry.isDirectory) await walk(full);
+      if (entry.isDirectory()) await walk(full);
       else if (entry.name.startsWith("rollout-")) {
-        const lines = parseJsonLines(await Deno.readTextFile(full));
+        const lines = parseJsonLines(await readFile(full, "utf8"));
         let isChild = false;
         let model: string | null = null;
         let effort: string | null = null;
@@ -441,7 +487,10 @@ async function readRollouts(dir: string): Promise<Rollout[]> {
   return rollouts;
 }
 
-function analyzeClaude(events: readonly JsonObject[]): HostAnalysis {
+function analyzeClaude(
+  events: readonly JsonObject[],
+  childNames: readonly string[],
+): HostAnalysis {
   const base = emptyAnalysis();
   const actions: string[] = [];
   const agentCalls: JsonObject[] = [];
@@ -483,7 +532,9 @@ function analyzeClaude(events: readonly JsonObject[]): HostAnalysis {
         unique(agentCalls.map((c) => String(c.subagent_type))).join(",")
       }; a custom agent has no parent transcript`,
     );
-    base.freshFlagOk = agentCalls.every((c) => c.subagent_type === CHILD_AGENT);
+    base.freshFlagOk = agentCalls.every((c) =>
+      childNames.includes(String(c.subagent_type))
+    );
   } else {
     base.gaps.push("orchestrator never called the Agent tool");
   }
@@ -499,10 +550,10 @@ function analyzeClaude(events: readonly JsonObject[]): HostAnalysis {
   base.exposedEffort = false;
   const init = events.find((e) => e.type === "system" && e.subtype === "init");
   const agents = Array.isArray(init?.agents) ? init.agents : [];
-  if (init && !agents.includes(CHILD_AGENT)) {
-    base.gaps.push(
-      `custom \`${CHILD_AGENT}\` agent absent from the init event`,
-    );
+  for (const name of init ? childNames : []) {
+    if (!agents.includes(name)) {
+      base.gaps.push(`custom \`${name}\` agent absent from the init event`);
+    }
   }
   return base;
 }

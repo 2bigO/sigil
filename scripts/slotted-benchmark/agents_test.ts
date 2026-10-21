@@ -5,7 +5,7 @@ import {
   parseHandbackState,
   runOrchestrator,
 } from "./agents.ts";
-import { exists } from "./files.ts";
+import { exists } from "../agent-runner/files.ts";
 import { writeShellFakeHost } from "./test_support.ts";
 import { dirname, join, resolve, sep } from "node:path";
 

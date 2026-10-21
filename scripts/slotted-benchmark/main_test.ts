@@ -1,7 +1,7 @@
 import { strictEqual as equal } from "node:assert/strict";
 import { join } from "node:path";
 import { ensureDefaultOutputRoot } from "./main.ts";
-import { exists } from "./files.ts";
+import { exists } from "../agent-runner/files.ts";
 
 Deno.test("ensureDefaultOutputRoot creates the root and a self-ignoring .gitignore", async () => {
   const root = await Deno.makeTempDir({ prefix: "slotted-default-root-" });

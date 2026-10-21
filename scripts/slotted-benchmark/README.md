@@ -127,7 +127,8 @@ invalid.
 
 ## Host settings
 
-Settings are built in [`hosts.ts`](./hosts.ts), which the host probe
+Settings are built in the shared runner's
+[`hosts.ts`](../agent-runner/hosts.ts), which the host probe
 (`deno task slotted-benchmark:probe`) shares, so a pass runs with the settings
 the probe checked.
 

@@ -5,7 +5,7 @@ import {
   pendingRecord,
   readBatch,
 } from "./batch.ts";
-import { exists } from "./files.ts";
+import { exists } from "../agent-runner/files.ts";
 import type { IssuePreflight } from "./fixture.ts";
 
 type JsonObject = Record<string, unknown>;
