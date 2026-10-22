@@ -78,6 +78,7 @@ const READER: ReaderIdentity = {
   effort: "high",
   skillDigests: {},
   coveragePromptDigest: "digest",
+  claimsPromptDigest: "digest",
 };
 
 const HEADER = {
