@@ -639,6 +639,12 @@ function exclusion(record: PassRecord): string | null {
       writer?.error ? `: ${writer.error}` : ""
     }`;
   }
+  const readScan = record.stages.readScan;
+  if (readScan?.status !== "done") {
+    return `read scan ${shownStatus(readScan?.status ?? "pending")}${
+      readScan?.error ? `: ${readScan.error}` : ""
+    }`;
+  }
   return null;
 }
 

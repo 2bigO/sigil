@@ -168,6 +168,7 @@ export interface ReaderIdentity {
   /** Skill name to the digest of its frozen copy in `reader-skills/`. */
   readonly skillDigests: Readonly<Record<string, string>>;
   readonly coveragePromptDigest: string;
+  readonly claimsPromptDigest: string;
 }
 
 /** What a set of claims readings was taken under; readings are keyed by it. */

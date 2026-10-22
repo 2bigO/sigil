@@ -99,6 +99,7 @@ export const READER: ReaderIdentity = {
   effort: "high",
   skillDigests: { "sigil-compute-design": "aaa" },
   coveragePromptDigest: "bbb",
+  claimsPromptDigest: "ccc",
 };
 
 export function coverageFile(

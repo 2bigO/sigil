@@ -331,6 +331,41 @@ describe("report", () => {
     expect(report).not.toContain("| P1 |");
   });
 
+  test("passes without a completed read scan are listed but not measured", async () => {
+    const report = await setup.report([
+      await batch("b1", WITH, {}, [
+        {
+          record: {
+            stages: {
+              writer: { status: "done", error: null },
+              readScan: { status: "failed", error: "scan failed" },
+              claims: { status: "pending", error: null },
+              coverage: { status: "pending", error: null },
+            },
+          },
+        },
+        {
+          record: {
+            stages: {
+              writer: { status: "done", error: null },
+              readScan: { status: "running", error: null },
+              claims: { status: "pending", error: null },
+              coverage: { status: "pending", error: null },
+            },
+          },
+        },
+      ]),
+    ]);
+    expect(report).toContain(
+      "| not measured: read scan failed: scan failed | b1 | p1 |",
+    );
+    expect(report).toContain(
+      "| not measured: read scan interrupted | b1 | p2 |",
+    );
+    expect(report).not.toContain("| P1 |");
+    expect(report).not.toContain("| P2 |");
+  });
+
   test("a running pass shows as interrupted", async () => {
     const report = await setup.report([
       await batch("b1", WITH, {}, [{

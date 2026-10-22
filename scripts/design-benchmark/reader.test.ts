@@ -2,6 +2,10 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { exists, treeSha256, writeJson } from "../agent-runner/files.ts";
+import {
+  INTERPRETER_CHILD,
+  orchestratorPrompt,
+} from "../slotted-benchmark/agents.ts";
 import { rereadReference, runBatch } from "./batch.ts";
 import type { CoverageFile } from "./coverage.ts";
 import {
@@ -13,6 +17,7 @@ import {
 } from "./fakes.ts";
 import { requirementInputs } from "./measure.ts";
 import {
+  claimsPromptDigest,
   coverageFromAnswer,
   coveragePrompt,
   coveragePromptDigest,
@@ -213,6 +218,7 @@ describe("the pinned reader", () => {
       );
     }
     expect(reader.coveragePromptDigest).toBe(await coveragePromptDigest());
+    expect(reader.claimsPromptDigest).toBe(await claimsPromptDigest());
     expect(await readJsonFile<ReaderIdentity>(paths.reader)).toEqual(reader);
     expect(await loadPinnedReader(dir)).toEqual(reader);
     await expect(
@@ -253,6 +259,46 @@ describe("the pinned reader", () => {
     );
     await expect(loadPinnedReader(dir)).rejects.toThrow(
       /frozen sigil-egglog .* does not match reader.json/,
+    );
+  });
+
+  test("pin rejects a changed claims orchestrator or child prompt", async () => {
+    const dir = await tempDir();
+    const reader = await pinReader({
+      referenceDir: dir,
+      skillsDir: SKILLS,
+      agent: "claude",
+      model: "reader-model",
+      effort: "high",
+    });
+    const prompts = {
+      orchestrator: orchestratorPrompt,
+      child: INTERPRETER_CHILD,
+    };
+    const changedChild = {
+      ...prompts,
+      child: {
+        ...INTERPRETER_CHILD,
+        prompt: `${INTERPRETER_CHILD.prompt} changed`,
+      },
+    };
+    expect(await claimsPromptDigest(changedChild)).not.toBe(
+      reader.claimsPromptDigest,
+    );
+    await expect(loadPinnedReader(dir, changedChild)).rejects.toThrow(
+      /claims prompt changed since the reader was pinned.*pin-reader --force and reread reference --coverage/,
+    );
+
+    const changedOrchestrator = {
+      ...prompts,
+      orchestrator: (context: Parameters<typeof orchestratorPrompt>[0]) =>
+        `${orchestratorPrompt(context)} changed`,
+    };
+    expect(await claimsPromptDigest(changedOrchestrator)).not.toBe(
+      reader.claimsPromptDigest,
+    );
+    await expect(loadPinnedReader(dir, changedOrchestrator)).rejects.toThrow(
+      /claims prompt changed since the reader was pinned/,
     );
   });
 });

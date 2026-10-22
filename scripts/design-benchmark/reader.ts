@@ -13,7 +13,7 @@
  *
  * The reader's skills come from the frozen copy beside the reference store,
  * never from the working tree, and `reader.json` records their digests and
- * the digest of the coverage prompt template.
+ * the digests of both prompt templates.
  */
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
@@ -25,6 +25,10 @@ import {
 } from "../agent-runner/files.ts";
 import type { ChildAgentDefinition } from "../agent-runner/hosts.ts";
 import type { PromptContext } from "../agent-runner/launch.ts";
+import {
+  INTERPRETER_CHILD,
+  orchestratorPrompt,
+} from "../slotted-benchmark/agents.ts";
 import { textDigest } from "./baseline.ts";
 import type { CoverageEntry, CoverageFile } from "./coverage.ts";
 import type { RequirementInputs } from "./measure.ts";
@@ -123,6 +127,33 @@ export async function coveragePromptDigest(): Promise<string> {
     spawnInstruction: "{spawnInstruction}",
     model: "{model}",
     effort: "{effort}",
+  }));
+}
+
+/** The two claims-reading prompts, injectable so pin validation is testable. */
+export interface ClaimsPromptDefinition {
+  readonly orchestrator: typeof orchestratorPrompt;
+  readonly child: ChildAgentDefinition;
+}
+
+const CLAIMS_PROMPTS: ClaimsPromptDefinition = {
+  orchestrator: orchestratorPrompt,
+  child: INTERPRETER_CHILD,
+};
+
+/** Digest the claims orchestrator template and its interpreter child prompt. */
+export async function claimsPromptDigest(
+  prompts: ClaimsPromptDefinition = CLAIMS_PROMPTS,
+): Promise<string> {
+  const orchestrator = prompts.orchestrator({
+    action: "design",
+    spawnInstruction: "{spawnInstruction}",
+    model: "{model}",
+    effort: "{effort}",
+  });
+  return await textDigest(JSON.stringify({
+    orchestrator,
+    child: prompts.child,
   }));
 }
 
@@ -269,6 +300,7 @@ export function coverageFromAnswer(input: {
 /** Read and check the pinned reader of a reference store. */
 export async function loadPinnedReader(
   referenceDir: string,
+  claimsPrompts: ClaimsPromptDefinition = CLAIMS_PROMPTS,
 ): Promise<ReaderIdentity> {
   const paths = referenceStorePaths(referenceDir);
   const reader = await readOptionalJson<ReaderIdentity>(paths.reader);
@@ -297,6 +329,12 @@ export async function loadPinnedReader(
   if (reader.coveragePromptDigest !== promptDigest) {
     throw new Error(
       `The coverage prompt changed since the reader was pinned (${promptDigest}, not ${reader.coveragePromptDigest}); run pin-reader --force and reread reference --coverage`,
+    );
+  }
+  const currentClaimsPromptDigest = await claimsPromptDigest(claimsPrompts);
+  if (reader.claimsPromptDigest !== currentClaimsPromptDigest) {
+    throw new Error(
+      `The claims prompt changed since the reader was pinned (${currentClaimsPromptDigest}, not ${reader.claimsPromptDigest}); run pin-reader --force and reread reference --coverage`,
     );
   }
   return reader;
@@ -333,6 +371,7 @@ export async function pinReader(input: {
     effort: input.effort,
     skillDigests,
     coveragePromptDigest: await coveragePromptDigest(),
+    claimsPromptDigest: await claimsPromptDigest(),
   };
   await mkdir(paths.dir, { recursive: true });
   await writeJson(paths.reader, reader);
