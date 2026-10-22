@@ -11,6 +11,7 @@
   booking workflow,
   decline cause,
 }
+@calendar.sigil from Calendar import { calendar view }
 @shared.sigil from SharedKernel import { domain error }
 
 component Slotted {
@@ -86,7 +87,7 @@ component Slotted {
 
   interface {
     Slotted offers each signed-in user a room list, a room creation page, and a
-    room calendar with a request form.
+    calendar view of each room with a request form.
 
     Slotted offers the owner of a room a manage page for its details,
     room timezone, each weekly window, each blackout, archive, and unarchive, which

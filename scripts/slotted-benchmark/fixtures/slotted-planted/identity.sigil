@@ -1,0 +1,65 @@
+component Identity {
+  goal {
+    Establish who is acting on every page and action, with one account type and
+    email and password sign-in, so the rest of Slotted never guesses.
+  }
+
+  state {
+    Identity owns each *user account*, which has one email and one password
+    credential and no stored role.
+
+    Identity owns each *session* created at sign-in and ended at sign-out.
+  }
+
+  logic {
+    Resolving the *signed-in user* takes four steps. Step one reads the session
+    from the request headers. Step two looks up the user account that the session
+    belongs to. Step three returns the signed-in user, or returns no user when the
+    session is missing or invalid. Step four turns a missing user into an
+    unauthenticated refusal at the requireUser gate, and otherwise hands the
+    signed-in user to the calling page or action.
+  }
+
+  constraints {
+    The optimistic redirect on the session cookie is not a security boundary. Only
+    requireUser may decide whether a signed-in user exists for a page or action.
+
+    Module commands and queries must not read the session themselves. They take the
+    signed-in user as an explicit actor.
+
+    A user account must not carry a role. Owning and renting come from a user's
+    relationship to rooms and requests.
+  }
+
+  cases {
+    Signing up and then signing in creates a session, and resolving the
+    signed-in user from that session's headers returns the user.
+
+    Resolving the signed-in user with no session or an invalid one returns no user,
+    and requireUser then refuses as unauthenticated.
+
+    Submitting a form after clearing the session changes nothing and is refused.
+
+    Signing out ends the session, and the next page load redirects to sign-in.
+  }
+
+  interface {
+    Identity lets a person sign up, sign in, and sign out with email and password
+    on a user account.
+
+    Identity provides requireUser, which returns the signed-in user for the current
+    session or refuses as unauthenticated. Every page and action except sign-up and
+    sign-in calls it.
+
+    Identity provides resolution of the session from request headers outside
+    Next.js, so the signed-in user can be tested without a running app.
+  }
+
+  decisions {
+    Better Auth backs Identity because Auth.js is security-fixes-only and Lucia is
+    deprecated.
+
+    Roles come from the relationship, not the account, so one person can own and
+    rent without two accounts.
+  }
+}

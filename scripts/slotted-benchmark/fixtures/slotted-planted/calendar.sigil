@@ -1,0 +1,119 @@
+@rooms.sigil from Rooms import {
+  room,
+  room owner,
+  archived room,
+  room timezone,
+}
+@availability.sigil from Availability import { open time, blackout }
+@booking.sigil from Booking import {
+  booking request,
+  renter,
+  pending request,
+  confirmed booking,
+  outside-availability flag,
+}
+@shared.sigil from SharedKernel import { clock, 30-minute grid }
+
+component Calendar {
+  goal {
+    Show each viewer what a room offers and holds over a date range, revealing only
+    what that viewer may see.
+  }
+
+  logic {
+    Building a *calendar view* takes six steps. Step one takes a room, a *viewer*,
+    a local date range in the room timezone, and the clock. Step two rejects a
+    range that breaks the 31-day bound. Step three reads the open time for the
+    range and, only when the viewer is the room owner, the blackout dates. Step
+    four reads the booking request items of the room that touch the range, which
+    are its confirmed booking and pending request items. Step five projects each
+    item by the role of the viewer in a pure step, so masking is testable without a
+    database. Step six marks each slot as a *requestable slot* or not and returns
+    the calendar view to the caller.
+
+    A requestable slot lies inside open time, overlaps no confirmed booking, starts
+    after the clock and within Booking's start limit, is not in the second
+    occurrence of a fall-back day's repeated hour, and belongs to a room that
+    is not an archived room and whose viewer is not the room owner. Range-level
+    rules stay with Booking's submission.
+
+    A confirmed booking or pending request that overlaps the range is returned
+    clipped to the range for display, and it carries its true start and end.
+
+    Refreshing the *owner digest* of a room takes two steps. Step one reads the
+    confirmed booking and pending request items of the room. Step two compares the
+    owner digest of the room with the digest kept from the previous refresh.
+  }
+
+  constraints {
+    A calendar view must span at most 31 days.
+
+    For a viewer who is not the room owner, a calendar view must show another
+    renter's confirmed booking only as a *booked block* with no renter identity,
+    and must show none of another renter's pending request.
+
+    For a viewer who is not the room owner, a calendar view must mark that viewer's
+    own pending request and confirmed booking as theirs.
+
+    For the room owner, a calendar view shows the open time, each blackout, each
+    confirmed booking with its renter identity, each pending request, and each
+    confirmed booking that carries an outside-availability flag.
+
+    Calendar requires the *renter display name* of each renter from Identity, so
+    the room owner's view can label every pending request and confirmed booking
+    with a name.
+
+    Calendar owns no stored data, and it must not cache a read of a
+    confirmed booking or pending request.
+
+    Calendar depends on Booking, Availability, and Rooms, and on SharedKernel for
+    the clock.
+  }
+
+  cases {
+    Given Ana holds a confirmed booking, a calendar view for Ben, who is not the
+    room owner, shows a booked block with no name and none of Ana's
+    pending request.
+
+    A viewer who is not the room owner sees their own pending request and
+    confirmed booking marked as theirs.
+
+    The room owner sees the renter identity, each pending request, each blackout,
+    and the outside-availability flag.
+
+    A calendar view of a range of 32 days is rejected.
+
+    A slot covered by a confirmed booking, a slot starting before the clock, and a
+    slot 181 days ahead are all not requestable. Every slot on the room owner's own
+    view and on an archived room is not requestable.
+
+    A confirmed booking that spans the start of the range is returned clipped for
+    display with its real start preserved.
+
+    A calendar view of a spring-forward day in America/New_York renders 23 hours of
+    slots, and one of a fall-back day renders 25, where the second occurrence of
+    the repeated hour is shown but is not a requestable slot.
+
+    Every slot is aligned to the 30-minute grid in the room timezone.
+  }
+
+  interface {
+    Calendar provides a calendar view of a room for a viewer over a local date
+    range of up to 31 days, in room-local time labelled with the room timezone.
+
+    Calendar provides the calendar view of an archived room by direct link, with no
+    requestable slot in it.
+
+    Calendar provides open time and each requestable slot so a renter can pick a
+    range only from those.
+  }
+
+  decisions {
+    The room owner sees everything and other viewers see anonymous booked blocks,
+    chosen over one shared view and over full transparency, because owners need a
+    triage view and renters should not see each other.
+
+    Identity masking sits in a pure projection so it can be unit-tested without a
+    database.
+  }
+}

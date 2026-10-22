@@ -13,8 +13,10 @@ component Rooms {
 
     Every room has exactly one *room owner*, the signed-in user who created it.
 
-    A room is either listed or an *archived room*. Rooms owns the archived room
-    mark: a room carries it from archive until unarchive.
+    A room is either listed or an *archived room*.
+
+    The *room list* is every room that is not an archived room, from every
+    room owner.
   }
 
   logic {
@@ -27,6 +29,11 @@ component Rooms {
     transaction and locks the row of the room. Step two passes the transaction to
     the change. Step three commits and returns the result, or rolls back if the
     change fails.
+
+    Archiving makes a room an archived room, and unarchiving lists it again.
+    Changing the room timezone first validates the new zone against the IANA zone
+    list. Each runs inside the transaction its caller passes to the
+    transactional entry.
   }
 
   constraints {
@@ -65,8 +72,7 @@ component Rooms {
     Rooms lets a signed-in user create a room, and lets the room owner edit its
     name, description, capacity, and location text.
 
-    Rooms provides the *room list* of every room that is not an archived room to
-    any signed-in user.
+    Rooms provides the room list to any signed-in user.
 
     Rooms provides archive, unarchive, and room timezone change of a room through
     its transactional entry, for Booking's workflows to use.

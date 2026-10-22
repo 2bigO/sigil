@@ -1,13 +1,23 @@
 import { isDeepStrictEqual } from "node:util";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { captureStream, settleWithin, signalOwnedProcess } from "./process.ts";
+import {
+  captureStream,
+  settleWithin,
+  signalOwnedProcess,
+} from "../agent-runner/process.ts";
 import {
   type AgentRunResult,
   type HandbackState,
   parseHandbackState,
   PASS_LAYOUT,
 } from "./agents.ts";
-import { copySkill, copyTree, exists, sha256, treeSha256 } from "./files.ts";
+import {
+  copySkill,
+  copyTree,
+  exists,
+  sha256,
+  treeSha256,
+} from "../agent-runner/files.ts";
 
 type JsonObject = Record<string, unknown>;
 /** The linked check's state; ingest and the check share these four. */

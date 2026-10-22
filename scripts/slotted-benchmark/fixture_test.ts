@@ -59,7 +59,7 @@ async function slottedWorkspace(
   const files: Record<string, string> = {};
   for (const path of sourcePaths) {
     files[path] = await Deno.readTextFile(
-      new URL(`../../examples/slotted/${path}`, import.meta.url),
+      new URL(`./fixtures/slotted-planted/${path}`, import.meta.url),
     );
   }
   change?.(files);

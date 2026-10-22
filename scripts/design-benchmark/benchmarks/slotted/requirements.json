@@ -1,0 +1,154 @@
+{
+  "benchmark": "slotted",
+  "requirements": [
+    { "id": "R1", "label": "Every part requires sign-in; one account type" },
+    {
+      "id": "R2",
+      "label": "Roles come from the relationship; no requesting your own room"
+    },
+    {
+      "id": "R3",
+      "label": "Owner creates and edits a room with metadata and timezone"
+    },
+    {
+      "id": "R4",
+      "label": "Archive stops new requests, auto-declines Pending, keeps Confirmed"
+    },
+    {
+      "id": "R5",
+      "label": "Signed-in users browse non-archived rooms and open any calendar"
+    },
+    {
+      "id": "R6",
+      "label": "Weekly open windows on 30-minute boundaries, non-overlapping"
+    },
+    {
+      "id": "R7",
+      "label": "Whole-day blackouts; open time is windows minus blackouts"
+    },
+    {
+      "id": "R8",
+      "label": "Availability edits flag Confirmed and auto-decline Pending future items"
+    },
+    {
+      "id": "R9",
+      "label": "Ranges are room-local, on the grid, half-open, future, may span days"
+    },
+    {
+      "id": "R10",
+      "label": "Request accepted only inside open time and free of Confirmed overlap"
+    },
+    { "id": "R11", "label": "Pending requests on one room may overlap" },
+    {
+      "id": "R12",
+      "label": "Owner approves or declines Pending requests on their room"
+    },
+    {
+      "id": "R13",
+      "label": "Approval re-checks R10 and a future start, else stays Pending"
+    },
+    {
+      "id": "R14",
+      "label": "Approval auto-declines overlapping Pending requests"
+    },
+    { "id": "R15", "label": "Renter withdraws their own Pending request" },
+    {
+      "id": "R16",
+      "label": "Either party cancels a Confirmed booking before start; repeat cancel is a no-op"
+    },
+    {
+      "id": "R17",
+      "label": "Started bookings are frozen; past-start Pending shows as expired"
+    },
+    {
+      "id": "R18",
+      "label": "No two Confirmed bookings on a room ever overlap"
+    },
+    {
+      "id": "R19",
+      "label": "Renters and owners see current status and decline cause"
+    },
+    {
+      "id": "R20",
+      "label": "Owner's calendar shows everything, with renter identity and flags"
+    },
+    {
+      "id": "R21",
+      "label": "Other users see anonymous booked blocks plus their own items"
+    },
+    {
+      "id": "R22",
+      "label": "Room timezone is locked while future Pending or Confirmed items exist"
+    },
+    {
+      "id": "R23",
+      "label": "Owner unarchives a room; no Declined request revives"
+    },
+    {
+      "id": "R24",
+      "label": "No two identical Pending requests by one renter on one room"
+    },
+    {
+      "id": "R25",
+      "label": "Limits: 31-day view, 180 days ahead, 7-day request, in room-local days"
+    },
+    { "id": "R26", "label": "Declined, Withdrawn, and Cancelled are terminal" },
+    {
+      "id": "R27",
+      "label": "Nonexistent local times rejected; repeated ones take the earlier"
+    },
+    {
+      "id": "R28",
+      "label": "Rejections report the first failing condition in a fixed order"
+    },
+    {
+      "id": "AE1",
+      "label": "Back-to-back request after a Confirmed booking is accepted"
+    },
+    {
+      "id": "AE2",
+      "label": "Request crossing closing time is rejected as outside availability"
+    },
+    {
+      "id": "AE3",
+      "label": "Approving one of two overlapping requests declines the other"
+    },
+    {
+      "id": "AE4",
+      "label": "Blackout flags a Confirmed booking and declines a Pending request"
+    },
+    { "id": "AE5", "label": "Owner cannot request their own room" },
+    {
+      "id": "AE6",
+      "label": "Approving after the start is refused and shows expired"
+    },
+    {
+      "id": "AE7",
+      "label": "Request spanning midnight across open windows is accepted"
+    },
+    {
+      "id": "AE8",
+      "label": "Other renters see an anonymous block and no Pending requests"
+    },
+    {
+      "id": "AE9",
+      "label": "Two near-simultaneous approvals yield exactly one Confirmed"
+    },
+    {
+      "id": "AE10",
+      "label": "Timezone change with a future Confirmed booking is refused"
+    },
+    {
+      "id": "AE11",
+      "label": "Removing a blackout does not revive a declined request"
+    },
+    {
+      "id": "AE12",
+      "label": "Racing approve and withdraw: exactly one succeeds"
+    },
+    {
+      "id": "AE13",
+      "label": "Spring-forward 02:00 start is rejected as nonexistent"
+    }
+  ]
+}

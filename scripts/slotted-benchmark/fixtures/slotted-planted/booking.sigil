@@ -1,0 +1,297 @@
+@identity.sigil from Identity import { signed-in user }
+@rooms.sigil from Rooms import {
+  room,
+  room owner,
+  archived room,
+  room timezone,
+  room lock,
+  transactional entry,
+}
+@availability.sigil from Availability import {
+  weekly window,
+  blackout,
+  open time,
+}
+@shared.sigil from SharedKernel import {
+  clock,
+  half-open range,
+  30-minute grid,
+  nonexistent local time,
+  domain error,
+}
+
+component Booking {
+  goal {
+    Run the life of a request for a room from a renter's submission to the
+    room owner's decision, so a room never holds two overlapping confirmed
+    bookings.
+  }
+
+  state {
+    Booking owns each *booking request*, which records its room, its *renter*, a
+    UTC range that is a half-open range, one status of Pending, Confirmed,
+    Declined, Withdrawn, or Cancelled, and a *decline cause* when Declined.
+
+    A booking request whose status is Pending is a *pending request*, and one whose
+    status is Confirmed is a *confirmed booking*.
+
+    The decline cause is declined by owner, overlapping approval, availability
+    change, or archive.
+
+    Declined, Withdrawn, and Cancelled are each a *terminal status*.
+
+    An *expired request* is a pending request whose start has passed. It stays
+    Pending until it is declined or withdrawn.
+
+    An *outside-availability flag* marks a confirmed booking that has not started
+    and lies outside open time after an availability edit, and it clears itself
+    when the edit is undone.
+  }
+
+  logic {
+    Submitting a booking request takes five steps, all inside the room lock of the
+    requested room. Step one loads the room, its room owner, its open time for the
+    range, and the confirmed booking rows that overlap the range. Step two runs the
+    ordered validation and stops at the first failed condition. Step three, when
+    nothing failed, stores a pending request with the signed-in user as its renter.
+    Step four returns that pending request to the caller. Step five, when a
+    condition failed, stores nothing and returns a *rejection reason* naming that
+    condition to the caller.
+
+    The ordered validation checks these conditions in this order: the
+    signed-in user is the room owner, the room is an archived room, a boundary is
+    off the 30-minute grid or is a nonexistent local time, the end is not after the
+    start, the start is not in the future by the clock, the booking request breaks
+    a limit, the range lies outside open time, the range overlaps a
+    confirmed booking, or the renter already holds a pending request with the
+    identical range on the room.
+
+    Approving a pending request takes six steps. Step one takes only the request id
+    and reads the room stored on that request. Step two locks that room with the
+    room lock and re-loads the request. Step three verifies that the signed-in user
+    is the room owner, that the status is Pending, and that the start is after the
+    clock. Step four re-checks that the range still lies inside open time and
+    overlaps no confirmed booking, and refuses the approval, leaving the request
+    Pending, if either fails. Step five sets the status to Confirmed only where it
+    is still Pending, and maps a violation of the exclusion constraint to a
+    domain error. Step six sets every other pending request on the room whose range
+    overlaps to Declined with the decline cause overlapping approval, commits, and
+    returns the confirmed booking.
+
+    Declining, withdrawing, and cancelling each take only the request id, lock the
+    stored room with the room lock, re-load the booking request, authorize the
+    signed-in user, and change the status with a compare-and-set from the expected
+    prior status.
+
+    Declining and withdrawing need a pending request, declining is for the
+    room owner, and withdrawing is for the renter. Cancelling needs a
+    confirmed booking whose start is still in the future and is for the room owner
+    or the renter. A lost race on a pending request returns a domain error saying
+    it is no longer Pending, and cancelling a booking request that is already
+    Cancelled succeeds without change.
+
+    Editing availability takes four steps under the room lock. Step one applies the
+    weekly window or blackout edit through the transactional entry of Availability.
+    Step two sets each pending request that has not started and is now outside
+    open time to Declined with the decline cause availability change. Step three
+    leaves every confirmed booking Confirmed, and the outside-availability flag
+    shows those now outside open time. Step four commits, leaving started bookings
+    and each expired request untouched.
+
+    Archiving a room takes three steps under the room lock. Step one calls the
+    archive mutation through the transactional entry of Rooms. Step two sets every
+    pending request on the room to Declined with the decline cause archive. Step
+    three leaves each confirmed booking Confirmed until it is cancelled, and
+    commits.
+
+    Changing a room timezone under the room lock first refuses the change when the
+    room has any pending request or confirmed booking whose start is in the future
+    by the clock, and otherwise calls the timezone mutation through the
+    transactional entry of Rooms and commits. Unarchiving calls the unarchive
+    mutation through the transactional entry of Rooms, revives no Declined booking
+    request, and commits.
+  }
+
+  constraints {
+    For every pair of confirmed booking records on one room, the two
+    half-open range values never overlap, including when approvals happen at the
+    same time.
+
+    Booking must enforce that rule with an *exclusion constraint* in Postgres on
+    the room and the UTC range, applied only to rows whose status is Confirmed, so
+    a booking request in any other status never blocks. It lives in a hand-written
+    migration, and drizzle-kit push must never be used.
+
+    Only a confirmed booking blocks a new booking request.
+
+    A pending request may overlap another pending request on the same room.
+
+    Booking owns the archived room mark, and Booking is the only one that may set
+    or clear it, because only its archive workflow and unarchive workflow change
+    it.
+
+    Booking must not accept a booking request from the room owner of its room.
+
+    A renter must not hold two pending request records with the identical range on
+    one room.
+
+    Booking must not provide a range change of a pending request, because the
+    requested range of a pending request stays as Booking records it.
+
+    A booking request must be in the room timezone, start and end on the
+    30-minute grid, start in the future by the clock, and lie wholly inside
+    open time, and it may span midnight or several days. A nonexistent local time
+    at either boundary is rejected.
+
+    A booking request must last at most 7 days and start at most 180 days after the
+    clock, both measured in room-local calendar days, so a week that crosses a
+    daylight-saving change still counts as 7 days.
+
+    An availability edit applies to future items only. It must never cancel or
+    decline a confirmed booking, and started bookings and each expired request stay
+    untouched.
+
+    A confirmed booking whose start has passed can no longer change. An
+    expired request cannot be approved and can still be declined or withdrawn.
+
+    A booking request in a terminal status must never change again. Later
+    cancellations or availability edits reopen time only for a new booking request,
+    and unarchiving revives no Declined booking request.
+
+    A room timezone must not change while the room has a pending request or
+    confirmed booking whose start is in the future.
+
+    Every status change and every room-scoped mutation must run under the
+    room lock,
+    and every status change must use a compare-and-set from the expected prior
+    status. Commands on an
+    existing booking request take only its id, never a client-supplied room, and
+    authorize the signed-in user against the room owner of its stored room or
+    against its renter. Any new write path to a booking request must go through
+    Booking commands.
+
+    Booking must deliver each rejection reason and each refusal, such as no longer
+    Pending, expired, or not allowed, as a domain error, so the caller can map it
+    to a distinct message.
+
+    Booking must never cache a read of a booking request, so a write is visible to
+    the next read. It must derive each expired request and
+    outside-availability flag at read time and never store them.
+
+    Booking depends on Availability, which provides open time, and on Rooms, which
+    provides the room lock, the room owner, and its own transactional entry.
+    Neither may import Booking.
+
+    Booking depends on SharedKernel, which provides the clock, the half-open range,
+    the 30-minute grid, the resolution of a nonexistent local time, and the
+    domain error used to report a lost race.
+  }
+
+  cases {
+    Given a confirmed booking from 09:00 to 10:00, a request from 10:00 to 11:00 is
+    accepted as a pending request.
+
+    Given a weekly window on Monday from 09:00 to 18:00, a request from 17:30 to
+    18:30 that Monday is rejected with the rejection reason outside open time.
+
+    A request on a room by its own room owner is rejected with the rejection reason
+    own room.
+
+    A request on an archived room that is also off the 30-minute grid reports the
+    rejection reason archived room, and a request whose end is not after its start
+    reports invalid range.
+
+    A second booking request with the identical range by the same renter is
+    rejected as a duplicate, while a different renter with the same range is
+    accepted as a pending request.
+
+    Given pending requests from Ana for 13:00 to 15:00 and from Ben for 14:00 to
+    16:00, approving Ana's makes hers a confirmed booking and declines Ben's with
+    the decline cause overlapping approval.
+
+    Given a confirmed booking and a pending request on 24 December, adding a
+    blackout for that date leaves the booking Confirmed with an
+    outside-availability flag and declines the request with the decline cause
+    availability change.
+
+    Removing a blackout leaves a request that was declined for availability change
+    Declined, and the renter may submit a new booking request.
+
+    Approving a pending request whose start passed at 09:00 is refused at 09:15,
+    and the request shows as an expired request.
+
+    Two parallel approvals of overlapping pending requests produce exactly one
+    confirmed booking.
+
+    An approval and a withdrawal of one pending request at the same moment produce
+    exactly one success, and the loser is told it is no longer Pending.
+
+    Changing a room timezone is refused while the room has a confirmed booking next
+    week, and succeeds when it has only past bookings.
+
+    The room owner and the renter cancel the same confirmed booking in parallel,
+    and both succeed with the booking Cancelled exactly once.
+
+    Archiving a room declines every pending request with the decline cause archive
+    and leaves each confirmed booking Confirmed.
+
+    A room owner of one room approving or declining a booking request from another
+    room is refused, and nothing changes on either room.
+
+    Inserting an overlapping confirmed booking row directly, bypassing commands,
+    fails with the exclusion constraint.
+  }
+
+  interface {
+    Booking lets a renter submit a booking request for a room over a range, and
+    returns either a pending request or a rejection reason naming the first failed
+    condition.
+
+    Booking lets the room owner approve or decline any pending request on the room.
+    An approval is refused when its checks no longer hold, and the request stays
+    Pending.
+
+    Booking provides a renter a *range change* of their own pending request, and
+    the request stays Pending with its new range.
+
+    Booking lets the renter withdraw their own pending request, and lets the
+    room owner or the renter cancel a confirmed booking before its start with no
+    reason or fee.
+
+    Booking provides four *booking workflow* operations for the room owner: editing
+    a weekly window or blackout, archiving a room, unarchiving a room, and changing
+    a room timezone. Each combines the mutation with its sweeps and checks under
+    one room lock, and the app reaches these mutations only through them.
+
+    Booking lets a renter read their own booking request and confirmed booking, and
+    lets a room owner read every booking request on their rooms, each with its
+    renter, current status, and, when Declined, its decline cause.
+
+    Booking lets a caller read the bookings of a room in a date range with each
+    expired request and outside-availability flag derived at read time.
+  }
+
+  decisions {
+    Owner approval was chosen over instant booking so the reference app exercises
+    the full request lifecycle with one path to specify.
+
+    Approval auto-declines overlapping requests and only a confirmed booking
+    blocks, so no renter can squat a slot by asking and the room owner has no
+    cleanup work.
+
+    Availability edits never cancel a confirmed booking so the room owner keeps
+    control of cancellations and nothing confirmed disappears silently.
+
+    Withdrawal and two-sided cancellation without expiry let both parties leave
+    before the start without background behavior.
+
+    Booking owns the workflows because it owns their outcome, which keeps Rooms and
+    Availability free of any dependency on Booking.
+
+    A custom exclusion constraint replaces PG 18 WITHOUT OVERLAPS because the
+    latter cannot be limited to Confirmed rows.
+
+    Reporting only the first failing condition is enough, so the interface does not
+    list every failure at once.
+  }
+}

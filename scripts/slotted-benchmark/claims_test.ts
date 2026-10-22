@@ -12,8 +12,8 @@ import {
   STAGED_SKILLS,
   validateLinkedEvidence,
 } from "./claims.ts";
-import { copySkill, copyTree, treeSha256 } from "./files.ts";
-import { exists } from "./files.ts";
+import { copySkill, copyTree, treeSha256 } from "../agent-runner/files.ts";
+import { exists } from "../agent-runner/files.ts";
 
 const exeSuffix = Deno.build.os === "windows" ? ".exe" : "";
 const claims = fileURLToPath(
@@ -23,7 +23,7 @@ const claims = fileURLToPath(
   ),
 );
 const slotted = fileURLToPath(
-  new URL("../../examples/slotted", import.meta.url),
+  new URL("./fixtures/slotted-planted", import.meta.url),
 );
 
 const root = "/tmp/slotted-claims-test/private";

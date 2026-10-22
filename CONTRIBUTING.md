@@ -33,6 +33,7 @@ the rest of the repository.
 | Rust                                                                | 1.91.1     | The `sigil` command line, `sigil-core`, the language server and the native compiler `sigilc`. |
 | [Deno](https://docs.deno.com/runtime/getting_started/installation/) | 2.9.2      | Repository scripts only: formatting and lint checks, skill and release checks, the slotted benchmark. |
 | [Node.js](https://nodejs.org/)                                      | 24         | The VS Code extension only, including its share of `deno task check` and `deno task test`. |
+| [Bun](https://bun.sh/)                                              | 1.4.3      | The design-quality benchmark in `scripts/design-benchmark` only.                           |
 | Git                                                                 | any recent | Cloning and contributing.                                                                  |
 | [VS Code](https://code.visualstudio.com/)                           | `^1.91.0`  | Optional. Only if you work on the extension or run its integration tests.                  |
 
@@ -42,9 +43,12 @@ three operating systems, the release scripts run with narrow permissions
 (`--allow-run=git`), and `deno fmt` and `deno lint` also check the extension's
 TypeScript. Moving them to Bun, Python or Make would be a rewrite that removes no
 tool. If the repository ever drops one, the candidate is Node, which contributors
-already need for the extension.
+already need for the extension. The one exception is the design-quality
+benchmark in [`scripts/design-benchmark`](scripts/design-benchmark), which runs
+on Bun; it shares the host runner in `scripts/agent-runner`, which uses only
+`node:` APIs so that both Deno and Bun can import it.
 
-The Rust, Deno and Node versions above are exactly what
+The Rust, Deno, Node and Bun versions above are exactly what
 [CI pins](.github/workflows/ci.yml). Matching them locally is the cheapest way to
 avoid a green local run and a red pull request — and for Node it is load-bearing,
 not just advisable: the extension's unit tests do not run at all on Node 20.
@@ -229,7 +233,7 @@ orchestration stay outside the toolchain.
 | `skills/` | The seven agent skills: understand, evaluate, write, and align for design work, the two computed checks, and `sigil-egglog` | Shared language pack and evaluator-owned review contract; models execute in the host. See [Work on a skill](docs/contributing/skills.md). |
 | `integrations/editor/vscode/` | The VS Code extension: syntax, `sigil lsp` startup, semantic tokens, component preview                                 | The only Node.js code in the repository. Ships one package per platform, each carrying its own `sigil`.                                                                |
 | `examples/`                   | `promise` and `slotted`, each an independently configured workspace                                                    | Design-pressure fixtures, excluded from the root workspace. Not products.                                                                                              |
-| `scripts/`                    | Release build, skill validation, native protocol and language-server checks, and the slotted benchmark                  | Deno scripts; they are the only Deno code in the repository.                                                                                                           |
+| `scripts/`                    | Release build, skill validation, native protocol and language-server checks, the slotted benchmark and the design-quality benchmark | Deno scripts, except `design-benchmark/`, which runs on Bun; they are the only Deno code in the repository.                                                       |
 | `docs/`                       | End-user [install guides](docs/install/README.md), the quickstart and project setup guide, the specifications in `docs/spec/`, the [contributor guide](docs/contributing/README.md) for skills and releases, and implementation plans in `docs/plans/` |                                                                                                                                                                        |
 
 Dependency direction is one-way: `cli` and `lsp` depend on `core`, and `cli` starts

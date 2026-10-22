@@ -2,7 +2,7 @@ import {
   deepStrictEqual as deepEqual,
   strictEqual as equal,
 } from "node:assert/strict";
-import { exists } from "./files.ts";
+import { exists } from "../agent-runner/files.ts";
 import {
   buildSchedule,
   orchestratorPromptTemplate,

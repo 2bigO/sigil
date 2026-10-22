@@ -8,7 +8,7 @@ import { writeReport } from "./report.ts";
 import { deepStrictEqual as equal, ok as assert } from "node:assert/strict";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { copyTree } from "./files.ts";
+import { copyTree } from "../agent-runner/files.ts";
 import {
   applyImplementationPlants,
   implementationPlants,

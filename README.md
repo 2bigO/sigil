@@ -720,9 +720,10 @@ Its [.sigil/config.json](examples/promise/.sigil/config.json) makes it an
 independent workspace named `promise`.
 
 `Slotted` in [examples/slotted/slotted.sigil](examples/slotted/slotted.sigil) is
-a room-booking design used to demonstrate computed claims evaluation across
-multiple modules. The [Slotted interpretation benchmark](scripts/slotted-benchmark/README.md)
-runs agents against it and reports what they find.
+a room-booking design that spans several modules. It is a clean design: it
+contains no deliberate mistakes, so use it when you need a valid example of a
+multi-module Sigil workspace. It was written with `sigil-write` from the
+maintainer's Slotted plan, then reviewed and edited by the maintainer.
 
 Its [.sigil/config.json](examples/slotted/.sigil/config.json) makes it an
 independent workspace named `slotted`; imports beginning with `@` resolve from
@@ -746,11 +747,14 @@ Slotted has six components, each in its own file, plus a shared kernel:
 Each component reuses the other components' Tags through imports instead of
 defining them again.
 
-Slotted deliberately contains four design mistakes as computed-evaluation
-fixture problems: a contradiction and an ownership conflict in Booking, and an
-unmet obligation and a dead-end flow step in Calendar. They are intentional
-demo content, not unfinished design work, so please do not fix them. The
-Slotted interpretation benchmark reports what agents find on them.
+A copy of Slotted with four deliberate design mistakes lives in
+[scripts/slotted-benchmark/fixtures/slotted-planted](scripts/slotted-benchmark/fixtures/slotted-planted):
+a contradiction and an ownership conflict in Booking, and an unmet obligation
+and a dead-end flow step in Calendar. The
+[Slotted interpretation benchmark](scripts/slotted-benchmark/README.md) runs
+agents against that copy and reports what they find. The mistakes are there on
+purpose, so please do not fix them.
+
 Slotted is an example project for testing the language, not the purpose of this
 repository.
 

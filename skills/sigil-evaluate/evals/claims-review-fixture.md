@@ -7,9 +7,10 @@ your pull request.
 
 ## Inputs
 
-- **Slotted:** the seven sources and `.sigil/config.json` of the retained
-  Slotted benchmark workspace, with the planted problems its benchmark report
-  lists. Intent: "Slotted is a room-booking design: people own rooms and rent
+- **Slotted:** the seven sources and `.sigil/config.json` of the Slotted
+  benchmark's planted fixture
+  (`scripts/slotted-benchmark/fixtures/slotted-planted`), with the planted
+  problems its benchmark report lists. Intent: "Slotted is a room-booking design: people own rooms and rent
   other people's rooms, with owner approval of requests. SharedKernel is a
   kernel rather than a module."
 - **Bounded cases:** the inputs of the

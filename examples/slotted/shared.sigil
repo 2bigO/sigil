@@ -31,6 +31,9 @@ component SharedKernel {
 
     A boundary must lie on the 30-minute grid, and 24:00 is allowed only as the end
     of a local span.
+
+    A domain error names one expected failure and carries no internal detail. An
+    unexpected failure is never a domain error.
   }
 
   cases {
