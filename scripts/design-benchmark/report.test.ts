@@ -1,10 +1,14 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { mkdir, readFile } from "node:fs/promises";
+import { cp, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { treeSha256, writeJson } from "../agent-runner/files.ts";
 import { designDigest, referenceStoreDigest } from "./baseline.ts";
 import { requirementInputs, sigilcIdentity } from "./measure.ts";
-import type { BatchManifest, PassRecord } from "./records.ts";
+import {
+  attemptPaths,
+  type BatchManifest,
+  type PassRecord,
+} from "./records.ts";
 import { buildReport, MEASURES } from "./report.ts";
 import { facetHandles, readDesignTree } from "./structure.ts";
 import {
@@ -148,6 +152,38 @@ function section(report: string, start: string, end?: string): string {
 }
 
 describe("report", () => {
+  test("withholds pass coverage from a different reader", async () => {
+    const dir = await batch("stale-pass-coverage", WITH);
+    const path = attemptPaths(dir, "p1").coverage;
+    const file = JSON.parse(await readFile(path, "utf8"));
+    await writeJson(path, {
+      ...file,
+      reader: { ...READER, model: "other-reader" },
+    });
+    const report = await setup.report([dir]);
+    expect(report).toContain("coverage reading rejected: coverage was read by");
+    expect(report).toContain("other-reader");
+  });
+
+  test("rejects reference coverage whose reader differs from its pin", async () => {
+    const dir = await batch("stale-reference", WITH);
+    const referenceDir = await tempDir();
+    await cp(setup.referenceDir, referenceDir, { recursive: true });
+    await writeJson(join(referenceDir, "reader.json"), {
+      ...READER,
+      model: "new-reader",
+    });
+    await writeJson(
+      join(dir, "manifest.json"),
+      setup.manifest(WITH, { reader: { ...READER, model: "new-reader" } }),
+    );
+    await expect(buildReport({
+      batchDirs: [dir],
+      sigilc: SIGILC,
+      references: { slotted: { root: setup.referenceRoot, dir: referenceDir } },
+    })).rejects.toThrow(/reader-model.*new-reader/);
+  });
+
   test("AE3: a pass with no Facet for R22 shows it unanswered beside the reference's Facet", async () => {
     const report = await setup.report([await batch("b1", WITH)]);
     expect(report).toContain("| Design: R22 | answered: A state 1 | none |");

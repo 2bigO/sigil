@@ -179,6 +179,17 @@ reader and reference digests, and rewrites the report. The designs are not
 touched. Coverage readings cite Facet ids and survive a law-only change; reread
 a batch with `--coverage` when the pinned reader changed.
 
+Each attempt retains the identity of its reader. If a reread stops partway
+through a reader change, untouched attempts keep their old readings and reader
+identity. Their claims and coverage are unavailable in comparisons with the new
+reader until they are reread with `--coverage`. A reread that refreshes no
+attempts leaves the batch's reader and reference identities unchanged. Rereads
+also refuse a reader whose agent, model and reasoning level match a writer.
+
+Replacing the reader pin keeps the existing reference evidence, but `run` and
+`report` reject reference coverage from the previous reader. Take new reference
+readings with `reread reference --coverage` before comparing new passes.
+
 `reread reference` reads `examples/slotted` into a new reference store directory
 (by default `.benchmarks/reference-slotted-<time>/`) and never writes the
 committed `reference/slotted/`. It prints where it wrote and the commands that

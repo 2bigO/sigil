@@ -1,7 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  realpath,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { exists, writeJson } from "../agent-runner/files.ts";
 import { defaultForbiddenRoots } from "../agent-runner/read-scan.ts";
 import { fakeWriter } from "./fakes.ts";
@@ -17,7 +28,11 @@ import {
   type WriterSources,
 } from "./stages.ts";
 import { SIGILC, tempDir } from "./testing.ts";
-import { WRITER_SKILLS } from "./writer.ts";
+import {
+  reviewerChild,
+  reviewEvidenceCommand,
+  WRITER_SKILLS,
+} from "./writer.ts";
 
 const SOURCES: WriterSources = {
   requirementFile: join(
@@ -42,6 +57,123 @@ function hostOptions(writer: { executable: string; args: readonly string[] }) {
 
 describe("the writer's staging directory", () => {
   test(
+    "the staged reviewer helper hashes saved bytes, extracts UTF-8 byte ranges and rejects stale or escaping evidence",
+    async () => {
+      const dir = join(await tempDir(), "writer");
+      const staged = await stageWriter(dir, SOURCES);
+      const text = "prefix é🙂 suffix\r\n";
+      await writeFile(join(dir, "run/evidence.txt"), text);
+      const digest = createHash("sha256").update(text).digest("hex");
+      const root = await realpath(dir);
+      const script = join(root, "bin/review-evidence.mjs");
+      const prefix = process.versions.deno
+        ? ["run", "--no-config", "--no-lock", `--allow-read=${root}`, script]
+        : [script];
+      const command = reviewEvidenceCommand(root);
+      const guard = (shell: string) =>
+        spawnSync(process.execPath, [...prefix, "--guard"], {
+          cwd: join(dir, "design"),
+          encoding: "utf8",
+          input: JSON.stringify({
+            tool_name: "Bash",
+            tool_input: { command: shell },
+            cwd: dir,
+          }),
+        });
+      expect(guard(`${command} run/evidence.txt`).status).toBe(0);
+      for (
+        const shell of [
+          "sigil fmt --root design",
+          `${command} run/evidence.txt > design/x.sigil`,
+          `${command} run/evidence.txt; touch design/x.sigil`,
+          `${command} $(touch design/x.sigil)`,
+        ]
+      ) {
+        expect(guard(shell).status).toBe(2);
+      }
+      const run = (...args: string[]) => {
+        const result = spawnSync(process.execPath, [...prefix, ...args], {
+          cwd: join(dir, "design"),
+          encoding: "utf8",
+        });
+        return {
+          code: result.status,
+          stdout: result.stdout,
+          stderr: result.stderr,
+        };
+      };
+      const result = await run("run/evidence.txt", digest, "7", "13");
+      expect(result.code).toBe(0);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        sha256: digest,
+        start: 7,
+        end: 13,
+        text: "é🙂",
+      });
+      if (process.platform !== "win32") {
+        const shell = spawnSync("sh", [
+          "-c",
+          `${command} run/evidence.txt ${digest} 7 13`,
+        ], { cwd: join(dir, "design"), encoding: "utf8" });
+        expect(shell.status).toBe(0);
+        expect(JSON.parse(shell.stdout).text).toBe("é🙂");
+      }
+      const changed = await run("run/evidence.txt", "0".repeat(64), "7", "13");
+      expect(changed.code).not.toBe(0);
+      expect(changed.stdout).toBe("");
+      expect(changed.stderr).toContain("SHA-256 mismatch");
+      await writeFile(join(dir, "../outside.txt"), "outside");
+      const outside = await run("../outside.txt");
+      expect(outside.code).not.toBe(0);
+      expect(outside.stderr).toContain("inside the staged directory");
+      await symlink(join(dir, "../outside.txt"), join(dir, "run/escape.txt"));
+      expect((await run("run/escape.txt")).code).not.toBe(0);
+      expect((await run("run/evidence.txt", digest, "8", "13")).code).not.toBe(
+        0,
+      );
+      expect((await run("run/evidence.txt", digest, "0", "99999")).code).not
+        .toBe(0);
+      expect(JSON.parse((await run("run/evidence.txt")).stdout).sha256).toBe(
+        digest,
+      );
+      const extension = await import(
+        pathToFileURL(join(dir, "bin/review-evidence-pi.mjs")).href
+      );
+      let tool: {
+        name: string;
+        execute: (
+          id: string,
+          params: object,
+        ) => Promise<{ content: { text: string }[] }>;
+      } | undefined;
+      extension.default({
+        registerTool: (registered: typeof tool) => {
+          tool = registered;
+        },
+      });
+      expect(tool?.name).toBe("review_evidence");
+      const passage = await tool!.execute("read", {
+        path: "run/evidence.txt",
+        sha256: digest,
+        start: 7,
+        end: 13,
+      });
+      expect(JSON.parse(passage.content[0]!.text).text).toBe("é🙂");
+      await expect(
+        tool!.execute("read", {
+          path: "run/evidence.txt",
+          sha256: "0".repeat(64),
+        }),
+      ).rejects.toThrow("SHA-256 mismatch");
+      expect(await readFile(join(dir, "run/evidence.txt"), "utf8")).toBe(text);
+      expect(staged.snapshot.has("bin/review-evidence.mjs")).toBe(true);
+      expect(staged.snapshot.has("bin/review-evidence-pi.mjs")).toBe(true);
+      expect(Object.keys(staged.digests)).toContain("bin/review-evidence.mjs");
+    },
+    30_000,
+  );
+
+  test(
     "holds the requirement, the five skills, both binaries and the three writable directories",
     async () => {
       const dir = join(await tempDir(), "writer");
@@ -61,6 +193,8 @@ describe("the writer's staging directory", () => {
         [...WRITER_SKILLS].sort(),
       );
       expect((await readdir(join(dir, "bin"))).sort()).toEqual([
+        "review-evidence-pi.mjs",
+        "review-evidence.mjs",
         "sigil",
         "sigilc",
       ]);
@@ -70,6 +204,8 @@ describe("the writer's staging directory", () => {
       expect(await readdir(join(dir, "run"))).toEqual([]);
       expect(await readdir(join(dir, "store"))).toEqual([]);
       expect(Object.keys(staged.digests).sort()).toEqual([
+        "bin/review-evidence-pi.mjs",
+        "bin/review-evidence.mjs",
         "bin/sigil",
         "bin/sigilc",
         "requirement.md",
@@ -152,6 +288,13 @@ describe("launching the writer", () => {
       const agents = JSON.parse(seen.argv[seen.argv.indexOf("--agents") + 1]!);
       expect(Object.keys(agents).sort()).toEqual(["interpreter", "reviewer"]);
       expect(agents.reviewer.tools).not.toContain("Write");
+      expect(agents.reviewer.tools).toContain("Bash");
+      expect(agents.reviewer.hooks).toEqual(
+        reviewerChild(await realpath(dir)).claudeHooks,
+      );
+      expect(seen.argv).toContain(
+        `Bash(${reviewEvidenceCommand(await realpath(dir))} *)`,
+      );
       expect(agents.interpreter.model).toBe("writer-model");
       expect(seen.argv).toContain("Bash(sigil *)");
       // `sigil` on PATH is the staged copy.
@@ -187,6 +330,17 @@ describe("launching the writer", () => {
       ) as { argv: string[]; piAgents: string[] };
       expect(seen.argv).not.toContain("--settings");
       expect(seen.piAgents).toEqual(["interpreter.md", "reviewer.md"]);
+      const reviewer = await readFile(
+        join(dir, ".pi/agents/reviewer.md"),
+        "utf8",
+      );
+      expect(reviewer).toContain("review_evidence");
+      expect(reviewer).toContain(
+        `extensions: ${
+          join(await realpath(dir), "bin/review-evidence-pi.mjs")
+        }`,
+      );
+      expect(reviewer).not.toContain("tools: read, bash");
     },
     30_000,
   );

@@ -271,6 +271,8 @@ export interface PassRecord {
   readonly id: string;
   readonly agent: string;
   readonly model: string;
+  /** Reader of this attempt's stored stages; legacy records inherit the manifest. */
+  readonly reader?: ReaderIdentity;
   readonly stages: Readonly<Record<StageName, StageState>>;
   /** Whether host events showed a forbidden read, or could not show reads. */
   readonly reads: "clean" | "forbidden" | "unverified";

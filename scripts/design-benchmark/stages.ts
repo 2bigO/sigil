@@ -26,6 +26,7 @@ import {
   readdir,
   readFile,
   readlink,
+  realpath,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -83,6 +84,8 @@ import { facetHandles, readDesignTree } from "./structure.ts";
 import {
   parseWriterHandback,
   REVIEWER_CHILD,
+  reviewerChild,
+  reviewEvidenceCommand,
   WRITABLE,
   WRITER_CHILDREN,
   WRITER_LAYOUT,
@@ -225,6 +228,9 @@ export async function stageWriter(
   await mkdir(bin, { recursive: true });
   await copyFile(sources.sigil, join(bin, "sigil"));
   await copyFile(sources.sigilc, join(bin, "sigilc"));
+  for (const name of ["review-evidence.mjs", "review-evidence-pi.mjs"]) {
+    await copyFile(new URL(`./${name}`, import.meta.url), join(bin, name));
+  }
   const design = join(dir, WRITER_LAYOUT.design);
   const init = await runToCompletion(join(bin, "sigil"), [
     "init",
@@ -264,7 +270,14 @@ async function stagedInputDigests(
   for (const name of WRITER_SKILLS) {
     out[`skills/${name}`] = await tree(join(dir, WRITER_LAYOUT.skills, name));
   }
-  for (const tool of ["sigil", "sigilc"]) {
+  for (
+    const tool of [
+      "sigil",
+      "sigilc",
+      "review-evidence.mjs",
+      "review-evidence-pi.mjs",
+    ]
+  ) {
     out[`bin/${tool}`] = await digest(join(dir, WRITER_LAYOUT.bin, tool));
   }
   return out;
@@ -331,6 +344,7 @@ export interface WriterRequest {
 export async function launchWriter(
   request: WriterRequest,
 ): Promise<LaunchResult<WriterHandback>> {
+  const dir = await realpath(request.dir);
   return await launchAgent<WriterHandback>({
     agent: request.agent,
     requestedModel: request.model,
@@ -340,8 +354,10 @@ export async function launchWriter(
     evidenceDir: request.evidenceDir,
     ...launchSettings("writer", request.agent, request.host),
     prompt: writerPrompt,
-    allowedShell: WRITER_SHELL,
-    children: WRITER_CHILDREN,
+    allowedShell: [...WRITER_SHELL, reviewEvidenceCommand(dir)],
+    children: WRITER_CHILDREN.map((child) =>
+      child.name === REVIEWER_CHILD.name ? reviewerChild(dir) : child
+    ),
     parseHandback: parseWriterHandback,
   });
 }

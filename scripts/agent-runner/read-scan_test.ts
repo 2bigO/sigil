@@ -196,6 +196,57 @@ test("a Codex child's relative cat that climbs into the repo is forbidden", asyn
   assert.equal(scan.forbidden[0].call.actor, "/root/r");
 });
 
+test("a Codex child's bare cat in an explicit forbidden workdir is forbidden", async () => {
+  const cwd = `${REPO}/examples/slotted`;
+  const scan = await scanCodex([{
+    type: "response_item",
+    payload: {
+      type: "function_call",
+      name: "exec_command",
+      arguments: JSON.stringify({ cmd: "cat booking.sigil", workdir: cwd }),
+    },
+  }]);
+  assertForbidden(scan, cwd);
+  assert.equal(scan.forbidden[0].call.tool, "exec_command");
+});
+
+test("a Codex local shell's bare cat in a recorded forbidden cwd is forbidden", async () => {
+  const cwd = `${REPO}/examples/slotted`;
+  const scan = await scanCodex([{
+    type: "response_item",
+    payload: {
+      type: "local_shell_call",
+      action: { type: "exec", command: ["cat", "booking.sigil"] },
+    },
+  }], cwd);
+  assertForbidden(scan, cwd);
+  assert.equal(scan.forbidden[0].call.tool, "local_shell");
+});
+
+test("an explicit staged shell workdir overrides a recorded forbidden cwd", async () => {
+  const shellInputs = [
+    { cmd: "cat requirement.md", workdir: STAGING },
+    {
+      type: "exec",
+      command: ["cat", "requirement.md"],
+      working_directory: STAGING,
+    },
+  ];
+  for (const input of shellInputs) {
+    const scan = await scanCodex([{
+      type: "response_item",
+      payload: "cmd" in input
+        ? {
+          type: "function_call",
+          name: "exec_command",
+          arguments: JSON.stringify(input),
+        }
+        : { type: "local_shell_call", action: input },
+    }], `${REPO}/examples/slotted`);
+    assert.equal(scan.verdict, "clean", JSON.stringify(scan));
+  }
+});
+
 test("a Codex child's code-mode exec reading through a cd is forbidden", async () => {
   const path = `${REPO}/examples/slotted/rooms.sigil`;
   const scan = await scanCodex([{

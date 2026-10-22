@@ -51,6 +51,7 @@ import {
   STAGES,
 } from "./records.ts";
 import type { ComponentStructure, StructureMeasures } from "./structure.ts";
+import { checkCoverageReader, type CoverageFile } from "./coverage.ts";
 
 export type Cell = number | string;
 export type Row = readonly [string, Cell];
@@ -768,6 +769,8 @@ export async function buildReport(options: ReportOptions): Promise<string> {
         `The reference store for ${list} has no reader.json; pin the reference before reporting`,
       );
     }
+    const coverage = await readOptionalJson<CoverageFile>(paths.coverage);
+    if (coverage) checkCoverageReader(coverage, reader);
     references.set(list, {
       list,
       location,
@@ -880,6 +883,7 @@ export async function buildReport(options: ReportOptions): Promise<string> {
           benchmark,
           withCoverage(reading, {
             requirements: await inputsFor(benchmark),
+            expectedReader: reference.reader,
             onCoverageError: "unavailable",
           }),
         );
@@ -911,16 +915,29 @@ export async function buildReport(options: ReportOptions): Promise<string> {
       const paths = attemptPaths(entry.batch.dir, entry.record.id);
       const claims = entry.record.stages.claims?.status;
       const coverage = entry.record.stages.coverage?.status;
+      const sameReader = sameJson(
+        entry.record.reader ?? entry.batch.manifest.reader,
+        entry.batch.manifest.reader,
+      );
+      const wrongReader =
+        "readings were taken by a different reader; reread with --coverage";
       entry.measures = await measureDesign({
         sigilc: options.sigilc,
         root: paths.design,
         store: paths.store,
-        claimsUnavailable: claims === "done"
+        expectedReader: entry.batch.manifest.reader,
+        claimsUnavailable: !sameReader
+          ? wrongReader
+          : claims === "done"
           ? undefined
           : `claims stage ${shownStatus(claims ?? "pending")}`,
-        coverage: coverage === "done" ? { path: paths.coverage } : {
-          reason: `coverage stage ${shownStatus(coverage ?? "pending")}`,
-        },
+        coverage: !sameReader
+          ? { reason: wrongReader }
+          : coverage === "done"
+          ? { path: paths.coverage }
+          : {
+            reason: `coverage stage ${shownStatus(coverage ?? "pending")}`,
+          },
         requirements: requirementsOf.get(entry)!,
         onCoverageError: "unavailable",
       });

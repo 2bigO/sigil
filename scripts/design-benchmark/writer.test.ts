@@ -5,6 +5,7 @@ import { REPO_ROOT } from "./records.ts";
 import {
   parseWriterHandback,
   REVIEWER_CHILD,
+  reviewEvidenceCommand,
   WRITABLE,
   WRITER_CHILDREN,
   WRITER_SHELL,
@@ -124,4 +125,21 @@ test("the writer stages every skill sigil-write needs, and its children differ i
   expect(REVIEWER_CHILD.piTools).not.toContain("write");
   expect(WRITER_SHELL as readonly string[]).toContain("sigil");
   expect(WRITER_SHELL as readonly string[]).toContain("sigilc");
+});
+
+test("the reviewer can verify exact evidence with scoped Bash and no write tools", () => {
+  expect(REVIEWER_CHILD.claudeTools).toContain("Bash");
+  expect(REVIEWER_CHILD.claudeHooks).toEqual({
+    PreToolUse: [{
+      matcher: "Bash",
+      hooks: [{
+        type: "command",
+        command: `${reviewEvidenceCommand()} --guard`,
+      }],
+    }],
+  });
+  expect(REVIEWER_CHILD.piTools).toContain("review_evidence");
+  expect(REVIEWER_CHILD.piTools).not.toContain("bash");
+  expect(REVIEWER_CHILD.prompt).toContain("SHA-256");
+  expect(REVIEWER_CHILD.prompt).toContain("UTF-8 byte");
 });

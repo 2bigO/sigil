@@ -1,10 +1,11 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { exists, treeSha256, writeJson } from "../agent-runner/files.ts";
-import { rereadBatch, runBatch } from "./batch.ts";
+import { rereadBatch, rereadReference, runBatch } from "./batch.ts";
 import {
+  copyPinnedReference,
   fakeHosts,
   fakeReader,
   type FakeReaderOptions,
@@ -14,11 +15,13 @@ import {
   pinnedReference,
 } from "./fakes.ts";
 import { pinReader } from "./reader.ts";
+import { copyDir } from "./stages.ts";
 import {
   attemptPaths,
   type PassRecord,
   readBatch,
   readJsonFile,
+  referenceStorePaths,
   REPO_ROOT,
 } from "./records.ts";
 import { buildReport } from "./report.ts";
@@ -357,6 +360,133 @@ describe("regenerate passes", () => {
 });
 
 describe("interruption and reread", () => {
+  test(
+    "a changed pin refuses stale reference readings before starting a writer",
+    async () => {
+      const scratch = await tempDir();
+      const pinned = await copyPinnedReference(reference, scratch);
+      await pinReader({
+        referenceDir: pinned.dir,
+        skillsDir: join(REPO_ROOT, "skills"),
+        agent: "claude",
+        model: "new-reader",
+        effort: "high",
+        force: true,
+      });
+      let launches = 0;
+      await expect(runBatch({
+        ...pinned.environment,
+        hostFor: () => {
+          launches++;
+          return reader;
+        },
+        benchmark: "slotted-with-split",
+        writers: [{ agent: "claude", model: "writer-model" }],
+        effort: "high",
+        passes: 1,
+        out: join(scratch, "batch"),
+      })).rejects.toThrow(/reader-model.*new-reader/);
+      expect(launches).toBe(0);
+    },
+    LONG,
+  );
+
+  test(
+    "reread refuses a pinned reader identical to a batch writer before changing evidence",
+    async () => {
+      const { batchDir, scratch } = await onePass({ design: TWO_COMPONENTS });
+      const pinned = await copyPinnedReference(reference, scratch);
+      await pinReader({
+        referenceDir: pinned.dir,
+        skillsDir: join(REPO_ROOT, "skills"),
+        agent: "claude",
+        model: "writer-model",
+        effort: "high",
+        force: true,
+      });
+      const before = await treeSha256(batchDir);
+      await expect(rereadBatch({
+        ...pinned.environment,
+        batchDir,
+        coverage: true,
+      })).rejects.toThrow(/is the pinned reader/);
+      expect(await treeSha256(batchDir)).toBe(before);
+    },
+    LONG,
+  );
+
+  test(
+    "a partial changed-reader reread preserves untouched legacy pass provenance",
+    async () => {
+      const { batchDir, scratch } = await onePass({ design: TWO_COMPONENTS }, {
+        passes: 2,
+      });
+      // Legacy records have only the batch-wide reader identity.
+      for (const record of (await readBatch(batchDir)).records) {
+        const { reader: _reader, ...legacy } = record;
+        await writeJson(attemptPaths(batchDir, record.id).record, legacy);
+      }
+      const pinned = await copyPinnedReference(reference, scratch);
+      await pinReader({
+        referenceDir: pinned.dir,
+        skillsDir: join(REPO_ROOT, "skills"),
+        agent: "claude",
+        model: "new-reader",
+        effort: "high",
+        force: true,
+      });
+      const out = join(scratch, "new-reference-readings");
+      await rereadReference({ ...pinned.environment, coverage: true, out });
+      const paths = referenceStorePaths(pinned.dir);
+      await copyDir(join(out, "store"), paths.store);
+      await copyFile(join(out, "readings.json"), paths.readings);
+      await copyFile(join(out, "coverage.json"), paths.coverage);
+
+      const stopped = new AbortController();
+      stopped.abort();
+      const empty = await rereadBatch({
+        ...pinned.environment,
+        batchDir,
+        coverage: true,
+        signal: stopped.signal,
+      });
+      expect(empty.reread).toEqual([]);
+      expect(empty.reportError).toContain("report refuses to compare them");
+      expect((await readBatch(batchDir)).manifest.reader.model).toBe(
+        "reader-model",
+      );
+
+      const controller = new AbortController();
+      const result = await rereadBatch({
+        ...pinned.environment,
+        batchDir,
+        coverage: true,
+        signal: controller.signal,
+        log: (line) => {
+          if (line === "reread 000002") controller.abort();
+        },
+      });
+      expect(result.reread).toEqual(["000001"]);
+      expect(result.reportError).toBeNull();
+      const after = await readBatch(batchDir);
+      expect(after.manifest.reader.model).toBe("new-reader");
+      expect(after.records[0]!.reader!.model).toBe("new-reader");
+      expect(after.records[1]!.reader!.model).toBe("reader-model");
+      expect(after.records[1]!.stages.claims.status).toBe("done");
+      expect(after.records[1]!.stages.coverage.status).toBe("done");
+      const report = await readFile(result.reportPath, "utf8");
+      expect(report).toContain(
+        "unavailable: readings were taken by a different reader",
+      );
+      await expect(rereadBatch({
+        ...pinned.environment,
+        batchDir,
+        coverage: false,
+      })).rejects.toThrow(/Reread it with --coverage/);
+    },
+    LONG,
+  );
+
   test(
     "a cancelled batch records the active stage as interrupted, keeps its staging directory and writes a report",
     async () => {

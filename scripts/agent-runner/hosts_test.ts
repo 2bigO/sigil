@@ -49,6 +49,31 @@ function settings(
   };
 }
 
+test("Pi loads only the extensions explicitly supplied for a child", async () => {
+  await withTempDir("agent-runner-hosts-", async (root) => {
+    await buildHostLaunch(settings(root, {
+      host: "pi",
+      children: [INTERPRETER, {
+        ...REVIEWER,
+        piExtensions: [join(root, "bin/review-evidence-pi.mjs")],
+      }],
+    }));
+    const reviewer = await readFile(
+      join(root, ".pi/agents/reviewer.md"),
+      "utf8",
+    );
+    assert.ok(
+      reviewer.includes(
+        `extensions: ${join(root, "bin/review-evidence-pi.mjs")}`,
+      ),
+    );
+    assert.ok(
+      !(await readFile(join(root, ".pi/agents/interpreter.md"), "utf8"))
+        .includes("extensions:"),
+    );
+  });
+});
+
 test("Claude defines every child agent and allows the named shell programs", async () => {
   await withTempDir("agent-runner-hosts-", async (root) => {
     const launch = await buildHostLaunch(

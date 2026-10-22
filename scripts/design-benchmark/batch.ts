@@ -40,7 +40,11 @@ import { parseHostName } from "../agent-runner/hosts.ts";
 import { defaultForbiddenRoots } from "../agent-runner/read-scan.ts";
 import { PASS_LAYOUT } from "../slotted-benchmark/agents.ts";
 import { designDigest, referenceStoreDigest } from "./baseline.ts";
-import { countVerdicts, type CoverageFile } from "./coverage.ts";
+import {
+  checkCoverageReader,
+  countVerdicts,
+  type CoverageFile,
+} from "./coverage.ts";
 import { measureClaims, requirementInputs } from "./measure.ts";
 import {
   COVERAGE_LAYOUT,
@@ -196,7 +200,25 @@ async function requirePinnedReference(
       }). Pin the reference first: reread reference --coverage, then copy its output in (see README.md, "Pin the reference").`,
     );
   }
+  checkCoverageReader(await readJsonFile<CoverageFile>(paths.coverage), reader);
   return reader;
+}
+
+function checkReaderIndependence(
+  writers: readonly WriterIdentity[],
+  effort: string,
+  reader: ReaderIdentity,
+): void {
+  for (const writer of writers) {
+    if (
+      writer.agent === reader.agent && writer.model === reader.model &&
+      effort === reader.effort
+    ) {
+      throw new Error(
+        `The writer ${writer.agent}:${writer.model} at ${effort} is the pinned reader; choose a different agent, model or reasoning level for the writer`,
+      );
+    }
+  }
 }
 
 function stamp(): string {
@@ -419,16 +441,7 @@ export async function runBatch(options: RunOptions): Promise<RunResult> {
   }
   const location = referenceLocation(context, definition.list);
   const reader = await requirePinnedReference(location);
-  for (const writer of options.writers) {
-    if (
-      writer.agent === reader.agent && writer.model === reader.model &&
-      options.effort === reader.effort
-    ) {
-      throw new Error(
-        `The writer ${writer.agent}:${writer.model} at ${options.effort} is the pinned reader; choose a different agent, model or reasoning level for the writer`,
-      );
-    }
-  }
+  checkReaderIndependence(options.writers, options.effort, reader);
   const batchDir = resolve(
     options.out ??
       join(
@@ -481,6 +494,7 @@ export async function runBatch(options: RunOptions): Promise<RunResult> {
         id,
         agent: writer.agent,
         model: writer.model,
+        reader,
         stages: {
           writer: PENDING,
           readScan: PENDING,
@@ -866,8 +880,18 @@ export async function rereadBatch(
   const definition = benchmarkNamed(batch.manifest.benchmark);
   const location = referenceLocation(context, definition.list);
   const reader = await loadPinnedReader(location.dir);
+  checkReaderIndependence(
+    batch.manifest.writers,
+    batch.manifest.effort,
+    reader,
+  );
   if (
-    !options.coverage && !sameJson(reader, batch.manifest.reader)
+    !options.coverage && (
+      !sameJson(reader, batch.manifest.reader) ||
+      batch.records.some((record) =>
+        !sameJson(record.reader ?? batch.manifest.reader, reader)
+      )
+    )
   ) {
     throw new Error(
       `The pinned reader changed since ${batch.name} was read; its coverage readings were taken by the old reader. Reread it with --coverage.`,
@@ -883,6 +907,14 @@ export async function rereadBatch(
   const reread: string[] = [];
   const skipped: { id: string; reason: string }[] = [];
   let readings: ReadingsIdentity | null = null;
+  for (const record of batch.records) {
+    if (!record.reader) {
+      await writeJson(attemptPaths(batchDir, record.id).record, {
+        ...record,
+        reader: batch.manifest.reader,
+      });
+    }
+  }
   for (const scheduled of batch.records) {
     if (context.host.signal?.aborted) break;
     const paths = attemptPaths(batchDir, scheduled.id);
@@ -901,6 +933,7 @@ export async function rereadBatch(
       continue;
     }
     context.log(`reread ${scheduled.id}`);
+    if (context.host.signal?.aborted) break;
     const superseded = join(paths.evidence, `superseded-${when}`);
     await mkdir(superseded, { recursive: true });
     if (await exists(paths.store)) {
@@ -909,7 +942,7 @@ export async function rereadBatch(
     if (options.coverage && await exists(paths.coverage)) {
       await rename(paths.coverage, join(superseded, "coverage.json"));
     }
-    let record: PassRecord = scheduled;
+    let record: PassRecord = { ...scheduled, reader };
     const set = (stage: StageName, state: StageState) => {
       record = withStage(record, stage, state);
     };
@@ -968,12 +1001,14 @@ export async function rereadBatch(
   }
   const manifest: BatchManifest = {
     ...batch.manifest,
-    reader,
+    reader: reread.length > 0 ? reader : batch.manifest.reader,
     readings: readings ?? batch.manifest.readings,
-    reference: {
-      tree: await designDigest(location.root),
-      store: await referenceStoreDigest(location.dir),
-    },
+    reference: reread.length > 0
+      ? {
+        tree: await designDigest(location.root),
+        store: await referenceStoreDigest(location.dir),
+      }
+      : batch.manifest.reference,
     rereads: [
       ...(batch.manifest.rereads ?? []),
       {

@@ -48,8 +48,12 @@ export interface ChildAgentDefinition {
   readonly prompt: string;
   /** Claude Code tools the child may use. */
   readonly claudeTools: readonly string[];
+  /** Claude agent-scoped lifecycle hooks (for example a read-only Bash gate). */
+  readonly claudeHooks?: JsonObject;
   /** Pi tools the child may use. */
   readonly piTools: readonly string[];
+  /** Pi extensions loaded only for this child (normally absolute staged paths). */
+  readonly piExtensions?: readonly string[];
 }
 
 export interface HostSettings {
@@ -194,6 +198,7 @@ export async function buildHostLaunch(
           description: child.description,
           prompt: child.prompt,
           tools: [...child.claudeTools],
+          ...(child.claudeHooks ? { hooks: child.claudeHooks } : {}),
           model: settings.childModel,
           ...(settings.childEffort ? { effort: settings.childEffort } : {}),
         }]),
@@ -264,6 +269,9 @@ export async function buildHostLaunch(
             `name: ${child.name}`,
             `description: ${child.description}`,
             `tools: ${child.piTools.join(", ")}`,
+            ...(child.piExtensions
+              ? [`extensions: ${child.piExtensions.join(", ")}`]
+              : []),
             `model: ${settings.childModel}`,
             ...(settings.childEffort
               ? [`thinking: ${settings.childEffort}`]

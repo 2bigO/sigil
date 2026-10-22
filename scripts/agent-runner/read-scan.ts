@@ -471,6 +471,7 @@ function analyzeShell(
 ): Targets {
   const targets: Targets = { paths: [], searches: [], cwdAfter: null };
   let cwd = base;
+  if (commands.length > 0) targets.paths.push(cwd);
   const addPath = (word: string) => {
     if (isPathLike(word)) targets.paths.push(resolvePath(word, cwd, home));
   };

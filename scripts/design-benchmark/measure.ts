@@ -28,6 +28,7 @@ import {
   compareText,
   INTERPRETATIONS_DIR,
   PACKAGE_DIR,
+  type ReaderIdentity,
   readJsonFile,
   type RequirementList,
 } from "./records.ts";
@@ -129,6 +130,8 @@ export async function requirementInputs(
 }
 
 export interface MeasureInput {
+  /** When comparing readings, require the stored coverage to name this reader. */
+  readonly expectedReader?: ReaderIdentity;
   readonly sigilc: string;
   readonly root: string;
   /** A `sigilc --store` directory holding the claims readings, or null. */
@@ -220,7 +223,10 @@ export async function readDesign(
 /** A read design's measures, with its coverage checked against `input`. */
 export function withCoverage(
   reading: DesignReading,
-  input: Pick<MeasureInput, "requirements" | "onCoverageError">,
+  input: Pick<
+    MeasureInput,
+    "requirements" | "onCoverageError" | "expectedReader"
+  >,
 ): DesignMeasures {
   const { identity, structure, claims } = reading;
   if (reading.unparseable !== null) {
@@ -255,6 +261,7 @@ export function withCoverage(
         status: "available",
         value: measureCoverage(file, identity.coverage!, {
           ...input.requirements,
+          expectedReader: input.expectedReader,
           facets,
         }),
       },

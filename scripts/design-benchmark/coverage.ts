@@ -29,7 +29,12 @@
  */
 import { errorMessage } from "../agent-runner/files.ts";
 import type { RequirementInputs } from "./measure.ts";
-import { COVERAGE_VERSION, type ReaderIdentity } from "./records.ts";
+import {
+  canonicalJson,
+  COVERAGE_VERSION,
+  type ReaderIdentity,
+  sameJson,
+} from "./records.ts";
 
 const VERDICTS = ["answered", "none", "not-read"] as const;
 export type Verdict = typeof VERDICTS[number];
@@ -56,6 +61,7 @@ export interface CoverageFile {
 
 /** What a coverage file must match to be measured. */
 export interface CoverageContext extends RequirementInputs {
+  readonly expectedReader?: ReaderIdentity;
   /** Every Facet id in the design's tree, with its label. */
   readonly facets: ReadonlyMap<string, string>;
 }
@@ -72,6 +78,21 @@ export interface CoverageMeasures {
 
 export class CoverageError extends Error {}
 
+export function checkCoverageReader(
+  file: CoverageFile,
+  expected: ReaderIdentity,
+): void {
+  if (!sameJson(file.reader, expected)) {
+    throw new CoverageError(
+      `coverage was read by ${
+        canonicalJson(file.reader)
+      }, but the expected reader is ${
+        canonicalJson(expected)
+      }; reread with --coverage`,
+    );
+  }
+}
+
 /**
  * Validate a coverage file against the design and the current requirement
  * inputs, and count its verdicts. Throws `CoverageError` naming what is wrong.
@@ -81,6 +102,7 @@ export function measureCoverage(
   digest: string,
   context: CoverageContext,
 ): CoverageMeasures {
+  if (context.expectedReader) checkCoverageReader(file, context.expectedReader);
   if (file.version !== COVERAGE_VERSION) {
     throw new CoverageError(
       `coverage file version ${file.version} is not ${COVERAGE_VERSION}`,

@@ -5,6 +5,8 @@
  */
 import type { ChildAgentDefinition } from "../agent-runner/hosts.ts";
 import type { PromptContext } from "../agent-runner/launch.ts";
+import { join } from "node:path";
+import process from "node:process";
 import { INTERPRETER_CHILD } from "../slotted-benchmark/agents.ts";
 
 /** Every skill the writer gets, staged side by side under `skills/`. */
@@ -52,15 +54,58 @@ export const WRITER_SHELL = [
   "tail",
 ] as const;
 
+/** A fixed script prefix, never general runtime execution. Deno needs reads only. */
+export function reviewEvidenceCommand(dir?: string): string {
+  const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  return [
+    quote(process.execPath),
+    ...(process.versions.deno
+      ? ["run", "--no-config", "--no-lock", quote(`--allow-read=${dir ?? "."}`)]
+      : []),
+    quote(
+      dir ? join(dir, "bin/review-evidence.mjs") : "./bin/review-evidence.mjs",
+    ),
+  ].join(" ");
+}
+
+const REVIEW_EVIDENCE_COMMAND = reviewEvidenceCommand();
+
 /** The read-only child for the delegated `sigil-evaluate` review. */
 export const REVIEWER_CHILD: ChildAgentDefinition = {
   name: "reviewer",
   description: "Fresh read-only design reviewer",
   prompt:
-    "You are a fresh, read-only Sigil design reviewer. Load the sigil-evaluate skill from the path your task names and review exactly the captured inputs it names. Read only those files and the skills beside sigil-evaluate. Write nothing: return your whole review report as your final message.",
-  claudeTools: ["Read", "Glob", "Grep"],
-  piTools: ["read", "grep", "find", "ls"],
+    "You are a fresh, read-only Sigil design reviewer. Load the sigil-evaluate skill from the path your task names and review exactly the captured inputs it names. Read only those files and the skills beside sigil-evaluate. Write nothing: return your whole review report as your final message. " +
+    `Verify SHA-256 identities and extract UTF-8 byte ranges with the read-only helper: on Claude run \`${REVIEW_EVIDENCE_COMMAND} FILE [SHA256 [START END]]\`; on Pi use review_evidence with path, optional sha256, start and end. Offsets are zero-based bytes with an exclusive end. Byte extraction requires the expected digest; a mismatch fails before returning any prose. Without a supplied digest the helper returns the saved bytes' digest and text, for authority and additional-context identities. It only reads inside this staged directory. Do not run other commands or redirect helper output.`,
+  claudeTools: ["Read", "Glob", "Grep", "Bash"],
+  // Claude's tools list selects Bash as a whole. The agent-scoped hook also
+  // blocks the writer's inherited shell permissions for this reviewer.
+  claudeHooks: {
+    PreToolUse: [{
+      matcher: "Bash",
+      hooks: [{
+        type: "command",
+        command: `${REVIEW_EVIDENCE_COMMAND} --guard`,
+      }],
+    }],
+  },
+  piTools: ["read", "grep", "find", "ls", "review_evidence"],
 };
+
+export function reviewerChild(dir: string): ChildAgentDefinition {
+  const command = reviewEvidenceCommand(dir);
+  return {
+    ...REVIEWER_CHILD,
+    prompt: REVIEWER_CHILD.prompt.replaceAll(REVIEW_EVIDENCE_COMMAND, command),
+    claudeHooks: {
+      PreToolUse: [{
+        matcher: "Bash",
+        hooks: [{ type: "command", command: `${command} --guard` }],
+      }],
+    },
+    piExtensions: [join(dir, "bin/review-evidence-pi.mjs")],
+  };
+}
 
 /**
  * The writer's children: an interpreter for each claims reading of its review

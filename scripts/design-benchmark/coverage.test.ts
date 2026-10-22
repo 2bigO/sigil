@@ -43,6 +43,16 @@ function rejection(file: CoverageFile): string {
 }
 
 describe("measureCoverage", () => {
+  test("rejects coverage taken by a different reader", () => {
+    const file = coverageFile(ids, digests);
+    expect(() =>
+      measureCoverage(file, "d", {
+        ...context,
+        expectedReader: { ...file.reader, model: "new-reader" },
+      })
+    ).toThrow(/reader-model.*new-reader/);
+  });
+
   test("counts answered, none and not-read in list order, with labels from the tree", () => {
     const file = coverageFile(ids, digests, {
       R22: [{ id: "facet:aa", label: "stale label" }],
